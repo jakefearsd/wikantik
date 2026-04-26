@@ -176,6 +176,22 @@ Typical wall time: ~1-2 minutes for ~1000 pages.
 
 To change chunker behaviour: edit `tomcat/tomcat-11/lib/wikantik-custom.properties`, restart Tomcat, then run phase 1. The rebuild service uses whatever chunker was constructed at engine startup.
 
+#### Chunker tuning notes
+
+The chunker has two configurable knobs but they're not equally useful in practice. Empirical sweep against the 979-page corpus (using `bin/kg-extract.sh --chunker-stats-only`):
+
+| `merge_forward_tokens` | Total chunks | Mean tokens | p90 |
+|---|---|---|---|
+| 150 (default) | 21,406 | 180 | 276 |
+| 250 | 18,843 | 204 | 338 |
+| 350 | 17,535 | 219 | 416 |
+
+`max_tokens` (the ceiling) barely moves the needle on this corpus — sweeping 512 → 1024 → 2048 gives nearly identical numbers because no prose blocks are large enough to bump the ceiling. The lever that works is `merge_forward_tokens`: each +100 of merge floor cuts chunk count by ~12%, which directly translates to ~12% fewer LLM calls in phase 4.
+
+**Atomic blocks bypass both knobs.** Fenced code, lists, and tables emit as their own chunks regardless of size — even a 30-token code fence becomes its own chunk. That's why the prefilter's `pure_code` rule exists: it removes the small atomic chunks the chunker can't merge away.
+
+Use `bin/kg-extract.sh --chunker-stats-only --chunker-merge-forward-tokens N` to sweep candidate values in seconds before committing to a phase 1 rebuild.
+
 ### Phase 2 — Chunk embedding reindex
 
 Triggered by `POST /admin/content/reindex-embeddings`. Polls the same status endpoint for `embeddings.bootstrap.state`. Terminal states: `COMPLETED`, `SKIPPED_ALREADY_POPULATED`, `SKIPPED_NO_CHUNKS` (treated as success), `FAILED`, `DISABLED` (treated as fatal).
@@ -252,11 +268,93 @@ See `bin/kg-extract.sh --help` for the complete flag list. The most common knobs
 | Flag | Purpose |
 |---|---|
 | `--ollama-model <tag>` | Switch model without touching config |
-| `--concurrency <N>` | 1-10; raise for small models on a fast GPU |
+| `--concurrency <N>` | 1-10; raise for small models on a fast GPU. Cap was 4 prior to commit `965da952b` and was raised because small (1-3B) models leave plenty of GPU headroom. |
 | `--prefilter` | Enable the chunk prefilter |
 | `--prefilter-min-tokens <N>` | Drop chunks below N estimated tokens (default 20) |
 | `--force` | Clear prior mentions per chunk before re-extracting |
 | `--max-pages <N>` | Cap to first N pages — for smoke tests |
+
+#### The prefilter
+
+Three predicates, evaluated in this order so the most-specific reason for skipping is the one reported:
+
+1. **`pure_code`** — chunk text is a single fenced code block with no surrounding prose. Regex: `(?s)\A\s*```[^\n]*\n.*?\n```\s*\z`. Wipes the small atomic code chunks the chunker can't merge into surrounding prose. On a typical technical-content corpus this catches ~7% of chunks on its own.
+
+2. **`no_proper_noun`** — chunk text contains no token matching `\b\w*[A-Z]\w{2,}\b`. The leading `\w*` is what makes mixed-case names like `iPad`, `gRPC`, `eBay` match. Excludes pure-lowercase identifiers (`kubectl`, `npm`) and short caps like `Of` / `On`. Catches ~0.4% on a technical corpus.
+
+3. **`too_short`** — chunk's estimated token count (chars / 4) is below `--prefilter-min-tokens` (default 20). Tiny chunks rarely give the LLM enough context. Catches ~0.5% at the default threshold; raising to 50-100 finds where the curve bends.
+
+**Per-rule sub-flags** let you isolate behaviour: `--no-prefilter-skip-code`, `--no-prefilter-skip-nopn`, `--no-prefilter-skip-short`. All require `--prefilter` (or `--stats-only` / `--chunker-stats-only`) to be meaningful.
+
+**Dry-run** (`--prefilter-dry-run`) evaluates the predicates but never actually skips — chunks still go to the extractor, but the would-skip reason is logged. Useful when you want to validate predicate behaviour against a representative slice of pages.
+
+#### Model selection and lineage
+
+The `extractor` column on `chunk_entity_mentions` carries the **model tag**, not the backend code. As of commit `3f9c7b672`, `OllamaEntityExtractor.code()` returns the configured `ollama.model` value with `:latest` stripped. So:
+
+- A run with `--ollama-model gemma4-assist:latest` writes `extractor='gemma4-assist'`
+- A run with `--ollama-model qwen2.5:1.5b-instruct` writes `extractor='qwen2.5:1.5b-instruct'`
+
+This means you can A/B compare two models against overlapping page sets and tell their mentions apart at SQL inspection time. See [Inspection queries](#inspection-queries) below for example queries that exploit this.
+
+Pre-existing rows tagged with the literal `'ollama'` (from before the lineage change) are left as-is. To backfill them to a known historical model, run a one-shot UPDATE — but per project convention, that goes in psql by hand, not in a Vxxx migration.
+
+## Non-destructive stats modes
+
+`bin/kg-extract.sh` has two modes that walk data and report without writing anything. Both exit 0 on completion. Use them in tight tuning loops where a real run would be wasteful.
+
+#### `--stats-only` — prefilter sizing
+
+Walks every chunk in `kg_content_chunks`, evaluates the configured prefilter, and prints reason-by-reason skip counts. Requires the database to be reachable. Does not call the LLM.
+
+```bash
+# Default-thresholds preview against the live corpus
+bin/kg-extract.sh --stats-only
+
+# Tighter floor — see how many more chunks get pruned at min=50
+bin/kg-extract.sh --stats-only --prefilter-min-tokens 50
+```
+
+Output:
+
+```
+Stats-only: total=22209 kept=20502 skipped=1707 (7.7%) in 14667ms
+  reason=no_proper_noun count=78 (0.4%)
+  reason=pure_code count=1528 (6.9%)
+  reason=too_short count=101 (0.5%)
+```
+
+Wall time: ~15 seconds for ~22K chunks.
+
+#### `--chunker-stats-only` — chunker sweeps
+
+Reads markdown directly from `--pages-dir` (default `docs/wikantik-pages`), runs `ContentChunker` in memory at the supplied `--chunker-*` overrides, and prints the chunk-size distribution + the prefilter's effect on the new chunks. **Does not need Tomcat or the database.**
+
+```bash
+# Default config
+bin/kg-extract.sh --chunker-stats-only
+
+# Sweep merge_forward_tokens to find the right floor
+bin/kg-extract.sh --chunker-stats-only --chunker-merge-forward-tokens 300
+bin/kg-extract.sh --chunker-stats-only --chunker-merge-forward-tokens 500
+```
+
+Output:
+
+```
+Chunker-stats: pages=979 chunks=21406 elapsedMs=1399
+Tokens per chunk: min=1 mean=180 p50=162 p90=276 p99=462 max=250000
+Distribution:
+    0-50  : 1375 (6.4%)
+   51-150 : 7414 (34.6%)
+  151-300 : 11088 (51.8%)
+  301-500 : 1435 (6.7%)
+  501-1k  : 89 (0.4%)
+  1001+   : 5 (0.0%)
+Prefilter on these chunks: kept=19729 skipped=1677 (7.8%)
+```
+
+Wall time: ~1.5 seconds for the 979-page corpus.
 
 ## Skipping phases
 
@@ -342,6 +440,36 @@ SELECT COUNT(*) AS chunks, (SELECT COUNT(*) FROM kg_content_chunk_embeddings) AS
 SELECT extractor, COUNT(*) AS n_mentions FROM chunk_entity_mentions
  GROUP BY extractor ORDER BY n_mentions DESC;
 
+-- 3a. Model-by-model A/B comparison: how many distinct nodes did each
+--     model touch on the same chunks? (Higher recall ≠ better — could
+--     just mean the model is more verbose.)
+SELECT extractor, COUNT(DISTINCT chunk_id) AS chunks_with_mentions,
+       COUNT(DISTINCT node_id) AS distinct_nodes, COUNT(*) AS total_mentions
+  FROM chunk_entity_mentions
+ GROUP BY extractor ORDER BY extractor;
+
+-- 3b. Mentions emitted by one model but not another for the same chunk —
+--     useful for spot-checking quality differences. Replace the literals
+--     with two model tags actually present in your data.
+SELECT chunk_id,
+       array_agg(DISTINCT extractor ORDER BY extractor) AS extractors,
+       COUNT(DISTINCT node_id) FILTER (WHERE extractor='gemma4-assist') AS gemma_nodes,
+       COUNT(DISTINCT node_id) FILTER (WHERE extractor='qwen2.5:1.5b-instruct') AS qwen_nodes
+  FROM chunk_entity_mentions
+ WHERE extractor IN ('gemma4-assist','qwen2.5:1.5b-instruct')
+ GROUP BY chunk_id
+HAVING COUNT(DISTINCT extractor) > 1
+   AND COUNT(DISTINCT node_id) FILTER (WHERE extractor='gemma4-assist')
+       <> COUNT(DISTINCT node_id) FILTER (WHERE extractor='qwen2.5:1.5b-instruct')
+ ORDER BY ABS(COUNT(DISTINCT node_id) FILTER (WHERE extractor='gemma4-assist')
+            - COUNT(DISTINCT node_id) FILTER (WHERE extractor='qwen2.5:1.5b-instruct')) DESC
+ LIMIT 20;
+
+-- 3c. Extraction lineage timeline — when did each model get used?
+SELECT extractor, MIN(extracted_at) AS first_seen, MAX(extracted_at) AS last_seen,
+       COUNT(*) AS mentions
+  FROM chunk_entity_mentions GROUP BY extractor ORDER BY first_seen;
+
 -- 4. Proposals queue depth and lineage
 SELECT proposal_type, status, COUNT(*) FROM kg_proposals
  GROUP BY proposal_type, status ORDER BY 1, 2;
@@ -361,13 +489,28 @@ Properties read at engine startup, set in `tomcat/tomcat-11/lib/wikantik-custom.
 
 | Property | Default | Affects |
 |---|---|---|
+| **Chunker** | | |
 | `wikantik.chunker.max_tokens` | `512` | Phase 1: hard ceiling on a non-atomic chunk |
 | `wikantik.chunker.merge_forward_tokens` | `150` | Phase 1: floor below which a chunk merges into the next section |
+| **Embedding** | | |
 | `wikantik.search.hybrid.enabled` | (deploy-specific) | Phase 2: false skips embedding reindex with a warning |
+| **Extractor backend** | | |
 | `wikantik.knowledge.extractor.backend` | `disabled` | Phase 4: `ollama` / `claude` / `disabled` |
-| `wikantik.knowledge.extractor.ollama.model` | `gemma4-assist:latest` | Phase 4: which Ollama model to call |
+| `wikantik.knowledge.extractor.ollama.model` | `gemma4-assist:latest` | Phase 4: Ollama model tag (`:latest` is stripped before being recorded in the `extractor` column) |
+| `wikantik.knowledge.extractor.ollama.base_url` | `http://inference.jakefear.com:11434` | Phase 4: Ollama HTTP endpoint |
+| `wikantik.knowledge.extractor.claude.model` | `claude-haiku-4-5` | Phase 4: Anthropic model id when backend=`claude` |
+| `wikantik.knowledge.extractor.timeout_ms` | `120000` | Phase 4: per-chunk LLM call timeout |
+| `wikantik.knowledge.extractor.confidence_threshold` | `0.6` | Phase 4: proposals below this are dropped, not filed |
+| `wikantik.knowledge.extractor.max_existing_nodes` | `200` | Phase 4: cap on existing-nodes dictionary included in the prompt |
+| `wikantik.knowledge.extractor.concurrency` | `2` | Phase 4: in-flight LLM calls. Hard-clamped to `[1, 10]` (was 4 prior to commit `965da952b`). |
+| `wikantik.knowledge.extractor.per_page_min_interval_ms` | `5000` | Save-time path only: rate limit between extractions of the same page on rapid edits |
+| **Prefilter** | | |
 | `wikantik.knowledge.extractor.prefilter.enabled` | `false` | Phase 4: master switch for the chunk prefilter |
-| `wikantik.knowledge.extractor.prefilter.min_tokens` | `20` | Phase 4: too-short threshold |
+| `wikantik.knowledge.extractor.prefilter.dry_run` | `false` | Phase 4: log decisions only — no chunks actually skipped |
+| `wikantik.knowledge.extractor.prefilter.skip_pure_code` | `true` | Phase 4: enable the pure-code-block predicate |
+| `wikantik.knowledge.extractor.prefilter.skip_no_proper_noun` | `true` | Phase 4: enable the proper-noun-absence predicate |
+| `wikantik.knowledge.extractor.prefilter.skip_too_short` | `true` | Phase 4: enable the too-short predicate |
+| `wikantik.knowledge.extractor.prefilter.min_tokens` | `20` | Phase 4: too-short threshold (chars/4 estimate) |
 
 CLI flags on `bin/kg-extract.sh` override these properties for a single run, which is what makes the experiment loop fast — you don't have to restart Tomcat between trials of model or prefilter changes.
 
@@ -393,6 +536,22 @@ Environment variables:
 | `POLL_SECONDS` | `10` | Status-poll cadence during phases 1 and 2 |
 | `PROGRESS_SECONDS` | `30` | How often a periodic progress line (count + rate + ETA) is emitted while a phase is in `RUNNING` state. Decoupled from `POLL_SECONDS` so state transitions still surface promptly. |
 
+### Periodic progress feedback
+
+While phases 1 and 2 are in their `RUNNING` states, the script emits a periodic progress line every `PROGRESS_SECONDS` (30 by default) so a long-running phase doesn't go silent between state transitions:
+
+```
+[kg-rebuild] embedding reindex: state=RUNNING (chunks 0 / 21367)
+[kg-rebuild] embedding reindex: 1247 / 21367 (5.8%) — rate=41 chunks/s, ETA 0h08m
+[kg-rebuild] embedding reindex: 2533 / 21367 (11.9%) — rate=42 chunks/s, ETA 0h07m
+…
+[kg-rebuild] embedding reindex: state=COMPLETED (chunks 21367 / 21367)
+```
+
+The rate / ETA tail is suppressed early in a run (when no work has happened yet) and at completion (when there's nothing left to estimate), so you won't see misleading `0/s, ETA 0h00m` noise. To get more frequent updates: `PROGRESS_SECONDS=10 bin/kg-rebuild.sh …`.
+
+Phase 4's per-chunk progress comes from `bin/kg-extract.sh`'s own log4j2 lines, not the orchestrator. The CLI logs an `Extract-CLI progress:` summary every `--poll-seconds` (default 30) plus per-chunk INFO lines from the indexer.
+
 ## Troubleshooting
 
 **"unreachable — is Tomcat running and credentials valid?"** — confirm Tomcat is up (`tomcat/tomcat-11/bin/startup.sh`) and that `test.properties` carries the `testbot` admin credentials. The script can't proceed without a valid admin session for the `/admin/content/*` endpoints.
@@ -405,14 +564,60 @@ Environment variables:
 
 **The run aborts mid-phase-4 and you want to resume** — re-run with `--skip-chunks --skip-embeddings`. Without `--force` the extractor will upsert mentions on the existing primary key, so chunks that already produced mentions are effectively re-runs against the same node IDs (cheap, idempotent if the model output is stable).
 
-## Extractor CLI pass-through
+**Phase 3 `--purge-kg` confirmation rejected even though I typed yes** — the purge specifically requires `PURGE` (uppercase, exact). It's deliberately stricter than the `[y/N]` of `--reset-kg` so you don't fat-finger your way into a destructive run. Use `--yes` to bypass entirely in scripted contexts.
 
-For the complete extractor CLI flag list, run `bin/kg-extract.sh --help` directly. Every flag is forwarded by `bin/kg-rebuild.sh` after the optional `--` separator (or as the first unrecognised arg). The most useful ones for experimentation:
+**`--no-prefilter-skip-*` or `--prefilter-min-tokens` rejected as "no effect"** — the orphan-flag guard requires you to also pass `--prefilter`, `--prefilter-dry-run`, `--stats-only`, or `--chunker-stats-only` so the sub-flag isn't silently ignored. Add the master switch.
 
-- `--ollama-model <tag>` and `--ollama-url <url>` — model selection
-- `--concurrency <1..10>` — number of in-flight LLM calls
-- `--prefilter` / `--prefilter-dry-run` — enable filter / preview only
-- `--prefilter-min-tokens <N>` / `--no-prefilter-skip-*` — tune predicates
-- `--max-pages <N>` — limit to first N pages (alphabetical) for smoke tests
+**Embedding phase shows `state=DISABLED`** — `wikantik.search.hybrid.enabled=false` in your config. The rebuild script logs a warning and skips the phase rather than failing. To re-enable, flip the property and restart Tomcat.
+
+**Hub clustering / `kg_embeddings` table empty after `--purge-kg`** — by design. The KG-embedding and hub-clustering subsystems write their own data; phase 4's extraction doesn't repopulate them. They'll fill back up on the next page-save event or when the hub-discovery service runs.
+
+## Extractor CLI flag reference
+
+`bin/kg-extract.sh` has its own complete `--help`. Every flag is also forwarded by `bin/kg-rebuild.sh` after the optional `--` separator (or as the first unrecognised arg). Grouped by purpose:
+
+**Database connection** *(skipped automatically when `--chunker-stats-only` is set)*
+
+- `--jdbc-url <url>` — default `jdbc:postgresql://localhost:5432/jspwiki`
+- `--jdbc-user <name>` — default `jspwiki`
+- `--jdbc-password <value>` — literal (not recommended; appears in process listing)
+- `--jdbc-password-env <VAR>` — read password from env var (preferred; `bin/kg-extract.sh` itself uses this internally with `WIKANTIK_EXTRACT_PG_PASSWORD`)
+
+**Extractor backend selection**
+
+- `--backend ollama|claude|disabled` — default `ollama`
+- `--ollama-url <url>` — default `http://inference.jakefear.com:11434`
+- `--ollama-model <tag>` — default `gemma4-assist:latest`. Drives the `extractor` column lineage.
+- `--claude-model <id>` — default `claude-haiku-4-5` (Claude only)
+- `--anthropic-key-env <VAR>` — env var holding `ANTHROPIC_API_KEY` (Claude only)
+
+**Run tuning**
+
+- `--concurrency <1..10>` — default 2; clamped to band. Hard-capped at 10 since commit `965da952b` (was 4 before).
+- `--confidence-threshold <0..1>` — default 0.6
+- `--max-existing-nodes <N>` — default 200 (cap on the prompt's "known entities" dictionary)
+- `--timeout-ms <ms>` — default 120000
 - `--force` — clear prior mentions per chunk before re-extracting
-- `--stats-only` / `--chunker-stats-only` — non-destructive previews that exit before doing real work
+- `--max-pages <N>` — cap to first N pages alphabetically; 0 = unlimited
+- `--poll-seconds <N>` — progress-log cadence (default 30)
+
+**Prefilter** *(opt-in)*
+
+- `--prefilter` — enable
+- `--prefilter-dry-run` — log decisions, never actually skip
+- `--no-prefilter-skip-code` — disable pure-code-block predicate
+- `--no-prefilter-skip-nopn` — disable proper-noun-absence predicate
+- `--no-prefilter-skip-short` — disable too-short predicate
+- `--prefilter-min-tokens <N>` — too-short threshold (default 20)
+
+**Non-destructive stats modes** *(exit 0 before doing real work)*
+
+- `--stats-only` — walk live chunks, evaluate prefilter, print skip counts. Needs DB.
+- `--chunker-stats-only` — read pages from disk, re-chunk in memory at the supplied overrides, print distribution + prefilter effect. Does not need DB or Tomcat.
+- `--chunker-max-tokens <N>` — chunker ceiling override (default 512); only meaningful with `--chunker-stats-only`
+- `--chunker-merge-forward-tokens <N>` — chunker floor override (default 150); only meaningful with `--chunker-stats-only`
+- `--pages-dir <path>` — markdown source root for `--chunker-stats-only` (default `docs/wikantik-pages`)
+
+**Misc**
+
+- `-h`, `--help` — show the canonical help and exit

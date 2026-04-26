@@ -31,6 +31,9 @@ export default function AdminLayout() {
           <NavLink to="/admin/apikeys" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
             API Keys
           </NavLink>
+          <NavLink to="/admin/retrieval-quality" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
+            Retrieval
+          </NavLink>
         </nav>
       </div>
       <Outlet />

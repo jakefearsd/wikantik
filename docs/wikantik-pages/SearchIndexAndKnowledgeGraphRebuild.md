@@ -79,6 +79,14 @@ bin/kg-rebuild.sh -- \
 bin/kg-rebuild.sh --reset-kg -- \
     --ollama-model qwen2.5:1.5b-instruct \
     --concurrency 6 --prefilter --force
+
+# Nuclear option: PURGE every KG and hub table including human-authored
+# content. Prompts you to type "PURGE" exactly to confirm. Use when
+# starting fresh for a schema-design experiment or comparing extractor
+# models without ANY prior bias.
+bin/kg-rebuild.sh --purge-kg -- \
+    --ollama-model qwen2.5:1.5b-instruct \
+    --concurrency 6 --prefilter --force
 ```
 
 ### Inner-loop iteration *(after the first full rebuild)*
@@ -182,9 +190,13 @@ Typical wall time: 5-15 minutes for ~17-22K chunks against a local Ollama embedd
 
 If hybrid retrieval is disabled (`wikantik.search.hybrid.enabled=false`), the script logs a warning and skips this phase rather than failing. That makes it safe to use the same script in a deploy where hybrid is intentionally off.
 
-### Phase 3 — Knowledge graph reset *(opt-in)*
+### Phase 3 — Knowledge graph reset or purge *(opt-in)*
 
-Skipped by default. Enable with `--reset-kg`. Prompts for confirmation before running unless `--yes` is also passed.
+Skipped by default. Enable with **either** `--reset-kg` (selective prune) or `--purge-kg` (full destructive wipe). The two are mutually exclusive — if both are passed, purge wins and the script logs the override.
+
+#### `--reset-kg` — selective prune
+
+Prompts for `[y/N]` confirmation unless `--yes` is also passed.
 
 What it does:
 
@@ -198,7 +210,36 @@ The `ai-inferred` deletion cascades to `kg_edges` and (already-empty post-phase-
 - `human-authored` — manually curated entities and edges.
 - `ai-reviewed` — AI-proposed entities that a human has approved (status moves through `kg_proposals` and the surviving rows get re-tagged).
 
-Use phase 3 when you want to compare two extraction runs against a clean baseline. Without it, a second extraction run accumulates on top of the first — fine for incremental tuning, confusing for A/B comparisons.
+Use the reset variant when you want to compare two extraction runs against a clean automation baseline while keeping your manual curation work intact.
+
+#### `--purge-kg` — full destructive wipe
+
+Prompts you to **type `PURGE` (uppercase, exact)** before proceeding. `--yes` bypasses the prompt for scripted workflows; use carefully.
+
+What it does — single TRUNCATE across the entire KG layer:
+
+```sql
+TRUNCATE TABLE
+    kg_nodes, kg_edges,
+    kg_proposals, kg_rejections,
+    kg_embeddings, kg_content_embeddings,
+    chunk_entity_mentions,
+    hub_centroids, hub_proposals, hub_discovery_proposals
+RESTART IDENTITY CASCADE;
+```
+
+**This destroys human-authored content too.** Use it when you genuinely want a from-scratch KG — fresh schema design experiments, comparing extractor models without any prior bias from earlier runs, or recovering from a contaminated graph state where it's faster to start over than to clean up.
+
+Both reset and purge print row counts before and after so you can see exactly what got removed.
+
+What survives a `--purge-kg`:
+
+- The wiki page markdown on disk (untouched).
+- All page metadata: frontmatter, canonical IDs, the structural spine.
+- Chunks (`kg_content_chunks`) and chunk embeddings (`kg_content_chunk_embeddings`) — unless phase 1 also runs, which it does in a default `bin/kg-rebuild.sh --purge-kg` invocation.
+- User accounts, groups, ACLs, API keys, retrieval-quality history, page verification metadata.
+
+After a purge, phase 4 will re-populate `kg_nodes`, `kg_proposals`, and `chunk_entity_mentions` from extraction. Hub clustering and structural-KG embeddings (`kg_embeddings`, `hub_centroids`) need to be rebuilt by their respective subsystems separately — typically the next page-save cycle or an explicit hub-discovery run.
 
 ### Phase 4 — Entity extraction
 
@@ -334,12 +375,13 @@ CLI flags on `bin/kg-extract.sh` override these properties for a single run, whi
 
 | Flag | Effect |
 |---|---|
-| `--reset-kg` | Enable phase 3. Prompts unless `--yes` is also given. |
+| `--reset-kg` | Enable phase 3 in **selective-prune mode** — deletes pending proposals and `ai-inferred` nodes, preserves `human-authored` and `ai-reviewed`. `[y/N]` prompt unless `--yes`. |
+| `--purge-kg` | Enable phase 3 in **full-purge mode** — TRUNCATEs every kg_*/hub_* table including human-authored content. Requires typing `PURGE` exactly to confirm; `--yes` bypasses. Wins over `--reset-kg` if both passed. |
 | `--skip-chunks` | Skip phase 1 |
 | `--skip-embeddings` | Skip phase 2 |
 | `--skip-extract` | Skip phase 4 |
 | `--dry-run` | Print the plan, exit 0 |
-| `--yes` / `-y` | Skip the `--reset-kg` confirmation prompt |
+| `--yes` / `-y` | Skip the `--reset-kg` `[y/N]` prompt and the `--purge-kg` "type PURGE" prompt. Use only in scripted contexts you trust. |
 | `--help` / `-h` | Print this script's header comment and exit |
 | `--` | Everything after this is forwarded to `bin/kg-extract.sh` |
 

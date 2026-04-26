@@ -28,6 +28,7 @@ import com.wikantik.api.structure.ClusterSummary;
 import com.wikantik.api.structure.IndexHealth;
 import com.wikantik.api.structure.PageDescriptor;
 import com.wikantik.api.structure.PageType;
+import com.wikantik.api.structure.Relation;
 import com.wikantik.api.structure.RelationEdge;
 import com.wikantik.api.structure.RelationType;
 import com.wikantik.api.structure.Sitemap;
@@ -329,95 +330,171 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             if ( page == null ) {
                 return;
             }
-            // For Phase 1 we defer to a full rebuild on incremental events — the
-            // projection of ~2000 pages rebuilds in well under a second. Phase 2
-            // will make this properly incremental.
-            rebuild();
-            // D6 fix: rebuild() reads pages via the bulk getAllPages() / getPureText()
-            // path, which can hit a stale cache for the just-saved page. The
-            // StructuralSpinePageFilter injected a canonical_id at preSave time, but
-            // if the rebuild reads pre-rewrite content the synthesised in-memory id
-            // ≠ the id authored to disk, so get_page_by_id can't resolve the user-
-            // visible canonical_id. Re-read the named page directly here and patch
-            // the DB + projection so the just-saved page is always findable by the
-            // canonical_id its frontmatter actually carries.
-            patchProjectionForJustSavedPage( page );
+            applyIncrementalUpdate( page );
         } catch ( final Exception e ) {
             LOG.warn( "onPageSaved({}) failed: {}", pageName, e.getMessage() );
         }
     }
 
     /**
-     * After a rebuild, re-read the named page's frontmatter directly (bypassing whatever
-     * stale snapshot getAllPages() served) and ensure its canonical_id is reflected in
-     * both the durable DAO and the in-memory projection. No-op when the page has no
-     * frontmatter canonical_id, or when the projection already has the id mapped to
-     * this slug.
+     * Re-read the saved page in isolation and splice its descriptor + relations into
+     * a fresh projection — no full corpus re-scan. Authored canonical_ids are
+     * persisted; synthesised ones live in memory only and surface in {@code conflicts}.
      */
-    private void patchProjectionForJustSavedPage( final Page page ) {
-        try {
-            final String raw = pageManager.getPureText( page );
-            final ParsedPage parsed = FrontmatterParser.parse( raw );
-            final Map< String, Object > fm = parsed.metadata();
-            final String canonicalId = asString( fm.get( "canonical_id" ) );
-            if ( canonicalId == null || canonicalId.isBlank() ) {
-                return;
-            }
-            final String slug = page.getName();
-            final StructuralProjection proj = current.get();
-            // If the projection already resolves this id to this slug, the rebuild saw
-            // fresh content and there's nothing to patch.
-            final Optional< String > existingSlug = proj.resolveSlugFromCanonicalId( canonicalId );
-            if ( existingSlug.isPresent() && existingSlug.get().equals( slug ) ) {
-                return;
-            }
+    private void applyIncrementalUpdate( final Page page ) {
+        final String slug = page.getName();
+        final String raw = pageManager.getPureText( page );
+        final ParsedPage parsed = FrontmatterParser.parse( raw );
+        final Map< String, Object > fm = parsed.metadata();
 
-            final PageType type = PageType.fromFrontmatter( fm.get( "type" ) );
-            final String cluster = asString( fm.get( "cluster" ) );
-            final String title = firstNonBlank( asString( fm.get( "title" ) ), slug );
-            final String summary = asString( fm.get( "summary" ) );
-            final List< String > tags = stringList( fm.get( "tags" ) );
-            final Instant updated = page.getLastModified() == null
-                    ? null : page.getLastModified().toInstant();
+        String canonicalId = asString( fm.get( "canonical_id" ) );
+        final boolean authored = canonicalId != null && !canonicalId.isBlank();
+        if ( !authored ) {
+            canonicalId = UlidCreator.getUlid().toString();
+        }
 
-            // Persist the canonical_id durably.
+        final PageType type = PageType.fromFrontmatter( fm.get( "type" ) );
+        final String cluster = asString( fm.get( "cluster" ) );
+        final String title = firstNonBlank( asString( fm.get( "title" ) ), slug );
+        final String summary = asString( fm.get( "summary" ) );
+        final List< String > tags = stringList( fm.get( "tags" ) );
+        final Instant updated = page.getLastModified() == null
+                ? null : page.getLastModified().toInstant();
+        final PageDescriptor next = new PageDescriptor(
+                canonicalId, slug, title, type, cluster, tags, summary, updated );
+
+        if ( authored ) {
             try {
                 dao.upsert( canonicalId, slug, title, type.asFrontmatterValue(), cluster );
             } catch ( final RuntimeException dbx ) {
-                LOG.warn( "patchProjectionForJustSavedPage: DAO upsert failed for {}: {}",
-                          slug, dbx.getMessage() );
+                LOG.warn( "DAO upsert failed for {}: {}", slug, dbx.getMessage() );
             }
             persistVerification( canonicalId, fm );
-
-            // Splice the descriptor into a fresh projection so getByCanonicalId resolves it.
-            final StructuralProjectionBuilder builder = new StructuralProjectionBuilder();
-            // First, copy over every page from the current projection EXCEPT any stale
-            // entry that points to this slug under a synthesised id, and except the
-            // canonical_id we're about to (re)write.
-            for ( final PageDescriptor existing : proj.allPages() ) {
-                if ( existing.slug().equals( slug ) ) {
-                    continue;
-                }
-                if ( existing.canonicalId().equals( canonicalId ) ) {
-                    continue;
-                }
-                builder.addPage( existing );
-            }
-            builder.addPage( new PageDescriptor(
-                    canonicalId, slug, title, type, cluster, tags, summary, updated ) );
-            // Preserve relations from the old projection.
-            for ( final com.wikantik.api.structure.Relation rel : proj.allRelations() ) {
-                builder.addRelation( rel );
-            }
-            current.set( builder.build() );
-        } catch ( final RuntimeException ex ) {
-            LOG.warn( "patchProjectionForJustSavedPage failed for {}: {}",
-                      page.getName(), ex.getMessage() );
         }
+
+        final StructuralProjection proj = current.get();
+        final String oldCanonicalIdForSlug = proj.resolveCanonicalIdFromSlug( slug ).orElse( null );
+
+        final Set< String > knownAuthoredIds = new HashSet<>();
+        for ( final PageDescriptor d : proj.allPages() ) {
+            knownAuthoredIds.add( d.canonicalId() );
+        }
+        if ( authored ) {
+            knownAuthoredIds.add( canonicalId );
+        }
+
+        final Object relationsField = fm.get( "relations" );
+        final FrontmatterRelationValidator.Result relResult = relationsField == null
+                ? new FrontmatterRelationValidator.Result( List.of(), List.of() )
+                : FrontmatterRelationValidator.validate( canonicalId, relationsField,
+                                                         knownAuthoredIds::contains );
+
+        if ( authored && relationsDao != null ) {
+            try {
+                relationsDao.replaceFor( canonicalId, relResult.valid() );
+            } catch ( final RuntimeException dbx ) {
+                LOG.warn( "relations replaceFor({}) failed: {}", canonicalId, dbx.getMessage() );
+            }
+        }
+
+        final StructuralProjectionBuilder builder = new StructuralProjectionBuilder();
+        for ( final PageDescriptor existing : proj.allPages() ) {
+            if ( existing.slug().equals( slug ) ) continue;
+            if ( existing.canonicalId().equals( canonicalId ) ) continue;
+            builder.addPage( existing );
+        }
+        builder.addPage( next );
+
+        for ( final Relation rel : proj.allRelations() ) {
+            if ( oldCanonicalIdForSlug != null && rel.sourceId().equals( oldCanonicalIdForSlug ) ) continue;
+            if ( rel.sourceId().equals( canonicalId ) ) continue;
+            builder.addRelation( rel );
+        }
+        for ( final Relation rel : relResult.valid() ) {
+            builder.addRelation( rel );
+        }
+        current.set( builder.build() );
+
+        final List< StructuralConflict > nextConflicts = new ArrayList<>( conflicts );
+        nextConflicts.removeIf( c -> slug.equals( c.slug() ) );
+        if ( !authored ) {
+            nextConflicts.add( new StructuralConflict(
+                    slug, null, StructuralConflict.Kind.MISSING_CANONICAL_ID,
+                    "page indexed under synthesised id " + canonicalId
+                      + " — add canonical_id to frontmatter to make this stable" ) );
+        }
+        for ( final var issue : relResult.issues() ) {
+            LOG.warn( "relations issue (source={}): {} — {}",
+                      canonicalId, issue.kind(), issue.detail() );
+            nextConflicts.add( new StructuralConflict(
+                    slug, canonicalId, StructuralConflict.Kind.RELATION_ISSUE,
+                    issue.kind() + ": " + issue.detail() ) );
+        }
+        this.conflicts = List.copyOf( nextConflicts );
+        this.unclaimed = (int) nextConflicts.stream()
+                .filter( c -> c.kind() == StructuralConflict.Kind.MISSING_CANONICAL_ID ).count();
+        this.health = new IndexHealth( IndexHealth.Status.UP,
+                current.get().pageCount(), unclaimed,
+                health.lastRebuildStartedAt(), health.lastRebuildFinishedAt(),
+                health.lastRebuildDurationMillis(), health.lagSeconds() );
+        metrics.update( snapshot(), health );
     }
 
     synchronized void onPageDeleted( final String pageName ) {
-        rebuild();
+        try {
+            final StructuralProjection proj = current.get();
+            final Optional< String > canonicalId = proj.resolveCanonicalIdFromSlug( pageName );
+            if ( canonicalId.isEmpty() ) {
+                return;
+            }
+            applyIncrementalDelete( pageName, canonicalId.get() );
+        } catch ( final Exception e ) {
+            LOG.warn( "onPageDeleted({}) failed: {}", pageName, e.getMessage() );
+        }
+    }
+
+    /**
+     * Drop the descriptor for {@code slug} and any outgoing relations whose source is
+     * {@code canonicalId}. Incoming relations are left in place — they surface as
+     * broken-link signal (targetSlug == null), matching how a full rebuild behaves
+     * after a page is deleted.
+     */
+    private void applyIncrementalDelete( final String slug, final String canonicalId ) {
+        try {
+            dao.delete( canonicalId );
+        } catch ( final RuntimeException dbx ) {
+            LOG.warn( "dao.delete({}) failed: {}", canonicalId, dbx.getMessage() );
+        }
+        if ( relationsDao != null ) {
+            try {
+                relationsDao.deleteBySource( canonicalId );
+            } catch ( final RuntimeException dbx ) {
+                LOG.warn( "relations deleteBySource({}) failed: {}", canonicalId, dbx.getMessage() );
+            }
+        }
+
+        final StructuralProjection proj = current.get();
+        final StructuralProjectionBuilder builder = new StructuralProjectionBuilder();
+        for ( final PageDescriptor existing : proj.allPages() ) {
+            if ( existing.canonicalId().equals( canonicalId ) ) continue;
+            builder.addPage( existing );
+        }
+        for ( final Relation rel : proj.allRelations() ) {
+            if ( rel.sourceId().equals( canonicalId ) ) continue;
+            builder.addRelation( rel );
+        }
+        current.set( builder.build() );
+
+        this.conflicts = conflicts.stream()
+                .filter( c -> !slug.equals( c.slug() ) )
+                .toList();
+        this.unclaimed = (int) conflicts.stream()
+                .filter( c -> c.kind() == StructuralConflict.Kind.MISSING_CANONICAL_ID ).count();
+        this.health = new IndexHealth( IndexHealth.Status.UP,
+                current.get().pageCount(), unclaimed,
+                health.lastRebuildStartedAt(), health.lastRebuildFinishedAt(),
+                health.lastRebuildDurationMillis(), health.lagSeconds() );
+        metrics.update( snapshot(), health );
     }
 
     /**

@@ -115,6 +115,37 @@ describe('api.admin.getChunks', () => {
   });
 });
 
+describe('request envelope unwrapping', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('unwraps single-key `{data: ...}` envelopes so callers can read fields directly', async () => {
+    const wrapped = { data: { recent_runs: [{ id: 1 }], count: 1 } };
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 200, body: wrapped }));
+    const result = await api.admin.listRetrievalRuns();
+    expect(result).toEqual({ recent_runs: [{ id: 1 }], count: 1 });
+  });
+
+  it('leaves multi-key responses untouched even when one key happens to be `data`', async () => {
+    // A legacy resource that happens to ship a top-level `data` field alongside
+    // siblings is NOT an envelope — leave it intact.
+    const payload = { data: { x: 1 }, count: 5 };
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 200, body: payload }));
+    const result = await api.admin.listRetrievalRuns();
+    expect(result).toEqual(payload);
+  });
+
+  it('returns null for 204 responses without trying to unwrap', async () => {
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 204, contentLength: 0 }));
+    const result = await api.admin.listRetrievalRuns();
+    expect(result).toBeNull();
+  });
+});
+
 describe('api.admin.getChunkOutliers', () => {
   beforeEach(() => {
     global.fetch = vi.fn();

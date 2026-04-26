@@ -3,28 +3,28 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import AdminRetrievalQualityPage from './AdminRetrievalQualityPage';
 import { api } from '../../api/client';
 
+// `request()` auto-unwraps single-key `{data: ...}` envelopes — mock at the
+// unwrapped shape since that's what the api method returns in production.
 const twoRuns = {
-  data: {
-    recent_runs: [
-      {
-        query_set_id: 'core-agent-queries',
-        mode: 'hybrid',
-        ndcg_at_5: 0.42,
-        ndcg_at_10: 0.55,
-        recall_at_20: 0.71,
-        mrr: 0.38,
-      },
-      {
-        query_set_id: 'core-agent-queries',
-        mode: 'hybrid',
-        ndcg_at_5: 0.45,
-        ndcg_at_10: 0.58,
-        recall_at_20: 0.74,
-        mrr: 0.40,
-      },
-    ],
-    count: 2,
-  },
+  recent_runs: [
+    {
+      query_set_id: 'core-agent-queries',
+      mode: 'hybrid',
+      ndcg_at_5: 0.42,
+      ndcg_at_10: 0.55,
+      recall_at_20: 0.71,
+      mrr: 0.38,
+    },
+    {
+      query_set_id: 'core-agent-queries',
+      mode: 'hybrid',
+      ndcg_at_5: 0.45,
+      ndcg_at_10: 0.58,
+      recall_at_20: 0.74,
+      mrr: 0.40,
+    },
+  ],
+  count: 2,
 };
 
 describe('AdminRetrievalQualityPage', () => {
@@ -33,7 +33,7 @@ describe('AdminRetrievalQualityPage', () => {
 
   beforeEach(() => {
     listSpy = vi.spyOn(api.admin, 'listRetrievalRuns').mockResolvedValue(twoRuns);
-    runSpy = vi.spyOn(api.admin, 'runRetrievalNow').mockResolvedValue({ data: {} });
+    runSpy = vi.spyOn(api.admin, 'runRetrievalNow').mockResolvedValue({});
   });
 
   it('renders one row per (set, mode) bucket with the latest value + sparkline', async () => {
@@ -46,7 +46,7 @@ describe('AdminRetrievalQualityPage', () => {
   });
 
   it('renders the empty state when no runs exist', async () => {
-    listSpy.mockResolvedValueOnce({ data: { recent_runs: [], count: 0 } });
+    listSpy.mockResolvedValueOnce({ recent_runs: [], count: 0 });
     render(<AdminRetrievalQualityPage />);
     await waitFor(() => screen.getByText(/No runs yet\./));
   });

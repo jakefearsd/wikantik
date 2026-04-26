@@ -421,6 +421,22 @@ export const api = {
       request(`/admin/apikeys/${id}`, {
         method: 'DELETE',
       }),
+
+    // Retrieval Quality (Phase 5b)
+    listRetrievalRuns: ({ querySetId, mode, limit = 30 } = {}) => {
+      const params = new URLSearchParams();
+      if (querySetId) params.set('query_set_id', querySetId);
+      if (mode) params.set('mode', mode);
+      if (limit) params.set('limit', String(limit));
+      const qs = params.toString();
+      return request(`/admin/retrieval-quality${qs ? '?' + qs : ''}`);
+    },
+
+    runRetrievalNow: (querySetId, mode) =>
+      request('/admin/retrieval-quality/run', {
+        method: 'POST',
+        body: JSON.stringify({ query_set_id: querySetId, mode }),
+      }),
   },
 
   // Knowledge Graph Administration

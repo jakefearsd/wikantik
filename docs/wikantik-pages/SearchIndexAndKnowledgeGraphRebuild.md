@@ -349,6 +349,7 @@ Environment variables:
 |---|---|---|
 | `TOMCAT_URL` | `http://localhost:8080` | Where the script POSTs the rebuild triggers |
 | `POLL_SECONDS` | `10` | Status-poll cadence during phases 1 and 2 |
+| `PROGRESS_SECONDS` | `30` | How often a periodic progress line (count + rate + ETA) is emitted while a phase is in `RUNNING` state. Decoupled from `POLL_SECONDS` so state transitions still surface promptly. |
 
 ## Troubleshooting
 

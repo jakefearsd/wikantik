@@ -32,6 +32,7 @@ CONTEXT_XML="${ROOT_DIR}/tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml"
 TEST_PROPS="${ROOT_DIR}/test.properties"
 TOMCAT_URL="${TOMCAT_URL:-http://localhost:8080}"
 POLL_SECONDS="${POLL_SECONDS:-10}"
+PROGRESS_SECONDS="${PROGRESS_SECONDS:-30}"
 
 if [[ -t 1 ]]; then
     GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'
@@ -149,46 +150,93 @@ trap '
 # state (COMPLETED / FAILED / SKIPPED_*) and stays there. Two helpers, one
 # per shape.
 
-wait_for_chunk_rebuild() {
-    local prev_state=""
-    while true; do
-        local body state pages_iter pages_total
-        body=$(curl -fsS "${CURL_AUTH[@]}" "$TOMCAT_URL/admin/content/index-status") \
-            || die "chunk rebuild: status fetch failed"
-        state=$(jq -r '.rebuild.state' <<<"$body")
-        pages_iter=$(jq -r '.rebuild.pages_iterated // 0' <<<"$body")
-        pages_total=$(jq -r '.rebuild.pages_total // 0' <<<"$body")
-        if [[ "$state" != "$prev_state" ]]; then
-            info "chunk rebuild: state=$state (pages $pages_iter / $pages_total)"
-            prev_state="$state"
+# Pretty-prints a progress line: "label: 12345 / 22000 (56.1%) — rate=42/s, ETA 0h08m".
+# Skips the rate/ETA tail until the throughput sample is meaningful (>0 work done
+# since the running phase started, >0 elapsed seconds). Pure function, no I/O.
+fmt_progress() {
+    local label="$1" unit="$2" processed="$3" total="$4" started_epoch="$5"
+    local now elapsed pct rate remaining eta_sec eta_h eta_m tail
+    now=$(date +%s)
+    elapsed=$(( now - started_epoch ))
+    pct="0.0"
+    if [[ "$total" -gt 0 ]]; then
+        pct=$(awk "BEGIN { printf \"%.1f\", 100.0 * $processed / $total }")
+    fi
+    tail=""
+    if [[ "$elapsed" -gt 0 && "$processed" -gt 0 && "$total" -gt "$processed" ]]; then
+        rate=$(( processed / elapsed ))
+        if [[ "$rate" -gt 0 ]]; then
+            remaining=$(( total - processed ))
+            eta_sec=$(( remaining / rate ))
+            eta_h=$(( eta_sec / 3600 ))
+            eta_m=$(( ( eta_sec % 3600 ) / 60 ))
+            tail=$(printf " — rate=%d %s/s, ETA %dh%02dm" "$rate" "$unit" "$eta_h" "$eta_m")
         fi
-        case "$state" in
-            IDLE)  return 0 ;;
-            ERROR) warn "rebuild snapshot: $body"; return 1 ;;
-        esac
+    fi
+    printf "%s: %d / %d (%s%%)%s" "$label" "$processed" "$total" "$pct" "$tail"
+}
+
+# Generic phase poller. Polls every $POLL_SECONDS, logs on state change, and
+# emits a progress line every $PROGRESS_SECONDS while the phase is RUNNING
+# (so a long run doesn't go silent between state transitions). Caller passes
+# the JSON paths and terminal state lists so the same loop drives both
+# rebuild + embedding phases.
+#
+# Args:
+#   $1 label              human label, e.g. "embedding reindex"
+#   $2 unit               counter unit, e.g. "chunks" or "pages"
+#   $3 state_path         jq path, e.g. ".embeddings.bootstrap.state"
+#   $4 processed_path     jq path
+#   $5 total_path         jq path
+#   $6 done_states        regex e.g. "COMPLETED|SKIPPED_ALREADY_POPULATED"
+#   $7 fail_states        regex e.g. "FAILED|DISABLED"
+poll_until_done() {
+    local label="$1" unit="$2" state_path="$3" processed_path="$4" total_path="$5"
+    local done_states="$6" fail_states="$7"
+    local prev_state=""
+    local started_epoch=$(date +%s)
+    local last_progress=$started_epoch
+    while true; do
+        local body state processed total now
+        body=$(curl -fsS "${CURL_AUTH[@]}" "$TOMCAT_URL/admin/content/index-status") \
+            || die "$label: status fetch failed"
+        state=$(jq -r "$state_path" <<<"$body")
+        processed=$(jq -r "$processed_path // 0" <<<"$body")
+        total=$(jq -r "$total_path // 0" <<<"$body")
+        now=$(date +%s)
+        if [[ "$state" != "$prev_state" ]]; then
+            info "$label: state=$state ($unit $processed / $total)"
+            prev_state="$state"
+            last_progress=$now
+        elif [[ "$state" == "RUNNING" \
+             && $(( now - last_progress )) -ge "$PROGRESS_SECONDS" ]]; then
+            info "$(fmt_progress "$label" "$unit" "$processed" "$total" "$started_epoch")"
+            last_progress=$now
+        fi
+        if [[ "$state" =~ ^($done_states)$ ]]; then
+            return 0
+        fi
+        if [[ "$state" =~ ^($fail_states)$ ]]; then
+            warn "$label snapshot: $body"
+            return 1
+        fi
         sleep "$POLL_SECONDS"
     done
 }
 
+wait_for_chunk_rebuild() {
+    poll_until_done "chunk rebuild" "pages" \
+        ".rebuild.state" ".rebuild.pages_iterated" ".rebuild.pages_total" \
+        "IDLE" "ERROR"
+}
+
 wait_for_embedding_bootstrap() {
-    local prev_state=""
-    while true; do
-        local body state processed total
-        body=$(curl -fsS "${CURL_AUTH[@]}" "$TOMCAT_URL/admin/content/index-status") \
-            || die "embedding reindex: status fetch failed"
-        state=$(jq -r '.embeddings.bootstrap.state' <<<"$body")
-        processed=$(jq -r '.embeddings.bootstrap.chunks_processed // 0' <<<"$body")
-        total=$(jq -r '.embeddings.bootstrap.chunks_total // 0' <<<"$body")
-        if [[ "$state" != "$prev_state" ]]; then
-            info "embedding reindex: state=$state (chunks $processed / $total)"
-            prev_state="$state"
-        fi
-        case "$state" in
-            COMPLETED|SKIPPED_ALREADY_POPULATED|SKIPPED_NO_CHUNKS) return 0 ;;
-            FAILED|DISABLED) warn "embedding snapshot: $body"; return 1 ;;
-        esac
-        sleep "$POLL_SECONDS"
-    done
+    poll_until_done "embedding reindex" "chunks" \
+        ".embeddings.bootstrap.state" \
+        ".embeddings.bootstrap.chunks_processed" \
+        ".embeddings.bootstrap.chunks_total" \
+        "COMPLETED|SKIPPED_ALREADY_POPULATED|SKIPPED_NO_CHUNKS" \
+        "FAILED|DISABLED"
 }
 
 # ---- Phase 1: chunk + Lucene rebuild ----

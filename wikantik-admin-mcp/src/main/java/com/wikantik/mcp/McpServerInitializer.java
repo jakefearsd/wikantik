@@ -40,6 +40,7 @@ import com.wikantik.mcp.tools.AuthorConfigurable;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
+import com.wikantik.filters.FilterManager;
 
 
 /**
@@ -53,6 +54,11 @@ public class McpServerInitializer implements ServletContextListener {
     static final String ATTR_MCP_SERVER = "com.wikantik.mcp.McpSyncServer";
 
     private McpSyncServer mcpServer;
+    // WikiEventManager holds listeners as WeakReferences — keep a strong reference
+    // to the bridge here so it isn't GC'd between save/delete events. Without this,
+    // REST-saved pages never reach the MCP client (mirrors the
+    // StructuralIndexEventListener anchor in WikiEngine#initStructuralIndex).
+    private WikiEventSubscriptionBridge subscriptionBridge;
 
     @Override
     public void contextInitialized( final ServletContextEvent sce ) {
@@ -145,8 +151,8 @@ public class McpServerInitializer implements ServletContextListener {
                     .completions( WikiCompletions.all( referenceManager ) )
                     .build();
 
-            final WikiEventSubscriptionBridge subscriptionBridge = new WikiEventSubscriptionBridge( mcpServer );
-            subscriptionBridge.register( pageManager );
+            subscriptionBridge = new WikiEventSubscriptionBridge( mcpServer );
+            subscriptionBridge.register( pageManager, engine.getManager( FilterManager.class ) );
 
             servletContext.setAttribute( ATTR_MCP_SERVER, mcpServer );
             final int totalTools = toolRegistry.readOnlyTools().size() + toolRegistry.authorConfigurableTools().size();

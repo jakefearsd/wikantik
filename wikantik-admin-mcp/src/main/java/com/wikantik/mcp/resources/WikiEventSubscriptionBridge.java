@@ -27,10 +27,22 @@ import com.wikantik.event.WikiEventListener;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.filters.FilterManager;
 
 /**
  * Bridges JSPWiki's WikiEvent system to MCP resource subscriptions,
  * notifying MCP clients when wiki pages are saved or deleted.
+ *
+ * <p>Save-side events fire from {@code DefaultFilterManager} ({@code POST_SAVE_END},
+ * source = {@link FilterManager}); deletes fire from {@link PageManager}. The
+ * bridge therefore registers on both sources, exactly like
+ * {@code StructuralIndexEventListener}. Registering on PageManager alone would
+ * silently miss every REST-driven save.</p>
+ *
+ * <p>The owning {@code McpServerInitializer} must hold a strong reference to
+ * this bridge — {@link WikiEventManager} keeps listeners as
+ * {@link java.lang.ref.WeakReference}s, so a locally-scoped bridge would be
+ * GC'd between events.</p>
  */
 public class WikiEventSubscriptionBridge implements WikiEventListener {
 
@@ -42,9 +54,10 @@ public class WikiEventSubscriptionBridge implements WikiEventListener {
         this.mcpServer = mcpServer;
     }
 
-    public void register( final PageManager pageManager ) {
+    public void register( final PageManager pageManager, final FilterManager filterManager ) {
         WikiEventManager.addWikiEventListener( pageManager, this );
-        LOG.info( "MCP resource subscription bridge registered for wiki page events" );
+        WikiEventManager.addWikiEventListener( filterManager, this );
+        LOG.info( "MCP resource subscription bridge registered for PageManager + FilterManager events" );
     }
 
     @Override
@@ -54,7 +67,9 @@ public class WikiEventSubscriptionBridge implements WikiEventListener {
         }
 
         final int type = pageEvent.getType();
-        if ( type == WikiPageEvent.POST_SAVE || type == WikiPageEvent.PAGE_DELETED ) {
+        if ( type == WikiPageEvent.POST_SAVE_END
+                || type == WikiPageEvent.POST_SAVE
+                || type == WikiPageEvent.PAGE_DELETED ) {
             final String pageName = pageEvent.getPageName();
             try {
                 mcpServer.notifyResourcesUpdated(

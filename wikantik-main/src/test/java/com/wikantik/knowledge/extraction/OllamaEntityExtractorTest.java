@@ -90,7 +90,9 @@ class OllamaEntityExtractorTest {
         respondWith( 200, "{\"message\":{\"content\":\"{\\\"entities\\\":[{\\\"name\\\":\\\"A\\\",\\\"type\\\":\\\"X\\\",\\\"confidence\\\":0.9}],\\\"relations\\\":[]}\"}}" );
         final ExtractionResult r = extractor( 5_000 ).extract( chunk(), context() );
         assertEquals( 1, r.mentions().size() );
-        assertEquals( "ollama", r.extractorCode() );
+        // code() now reflects the model tag (with :latest stripped) so
+        // chunk_entity_mentions.extractor carries the actual lineage.
+        assertEquals( "test-model", r.extractorCode() );
         // Verify we sent a chat-shaped request with JSON format flag.
         assertNotNull( lastBody.get() );
         assertTrue( lastBody.get().contains( "\"format\":\"json\"" ) );
@@ -105,7 +107,9 @@ class OllamaEntityExtractorTest {
         final ExtractionResult r = extractor( 5_000 ).extract( chunk(), context() );
         assertTrue( r.mentions().isEmpty() );
         assertTrue( r.nodes().isEmpty() );
-        assertEquals( "ollama", r.extractorCode() );
+        // code() now reflects the model tag (with :latest stripped) so
+        // chunk_entity_mentions.extractor carries the actual lineage.
+        assertEquals( "test-model", r.extractorCode() );
     }
 
     @Test
@@ -113,6 +117,30 @@ class OllamaEntityExtractorTest {
         respondWith( 200, "{\"unexpected\":\"envelope\"}" );
         final ExtractionResult r = extractor( 5_000 ).extract( chunk(), context() );
         assertTrue( r.mentions().isEmpty() );
+    }
+
+    @Test
+    void codeReturnsModelNameWithLatestSuffixStripped() {
+        // gemma4-assist:latest → "gemma4-assist" — the :latest tag is the
+        // Ollama default and adds no useful lineage information.
+        final OllamaEntityExtractor e = extractorWithModel( "gemma4-assist:latest" );
+        assertEquals( "gemma4-assist", e.code() );
+    }
+
+    @Test
+    void codeReturnsModelNameWithExplicitTagPreserved() {
+        // qwen2.5:1.5b-instruct has a meaningful tag — keep it.
+        final OllamaEntityExtractor e = extractorWithModel( "qwen2.5:1.5b-instruct" );
+        assertEquals( "qwen2.5:1.5b-instruct", e.code() );
+    }
+
+    private OllamaEntityExtractor extractorWithModel( final String model ) {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.knowledge.extractor.backend", "ollama" );
+        p.setProperty( "wikantik.knowledge.extractor.ollama.base_url", "http://127.0.0.1:" + port );
+        p.setProperty( "wikantik.knowledge.extractor.ollama.model", model );
+        return new OllamaEntityExtractor( HttpClient.newHttpClient(),
+                                           EntityExtractorConfig.fromProperties( p ) );
     }
 
     @Test

@@ -225,8 +225,13 @@ class BootstrapEntityExtractionIndexerTest {
         when( listener.runExtractionSync( List.of( keep ) ) )
                 .thenReturn( new AsyncEntityExtractionListener.RunResult( 1, 0 ) );
 
+        // Length predicate intentionally off — this test exercises the
+        // code/proper-noun rules with short fixture chunks that would
+        // otherwise all trip the too_short rule.
         final ChunkExtractionPrefilter filter = new ChunkExtractionPrefilter(
-            /*enabled*/ true, /*dryRun*/ false, /*skipPureCode*/ true, /*skipNoProperNoun*/ true );
+            /*enabled*/ true, /*dryRun*/ false,
+            /*skipPureCode*/ true, /*skipNoProperNoun*/ true,
+            /*skipTooShort*/ false, /*minTokens*/ 0 );
 
         final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
                 listener, chunkRepo, mentionRepo, directExecutor(), filter );

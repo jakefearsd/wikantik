@@ -924,7 +924,9 @@ public class WikiEngine implements Engine {
                 extractorCfg.prefilterEnabled(),
                 extractorCfg.prefilterDryRun(),
                 extractorCfg.prefilterSkipPureCode(),
-                extractorCfg.prefilterSkipNoProperNoun() );
+                extractorCfg.prefilterSkipNoProperNoun(),
+                extractorCfg.prefilterSkipTooShort(),
+                extractorCfg.prefilterMinTokens() );
         final com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer bootstrap =
             new com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer(
                 listener, contentChunkRepo, mentionRepo, extractorCfg.concurrency(), bootstrapPrefilter );

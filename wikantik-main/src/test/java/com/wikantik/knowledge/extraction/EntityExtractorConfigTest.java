@@ -122,7 +122,19 @@ class EntityExtractorConfigTest {
         final EntityExtractorConfig cfg = EntityExtractorConfig.fromProperties( new Properties() );
         assertFalse( cfg.prefilterEnabled(),     "feature is opt-in" );
         assertFalse( cfg.prefilterDryRun(),      "dry-run only kicks in when explicitly requested" );
-        assertTrue(  cfg.prefilterSkipPureCode(), "sub-predicates default on so the master switch alone enables both rules" );
+        assertTrue(  cfg.prefilterSkipPureCode(), "sub-predicates default on so the master switch alone enables every rule" );
         assertTrue(  cfg.prefilterSkipNoProperNoun() );
+        assertTrue(  cfg.prefilterSkipTooShort() );
+        assertEquals( 20, cfg.prefilterMinTokens(), "default token threshold is 20" );
+    }
+
+    @Test
+    void prefilterMinTokensIsConfigurable() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.knowledge.extractor.prefilter.skip_too_short", "false" );
+        p.setProperty( "wikantik.knowledge.extractor.prefilter.min_tokens", "50" );
+        final EntityExtractorConfig cfg = EntityExtractorConfig.fromProperties( p );
+        assertFalse( cfg.prefilterSkipTooShort() );
+        assertEquals( 50, cfg.prefilterMinTokens() );
     }
 }

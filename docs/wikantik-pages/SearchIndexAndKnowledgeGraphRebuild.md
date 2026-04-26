@@ -4,7 +4,7 @@ type: article
 tags: [administration, operations, search, knowledge-graph, embeddings, chunking, entity-extraction]
 date: 2026-04-26
 status: active
-summary: Operator runbook for the four-phase end-to-end rebuild of chunks, Lucene, embeddings, and the entity-extraction layer. Covers the bin/full-rebuild.sh orchestration script, the optional KG reset step, and how to use the rebuild as an experiment harness for tuning chunker config, prefilter thresholds, and extractor models.
+summary: Operator runbook for the four-phase end-to-end rebuild of chunks, Lucene, embeddings, and the entity-extraction layer. Covers the bin/kg-rebuild.sh orchestration script, the optional KG reset step, and how to use the rebuild as an experiment harness for tuning chunker config, prefilter thresholds, and extractor models.
 related: [WikantikKnowledgeGraphAdmin]
 audience: [humans]
 ---
@@ -19,7 +19,7 @@ This page documents the operator runbook for rebuilding every derived index Wika
 - The knowledge graph has accumulated noise from earlier extraction runs and you want a clean slate.
 - You're sweeping prefilter / chunker / model parameters and need a reproducible reset between trials.
 
-The rebuild is implemented as a four-phase pipeline orchestrated by `bin/full-rebuild.sh`. Each phase is independently skippable, so a typical experiment iteration only re-runs the cheap phases — you don't re-chunk every time you swap an extractor model.
+The rebuild is implemented as a four-phase pipeline orchestrated by `bin/kg-rebuild.sh`. Each phase is independently skippable, so a typical experiment iteration only re-runs the cheap phases — you don't re-chunk every time you swap an extractor model.
 
 ## What gets rebuilt
 
@@ -28,7 +28,7 @@ The pipeline touches four derived data layers, in order:
 1. **Chunks** (`kg_content_chunks`) and **Lucene full-text index** — wiped and rebuilt from page markdown on disk by `ContentIndexRebuildService`.
 2. **Chunk embeddings** (`kg_content_chunk_embeddings`) — wiped (via `ON DELETE CASCADE` from phase 1) and repopulated by `BootstrapEmbeddingIndexer` against the configured embedder model.
 3. **Knowledge graph** (`kg_nodes`, `kg_edges`, `kg_proposals`) — *optional, opt-in only*. Removes pending proposals and AI-inferred nodes; keeps `human-authored` and `ai-reviewed` rows. Skipped by default.
-4. **Entity mentions and proposals** (`chunk_entity_mentions`, `kg_proposals`) — repopulated by `bin/runextractor.sh` calling the configured extractor model against every (filtered) chunk.
+4. **Entity mentions and proposals** (`chunk_entity_mentions`, `kg_proposals`) — repopulated by `bin/kg-extract.sh` calling the configured extractor model against every (filtered) chunk.
 
 Source-of-truth markdown in `docs/wikantik-pages/` is never touched. Page metadata (frontmatter, canonical IDs, structural spine) is preserved.
 
@@ -36,26 +36,117 @@ Source-of-truth markdown in `docs/wikantik-pages/` is never touched. Page metada
 
 Because `chunk_entity_mentions.chunk_id` and `kg_content_chunk_embeddings.chunk_id` both reference `kg_content_chunks(id)` with `ON DELETE CASCADE`, **phase 1 implicitly wipes both downstream tables**. Phase 2 fully repopulates embeddings, and phase 4 fully repopulates mentions, so the cascade is a feature: you can't end up with stale rows pointing at chunks that no longer exist.
 
-## Quick start
+## Sample commands
+
+A starter set covering the workflows you'll use most. Anything after `--` (or any unrecognised arg) is forwarded verbatim to `bin/kg-extract.sh` — see the [extractor CLI help](#extractor-cli-pass-through) for the full list.
+
+### Plan and preview before committing
 
 ```bash
-# Default: chunks → embeddings → extraction with the extractor's defaults
-bin/full-rebuild.sh
+# Print the four-phase plan, exit 0. Touches nothing.
+bin/kg-rebuild.sh --dry-run -- \
+    --ollama-model qwen2.5:1.5b-instruct --concurrency 6 --prefilter
 
-# Typical experiment iteration: try a small fast model with the prefilter on
-bin/full-rebuild.sh -- \
+# Walk every page on disk, run the chunker in memory at given config,
+# print size distribution + how many chunks the prefilter would drop.
+# ~2 seconds. No DB, no Tomcat, no LLM.
+bin/kg-extract.sh --chunker-stats-only --chunker-merge-forward-tokens 300
+
+# Walk the live chunks in the DB, evaluate the prefilter, print
+# reason-by-reason skip counts. ~15 seconds. No LLM.
+bin/kg-extract.sh --stats-only --prefilter-min-tokens 50
+```
+
+### End-to-end rebuilds
+
+```bash
+# Vanilla full rebuild using whatever's in wikantik-custom.properties
+# for chunker, embedder, and extractor. Useful as a "reset to defaults".
+bin/kg-rebuild.sh
+
+# Experiment iteration: small fast model + prefilter at threshold 30,
+# concurrency 6, --force so the chunks are re-extracted from scratch.
+# Wall time on a 4060Ti with ~22K chunks: ~60-90 minutes.
+bin/kg-rebuild.sh -- \
     --ollama-model qwen2.5:1.5b-instruct \
     --concurrency 6 \
     --prefilter --prefilter-min-tokens 30 \
     --force
 
-# Tabula-rasa run that also wipes ai-inferred KG nodes
-bin/full-rebuild.sh --reset-kg -- \
+# Tabula rasa: also wipes pending proposals and ai-inferred KG nodes
+# before re-extracting. Use when comparing two models on the same chunks
+# and you want a guaranteed clean baseline.
+bin/kg-rebuild.sh --reset-kg -- \
     --ollama-model qwen2.5:1.5b-instruct \
     --concurrency 6 --prefilter --force
 ```
 
-Anything after `--` (or any unrecognised arg) is forwarded verbatim to `bin/runextractor.sh`. See the [extractor CLI help](#extractor-cli-pass-through) at the bottom of this page for the full list.
+### Inner-loop iteration *(after the first full rebuild)*
+
+```bash
+# Just re-extract: the chunks and embeddings from the previous run are
+# still good. Cheapest way to A/B two extractor models or prefilter
+# settings.
+bin/kg-rebuild.sh --skip-chunks --skip-embeddings -- \
+    --ollama-model qwen2.5:1.5b-instruct \
+    --concurrency 6 --prefilter --force
+
+# Same, but with a clean KG between trials so mentions/proposals from
+# the prior run don't muddy the comparison.
+bin/kg-rebuild.sh --reset-kg --skip-chunks --skip-embeddings -- \
+    --ollama-model phi3.5:3.8b \
+    --concurrency 4 --prefilter --force
+```
+
+### Smoke tests
+
+```bash
+# 5 pages end-to-end. Use after any structural change to confirm the
+# whole pipeline still wires up before committing to a multi-hour run.
+# Wall time: ~5-10 minutes depending on model and host load.
+bin/kg-rebuild.sh --skip-chunks --skip-embeddings -- \
+    --ollama-model qwen2.5:1.5b-instruct \
+    --concurrency 4 --prefilter --force \
+    --max-pages 5
+
+# Same but with a dry-run extraction (filter still evaluates and logs,
+# but extractor receives every chunk). Useful when validating the
+# prefilter's reasoning on representative pages.
+bin/kg-rebuild.sh --skip-chunks --skip-embeddings -- \
+    --ollama-model qwen2.5:1.5b-instruct \
+    --concurrency 4 --prefilter-dry-run --force \
+    --max-pages 5
+```
+
+### Targeted rebuilds
+
+```bash
+# I changed wikantik.chunker.* and restarted Tomcat — re-chunk and
+# re-embed but defer extraction until I've checked chunk shape.
+bin/kg-rebuild.sh --skip-extract
+
+# I changed the embedding model — re-embed only. Chunks stay; the
+# extraction layer is unaffected because mentions don't depend on
+# vectors.
+bin/kg-rebuild.sh --skip-chunks --skip-extract
+
+# I want to wipe the KG without re-extracting, e.g. before manual
+# curation work. Phases 1, 2, 4 skipped; phase 3 runs alone.
+bin/kg-rebuild.sh --reset-kg --skip-chunks --skip-embeddings --skip-extract
+```
+
+### Backwards-compatible (extractor only, no orchestration)
+
+`bin/kg-extract.sh` is still callable directly when you don't need the chunker/embedder rebuild — for example, when extending an existing extraction run with new pages added since the last rebuild.
+
+```bash
+# Run with whatever's in wikantik-custom.properties
+bin/kg-extract.sh
+
+# Override at the command line, no Tomcat dance needed
+bin/kg-extract.sh --ollama-model qwen2.5:1.5b-instruct \
+    --concurrency 6 --prefilter --force
+```
 
 ## The four phases in detail
 
@@ -111,11 +202,11 @@ Use phase 3 when you want to compare two extraction runs against a clean baselin
 
 ### Phase 4 — Entity extraction
 
-Forwards to `bin/runextractor.sh` with whatever args you passed to `bin/full-rebuild.sh`. The extractor walks every chunk, runs the configured prefilter, calls the LLM for survivors, parses the JSON response, and writes mentions and proposals.
+Forwards to `bin/kg-extract.sh` with whatever args you passed to `bin/kg-rebuild.sh`. The extractor walks every chunk, runs the configured prefilter, calls the LLM for survivors, parses the JSON response, and writes mentions and proposals.
 
 This is the only phase that takes hours rather than minutes (depending on model size, concurrency, prefilter aggressiveness, and host load).
 
-See `bin/runextractor.sh --help` for the complete flag list. The most common knobs:
+See `bin/kg-extract.sh --help` for the complete flag list. The most common knobs:
 
 | Flag | Purpose |
 |---|---|
@@ -132,16 +223,16 @@ Each phase has a `--skip-*` flag, useful when you've already done the expensive 
 
 ```bash
 # I just changed the extractor model — re-extract only, keep chunks/embeddings.
-bin/full-rebuild.sh --skip-chunks --skip-embeddings -- \
+bin/kg-rebuild.sh --skip-chunks --skip-embeddings -- \
     --ollama-model qwen2.5:1.5b-instruct --concurrency 6 --prefilter --force
 
 # I want to inspect chunks first; defer extraction.
-bin/full-rebuild.sh --skip-extract
+bin/kg-rebuild.sh --skip-extract
 
 # I'm testing a new chunker config; embeddings still match for vector quality
 # but the per-page chunk count will change. Re-do chunks + embeddings, defer
 # extraction until I'm happy with chunk shape.
-bin/full-rebuild.sh --skip-extract
+bin/kg-rebuild.sh --skip-extract
 ```
 
 Combined with `--dry-run`, the planner output makes it easy to confirm what will happen before committing to a long run.
@@ -153,7 +244,7 @@ A typical tuning loop looks like this:
 1. **Survey the chunker** without writing anything:
 
     ```bash
-    bin/runextractor.sh --chunker-stats-only \
+    bin/kg-extract.sh --chunker-stats-only \
         --chunker-merge-forward-tokens 300
     ```
 
@@ -162,7 +253,7 @@ A typical tuning loop looks like this:
 2. **Survey the prefilter** against the live chunks:
 
     ```bash
-    bin/runextractor.sh --stats-only --prefilter-min-tokens 50
+    bin/kg-extract.sh --stats-only --prefilter-min-tokens 50
     ```
 
     Walks `kg_content_chunks`, evaluates the prefilter, prints reason-by-reason skip counts. Takes ~15 seconds. Does not call the LLM.
@@ -170,13 +261,13 @@ A typical tuning loop looks like this:
 3. **Decide on a chunker config**, edit `wikantik-custom.properties`, restart Tomcat, then commit to phase 1 + phase 2:
 
     ```bash
-    bin/full-rebuild.sh --skip-extract
+    bin/kg-rebuild.sh --skip-extract
     ```
 
 4. **Sweep extractor models / prefilter thresholds** by re-running phase 4 only:
 
     ```bash
-    bin/full-rebuild.sh --skip-chunks --skip-embeddings --reset-kg -- \
+    bin/kg-rebuild.sh --skip-chunks --skip-embeddings --reset-kg -- \
         --ollama-model qwen2.5:1.5b-instruct \
         --concurrency 6 --prefilter --prefilter-min-tokens 30 \
         --max-pages 20 --force
@@ -237,7 +328,7 @@ Properties read at engine startup, set in `tomcat/tomcat-11/lib/wikantik-custom.
 | `wikantik.knowledge.extractor.prefilter.enabled` | `false` | Phase 4: master switch for the chunk prefilter |
 | `wikantik.knowledge.extractor.prefilter.min_tokens` | `20` | Phase 4: too-short threshold |
 
-CLI flags on `bin/runextractor.sh` override these properties for a single run, which is what makes the experiment loop fast — you don't have to restart Tomcat between trials of model or prefilter changes.
+CLI flags on `bin/kg-extract.sh` override these properties for a single run, which is what makes the experiment loop fast — you don't have to restart Tomcat between trials of model or prefilter changes.
 
 ## Script options reference
 
@@ -250,7 +341,7 @@ CLI flags on `bin/runextractor.sh` override these properties for a single run, w
 | `--dry-run` | Print the plan, exit 0 |
 | `--yes` / `-y` | Skip the `--reset-kg` confirmation prompt |
 | `--help` / `-h` | Print this script's header comment and exit |
-| `--` | Everything after this is forwarded to `bin/runextractor.sh` |
+| `--` | Everything after this is forwarded to `bin/kg-extract.sh` |
 
 Environment variables:
 
@@ -267,13 +358,13 @@ Environment variables:
 
 **Phase 2 returns 503** — hybrid retrieval is disabled. The script skips phase 2 with a warning and continues. To re-enable, set `wikantik.search.hybrid.enabled=true` and restart Tomcat.
 
-**Phase 4 progresses but proposals/mentions stay at zero** — confirm `wikantik.knowledge.extractor.backend=ollama` (or `claude`) is set and the configured Ollama model is loaded on the inference host. Run `bin/runextractor.sh --stats-only` to confirm the prefilter isn't dropping every chunk.
+**Phase 4 progresses but proposals/mentions stay at zero** — confirm `wikantik.knowledge.extractor.backend=ollama` (or `claude`) is set and the configured Ollama model is loaded on the inference host. Run `bin/kg-extract.sh --stats-only` to confirm the prefilter isn't dropping every chunk.
 
 **The run aborts mid-phase-4 and you want to resume** — re-run with `--skip-chunks --skip-embeddings`. Without `--force` the extractor will upsert mentions on the existing primary key, so chunks that already produced mentions are effectively re-runs against the same node IDs (cheap, idempotent if the model output is stable).
 
 ## Extractor CLI pass-through
 
-For the complete extractor CLI flag list, run `bin/runextractor.sh --help` directly. Every flag is forwarded by `bin/full-rebuild.sh` after the optional `--` separator (or as the first unrecognised arg). The most useful ones for experimentation:
+For the complete extractor CLI flag list, run `bin/kg-extract.sh --help` directly. Every flag is forwarded by `bin/kg-rebuild.sh` after the optional `--` separator (or as the first unrecognised arg). The most useful ones for experimentation:
 
 - `--ollama-model <tag>` and `--ollama-url <url>` — model selection
 - `--concurrency <1..10>` — number of in-flight LLM calls

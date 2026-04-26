@@ -41,6 +41,8 @@ import java.util.Properties;
  * @param prefilterDryRun              Log skips but do not actually suppress extraction
  * @param prefilterSkipPureCode        Skip pages whose content is predominantly code fences
  * @param prefilterSkipNoProperNoun    Skip pages with no detectable proper noun tokens
+ * @param prefilterSkipTooShort        Skip chunks whose estimated token count is below {@code prefilterMinTokens}
+ * @param prefilterMinTokens           Threshold for {@code prefilterSkipTooShort} (estimated tokens = chars/4)
  */
 public record EntityExtractorConfig(
     String backend,
@@ -55,7 +57,9 @@ public record EntityExtractorConfig(
     boolean prefilterEnabled,
     boolean prefilterDryRun,
     boolean prefilterSkipPureCode,
-    boolean prefilterSkipNoProperNoun
+    boolean prefilterSkipNoProperNoun,
+    boolean prefilterSkipTooShort,
+    int prefilterMinTokens
 ) {
 
     private static final Logger LOG = LogManager.getLogger( EntityExtractorConfig.class );
@@ -90,7 +94,9 @@ public record EntityExtractorConfig(
             getBoolean( props, "prefilter.enabled", false ),
             getBoolean( props, "prefilter.dry_run", false ),
             getBoolean( props, "prefilter.skip_pure_code", true ),
-            getBoolean( props, "prefilter.skip_no_proper_noun", true )
+            getBoolean( props, "prefilter.skip_no_proper_noun", true ),
+            getBoolean( props, "prefilter.skip_too_short", true ),
+            getInt( props, "prefilter.min_tokens", 20 )
         );
     }
 

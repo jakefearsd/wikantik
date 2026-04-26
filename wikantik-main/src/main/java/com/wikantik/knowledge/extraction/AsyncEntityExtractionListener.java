@@ -134,7 +134,9 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
             config.prefilterEnabled(),
             config.prefilterDryRun(),
             config.prefilterSkipPureCode(),
-            config.prefilterSkipNoProperNoun() );
+            config.prefilterSkipNoProperNoun(),
+            config.prefilterSkipTooShort(),
+            config.prefilterMinTokens() );
         this.chunkRepository = chunkRepository;
         this.mentionRepository = mentionRepository;
         this.knowledgeRepository = knowledgeRepository;

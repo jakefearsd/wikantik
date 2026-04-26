@@ -23,18 +23,23 @@ import java.util.regex.Pattern;
 
 /**
  * Pre-extraction predicate. Decides whether a chunk is worth handing to the
- * LLM extractor. Pure function: no I/O, no state beyond the four config flags
+ * LLM extractor. Pure function: no I/O, no state beyond the config flags
  * passed at construction.
  *
- * <p>Two predicates currently:
- * <ul>
+ * <p>Three predicates currently, evaluated in this order so the most-specific
+ * reason wins when a chunk fails more than one:
+ * <ol>
  *   <li><b>pure code block</b> — chunk text is one fenced code block with no
  *       prose around it. The extractor's prompt asks for named entities in
  *       prose; identifiers inside code aren't useful to it.</li>
  *   <li><b>no proper-noun candidate</b> — chunk text contains no token
- *       matching {@code \b[A-Z]\w{2,}\b}. Without one, the extractor has
- *       nothing to ground a named entity on.</li>
- * </ul>
+ *       matching {@code \b\w*[A-Z]\w{2,}\b}. The leading {@code \w*}
+ *       matches mixed-case identifiers like {@code iPad}, {@code gRPC},
+ *       {@code eBay} that have a lowercase prefix before the capital.</li>
+ *   <li><b>too short</b> — chunk's estimated token count (chars / 4) is
+ *       below {@code minTokens}. Tiny chunks rarely contain enough context
+ *       for meaningful entity extraction.</li>
+ * </ol>
  *
  * <p>Operates on chunk text only; heading_path is intentionally not inspected
  * (the extractor's prompt already includes it, so a chunk whose only caps are
@@ -46,10 +51,15 @@ public final class ChunkExtractionPrefilter {
     public static ChunkExtractionPrefilter passthrough() {
         return new ChunkExtractionPrefilter(
             /*enabled*/ false, /*dryRun*/ false,
-            /*skipPureCode*/ false, /*skipNoProperNoun*/ false );
+            /*skipPureCode*/ false, /*skipNoProperNoun*/ false,
+            /*skipTooShort*/ false, /*minTokens*/ 0 );
     }
 
-    private static final Pattern PROPER_NOUN = Pattern.compile( "\\b[A-Z]\\w{2,}\\b" );
+    /** Matches PostgreSQL, JavaScript, OpenAI (leading capital + tail) AND
+     *  iPad, gRPC, eBay, myAPI (lowercase prefix + interior capital + tail).
+     *  Still excludes Of/On (only 1 char after the capital) and pure
+     *  lowercase identifiers like kubectl. */
+    private static final Pattern PROPER_NOUN = Pattern.compile( "\\b\\w*[A-Z]\\w{2,}\\b" );
     private static final Pattern PURE_CODE_BLOCK = Pattern.compile(
         "(?s)\\A\\s*```[^\\n]*\\n.*?\\n```\\s*\\z" );
 
@@ -57,15 +67,21 @@ public final class ChunkExtractionPrefilter {
     private final boolean dryRun;
     private final boolean skipPureCode;
     private final boolean skipNoProperNoun;
+    private final boolean skipTooShort;
+    private final int minTokens;
 
     public ChunkExtractionPrefilter( final boolean enabled,
                                      final boolean dryRun,
                                      final boolean skipPureCode,
-                                     final boolean skipNoProperNoun ) {
+                                     final boolean skipNoProperNoun,
+                                     final boolean skipTooShort,
+                                     final int minTokens ) {
         this.enabled = enabled;
         this.dryRun = dryRun;
         this.skipPureCode = skipPureCode;
         this.skipNoProperNoun = skipNoProperNoun;
+        this.skipTooShort = skipTooShort;
+        this.minTokens = Math.max( 0, minTokens );
     }
 
     /** True iff the master switch is on; cheap predicate so callers can skip
@@ -84,6 +100,8 @@ public final class ChunkExtractionPrefilter {
             reason = "pure_code";
         } else if( skipNoProperNoun && !hasProperNoun( body ) ) {
             reason = "no_proper_noun";
+        } else if( skipTooShort && estimateTokens( body ) < minTokens ) {
+            reason = "too_short";
         } else {
             return new Decision( true, "ok" );
         }
@@ -99,6 +117,11 @@ public final class ChunkExtractionPrefilter {
 
     private static boolean hasProperNoun( final String text ) {
         return PROPER_NOUN.matcher( text ).find();
+    }
+
+    /** Same heuristic as {@code ContentChunker.estimateTokens}: chars / 4. */
+    private static int estimateTokens( final String text ) {
+        return (int) Math.ceil( text.length() / 4.0 );
     }
 
     public record Decision( boolean shouldExtract, String reason ) {}

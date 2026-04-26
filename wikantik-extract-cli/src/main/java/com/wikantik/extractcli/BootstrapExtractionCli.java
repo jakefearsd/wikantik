@@ -110,7 +110,9 @@ public final class BootstrapExtractionCli {
             cfg.prefilterEnabled(),
             cfg.prefilterDryRun(),
             cfg.prefilterSkipPureCode(),
-            cfg.prefilterSkipNoProperNoun() );
+            cfg.prefilterSkipNoProperNoun(),
+            cfg.prefilterSkipTooShort(),
+            cfg.prefilterMinTokens() );
         try( BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
                  listener, chunkRepo, mentionRepo, cfg.concurrency(), prefilter ) ) {
             LOG.info( "Extract-CLI starting (backend={}, model={}, concurrency={}, force={}, prefilter={}{})",
@@ -229,10 +231,12 @@ public final class BootstrapExtractionCli {
               -h, --help                           show this message
 
             Pre-filter (optional, opt-in):
-              --prefilter                        enable chunk prefilter (skip pure code + no-proper-noun chunks)
+              --prefilter                        enable chunk prefilter (skip pure code + no-proper-noun + too-short chunks)
               --prefilter-dry-run                enable filter but log decisions only — no chunks are skipped
               --no-prefilter-skip-code           keep the prefilter on but disable the pure-code rule
               --no-prefilter-skip-nopn           keep the prefilter on but disable the no-proper-noun rule
+              --no-prefilter-skip-short          keep the prefilter on but disable the too-short rule
+              --prefilter-min-tokens <N>         token threshold for too-short rule (default 20; chars/4 estimate)
 
             Exit codes: 0 = completed, 1 = errored / refused to start, 2 = bad arguments.
             """;
@@ -260,6 +264,8 @@ public final class BootstrapExtractionCli {
         boolean prefilterDryRun       = false;
         boolean prefilterSkipCode     = true;
         boolean prefilterSkipNoProper = true;
+        boolean prefilterSkipShort    = true;
+        int     prefilterMinTokens    = 20;
 
         static Args parse( final String[] argv ) {
             final Args a = new Args();
@@ -287,6 +293,8 @@ public final class BootstrapExtractionCli {
                     case "--prefilter-dry-run"       -> { a.prefilterEnabled = true; a.prefilterDryRun = true; }
                     case "--no-prefilter-skip-code"  -> a.prefilterSkipCode = false;
                     case "--no-prefilter-skip-nopn"  -> a.prefilterSkipNoProper = false;
+                    case "--no-prefilter-skip-short" -> a.prefilterSkipShort = false;
+                    case "--prefilter-min-tokens"    -> a.prefilterMinTokens = parseInt( req( argv, ++i, k ), k );
                     default -> throw new IllegalArgumentException( "unknown argument: " + k );
                 }
             }
@@ -294,10 +302,16 @@ public final class BootstrapExtractionCli {
                 if( a.jdbcUrl.isBlank() ) throw new IllegalArgumentException( "--jdbc-url is required" );
                 if( a.jdbcUser.isBlank() ) throw new IllegalArgumentException( "--jdbc-user is required" );
                 if( a.pollSeconds < 1 ) throw new IllegalArgumentException( "--poll-seconds must be >= 1" );
-                if( ( !a.prefilterSkipCode || !a.prefilterSkipNoProper ) && !a.prefilterEnabled ) {
+                final boolean anySubFlagFlipped =
+                    !a.prefilterSkipCode || !a.prefilterSkipNoProper || !a.prefilterSkipShort
+                    || a.prefilterMinTokens != 20;
+                if( anySubFlagFlipped && !a.prefilterEnabled ) {
                     throw new IllegalArgumentException(
-                        "--no-prefilter-skip-code / --no-prefilter-skip-nopn have no effect "
+                        "--no-prefilter-skip-* / --prefilter-min-tokens have no effect "
                       + "without --prefilter (or --prefilter-dry-run); pass one of those too." );
+                }
+                if( a.prefilterMinTokens < 0 ) {
+                    throw new IllegalArgumentException( "--prefilter-min-tokens must be >= 0" );
                 }
             }
             return a;
@@ -321,6 +335,8 @@ public final class BootstrapExtractionCli {
             p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.dry_run", Boolean.toString( prefilterDryRun ) );
             p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.skip_pure_code", Boolean.toString( prefilterSkipCode ) );
             p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.skip_no_proper_noun", Boolean.toString( prefilterSkipNoProper ) );
+            p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.skip_too_short", Boolean.toString( prefilterSkipShort ) );
+            p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.min_tokens", Integer.toString( prefilterMinTokens ) );
             return EntityExtractorConfig.fromProperties( p );
         }
 

@@ -71,6 +71,10 @@ class AsyncEntityExtractionListenerPrefilterTest {
         // Pin the predicate under test so a future default flip in
         // EntityExtractorConfig can't quietly turn this assertion into a no-op.
         p.setProperty( "wikantik.knowledge.extractor.prefilter.skip_no_proper_noun", "true" );
+        // Disable the too-short rule — the kept chunk in this fixture is only
+        // ~6 tokens and would otherwise trip it, masking the assertion that
+        // no_proper_noun is what's filtering the skipped chunk.
+        p.setProperty( "wikantik.knowledge.extractor.prefilter.skip_too_short", "false" );
         final EntityExtractorConfig cfg = EntityExtractorConfig.fromProperties( p );
 
         final ExecutorService inline = Executors.newSingleThreadExecutor();

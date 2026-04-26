@@ -34,7 +34,23 @@ async function request(path, options = {}) {
     return null;
   }
   const text = await resp.text();
-  return text ? JSON.parse(text) : null;
+  if (!text) return null;
+  return unwrapEnvelope(JSON.parse(text));
+}
+
+// House style on the REST side wraps newer resources in `{ data: ... }`
+// (PageByIdResource, PageForAgentResource, AdminVerificationResource,
+// AdminStructuralConflictsResource, AdminRetrievalQualityResource,
+// PageRelationsResource, StructureResource). Auto-unwrap so callers don't
+// have to repeat `resp?.data?.X` at every site. Conservative shape check —
+// only single-key `{data: …}` objects unwrap, so legacy responses that
+// happen to include a top-level `data` field stay untouched.
+function unwrapEnvelope(parsed) {
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      && Object.keys(parsed).length === 1 && 'data' in parsed) {
+    return parsed.data;
+  }
+  return parsed;
 }
 
 export const api = {

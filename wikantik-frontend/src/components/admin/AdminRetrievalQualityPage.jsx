@@ -28,7 +28,7 @@ export default function AdminRetrievalQualityPage() {
         mode: filterMode || undefined,
         limit: DEFAULT_LIMIT,
       });
-      return resp?.data?.recent_runs || [];
+      return resp?.recent_runs || [];
     } finally {
       setLoading(false);
     }

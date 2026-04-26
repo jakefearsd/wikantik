@@ -72,3 +72,80 @@ imperative steps. Topic-keyed how-tos go in narrative articles instead.
    permitted but discouraged.
 5. Save through the wiki — `RunbookValidationPageFilter` will reject
    schema violations with a `FilterException` naming the issue kind.
+
+## Editorial / ongoing
+
+This section captures the maintenance cadence for the cookbook and the
+verification system that backs it. Neither item needs an engineering
+pass — both grow over time as the project evolves.
+
+### Cookbook expansion
+
+The 15 seed runbooks listed under [Members](#members) cover the
+scenarios that were obvious at launch (2026-04-25). New runbooks land
+when one of three triggers fires:
+
+- **Observed agent thrashing.** An MCP transcript shows an agent
+  retrying the same operation 3+ times with different phrasings, or
+  reaching for the wrong tool repeatedly. If the right behaviour can be
+  summarised in 2–5 imperative steps, it's a runbook candidate.
+- **A new subsystem ships** that an agent will need to use. Write the
+  runbook *with* the subsystem's first release, not after the
+  third bug report.
+- **Recurring human questions.** If the same human asks the same
+  question of the wiki twice, that's data — write the runbook.
+
+What does NOT belong as a runbook:
+
+- Topic explainers ("how does X work?") — those go in narrative articles.
+- One-off recipes that won't generalise.
+- Speculative procedures with no observed need.
+
+The validator (`FrontmatterRunbookValidator`) enforces structural rules
+at save time: ≥1 `when_to_use`, ≥2 `steps`, ≥1 `pitfalls`,
+`related_tools` matching `/api|knowledge-mcp|wikantik-admin-mcp|tools/*`
+or bare snake_case names, `references` resolving to canonical_ids or
+page titles. A save that violates any of these returns
+`FilterException` naming the issue kind.
+
+### Trusted-authors registry growth
+
+Verification confidence is computed by `ConfidenceComputer` from
+`verified_at` + the verifier's membership in the `trusted_authors`
+table:
+
+- A `mark_page_verified` call from a trusted author within the last
+  90 days → `confidence: authoritative`.
+- A `mark_page_verified` call from a non-trusted author → stays
+  `provisional` (the timestamp lands; the confidence does not promote).
+- No verification, or verification older than 90 days →
+  `confidence: stale`.
+
+The wiki currently runs single-developer, so `trusted_authors` has one
+row (`jakefear`). Adding contributors is a one-line `INSERT` per
+person:
+
+```sql
+INSERT INTO trusted_authors (login_name, notes)
+VALUES ('alice', 'primary maintainer, security')
+ON CONFLICT (login_name) DO NOTHING;
+```
+
+The cache (`TrustedAuthorsDao`) refreshes on the next save event, so
+the new author's verifications start producing `authoritative` results
+immediately.
+
+When to add a new trusted author:
+
+- They've shipped at least one substantive review of an existing
+  page (a non-trivial edit, not a typo fix).
+- They understand the verification semantics (see
+  [VerifyingAnAgentGeneratedPage](VerifyingAnAgentGeneratedPage)).
+- They're willing to be cited as the verifier of pages they mark.
+
+When to remove a trusted author:
+
+- They're no longer active.
+- They've left the project.
+- A pattern of mass-marking emerges — verification only retains
+  signal if every `authoritative` mark is backed by a real read.

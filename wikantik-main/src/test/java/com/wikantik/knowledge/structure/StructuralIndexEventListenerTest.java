@@ -18,45 +18,54 @@
  */
 package com.wikantik.knowledge.structure;
 
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.filters.FilterManager;
-import com.wikantik.api.managers.PageManager;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.mockito.Mockito.*;
 
 class StructuralIndexEventListenerTest {
 
+    private DefaultStructuralIndexService svc;
+    private StructuralIndexEventListener listener;
+    private FilterManager filterManager;
+    private PageManager pageManager;
+
+    @BeforeEach
+    void setUp() {
+        svc = mock( DefaultStructuralIndexService.class );
+        listener = new StructuralIndexEventListener( svc );
+        filterManager = mock( FilterManager.class );
+        pageManager = mock( PageManager.class );
+    }
+
+    @AfterEach
+    void tearDown() {
+        WikiEventManager.removeWikiEventListener( filterManager, listener );
+        WikiEventManager.removeWikiEventListener( pageManager, listener );
+    }
+
     @Test
     void post_save_triggers_onPageSaved() {
-        final DefaultStructuralIndexService svc = mock( DefaultStructuralIndexService.class );
-        final StructuralIndexEventListener listener = new StructuralIndexEventListener( svc );
-
-        final WikiPageEvent evt = new WikiPageEvent( this, WikiPageEvent.POST_SAVE, "HybridRetrieval" );
-        listener.actionPerformed( evt );
+        listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE, "HybridRetrieval" ) );
 
         verify( svc, times( 1 ) ).onPageSaved( "HybridRetrieval" );
     }
 
     @Test
     void page_deleted_triggers_onPageDeleted() {
-        final DefaultStructuralIndexService svc = mock( DefaultStructuralIndexService.class );
-        final StructuralIndexEventListener listener = new StructuralIndexEventListener( svc );
-
-        final WikiPageEvent evt = new WikiPageEvent( this, WikiPageEvent.PAGE_DELETED, "GoneBaby" );
-        listener.actionPerformed( evt );
+        listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.PAGE_DELETED, "GoneBaby" ) );
 
         verify( svc, times( 1 ) ).onPageDeleted( "GoneBaby" );
     }
 
     @Test
     void other_events_are_ignored() {
-        final DefaultStructuralIndexService svc = mock( DefaultStructuralIndexService.class );
-        final StructuralIndexEventListener listener = new StructuralIndexEventListener( svc );
-
-        final WikiPageEvent evt = new WikiPageEvent( this, WikiPageEvent.PAGE_LOCK, "X" );
-        listener.actionPerformed( evt );
+        listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.PAGE_LOCK, "X" ) );
 
         verifyNoInteractions( svc );
     }
@@ -65,43 +74,24 @@ class StructuralIndexEventListenerTest {
     void post_save_end_event_reaches_on_page_saved() {
         // Production fires POST_SAVE_END (not the bare POST_SAVE) from DefaultFilterManager
         // during doPostSaveFiltering. Mirror that wiring: register on a FilterManager-shaped
-        // source, fire from the same source, and assert the listener routed the event through
-        // to onPageSaved.
-        final DefaultStructuralIndexService svc = mock( DefaultStructuralIndexService.class );
-        final StructuralIndexEventListener listener = new StructuralIndexEventListener( svc );
-        final FilterManager filterManager = mock( FilterManager.class );
-        final PageManager pageManager = mock( PageManager.class );
-        try {
-            listener.register( pageManager, filterManager );
+        // source, fire from the same source, and assert the listener routed it through.
+        listener.register( pageManager, filterManager );
 
-            WikiEventManager.fireEvent( filterManager,
-                new WikiPageEvent( this, WikiPageEvent.POST_SAVE_END, "RestSavedPage" ) );
+        WikiEventManager.fireEvent( filterManager,
+            new WikiPageEvent( this, WikiPageEvent.POST_SAVE_END, "RestSavedPage" ) );
 
-            verify( svc, times( 1 ) ).onPageSaved( "RestSavedPage" );
-        } finally {
-            WikiEventManager.removeWikiEventListener( filterManager, listener );
-            WikiEventManager.removeWikiEventListener( pageManager, listener );
-        }
+        verify( svc, times( 1 ) ).onPageSaved( "RestSavedPage" );
     }
 
     @Test
     void page_deleted_event_from_page_manager_reaches_on_page_deleted() {
         // PAGE_DELETED is still fired from DefaultPageManager (source = PageManager),
         // so the listener must keep listening on that source too.
-        final DefaultStructuralIndexService svc = mock( DefaultStructuralIndexService.class );
-        final StructuralIndexEventListener listener = new StructuralIndexEventListener( svc );
-        final FilterManager filterManager = mock( FilterManager.class );
-        final PageManager pageManager = mock( PageManager.class );
-        try {
-            listener.register( pageManager, filterManager );
+        listener.register( pageManager, filterManager );
 
-            WikiEventManager.fireEvent( pageManager,
-                new WikiPageEvent( this, WikiPageEvent.PAGE_DELETED, "GoneBaby" ) );
+        WikiEventManager.fireEvent( pageManager,
+            new WikiPageEvent( this, WikiPageEvent.PAGE_DELETED, "GoneBaby" ) );
 
-            verify( svc, times( 1 ) ).onPageDeleted( "GoneBaby" );
-        } finally {
-            WikiEventManager.removeWikiEventListener( filterManager, listener );
-            WikiEventManager.removeWikiEventListener( pageManager, listener );
-        }
+        verify( svc, times( 1 ) ).onPageDeleted( "GoneBaby" );
     }
 }

@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function Sparkline({ values, width = 120, height = 24, stroke = 'currentColor' }) {
   const cleaned = (values || []).filter(v => typeof v === 'number' && Number.isFinite(v));
   if (cleaned.length < 2) {

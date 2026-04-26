@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../api/client';
+import AdminPage from './AdminPage';
 import UserFormModal from './UserFormModal';
 import '../../styles/admin.css';
 
@@ -88,11 +89,8 @@ export default function AdminUsersPage() {
     return sortAsc ? ' \u25B2' : ' \u25BC';
   };
 
-  if (loading) return <div className="admin-loading">Loading users…</div>;
-  if (error) return <div className="error-banner">{error}</div>;
-
   return (
-    <div className="admin-users page-enter">
+    <AdminPage loading={loading} error={error} loadingLabel="Loading users…">
       <div className="admin-toolbar">
         <input
           type="text"
@@ -184,7 +182,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminPage>
   );
 }
 

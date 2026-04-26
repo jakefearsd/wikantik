@@ -91,12 +91,19 @@ public final class BootstrapExtractionCli {
     }
 
     private static int run( final Args a ) {
+        final EntityExtractorConfig cfg = a.toExtractorConfig();
+
+        // --chunker-stats-only doesn't touch the DB — re-chunks pages from
+        // disk in memory and prints distribution stats. Handle it before
+        // we even open a JDBC connection.
+        if( a.chunkerStatsOnly ) {
+            return runChunkerStatsOnly( a, cfg );
+        }
+
         final DataSource ds = dataSource( a );
         final ContentChunkRepository chunkRepo = new ContentChunkRepository( ds );
         final ChunkEntityMentionRepository mentionRepo = new ChunkEntityMentionRepository( ds );
         final JdbcKnowledgeRepository kgRepo = new JdbcKnowledgeRepository( ds );
-
-        final EntityExtractorConfig cfg = a.toExtractorConfig();
 
         // --stats-only short-circuits before we touch any extractor: walk every
         // chunk, evaluate the prefilter, print reason-by-reason counts, exit.
@@ -147,6 +154,122 @@ public final class BootstrapExtractionCli {
         } finally {
             try( listener ) { /* try-with-resources drains the async executor */ }
         }
+    }
+
+    /**
+     * Reads every {@code .md} file under {@code --pages-dir}, parses
+     * frontmatter, runs the chunker with the supplied {@code --chunker-*}
+     * overrides, and reports the chunk-size distribution and (optionally) the
+     * prefilter's effect on those re-chunked chunks. No DB access, no
+     * extractor call. Pure in-memory exercise for tuning chunker config
+     * before committing to a re-chunk + extraction round-trip.
+     *
+     * <p>Token estimate uses the same chars/4 heuristic as the chunker, so
+     * the numbers reported here match what the chunker writes to
+     * {@code kg_content_chunks.token_count_estimate}.
+     */
+    private static int runChunkerStatsOnly( final Args a, final EntityExtractorConfig cfg ) {
+        final java.nio.file.Path dir = java.nio.file.Paths.get( a.pagesDir ).toAbsolutePath().normalize();
+        if( !java.nio.file.Files.isDirectory( dir ) ) {
+            System.err.println( "error: --pages-dir does not exist or is not a directory: " + dir );
+            return 1;
+        }
+
+        final com.wikantik.knowledge.chunking.ContentChunker chunker =
+            new com.wikantik.knowledge.chunking.ContentChunker(
+                new com.wikantik.knowledge.chunking.ContentChunker.Config(
+                    a.chunkerMaxTokens, a.chunkerMergeForwardTokens ) );
+        final ChunkExtractionPrefilter prefilter = new ChunkExtractionPrefilter(
+            /*enabled*/ true, /*dryRun*/ false,
+            cfg.prefilterSkipPureCode(),
+            cfg.prefilterSkipNoProperNoun(),
+            cfg.prefilterSkipTooShort(),
+            cfg.prefilterMinTokens() );
+
+        LOG.info( "Chunker-stats: scanning {} for *.md (max_tokens={}, merge_forward_tokens={})",
+            dir, a.chunkerMaxTokens, a.chunkerMergeForwardTokens );
+
+        final long started = System.nanoTime();
+        final java.util.List< Integer > sizes = new java.util.ArrayList<>();
+        final java.util.Map< String, Integer > prefilterReasons = new java.util.TreeMap<>();
+        int pages = 0;
+        int prefilterKept = 0;
+        int prefilterSkipped = 0;
+        try( java.util.stream.Stream< java.nio.file.Path > walk = java.nio.file.Files.walk( dir ) ) {
+            for( final java.nio.file.Path p : (Iterable< java.nio.file.Path >) walk::iterator ) {
+                if( !java.nio.file.Files.isRegularFile( p ) ) continue;
+                final String name = p.getFileName().toString();
+                if( !name.endsWith( ".md" ) ) continue;
+                final String text;
+                try {
+                    text = java.nio.file.Files.readString( p );
+                } catch( final java.io.IOException ioe ) {
+                    LOG.warn( "Skipping {}: read failed: {}", p, ioe.getMessage() );
+                    continue;
+                }
+                final com.wikantik.api.frontmatter.ParsedPage parsed =
+                    com.wikantik.api.frontmatter.FrontmatterParser.parse( text );
+                final String pageName = name.substring( 0, name.length() - 3 );
+                final java.util.List< com.wikantik.knowledge.chunking.Chunk > chunks =
+                    chunker.chunk( pageName, parsed );
+                pages++;
+                for( final com.wikantik.knowledge.chunking.Chunk c : chunks ) {
+                    sizes.add( c.tokenCountEstimate() );
+                    final ChunkExtractionPrefilter.Decision d = prefilter.evaluate( c.text(), c.headingPath() );
+                    if( d.shouldExtract() ) {
+                        prefilterKept++;
+                    } else {
+                        prefilterSkipped++;
+                        prefilterReasons.merge( d.reason(), 1, Integer::sum );
+                    }
+                }
+            }
+        } catch( final java.io.IOException ioe ) {
+            System.err.println( "error: walking pages dir failed: " + ioe.getMessage() );
+            return 1;
+        }
+
+        final long elapsedMs = ( System.nanoTime() - started ) / 1_000_000L;
+        if( sizes.isEmpty() ) {
+            LOG.warn( "Chunker-stats: no .md files found under {}", dir );
+            return 0;
+        }
+        java.util.Collections.sort( sizes );
+        final int total = sizes.size();
+        final int min = sizes.get( 0 );
+        final int max = sizes.get( total - 1 );
+        final double mean = sizes.stream().mapToInt( Integer::intValue ).average().orElse( 0 );
+        final int p50 = sizes.get( total / 2 );
+        final int p90 = sizes.get( Math.min( total - 1, (int)( total * 0.90 ) ) );
+        final int p99 = sizes.get( Math.min( total - 1, (int)( total * 0.99 ) ) );
+
+        LOG.info( "Chunker-stats: pages={} chunks={} elapsedMs={}", pages, total, elapsedMs );
+        LOG.info( "Tokens per chunk: min={} mean={} p50={} p90={} p99={} max={}",
+            min, String.format( Locale.ROOT, "%.0f", mean ), p50, p90, p99, max );
+
+        final int[] cuts   = { 50, 150, 300, 500, 1000, Integer.MAX_VALUE };
+        final String[] lbl = { "  0-50 ", " 51-150", "151-300", "301-500", "501-1k ", "1001+  " };
+        final int[] counts = new int[ cuts.length ];
+        for( final int s : sizes ) {
+            for( int i = 0; i < cuts.length; i++ ) {
+                if( s <= cuts[ i ] ) { counts[ i ]++; break; }
+            }
+        }
+        LOG.info( "Distribution:" );
+        for( int i = 0; i < counts.length; i++ ) {
+            final double pct = 100.0 * counts[ i ] / total;
+            LOG.info( "  {} : {} ({}%)", lbl[ i ], counts[ i ], String.format( Locale.ROOT, "%.1f", pct ) );
+        }
+
+        final double skipPct = 100.0 * prefilterSkipped / total;
+        LOG.info( "Prefilter on these chunks: kept={} skipped={} ({}%)",
+            prefilterKept, prefilterSkipped, String.format( Locale.ROOT, "%.1f", skipPct ) );
+        for( final java.util.Map.Entry< String, Integer > e : prefilterReasons.entrySet() ) {
+            final double rPct = 100.0 * e.getValue() / total;
+            LOG.info( "  reason={} count={} ({}%)", e.getKey(), e.getValue(),
+                String.format( Locale.ROOT, "%.1f", rPct ) );
+        }
+        return 0;
     }
 
     /**
@@ -310,6 +433,15 @@ public final class BootstrapExtractionCli {
                                                  counts, and exit. No extractor calls — useful for sizing
                                                  a run before committing GPU hours to it.
 
+            Chunker stats (no DB, no LLM — reads pages from disk and re-chunks in memory):
+              --chunker-stats-only                 read --pages-dir, re-chunk every page with the supplied
+                                                   --chunker-* overrides, print size distribution + the
+                                                   prefilter's effect on the new chunks. Exits 0.
+              --chunker-max-tokens <N>             chunker hard ceiling (default 512)
+              --chunker-merge-forward-tokens <N>   chunker floor below which chunks merge into the next
+                                                   section (default 150). Must be <= --chunker-max-tokens.
+              --pages-dir <path>                   markdown source root (default docs/wikantik-pages)
+
             Exit codes: 0 = completed, 1 = errored / refused to start, 2 = bad arguments.
             """;
         System.out.println( usage );
@@ -339,6 +471,10 @@ public final class BootstrapExtractionCli {
         boolean prefilterSkipShort    = true;
         int     prefilterMinTokens    = 20;
         boolean statsOnly             = false;
+        boolean chunkerStatsOnly      = false;
+        int     chunkerMaxTokens      = 512;
+        int     chunkerMergeForwardTokens = 150;
+        String  pagesDir              = "docs/wikantik-pages";
 
         static Args parse( final String[] argv ) {
             final Args a = new Args();
@@ -369,26 +505,48 @@ public final class BootstrapExtractionCli {
                     case "--no-prefilter-skip-short" -> a.prefilterSkipShort = false;
                     case "--prefilter-min-tokens"    -> a.prefilterMinTokens = parseInt( req( argv, ++i, k ), k );
                     case "--stats-only"              -> a.statsOnly = true;
+                    case "--chunker-stats-only"      -> a.chunkerStatsOnly = true;
+                    case "--chunker-max-tokens"      -> a.chunkerMaxTokens = parseInt( req( argv, ++i, k ), k );
+                    case "--chunker-merge-forward-tokens" -> a.chunkerMergeForwardTokens = parseInt( req( argv, ++i, k ), k );
+                    case "--pages-dir"               -> a.pagesDir = req( argv, ++i, k );
                     default -> throw new IllegalArgumentException( "unknown argument: " + k );
                 }
             }
             if( !a.showHelp ) {
-                if( a.jdbcUrl.isBlank() ) throw new IllegalArgumentException( "--jdbc-url is required" );
-                if( a.jdbcUser.isBlank() ) throw new IllegalArgumentException( "--jdbc-user is required" );
+                // --chunker-stats-only is the only mode that doesn't touch the
+                // database — its other args (chunker overrides + pages dir)
+                // are validated below regardless.
+                if( !a.chunkerStatsOnly ) {
+                    if( a.jdbcUrl.isBlank() ) throw new IllegalArgumentException( "--jdbc-url is required" );
+                    if( a.jdbcUser.isBlank() ) throw new IllegalArgumentException( "--jdbc-user is required" );
+                }
                 if( a.pollSeconds < 1 ) throw new IllegalArgumentException( "--poll-seconds must be >= 1" );
-                // --stats-only synthesises an enabled prefilter internally, so
-                // sub-flags are meaningful there even without --prefilter.
+                // --stats-only and --chunker-stats-only both synthesise an
+                // enabled prefilter internally, so sub-flags are meaningful
+                // there even without --prefilter.
                 final boolean anySubFlagFlipped =
                     !a.prefilterSkipCode || !a.prefilterSkipNoProper || !a.prefilterSkipShort
                     || a.prefilterMinTokens != 20;
-                if( anySubFlagFlipped && !a.prefilterEnabled && !a.statsOnly ) {
+                final boolean prefilterImplicit = a.prefilterEnabled || a.statsOnly || a.chunkerStatsOnly;
+                if( anySubFlagFlipped && !prefilterImplicit ) {
                     throw new IllegalArgumentException(
                         "--no-prefilter-skip-* / --prefilter-min-tokens have no effect "
-                      + "without --prefilter (or --prefilter-dry-run or --stats-only); "
-                      + "pass one of those too." );
+                      + "without --prefilter (or --prefilter-dry-run, --stats-only, "
+                      + "--chunker-stats-only); pass one of those too." );
                 }
                 if( a.prefilterMinTokens < 0 ) {
                     throw new IllegalArgumentException( "--prefilter-min-tokens must be >= 0" );
+                }
+                if( a.chunkerMaxTokens < 1 ) {
+                    throw new IllegalArgumentException( "--chunker-max-tokens must be >= 1" );
+                }
+                if( a.chunkerMergeForwardTokens < 0 ) {
+                    throw new IllegalArgumentException( "--chunker-merge-forward-tokens must be >= 0" );
+                }
+                if( a.chunkerMergeForwardTokens > a.chunkerMaxTokens ) {
+                    throw new IllegalArgumentException(
+                        "--chunker-merge-forward-tokens must be <= --chunker-max-tokens "
+                      + "(floor cannot exceed ceiling)" );
                 }
             }
             return a;

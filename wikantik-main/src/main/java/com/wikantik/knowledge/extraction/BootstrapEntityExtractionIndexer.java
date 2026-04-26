@@ -122,6 +122,9 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
     private final AtomicBoolean forceOverwrite = new AtomicBoolean();
     private final AtomicInteger skippedChunks = new AtomicInteger();
     private final Map< String, Integer > skipReasonCounts = new ConcurrentHashMap<>();
+    /** When &gt; 0, runBatch processes only the first {@code maxPages}
+     *  page-names (alphabetically). 0 means unlimited (full corpus). */
+    private final AtomicInteger maxPages = new AtomicInteger( 0 );
 
     public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
                                              final ContentChunkRepository chunkRepo,
@@ -239,6 +242,20 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
      *                       simply upserts new ones on conflict.
      */
     public boolean start( final boolean forceOverwrite ) {
+        return start( forceOverwrite, /*maxPages*/ 0 );
+    }
+
+    /**
+     * Variant of {@link #start(boolean)} that caps the run at the first
+     * {@code maxPages} page-names (alphabetical order — the same order
+     * {@code listDistinctPageNames()} returns). Useful for a structural
+     * sanity check ("does the whole pipeline wire up?") without committing
+     * to a multi-hour full run.
+     *
+     * @param forceOverwrite see {@link #start(boolean)}
+     * @param maxPages       0 = unlimited; positive = cap on number of pages processed
+     */
+    public boolean start( final boolean forceOverwrite, final int maxPages ) {
         if( !running.compareAndSet( false, true ) ) {
             return false;
         }
@@ -261,6 +278,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         this.forceOverwrite.set( forceOverwrite );
         skippedChunks.set( 0 );
         skipReasonCounts.clear();
+        this.maxPages.set( Math.max( 0, maxPages ) );
         state.set( State.RUNNING );
 
         executor.submit( () -> runSafely( forceOverwrite ) );
@@ -339,12 +357,21 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
     }
 
     private void runBatch( final boolean overwrite ) throws InterruptedException {
-        final List< String > pages = chunkRepo.listDistinctPageNames();
+        List< String > pages = chunkRepo.listDistinctPageNames();
+        final int cap = maxPages.get();
+        if( cap > 0 && cap < pages.size() ) {
+            pages = pages.subList( 0, cap );
+            LOG.info( "Bootstrap extraction: --max-pages={} cap applied (full corpus has {} pages)",
+                cap, chunkRepo.listDistinctPageNames().size() );
+        }
         totalPages.set( pages.size() );
         // One COUNT(*) up front so progress can report chunks processed against
         // a fixed denominator. If chunks are added mid-run (they shouldn't be),
         // processedChunks can briefly overshoot; that's better than a moving
-        // target in operator logs.
+        // target in operator logs. With --max-pages, totalChunks reflects the
+        // whole corpus, not the capped subset — the percentage will look low,
+        // which is the truthful representation of "how much of the corpus
+        // this run touched."
         try {
             totalChunks.set( chunkRepo.stats().totalChunks() );
         } catch( final RuntimeException e ) {

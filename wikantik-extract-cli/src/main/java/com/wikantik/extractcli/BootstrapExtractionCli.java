@@ -145,7 +145,7 @@ public final class BootstrapExtractionCli {
                     indexer.cancel();
                 }
             }, "extract-cli-shutdown" ) );
-            final boolean started = indexer.start( a.force );
+            final boolean started = indexer.start( a.force, a.maxPages );
             if( !started ) {
                 System.err.println( "error: indexer refused to start — another run is already in flight." );
                 return 1;
@@ -420,6 +420,8 @@ public final class BootstrapExtractionCli {
               --timeout-ms <ms>                    (default 120000)
               --force                              replace existing mentions per chunk before extracting
               --poll-seconds <N>                   progress-log cadence (default 30)
+              --max-pages <N>                      stop after the first N pages (alphabetical), 0 = unlimited.
+                                                   Use for end-to-end smoke tests against a small subset.
               -h, --help                           show this message
 
             Pre-filter (optional, opt-in):
@@ -475,6 +477,7 @@ public final class BootstrapExtractionCli {
         int     chunkerMaxTokens      = 512;
         int     chunkerMergeForwardTokens = 150;
         String  pagesDir              = "docs/wikantik-pages";
+        int     maxPages              = 0;
 
         static Args parse( final String[] argv ) {
             final Args a = new Args();
@@ -509,6 +512,7 @@ public final class BootstrapExtractionCli {
                     case "--chunker-max-tokens"      -> a.chunkerMaxTokens = parseInt( req( argv, ++i, k ), k );
                     case "--chunker-merge-forward-tokens" -> a.chunkerMergeForwardTokens = parseInt( req( argv, ++i, k ), k );
                     case "--pages-dir"               -> a.pagesDir = req( argv, ++i, k );
+                    case "--max-pages"               -> a.maxPages = parseInt( req( argv, ++i, k ), k );
                     default -> throw new IllegalArgumentException( "unknown argument: " + k );
                 }
             }
@@ -547,6 +551,9 @@ public final class BootstrapExtractionCli {
                     throw new IllegalArgumentException(
                         "--chunker-merge-forward-tokens must be <= --chunker-max-tokens "
                       + "(floor cannot exceed ceiling)" );
+                }
+                if( a.maxPages < 0 ) {
+                    throw new IllegalArgumentException( "--max-pages must be >= 0 (0 = unlimited)" );
                 }
             }
             return a;

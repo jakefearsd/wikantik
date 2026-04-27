@@ -356,6 +356,10 @@
        <servlet-class>com.wikantik.rest.AdminRetrievalQualityResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AdminKgPolicyResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminKgPolicyResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>PageForAgentResource</servlet-name>
        <servlet-class>com.wikantik.rest.PageForAgentResource</servlet-class>
    </servlet>
@@ -540,6 +544,10 @@
    <servlet-mapping>
        <servlet-name>AdminRetrievalQualityResource</servlet-name>
        <url-pattern>/admin/retrieval-quality/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminKgPolicyResource</servlet-name>
+       <url-pattern>/admin/kg-policy/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>PageForAgentResource</servlet-name>

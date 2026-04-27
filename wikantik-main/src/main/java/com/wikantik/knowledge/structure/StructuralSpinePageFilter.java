@@ -129,6 +129,17 @@ public class StructuralSpinePageFilter implements PageFilter {
             }
         }
 
+        // -- kg_include validation --
+        final Object kgInclude = metadata.get( "kg_include" );
+        if ( kgInclude != null ) {
+            final String s = kgInclude.toString().trim().toLowerCase( java.util.Locale.ROOT );
+            if ( !s.equals( "true" ) && !s.equals( "false" ) ) {
+                throw new FilterException(
+                        "Page '" + pageName + "' has invalid kg_include='"
+                        + kgInclude + "' (must be true or false)" );
+            }
+        }
+
         return rewritten ? FrontmatterWriter.write( metadata, parsed.body() ) : content;
     }
 }

@@ -140,4 +140,37 @@ class StructuralSpinePageFilterTest {
                 "---\nbody";
         assertThrows( FilterException.class, () -> f.preSave( ctx, input ) );
     }
+
+    @Test
+    void rejects_invalid_kg_include_value() {
+        final StructuralSpinePageFilter filter = new StructuralSpinePageFilter( svc, name -> false, enabled() );
+        final String content =
+            "---\n" +
+            "canonical_id: 01HAA000000000000000000000\n" +
+            "kg_include: maybe\n" +
+            "---\n" +
+            "body";
+        final FilterException ex = assertThrows( FilterException.class,
+                () -> filter.preSave( ctx, content ) );
+        assertTrue( ex.getMessage().contains( "kg_include" ) );
+    }
+
+    @Test
+    void accepts_kg_include_true_or_false() throws Exception {
+        final StructuralSpinePageFilter filter = new StructuralSpinePageFilter( svc, name -> false, enabled() );
+        final String contentTrue =
+            "---\ncanonical_id: 01HAA000000000000000000000\nkg_include: true\n---\nbody";
+        final String contentFalse =
+            "---\ncanonical_id: 01HAA000000000000000000000\nkg_include: false\n---\nbody";
+        assertEquals( contentTrue,  filter.preSave( ctx, contentTrue ) );
+        assertEquals( contentFalse, filter.preSave( ctx, contentFalse ) );
+    }
+
+    @Test
+    void absent_kg_include_is_fine() throws Exception {
+        final StructuralSpinePageFilter filter = new StructuralSpinePageFilter( svc, name -> false, enabled() );
+        final String content =
+            "---\ncanonical_id: 01HAA000000000000000000000\n---\nbody";
+        assertEquals( content, filter.preSave( ctx, content ) );
+    }
 }

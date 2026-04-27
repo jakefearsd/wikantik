@@ -21,6 +21,7 @@ package com.wikantik.knowledge;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.wikantik.api.knowledge.*;
+import com.wikantik.kgpolicy.KgInclusionFilter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -94,7 +95,10 @@ public class JdbcKnowledgeRepository {
      * @return the node, or null if not found
      */
     public KgNode getNode( final UUID id ) {
-        final String sql = "SELECT * FROM kg_nodes WHERE id = ?";
+        final String sql = "SELECT n.* FROM kg_nodes n"
+                + KgInclusionFilter.NODE_FILTER_JOIN
+                + "WHERE n.id = ?"
+                + " AND" + KgInclusionFilter.NODE_FILTER_WHERE;
         try( Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setObject( 1, id );
@@ -114,7 +118,10 @@ public class JdbcKnowledgeRepository {
      * @return the node, or null if not found
      */
     public KgNode getNodeByName( final String name ) {
-        final String sql = "SELECT * FROM kg_nodes WHERE name = ?";
+        final String sql = "SELECT n.* FROM kg_nodes n"
+                + KgInclusionFilter.NODE_FILTER_JOIN
+                + "WHERE n.name = ?"
+                + " AND" + KgInclusionFilter.NODE_FILTER_WHERE;
         try( Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, name );
@@ -158,30 +165,32 @@ public class JdbcKnowledgeRepository {
     public List< KgNode > queryNodes( final Map< String, Object > filters,
                                       final Set< Provenance > provenanceFilter,
                                       final int limit, final int offset ) {
-        final StringBuilder sql = new StringBuilder( "SELECT * FROM kg_nodes WHERE 1=1" );
+        final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
+                .append( KgInclusionFilter.NODE_FILTER_JOIN )
+                .append( "WHERE" ).append( KgInclusionFilter.NODE_FILTER_WHERE );
         final List< Object > params = new ArrayList<>();
 
         if( filters != null ) {
             if( filters.containsKey( "node_type" ) ) {
-                sql.append( " AND node_type = ?" );
+                sql.append( " AND n.node_type = ?" );
                 params.add( filters.get( "node_type" ) );
             }
             if( filters.containsKey( "source_page" ) ) {
-                sql.append( " AND source_page = ?" );
+                sql.append( " AND n.source_page = ?" );
                 params.add( filters.get( "source_page" ) );
             }
             if( filters.containsKey( "name" ) ) {
-                sql.append( " AND LOWER( name ) LIKE ?" );
+                sql.append( " AND LOWER( n.name ) LIKE ?" );
                 params.add( "%" + filters.get( "name" ).toString().toLowerCase( Locale.ROOT ) + "%" );
             }
             if( filters.containsKey( "status" ) ) {
-                sql.append( " AND properties->>'status' = ?" );
+                sql.append( " AND n.properties->>'status' = ?" );
                 params.add( filters.get( "status" ) );
             }
         }
 
         if( provenanceFilter != null && !provenanceFilter.isEmpty() ) {
-            sql.append( " AND provenance IN (" );
+            sql.append( " AND n.provenance IN (" );
             final StringJoiner sj = new StringJoiner( ", " );
             for( final Provenance p : provenanceFilter ) {
                 sj.add( "?" );
@@ -191,7 +200,7 @@ public class JdbcKnowledgeRepository {
             sql.append(')');
         }
 
-        sql.append( " ORDER BY name LIMIT ? OFFSET ?" );
+        sql.append( " ORDER BY n.name LIMIT ? OFFSET ?" );
         params.add( limit );
         params.add( offset );
 
@@ -225,15 +234,17 @@ public class JdbcKnowledgeRepository {
             justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public List< KgNode > searchNodes( final String query, final Set< Provenance > provenanceFilter,
                                        final int limit ) {
-        final StringBuilder sql = new StringBuilder(
-                "SELECT * FROM kg_nodes WHERE ( LOWER( name ) LIKE ? OR LOWER( properties::text ) LIKE ? )" );
+        final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
+                .append( KgInclusionFilter.NODE_FILTER_JOIN )
+                .append( "WHERE" ).append( KgInclusionFilter.NODE_FILTER_WHERE )
+                .append( " AND ( LOWER( n.name ) LIKE ? OR LOWER( n.properties::text ) LIKE ? )" );
         final List< Object > params = new ArrayList<>();
         final String pattern = "%" + query.toLowerCase( Locale.ROOT ) + "%";
         params.add( pattern );
         params.add( pattern );
 
         if( provenanceFilter != null && !provenanceFilter.isEmpty() ) {
-            sql.append( " AND provenance IN (" );
+            sql.append( " AND n.provenance IN (" );
             final StringJoiner sj = new StringJoiner( ", " );
             for( final Provenance p : provenanceFilter ) {
                 sj.add( "?" );
@@ -243,7 +254,7 @@ public class JdbcKnowledgeRepository {
             sql.append(')');
         }
 
-        sql.append( " ORDER BY name LIMIT ?" );
+        sql.append( " ORDER BY n.name LIMIT ?" );
         params.add( limit );
 
         final List< KgNode > results = new ArrayList<>();
@@ -336,10 +347,14 @@ public class JdbcKnowledgeRepository {
      * @return list of all nodes
      */
     public List< KgNode > getAllNodes() {
+        final String sql = "SELECT n.* FROM kg_nodes n"
+                + KgInclusionFilter.NODE_FILTER_JOIN
+                + "WHERE" + KgInclusionFilter.NODE_FILTER_WHERE
+                + "ORDER BY n.id";
         final List< KgNode > results = new ArrayList<>();
         try( Connection conn = dataSource.getConnection();
-             Statement st = conn.createStatement();
-             ResultSet rs = st.executeQuery( "SELECT * FROM kg_nodes ORDER BY id" ) ) {
+             PreparedStatement ps = conn.prepareStatement( sql );
+             ResultSet rs = ps.executeQuery() ) {
             while( rs.next() ) {
                 results.add( mapNode( rs ) );
             }
@@ -356,10 +371,14 @@ public class JdbcKnowledgeRepository {
      * @return list of all edges
      */
     public List< KgEdge > getAllEdges() {
+        final String sql = "SELECT e.* FROM kg_edges e"
+                + KgInclusionFilter.EDGE_FILTER_JOIN
+                + "WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE
+                + "ORDER BY e.id";
         final List< KgEdge > results = new ArrayList<>();
         try( Connection conn = dataSource.getConnection();
-             Statement st = conn.createStatement();
-             ResultSet rs = st.executeQuery( "SELECT * FROM kg_edges ORDER BY id" ) ) {
+             PreparedStatement ps = conn.prepareStatement( sql );
+             ResultSet rs = ps.executeQuery() ) {
             while( rs.next() ) {
                 results.add( mapEdge( rs ) );
             }
@@ -378,10 +397,18 @@ public class JdbcKnowledgeRepository {
      * @return list of matching edges
      */
     public List< KgEdge > getEdgesForNode( final UUID nodeId, final String direction ) {
+        final String filterJoin = KgInclusionFilter.EDGE_FILTER_JOIN;
+        final String filterWhere = KgInclusionFilter.EDGE_FILTER_WHERE;
         final String sql = switch( direction ) {
-            case "outbound" -> "SELECT * FROM kg_edges WHERE source_id = ?";
-            case "inbound" -> "SELECT * FROM kg_edges WHERE target_id = ?";
-            case "both" -> "SELECT * FROM kg_edges WHERE source_id = ? OR target_id = ?";
+            case "outbound" ->
+                "SELECT e.* FROM kg_edges e" + filterJoin
+                + "WHERE e.source_id = ? AND" + filterWhere;
+            case "inbound" ->
+                "SELECT e.* FROM kg_edges e" + filterJoin
+                + "WHERE e.target_id = ? AND" + filterWhere;
+            case "both" ->
+                "SELECT e.* FROM kg_edges e" + filterJoin
+                + "WHERE ( e.source_id = ? OR e.target_id = ? ) AND" + filterWhere;
             default -> throw new IllegalArgumentException( "Invalid direction: " + direction );
         };
 
@@ -687,7 +714,10 @@ public class JdbcKnowledgeRepository {
             return Map.of();
         }
         final String placeholders = String.join( ", ", Collections.nCopies( ids.size(), "?" ) );
-        final String sql = "SELECT id, name FROM kg_nodes WHERE id IN ( " + placeholders + " )";
+        final String sql = "SELECT n.id, n.name FROM kg_nodes n"
+                + KgInclusionFilter.NODE_FILTER_JOIN
+                + "WHERE n.id IN ( " + placeholders + " )"
+                + " AND" + KgInclusionFilter.NODE_FILTER_WHERE;
         final Map< UUID, String > result = new HashMap<>();
         try ( Connection conn = dataSource.getConnection();
               PreparedStatement ps = conn.prepareStatement( sql ) ) {
@@ -723,7 +753,9 @@ public class JdbcKnowledgeRepository {
                 "SELECT e.*, sn.name AS source_name, tn.name AS target_name "
               + "FROM kg_edges e "
               + "JOIN kg_nodes sn ON e.source_id = sn.id "
-              + "JOIN kg_nodes tn ON e.target_id = tn.id WHERE 1=1" );
+              + "JOIN kg_nodes tn ON e.target_id = tn.id"
+              + KgInclusionFilter.EDGE_FILTER_JOIN
+              + "WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE );
         final List< Object > params = new ArrayList<>();
 
         if ( relationshipType != null && !relationshipType.isBlank() ) {

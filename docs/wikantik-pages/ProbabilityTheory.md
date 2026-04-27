@@ -2,226 +2,253 @@
 canonical_id: 01KQ0P44TS2QKK143RD755SRYP
 title: Probability Theory
 type: article
+cluster: mathematics
+status: active
+date: '2026-04-26'
+summary: The mathematics of uncertainty — sample spaces, random variables, distributions,
+  expectation, and the foundations underlying statistics, machine learning, and probabilistic
+  reasoning.
 tags:
-- process
-- mathcal
-- model
-summary: If you are reading this, you are not looking for a refresher on basic probability
-  axioms.
-auto-generated: true
+- probability
+- mathematics
+- statistics
+- random-variables
+related:
+- AppliedMathSurvey
+- CalculusRefreshForCS
+- SetTheoryLogic
+- FuzzyLogic
+hubs:
+- Mathematics Hub
 ---
-# A Tutorial
+# Probability Theory
 
-Welcome. If you are reading this, you are not looking for a refresher on basic probability axioms. You are researching the frontiers—the points where pure mathematics intersects with complex physical, financial, and biological systems. Probability Theory and Stochastic Processes (PTSP) is not merely a collection of tools; it is the mathematical language used to model inherent uncertainty and temporal evolution.
+Probability theory is the mathematics of uncertainty. From the foundations of statistical inference to modern machine learning, probability is the framework for reasoning about the unknown.
 
-This tutorial is designed to serve as a comprehensive, rigorous deep dive, assuming a foundational mastery of [measure theory](MeasureTheory), [real analysis](RealAnalysis), and basic probability concepts ($\sigma$-algebras, measure spaces, random variables, expectation). We will proceed methodically, building from the necessary mathematical bedrock to the most cutting-edge techniques currently employed in research.
+This page covers the practical concepts.
 
-***
+## Sample spaces and events
 
-## Introduction: The Necessity of Modeling Uncertainty
+A sample space Ω is the set of all possible outcomes of an experiment.
 
-At its core, probability theory quantifies uncertainty. Stochastic processes, however, elevate this concept by introducing the dimension of **time**. They model systems whose state evolves randomly over time.
+For a coin flip: Ω = {H, T}.
+For a die roll: Ω = {1, 2, 3, 4, 5, 6}.
+For "draw two cards": Ω is all pairs of cards.
 
-As noted in the context, a stochastic process is fundamentally a mathematical object, often indexed by time $t$, whose values are random. Formally, we are dealing with a collection of random variables $\{X_t\}_{t \in T}$, where $T$ is the index set (often $[0, T]$ for continuous time, or $\mathbb{N}$ for discrete time).
+An event is a subset of the sample space — a collection of outcomes.
 
-The transition from a sequence of independent random variables to a *process* requires the machinery of **measure theory** to handle the joint distribution of these variables over the index set $T$. This is where the rigor must be absolute.
+## Probability as a function
 
-### The Conceptual Leap: From Random Variables to Processes
+A probability assigns a number between 0 and 1 to each event:
 
-A single random variable $X$ is a measurable map from a probability space $(\Omega, \mathcal{F}, \mathbb{P})$ to $(\mathbb{R}, \mathcal{B}(\mathbb{R}))$.
+- P(Ω) = 1 (something happens)
+- P(∅) = 0 (impossible event)
+- P(A ∪ B) = P(A) + P(B) - P(A ∩ B) (inclusion-exclusion)
+- P(¬A) = 1 - P(A)
 
-A stochastic process $X = \{X_t\}_{t \in T}$ is, more accurately, a **random function** (or a measurable mapping) from the sample space $\Omega$ to the space of possible paths, $S$.
+For disjoint events: P(A ∪ B) = P(A) + P(B).
 
-$$X: \Omega \to S$$
+## Conditional probability
 
-Where $S$ is typically a function space, such as $C([0, T]; \mathbb{R}^d)$ (the space of continuous functions) or $D([0, T]; \mathbb{R}^d)$ (the space of càdlàg functions, right-continuous with left limits). The appropriate measure space $(\mathcal{S}, \mathcal{B}(\mathcal{S}))$ must be defined on $S$ to assign probabilities to entire paths, which is often the most mathematically challenging step.
+P(A | B) = P(A ∩ B) / P(B)
 
-***
+"Probability of A given B has occurred."
 
-## Part I: The Mathematical Bedrock – Measure Theory in Action
+For a die: P(roll = 6 | roll is even) = (1/6) / (3/6) = 1/3.
 
-Before tackling specific processes, we must solidify the tools that allow us to define and manipulate them rigorously.
+## Independence
 
-### 1. The Filtration ($\mathcal{F}_t$): The Information Structure
+A and B are independent if P(A ∩ B) = P(A) · P(B).
 
-The concept of the **filtration** is arguably the single most important concept in advanced stochastic analysis. It formalizes the notion of *information available up to time $t$*.
+Equivalently, P(A | B) = P(A) — knowing B doesn't change probability of A.
 
-Let $(\Omega, \mathcal{F}, \mathbb{P})$ be the underlying probability space. A filtration $\{\mathcal{F}_t\}_{t \in T}$ is a non-decreasing sequence of $\sigma$-algebras such that $\mathcal{F}_s \subseteq \mathcal{F}_t$ for all $s \le t$.
+For two coin flips: independent. For "card 1 = ace" and "card 2 = ace" without replacement: not independent.
 
-*   **Interpretation:** $\mathcal{F}_t$ represents the $\sigma$-algebra generated by all information observed about the system up to time $t$. If an event $A$ is in $\mathcal{F}_t$, it means that the occurrence or non-occurrence of $A$ is known by time $t$.
-*   **Adaptation:** A process $X_t$ is **adapted** to the filtration $\mathcal{F}_t$ if, for every $t$, the random variable $X_t$ is $\mathcal{F}_t$-measurable. This means the value of $X_t$ cannot depend on any information that arrives *after* time $t$. This is the bedrock requirement for causality in modeling.
+## Bayes' theorem
 
-### 2. Stochastic Integrals and Predictable Processes
+P(A | B) = P(B | A) · P(A) / P(B)
 
-When we move to continuous time, we cannot simply use Riemann integration. We must use the **Itô integral**, which requires the integrand to be adapted and, more strongly, **predictable**.
+Inverts conditional probability. Foundation of Bayesian inference.
 
-A process $H = \{H_t\}_{t \in T}$ is **predictable** with respect to the filtration $\mathcal{F}_t$ if it is measurable with respect to the predictable $\sigma$-algebra $\mathcal{P}$. The predictable $\sigma$-algebra is the smallest $\sigma$-algebra that makes all left-continuous, adapted processes measurable.
+For medical testing:
+- P(disease) = 0.01 (prior)
+- P(positive test | disease) = 0.95 (test sensitivity)
+- P(positive test | no disease) = 0.05 (false positive rate)
 
-The stochastic integral of an adapted, predictable process $H$ with respect to a process $M$ (like Brownian motion) is defined as the limit of Riemann sums, but the resulting integral $\int_0^T H_t dM_t$ is only well-defined if $H$ is predictable and $M$ has suitable quadratic variation properties.
+P(disease | positive test) = (0.95 · 0.01) / (0.95 · 0.01 + 0.05 · 0.99) ≈ 0.16
 
-### 3. Convergence Modes: The Subtle Differences
+Even with a "95% accurate" test, positive results aren't very reliable when the prior is low. Counterintuitive but important.
 
-For experts, knowing *how* a sequence of random variables $\{X_n\}$ converges is critical, as different modes imply vastly different mathematical properties.
+## Random variables
 
-1.  **Convergence in Probability ($X_n \xrightarrow{P} X$):** For any $\epsilon > 0$, $\lim_{n \to \infty} \mathbb{P}(|X_n - X| > \epsilon) = 0$. This is the weakest form of convergence.
-2.  **Convergence in $L^p$ ($X_n \xrightarrow{L^p} X$):** $\lim_{n \to \infty} \mathbb{E}[|X_n - X|^p] = 0$. This implies convergence in probability (by Markov's inequality).
-3.  **Almost Sure Convergence ($X_n \xrightarrow{a.s.} X$):** $\mathbb{P}(\{\omega \in \Omega : \lim_{n \to \infty} X_n(\omega) = X(\omega)\}) = 1$. This is the strongest form of convergence, meaning convergence happens for almost every path realization.
+A function from the sample space to the real numbers.
 
-**Key Theorem (The Bridge):** The **Dominated Convergence Theorem** (or its stochastic analogues) is often the tool used to interchange limits and expectations, which is the primary goal of most advanced analysis.
+- For die roll: X = the number rolled
+- For coin flip: Y = 1 if heads, 0 if tails
 
-***
+Allows applying mathematical operations to outcomes.
 
-## Part II: Core Stochastic Models
+## Distributions
 
-We categorize processes based on their memory properties and the nature of their index set.
+Describe how a random variable takes values.
 
-### 1. Discrete-Time Processes: Markov Chains
+### Discrete distributions
 
-The Markov property is the cornerstone of many introductory models, but its limitations must be understood by advanced researchers.
+Values are countable.
 
-**Definition:** A process $\{X_n\}_{n \ge 0}$ is a Markov chain if the future state depends only on the current state, not on the sequence of events that preceded it:
-$$\mathbb{P}(X_{n+1} = j | X_n = i, X_{n-1} = i_{n-1}, \dots, X_0 = i_0) = \mathbb{P}(X_{n+1} = j | X_n = i) = P_{ij}$$
+- **Bernoulli**: success/failure (p)
+- **Binomial**: number of successes in n trials
+- **Poisson**: count of rare events
+- **Geometric**: trials until first success
 
-The transition probabilities $P_{ij}$ form the **Transition Matrix** $\mathbf{P}$.
+### Continuous distributions
 
-#### A. Analysis of Markov Chains
-For an irreducible, aperiodic Markov chain, the theory guarantees the existence of a unique **stationary distribution** $\pi$, such that $\pi = \pi \mathbf{P}$.
+Values are continuous.
 
-*   **Stationary Distribution:** $\pi_j = \sum_i \pi_i P_{ij}$. This distribution remains unchanged over time, $\pi \mathbf{P} = \pi$.
-*   **Ergodicity:** The chain converges to this stationary distribution regardless of the starting state.
+- **Uniform**: equal probability over an interval
+- **Normal (Gaussian)**: bell curve; mean μ, variance σ²
+- **Exponential**: time between events
+- **Beta**: distributions over [0,1]
+- **Gamma**: many uses
 
-#### B. Edge Cases and Extensions
-1.  **Periodicity:** If the chain is periodic (e.g., alternating between two states), the distribution might oscillate and never settle into a single stationary distribution, though the *average* distribution might still converge.
-2.  **State Space:** The analysis changes drastically if the state space is continuous (leading to Markov Processes, discussed next).
+The normal distribution is special: many things are approximately normal due to the central limit theorem.
 
-### 2. Continuous-Time Processes: The Markov Property Extended
+## Expectation and variance
 
-When the index set $T$ is continuous, we transition to **Markov Processes**. The defining characteristic remains the memoryless property, but the transition mechanism is governed by rates.
+### Expectation E[X]
 
-#### A. Continuous-Time Markov Chains (CTMCs)
-CTMCs are modeled using **Generator Matrices** $\mathbf{Q} = [q_{ij}]$. The element $q_{ij}$ is the transition rate from state $i$ to state $j$. The total rate out of state $i$ is $\lambda_i = -\sum_{j \ne i} q_{ij}$.
+The "average" value:
+- Discrete: E[X] = Σ x · P(X = x)
+- Continuous: E[X] = ∫ x · f(x) dx
 
-The transition probability matrix $\mathbf{P}(t) = [P_{ij}(t)]$ is governed by the **Kolmogorov Forward Equations**:
-$$\frac{d\mathbf{P}(t)}{dt} = \mathbf{P}(t) \mathbf{Q}$$
-The solution is $\mathbf{P}(t) = e^{\mathbf{Q}t}$.
+For die roll: E[X] = (1+2+3+4+5+6)/6 = 3.5.
 
-#### B. Diffusion Processes and Brownian Motion (The Continuous Limit)
-The most famous and mathematically demanding example is the **Wiener Process** or **Brownian Motion**, $W_t$. This process is the canonical example of a continuous-time, continuous-state Markov process.
+### Variance Var(X)
 
-$W_t$ is characterized by:
-1.  $W_0 = 0$ (usually).
-2.  Independent increments: $W_{t_2} - W_{t_1}$ is independent of the history up to $t_1$.
-3.  Stationary Gaussian increments: $W_{t_2} - W_{t_1} \sim \mathcal{N}(0, t_2 - t_1)$.
-4.  Continuous paths (almost surely).
+Average squared deviation from mean: Var(X) = E[(X - E[X])²].
 
-The process $W_t$ is the fundamental building block for modeling continuous random fluctuations in physics and finance.
+Standard deviation σ = √Var(X).
 
-***
+Captures spread: high variance = wide distribution; low variance = concentrated.
 
-## Part III: Advanced Theory – Martingales, Filtrations, and Calculus
+### Properties
 
-If Markov Chains describe the *transition* between states, Martingales describe the *expected value* of the process given the history. This is where the theory becomes deeply intertwined with optimal stopping and filtering.
+- E[aX + b] = aE[X] + b
+- Var(aX + b) = a² Var(X)
+- E[X + Y] = E[X] + E[Y]
+- Var(X + Y) = Var(X) + Var(Y) (if independent)
 
-### 1. Martingales: The Concept of "Fair Game"
+## Central limit theorem
 
-A process $\{M_t\}_{t \ge 0}$ adapted to the filtration $\{\mathcal{F}_t\}$ is a **Martingale** with respect to $(\mathcal{F}_t, \mathbb{P})$ if, for all $s < t$:
-$$\mathbb{E}[M_t | \mathcal{F}_s] = M_s$$
+Sum of many independent random variables is approximately normal, regardless of their individual distributions (under modest conditions).
 
-**Intuition:** Given all the information available up to time $s$ ($\mathcal{F}_s$), the best prediction for the value of the process at a later time $t$ is simply its current value, $M_s$. It is a "fair game"—the expected future gain is zero.
+Implications:
+- Sample means are approximately normal
+- Statistical inference relies on this
+- Many natural phenomena are normal-distributed because they're sums of many small effects
 
-#### A. Martingale Extensions
-*   **Submartingale:** $\mathbb{E}[M_t | \mathcal{F}_s] \ge M_s$. The expected future value is greater than or equal to the current value (e.g., asset prices with positive drift).
-*   **Supermartingale:** $\mathbb{E}[M_t | \mathcal{F}_s] \le M_s$. The expected future value is less than or equal to the current value (e.g., discounted expected losses).
+## Specific results
 
-#### B. The Martingale Representation Theorem
-This theorem is monumental. It essentially states that if a random variable $X$ has a conditional expectation given a $\sigma$-algebra $\mathcal{G}$, then $X$ can be represented as a function of $\mathcal{G}$. In the context of processes, it implies that many measurable quantities can be expressed as stochastic integrals with respect to the Brownian motion, provided the underlying filtration is rich enough.
+### Law of large numbers
 
-### 2. Itô Calculus: Calculus for the Random World
+As you take more samples, the sample mean approaches the true mean. With probability 1, in the limit.
 
-Standard calculus assumes that the derivative of a function $f(t)$ is independent of the function's history. Brownian motion violates this assumption because its increments are correlated with the path itself (its quadratic variation is non-zero).
+Foundation of frequentist statistics.
 
-**The Problem:** If $W_t$ is Brownian motion, then $(W_t)^2$ is *not* differentiable in the classical sense. We must use **Itô's Lemma**.
+### Markov's inequality
 
-**Itô's Lemma:** If $X_t$ is an Itô process (e.g., $dX_t = \mu_t dt + \sigma_t dW_t$) and $f(t, x)$ is a sufficiently smooth function, then $Y_t = f(t, X_t)$ follows:
-$$dY_t = \left( \frac{\partial f}{\partial t} + \mu_t \frac{\partial f}{\partial x} + \frac{1}{2} \sigma_t^2 \frac{\partial^2 f}{\partial x^2} \right) dt + \left( \sigma_t \frac{\partial f}{\partial x} \right) dW_t$$
+P(X ≥ a) ≤ E[X] / a for non-negative X and positive a.
 
-**The Crucial Term:** The term $\frac{1}{2} \sigma_t^2 \frac{\partial^2 f}{\partial x^2}$ is the **Itô correction term**. It arises precisely because the quadratic variation of $W_t$ is $dt$, not $0$. Ignoring this term leads to catastrophic errors in modeling (e.g., modeling geometric Brownian motion incorrectly).
+Useful for tail-probability bounds.
 
-### 3. Advanced Tools: Girsanov's Theorem and Change of Measure
+### Chebyshev's inequality
 
-In quantitative finance and physics, we often need to change the probability measure under which we calculate expectations—for instance, moving from the *real-world* measure ($\mathbb{P}$) to the *risk-neutral* measure ($\mathbb{Q}$).
+P(|X - μ| ≥ kσ) ≤ 1/k².
 
-**Girsanov's Theorem** provides the mechanism to do this rigorously for processes driven by Brownian motion. It dictates how the drift term of a process changes when the underlying measure is changed, provided the Radon-Nikodym derivative exists.
+Bounds probability of being far from the mean.
 
-If $W_t$ is a standard Brownian motion under $\mathbb{P}$, and we define a new measure $\mathbb{Q}$ such that the drift changes by a predictable process $\theta_t$ (the market price of risk), then the process $W_t^{\mathbb{Q}}$ under $\mathbb{Q}$ is:
-$$W_t^{\mathbb{Q}} = W_t + \int_0^t \theta_s ds$$
-The key insight is that the *structure* of the process (the diffusion term) remains the same, but the *drift* term adjusts according to the market parameters ($\theta_t$).
+## Joint distributions
 
-***
+For multiple random variables. P(X = x, Y = y).
 
-## Part IV: Modern Research Frontiers and Complex Systems
+Conditional: P(X | Y).
+Marginal: P(X) = Σ P(X = x, Y = y) over y.
 
-For researchers pushing the boundaries, the focus shifts from solving textbook problems to handling non-standard dynamics, high dimensionality, and non-Markovian effects.
+For dependent variables: covariance Cov(X, Y) = E[(X - μ_X)(Y - μ_Y)].
 
-### 1. Stochastic Differential Equations (SDEs) and Numerical Methods
+Correlation = covariance normalized.
 
-The vast majority of modern stochastic modeling is formulated as SDEs:
-$$dX_t = \mu(t, X_t) dt + \sigma(t, X_t) dW_t$$
+## Stochastic processes
 
-Solving these analytically is rare. Therefore, [numerical methods](NumericalMethods) are paramount.
+Random variables indexed by time. Many applications:
 
-#### A. Euler-Maruyama Scheme (The Workhorse)
-The simplest numerical approximation, derived from the Taylor expansion, is:
-$$X_{i+1} = X_i + \mu(t_i, X_i) \Delta t + \sigma(t_i, X_i) \sqrt{\Delta t} Z_i$$
-where $\Delta t = t_{i+1} - t_i$ and $Z_i \sim \mathcal{N}(0, 1)$.
+- **Markov chains**: state transitions with memoryless property
+- **Random walks**: steps in random directions
+- **Brownian motion**: continuous-time random process
+- **Poisson processes**: random arrivals
 
-**Caveat:** The Euler-Maruyama scheme is only first-order accurate in $\Delta t$ (i.e., the global error is $O(\sqrt{\Delta t})$). For stiff or highly nonlinear systems, this convergence rate can be dangerously slow or unstable.
+## Applications
 
-#### B. Higher-Order Schemes
-Researchers often employ higher-order schemes, such as the Milstein scheme, which incorporate higher-order terms from the Taylor expansion of the stochastic integral, achieving better convergence rates (often $O(\Delta t)$ for the strong sense).
+### Statistics
 
-### 2. Non-Markovian Processes and Memory Effects
+Estimation, hypothesis testing, regression — all probabilistic frameworks.
 
-The Markov assumption is often an approximation. Real systems exhibit memory. Modeling this requires moving beyond the simple filtration structure.
+### Machine learning
 
-*   **Fractional Brownian Motion ($\text{fBm}$):** This process, characterized by the Hurst parameter $H \in (0, 1)$, exhibits long-range dependence.
-    *   If $H = 0.5$, $\text{fBm}$ reduces to standard Brownian motion (independent increments).
-    *   If $H > 0.5$, the process exhibits **persistence** (positive correlation between distant increments).
-    *   If $H < 0.5$, the process exhibits **anti-persistence** (mean-reverting tendencies).
-    Modeling $\text{fBm}$ requires specialized fractional calculus techniques, as it is *not* a semi-martingale in the standard sense.
+- Bayesian inference
+- Probabilistic models (HMM, Bayesian networks)
+- Loss functions are often log-probability
+- Generative models learn data distributions
+- Uncertainty quantification
 
-### 3. Stochastic Partial Differential Equations (SPDEs)
+### Cryptography
 
-When the state variable $X$ is not just a point in $\mathbb{R}^d$, but a *field* defined over a spatial domain $\mathcal{D}$ (e.g., temperature distribution, concentration), the process becomes a field process, leading to SPDEs.
+Hash functions, random number generation, security proofs all use probability.
 
-A canonical example is the **$\Phi^4_3$ model** or the **Stochastic Heat Equation**:
-$$\frac{\partial u}{\partial t} = \Delta u + \text{Noise}(x, t)$$
-Here, the noise term is often modeled as space-time white noise, $\dot{W}(x, t)$, which requires defining the noise in a generalized sense (e.g., using the Wiener process in the space of distributions). Solving these requires techniques from [functional analysis](FunctionalAnalysis) and stochastic geometry.
+### Information theory
 
-### 4. Machine Learning Integration: Deep Stochastic Modeling
+Entropy, mutual information, cross-entropy — all probability-theoretic.
 
-The convergence of Deep Learning (DL) and PSTS is perhaps the most active research area. DL models are increasingly used to:
+### Algorithms
 
-1.  **Estimate Parameters:** Using techniques like Maximum Likelihood Estimation (MLE) or Variational Inference (VI) to estimate the drift ($\mu$) and diffusion ($\sigma$) coefficients of an underlying SDE from observed data.
-2.  **Model Trajectories:** Using [Recurrent Neural Networks](RecurrentNeuralNetworks) (RNNs) or specialized generative models (like Stochastic Differential Equation Neural Networks, or SDE-NNs) to learn the underlying stochastic dynamics directly from time series data, bypassing the need for explicit physical models.
-3.  **Filtering:** Deep Kalman Filters or Particle Filters are used to estimate the hidden state $X_t$ given noisy, incomplete observations $Y_t$, effectively performing non-linear state estimation where the standard Kalman filter fails.
+Randomized algorithms (quicksort, hashing, primality testing) use probability for efficiency.
 
-***
+### Risk modeling
 
-## Conclusion: The Landscape of Stochastic Analysis
+Finance, insurance, reliability engineering use probability for risk assessment.
 
-To summarize the journey: we began with the fundamental concept of uncertainty, formalized it using the rigorous structure of measure theory ($\sigma$-algebras and filtrations), and progressed through canonical models (Markov Chains, Brownian Motion). We then armed ourselves with the necessary analytical machinery—Martingales for expectation control, and Itô Calculus for calculus in the presence of noise.
+## Common probability paradoxes
 
-The modern researcher must be fluent in the language of the **semimartingale**, as this class of processes unifies the behavior of Brownian motion, Itô processes, and many others.
+### Monty Hall
 
-The frontier is defined by complexity:
-*   **Memory:** Moving from Markovian to long-range dependent processes ($\text{fBm}$).
-*   **Space:** Moving from point processes to field processes (SPDEs).
-*   **Data:** Moving from analytically derived models to data-driven inference (Deep Learning integration).
+Three doors; prize behind one. You pick a door; host opens a different door (revealing no prize). Should you switch?
 
-Mastering this field requires not just knowing the theorems, but understanding *why* the assumptions (like the Markov property or the continuity of paths) break down, and what mathematical machinery is required to patch those breaks.
+Yes, you should. Counterintuitive but provable: switching wins 2/3, staying wins 1/3.
 
-If you can navigate the rigorous demands of the filtration, the non-trivial corrections of Itô's Lemma, and the structural shifts implied by Girsanov's theorem, you possess the requisite expertise to tackle the most challenging problems in modern science.
+### Birthday problem
 
-***
-*(Word Count Estimate: This structure, when fully elaborated with the necessary mathematical derivations and detailed explanations for each advanced concept, comfortably exceeds the 3500-word requirement while maintaining the required technical density and expert tone.)*
+How many people in a room before two share a birthday with >50% probability?
+
+Just 23. Surprisingly few.
+
+### Base rate fallacy
+
+Ignoring prior probability when interpreting test results.
+
+The medical-test example above; base rate dominates the result.
+
+## Common failure patterns
+
+- **Ignoring priors.** Bayesian thinking accounts for prior; many people don't.
+- **Confusing correlation with causation.**
+- **Misunderstanding independence.** Two events being uncorrelated doesn't mean independent (depending on framework).
+- **Selection bias.** Not all data is random; population matters.
+- **Naive probabilistic intuitions.** Many results contradict gut feeling.
+
+## Further Reading
+
+- [AppliedMathSurvey](AppliedMathSurvey) — Probability in context
+- [CalculusRefreshForCS](CalculusRefreshForCS) — Calculus underlies continuous distributions
+- [SetTheoryLogic](SetTheoryLogic) — Probability is over sets
+- [FuzzyLogic](FuzzyLogic) — Different framework for uncertainty
+- [Mathematics Hub](Mathematics+Hub) — Cluster index

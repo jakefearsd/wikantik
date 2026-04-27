@@ -1,219 +1,347 @@
 ---
 canonical_id: 01KQ0P44TCFFVK8R06KHB77Z9B
-title: Open Source Llm Ecosystem
+title: Open Source LLM Ecosystem
 type: article
+cluster: generative-ai
+status: active
+date: '2026-04-26'
+summary: A practical map of the open source LLM landscape — model families, inference
+  engines, fine-tuning tools, and deployment patterns — for teams making informed
+  decisions about open vs closed model use.
 tags:
-- model
-- research
-- mistral
-summary: The current paradigm shift is defined by the maturation and fierce competition
-  within the open-source Large Language Model (LLM) ecosystem.
-auto-generated: true
+- llm
+- open-source
+- generative-ai
+- inference
+- fine-tuning
+related:
+- TransformerArchitecture
+- AgentPromptEngineering
+- PromptCaching
+hubs:
+- Generative AI Hub
 ---
-# The Open Source LLM Ecosystem
+# Open Source LLM Ecosystem
 
-For those of us who spend our days wrestling with the bleeding edge of [artificial intelligence](ArtificialIntelligence), the concept of a "closed-source API" has become increasingly anachronistic—or, at best, a strategic bottleneck. The current paradigm shift is defined by the maturation and fierce competition within the open-source Large Language Model (LLM) ecosystem. This is not merely a collection of downloadable weights; it is a complex, multi-layered industrial stack involving architectural innovations, novel quantization techniques, sophisticated deployment tooling, and a constantly shifting geopolitical landscape of licensing.
+The open source LLM ecosystem has matured rapidly. Open models are competitive with closed APIs for many use cases. Tooling is solid. The question for most teams is when open makes sense, not whether it does.
 
-This tutorial is designed for the expert researcher—the individual who doesn't just *use* an LLM, but who dissects its failure modes, optimizes its inference path, and designs the next generation of agentic workflows around its capabilities. We will dissect the core pillars—Meta's Llama lineage and Mistral AI's disruptive approach—and map out the entire operational ecosystem that allows these models to move from academic curiosity to mission-critical production components.
+This page maps the landscape.
 
-***
+## Why open source
 
-## I. Architectural Foundations: Llama vs. Mistral – A Comparative Dissection
+### Cost
 
-To understand the ecosystem, one must first understand the primary contenders. Llama (Meta) and Mistral AI represent two distinct, yet equally potent, philosophies in the open-source space. Their performance metrics, architectural choices, and strategic deployment models dictate how researchers approach [model selection](ModelSelection).
+At high volume, self-hosted open models cost less than API calls.
 
-### A. The Llama Lineage: Ecosystem Dominance and Scale
+### Privacy
 
-Meta’s commitment to open-sourcing its models, particularly the Llama series (e.g., Llama 2, Llama 3.1), is less about pure technical altruism and more about establishing an unassailable ecosystem moat. As noted in the context, this strategy is designed "To compete with Google and OpenAI and build an ecosystem" [4].
+Data stays on your infrastructure. No API provider sees it.
 
-**Technical Deep Dive:**
-The Llama architecture, while fundamentally based on the Transformer decoder stack, has evolved significantly. Key areas of focus for experts include:
+### Control
 
-1.  **Attention Mechanism Optimization:** While the core mechanism remains self-attention, subsequent versions have incorporated optimizations to manage the quadratic complexity ($\mathcal{O}(N^2)$) with respect to sequence length $N$. Researchers must be acutely aware of whether the specific Llama variant being utilized employs FlashAttention or other linear attention approximations for extended context windows.
-2.  **Parameter Scaling and Size Tiers:** The availability of multiple sizes (e.g., 8B, 70B, and anticipated larger variants) allows for a nuanced trade-off analysis. A researcher might opt for a smaller, highly optimized Llama variant for edge deployment (low latency, minimal VRAM footprint) while reserving the largest model for complex, offline reasoning tasks.
-3.  **Licensing Nuances (The Catch):** While the weights are public for research, the licensing structure (as seen with Llama 3.1) is a critical point of failure for commercial deployment planning. Experts must meticulously audit the terms to understand the boundaries between "research use" and "commercial product integration."
+You choose the model, configuration, deployment. No surprise deprecations or behavior changes.
 
-### B. Mistral AI: The Efficiency Vanguard
+### Customization
 
-Mistral AI has carved out a niche by prioritizing efficiency and superior performance relative to parameter count. Their approach, characterized by a "startup approach—attract developers first, then monetize via API" [4], has yielded models that often defy conventional scaling expectations.
+Fine-tuning, embeddings, full weight access. Things APIs can't offer.
 
-**Technical Deep Dive:**
-The performance claims surrounding Mistral are particularly noteworthy for researchers. The assertion that a smaller model, such as Mistral 7B, can outperform a much larger, older model like LLaMA 2 13B across multiple benchmarks [1] suggests architectural breakthroughs beyond mere parameter count.
+### Offline / edge
 
-1.  **Sliding Window Attention (SWA) and Context Handling:** Mistral models are often lauded for their efficient handling of context. While the exact proprietary details are guarded, the empirical results suggest superior attention mechanisms that manage the computational cost of long contexts without the performance degradation seen in less optimized architectures.
-2.  **Instruction Following and Alignment:** Mistral models are frequently fine-tuned with highly curated instruction datasets. For the expert, this translates to a higher baseline of "out-of-the-box" alignment, meaning less initial effort is required in the prompt engineering or initial SFT (Supervised Fine-Tuning) stages compared to a raw, base model.
-3.  **The Performance-to-Size Ratio:** The core takeaway for the researcher is the **efficiency frontier**. When resources (VRAM, compute time) are constrained, Mistral often presents a superior performance-per-FLOP ratio compared to models that rely purely on brute-force parameter scaling.
+Some deployments must run without internet (regulated industries, offline products).
 
-### C. Synthesis: The Strategic Choice Matrix
+### Skill development
 
-| Feature | Llama (Meta) | Mistral AI | Implications for Research |
-| :--- | :--- | :--- | :--- |
-| **Primary Strength** | Ecosystem depth, massive scale, established community tooling. | High performance density, efficiency, strong instruction adherence. | Choose Llama for projects requiring maximum community support or sheer scale. Choose Mistral when compute budget or latency is the primary constraint. |
-| **Architectural Focus** | Iterative scaling, robust feature set across sizes. | Optimization, efficiency, and superior performance scaling relative to size. | Analyze benchmark reports not just for the score, but for the *scaling curve*—how does performance change as you increase size vs. optimize efficiency? |
-| **Adoption Strategy** | Building a comprehensive, walled-garden-like ecosystem. | Developer-first, API-driven disruption. | Understand the *intent* behind the release. Is it to build a platform (Meta) or to prove a technical capability (Mistral)? |
+Working with open models builds organizational ML capabilities.
 
-***
+## Major model families
 
-## II. The Open Source LLM Landscape: Beyond the Duopoly
+### Llama (Meta)
 
-The ecosystem is far from a simple binary choice between Llama and Mistral. The field is characterized by rapid diversification, where specialized models emerge to address specific modalities, languages, or computational constraints.
+The dominant open family.
+- Llama 3.1: 8B, 70B, 405B
+- Llama 3.2: 1B, 3B, 11B, 90B (multimodal)
+- Llama 3.3: 70B
+- Code Llama: code-specialized
 
-### A. Comparative Analysis of Modern Contenders
+License allows commercial use with conditions.
 
-The current state-of-the-art requires evaluating models based on a multi-dimensional performance vector, not a single benchmark score. We must consider DeepSeek, Qwen, and the emerging specialized models.
+### Mistral
 
-1.  **DeepSeek:** Often recognized for its strong performance in coding and mathematical reasoning tasks. For the expert researcher, this suggests that the model's pre-training data corpus may have been disproportionately weighted toward high-quality, structured code repositories, making it a superior choice for RAG pipelines that involve code generation or complex logical deduction.
-2.  **Qwen (Alibaba):** Excels in multilingual support and often shows robust performance in Asian languages, making it a critical consideration for global-facing applications. Its inclusion in the comparison set highlights the necessity of geographical and linguistic specialization in model selection.
-3.  **The "Best-of-Breed" Approach:** The modern expert rarely commits to one model. Instead, the architecture is designed to be *model-agnostic*. This means the application layer (the orchestration code) must abstract away the underlying model provider, allowing seamless swapping between Llama 3.1, Mistral, and DeepSeek based on the task profile (e.g., use Mistral for summarization, DeepSeek for function calling, and Llama for general chat).
+- Mistral 7B: small, strong
+- Mixtral 8x7B / 8x22B: MoE
+- Mistral Large: closed but available via API
+- Codestral: code
 
-### B. The Criticality of Licensing and Weights Availability
+Apache 2.0 for older models; custom for newer.
 
-This is perhaps the most overlooked, yet most dangerous, aspect of the ecosystem. The availability of weights and the associated license dictate the entire viability of a research project.
+### Qwen (Alibaba)
 
-*   **Research vs. Commercial:** As highlighted by the context regarding Llama 3.1 and Gemma, the distinction between "public for research" and "commercially viable" is razor-thin and subject to rapid legal interpretation. A researcher must treat the license agreement as a primary input variable, equal in weight to the perplexity score.
-*   **The Open Weights Illusion:** Some models may release weights, giving the *appearance* of openness. However, the true "openness" often resides in the *training methodology* and the *data curation*. A model trained on proprietary, filtered data, even if the weights are released, retains a degree of vendor lock-in regarding the optimal fine-tuning paths.
+- Qwen 2.5: 0.5B, 1.5B, 3B, 7B, 14B, 32B, 72B
+- Specialized: Coder, Math
+- Strong at non-English languages
 
-### C. Scaling Laws and Model Size Fallacies
+Apache 2.0 for many variants.
 
-The historical assumption that "bigger is better" is being rigorously challenged. While scaling laws predict performance gains with increased parameters, the marginal returns are diminishing, and the cost curve is steepening.
+### Gemma (Google)
 
-*   **The Emergence of "Smarter" Models:** The success of Mistral demonstrates that architectural improvements (better attention, superior data filtering) can yield performance gains that eclipse the gains from simply adding more parameters.
-*   **The 400B Parameter Speculation:** Reports of massive, multi-hundred-billion parameter models (like the hypothetical 400B models mentioned in the context) must be viewed with extreme skepticism. While they represent the theoretical ceiling, the practical reality for most research groups involves optimizing smaller, highly capable models (e.g., 7B to 34B) running efficiently on consumer or enterprise-grade GPU clusters. The focus shifts from *scale* to *efficiency*.
+- Gemma 2: 2B, 9B, 27B
+- Distilled from Gemini
 
-***
+Custom Google license.
 
-## III. Operationalizing the Ecosystem: From Weights to Inference
+### Phi (Microsoft)
 
-Possessing the weights is only the first step. The true technical challenge lies in the deployment pipeline—getting the model to run reliably, quickly, and cost-effectively in a production environment. This requires mastering the tooling layer.
+- Phi-3 / Phi-4: small but strong
+- Trained on heavily curated data
 
-### A. The Inference Engine Revolution: Ollama and Local Deployment
+MIT license.
 
-The democratization of LLMs owes a massive debt to tools like `ollama`. These tools abstract away the painful complexities of CUDA versions, PyTorch dependencies, and model format conversions, allowing researchers to treat model deployment as a simple CLI command.
+### DeepSeek
 
-**Technical Significance:**
-Ollama's success is not just in its simplicity; it's in its ability to manage the entire lifecycle:
-1.  **Model Retrieval:** Pulling standardized model formats.
-2.  **Quantization Management:** Automatically loading the model in an optimized format (e.g., GGUF).
-3.  **Runtime Execution:** Providing a standardized API endpoint regardless of the underlying model architecture.
+- DeepSeek V2 / V3: large MoE
+- DeepSeek-Coder
 
-For the expert, understanding the underlying format—the **GGUF (GPT-GEneration Unified Format)**—is paramount. GGUF is the lingua franca of local, quantized inference, allowing models to run efficiently on CPUs and consumer GPUs, drastically lowering the barrier to entry for research experimentation.
+Strong technical capability.
 
-### B. Quantization: The Art of Lossy Compression
+### Specialized models
 
-Quantization is the single most important technique for making large models accessible. It involves reducing the precision of the model's weights (e.g., from 32-bit floating point, `FP32`, to 4-bit integers, `INT4`).
+- **Code**: Codestral, DeepSeek-Coder, StarCoder, Qwen-Coder
+- **Embeddings**: BGE, E5, sentence-transformers, GTE
+- **Vision**: CLIP, LLaVA, Qwen-VL
+- **Speech**: Whisper, Parakeet
 
-**The Trade-Off:**
-The core trade-off is **Memory Footprint vs. Accuracy Degradation**.
-*   A 70B parameter model in `FP16` requires $\approx 140$ GB of VRAM.
-*   The same model in `INT4` requires $\approx 35$ GB of VRAM.
+For specialized tasks, specialized models often beat large generalists.
 
-The expert must employ iterative quantization testing. Simply quantizing to the lowest possible bit depth is insufficient; one must test the resulting model across the specific task domain (e.g., mathematical reasoning vs. creative writing) to determine the acceptable degradation threshold.
+## Inference engines
 
-### C. Observability and Evaluation: The Need for Guardrails
+### llama.cpp
 
-In a complex, multi-stage LLM application (especially agentic ones), failure is not a single point but a cascade. Therefore, robust observability is non-negotiable.
+C++ library. CPU-friendly. Aggressive quantization.
 
-*   **Langfuse and HoneyHive:** These tools represent the shift from merely *calling* an LLM to *managing* the LLM interaction. They provide visibility into:
-    *   **Prompt History and Context Drift:** Tracking how the initial system prompt is diluted or misinterpreted over dozens of turns.
-    *   **Token Economics:** Calculating the precise cost and latency associated with specific model calls, crucial for cost-sensitive research.
-    *   **Evaluation Metrics:** Moving beyond simple BLEU scores to evaluating *reasoning paths* and *hallucination vectors* within the agent's decision tree.
+The standard for running quantized LLMs on consumer hardware.
 
-***
+### vLLM
 
-## IV. Advanced Research Paradigms: Beyond Simple Prompting
+Python/CUDA. Continuous batching, PagedAttention.
 
-For the researcher aiming to push the boundaries, the focus must shift from *which* model to *how* the model is guided, refined, and integrated into a larger computational graph.
+Standard for high-throughput GPU serving.
 
-### A. Fine-Tuning Methodologies: Efficiency Meets Efficacy
+### Text Generation Inference (TGI)
 
-Full fine-tuning of a 70B parameter model is prohibitively expensive. Modern research relies on Parameter-Efficient Fine-Tuning (PEFT) techniques.
+Hugging Face's serving framework. Similar capabilities to vLLM.
 
-1.  **LoRA (Low-Rank Adaptation):** This technique freezes the vast majority of the pre-trained weights and only trains small, low-rank adaptation matrices injected into the attention layers.
-    *   **Expert Insight:** The key is understanding the *rank* ($r$) selection. A lower rank means fewer trainable parameters and less VRAM, but an overly low rank can constrain the model's ability to learn complex, novel patterns specific to the downstream task.
-2.  **QLoRA (Quantized LoRA):** This combines the memory efficiency of quantization (loading the base model in 4-bit) with the parameter efficiency of LoRA. This is the current workhorse for resource-constrained fine-tuning.
-    *   **Pseudocode Concept (Conceptual Training Loop):**
-    ```pseudocode
-    FUNCTION QLoRA_Train(BaseModel, Dataset, LoRA_Config):
-        # 1. Load BaseModel in 4-bit precision
-        Quantized_Weights = Load_Model(BaseModel, bits=4)
-        
-        # 2. Inject trainable, low-rank adapters
-        Model_With_Adapters = Inject_Adapters(Quantized_Weights, LoRA_Config)
-        
-        # 3. Optimize only the adapter weights
-        Optimizer = AdamW(Model_With_Adapters.adapters)
-        
-        FOR epoch IN epochs:
-            Loss = Calculate_Loss(Model_With_Adapters, Dataset)
-            Optimizer.Step(Loss)
-        RETURN Model_With_Adapters.adapters
-    ```
-3.  **DPO (Direct Preference Optimization):** This represents a significant methodological leap. Instead of relying solely on Reinforcement Learning (RLHF) which requires complex reward modeling, DPO directly optimizes the model based on a dataset of *preferred* vs. *rejected* responses.
-    *   **Advantage:** It simplifies the RL pipeline immensely, making state-of-the-art alignment achievable with significantly less compute overhead than traditional PPO methods. For researchers, DPO is often the most practical path to achieving high alignment fidelity.
+### Ollama
 
-### B. Agentic Workflows and Tool Use
+Simplified deployment for local LLM use. Built on llama.cpp.
 
-The next frontier is not better language understanding, but better *action*. LLMs are increasingly viewed as the "brain" coordinating external tools.
+### LM Studio
 
-*   **Function Calling/Tool Use:** This requires the model to output structured data (usually JSON) that maps natural language intent to a predefined function signature. The model must possess a deep understanding of the *schema* of the available tools.
-*   **The Orchestration Layer:** The LLM itself is not the agent; it is the *reasoning engine*. The agent framework (e.g., LangChain, CrewAI, or custom implementations) handles the execution loop:
-    1.  **Input:** User Query.
-    2.  **LLM Call:** Model reasons and outputs `{"tool": "weather_api", "params": {"city": "Tokyo"}}`.
-    3.  **Execution:** The framework intercepts this, calls the actual `weather_api(city="Tokyo")`.
-    4.  **Observation:** The framework receives the result (`"It is 22C and sunny"`).
-    5.  **Second LLM Call:** The framework feeds the *observation* back to the LLM for final synthesis.
+GUI for local inference. Good for non-technical users.
 
-This iterative loop—**Plan $\rightarrow$ Act $\rightarrow$ Observe $\rightarrow$ Refine**—is the core concept that separates basic prompt completion from true AI agency.
+### exLlamaV2 / TabbyAPI
 
-### C. Multimodality and Beyond Text
+Memory-efficient GPU inference, especially for quantized models.
 
-The ecosystem is rapidly moving beyond text-in, text-out. Experts must now consider models capable of ingesting and reasoning over diverse data types.
+### MLC
 
-*   **Vision Integration:** Models that can process images (e.g., LLaVA derivatives) require sophisticated alignment layers that map pixel embeddings into the model's latent text space. The challenge here is maintaining high fidelity when fusing these disparate data types.
-*   **Audio and Time Series:** For specialized research (e.g., medical diagnostics, industrial monitoring), the ability to process spectrograms or time-series data alongside text is emerging. This requires specialized pre-training objectives that force the model to correlate temporal patterns with semantic meaning.
+Compiles models for many backends (mobile, browser, edge).
 
-***
+## Quantization tools
 
-## V. Strategic and Ethical Considerations for the Expert Researcher
+### GGUF (llama.cpp)
 
-A comprehensive technical tutorial must conclude with a sober assessment of the surrounding meta-issues—the economics, the ethics, and the geopolitical implications.
+Format and quantization for CPU/edge inference.
 
-### A. The Economics of Open Source: Total Cost of Ownership (TCO)
+Quants: Q2 (smallest, lowest quality) → Q8 (largest, highest quality).
 
-When comparing a proprietary API (e.g., GPT-4) to a self-hosted open-source solution (e.g., Mistral on dedicated hardware), the comparison cannot be limited to the token cost.
+Q4_K_M is a common balance.
 
-**TCO Calculation Factors:**
-1.  **Hardware Acquisition/Depreciation:** The upfront cost of GPUs (e.g., A100s, H100s).
-2.  **Operational Expenditure (OpEx):** Electricity, cooling, and cloud compute time for inference.
-3.  **Engineering Overhead:** The cost of prompt engineering, fine-tuning, and maintaining the orchestration layer.
+### GPTQ
 
-For high-volume, predictable workloads, self-hosting an optimized open model (like a quantized Mistral) often yields a lower TCO than paying per-token to a major provider, provided the engineering team is competent enough to manage the stack.
+GPU-friendly quantization. Common in HF model hub.
 
-### B. Bias, Safety, and Red Teaming
+### AWQ
 
-The open-source nature is a double-edged sword regarding safety. While transparency is excellent for academic scrutiny, it also means that *bad actors* can download and deploy models without the guardrails of a centralized API provider.
+Activation-aware. Often slightly better quality at same precision than GPTQ.
 
-*   **The Responsibility of the Researcher:** When utilizing these models, the researcher assumes the role of the final safety layer. This necessitates rigorous **Red Teaming**—systematically attempting to jailbreak, elicit biased responses, or force the model into generating harmful content.
-*   **Mitigation Techniques:** Implementing input/output filters, using secondary, smaller classification models to vet the LLM's output *before* it reaches the end-user, and employing constitutional AI principles are mandatory steps for any production-grade system.
+### EXL2
 
-### C. The Future Trajectory: Towards Modular Intelligence
+For exllamav2. Variable per-layer precision.
 
-The ultimate goal of the ecosystem is not a single, monolithic "God Model." Instead, the trend points toward **Modular Intelligence Architectures**.
+### bitsandbytes
 
-The future system will look less like a single API call and more like a dynamic graph traversal:
+Easiest path; native PyTorch support. 4-bit, 8-bit.
 
-$$\text{Query} \xrightarrow{\text{Router LLM}} \text{Tool Selector} \rightarrow \text{Tool A (Code Execution)} \rightarrow \text{Observation} \rightarrow \text{Refinement LLM} \rightarrow \text{Final Output}$$
+## Fine-tuning
 
-In this model, Llama might handle the high-level planning, Mistral might handle the efficient summarization of the observation, and a specialized, smaller model might handle the final formatting, all orchestrated by a custom framework.
+### Full fine-tuning
 
-***
+Update all weights. Memory-intensive; not always best.
 
-## Conclusion: Navigating the Open Frontier
+### LoRA / QLoRA
 
-The open-source LLM ecosystem, anchored by titans like Llama and disruptors like Mistral, represents the most fertile, yet most complex, research ground in modern AI. It is a domain defined by rapid iteration, where the technical advantage shifts weekly—from quantization techniques one month, to DPO alignment the next, and from specialized tool use the month after that.
+Train small adapter weights. 100x fewer trainable parameters; quality nearly matches full fine-tuning for many tasks.
 
-For the expert researcher, the mandate is clear: **Do not treat the model as the solution; treat the model as the most powerful, yet temperamental, component within a sophisticated, multi-layered computational system.**
+QLoRA: LoRA on quantized base. Runs on consumer GPUs.
 
-Mastering this ecosystem requires fluency not only in transformer mathematics but also in the practical realities of GPU memory management, the nuances of licensing agreements, and the architectural patterns of agentic orchestration. The competition is fierce, the tools are rapidly maturing, and the barrier to entry for building state-of-the-art systems has never been lower—provided you are willing to read the white papers, audit the quantization parameters, and build the guardrails yourself.
+### Tools
 
-The era of "plug-and-play" AI is over. Welcome to the era of the AI Systems Architect.
+- Hugging Face PEFT
+- axolotl
+- LLaMA-Factory
+- Unsloth (faster training)
+
+### When fine-tuning beats prompting
+
+- Lots of training data
+- Specialized format / style
+- Cost / latency requirements
+- Repeated specific tasks
+
+### When prompting wins
+
+- Limited examples
+- Tasks change frequently
+- Capability already exists in base model
+
+## Vector databases (for RAG)
+
+Open source:
+- **Qdrant**: Rust, strong feature set
+- **Weaviate**: Go, integrated ML
+- **Milvus**: scalable, mature
+- **pgvector**: PostgreSQL extension; simplest if you have PG
+- **Chroma**: Python-friendly, smaller scale
+
+Commercial: Pinecone, Vespa.
+
+## Frameworks
+
+### LangChain
+
+Python, JavaScript. Many integrations. Some criticism for over-abstraction.
+
+### LlamaIndex
+
+Focused on RAG and indexing.
+
+### Haystack
+
+Mature, modular pipelines.
+
+### DSPy
+
+Programming model for LLM applications. Compile prompts.
+
+### Direct API calls
+
+Often the right choice. Frameworks add abstraction overhead.
+
+## Hardware for self-hosting
+
+### Consumer
+
+- RTX 4090: 24GB, runs 7B-13B comfortably, 30-70B with quantization
+- M-series Mac: unified memory advantage; Mac Studio with 128GB+ runs 70B models
+
+### Workstation
+
+- 2-4 RTX 4090: 70B at full precision
+- A6000: 48GB
+
+### Server
+
+- A100 (40/80GB), H100 (80GB)
+- Multi-GPU for very large models
+
+### Cloud
+
+- Hosted services (Replicate, Together, Modal, Fireworks)
+- GPU rentals (Lambda, RunPod, Paperspace)
+- Hyperscaler (AWS, GCP, Azure)
+
+## Quality vs closed APIs
+
+The picture in late 2025/early 2026:
+
+- **General reasoning**: closed (GPT-4, Claude) ahead but gap narrowing
+- **Specific benchmarks**: open often competitive or better
+- **Coding**: open (Qwen-Coder, Codestral) competitive
+- **Long context**: closed ahead for very long context
+- **Multimodal**: open catching up
+
+For many production tasks, a 70B open model is sufficient.
+
+## Cost comparison
+
+### API
+
+- GPT-4o: ~$2.50 / 1M input tokens
+- Claude Sonnet: similar
+- Smaller models: 10-100x cheaper per token
+
+### Self-hosted
+
+Hardware + electricity + ops time.
+
+A100 instance: ~$1-2/hour.
+
+Throughput at 70B: ~1000-3000 tokens/sec with batching.
+
+Breakeven: depends on volume. Often 10M+ tokens/day favors self-hosting if you have the ops capability.
+
+## Common failure patterns
+
+### Underestimating ops
+
+Self-hosting LLMs is harder than running APIs.
+
+### Choosing model by benchmark
+
+Benchmark performance doesn't always match your task.
+
+### Wrong quantization level
+
+Q2 ruins quality. Q8 wastes memory. Q4-Q5 is usually right.
+
+### Frameworks over fundamentals
+
+Reaching for LangChain when you need 50 lines of Python.
+
+### Skipping evaluation
+
+Open models need evaluation on your specific task.
+
+### Outdated information
+
+Ecosystem moves fast. 6-month-old advice may be stale.
+
+## Decision framework
+
+Use open source when:
+- High volume justifies hosting
+- Privacy requirements
+- Customization needed
+- Cost-sensitive
+
+Use closed APIs when:
+- Need cutting-edge capability
+- Low volume
+- No ops capacity
+- Prototyping
+
+Many teams run hybrid: closed for hard tasks, open for high-volume ones.
+
+## Where to start
+
+1. Try llama.cpp + GGUF quants on your laptop
+2. Run a small model end-to-end
+3. Evaluate on your task
+4. Scale up only if needed
+
+## Further Reading
+
+- [TransformerArchitecture](TransformerArchitecture) — Model foundation
+- [AgentPromptEngineering](AgentPromptEngineering) — Agent patterns
+- [PromptCaching](PromptCaching) — Cost optimization
+- [Generative AI Hub](Generative+AI+Hub) — Cluster index

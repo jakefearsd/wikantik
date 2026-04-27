@@ -453,6 +453,45 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ query_set_id: querySetId, mode }),
       }),
+
+    // KG inclusion / exclusion policy
+    kgPolicy: {
+      listClusters: () => request('/admin/kg-policy/clusters'),
+      getCluster: (name) =>
+        request(`/admin/kg-policy/clusters/${encodeURIComponent(name)}`),
+      setCluster: (name, body) =>
+        request(`/admin/kg-policy/clusters/${encodeURIComponent(name)}`, {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }),
+      clearCluster: (name) =>
+        request(`/admin/kg-policy/clusters/${encodeURIComponent(name)}`, {
+          method: 'DELETE',
+        }),
+      markReviewed: (name) =>
+        request(
+          `/admin/kg-policy/clusters/${encodeURIComponent(name)}/review`,
+          { method: 'POST' },
+        ),
+      bootstrap: (body) =>
+        request('/admin/kg-policy/bootstrap', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }),
+      explain: (id) =>
+        request(`/admin/kg-policy/explain/${encodeURIComponent(id)}`),
+      pending: () => request('/admin/kg-policy/pending'),
+      audit: ({ cluster, limit = 100 } = {}) => {
+        const params = new URLSearchParams({ limit: String(limit) });
+        if (cluster) params.set('cluster', cluster);
+        return request(`/admin/kg-policy/audit?${params}`);
+      },
+      reconciliation: () => request('/admin/kg-policy/reconciliation'),
+      estimate: (cluster, action) => {
+        const params = new URLSearchParams({ cluster, action });
+        return request(`/admin/kg-policy/estimate?${params}`);
+      },
+    },
   },
 
   // Knowledge Graph Administration

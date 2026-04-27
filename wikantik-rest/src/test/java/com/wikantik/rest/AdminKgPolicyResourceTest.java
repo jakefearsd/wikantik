@@ -40,7 +40,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.BufferedReader;
 import java.io.PrintWriter;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.time.Duration;
 import java.time.Instant;
@@ -303,5 +305,127 @@ class AdminKgPolicyResourceTest {
         final JsonObject b = body();
         assertTrue( b.has( "error" ) );
         assertTrue( b.get( "error" ).getAsString().contains( "required" ) );
+    }
+
+    // -------------------------------------------------------------------------
+    // Write endpoint tests (Task 17)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void put_cluster_sets_policy_with_actor_from_request() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/clusters/java" );
+        when( req.getRemoteUser() ).thenReturn( "admin" );
+        when( req.getReader() ).thenReturn(
+                new BufferedReader( new StringReader( "{\"action\":\"include\",\"reason\":\"x\"}" ) ) );
+
+        resource.doPut( req, resp );
+
+        verify( policy ).setClusterPolicy( "java", ClusterAction.INCLUDE, "x", "admin" );
+        final JsonObject b = body();
+        assertEquals( "java",    b.get( "cluster" ).getAsString() );
+        assertEquals( "include", b.get( "action" ).getAsString() );
+        assertEquals( "x",       b.get( "reason" ).getAsString() );
+        assertEquals( "admin",   b.get( "actor" ).getAsString() );
+    }
+
+    @Test
+    void put_cluster_returns_400_on_invalid_action() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/clusters/java" );
+        when( req.getRemoteUser() ).thenReturn( "admin" );
+        when( req.getReader() ).thenReturn(
+                new BufferedReader( new StringReader( "{\"action\":\"maybe\"}" ) ) );
+
+        resource.doPut( req, resp );
+
+        verify( resp ).setStatus( 400 );
+        assertTrue( body().has( "error" ) );
+    }
+
+    @Test
+    void put_cluster_uses_unknown_actor_when_principal_missing() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/clusters/java" );
+        when( req.getRemoteUser() ).thenReturn( null );
+        when( req.getReader() ).thenReturn(
+                new BufferedReader( new StringReader( "{\"action\":\"exclude\"}" ) ) );
+
+        resource.doPut( req, resp );
+
+        verify( policy ).setClusterPolicy( eq( "java" ), eq( ClusterAction.EXCLUDE ), any(), eq( "unknown" ) );
+        assertEquals( "unknown", body().get( "actor" ).getAsString() );
+    }
+
+    @Test
+    void delete_cluster_clears_policy() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/clusters/java" );
+        when( req.getRemoteUser() ).thenReturn( "admin" );
+
+        resource.doDelete( req, resp );
+
+        verify( policy ).clearClusterPolicy( "java", "admin" );
+        final JsonObject b = body();
+        assertEquals( "java",  b.get( "cluster" ).getAsString() );
+        assertTrue( b.get( "cleared" ).getAsBoolean() );
+        assertEquals( "admin", b.get( "actor" ).getAsString() );
+    }
+
+    @Test
+    void post_review_marks_reviewed() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/clusters/java/review" );
+        when( req.getRemoteUser() ).thenReturn( "admin" );
+
+        resource.doPost( req, resp );
+
+        verify( policy ).markReviewed( "java", "admin" );
+        final JsonObject b = body();
+        assertEquals( "java",  b.get( "cluster" ).getAsString() );
+        assertTrue( b.get( "reviewed" ).getAsBoolean() );
+        assertEquals( "admin", b.get( "actor" ).getAsString() );
+    }
+
+    @Test
+    void post_bootstrap_applies_include_and_exclude_lists() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/bootstrap" );
+        when( req.getRemoteUser() ).thenReturn( "admin" );
+        when( req.getReader() ).thenReturn(
+                new BufferedReader( new StringReader(
+                        "{\"include\":[\"a\",\"b\"],\"exclude\":[\"c\"],\"reason\":\"boot\"}" ) ) );
+
+        resource.doPost( req, resp );
+
+        verify( policy ).bootstrap( List.of( "a", "b" ), List.of( "c" ), "boot", "admin" );
+        final JsonObject b = body();
+        assertTrue( b.get( "applied" ).getAsBoolean() );
+        assertEquals( 2, b.get( "included" ).getAsInt() );
+        assertEquals( 1, b.get( "excluded" ).getAsInt() );
+    }
+
+    @Test
+    void post_bootstrap_returns_409_when_table_non_empty() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/bootstrap" );
+        when( req.getRemoteUser() ).thenReturn( "admin" );
+        when( req.getReader() ).thenReturn(
+                new BufferedReader( new StringReader(
+                        "{\"include\":[\"a\"],\"exclude\":[],\"reason\":\"boot\"}" ) ) );
+        doThrow( new IllegalStateException( "bootstrap table is non-empty" ) )
+                .when( policy ).bootstrap( any(), any(), any(), any() );
+
+        resource.doPost( req, resp );
+
+        verify( resp ).setStatus( 409 );
+        assertTrue( body().has( "error" ) );
+    }
+
+    @Test
+    void put_cluster_returns_400_on_missing_body() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/clusters/java" );
+        when( req.getRemoteUser() ).thenReturn( "admin" );
+        // Provide a non-JSON array as body instead of an object
+        when( req.getReader() ).thenReturn(
+                new BufferedReader( new StringReader( "[1,2,3]" ) ) );
+
+        resource.doPut( req, resp );
+
+        verify( resp ).setStatus( 400 );
+        assertTrue( body().has( "error" ) );
     }
 }

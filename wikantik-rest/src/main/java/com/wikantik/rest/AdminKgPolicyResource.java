@@ -20,6 +20,7 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.kgpolicy.ClusterAction;
 import com.wikantik.api.kgpolicy.ClusterPolicy;
@@ -38,6 +39,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -292,7 +294,180 @@ public class AdminKgPolicyResource extends RestServletBase {
         write( resp, env );
     }
 
+    @Override
+    protected void doPut( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
+        final String path = req.getPathInfo() == null ? "" : req.getPathInfo();
+        try {
+            if ( path.startsWith( "/clusters/" ) ) {
+                doSetCluster( path.substring( "/clusters/".length() ), req, resp );
+            } else {
+                resp.setStatus( 404 );
+                resp.setContentType( "application/json; charset=UTF-8" );
+                resp.getWriter().write( "{\"error\":\"unknown path\"}" );
+            }
+        } catch ( final RuntimeException e ) {
+            error500( resp, "kg-policy PUT " + path, e );
+        }
+    }
+
+    @Override
+    protected void doDelete( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
+        final String path = req.getPathInfo() == null ? "" : req.getPathInfo();
+        try {
+            if ( path.startsWith( "/clusters/" ) ) {
+                doClearCluster( path.substring( "/clusters/".length() ), req, resp );
+            } else {
+                resp.setStatus( 404 );
+                resp.setContentType( "application/json; charset=UTF-8" );
+                resp.getWriter().write( "{\"error\":\"unknown path\"}" );
+            }
+        } catch ( final RuntimeException e ) {
+            error500( resp, "kg-policy DELETE " + path, e );
+        }
+    }
+
+    @Override
+    protected void doPost( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
+        final String path = req.getPathInfo() == null ? "" : req.getPathInfo();
+        try {
+            if ( path.equals( "/bootstrap" ) ) {
+                doBootstrap( req, resp );
+            } else if ( path.endsWith( "/review" ) && path.startsWith( "/clusters/" ) ) {
+                final String cluster = path.substring( "/clusters/".length(), path.length() - "/review".length() );
+                doMarkReviewed( cluster, req, resp );
+            } else {
+                resp.setStatus( 404 );
+                resp.setContentType( "application/json; charset=UTF-8" );
+                resp.getWriter().write( "{\"error\":\"unknown path\"}" );
+            }
+        } catch ( final IllegalStateException conflict ) {
+            resp.setStatus( 409 );
+            resp.setContentType( "application/json; charset=UTF-8" );
+            resp.getWriter().write( "{\"error\":\"" + safe( conflict.getMessage() ) + "\"}" );
+        } catch ( final RuntimeException e ) {
+            error500( resp, "kg-policy POST " + path, e );
+        }
+    }
+
+    private void doSetCluster( final String cluster, final HttpServletRequest req, final HttpServletResponse resp )
+            throws IOException {
+        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        if ( policy == null ) { unavailable( resp ); return; }
+
+        final JsonObject body = parseBody( req, resp );
+        if ( body == null ) return;
+        final String actionRaw = optString( body, "action" );
+        final Optional< ClusterAction > action = ClusterAction.fromWire( actionRaw );
+        if ( action.isEmpty() ) {
+            resp.setStatus( 400 );
+            resp.setContentType( "application/json; charset=UTF-8" );
+            resp.getWriter().write( "{\"error\":\"action must be 'include' or 'exclude'\"}" );
+            return;
+        }
+        final String reason = optString( body, "reason" );
+        final String actor = actorOf( req );
+        policy.setClusterPolicy( cluster, action.get(), reason, actor );
+
+        final JsonObject env = new JsonObject();
+        env.addProperty( "cluster", cluster );
+        env.addProperty( "action", action.get().wire() );
+        env.addProperty( "reason", reason );
+        env.addProperty( "actor", actor );
+        write( resp, env );
+    }
+
+    private void doClearCluster( final String cluster, final HttpServletRequest req, final HttpServletResponse resp )
+            throws IOException {
+        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        if ( policy == null ) { unavailable( resp ); return; }
+        final String actor = actorOf( req );
+        policy.clearClusterPolicy( cluster, actor );
+        final JsonObject env = new JsonObject();
+        env.addProperty( "cluster", cluster );
+        env.addProperty( "cleared", true );
+        env.addProperty( "actor", actor );
+        write( resp, env );
+    }
+
+    private void doMarkReviewed( final String cluster, final HttpServletRequest req, final HttpServletResponse resp )
+            throws IOException {
+        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        if ( policy == null ) { unavailable( resp ); return; }
+        final String actor = actorOf( req );
+        policy.markReviewed( cluster, actor );
+        final JsonObject env = new JsonObject();
+        env.addProperty( "cluster", cluster );
+        env.addProperty( "reviewed", true );
+        env.addProperty( "actor", actor );
+        write( resp, env );
+    }
+
+    private void doBootstrap( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
+        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        if ( policy == null ) { unavailable( resp ); return; }
+        final JsonObject body = parseBody( req, resp );
+        if ( body == null ) return;
+        final List< String > include = stringList( body.getAsJsonArray( "include" ) );
+        final List< String > exclude = stringList( body.getAsJsonArray( "exclude" ) );
+        final String reason = optString( body, "reason" );
+        final String actor = actorOf( req );
+        policy.bootstrap( include, exclude, reason, actor );
+        final JsonObject env = new JsonObject();
+        env.addProperty( "applied", true );
+        env.addProperty( "included", include.size() );
+        env.addProperty( "excluded", exclude.size() );
+        write( resp, env );
+    }
+
     /* ---- helpers ---- */
+
+    private static String actorOf( final HttpServletRequest req ) {
+        final String u = req.getRemoteUser();
+        return u == null || u.isBlank() ? "unknown" : u;
+    }
+
+    private static JsonObject parseBody( final HttpServletRequest req, final HttpServletResponse resp )
+            throws IOException {
+        try {
+            final var element = JsonParser.parseReader( req.getReader() );
+            if ( !element.isJsonObject() ) {
+                resp.setStatus( 400 );
+                resp.setContentType( "application/json; charset=UTF-8" );
+                resp.getWriter().write( "{\"error\":\"body must be a JSON object\"}" );
+                return null;
+            }
+            return element.getAsJsonObject();
+        } catch ( final RuntimeException e ) {
+            resp.setStatus( 400 );
+            resp.setContentType( "application/json; charset=UTF-8" );
+            resp.getWriter().write( "{\"error\":\"invalid JSON: " + safe( e.getMessage() ) + "\"}" );
+            return null;
+        }
+    }
+
+    private static String optString( final JsonObject body, final String key ) {
+        if ( body == null || !body.has( key ) || body.get( key ).isJsonNull() ) return null;
+        return body.get( key ).getAsString();
+    }
+
+    private static List< String > stringList( final JsonArray arr ) {
+        if ( arr == null ) return List.of();
+        final List< String > out = new ArrayList<>( arr.size() );
+        for ( int i = 0; i < arr.size(); i++ ) out.add( arr.get( i ).getAsString() );
+        return out;
+    }
+
+    private static String safe( final String s ) {
+        return s == null ? "" : s.replace( '"', ' ' );
+    }
+
+    private static void error500( final HttpServletResponse resp, final String context, final RuntimeException e )
+            throws IOException {
+        LOG.warn( "{} failed: {}", context, e.getMessage() );
+        resp.setStatus( 500 );
+        resp.setContentType( "application/json; charset=UTF-8" );
+        resp.getWriter().write( "{\"error\":\"" + safe( e.getMessage() ) + "\"}" );
+    }
 
     private static JsonObject auditJson( final PolicyAuditEntry a ) {
         final JsonObject o = new JsonObject();

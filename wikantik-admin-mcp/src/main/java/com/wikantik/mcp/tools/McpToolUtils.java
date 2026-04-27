@@ -47,10 +47,16 @@ public final class McpToolUtils {
 
     /**
      * Builds a successful {@link McpSchema.CallToolResult} by JSON-serializing the given data.
+     *
+     * <p>Sets BOTH {@code content} (text) and {@code structuredContent}. As of MCP SDK
+     * 1.1.1, tools that declare a non-empty {@code outputSchema} must include
+     * {@code structuredContent} in their response — the SDK validates this on the
+     * client side and raises "Response missing structured content" otherwise.</p>
      */
     public static McpSchema.CallToolResult jsonResult( final Gson gson, final Object data ) {
         return McpSchema.CallToolResult.builder()
                 .content( List.of( new McpSchema.TextContent( gson.toJson( data ) ) ) )
+                .structuredContent( data )
                 .build();
     }
 
@@ -60,8 +66,10 @@ public final class McpToolUtils {
      * so the MCP response never echoes Java internals back to the agent.
      */
     public static McpSchema.CallToolResult errorResult( final Gson gson, final String message ) {
+        final Map< String, String > body = Map.of( "error", sanitizeErrorMessage( message ) );
         return McpSchema.CallToolResult.builder()
-                .content( List.of( new McpSchema.TextContent( gson.toJson( Map.of( "error", sanitizeErrorMessage( message ) ) ) ) ) )
+                .content( List.of( new McpSchema.TextContent( gson.toJson( body ) ) ) )
+                .structuredContent( body )
                 .isError( true )
                 .build();
     }
@@ -100,6 +108,7 @@ public final class McpToolUtils {
         body.put( "suggestion", suggestion );
         return McpSchema.CallToolResult.builder()
                 .content( List.of( new McpSchema.TextContent( gson.toJson( body ) ) ) )
+                .structuredContent( body )
                 .isError( true )
                 .build();
     }

@@ -29,3 +29,9 @@ wiki.zip
 .mcp.json.bak
 /test.properties
 wikantik-it-tests/it-db.properties
+__pycache__/
+*.pyc
+.claude/
+/RESUME
+/temp/
+/org/

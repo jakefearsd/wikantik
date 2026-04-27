@@ -20,6 +20,7 @@ package com.wikantik.search.hybrid;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.wikantik.kgpolicy.KgInclusionFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -67,7 +68,10 @@ public class QueryEntityResolver {
     );
 
     private static final String SELECT_IDS_SQL =
-        "SELECT id FROM kg_nodes WHERE LOWER( name ) = ANY( ? )";
+        "SELECT n.id FROM kg_nodes n"
+        + KgInclusionFilter.NODE_FILTER_JOIN
+        + "WHERE LOWER( n.name ) = ANY( ? ) AND"
+        + KgInclusionFilter.NODE_FILTER_WHERE;
 
     private final DataSource dataSource;
     private final Cache< String, Set< UUID > > cache;

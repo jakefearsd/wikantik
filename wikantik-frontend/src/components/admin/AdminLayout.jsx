@@ -34,6 +34,9 @@ export default function AdminLayout() {
           <NavLink to="/admin/retrieval-quality" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
             Retrieval
           </NavLink>
+          <NavLink to="/admin/kg-policy" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
+            KG Policy
+          </NavLink>
         </nav>
       </div>
       <Outlet />

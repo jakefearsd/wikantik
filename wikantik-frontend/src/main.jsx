@@ -13,6 +13,10 @@ import AdminSecurityPage from './components/admin/AdminSecurityPage';
 import AdminKnowledgePage from './components/admin/AdminKnowledgePage';
 import AdminApiKeysPage from './components/admin/AdminApiKeysPage';
 import AdminRetrievalQualityPage from './components/admin/AdminRetrievalQualityPage';
+import AdminKgPolicyPage from './components/admin/AdminKgPolicyPage';
+import AdminKgPolicyExplain from './components/admin/AdminKgPolicyExplain';
+import AdminKgPolicyPending from './components/admin/AdminKgPolicyPending';
+import AdminKgPolicyBootstrap from './components/admin/AdminKgPolicyBootstrap';
 import DiffViewer from './components/DiffViewer';
 import UserPreferencesPage from './components/UserPreferencesPage';
 import ResetPasswordPage from './components/ResetPasswordPage';
@@ -54,6 +58,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="knowledge" element={<AdminKnowledgePage />} />
               <Route path="apikeys" element={<AdminApiKeysPage />} />
               <Route path="retrieval-quality" element={<AdminRetrievalQualityPage />} />
+              <Route path="kg-policy" element={<AdminKgPolicyPage />} />
+              <Route path="kg-policy/explain" element={<AdminKgPolicyExplain />} />
+              <Route path="kg-policy/pending" element={<AdminKgPolicyPending />} />
+              <Route path="kg-policy/bootstrap" element={<AdminKgPolicyBootstrap />} />
             </Route>
             <Route path="/blog" element={<BlogDiscovery />} />
             <Route path="/blog/create" element={<CreateBlog />} />

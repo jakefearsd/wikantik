@@ -18,6 +18,7 @@
  */
 package com.wikantik.search.hybrid;
 
+import com.wikantik.kgpolicy.KgInclusionFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -50,7 +51,10 @@ public final class InMemoryGraphNeighborIndex implements GraphNeighborIndex {
 
     private static final Logger LOG = LogManager.getLogger( InMemoryGraphNeighborIndex.class );
 
-    private static final String LOAD_SQL = "SELECT source_id, target_id FROM kg_edges";
+    private static final String LOAD_SQL =
+            "SELECT e.source_id, e.target_id FROM kg_edges e"
+            + KgInclusionFilter.EDGE_FILTER_JOIN
+            + "WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE;
     private static final String COUNT_SQL = "SELECT COUNT(*) FROM kg_edges";
 
     private final DataSource dataSource;

@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.embedding;
 
+import com.wikantik.kgpolicy.KgInclusionFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -73,10 +74,14 @@ public class NodeMentionSimilarity {
     private static final String SELECT_VECTORS_FOR_NODE_NAME_SQL =
         "SELECT cce.dim, cce.vec "
       + "  FROM kg_nodes n "
+      + KgInclusionFilter.NODE_FILTER_JOIN
       + "  JOIN chunk_entity_mentions m ON m.node_id = n.id "
+      + KgInclusionFilter.MENTION_FILTER_JOIN
       + "  JOIN content_chunk_embeddings cce ON cce.chunk_id = m.chunk_id "
       + " WHERE n.name = ? "
-      + "   AND cce.model_code = ?";
+      + "   AND cce.model_code = ?"
+      + "   AND" + KgInclusionFilter.NODE_FILTER_WHERE
+      + "   AND" + KgInclusionFilter.MENTION_FILTER_WHERE;
 
     /**
      * Loads every mentioned node plus its chunk vectors in one pass. Read once
@@ -86,15 +91,23 @@ public class NodeMentionSimilarity {
     private static final String SELECT_ALL_NODE_CHUNK_VECTORS_SQL =
         "SELECT n.name, cce.dim, cce.vec "
       + "  FROM kg_nodes n "
+      + KgInclusionFilter.NODE_FILTER_JOIN
       + "  JOIN chunk_entity_mentions m ON m.node_id = n.id "
+      + KgInclusionFilter.MENTION_FILTER_JOIN
       + "  JOIN content_chunk_embeddings cce ON cce.chunk_id = m.chunk_id "
-      + " WHERE cce.model_code = ? "
+      + " WHERE cce.model_code = ?"
+      + "   AND" + KgInclusionFilter.NODE_FILTER_WHERE
+      + "   AND" + KgInclusionFilter.MENTION_FILTER_WHERE
       + " ORDER BY n.name";
 
     private static final String SELECT_MENTIONED_NODE_NAMES_SQL =
         "SELECT DISTINCT n.name "
       + "  FROM kg_nodes n "
+      + KgInclusionFilter.NODE_FILTER_JOIN
       + "  JOIN chunk_entity_mentions m ON m.node_id = n.id "
+      + KgInclusionFilter.MENTION_FILTER_JOIN
+      + " WHERE" + KgInclusionFilter.NODE_FILTER_WHERE
+      + "   AND" + KgInclusionFilter.MENTION_FILTER_WHERE
       + " ORDER BY n.name";
 
     private final DataSource dataSource;

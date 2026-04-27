@@ -18,7 +18,9 @@
  */
 package com.wikantik.knowledge.extraction;
 
+import com.wikantik.api.kgpolicy.ExclusionReason;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
+import com.wikantik.kgpolicy.KgExcludedPagesRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -270,6 +272,39 @@ class BootstrapEntityExtractionIndexerTest {
         // No findByIds call when filter is passthrough — legacy path is byte-identical.
         verify( chunkRepo, never() ).findByIds( any() );
         verify( listener ).runExtractionSync( List.of( c ) );
+    }
+
+    @Test
+    void skips_pages_present_in_excluded_table() {
+        final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
+        final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
+        final AsyncEntityExtractionListener listener = Mockito.mock( AsyncEntityExtractionListener.class );
+        final KgExcludedPagesRepository excluded = Mockito.mock( KgExcludedPagesRepository.class );
+
+        final UUID keepChunk = UUID.randomUUID();
+        final UUID skipChunk = UUID.randomUUID();
+
+        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "Skip", "Keep" ) );
+        when( chunkRepo.listChunkIdsForPage( "Skip" ) ).thenReturn( List.of( skipChunk ) );
+        when( chunkRepo.listChunkIdsForPage( "Keep" ) ).thenReturn( List.of( keepChunk ) );
+        when( excluded.findReason( "Skip" ) ).thenReturn( java.util.Optional.of( ExclusionReason.SYSTEM_PAGE ) );
+        when( excluded.findReason( "Keep" ) ).thenReturn( java.util.Optional.empty() );
+        when( listener.runExtractionSync( List.of( keepChunk ) ) )
+                .thenReturn( new AsyncEntityExtractionListener.RunResult( 2, 1 ) );
+
+        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
+                listener, chunkRepo, mentionRepo, directExecutor(),
+                ChunkExtractionPrefilter.passthrough(), excluded );
+        assertTrue( indexer.start( /*forceOverwrite*/ false ) );
+
+        final BootstrapEntityExtractionIndexer.Status s = indexer.status();
+        assertEquals( BootstrapEntityExtractionIndexer.State.COMPLETED, s.state() );
+        assertEquals( 1, s.excludedSkipped(), "excluded page must be counted" );
+        // listener was called only for Keep
+        verify( listener, times( 1 ) ).runExtractionSync( List.of( keepChunk ) );
+        verify( listener, never() ).runExtractionSync( List.of( skipChunk ) );
+        // listChunkIdsForPage is still called for the excluded page (early-out happens after)
+        verify( chunkRepo ).listChunkIdsForPage( "Skip" );
     }
 
     // ---- helpers ----

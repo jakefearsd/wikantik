@@ -136,6 +136,7 @@ public class AdminExtractionResource extends RestServletBase {
         m.put( "concurrency", s.concurrency() );
         m.put( "startedAt", isoOrNull( s.startedAt() ) );
         m.put( "finishedAt", isoOrNull( s.finishedAt() ) );
+        m.put( "excludedSkipped", s.excludedSkipped() );
         if ( s.lastError() != null ) m.put( "lastError", s.lastError() );
         return m;
     }

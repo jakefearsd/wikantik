@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.extraction;
 
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
+import com.wikantik.kgpolicy.KgExcludedPagesRepository;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -90,7 +91,8 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         boolean forceOverwrite,
         int concurrency,
         int skippedChunks,
-        Map< String, Integer > skipReasons
+        Map< String, Integer > skipReasons,
+        int excludedSkipped
     ) {}
 
     private final AsyncEntityExtractionListener listener;
@@ -102,6 +104,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
     private final boolean ownsWorkerPool;
     private final int concurrency;
     private final ChunkExtractionPrefilter prefilter;
+    private final KgExcludedPagesRepository excludedPages;
 
     private final AtomicBoolean running = new AtomicBoolean( false );
     private final AtomicBoolean cancelRequested = new AtomicBoolean( false );
@@ -122,6 +125,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
     private final AtomicBoolean forceOverwrite = new AtomicBoolean();
     private final AtomicInteger skippedChunks = new AtomicInteger();
     private final Map< String, Integer > skipReasonCounts = new ConcurrentHashMap<>();
+    private final AtomicInteger excludedSkipped = new AtomicInteger();
     /** When &gt; 0, runBatch processes only the first {@code maxPages}
      *  page-names (alphabetically). 0 means unlimited (full corpus). */
     private final AtomicInteger maxPages = new AtomicInteger( 0 );
@@ -139,7 +143,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         this( listener, chunkRepo, mentionRepo, defaultExecutor(), /*ownsExecutor*/ true,
               defaultWorkerPool( concurrency ), /*ownsWorkerPool*/ true,
               EntityExtractorConfig.clampConcurrency( concurrency ),
-              ChunkExtractionPrefilter.passthrough() );
+              ChunkExtractionPrefilter.passthrough(), /*excludedPages*/ null );
     }
 
     public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
@@ -149,7 +153,18 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                                              final ChunkExtractionPrefilter prefilter ) {
         this( listener, chunkRepo, mentionRepo, defaultExecutor(), /*ownsExecutor*/ true,
               defaultWorkerPool( concurrency ), /*ownsWorkerPool*/ true,
-              EntityExtractorConfig.clampConcurrency( concurrency ), prefilter );
+              EntityExtractorConfig.clampConcurrency( concurrency ), prefilter, /*excludedPages*/ null );
+    }
+
+    public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
+                                             final ContentChunkRepository chunkRepo,
+                                             final ChunkEntityMentionRepository mentionRepo,
+                                             final int concurrency,
+                                             final ChunkExtractionPrefilter prefilter,
+                                             final KgExcludedPagesRepository excludedPages ) {
+        this( listener, chunkRepo, mentionRepo, defaultExecutor(), /*ownsExecutor*/ true,
+              defaultWorkerPool( concurrency ), /*ownsWorkerPool*/ true,
+              EntityExtractorConfig.clampConcurrency( concurrency ), prefilter, excludedPages );
     }
 
     public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
@@ -158,7 +173,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                                              final ExecutorService executor ) {
         this( listener, chunkRepo, mentionRepo, executor, /*ownsExecutor*/ false,
               executor, /*ownsWorkerPool*/ false, /*concurrency*/ 1,
-              ChunkExtractionPrefilter.passthrough() );
+              ChunkExtractionPrefilter.passthrough(), /*excludedPages*/ null );
     }
 
     public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
@@ -170,7 +185,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         this( listener, chunkRepo, mentionRepo, executor, /*ownsExecutor*/ false,
               workerPool, /*ownsWorkerPool*/ false,
               EntityExtractorConfig.clampConcurrency( concurrency ),
-              ChunkExtractionPrefilter.passthrough() );
+              ChunkExtractionPrefilter.passthrough(), /*excludedPages*/ null );
     }
 
     public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
@@ -179,7 +194,17 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                                              final ExecutorService executor,
                                              final ChunkExtractionPrefilter prefilter ) {
         this( listener, chunkRepo, mentionRepo, executor, /*ownsExecutor*/ false,
-              executor, /*ownsWorkerPool*/ false, /*concurrency*/ 1, prefilter );
+              executor, /*ownsWorkerPool*/ false, /*concurrency*/ 1, prefilter, /*excludedPages*/ null );
+    }
+
+    public BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
+                                             final ContentChunkRepository chunkRepo,
+                                             final ChunkEntityMentionRepository mentionRepo,
+                                             final ExecutorService executor,
+                                             final ChunkExtractionPrefilter prefilter,
+                                             final KgExcludedPagesRepository excludedPages ) {
+        this( listener, chunkRepo, mentionRepo, executor, /*ownsExecutor*/ false,
+              executor, /*ownsWorkerPool*/ false, /*concurrency*/ 1, prefilter, excludedPages );
     }
 
     private BootstrapEntityExtractionIndexer( final AsyncEntityExtractionListener listener,
@@ -190,7 +215,8 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                                               final ExecutorService workerPool,
                                               final boolean ownsWorkerPool,
                                               final int concurrency,
-                                              final ChunkExtractionPrefilter prefilter ) {
+                                              final ChunkExtractionPrefilter prefilter,
+                                              final KgExcludedPagesRepository excludedPages ) {
         if( listener == null ) throw new IllegalArgumentException( "listener must not be null" );
         if( chunkRepo == null ) throw new IllegalArgumentException( "chunkRepo must not be null" );
         if( mentionRepo == null ) throw new IllegalArgumentException( "mentionRepo must not be null" );
@@ -206,6 +232,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         this.ownsWorkerPool = ownsWorkerPool;
         this.concurrency = concurrency;
         this.prefilter = prefilter;
+        this.excludedPages = excludedPages;
     }
 
     private static ExecutorService defaultExecutor() {
@@ -278,6 +305,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         this.forceOverwrite.set( forceOverwrite );
         skippedChunks.set( 0 );
         skipReasonCounts.clear();
+        excludedSkipped.set( 0 );
         this.maxPages.set( Math.max( 0, maxPages ) );
         state.set( State.RUNNING );
 
@@ -311,7 +339,8 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
             forceOverwrite.get(),
             concurrency,
             skippedChunks.get(),
-            Map.copyOf( skipReasonCounts )
+            Map.copyOf( skipReasonCounts ),
+            excludedSkipped.get()
         );
     }
 
@@ -404,6 +433,12 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
             }
             if( chunkIds.isEmpty() ) {
                 processedPages.incrementAndGet();
+                continue;
+            }
+
+            if( excludedPages != null && excludedPages.findReason( page ).isPresent() ) {
+                LOG.debug( "Bootstrap extraction: skip excluded page '{}'", page );
+                excludedSkipped.incrementAndGet();
                 continue;
             }
 
@@ -555,10 +590,10 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         final int doneChunks = processedChunks.get();
         final long meanPerPageMs = donePages > 0 ? elapsedMs / (long) donePages : 0L;
         final long meanPerChunkMs = doneChunks > 0 ? elapsedMs / (long) doneChunks : 0L;
-        LOG.info( "Bootstrap entity extraction {}: processedPages={}/{}, failedPages={}, "
+        LOG.info( "Bootstrap entity extraction {}: processedPages={}/{}, failedPages={}, excludedSkipped={}, "
                 + "processedChunks={}/{}, failedChunks={}, skippedChunks={}, skipReasons={}, "
                 + "mentionsWritten={}, proposalsFiled={}, totalMs={}, meanPerPageMs={}, meanPerChunkMs={}",
-            state.get(), donePages, totalPages.get(), failedPages.get(),
+            state.get(), donePages, totalPages.get(), failedPages.get(), excludedSkipped.get(),
             doneChunks, totalChunks.get(), failedChunks.get(),
             skippedChunks.get(), Map.copyOf( skipReasonCounts ),
             mentionsWritten.get(), proposalsFiled.get(), elapsedMs, meanPerPageMs, meanPerChunkMs );

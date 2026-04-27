@@ -68,7 +68,7 @@ class AdminExtractionResourceTest {
         return new BootstrapEntityExtractionIndexer.Status(
             BootstrapEntityExtractionIndexer.State.IDLE,
             0, 0, 0, 0, 0, 0, 0, 0, null, null, 0, null, false, 4,
-            0, java.util.Map.of() );
+            0, java.util.Map.of(), 0 );
     }
 
     private static BootstrapEntityExtractionIndexer.Status runningStatus() {
@@ -76,7 +76,7 @@ class AdminExtractionResourceTest {
             BootstrapEntityExtractionIndexer.State.RUNNING,
             10, 4, 0, 40, 12, 0, 5, 1,
             Instant.parse( "2026-04-24T10:00:00Z" ), null, 1234L, null, true, 4,
-            0, java.util.Map.of() );
+            0, java.util.Map.of(), 0 );
     }
 
     @Test
@@ -219,7 +219,7 @@ class AdminExtractionResourceTest {
             BootstrapEntityExtractionIndexer.State.ERROR,
             5, 2, 1, 20, 6, 1, 0, 0, null, Instant.parse( "2026-04-24T11:00:00Z" ),
             5000L, "disk full", false, 4,
-            0, java.util.Map.of() ) );
+            0, java.util.Map.of(), 0 ) );
         installIndexer( indexer );
 
         final StringWriter sw = new StringWriter();

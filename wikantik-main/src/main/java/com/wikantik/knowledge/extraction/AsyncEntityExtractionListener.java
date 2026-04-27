@@ -28,6 +28,7 @@ import com.wikantik.api.knowledge.ProposedEdge;
 import com.wikantik.api.knowledge.ProposedNode;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
+import com.wikantik.kgpolicy.KgExcludedPagesRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -77,6 +78,8 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
     private final ExecutorService executor;
     private final boolean ownsExecutor;
 
+    private final KgExcludedPagesRepository excludedPages;
+
     private final Counter requestsCounter;
     private final Counter failuresCounter;
     private final Counter triplesCounter;
@@ -97,7 +100,7 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
                                           final JdbcKnowledgeRepository knowledgeRepository,
                                           final MeterRegistry meterRegistry ) {
         this( extractor, config, chunkRepository, mentionRepository, knowledgeRepository,
-              meterRegistry, defaultExecutor(), /*ownsExecutor*/ true );
+              meterRegistry, defaultExecutor(), /*ownsExecutor*/ true, /*excludedPages*/ null );
     }
 
     public AsyncEntityExtractionListener( final EntityExtractor extractor,
@@ -108,7 +111,18 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
                                           final MeterRegistry meterRegistry,
                                           final ExecutorService executor ) {
         this( extractor, config, chunkRepository, mentionRepository, knowledgeRepository,
-              meterRegistry, executor, /*ownsExecutor*/ false );
+              meterRegistry, executor, /*ownsExecutor*/ false, /*excludedPages*/ null );
+    }
+
+    public AsyncEntityExtractionListener( final EntityExtractor extractor,
+                                          final EntityExtractorConfig config,
+                                          final ContentChunkRepository chunkRepository,
+                                          final ChunkEntityMentionRepository mentionRepository,
+                                          final JdbcKnowledgeRepository knowledgeRepository,
+                                          final MeterRegistry meterRegistry,
+                                          final KgExcludedPagesRepository excludedPages ) {
+        this( extractor, config, chunkRepository, mentionRepository, knowledgeRepository,
+              meterRegistry, defaultExecutor(), /*ownsExecutor*/ true, excludedPages );
     }
 
     private AsyncEntityExtractionListener( final EntityExtractor extractor,
@@ -118,7 +132,8 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
                                            final JdbcKnowledgeRepository knowledgeRepository,
                                            final MeterRegistry meterRegistry,
                                            final ExecutorService executor,
-                                           final boolean ownsExecutor ) {
+                                           final boolean ownsExecutor,
+                                           final KgExcludedPagesRepository excludedPages ) {
         if( extractor == null ) {
             throw new IllegalArgumentException( "extractor must not be null" );
         }
@@ -142,6 +157,7 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
         this.knowledgeRepository = knowledgeRepository;
         this.executor = executor;
         this.ownsExecutor = ownsExecutor;
+        this.excludedPages = excludedPages;
 
         final String code = extractor.code();
         this.requestsCounter = Counter.builder( "wikantik_kg_extractor_requests_total" )
@@ -214,7 +230,22 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
             if( chunks.isEmpty() ) {
                 return RunResult.EMPTY;
             }
-            final String pageName = chunks.get( 0 ).pageName();
+            final List< ContentChunkRepository.MentionableChunk > eligible;
+            if( excludedPages == null ) {
+                eligible = chunks;
+            } else {
+                eligible = chunks.stream()
+                    .filter( ch -> excludedPages.findReason( ch.pageName() ).isEmpty() )
+                    .toList();
+                if( LOG.isDebugEnabled() ) {
+                    LOG.debug( "Async extraction: filtered {} excluded chunks of {}",
+                               chunks.size() - eligible.size(), chunks.size() );
+                }
+            }
+            if( eligible.isEmpty() ) {
+                return RunResult.EMPTY;
+            }
+            final String pageName = eligible.get( 0 ).pageName();
             if( !bypassRateLimit && !passesRateLimit( pageName ) ) {
                 if( LOG.isDebugEnabled() ) {
                     LOG.debug( "Skipping entity extraction for page '{}': within rate-limit window", pageName );
@@ -225,7 +256,7 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
             final List< KgNode > existingNodes = loadExistingNodes();
             final ExtractionContext ctx = new ExtractionContext( pageName, existingNodes, Map.of() );
 
-            for( final ContentChunkRepository.MentionableChunk c : chunks ) {
+            for( final ContentChunkRepository.MentionableChunk c : eligible ) {
                 final ChunkExtractionPrefilter.Decision d = prefilter.evaluate( c.text(), c.headingPath() );
                 if( !d.shouldExtract() ) {
                     if( LOG.isDebugEnabled() ) {

@@ -943,9 +943,15 @@ public class WikiEngine implements Engine {
         final io.micrometer.core.instrument.MeterRegistry meter =
             io.micrometer.core.instrument.Metrics.globalRegistry;
 
+        // KgExcludedPagesRepository is optional: present only when kgPolicyEnabled=true.
+        // Passing null is safe — both extraction components check for null before calling it.
+        final com.wikantik.kgpolicy.KgExcludedPagesRepository excludedPagesRepo =
+            getManager( com.wikantik.kgpolicy.KgExcludedPagesRepository.class );
+
         final com.wikantik.knowledge.extraction.AsyncEntityExtractionListener listener =
             new com.wikantik.knowledge.extraction.AsyncEntityExtractionListener(
-                extractorOpt.get(), extractorCfg, contentChunkRepo, mentionRepo, kgRepo, meter );
+                extractorOpt.get(), extractorCfg, contentChunkRepo, mentionRepo, kgRepo, meter,
+                excludedPagesRepo );
         this.entityExtractionListener = listener;
         managers.put( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class, mentionRepo );
         managers.put( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class, listener );
@@ -963,7 +969,8 @@ public class WikiEngine implements Engine {
                 extractorCfg.prefilterMinTokens() );
         final com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer bootstrap =
             new com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer(
-                listener, contentChunkRepo, mentionRepo, extractorCfg.concurrency(), bootstrapPrefilter );
+                listener, contentChunkRepo, mentionRepo, extractorCfg.concurrency(), bootstrapPrefilter,
+                excludedPagesRepo );
         managers.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class, bootstrap );
 
         // Compose with any existing post-chunk sink so embedding indexing and

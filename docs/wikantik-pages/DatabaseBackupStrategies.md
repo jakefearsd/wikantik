@@ -2,257 +2,256 @@
 canonical_id: 01KQ0P44PBAABJX1RZ5ZPNPEQH
 title: Database Backup Strategies
 type: article
+cluster: databases
+status: active
+date: '2026-04-26'
+summary: How to back up databases that you can actually restore — point-in-time recovery,
+  cross-region copies, automated testing of restores, and the practices that prevent
+  the worst case (backup that doesn't restore).
 tags:
-- log
-- recoveri
-- data
-summary: Temporal Data Recovery For the seasoned database architect or the researcher
-  delving into the bleeding edge of data resilience, the concept of "backup" often
-  feels laughably simplistic.
-auto-generated: true
+- database-backup
+- recovery
+- pitr
+- databases
+related:
+- ReadReplicasAndReplication
+- DatabaseConnectionSecurity
+- CloudDisasterRecovery
+- CloudStorageOptions
 ---
-# Temporal Data Recovery
+# Database Backup Strategies
 
-For the seasoned database architect or the researcher delving into the bleeding edge of data resilience, the concept of "backup" often feels laughably simplistic. A simple file copy, while adequate for historical archiving, fails spectacularly when the requirement is surgical precision: restoring the database to the exact state it held at $T_{target}$, moments before a catastrophic user error, a malicious injection, or a subtle application bug manifested.
+Database backups exist to recover from data loss: hardware failure, accidental deletion, malicious action, application bugs that corrupt data. The goal isn't "we have backups" — it's "we can restore."
 
-This document serves as an exhaustive technical deep-dive into Point-In-Time Recovery (PITR). We are not merely reviewing "how-to" guides; we are dissecting the underlying transactional guarantees, the architectural patterns, and the advanced failure modes that govern the ability to rewind time for mission-critical data assets. If you are researching next-generation resilience techniques, this analysis should provide the necessary theoretical scaffolding and practical comparative context.
+The difference matters. Many organizations have backups they've never restored. They're unverified. The first restore attempt during a real incident is the worst time to discover problems.
 
----
+This page covers the practices that produce restorable backups.
 
-## 1. Introduction: The Imperative of Temporal Data Integrity
+## Backup types
 
-### 1.1 Defining the Problem Space
+### Full backup
 
-In traditional backup methodologies, the restoration process is inherently coarse-grained. You restore to the point *after* the last successful backup job completed. If the failure occurred 15 minutes after the backup finished, you are forced to accept a 15-minute data loss window.
+Complete copy of the database. Largest; longest to take; longest to restore.
 
-Point-In-Time Recovery (PITR) fundamentally changes this calculus. It is the capability to restore a database to a specific, arbitrary moment in time, defined by a timestamp (e.g., `YYYY-MM-DD HH:MM:SS.mmm`), rather than being constrained by the backup schedule.
+### Incremental backup
 
-This capability is not magic; it is a sophisticated orchestration of three core components:
+Changes since last backup (full or incremental). Smaller; faster; chains together for restore.
 
-1.  **Full Base Backup:** A complete, consistent snapshot of the database structure and data at a known point in time ($T_{base}$).
-2.  **Incremental/Differential Backups (Optional but common):** Capturing changes between base backups.
-3.  **Transaction/Write-Ahead Logs (WAL/Redo Logs):** The continuous, granular record of *every* modification made to the database pages, ordered chronologically. These logs are the temporal backbone of PITR.
+### Differential backup
 
-### 1.2 The Theoretical Foundation: ACID and Durability
+Changes since last full backup. Larger than incremental but simpler restore.
 
-At the heart of PITR lies the ACID property, specifically **Durability**. Durability guarantees that once a transaction has been committed, it will remain committed even in the event of a system failure (power loss, crash, etc.).
+### Continuous archiving / WAL shipping
 
-Database Management Systems (DBMS) achieve this durability not by writing the data directly to the final data files first, but by first writing the *intent* of the change to a sequential, durable log stream (the WAL).
+PostgreSQL: write-ahead log files shipped continuously. Enables point-in-time recovery to any moment.
 
-*   **The Write-Ahead Logging (WAL) Principle:** Before any change is flushed from the memory buffer cache to the main data files (the "dirty pages"), the corresponding log record detailing the change (the "before image" and the "after image") *must* be written to the durable transaction log.
-*   **Recovery Manager Role:** When the system restarts, the recovery manager reads the WAL. It first performs a **Redo** pass (reapplying committed transactions that might not have reached the data files yet) and then an **Undo** pass (rolling back any transactions that were in progress but not committed at the time of the crash).
+For most production systems, continuous archiving + periodic full backups is the standard.
 
-PITR leverages this same logging mechanism, but instead of stopping at the point of the crash, the recovery manager is instructed to stop precisely when the target timestamp is reached, effectively "rewinding" the state machine.
+## Recovery objectives
 
----
+### RPO (Recovery Point Objective)
 
-## 2. The Mechanics of Log-Based Recovery
+How much data are you willing to lose? With daily backups, up to 24 hours. With continuous archiving, seconds.
 
-To truly understand PITR, one must understand the mechanics of the logs themselves. The implementation details vary wildly between vendors, but the underlying principle of sequential, immutable record-keeping remains constant.
+### RTO (Recovery Time Objective)
 
-### 2.1 Transaction Log Structure and Content
+How long can recovery take? Tied to backup type and size.
 
-A transaction log record is not merely a "change occurred" flag; it is a highly structured payload containing enough information to perfectly reconstruct the state change. Key elements typically include:
+Match RPO/RTO to business needs. Tighter requirements cost more.
 
-1.  **Transaction ID (XID):** Unique identifier for the atomic unit of work.
-2.  **Log Sequence Number (LSN):** A monotonically increasing number that dictates the absolute order of operations across the entire database instance. This is the primary tool for temporal positioning.
-3.  **Timestamp:** The time the log record was generated or committed.
-4.  **Operation Type:** (e.g., INSERT, UPDATE, DELETE, TRUNCATE).
-5.  **Page Identifier:** Which physical block of data was affected.
-6.  **Before Image (Undo Information):** The state of the data *before* the change. Essential for rolling back incomplete transactions.
-7.  **After Image (Redo Information):** The state of the data *after* the change. Essential for reapplying committed transactions.
+## Cloud-managed databases
 
-### 2.2 The Recovery Process Flow (Generalized Model)
+For RDS, Aurora, Cloud SQL, etc., backups are largely automatic:
 
-The process of restoring to $T_{target}$ generally follows these distinct, sequential phases:
+### Automated backups
 
-**Phase 1: Restoration of the Base State ($T_{base}$)**
-The system must first restore the database to a known, consistent state. This is achieved by restoring the most recent **Full Backup** taken at $T_{base}$. At this point, the database is consistent, but it is *stale* relative to the current time.
+- Daily snapshots
+- Continuous WAL backup
+- Configurable retention (1-35 days typically)
+- Point-in-time recovery within retention window
 
-**Phase 2: Log Application (The Forward Pass)**
-The recovery manager begins applying the transaction logs sequentially, starting from the LSN immediately following $T_{base}$. The goal is to replay every committed transaction that occurred between $T_{base}$ and $T_{target}$.
+### Manual snapshots
 
-*   **Mechanism:** The system reads the log records and executes the **Redo** operation for every committed transaction found. It physically writes the "after image" data into the restored data files, effectively bringing the database state forward in time.
+In addition to automated. For long-term retention; before major changes.
 
-**Phase 3: The Temporal Cutoff (The Precision Step)**
-This is the critical divergence from standard recovery. Instead of continuing to the end of the available logs (which would restore the *current* state), the process must halt precisely when the log record's timestamp or LSN crosses the boundary defined by $T_{target}$.
+For most cloud databases, automated + manual snapshots covers most needs.
 
-*   **The Stop Condition:** The recovery manager must identify the last log record whose timestamp is $\le T_{target}$ and whose associated transaction is marked as committed. All subsequent log records are ignored, and the database is brought online in that precise state.
+## Self-managed databases
 
-**Phase 4: Finalization and Quiescing**
-The database is brought online, often requiring a final consistency check (e.g., running `CHECKPOINT` operations or similar internal validation routines) to ensure that the restored state is fully usable by the application layer.
+For self-hosted databases, you implement backup yourself.
 
----
+### PostgreSQL
 
-## 3. Vendor-Specific Implementations: A Comparative Analysis
+`pg_basebackup` for full backups; WAL archiving for continuous.
 
-While the theoretical model above is universal, the implementation details—the specific commands, the log file formats, and the required operational discipline—vary significantly. For experts researching new techniques, understanding these vendor idiosyncrasies is paramount.
+Tools: pgBackRest, Barman, WAL-E/WAL-G. Production-grade backup tools handle compression, encryption, retention, parallel restore.
 
-### 3.1 Microsoft SQL Server: The Log Chain Approach
+### MySQL
 
-SQL Server relies heavily on the **Full Recovery Model** to enable PITR. The process is highly structured and relies on the sequential application of backups and transaction logs.
+`mysqldump` for logical backups; Percona XtraBackup for hot backups.
 
-**Key Concepts:**
+### MongoDB
 
-*   **Full Backup:** Establishes the baseline.
-*   **Differential Backup:** Captures all changes since the *last full backup*. This can speed up restoration compared to applying every single log file sequentially, but it complicates the log chain management.
-*   **Transaction Log Backup:** This is the workhorse. It backs up the *contents* of the log file up to the moment the backup command runs, allowing the recovery process to resume from that point.
+`mongodump` for logical; filesystem snapshots for hot.
 
-**The PITR Workflow (SQL Server):**
+## What to back up
 
-1.  **Backup Sequence:** `FULL Backup` $\rightarrow$ `DIFF Backup` (Optional) $\rightarrow$ `LOG Backup` (Repeatedly).
-2.  **Restore Sequence:**
-    *   Restore the `FULL` backup, specifying `NORECOVERY` (this leaves the database in a restoring state, ready to accept subsequent logs).
-    *   Restore the `DIFF` backup, also using `NORECOVERY`.
-    *   Restore the *earliest* necessary `LOG` backup, using `NORECOVERY`.
-    *   Restore the *final* `LOG` backup, using `NORECOVERY`.
-    *   **The Precision Step:** Execute the final restore command, specifying the exact time:
-        ```sql
-        RESTORE LOG [DatabaseName] 
-        FROM DISK = 'path_to_final_log.trn' 
-        WITH STOPAT = 'YYYY-MM-DD HH:MM:SS.mmm', STOPBEFORE = 'object_name';
-        ```
-    *   Finally, execute `RESTORE DATABASE [DatabaseName] WITH RECOVERY;` to bring the database online.
+### Data
 
-**Expert Insight:** The use of `NORECOVERY` is non-negotiable. It tells SQL Server, "I am not done yet; expect more data." Failure to use this flag prematurely will result in data loss because the system will assume the restore process is complete.
+The actual database contents.
 
-### 3.2 PostgreSQL: WAL Archiving and Logical Decoding
+### Configuration
 
-PostgreSQL's approach is arguably the most academically rigorous, relying on the Write-Ahead Log (WAL) stream and the concept of continuous archiving.
+Database configuration, user accounts, roles, schemas. The "rebuild from scratch" requires this too.
 
-**Key Concepts:**
+### Application code
 
-*   **WAL Segments:** PostgreSQL writes changes to WAL files. These files must be continuously archived to a durable, remote, and accessible location.
-*   **`pg_basebackup`:** This utility is used to create the initial, consistent base backup.
-*   **`recovery.signal` / `recovery.conf`:** These files guide the PostgreSQL instance during startup, telling it *how* and *where* to look for the necessary logs to initiate recovery.
-*   **Logical Decoding:** This is the advanced technique. Instead of just replaying physical page changes (which is what standard PITR does), logical decoding reads the WAL and translates the changes into a structured, relational format (like a stream of `INSERT`/`UPDATE`/`DELETE` statements). This is crucial for replication and for advanced research into data transformation during recovery.
+Without app code, database alone doesn't help.
 
-**The PITR Workflow (PostgreSQL):**
+### Infrastructure
 
-1.  **Setup:** Configure `postgresql.conf` to archive WAL segments to a remote storage location (e.g., S3, NFS).
-2.  **Base Backup:** Run `pg_basebackup` to get the initial snapshot.
-3.  **Recovery Initiation:** Place the necessary recovery configuration files in the data directory.
-4.  **Recovery:** Upon restart, PostgreSQL detects the recovery configuration, reads the base backup, and then begins applying WAL segments sequentially from the archive location.
-5.  **The Precision Step:** The recovery process continues until it processes a WAL record whose timestamp matches or precedes $T_{target}$. At this point, the recovery manager stops applying logs and signals that the recovery is complete, allowing the database to mount at the desired time.
+VPC, security groups, IAM. Terraform usually handles this.
 
-**Expert Insight:** PostgreSQL's strength lies in its explicit separation of the physical recovery mechanism (WAL replay) from the logical data stream (logical decoding). Researchers can use this separation to build tools that analyze *what* changed, not just *that* it changed.
+## Storage location
 
-### 3.3 MySQL/MariaDB: Binary Logging and Replication Streams
+### Same region
 
-MySQL (and its forks) utilize the **Binary Log (Binlog)** mechanism, which serves the function of the WAL.
+Fast access; vulnerable to region failure.
 
-**Key Concepts:**
+### Cross-region
 
-*   **Binlog Format:** The binlog records statements or row changes. The format determines how robust the recovery is.
-*   **Master/Slave Replication:** The replication mechanism is the operational manifestation of PITR. The replica server continuously reads the primary's binlog stream.
-*   **Point-in-Time Recovery (MySQL Specific):** The process involves restoring the base backup, followed by applying the binlogs up to the desired position.
+DR-ready. Costs more (transfer + storage).
 
-**The PITR Workflow (MySQL):**
+### Cross-cloud / off-cloud
 
-1.  **Backup:** Ensure the binary logging is enabled and that the logs are being archived/retained.
-2.  **Restore:** Restore the base backup.
-3.  **Log Application:** Use the `mysqlbinlog` utility to read the binary log file.
-4.  **The Precision Step:** The utility is directed to stop processing records once the specified timestamp or position is reached.
-    ```bash
-    mysqlbinlog --start-datetime='YYYY-MM-DD HH:MM:SS' \
-                --stop-datetime='YYYY-MM-DD HH:MM:SS' \
-                /path/to/mysql-bin.log | mysql -u user -p database
-    ```
-5.  **Finalization:** The output stream is piped directly into the target database instance, which executes the commands as if they were run live.
+Multi-cloud DR. Highest cost; protects against cloud-provider failure.
 
-**Expert Insight:** MySQL's reliance on `mysqlbinlog` makes the process highly scriptable and portable. However, users must be acutely aware of the difference between statement-based logging (which can fail if the statement is non-deterministic) and row-based logging (which is generally safer for recovery).
+For most production systems: same-region for speed; cross-region for disaster recovery.
 
----
+## Encryption
 
-## 4. Advanced Topics and Edge Case Analysis
+Backups should be encrypted at rest and in transit. The "tar file in S3" pattern is standard:
+- Encrypt with KMS key
+- Stored in S3 with SSE-KMS or SSE-S3
+- Versioned bucket
 
-For researchers, the "happy path" described above is insufficient. True mastery requires understanding the failure modes and the architectural compromises inherent in the system.
+If backups can be decrypted with a single key compromise, that's a security vulnerability. Manage keys carefully.
 
-### 4.1 The Challenge of Data Corruption and Integrity
+## Testing restores
 
-PITR is designed to recover from *operational* failures (user error, application bug). It is less equipped, by default, to handle *data corruption* that occurs within the database engine itself or at the storage layer.
+The single most important practice. Backups that have never been restored are aspirational.
 
-**Types of Corruption:**
+### Periodic restore tests
 
-1.  **Logical Corruption:** A transaction that violates business rules (e.g., inserting a negative quantity into a field constrained to positive integers). PITR will faithfully restore this invalid data because it is simply replaying a committed transaction. *Mitigation requires application-level validation checks run *after* recovery.*
-2.  **Physical Corruption:** Damage to the underlying data blocks or index structures (e.g., due to faulty RAID controllers, memory errors, or operating system bugs). If the corruption affects the block that the WAL record points to, the recovery process may fail mid-stream, potentially leaving the database in an indeterminate state.
-3.  **Log Corruption:** If the transaction log file itself becomes corrupted (e.g., due to write head failure on the storage array), the recovery process will halt at the point of corruption, resulting in data loss *before* the corruption point.
+Monthly or quarterly: restore a backup; verify it works.
 
-**Mitigation Strategy:** The most robust defense against physical corruption is **Checksum Verification** at the storage layer, coupled with rigorous, automated **Backup Verification Testing**. You must periodically restore a backup to a staging environment and run a full suite of integrity checks (`DBCC CHECKDB` in SQL Server, or equivalent system-level checks).
+What to verify:
+- The restore completes
+- Data is intact
+- Application can connect
+- Recent transactions are present (or absent for a specific point-in-time test)
 
-### 4.2 Continuous Backup Systems and Streaming Replication
+### Automated restore tests
 
-The traditional model (Full $\rightarrow$ Logs) is inherently batch-oriented. Modern, high-availability systems aim for *near-zero* Recovery Point Objectives (RPO). This necessitates moving beyond simple log file backups toward continuous data streaming.
+Spin up a fresh database; restore latest backup; run smoke tests; tear down.
 
-**Litestream and [Change Data Capture](ChangeDataCapture) (CDC):**
+In CI/CD or scheduled. Continuous verification.
 
-Tools like Litestream (as referenced in the research context) exemplify this shift. Instead of relying on the DBMS's internal log management for backup, these tools often hook into the database's underlying replication stream or use specialized APIs to capture changes as they happen, streaming them immediately to an object store (like S3).
+### Real disaster simulation
 
-*   **Mechanism:** The system maintains a persistent, ordered stream of changes external to the primary database instance.
-*   **Advantage:** Recovery is simplified. You restore the base snapshot, and then you simply "replay the stream" from the object store up to the desired timestamp. This decouples the backup process from the operational database performance, minimizing I/O overhead on the primary.
+Annual: pretend the primary is gone. Restore in DR region; failover applications. Time it.
 
-**Research Focus:** For advanced research, investigating the trade-offs between **Physical Streaming Replication** (e.g., PostgreSQL streaming WAL) and **Logical CDC** (e.g., Debezium reading Kafka topics) is crucial. Physical replication is faster but less flexible; logical CDC is slower but allows consumers to read the data in a structured, application-agnostic format.
+This finds problems automated tests miss: documentation gaps, manual steps, organizational coordination.
 
-### 4.3 Performance Overhead and Trade-offs
+## Retention
 
-Every resilience mechanism introduces overhead. Experts must quantify this overhead:
+### Daily backups
 
-| Mechanism | Overhead Source | Impact on Write Performance | Recovery Time Objective (RTO) | Recovery Point Objective (RPO) |
-| :--- | :--- | :--- | :--- | :--- |
-| **Standard Backup** | I/O contention during backup window. | Low (if scheduled off-peak). | High (Hours to Days). | High (Minutes to Hours). |
-| **Continuous WAL Archiving** | Minor background I/O for log flushing. | Very Low (Minimal overhead). | Medium (Minutes). | Very Low (Seconds). |
-| **Streaming Replication** | Network bandwidth usage; write acknowledgment latency. | Low to Medium (Depends on sync mode). | Low (Seconds). | Near Zero (Milliseconds). |
-| **CDC/External Streaming** | API calls/Interception layer overhead. | Low (If implemented efficiently). | Low (Seconds). | Near Zero (Milliseconds). |
+Keep 7-30 days. Recent enough for normal recovery.
 
-**The Trade-off:** Achieving a near-zero RPO (seconds) necessitates a higher operational cost (CPU/I/O/Network) than accepting a higher RPO (hours). The choice is a direct business risk calculation.
+### Weekly backups
 
----
+Keep for 1-3 months. Catches issues discovered later.
 
-## 5. Advanced Recovery Scenarios and Edge Cases
+### Monthly backups
 
-To push the boundaries of knowledge, we must examine scenarios that break the standard recovery model.
+Keep for 1-7 years. Compliance retention.
 
-### 5.1 Cross-Database and Schema Migration Recovery
+### Annual archives
 
-What happens if the failure is not in the primary database, but in the ETL pipeline that feeds it?
+Long-term retention as required.
 
-If a data warehouse relies on data from three sources (A, B, and C), and the failure occurs after A and B have been successfully processed and committed to the target database, but before C's data arrived, a simple PITR on the target database will restore the *entire* state, potentially rolling back the valid commits from A and B.
+Lifecycle from hot storage to cold (Glacier, etc.) saves cost as backups age. See [CloudStorageOptions](CloudStorageOptions).
 
-**Solution: Transactional [Outbox Pattern](OutboxPattern) and Idempotency:**
-The recovery mechanism must be layered. The ETL process itself must be designed to be **idempotent**—meaning running the process multiple times with the same input yields the same result without side effects. Furthermore, the data ingestion layer should use a **Transactional Outbox Pattern**, where the commitment of the source data and the record of the data being sent to the target are treated as a single, atomic unit. Recovery then focuses on replaying the *outbox* records, not the entire database state.
+## Specific scenarios
 
-### 5.2 Point-In-Time Recovery Across Schema Versions
+### Accidental DELETE / DROP TABLE
 
-This is perhaps the most academically challenging scenario. Suppose the application schema undergoes a major, non-backward-compatible change (e.g., renaming a core table, changing a primary key structure).
+Point-in-time recovery to just before the bad operation.
 
-1.  **Scenario:** The schema change is deployed at $T_{schema\_deploy}$. The application starts writing data using the *new* schema.
-2.  **Failure:** A bug causes data corruption *after* $T_{schema\_deploy}$.
-3.  **The Dilemma:** If you perform a PITR to $T_{fail}$ (where $T_{fail} > T_{schema\_deploy}$), the restored data will be written using the *new* schema structure, but the application code that was running at $T_{fail}$ might expect the *old* schema structure, leading to immediate application failure upon recovery.
+Without PITR: restore last full backup; lose data since then.
 
-**Solution: Schema Versioning and Dual Writes:**
-The only safe approach is to implement **Schema Versioning** within the application layer and the database itself. During major migrations, the application must temporarily support writing data to *both* the old and new schema structures (dual writing). The recovery process must then be aware of the schema version active at $T_{target}$ and must restore the data structure accordingly, potentially requiring a post-recovery schema migration script that runs *after* the data has been validated at $T_{target}$.
+### Compromised database
 
-### 5.3 Handling Time Zone Ambiguity
+Attacker may have planted persistence. Restore to before compromise; verify.
 
-When dealing with timestamps, the ambiguity of time zones is a notorious pitfall. A log record might simply contain a UTC timestamp, or it might contain a local time with an offset.
+If compromise was long ago, may need to restore very old backup and replay transactions. Or accept loss of recent data.
 
-**Best Practice:** All internal logging, transaction recording, and recovery checkpoints *must* operate exclusively on **Coordinated Universal Time (UTC)**. Any interaction with human-readable time (e.g., user input, reporting) must be explicitly converted to UTC *before* being written to the log, and converted back only at the presentation layer. Failure to enforce this leads to subtle, non-reproducible data discrepancies across different geographical deployments.
+### Logical corruption
 
----
+Application bug corrupted data. Restore to before bug; reapply known-good transactions if possible.
 
-## 6. Conclusion: The Evolving Definition of Resilience
+### Region outage
 
-Point-In-Time Recovery is not a single feature; it is an entire, complex, multi-layered discipline built upon the bedrock of transactional logging. For the expert researcher, the takeaway is that the technology is rapidly evolving from simple log replay to sophisticated, stream-based data capture.
+Restore in another region from cross-region backup. Re-point applications.
 
-The modern database architect must view resilience not as a single backup job, but as a continuous, observable data pipeline. The goal is to minimize the **Recovery Point Objective (RPO)**—the maximum acceptable data loss—by maximizing the fidelity and immediacy of the captured change stream.
+## Common failure patterns
 
-Mastering PITR requires proficiency across several domains:
+### Backups never tested
 
-1.  **Deep understanding of WAL/Redo Log mechanics.**
-2.  **Vendor-specific command mastery (SQL Server, PostgreSQL, MySQL).**
-3.  **Architectural foresight regarding schema evolution and data idempotency.**
-4.  **Operational discipline in testing recovery procedures under simulated failure conditions.**
+Restore fails when actually needed.
 
-The next frontier involves integrating PITR capabilities with immutable, geographically distributed storage layers and leveraging advanced graph databases or [event sourcing](EventSourcing) patterns, where the *history* of the data is treated as a first-class, queryable citizen, rather than a mere recovery fallback.
+### Backups in same place as data
 
-If you treat PITR as merely a restore button, you will be disappointed. Treat it as a sophisticated, time-traveling state machine, and you will approach true data resilience.
+Region failure loses both.
+
+### Restore documentation outdated
+
+Procedures don't match current environment.
+
+### No alerting on backup failures
+
+Backups silently stop; nobody notices.
+
+### No retention policy
+
+Storage cost grows; eventually backups are deleted to save money; the wrong ones get deleted.
+
+### Manual backup steps
+
+Human forgets; backups missing.
+
+### Backup credentials stored with the data
+
+Compromise of database = compromise of backups.
+
+## A reasonable starter
+
+For typical production databases:
+
+1. Cloud-managed if possible (handles backups automatically)
+2. Daily automated; PITR enabled
+3. Cross-region replication for DR
+4. Manual snapshots before major changes
+5. Lifecycle to cold storage after 30 days
+6. Monthly restore test
+7. Quarterly DR drill
+8. Documented restore procedure
+9. Alerts on backup failures
+
+## Further Reading
+
+- [ReadReplicasAndReplication](ReadReplicasAndReplication) — Adjacent practice
+- [DatabaseConnectionSecurity](DatabaseConnectionSecurity) — Backup security
+- [CloudDisasterRecovery](CloudDisasterRecovery) — Broader DR
+- [CloudStorageOptions](CloudStorageOptions) — Where backups land

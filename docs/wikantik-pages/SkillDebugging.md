@@ -2,223 +2,221 @@
 canonical_id: 01KQ0P44WGNMNYTWEPMG96H112
 title: Skill Debugging
 type: article
+cluster: agentic-ai
+status: active
+date: '2026-04-26'
+summary: How to diagnose skills that aren't working as expected — invocation issues,
+  instruction ambiguity, and the iterative testing process that produces reliable
+  skills.
 tags:
-- failur
-- must
-- system
-summary: Debugging and Monitoring Skills in Production Environments Welcome.
-auto-generated: true
+- skills
+- debugging
+- agentic-ai
+- claude
+related:
+- CustomSkillsArchitecture
+- SkillComposition
+- SkillDocumentation
+hubs:
+- AgenticAi Hub
 ---
-# Debugging and Monitoring Skills in Production Environments
+# Skill Debugging
 
-Welcome. If you’ve reached this document, you likely understand that "monitoring" is a quaint, almost historical term—a concept relegated to dashboards showing green lights and simple uptime percentages. If you are researching *new* techniques, you are already aware that the modern challenge isn't merely *knowing* that something is broken; it's understanding *why*, *how*, and *when* it will break next, all while the paying customer is currently experiencing the failure.
+A skill exists; Claude isn't using it correctly. The skill doesn't get invoked when it should; gets invoked when it shouldn't; or produces wrong output.
 
-This tutorial assumes you are not a junior engineer who thinks setting up a Grafana dashboard constitutes "observability." We are operating at the level of systems architects, SREs, and reliability researchers who treat production environments not as endpoints, but as complex, semi-controlled failure domains.
+This page covers diagnosis and fixes.
 
-We will move far beyond the basic triad of Metrics, Logs, and Traces. We will dissect the underlying principles, explore the bleeding edge of automated diagnosis, and cover the operational rigor required to treat production debugging as a scientific discipline rather than an art form.
+## Common symptoms and causes
 
----
+### Skill not invoked when expected
 
-## I. The Conceptual Chasm: From Monitoring to True Observability
+The user asks for something the skill should handle; Claude doesn't invoke it.
 
-Before we discuss *how* to debug, we must establish a rigorous understanding of *what* we are observing. The distinction between monitoring and observability is often poorly understood, even among seasoned practitioners. Treating them as synonyms is, frankly, a dereliction of duty.
+Causes:
+- **Description too vague**: doesn't match the user's request
+- **Missing keywords**: skill description doesn't mention what user said
+- **Conflicting skills**: another skill matched first
+- **Skill not enabled**: in user's config but not loaded
 
-### A. Monitoring: The Symptom Checker
-Monitoring is fundamentally **reactive and predefined**. It answers the question: "Is the system operating within the parameters we *expected* it to operate within?"
+Fix: refine the description. Add explicit triggers ("when user asks for X").
 
-Monitoring relies on setting Service Level Indicators (SLIs) and Service Level Objectives (SLOs) based on known failure modes. You instrument a counter for HTTP 5xx errors, you set an alert threshold for CPU utilization, and you build a dashboard showing latency percentiles.
+### Skill invoked at wrong times
 
-*   **Limitation:** Monitoring is inherently limited by the questions you choose to ask. If a novel failure mode emerges—a subtle interaction between two services under specific, low-frequency load—and you haven't instrumented a metric for it, the monitoring system will remain blissfully ignorant. It only reports on what it has been explicitly told to watch.
+Claude invokes the skill for unrelated requests.
 
-### B. Observability: The Scientific Method Applied to Software
-Observability, conversely, is the **property of a system that allows one to determine its internal state given only external outputs.** It is not a tool; it is a *capability*. It answers the question: "Given this unexpected output (e.g., a 10% latency spike correlated with a specific user segment and a specific database query pattern), what is the underlying causal mechanism?"
+Causes:
+- **Description too broad**: matches too many things
+- **Generic keywords**: triggers on common words
 
-This requires instrumentation that captures *context* and *causality*, not just counts.
+Fix: narrow the description. Add explicit skip conditions ("not for Python files").
 
-#### The Pillars of Observability (The Triad, Re-examined)
+### Wrong output despite invocation
 
-While the Logs, Metrics, and Traces triad is the industry standard, an expert view requires understanding the *dimensionality* of each pillar:
+Claude invokes the skill; produces unexpected results.
 
-1.  **Metrics (The "What"):**
-    *   **Definition:** Aggregated, numerical measurements over time (e.g., `requests_total{status="500"}`).
-    *   **Expert Focus:** Cardinality management. The Achilles' heel of metrics systems (like Prometheus) is high cardinality. If every unique combination of labels (e.g., `user_id`, `request_id`, `tenant_id`, `endpoint_version`) generates a unique time series, the system collapses under its own metadata weight. Researching techniques like label compaction, histogram aggregation, or moving to continuous query models is mandatory here.
-    *   **Advanced Use Case:** Using metrics to derive *rates of change* (e.g., the rate of increase in error rate over the last 30 seconds) rather than just absolute values.
+Causes:
+- **Ambiguous instructions**: multiple interpretations
+- **Conflicting guidance**: skill says X but user instructions say Y
+- **Missing context**: skill assumes information not present
+- **Examples mismatched**: examples don't match the task
 
-2.  **Logs (The "When" and "Why"):**
-    *   **Definition:** Discrete, immutable records of events.
-    *   **Expert Focus:** [Structured logging](StructuredLogging) (JSON, key-value pairs) is non-negotiable. Unstructured logs are noise generators. The goal is not just *collection*, but *enrichment*. Every log line must be automatically enriched with context: `trace_id`, `span_id`, `service_name`, `deployment_version`, and crucially, the **user context** that initiated the request.
-    *   **Edge Case:** Log volume throttling. In a massive failure, log ingestion pipelines can become the bottleneck, leading to data loss. Resilience in the logging pipeline itself is a critical operational concern.
+Fix: clarify instructions. Add explicit examples. Specify pre-conditions.
 
-3.  **Traces (The "How"):**
-    *   **Definition:** The end-to-end path of a single request as it traverses multiple services, databases, and queues.
-    *   **Expert Focus:** Context Propagation. This is the single most common failure point in distributed systems. If the `trace_id` or `span_id` is dropped—perhaps due to an asynchronous message queue interaction or an outdated HTTP client library—the entire causal chain is severed. Experts must rigorously enforce standards like W3C Trace Context headers across *every* boundary.
-    *   **Advanced Technique:** Causality Graphing. Moving beyond simple waterfall diagrams to models that show *potential* dependencies and the actual path taken, allowing visualization of non-linear interactions.
+## The diagnostic process
 
----
+### Reproduce
 
-## II. Operationalizing Resilience: SLOs, SLIs, and Error Budgets
+Get a clear test case. The user request that should invoke the skill; the actual behavior.
 
-For the expert, the discussion must pivot from "What tools do we use?" to "How do we quantify acceptable failure?" This is where [Site Reliability Engineering](SiteReliabilityEngineering) (SRE) principles meet advanced mathematics.
+If reproduction is intermittent, the issue may be in description matching — sometimes Claude invokes; sometimes doesn't.
 
-### A. Defining Service Level Objectives (SLOs) Rigorously
-An SLO is a target for reliability (e.g., "99.9% of requests must complete within 500ms over a 30-day window").
+### Inspect the skill
 
-The critical mistake is setting SLOs based on *average* performance. A system can have a 99.9% average latency of 100ms, yet still be unusable if the remaining 0.1% of requests take 30 seconds.
+Read SKILL.md. Pretend you're Claude:
+- When would I invoke this?
+- What would I do if invoked?
+- What's ambiguous?
 
-**The Expert Metric:** Focus on **Tail Latency Percentiles**.
-*   $P_{95}$: The latency below which 95% of requests fall.
-*   $P_{99}$: The latency below which 99% of requests fall.
-*   $P_{99.9}$: The latency below which 99.9% of requests fall.
+### Test in isolation
 
-When diagnosing, you are rarely interested in the mean ($\mu$); you are interested in the tails ($\text{P}_{99}, \text{P}_{99.9}$). A spike in $P_{99.9}$ often signals resource contention, garbage collection pauses, or rare race conditions that the average masks entirely.
+Invoke the skill explicitly; see what happens. If invocation produces wrong output, the issue is in instructions. If invocation never happens via natural language, the issue is in description.
 
-### B. The Error Budget Mechanism
-The Error Budget is the mathematical manifestation of your SLO. If your SLO is 99.9% availability over a month, your error budget is $1 - 0.999 = 0.001$ (or 1,000 parts per million of downtime/error).
+### Iterate
 
-**The Operational Implication:**
-When the error budget depletes rapidly, the system must trigger a mandatory, automated shift in engineering focus. This is not a suggestion; it's a codified operational mandate.
+Skills rarely work perfectly first time. Adjust; test; adjust.
 
-*   **Budget Depletion $\rightarrow$ Feature Freeze:** All non-critical feature development halts.
-*   **Budget Warning $\rightarrow$ Deep Dive:** Engineering resources pivot entirely to reliability work (e.g., optimizing database queries, refactoring flaky components).
+## Specific debugging patterns
 
-This mechanism forces the organization to treat reliability as a finite, measurable resource, which is far more powerful than simply having a "DevOps culture."
+### Description matching
 
----
+Description: "helps with code style"
+User: "make this more readable"
 
-## III. Systematic Investigation Under Duress
+Did the description match? If no: what would have matched? Add those terms.
 
-Debugging in production is fundamentally different from debugging in a local `main` branch environment. In the latter, you control the inputs, the state, and the execution environment. In production, you are fighting entropy, scale, and the sheer volume of noise.
+### Trigger conditions
 
-### A. The "Assume Nothing" Mindset (The First 5 Minutes)
-When an alert fires, the initial response must be methodical, not panicked.
+Add explicit triggers:
 
-1.  **Triage & Scope:** Is this a global failure, or localized? (Check regional dashboards, [canary deployments](CanaryDeployments), specific user cohorts).
-2.  **Verify the Alert:** Is the alert firing because the SLO was breached, or because the *monitoring system itself* is degraded? (A common trap).
-3.  **Establish the Timeline:** Pinpoint the exact time the degradation began. This time window is your primary search parameter across logs and traces.
+```markdown
+TRIGGER when:
+- User asks to refactor for readability
+- User says "clean up this code"
+- File contains code-smell patterns
+```
 
-### B. Advanced Debugging Techniques (Beyond `print()` Statements)
+### Skip conditions
 
-Since you cannot simply attach a debugger to a live, high-throughput service without causing a catastrophic slowdown (the Heisenberg Uncertainty Principle of Observability), you must employ indirect, non-invasive techniques.
+Add explicit skips:
 
-#### 1. Differential Analysis (The Comparison Method)
-If Service A suddenly fails, do not just look at Service A's logs. Compare its current behavior against its *known good* baseline.
+```markdown
+SKIP when:
+- File is configuration (yaml, json without code)
+- User explicitly says "don't refactor"
+```
 
-*   **Technique:** Compare the $P_{99}$ latency of the last 15 minutes against the $P_{99}$ latency of the 15 minutes prior to the incident.
-*   **Hypothesis Generation:** If the latency increased by 200ms, the hypothesis is: "A dependency introduced latency, or the service itself is spending more time in serialization/deserialization."
-*   **Drill Down:** Use [distributed tracing](DistributedTracing) to isolate which specific span within the request path accounts for the majority of that 200ms increase.
+### Examples that disambiguate
 
-#### 2. State Reconstruction via Sampling and Backfilling
-When a failure is intermittent, you need to recreate the state that caused it.
+If users invoke the skill in unexpected ways, add examples:
 
-*   **Adaptive Sampling:** Instead of uniform sampling (e.g., 1 in 100 requests), implement *tail-based sampling*. If the error rate exceeds $X$ per minute, switch the sampling rate to 100% for the next 5 minutes, regardless of cost. This ensures the failure event itself is fully captured.
-*   **Log Backfilling:** If a critical log context (like a specific user ID or transaction ID) is missing from the initial failure logs, use the known `trace_id` to query auxiliary, high-retention data stores (e.g., Kafka topics, specialized data lakes) to reconstruct the surrounding context.
+```markdown
+## Examples
 
-#### 3. The "Canary Debugging" Approach
-Never debug a suspected failure by rolling back the entire system. Instead, isolate the failure domain:
+User: "make this prettier" → invoke this skill
+User: "format this JSON" → DON'T invoke; use formatter instead
+```
 
-1.  **Traffic Shifting:** Route a minuscule percentage (e.g., 0.1%) of live traffic to a dedicated "debug canary" environment running the suspected faulty code path.
-2.  **Observation:** Monitor the canary's metrics *intensely*. If the canary fails, you have a controlled failure domain. If the main production cluster remains stable, you have successfully isolated the blast radius.
+### Cross-references
 
----
+If the skill's behavior depends on other skills:
 
-## IV. The Frontier: Proactive Failure Injection and Automated Diagnosis
+```markdown
+This skill assumes brainstorming has happened. If not, invoke brainstorming first.
+```
 
-For the researcher, the goal is to move from *detecting* failure to *predicting* failure and *automating* the diagnosis.
+## Versioning
 
-### A. Chaos Engineering: Stress Testing the Unknown Unknowns
-[Chaos Engineering](ChaosEngineering) (CE) is the discipline of intentionally injecting failure into a system to test its resilience boundaries. It is the ultimate stress test, far surpassing load testing because it tests *failure handling*, not just *capacity*.
+When a skill changes, you may want to track versions. Skill files don't have built-in versioning, but you can:
 
-**The Methodology (The Blast Radius Control):**
-1.  **Hypothesis:** "If the primary database replica fails, the system will gracefully degrade by routing reads to the secondary replica without impacting the checkout flow."
-2.  **Experiment Design:** Select a controlled blast radius (e.g., only the read replicas, only the authentication service, only traffic originating from a specific geographic region).
-3.  **Injection:** Use tools (like Chaos Mesh or Gremlin) to simulate the failure (e.g., network latency injection, process termination, resource exhaustion).
-4.  **Validation:** Monitor the SLOs. Did the system degrade gracefully, or did it fail catastrophically?
+- Add a version field to frontmatter (informal)
+- Date the SKILL.md
+- Use git history
 
-**Advanced CE Techniques:**
-*   **Dependency Failure Simulation:** Instead of killing a service, simulate the *behavior* of a dependency failure (e.g., making the database return stale data, or returning HTTP 429 Too Many Requests indefinitely). This tests the service's circuit breaker logic, not just its uptime.
-*   **Cascading Failure Modeling:** Designing experiments that trigger one failure, and then observing if the subsequent, un-instrumented failure (the cascade) is handled correctly.
+For widely-distributed skills, semantic versioning helps users know about breaking changes.
 
-### B. AIOps and Machine Learning in Observability
-The sheer volume of data generated by modern microservices makes manual analysis impossible. This necessitates [Artificial Intelligence](ArtificialIntelligence) Operations (AIOps).
+## Testing skills
 
-AIOps tools do not replace the engineer; they replace the *alert fatigue* and the *initial data sifting*.
+### Manual testing
 
-1.  **Anomaly Detection:** Instead of relying on static thresholds (e.g., "Alert if CPU > 90%"), ML models establish a dynamic baseline of "normal" behavior for every metric, considering time of day, day of week, and seasonal trends.
-    *   *Example:* A 20% increase in latency at 3 AM on a Tuesday might be normal (low traffic, background jobs running), but the same increase at 10 AM on a Friday is anomalous.
-2.  **Root Cause Analysis (RCA) Suggestion:** Advanced systems correlate anomalies across the entire stack. Instead of presenting 50 correlated alerts, the system presents: "High probability root cause: Database connection pool exhaustion in Service X, triggered by increased write volume from Service Y, which is correlated with the recent deployment of Feature Z."
-3.  **Predictive Alerting:** Using time-series forecasting (like ARIMA or Prophet), the system can predict when an SLO *will* be breached (e.g., "Based on current error rates, the error budget will be exhausted in 4 hours and 17 minutes").
+Try the skill in real conversations. Does it work for the cases you care about?
 
-**The Caveat (The Sarcastic Warning):** Be extremely wary of AIOps. These systems are powerful, but they are also black boxes. If the ML model is trained on flawed data or misses a novel failure mode, it can generate **false positives** (alerting on nothing) or, worse, **false negatives** (silently ignoring a critical failure). The expert must always validate the AI's conclusion with first principles.
+### Test cases
 
----
+Document expected behavior:
 
-## V. Handling the Crisis: Hotfixes, Rollbacks, and Post-Mortems
+```markdown
+## Tests
 
-The culmination of monitoring and debugging skills is the ability to act decisively when the system is actively bleeding revenue or reputation.
+Case 1: User asks "do X"
+  Expected: skill invokes; produces Y
 
-### A. The Hotfix Protocol: Minimizing Blast Radius in Crisis Mode
-A hotfix is the ultimate act of desperation, and thus, it must be treated with the highest level of engineering rigor.
+Case 2: User asks "do unrelated thing"
+  Expected: skill does NOT invoke
+```
 
-1.  **The "Need-to-Know" Principle:** The fix must address *only* the observed failure. Do not refactor surrounding code, add logging, or optimize unrelated components. The scope must be microscopically small.
-2.  **Pre-Flight Checklist:** Before deploying *any* hotfix:
-    *   **Rollback Plan:** A tested, automated, and immediate rollback mechanism must be ready *before* the deployment command is issued.
-    *   **Targeted Deployment:** Deploy only to the smallest possible canary group (e.g., internal users only, or 1% of traffic).
-    *   **Observability Watch:** The monitoring dashboard must be dedicated solely to validating the fix's success metrics, ignoring all other noise.
-3.  **The "Time-Boxed" Fix:** Hotfixes should be treated as temporary patches. The process must immediately trigger a follow-up ticket: "Investigate the root cause of the hotfix requirement."
+Run through them periodically.
 
-### B. The Rollback
-A rollback is not merely deploying the previous artifact version. It is a complex operational decision that must account for **data schema drift**.
+### Edge cases
 
-*   **The Schema Problem:** If the faulty version (V2) wrote data in a new format that the previous version (V1) cannot read, a simple code rollback will cause the entire system to fail upon reading the corrupted data.
-*   **Mitigation:** All schema changes must be **additive and backward-compatible** for at least one major version cycle. If a breaking change is necessary, a multi-stage deployment (V1 $\rightarrow$ V1.5 (Schema Update) $\rightarrow$ V2 (Code Update)) is mandatory.
+Specifically test:
+- Ambiguous requests
+- Requests that should NOT invoke (negative tests)
+- Compositions with other skills
+- Long conversations where context is full
 
-### C. The Blameless Post-Mortem (The Learning Loop)
-This is the most crucial, yet most frequently botched, step. The goal is never to assign blame; the goal is to identify systemic weaknesses.
+## Common pitfalls
 
-A truly effective post-mortem follows this structure:
+### Over-specifying
 
-1.  **Timeline Reconstruction:** A factual, minute-by-minute account of events, derived from logs and alerts.
-2.  **Impact Analysis:** Quantifying the business cost (revenue loss, user impact, SLA breach).
-3.  **Causal Chain Mapping:** Identifying the sequence of events that led to the failure. (e.g., *Event A* $\rightarrow$ *System Weakness B* $\rightarrow$ *Failure C*).
-4.  **Action Items (The Deliverable):** These must be concrete, assigned, and prioritized tickets (e.g., "Implement circuit breaker on Service X dependency," not "Improve resilience").
+A skill with 2000 lines of instructions has problems. Too much for Claude to apply consistently. Refactor: shorter primary instructions; references to detail.
 
-If the post-mortem merely states, "We need better monitoring," the exercise has failed. It must yield specific, actionable engineering tasks.
+### Under-specifying
 
----
+A skill with 5 lines of "use best practices" doesn't constrain behavior. Specific instructions produce specific outputs.
 
-## VI. Advanced Considerations and Edge Cases (For the Deep Researcher)
+### Skill instructions that conflict with user instructions
 
-To truly master this domain, one must grapple with the theoretical limits of the tools and processes.
+User CLAUDE.md says one thing; skill says another. Per system prompt, user instructions win — but the skill author may not have known.
 
-### A. Dealing with Asynchronous Boundaries
-Modern systems rely heavily on message queues (Kafka, RabbitMQ) and event streams. These boundaries are the hardest to observe because the request flow is non-linear.
+Document explicit precedence in skill if relevant.
 
-*   **The Challenge:** A user action triggers Service A, which publishes an event to Kafka. Service B consumes the event 5 seconds later and fails. The initial request trace ends at Service A, leaving the failure in the asynchronous domain unattached.
-*   **The Solution: Correlation IDs and Event Context:** Every message published to a queue *must* carry the full context: the original `trace_id`, the originating `user_id`, and the initiating `request_id`. Consumers must be engineered to read and propagate this context, effectively "re-attaching" the failure to the original user journey.
+### Skills that update assumed state
 
-### B. Observability in Multi-Cloud/Hybrid Environments
-When services span AWS, GCP, on-prem Kubernetes, and edge devices, the observability stack becomes a nightmare of incompatible standards.
+Skill says "do A then verify" but doesn't actually verify. User assumes verification happened. False sense of completion.
 
-*   **The Problem:** Each cloud provider offers its own proprietary monitoring APIs (CloudWatch, Stackdriver, etc.). Integrating these into a single pane of glass requires significant abstraction layers.
-*   **The Solution: Open Standards Adoption:** Prioritizing adherence to open standards like OpenTelemetry (OTel) is paramount. OTel provides a vendor-agnostic way to instrument, collect, and export telemetry data, allowing the core logic of your instrumentation to remain portable, even if the backend storage changes.
+Make verification explicit and traceable.
 
-### C. Security Observability (SecOps Integration)
-Debugging is increasingly synonymous with threat hunting. The monitoring stack must serve both reliability and security functions.
+### Test-only skills shipping to production
 
-*   **Behavioral Anomaly Detection:** Monitoring for deviations that look like attacks. Examples include:
-    *   A sudden, massive spike in requests originating from a single, previously unseen IP range.
-    *   Repeated failed authentication attempts against an administrative endpoint, even if the service itself is technically "up."
-    *   Unusual data access patterns (e.g., a user account suddenly querying the entire customer database when they usually only access their own profile).
-*   **Audit Logging:** Ensuring that security-critical actions (password changes, privilege escalations) are logged immutably and are monitored with the highest possible alert severity, often bypassing standard SLO checks.
+Skills used during development that shouldn't run in normal use. Either don't ship them, or guard with explicit triggers.
 
----
+## A debugging checklist
 
-## Conclusion: The Perpetual State of Becoming
+When a skill misbehaves:
 
-Debugging and monitoring in production environments is not a solved problem; it is a continuous, escalating arms race against complexity, scale, and human fallibility.
+1. ✓ Is the description specific to when I want it invoked?
+2. ✓ Does it have explicit triggers and skip conditions?
+3. ✓ Are instructions concrete or abstract?
+4. ✓ Are there examples?
+5. ✓ Does it assume context that may not exist?
+6. ✓ Does it conflict with other skills or user instructions?
+7. ✓ Have I tested it in real conversations?
 
-For the expert researching new techniques, the takeaway is clear: **The focus must shift from *reacting* to failure to *engineering for inevitable failure*.**
+Most issues fall into one of these.
 
-The most valuable skill set is no longer the ability to read a stack trace, but the ability to design the system such that when the stack trace *does* appear, the context, the causality, and the path to remediation are already pre-calculated, automated, and visible across every single boundary—from the ephemeral message queue to the persistent database transaction.
+## Further Reading
 
-Mastering this field means accepting that downtime is not a failure of engineering, but a predictable, quantifiable operational cost that must be minimized through relentless, systematic, and scientifically rigorous practice. Now, go build something that breaks spectacularly, so you can learn how to fix it better next time.
+- [CustomSkillsArchitecture](CustomSkillsArchitecture) — Skill basics
+- [SkillComposition](SkillComposition) — Where issues compound
+- [SkillDocumentation](SkillDocumentation) — Adjacent practice
+- [AgenticAi Hub](AgenticAi+Hub) — Cluster index

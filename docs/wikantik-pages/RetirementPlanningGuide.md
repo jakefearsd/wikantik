@@ -87,6 +87,39 @@ The most important thing to understand about retirement planning is that these d
 
 The articles in this cluster cross-reference each other at these connection points so you can trace the cascading effects of each decision.
 
+## Income Tools and Vehicles
+
+- [Annuities vs. Systematic Withdrawals](AnnuitiesVsSystematicWithdrawals) — Annuitizing for guaranteed income vs. portfolio withdrawals
+- [Annuity Types and Analysis](AnnuityTypesAndAnalysis) — SPIA, deferred income, fixed, variable, indexed
+- [Bond Ladders for Retirement Income](BondLaddersForRetirementIncome) — Predictable income via individual bonds
+- [Bucket Strategy for Retirement](BucketStrategyForRetirement) — Three-bucket time-horizon framework
+- [Pension Maximization Strategies](PensionMaximizationStrategies) — Pension election decisions
+
+## Tax and Estate
+
+- [SECURE Act Retirement Changes](SecureActRetirementChanges) — How recent legislation reshaped retirement rules
+- [Charitable Giving in Retirement](CharitableGivingInRetirement) — QCDs, DAFs, and tax-efficient giving
+- [Estate Planning for Retirees](EstatePlanningForRetirees) — Documents, beneficiaries, and trusts
+- [Social Security Spousal and Survivor Benefits](SocialSecuritySpousalAndSurvivorBenefits) — Coordination for couples and survivors
+
+## Healthcare and Bridge Strategies
+
+- [Pre-Medicare Bridge Strategies](PreMedicareBridgeStrategies) — Healthcare 50-65 before Medicare eligibility
+
+## Special Situations
+
+- [Retirement Planning for Couples](RetirementPlanningForCouples) — Joint planning vs. individual optimization
+- [Retirement Planning for Women](RetirementPlanningForWomen) — Longer life expectancy, career gaps, widowhood
+- [Divorce and Retirement Planning](DivorceAndRetirementPlanning) — QDROs, splits, and post-divorce planning
+- [Military Retirement Benefits](MilitaryRetirementBenefits) — Pension, Tricare, TSP, GI Bill
+- [Part-Time Work in Retirement](PartTimeWorkInRetirement) — Bridge income and lifestyle benefits
+
+## Planning and Readiness
+
+- [Calculating Your FI Number](CalculatingYourFiNumber) — Setting the target
+- [Retirement Readiness Checklist](RetirementReadinessChecklist) — Pre-retirement gates
+- [Retirement Spending Patterns](RetirementSpendingPatterns) — Go-go, slow-go, no-go years
+
 ## Related Existing Content
 
 This cluster builds on the existing personal finance articles:

@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.knowledge.mcp;
+package com.wikantik.kgpolicy;
 
 import com.wikantik.api.structure.PageDescriptor;
 import com.wikantik.api.structure.PageType;
@@ -25,35 +25,40 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-class GetPageByIdToolTest {
+class StructuralIndexFrontmatterOverrideReaderTest {
 
-    @Test
-    void returns_descriptor_for_known_id() {
-        final StructuralIndexService svc = mock( StructuralIndexService.class );
-        when( svc.getByCanonicalId( "01A" ) ).thenReturn( Optional.of(
-                new PageDescriptor( "01A", "X", "X", PageType.ARTICLE, null, List.of(), "s", Instant.EPOCH, Optional.empty() ) ) );
-        final var result = new GetPageByIdTool( svc ).execute( Map.of( "canonical_id", "01A" ) );
-        assertFalse( result.isError() );
+    private static PageDescriptor pdWithKgInclude( final Optional< Boolean > kgInclude ) {
+        return new PageDescriptor( "01HAA", "Foo", "Foo", PageType.ARTICLE,
+                "java", List.of(), null, Instant.now(), kgInclude );
     }
 
     @Test
-    void returns_error_for_missing_id() {
+    void empty_when_page_does_not_resolve() {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
-        when( svc.getByCanonicalId( "missing" ) ).thenReturn( Optional.empty() );
-        final var result = new GetPageByIdTool( svc ).execute( Map.of( "canonical_id", "missing" ) );
-        assertTrue( result.isError() );
+        when( svc.resolveCanonicalIdFromSlug( anyString() ) ).thenReturn( Optional.empty() );
+        assertTrue( new StructuralIndexFrontmatterOverrideReader( svc ).kgInclude( "Foo" ).isEmpty() );
     }
 
     @Test
-    void requires_canonical_id_argument() {
+    void empty_when_field_absent() {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
-        final var result = new GetPageByIdTool( svc ).execute( Map.of() );
-        assertTrue( result.isError() );
+        when( svc.resolveCanonicalIdFromSlug( "Foo" ) ).thenReturn( Optional.of( "01HAA" ) );
+        when( svc.getByCanonicalId( "01HAA" ) ).thenReturn( Optional.of( pdWithKgInclude( Optional.empty() ) ) );
+        assertTrue( new StructuralIndexFrontmatterOverrideReader( svc ).kgInclude( "Foo" ).isEmpty() );
+    }
+
+    @Test
+    void returns_value_when_present() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        when( svc.resolveCanonicalIdFromSlug( "Foo" ) ).thenReturn( Optional.of( "01HAA" ) );
+        when( svc.getByCanonicalId( "01HAA" ) ).thenReturn( Optional.of( pdWithKgInclude( Optional.of( false ) ) ) );
+        assertEquals( Optional.of( false ),
+                new StructuralIndexFrontmatterOverrideReader( svc ).kgInclude( "Foo" ) );
     }
 }

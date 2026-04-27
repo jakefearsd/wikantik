@@ -20,12 +20,18 @@ package com.wikantik.api.structure;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Lightweight descriptor of a wiki page for structural queries — enough to render
  * a compact listing without the full page body. All fields are non-null except
  * {@code cluster}, {@code summary}, and {@code updated}; prefer empty collections
  * over null for list fields.
+ *
+ * <p>{@code kgInclude} carries the page-level {@code kg_include} frontmatter
+ * override ({@code true}/{@code false}). {@link Optional#empty()} means the
+ * frontmatter did not specify a value and the inclusion decision falls back to
+ * the cluster / global policy.</p>
  */
 public record PageDescriptor(
         String canonicalId,
@@ -35,7 +41,8 @@ public record PageDescriptor(
         String cluster,
         List< String > tags,
         String summary,
-        Instant updated
+        Instant updated,
+        Optional< Boolean > kgInclude
 ) {
     public PageDescriptor {
         if ( canonicalId == null || canonicalId.isBlank() ) {
@@ -51,5 +58,6 @@ public record PageDescriptor(
             type = PageType.UNKNOWN;
         }
         tags = tags == null ? List.of() : List.copyOf( tags );
+        kgInclude = kgInclude == null ? Optional.empty() : kgInclude;
     }
 }

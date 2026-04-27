@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -50,7 +51,7 @@ class ListClustersToolTest {
         when( svc.listClusters() ).thenReturn( List.of( new ClusterSummary(
                 "wikantik-development",
                 new PageDescriptor( "01A", "WikantikDevelopment", "Wikantik Development",
-                        PageType.HUB, "wikantik-development", List.of(), "hub", Instant.EPOCH ),
+                        PageType.HUB, "wikantik-development", List.of(), "hub", Instant.EPOCH, Optional.empty() ),
                 12, Instant.EPOCH ) ) );
 
         final var result = new ListClustersTool( svc ).execute( Map.of() );

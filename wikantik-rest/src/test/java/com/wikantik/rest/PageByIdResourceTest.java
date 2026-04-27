@@ -56,7 +56,7 @@ class PageByIdResourceTest {
     void resolves_id_to_descriptor() throws Exception {
         when( svc.getByCanonicalId( "01A" ) ).thenReturn( Optional.of( new PageDescriptor(
                 "01A", "HybridRetrieval", "Hybrid Retrieval", PageType.ARTICLE,
-                "wikantik-development", List.of( "retrieval" ), "summary", Instant.EPOCH ) ) );
+                "wikantik-development", List.of( "retrieval" ), "summary", Instant.EPOCH, Optional.empty() ) ) );
 
         final HttpServletRequest req = mock( HttpServletRequest.class );
         final HttpServletResponse resp = mock( HttpServletResponse.class );

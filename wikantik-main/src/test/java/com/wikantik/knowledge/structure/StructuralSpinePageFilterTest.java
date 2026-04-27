@@ -103,7 +103,7 @@ class StructuralSpinePageFilterTest {
     void valid_relations_pass() throws Exception {
         when( svc.getByCanonicalId( "01TARGETXXXXXXXXXXXXXXXXXX" ) ).thenReturn( Optional.of(
                 new PageDescriptor( "01TARGETXXXXXXXXXXXXXXXXXX", "Target", "Target",
-                        PageType.HUB, null, List.of(), "summary", Instant.EPOCH ) ) );
+                        PageType.HUB, null, List.of(), "summary", Instant.EPOCH, Optional.empty() ) ) );
         final var f = new StructuralSpinePageFilter( svc, name -> false, enabled() );
         final String input = "---\n" +
                 "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\n" +

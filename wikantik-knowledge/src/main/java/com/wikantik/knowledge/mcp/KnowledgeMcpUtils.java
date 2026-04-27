@@ -33,6 +33,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -40,12 +41,54 @@ import java.util.Set;
  */
 final class KnowledgeMcpUtils {
 
-    /** Gson instance configured to serialize {@link Instant} as ISO-8601 strings. */
+    /**
+     * Gson instance configured to serialize {@link Instant} as ISO-8601 strings and
+     * {@link Optional} as its contained value (or JSON {@code null} when empty).
+     */
     static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter( Instant.class, new InstantAdapter() )
+            .registerTypeHierarchyAdapter( Optional.class, new OptionalAdapter() )
             .create();
 
     private KnowledgeMcpUtils() {
+    }
+
+    /**
+     * Gson type adapter that writes an {@link Optional} as its contained value, or
+     * JSON {@code null} when the Optional is empty. On read, a JSON {@code null}
+     * becomes {@link Optional#empty()} and any other token delegates to the default
+     * Gson deserializer (not needed in practice for MCP responses, but included for
+     * symmetry).
+     */
+    @SuppressWarnings( "rawtypes" )
+    private static final class OptionalAdapter extends TypeAdapter< Optional > {
+        @Override
+        public void write( final JsonWriter out, final Optional value ) throws IOException {
+            if ( value == null || value.isEmpty() ) {
+                out.nullValue();
+            } else {
+                final Object inner = value.get();
+                if ( inner instanceof Boolean b ) {
+                    out.value( b );
+                } else if ( inner instanceof Number n ) {
+                    out.value( n );
+                } else {
+                    out.value( inner.toString() );
+                }
+            }
+        }
+
+        @Override
+        public Optional read( final JsonReader in ) throws IOException {
+            if ( in.peek() == JsonToken.NULL ) {
+                in.nextNull();
+                return Optional.empty();
+            }
+            // For MCP purposes we only serialize, not deserialize Optional fields.
+            // Return empty on any non-null token to avoid partial-read issues.
+            in.skipValue();
+            return Optional.empty();
+        }
     }
 
     /** Gson type adapter that writes/reads {@link Instant} as ISO-8601 strings. */

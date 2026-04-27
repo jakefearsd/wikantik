@@ -59,7 +59,7 @@ class AdminVerificationResourceTest {
 
     private static PageDescriptor desc( final String id, final String slug ) {
         return new PageDescriptor( id, slug, slug, PageType.ARTICLE,
-                null, List.of(), "summary", Instant.EPOCH );
+                null, List.of(), "summary", Instant.EPOCH, Optional.empty() );
     }
 
     @Test

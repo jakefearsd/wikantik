@@ -29,6 +29,7 @@ import org.mockito.ArgumentCaptor;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -61,7 +62,7 @@ class ListPagesByFilterToolTest {
         final StructuralIndexService svc = mock( StructuralIndexService.class );
         when( svc.listPagesByFilter( any() ) ).thenReturn( List.of(
                 new PageDescriptor( "01A", "X", "X", PageType.ARTICLE, null, List.of(),
-                        "summary", Instant.EPOCH ) ) );
+                        "summary", Instant.EPOCH, Optional.empty() ) ) );
 
         final var result = new ListPagesByFilterTool( svc ).execute( Map.of() );
         assertFalse( result.isError() );

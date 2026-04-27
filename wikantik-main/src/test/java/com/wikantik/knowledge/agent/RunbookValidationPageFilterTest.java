@@ -137,7 +137,7 @@ class RunbookValidationPageFilterTest {
         when( idx.getByCanonicalId( "01KQ0PEXAMPLECANONICAL12345" ) )
                 .thenReturn( Optional.of( new PageDescriptor(
                         "01KQ0PEXAMPLECANONICAL12345", "Target", "Target Title",
-                        PageType.ARTICLE, null, List.of(), null, Instant.now() ) ) );
+                        PageType.ARTICLE, null, List.of(), null, Instant.now(), Optional.empty() ) ) );
         final String content = "---\n" +
                 "type: runbook\n" +
                 "runbook:\n" +

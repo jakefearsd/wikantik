@@ -167,9 +167,10 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 final String summary = asString( fm.get( "summary" ) );
                 final List< String > tags = stringList( fm.get( "tags" ) );
                 final Instant updated = p.getLastModified() == null ? null : p.getLastModified().toInstant();
+                final Optional< Boolean > kgInclude = parseKgInclude( fm.get( "kg_include" ) );
 
                 builder.addPage( new PageDescriptor(
-                        canonicalId, p.getName(), title, type, cluster, tags, summary, updated ) );
+                        canonicalId, p.getName(), title, type, cluster, tags, summary, updated, kgInclude ) );
 
                 // Only persist canonical_ids authored in frontmatter. Synthesised IDs live
                 // in memory until an author (or Phase 4's mandatory validator) writes them
@@ -360,8 +361,9 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         final List< String > tags = stringList( fm.get( "tags" ) );
         final Instant updated = page.getLastModified() == null
                 ? null : page.getLastModified().toInstant();
+        final Optional< Boolean > kgInclude = parseKgInclude( fm.get( "kg_include" ) );
         final PageDescriptor next = new PageDescriptor(
-                canonicalId, slug, title, type, cluster, tags, summary, updated );
+                canonicalId, slug, title, type, cluster, tags, summary, updated, kgInclude );
 
         if ( authored ) {
             try {
@@ -571,5 +573,24 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             return List.copyOf( out );
         }
         return List.of( o.toString() );
+    }
+
+    /**
+     * Parses the {@code kg_include} frontmatter field. SnakeYAML auto-types
+     * {@code true}/{@code false} literals to {@link Boolean}, but authors may
+     * also write the value as a string. Any unrecognised value yields
+     * {@link Optional#empty()}.
+     */
+    private static Optional< Boolean > parseKgInclude( final Object raw ) {
+        if ( raw == null ) {
+            return Optional.empty();
+        }
+        if ( raw instanceof Boolean b ) {
+            return Optional.of( b );
+        }
+        final String s = raw.toString().trim().toLowerCase( java.util.Locale.ROOT );
+        if ( "true".equals( s ) )  return Optional.of( true );
+        if ( "false".equals( s ) ) return Optional.of( false );
+        return Optional.empty();
     }
 }

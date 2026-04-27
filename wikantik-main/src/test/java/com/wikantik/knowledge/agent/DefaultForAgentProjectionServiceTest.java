@@ -78,7 +78,7 @@ class DefaultForAgentProjectionServiceTest {
                 "01ABC", "HybridRetrieval", "Hybrid Retrieval", PageType.ARTICLE,
                 "wikantik-development", List.of( "retrieval" ),
                 "Operator reference for hybrid retrieval.",
-                Instant.parse( "2026-04-22T11:10:00Z" ) );
+                Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty() );
         when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
         when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.of(
                 new Verification( Instant.parse( "2026-04-20T00:00:00Z" ), "jakefear",
@@ -125,7 +125,7 @@ class DefaultForAgentProjectionServiceTest {
     void extractor_failure_marks_field_missing_but_keeps_others() {
         final PageDescriptor d = new PageDescriptor(
                 "01ABC", "HybridRetrieval", "Hybrid Retrieval", PageType.ARTICLE,
-                "wikantik-development", List.of(), null, Instant.now() );
+                "wikantik-development", List.of(), null, Instant.now(), Optional.empty() );
         when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
         when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
         when( idx.outgoingRelations( anyString(), any() ) ).thenReturn( List.of() );
@@ -151,7 +151,7 @@ class DefaultForAgentProjectionServiceTest {
         when( cache.get( eq( CachingManager.CACHE_FOR_AGENT ), any(), any() ) ).thenReturn( precomputed );
         final PageDescriptor d = new PageDescriptor(
                 "01ABC", "HybridRetrieval", "Hybrid Retrieval", PageType.ARTICLE,
-                null, List.of(), null, Instant.parse( "2026-04-22T11:10:00Z" ) );
+                null, List.of(), null, Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty() );
         when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
 
         final ForAgentProjection out = svc.project( "01ABC" ).orElseThrow();
@@ -174,7 +174,7 @@ class DefaultForAgentProjectionServiceTest {
         final PageDescriptor d = new PageDescriptor(
                 "01ABC", "ChoosingARetrievalMode", "Choosing a Retrieval Mode",
                 PageType.RUNBOOK, "agent-cookbook", List.of(), null,
-                java.time.Instant.parse( "2026-04-22T11:10:00Z" ) );
+                java.time.Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty() );
         when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
         when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
         when( idx.outgoingRelations( anyString(), any() ) ).thenReturn( List.of() );
@@ -209,7 +209,7 @@ class DefaultForAgentProjectionServiceTest {
         final PageDescriptor d = new PageDescriptor(
                 "01ABC", "BadRunbook", "Bad Runbook",
                 PageType.RUNBOOK, "agent-cookbook", List.of(), null,
-                java.time.Instant.parse( "2026-04-22T11:10:00Z" ) );
+                java.time.Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty() );
         when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
         when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
         when( idx.outgoingRelations( anyString(), any() ) ).thenReturn( List.of() );

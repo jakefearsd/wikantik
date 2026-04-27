@@ -329,3 +329,36 @@ CREATE TABLE IF NOT EXISTS employees (
     name VARCHAR(50) NOT NULL,
     dept VARCHAR(50)
 );
+
+-- V018: KG inclusion policy tables (test fixture mirroring bin/db/migrations/V018)
+CREATE TABLE IF NOT EXISTS kg_cluster_policy (
+    cluster      TEXT PRIMARY KEY,
+    action       TEXT NOT NULL CHECK (action IN ('include','exclude')),
+    reason       TEXT,
+    set_by       TEXT NOT NULL,
+    set_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    reviewed_at  TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS kg_policy_audit (
+    id          BIGSERIAL PRIMARY KEY,
+    cluster     TEXT NOT NULL,
+    old_action  TEXT,
+    new_action  TEXT NOT NULL,
+    reason      TEXT,
+    actor       TEXT NOT NULL,
+    changed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_kg_policy_audit_cluster_changed
+    ON kg_policy_audit (cluster, changed_at DESC);
+
+CREATE TABLE IF NOT EXISTS kg_excluded_pages (
+    page_name   TEXT PRIMARY KEY,
+    reason      TEXT NOT NULL CHECK (reason IN
+                  ('system_page','cluster_policy','page_override')),
+    excluded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_kg_excluded_pages_reason
+    ON kg_excluded_pages (reason);

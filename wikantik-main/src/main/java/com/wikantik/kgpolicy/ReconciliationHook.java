@@ -25,14 +25,14 @@ import java.util.function.Consumer;
  * policy) and a {@code ReconciliationJobRunner} that hasn't been wired yet.
  * Until {@link #install} is called, the consumer is a no-op.
  */
-final class ReconciliationHook {
+public final class ReconciliationHook {
     private static volatile Consumer< String > consumer = c -> {};
 
-    static void install( final Consumer< String > c ) {
+    public static void install( final Consumer< String > c ) {
         consumer = c == null ? cluster -> {} : c;
     }
 
-    static void onClusterPolicyChange( final String cluster ) {
+    public static void onClusterPolicyChange( final String cluster ) {
         consumer.accept( cluster );
     }
 

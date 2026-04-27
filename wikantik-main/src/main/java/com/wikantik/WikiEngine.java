@@ -660,6 +660,40 @@ public class WikiEngine implements Engine {
             new Thread( structuralIndex::rebuild, "structural-index-bootstrap" ).start();
             LOG.info( "StructuralIndexService registered; initial rebuild dispatched" );
 
+            // KG inclusion policy — cluster-primary include/exclude with frontmatter
+            // override. See docs/superpowers/specs/2026-04-27-kg-inclusion-policy-design.md.
+            // The master switch wikantik.kg_policy.enabled (default true) gates the wiring;
+            // when disabled, the policy is not registered and downstream components fall
+            // back to legacy behaviour (no exclusion).
+            final boolean kgPolicyEnabled = TextUtil.getBooleanProperty(
+                props, "wikantik.kg_policy.enabled", true );
+            if ( kgPolicyEnabled ) {
+                final var policyRepo   = new com.wikantik.kgpolicy.KgClusterPolicyRepository( ds );
+                final var excludedRepo = new com.wikantik.kgpolicy.KgExcludedPagesRepository( ds );
+                final var overrides    = new com.wikantik.kgpolicy.StructuralIndexFrontmatterOverrideReader(
+                        structuralIndex );
+                final var policy       = new com.wikantik.kgpolicy.DefaultKgInclusionPolicy(
+                        getManager( SystemPageRegistry.class ),
+                        structuralIndex,
+                        policyRepo,
+                        overrides );
+                policy.initialize( this, props );
+
+                final var pagesByCluster = com.wikantik.kgpolicy.PagesByCluster.fromStructural( structuralIndex );
+                final var reconciler = new com.wikantik.kgpolicy.ReconciliationJobRunner(
+                        policy, excludedRepo, pagesByCluster );
+                com.wikantik.kgpolicy.ReconciliationHook.install( reconciler::enqueue );
+
+                managers.put( com.wikantik.api.kgpolicy.KgInclusionPolicy.class, policy );
+                managers.put( com.wikantik.kgpolicy.KgClusterPolicyRepository.class, policyRepo );
+                managers.put( com.wikantik.kgpolicy.KgExcludedPagesRepository.class, excludedRepo );
+                managers.put( com.wikantik.kgpolicy.ReconciliationJobRunner.class, reconciler );
+
+                LOG.info( "KG inclusion policy wired (default-exclude active)" );
+            } else {
+                LOG.info( "KG inclusion policy DISABLED via wikantik.kg_policy.enabled=false" );
+            }
+
             // Agent-Grade Content Phase 2: token-budgeted /for-agent projection.
             // Reads from the structural index + PageManager, memoises in CACHE_FOR_AGENT,
             // emits wikantik_for_agent_response_bytes histogram.

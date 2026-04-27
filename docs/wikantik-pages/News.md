@@ -1,15 +1,3 @@
----
-canonical_id: 01KQ0P450NEW00000NEWS00MAIN
-cluster: wikantik-development
-title: News
-type: log
-status: active
-summary: Running log of recent development activity on the Wikantik project.
-tags:
-- news
-- changelog
-- devlog
----
 # JSPWiki Development News
 
 A log of recent development activity on the JSPWiki project.
@@ -17,6 +5,14 @@ A log of recent development activity on the JSPWiki project.
 ---
 
 ## April 2026
+
+**2026-04-27** — feat(kgpolicy): cluster-primary KG inclusion/exclusion with admin dashboard, CLI, and frontmatter override. Default-exclude. See [KgInclusionPolicy](KgInclusionPolicy).
+
+**2026-04-27** — content: collapse singleton/typo clusters — 42 clean clusters
+
+**2026-04-27** — content: assign cluster to all 408 unclustered pages — 100% coverage
+
+**2026-04-27** — chore: normalize CRLF → LF across all tracked text files
 
 **2026-04-27** — build: drop defectimages/ — keep triage screenshots out of git
 

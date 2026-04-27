@@ -467,3 +467,16 @@ When you merge node A into node B, the system renames all frontmatter references
 
 ### Stale edges persist after editing frontmatter
 The Graph Projector runs a diff on every page save that removes edges no longer present in the frontmatter. If stale edges persist, try re-saving the affected page, or use **Project All Pages** to refresh the entire graph.
+
+## Controlling KG Inclusion
+
+The knowledge graph isn't built from every page. Cluster-level policy decides what contributes; per-page frontmatter overrides handle the rest. For the full model and dashboard walkthrough, see [KgInclusionPolicy](KgInclusionPolicy).
+
+The short version:
+
+- **Default-exclude.** A cluster you haven't touched contributes nothing.
+- **Cluster dashboard** at `/admin/kg-policy` lets you toggle cluster inclusion with a reason. Eager reconciliation runs on commit.
+- **Frontmatter override** (`kg_include: true | false`) wins over cluster policy. Useful for WIP, sensitive, or one-off content.
+- **CLI** at `bin/kg-policy.sh` mirrors the dashboard for scripting and emergencies. `purge --confirm` is the only destructive operation.
+
+System pages (Sandbox, Main, etc.) are always excluded — both from the KG and from the search index — via the existing `SystemPageRegistry`.

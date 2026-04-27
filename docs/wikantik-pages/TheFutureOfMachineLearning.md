@@ -4,7 +4,7 @@ summary: Where machine learning is headed — foundation models, data efficiency
   AI, AI safety, neurosymbolic approaches, and the engineering challenges of deploying
   ML at scale
 date: 2026-03-17T00:00:00Z
-cluster: technology
+cluster: machine-learning
 related:
 - MachineLearning
 - ArtificialIntelligence

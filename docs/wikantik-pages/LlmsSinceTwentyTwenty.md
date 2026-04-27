@@ -17,7 +17,7 @@ related:
 - RunningLocalLlms
 - DistributedComputingEvolution
 type: article
-cluster: technology
+cluster: generative-ai
 status: active
 ---
 

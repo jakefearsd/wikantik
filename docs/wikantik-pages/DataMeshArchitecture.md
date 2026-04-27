@@ -1,7 +1,7 @@
 ---
 title: Data Mesh Architecture
 type: article
-cluster: data-systems
+cluster: data-engineering
 status: active
 date: '2026-04-25'
 tags:

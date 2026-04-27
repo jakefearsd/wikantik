@@ -1,7 +1,7 @@
 ---
 title: Compiler Design Basics
 type: article
-cluster: programming-languages
+cluster: computer-science-foundations
 status: active
 date: '2026-04-25'
 tags:

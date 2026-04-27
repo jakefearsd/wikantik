@@ -1,7 +1,7 @@
 ---
 canonical_id: 01KQ0P44Q20H1X4B9FJ82DB4F7
 type: article
-cluster: technology
+cluster: machine-learning
 status: active
 summary: Running AI models on microcontrollers, phones, and edge devices — what works,
   what doesn't, proven use cases, and the techniques that make small models effective

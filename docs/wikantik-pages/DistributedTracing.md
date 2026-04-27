@@ -2,7 +2,7 @@
 canonical_id: 01KQ12YDTP6JTFQEKQZT19ACQZ
 title: Distributed Tracing
 type: article
-cluster: observability
+cluster: devops-sre
 status: active
 date: '2026-04-25'
 tags:

@@ -4,7 +4,7 @@ type: article
 tags: [algorithms, computer-science, data-structures, complexity, programming]
 date: 2026-03-21
 status: active
-cluster: technology
+cluster: data-structures
 summary: Essential algorithms every computer scientist should understand deeply, from sorting and searching to graph traversal and dynamic programming
 related: [MachineLearning, ArtificialIntelligence, FundamentalsOfProgramming]
 ---

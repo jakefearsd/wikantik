@@ -2,7 +2,7 @@
 canonical_id: 01KQ0P44Q77D4ZERJ5ZN2N571W
 date: '2026-03-15T00:00:00Z'
 status: active
-cluster: retirement-planning/eu-retirement
+cluster: retirement-planning
 tags:
 - personal-finance
 - retirement-planning

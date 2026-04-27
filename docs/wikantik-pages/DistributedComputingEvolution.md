@@ -1,7 +1,7 @@
 ---
 canonical_id: 01KQ0P44PSDYPG5MY8RH2DM5GT
 type: article
-cluster: technology
+cluster: distributed-systems
 status: active
 summary: Thirty years of distributed computing — from CORBA and client-server to cloud-native
   microservices, event-driven architecture, and modern best practices for reliability,

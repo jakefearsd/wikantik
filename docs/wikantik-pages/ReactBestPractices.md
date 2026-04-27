@@ -2,7 +2,7 @@
 canonical_id: 01KQ12YDWBH45HW6DN4SD130S8
 title: React Best Practices
 type: article
-cluster: frontend
+cluster: frontend-development
 status: active
 date: '2026-04-25'
 tags:

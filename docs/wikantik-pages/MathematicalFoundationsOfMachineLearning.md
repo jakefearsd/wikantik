@@ -17,7 +17,7 @@ related:
 - LlmsSinceTwentyTwenty
 - ArtificialIntelligence
 type: article
-cluster: technology
+cluster: machine-learning
 status: active
 ---
 

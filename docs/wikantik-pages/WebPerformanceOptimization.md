@@ -1,7 +1,7 @@
 ---
 title: Web Performance Optimization
 type: article
-cluster: frontend
+cluster: frontend-development
 status: active
 date: '2026-04-25'
 tags:

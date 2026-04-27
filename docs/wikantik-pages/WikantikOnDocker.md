@@ -8,7 +8,7 @@ tags:
 - deployment
 - backup
 summary: "Complete guide to deploying Wikantik with Docker Compose, including production setup, automated backups, restore procedures, and migration from bare-metal Tomcat"
-cluster: wikantik-operations
+cluster: wikantik-development
 related: [About, GoodMcpDesign]
 ---
 

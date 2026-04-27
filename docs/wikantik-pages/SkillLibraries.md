@@ -2,248 +2,258 @@
 canonical_id: 01KQ0P44WJQ748P6FCF0R7D4DW
 title: Skill Libraries
 type: article
+cluster: agentic-ai
+status: active
+date: '2026-04-26'
+summary: How to organize and distribute collections of skills — local libraries,
+  shared team skills, plugin systems, and the patterns for managing skill collections
+  at scale.
 tags:
-- skill
-- must
-- e.g
-summary: 'Skill Libraries Target Audience: AI/ML Researchers, Advanced Systems Architects,
-  and Technical Leads developing next-generation autonomous agentic systems.'
-auto-generated: true
+- skills
+- libraries
+- distribution
+- claude
+- agentic-ai
+related:
+- CustomSkillsArchitecture
+- SkillIntegration
+- SkillDocumentation
+- SkillPerformance
+hubs:
+- AgenticAi Hub
 ---
 # Skill Libraries
 
-**Target Audience:** AI/ML Researchers, Advanced Systems Architects, and Technical Leads developing next-generation autonomous agentic systems.
+A skill library is a collection of related skills. As skill use grows, libraries become essential — for personal organization, team sharing, public distribution.
 
----
+This page covers how skill libraries work and the patterns for managing them.
 
-## Introduction: The Crisis of Monolithic Intelligence
+## Levels of library
 
-The current paradigm of Large Language Models (LLMs) has been revolutionary, granting unprecedented fluency in natural language understanding and generation. However, when we move beyond mere text generation and into the realm of *action*—the ability to reliably interact with external systems, execute complex, multi-step workflows, or maintain state across disparate services—the inherent limitations of the monolithic model become glaringly apparent. LLMs, by nature, are statistical predictors trained on vast corpora; they are excellent at *synthesizing* knowledge but inherently poor at *guaranteeing* execution or *managing* a curated, evolving set of external capabilities.
+### Personal
 
-This realization has catalyzed a fundamental shift in AI architecture: the move from the "All-Knowing Oracle" model to the "Orchestrated Agent" model. In this new paradigm, the LLM functions not as the sole executor, but as the **Cognitive Planner**—the high-level reasoning engine—while the actual, reliable, and verifiable capabilities are externalized into discrete, reusable units: **Skills**.
+Skills you've created for your own use. In your local Claude installation.
 
-This tutorial serves as an exhaustive guide for experts tasked with designing the infrastructure that supports this shift. We will dissect the theoretical underpinnings, the practical engineering requirements, and the architectural blueprints necessary for building robust, scalable **Skill Libraries** and the necessary **Skill Marketplaces** that govern their adoption.
+Path: `~/.claude/skills/` or similar.
 
----
+### Team
 
-## Part I: Theoretical Foundations – Why Skills are Necessary
+Skills shared across an engineering team. Living in a git repo; checked out by team members.
 
-Before diving into the implementation details, we must establish a rigorous understanding of *why* this abstraction layer is not merely a convenience, but a necessity for achieving true general-purpose AI agency.
+Use cases: team-specific code style, project workflows, internal tool integrations.
 
-### 1.1 Defining the Core Concepts
+### Organization
 
-To maintain precision, we must first establish clear definitions for the key terminologies:
+Across many teams in one company. Common conventions; shared workflows.
 
-*   **Skill:** A Skill is the most atomic unit of reusable capability. It is not merely a function call; it is a self-contained, well-defined, and contractually specified procedure designed to achieve a single, verifiable outcome. It encapsulates not just the code, but the *intent*, the *input schema*, and the *expected output schema*.
-    *   *Example:* Instead of "Find the price of X on Website Y," a skill might be `scrape_product_price(url: str, selector: str) -> float`.
-*   **Skill Library:** A Skill Library is a structured, version-controlled, and curated collection of related, reusable skills. It represents the agent's *known repertoire* of abilities. It moves the agent from being context-bound to being capability-bound.
-    *   *Analogy:* If the LLM is the brain, the Skill Library is the agent's specialized, indexed toolbox.
-*   **Skill Marketplace:** A Skill Marketplace is the *governance layer* and *discovery mechanism* for these libraries. It is the standardized platform that allows disparate creators to publish, version, discover, and potentially monetize skills, ensuring interoperability across different agent frameworks (e.g., Claude, Gemini, custom Python backends).
+Often versioned; reviewed; managed.
 
-### 1.2 The Limitations of LLMs in Action Space
+### Public / community
 
-The core problem we are solving is the **Hallucination of Action**. When an LLM is asked to perform a task, it might generate a plausible-sounding sequence of API calls or code snippets. However, this generation is probabilistic, not deterministic.
+Open-source skills. Shared on GitHub or skill registries.
 
-1.  **Schema Drift and Ambiguity:** LLMs can struggle with precise input validation. A human expert knows that a date field must adhere to ISO 8601 format; an LLM might generate `MM/DD/YYYY` which the downstream API will reject. Skills enforce this contract.
-2.  **State Management Complexity:** Complex tasks require remembering intermediate results, handling retries, and managing session state. Embedding this logic within a single prompt context window is computationally expensive and prone to context overflow errors. Skills allow the orchestration layer to manage the state machine *around* the LLM call.
-3.  **Verifiability and Auditing:** In critical applications (finance, medicine), every action must be traceable. By externalizing the action into a discrete, versioned skill, we create an auditable execution graph: *Planner $\rightarrow$ Skill A (v1.2) $\rightarrow$ Skill B (v3.0) $\rightarrow$ Final Output*.
+Examples: the superpowers plugin, language-specific skill collections.
 
-### 1.3 The Shift from Prompt Engineering to Capability Engineering
+## Distribution patterns
 
-The industry is rapidly moving from **Prompt Engineering** (optimizing text inputs) to **Capability Engineering** (optimizing the available tools). This is a paradigm shift akin to the transition from writing procedural code to building microservice architectures. The focus shifts from *telling* the model what to do, to *providing* the model with a robust, discoverable API surface area.
+### Git repository
 
----
+Standard: skills in a git repo. Users clone; install.
 
-## Part II: Anatomy of a Skill – Defining the Contract
+```
+git clone https://github.com/user/skills.git ~/.claude/plugins/skills
+```
 
-The success of the entire ecosystem hinges on the definition of the Skill itself. A skill must be treated as a formal software artifact, not just a descriptive markdown file.
+Updates: `git pull`. Versioning via git tags.
 
-### 2.1 The Skill Manifest: Beyond the README
+### Plugin system
 
-While initial implementations might rely on simple documentation files (like the `SKILL.md` structure observed in some marketplaces [3]), a truly robust skill requires a formal, machine-readable manifest. This manifest dictates the contract.
+Some Claude environments have plugin systems. Plugins bundle skills + configuration.
 
-A comprehensive Skill Manifest must contain, at minimum, the following components:
+For Claude Code: the plugin marketplace.
 
-1.  **`skill_id` (Unique Identifier):** A globally unique, namespaced identifier (e.g., `valendata.web.scrape_price`).
-2.  **`version`:** [Semantic Versioning](SemanticVersioning) (e.g., `v2.1.0`). Crucial for rollback and dependency management.
-3.  **`description`:** A high-level, natural language summary of the skill's purpose.
-4.  **`schema` (The Contract):** The formal definition of inputs and outputs. This is best represented using JSON Schema or OpenAPI specifications.
-    *   *Input:* Must list required/optional parameters, their data types (string, integer, array, object), and constraints (regex patterns, min/max values).
-    *   *Output:* Must define the expected structure of the returned data, including potential error structures.
-5.  **`implementation_pointer`:** The actual executable code or endpoint reference (e.g., a URL to a deployed FastAPI endpoint, or a reference to a specific function signature in a compiled library).
-6.  **`preconditions`:** Any external state or prerequisites required before execution (e.g., "Requires valid API key for Service X").
+### Direct install
 
-### 2.2 Skill Atomicity and Granularity
+Copy skill directory into the right location.
 
-The principle of **Atomicity** is paramount. A skill must do *one thing* and do it *well*.
+For one-off skills, this is fine. For collections, git is better.
 
-*   **Anti-Pattern:** A skill named `process_user_request` that handles authentication, data fetching, transformation, and logging. (This is too large; it mixes concerns).
-*   **Best Practice:** Decompose it:
-    1.  `authenticate_user(credentials)` $\rightarrow$ Returns `session_token`.
-    2.  `fetch_raw_data(token, endpoint)` $\rightarrow$ Returns `raw_json_payload`.
-    3.  `transform_data(payload, schema)` $\rightarrow$ Returns `structured_object`.
+### NPM-like package
 
-By enforcing this granularity, the orchestrator can build complex workflows by chaining simple, reliable components, vastly improving debugging and reliability.
+Future: a package manager for skills. Not yet standardized.
 
-### 2.3 Handling Failure Modes and Edge Cases
+## Organization patterns
 
-A skill is only as good as its failure handling. Experts must design for failure *before* deployment.
+### Single category
 
-*   **Idempotency:** Ideally, a skill should be idempotent—running it multiple times with the same inputs yields the same result without causing unintended side effects. This is critical for retries.
-*   **Error Propagation:** The skill must not just fail; it must fail *informatively*. The output schema must include a dedicated `error_details` field, detailing *why* it failed (e.g., "HTTP 403 Forbidden: Check API key scope," rather than just "Error").
-*   **Rate Limiting & Backoff:** The skill implementation itself should ideally contain logic to detect and handle rate-limiting responses (e.g., implementing exponential backoff strategies) before the orchestrator layer even needs to intervene.
+Skills for one topic: "java-skills", "python-skills", "code-review-skills."
 
----
+Easier to maintain; easier to opt into specific topics.
 
-## Part III: Building the Skill Library – Internal Engineering Best Practices
+### Multi-category
 
-A Skill Library is the internal, curated repository managed by the developing team or organization. It requires rigorous software engineering practices.
+A library covering many topics: "engineering-essentials" with code review, debugging, testing, etc.
 
-### 3.1 Version Control and Dependency Mapping
+Easier installation; harder to manage.
 
-The library must be treated as a formal software package, necessitating robust dependency management.
+### Composable libraries
 
-**The Challenge:** Skill A (v1.0) might rely on a specific output structure from Skill B (v2.0). If Skill B is updated to v3.0, Skill A might break silently.
+Smaller libraries that compose: "core" + "java" + "kubernetes." Users install what they need.
 
-**The Solution: Dependency Graph Management.**
-The library management system must maintain a Directed Acyclic Graph (DAG) of dependencies.
+For organizations with many users, this works well.
 
-*   **Process:** When a developer wants to update Skill A, the system must check:
-    1.  Does Skill A depend on Skill B?
-    2.  If so, what is the *minimum required version* of Skill B?
-    3.  If the proposed update to Skill B violates the contract required by Skill A, the build must fail, forcing the developer to update Skill A's usage logic *before* merging the dependency change.
+## Design considerations
 
-### 3.2 Implementation Paradigms for Skills
+### Naming
 
-Skills can be implemented using several underlying technologies, and the library must abstract these differences.
+Skill names should be unique within a library. Across libraries, conflicts are possible — installing two libraries with the same skill name is ambiguous.
 
-#### A. API Gateway/Microservice Approach (The Gold Standard)
-The skill is deployed as an independent, stateless microservice (e.g., using FastAPI, Flask, or AWS Lambda).
-*   **Pros:** Excellent isolation, easy scaling, clear network boundaries, mature tooling for monitoring and logging.
-*   **Cons:** Highest operational overhead (deployment pipelines, networking).
-*   **Best For:** High-throughput, mission-critical, or external-facing skills (e.g., payment processing, external data scraping).
+Conventions help: prefix per library ("acme-code-review" vs. just "code-review").
 
-#### B. Library Inclusion Approach (The Code-Based Skill)
-The skill is implemented as a callable function within a shared, versioned package (e.g., a Python wheel or an npm module).
-*   **Pros:** Lowest latency, simplest dependency resolution within a single runtime environment.
-*   **Cons:** Tightly couples the skill to the runtime environment of the agent orchestrator. Difficult to update without redeploying the entire agent stack.
-*   **Best For:** Internal, computationally intensive, or purely mathematical/algorithmic skills (e.g., complex graph traversal, specialized NLP preprocessing).
+### Versioning
 
-#### C. LLM-Mediated Skill (The Prompt-Based Skill)
-The skill is defined by a highly structured prompt template that guides the LLM to generate the *next step* or *data transformation*, rather than executing external code. (This is the lowest fidelity skill).
-*   **Pros:** Extremely flexible, requires minimal external infrastructure.
-*   **Cons:** Non-deterministic, difficult to audit, and prone to prompt injection attacks if not heavily sandboxed.
-*   **Use Case:** Best reserved for *pre-processing* or *routing* logic, not for core data manipulation.
+Each library version exists at a point in time. Skills change; users on different versions get different behavior.
 
-### 3.3 Testing and Validation Frameworks
+Strategies:
+- Semantic versioning (1.2.3)
+- Pinning to specific versions
+- Migration guides for breaking changes
 
-Testing skills requires a multi-layered approach that goes far beyond unit tests.
+### Dependencies between skills
 
-1.  **Unit Testing (Code Level):** Standard testing of the underlying function logic with mocked external dependencies.
-2.  **Contract Testing (Schema Level):** Automated validation that the skill *always* returns data matching the declared output schema, even when inputs are malformed or edge-case data is provided.
-3.  **Integration Testing (Workflow Level):** Testing the skill within a simulated workflow context. This verifies that the *orchestrator* correctly interprets the skill's output and passes it to the next component.
-4.  **Adversarial Testing (Security Level):** Attempting to break the skill using malicious inputs (e.g., SQL injection attempts passed through string parameters, or excessively large payloads designed to cause memory exhaustion).
+Within a library, some skills may invoke others:
 
----
+```markdown
+This skill uses the `helper-skill` for X.
+```
 
-## Part IV: Architecting the Skill Marketplace – Governance and Discovery
+Document the dependency. If the helper skill is missing, the dependent skill fails gracefully.
 
-If the Skill Library is the internal toolbox, the Skill Marketplace is the global, standardized hardware store. Its complexity lies not in the code it hosts, but in the *governance* and *interoperability* it enforces.
+### Cross-library dependencies
 
-### 4.1 The Need for Standardization: The Interoperability Layer
+Generally avoid. Library A depending on library B becomes a maintenance nightmare.
 
-The greatest hurdle in the current landscape is the fragmentation of standards. We see skills designed for Claude, skills designed for Gemini, and proprietary APIs for Valendata. A true marketplace must solve the **Polyglot Skill Problem**.
+If unavoidable: explicit declaration; version compatibility matrix.
 
-**The Solution: The Universal Skill Interface (USI).**
-The marketplace must mandate an abstract interface layer that sits *above* the specific implementation technology.
+## Maintenance
 
-The USI dictates:
-1.  **Invocation Protocol:** How the orchestrator calls the skill (e.g., standardized HTTP POST request structure, regardless of whether the backend is Python or Go).
-2.  **Schema Negotiation:** A standardized mechanism for exchanging the JSON Schema definition *before* execution.
-3.  **Result Serialization:** A guaranteed format for the final output, irrespective of the skill's internal data types.
+### Owner
 
-### 4.2 Marketplace Models: Curation vs. Open Source
+Each library has an owner (or group). Decisions; updates; conflict resolution.
 
-Marketplaces must choose a governance model, which dictates trust and quality.
+### Review process
 
-#### A. The Curated Model (The "Verified Partner" Approach)
-*   **Mechanism:** The platform team vets every skill before listing it. They run comprehensive security audits, performance benchmarks, and functional tests.
-*   **Pros:** Highest trust level. Users can assume a baseline level of quality and security. Ideal for enterprise adoption.
-*   **Cons:** Slow adoption rate. High operational cost for the platform owner. (Think of a highly regulated industry standard).
+For shared libraries, changes deserve review. Skill changes affect downstream users; review catches issues.
 
-#### B. The Open/Federated Model (The "GitHub Awesome" Approach)
-*   **Mechanism:** Anyone can submit a skill, often requiring only a basic manifest and passing automated linting/schema checks. The platform acts as an indexer, not a guarantor.
-*   **Pros:** Massive scale, rapid contribution, high diversity of skills. (Similar to the GitHub repository model [2]).
-*   **Cons:** "Wild West" risk. Requires robust user reporting, reputation scoring, and mandatory sandboxing for execution.
+### Issue tracking
 
-#### C. The Hybrid Model (The Optimal Path)
-The most advanced marketplaces (like those implied by the combination of sources [1], [3], and [4]) adopt a hybrid approach:
-1.  **Submission:** Open to all (Federated).
-2.  **Validation:** Mandatory automated checks (Schema, basic security).
-3.  **Tiering:** Skills are assigned trust tiers (e.g., "Community Draft," "Beta Verified," "Enterprise Certified"). Only the highest tier skills can be invoked by default by major agent frameworks.
+Where do users report problems? GitHub Issues, internal tracker.
 
-### 4.3 Discovery and Recommendation Engines
+### Release notes
 
-A marketplace with thousands of skills is useless if the user cannot find what they need. The discovery layer must evolve beyond simple keyword search.
+What changed in each version? Especially for breaking changes.
 
-*   **Semantic Search:** The system must index the *intent* of the skill, not just its name. If a user searches "calculate tax on international sales," the system should surface skills related to `currency_conversion` AND `jurisdiction_tax_rate`, even if no single skill matches the exact phrase.
-*   **Workflow Graph Suggestion:** When a user selects Skill A, the marketplace should analyze the output schema of Skill A and proactively suggest the top 3 most compatible downstream skills (Skill B, Skill C) that consume that specific output type. This is proactive orchestration assistance.
+### Deprecation
 
----
+Skills age. Some get replaced. Mark old skills as deprecated; provide migration path; eventually remove.
 
-## Part V: Advanced Paradigms and Edge Case Handling
+## Specific patterns
 
-For experts researching new techniques, the focus must shift from *if* skills are needed, to *how* they can be made more powerful, dynamic, and secure.
+### Skill discovery
 
-### 5.1 Dynamic Skill Composition and Meta-Skills
+Users browse libraries to find skills. The README/index of the library matters.
 
-The next frontier is moving beyond pre-defined workflows to *emergent* workflows.
+Format that works:
+- Index by purpose (code review, planning, debugging)
+- Brief description per skill
+- Links to detailed SKILL.md
 
-**The Concept of the Meta-Skill:** A Meta-Skill is not a capability itself, but a *meta-algorithm* that dynamically constructs a workflow graph at runtime.
+### Configuration
 
-*   **Mechanism:** The Meta-Skill receives a high-level goal (e.g., "Analyze the market sentiment for Q3 earnings across three competitors"). It then queries the marketplace's index, identifies the necessary atomic skills (`scrape_earnings_data`, `run_sentiment_analysis`, `generate_comparative_report`), determines the optimal execution order (DAG), and executes the entire sequence, managing state and error handling across all components.
-*   **Challenge:** The Meta-Skill itself must be incredibly robust, as its failure means the entire complex operation fails. It requires advanced planning algorithms (like those derived from PDDL or advanced reinforcement learning).
+Some skills have configuration. Library can include:
+- Default config files
+- Schema
+- Examples per use case
 
-### 5.2 Security Implications: The Trust Boundary Problem
+### Hooks integration
 
-When an agent can execute arbitrary, external code via a skill, the attack surface expands exponentially. Security cannot be an afterthought; it must be baked into the architecture.
+Some libraries include hook configurations. Suggest adding them to settings.json:
 
-1.  **Sandboxing (Execution Environment):** Skills must *never* run directly on the main agent host. They must execute within hardened, isolated environments (e.g., WebAssembly runtimes, gVisor containers, or dedicated serverless functions with strict resource quotas). This prevents a malicious skill from accessing the host OS, network resources, or memory of other running skills.
-2.  **Least Privilege Principle (LPP):** Each skill must be provisioned with the absolute minimum permissions necessary to perform its function. A `scrape_product_price` skill should have network egress only to the target domain and no filesystem write access.
-3.  **Input Sanitization at the Gateway:** The marketplace gateway must perform deep inspection of all incoming parameters, treating them as untrusted external data, even if they originated from a "trusted" internal skill.
+```markdown
+For best experience, add these hooks:
+{ "hooks": [...] }
+```
 
-### 5.3 Economic Models and Skill Monetization
+### Skill testing
 
-As skill marketplaces mature, the economic layer becomes critical. Who pays for the skill?
+For libraries used at scale, automated testing of skills:
+- Test conversations that invoke each skill
+- Verify expected behavior
+- Run on CI
 
-*   **Pay-Per-Use (Consumption Model):** The user pays based on the computational cost (e.g., number of API calls, compute time, or number of tokens processed by the skill). This is the most common model for external APIs.
-*   **Subscription/Tiered Access (Licensing Model):** The skill provider charges a recurring fee for access to the entire library or specific premium skills. This is suitable for proprietary, high-value data access (e.g., specialized financial data feeds).
-*   **Credit/Token System (Internal Model):** Within a closed corporate ecosystem, the agent might draw from a central pool of "Compute Credits" to execute a sequence of skills, making the cost transparently visible to the end-user.
+This is emerging practice; tools are limited.
 
-### 5.4 Multimodal and Contextual Skills
+## Sharing skills publicly
 
-The definition of "skill" must expand beyond text-to-text or API-call-to-API-call.
+For open-source skill libraries:
 
-*   **Multimodal Skills:** A skill that accepts an image *and* a text prompt. Example: `analyze_diagram(image_bytes: bytes, query: str) -> list[findings]`. The skill implementation must manage the multimodal pipeline (e.g., passing the image through a Vision Transformer before the LLM reasoning layer).
-*   **Contextual Skills:** Skills that require access to a persistent, external knowledge graph (e.g., a company's internal CRM or knowledge base). The skill's execution must involve a retrieval-augmented generation (RAG) step *within* its execution flow, using the skill's parameters to query the graph, and then using the retrieved context to inform its final output.
+### License
 
----
+Pick a license. MIT or Apache 2 are common; pick deliberately.
 
-## Conclusion: The Future State of Agentic Systems
+### Documentation
 
-We have traversed the necessary theoretical ground, from the limitations of monolithic LLMs to the rigorous engineering required for atomic skill design, and finally, to the architectural complexities of global marketplaces.
+README; per-skill docs; examples; contribution guide.
 
-Creating a robust Skill Library and Marketplace is not a single engineering task; it is the construction of an entire **Agentic Operating System**.
+### Versioning
 
-The successful implementation requires simultaneous mastery across several domains:
+Semantic versioning helps consumers.
 
-1.  **Software Engineering:** Implementing robust versioning, dependency resolution, and sandboxing.
-2.  **API Design:** Enforcing strict, machine-readable contracts (JSON Schema) for every interaction.
-3.  **Distributed Systems:** Managing state, failure, and asynchronous communication across potentially dozens of microservices.
-4.  **Governance:** Establishing trust, standardization (the USI), and economic viability for contributors.
+### Issue templates
 
-The trajectory is clear: the most powerful AI agents of the near future will not be those with the largest parameter counts, but those with the most **efficiently orchestrated, verifiable, and composable skill sets**.
+Make it easy to report problems.
 
-For the researcher, the next critical area of investigation is the **Self-Improving Skill Loop**: designing a marketplace where the performance metrics of executed skills (e.g., "Skill X failed 15% of the time due to ambiguous input") are automatically fed back into the skill's owner, triggering an automated suggestion for a v1.1 patch, thereby achieving true, self-correcting autonomy.
+### Examples
 
-This infrastructure—the Skill Library and the Marketplace—is the scaffolding upon which true, reliable, and scalable artificial general intelligence will finally be built. Now, if you'll excuse me, I have a few architectural diagrams to draw that involve several layers of abstraction and at least one mandatory dependency graph visualization.
+Sample conversations showing skill use.
+
+## Specific libraries to know
+
+### Anthropic's superpowers
+
+Public collection of foundational skills: brainstorming, writing-plans, test-driven-development, etc. Common starting point.
+
+### Plugin marketplace
+
+Various community-contributed libraries.
+
+### Internal company libraries
+
+Many companies build internal libraries. Conventions, build tooling, deployment workflows.
+
+## Common failure patterns
+
+- **Library too large.** Hard to maintain; users overwhelmed.
+- **No versioning.** Changes break users silently.
+- **Skill name conflicts.** Multiple libraries; ambiguous which skill applies.
+- **No discovery aids.** Users don't know what's available.
+- **Dependencies between libraries.** Maintenance burden.
+- **Stale skills.** Documentation says X; behavior is Y.
+
+## A reasonable approach
+
+For your own libraries:
+
+1. Start small (a few skills you actually use)
+2. Document each skill clearly
+3. Version when sharing widely
+4. Iterate based on real usage
+5. Deprecate; don't accumulate cruft
+
+## Further Reading
+
+- [CustomSkillsArchitecture](CustomSkillsArchitecture) — Skill basics
+- [SkillIntegration](SkillIntegration) — How skills compose
+- [SkillDocumentation](SkillDocumentation) — Required for sharing
+- [SkillPerformance](SkillPerformance) — Adjacent concern
+- [AgenticAi Hub](AgenticAi+Hub) — Cluster index

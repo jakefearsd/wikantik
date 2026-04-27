@@ -6,6 +6,48 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-26** — docs(rebuild): cover prefilter, chunker tuning, stats modes, lineage
+
+**2026-04-26** — feat(scripts,docs): --purge-kg full-destructive option for kg-rebuild
+
+**2026-04-26** — feat(scripts): periodic progress lines during long rebuild phases
+
+**2026-04-26** — rename(scripts,docs): runextractor → kg-extract, full-rebuild → kg-rebuild
+
+**2026-04-26** — feat(scripts,docs): full-rebuild orchestration + operator runbook
+
+**2026-04-26** — feat(extraction): tag chunk_entity_mentions.extractor with Ollama model name
+
+**2026-04-26** — feat(extract-cli): --max-pages cap for end-to-end smoke tests
+
+**2026-04-26** — feat(extract-cli): --chunker-stats-only for in-memory chunker sweeps
+
+**2026-04-26** — feat(extract-cli): --stats-only mode for prefilter sizing without LLM calls
+
+**2026-04-26** — feat(extraction): broaden proper-noun regex + add too-short prefilter rule
+
+**2026-04-26** — feat(scripts): polish runextractor banner and exit-summary feedback
+
+**2026-04-26** — revert(scripts): drop bun/TypeScript runextractor — bash version is the one we use
+
+**2026-04-26** — feat(extraction): raise CONCURRENCY_MAX from 4 to 10 for small-model runs
+
+**2026-04-26** — refactor(frontend,api): auto-unwrap single-key {data:…} envelopes in request()
+
+**2026-04-26** — refactor(frontend,admin): extract AdminPage shell for loading/error short-circuit
+
+**2026-04-26** — fix(admin-mcp): anchor WikiEventSubscriptionBridge + register on FilterManager
+
+**2026-04-26** — perf(structure): make onPageSaved/onPageDeleted properly incremental
+
+**2026-04-26** — docs(gemini): retarget GEMINI.md at tactical refactoring + minor features
+
+**2026-04-26** — refactor(frontend,test): post-review cleanups for retrieval-quality page
+
+**2026-04-26** — feat(scripts): bun version of runextractor for the entity-extractor CLI
+
+**2026-04-26** — docs(wikantik-pages): clustered + curated content refresh
+
 **2026-04-26** — fix(knowledge,structure): keep StructuralIndexEventListener strongly referenced
 
 **2026-04-26** — fix(knowledge,structure): register StructuralIndexEventListener on the right event source

@@ -2,263 +2,236 @@
 canonical_id: 01KQ0P44NGWEMX0BF3Y86T9WYR
 title: Cloud Security Fundamentals
 type: article
+cluster: cloud-platforms
+status: active
+date: '2026-04-26'
+summary: The foundations of cloud security — IAM, encryption, network security, secrets
+  management, and the operational practices that prevent the most common cloud security
+  incidents.
 tags:
-- polici
-- network
+- cloud-security
 - iam
-summary: This tutorial is not intended for the practitioner who needs to know how
-  to attach a basic s3:GetObject permission.
-auto-generated: true
+- encryption
+- secrets-management
+- shared-responsibility
+related:
+- AwsFundamentals
+- CloudComplianceFrameworks
+- VulnerabilityManagement
+- WebApplicationFirewalls
+hubs:
+- CloudPlatforms Hub
 ---
-# Cloud Security IAM Policies and the Network Plane
+# Cloud Security Fundamentals
 
-The intersection of [Identity and Access Management](IdentityAndAccessManagement) (IAM) policies with network security controls represents one of the most complex, rapidly evolving, and critically important domains in modern cloud architecture. For those of us who have spent enough time in this field, the concept of "security" often devolves into a battle against entropy—the entropy of configuration drift, the entropy of multi-cloud abstraction, and the entropy of human error.
+Cloud security is shared responsibility — the cloud provider secures the platform; you secure what you run on it. Most cloud security incidents come from customer mistakes, not cloud-provider failures. Misconfigured S3 buckets, exposed credentials, overly permissive IAM, missing encryption.
 
-This tutorial is not intended for the practitioner who needs to know how to attach a basic `s3:GetObject` permission. We are addressing the research engineer, the security architect designing the next generation of policy enforcement points, and the researcher grappling with the theoretical limits of declarative security models. We will dissect the mechanisms, explore the theoretical shortcomings, and map out the bleeding edge of securing the network plane using identity primitives.
+This page covers the foundations: IAM, encryption, network security, secrets, and the operational practices.
 
----
+## Shared responsibility
 
-## I. Introduction: The Paradigm Shift from Perimeter to Identity
+The provider secures:
+- Physical infrastructure
+- Hypervisor / host OS
+- Network infrastructure
+- Service-level availability and patching
 
-Historically, network security was modeled around the **Perimeter Defense Model**. The network boundary—the firewall, the VPN gateway—was the primary control plane. Access was granted based on source IP, destination IP, and port (Layer 3/4). This model, while foundational, proved laughably brittle in the age of microservices, ephemeral containers, and remote work. The perimeter dissolved.
+You secure:
+- Your applications and data
+- IAM and access controls
+- Network configuration (security groups, VPC)
+- Encryption keys and key management
+- Secrets management
+- Operating systems on EC2 instances (less for managed services)
 
-The modern paradigm, which we are forced to adopt, is the **[Zero Trust Architecture](ZeroTrustArchitecture) (ZTA)**. In ZTA, the network is inherently untrusted. Trust must be established, continuously verified, and scoped down to the absolute minimum required for a specific transaction.
+The boundary varies by service. Lambda: provider does more. EC2: customer does more. Understand the boundary for each service you use.
 
-This shift mandates that the primary control plane moves *from* the network packet headers *to* the identity context of the request. This is where IAM policies become indispensable, transforming them from mere resource permission lists into the fundamental governance layer for network flow.
+## IAM is the foundation
 
-### The Core Thesis: Identity as the New Network Address
+Most cloud security failures involve IAM mistakes. The principles:
 
-The fundamental concept we must internalize is this: **In advanced cloud security, the identity of the principal (user, service account, workload) must dictate the network permissions, not merely the source IP address.**
+### Least privilege
 
-When we discuss "IAM Policies and Network," we are discussing the mechanism by which an identity's proven context (who they are, what they are authorized to do, and under what conditions) is translated into actionable network constraints (which ports can talk to which endpoints, and under what conditions).
+Grant only permissions that are needed. Refuse "AdministratorAccess" unless genuinely required.
 
----
-
-## II. Theoretical Foundations: From RBAC to Contextual Policy Engines
-
-To understand the advanced techniques, one must first understand the limitations of the foundational models.
-
-### A. Role-Based Access Control (RBAC) Limitations
-
-RBAC, the most common implementation (e.g., assigning a "Database Administrator" role), is a necessary but insufficient model. It answers the question: *What job function does this entity perform?*
-
-The limitation, which seasoned architects quickly spot, is that roles are often too coarse-grained. A "Database Administrator" role might grant `SELECT` access to the entire production database schema. If that admin only needs to run diagnostic queries on the `user_metrics` table for a specific quarter, RBAC forces us to either over-permission (security risk) or create an unmanageable proliferation of highly specific roles (operational nightmare).
-
-### B. Attribute-Based Access Control (ABAC): The Necessary Evolution
-
-ABAC addresses the rigidity of RBAC by evaluating policies based on a dynamic set of attributes associated with the request, the resource, the principal, and the environment.
-
-A policy in a pure ABAC model might look something like this (conceptually):
-
-$$\text{Permit Access} \iff (\text{Principal.Department} = \text{Finance}) \land (\text{Resource.Classification} = \text{PII}) \land (\text{Environment.Time} \in \text{BusinessHours}) \land (\text{Action} \in \{\text{Read}\})$$
-
-This is powerful because it allows for *contextual* enforcement. The network flow itself becomes an attribute to be evaluated.
-
-### C. Policy-Based Access Control (PBAC) and Policy Decision Points (PDP)
-
-PBAC is often used interchangeably with ABAC, but in advanced research, it refers to the *engine* that evaluates the policy set. The concept of the Policy Decision Point (PDP) is critical.
-
-In a robust ZTA, the flow of control is:
-
-1.  **Policy Enforcement Point (PEP):** This is the gatekeeper (e.g., a cloud firewall, a service mesh sidecar, an API Gateway). It intercepts the request and asks, "Can this proceed?"
-2.  **Policy Decision Point (PDP):** This is the centralized engine (e.g., an OPA/Gatekeeper instance) that receives the request context and evaluates it against the defined policies.
-3.  **Policy Information Point (PIP):** This is the source of truth for attributes (e.g., the Identity Provider, the CMDB, the Cloud Metadata Service).
-
-The complexity, and the source of much industry confusion (as noted in discussions regarding the difficulty of cloud IAM [3]), lies in ensuring the PEP correctly queries the PIP and that the PDP evaluates the resulting attributes consistently across disparate services.
-
----
-
-## III. IAM Policies Governing the Network Plane: Implementation
-
-How do we translate the abstract logic of ABAC into concrete network rules? We must look at how major cloud providers have engineered this integration.
-
-### A. The Cloud Provider Model: Identity-Bound Network Controls
-
-Modern cloud providers are moving away from managing network rulesets (like traditional Security Groups or VPC Firewall Rules) in isolation. Instead, they are embedding identity context directly into the network policy definition.
-
-#### 1. Google Cloud Platform (GCP) Example: IAM-Governed Tags
-
-GCP has pioneered the explicit linking of IAM governance to network constructs via **IAM-governed Tags** [2]. This is a significant architectural leap.
-
-*   **Traditional Approach:** A firewall rule might say: "Allow traffic from Source Tag `WebTier` to Destination Tag `DBTier` on port 3306." This is resource-centric.
-*   **IAM-Governed Tag Approach:** By linking the *ability to apply* the tag itself to an IAM policy, you are saying: "Only principals belonging to the `PlatformOps` group can assign the `DBTier` tag to any resource."
-
-This creates a **Policy Chain of Trust**:
-$$\text{IAM Policy} \xrightarrow{\text{Grants Authority}} \text{Tag Assignment} \xrightarrow{\text{Defines Scope}} \text{Network Firewall Rule}$$
-
-If the IAM policy governing tag assignment is flawed, the network firewall rule, no matter how restrictive, is moot because the necessary tagging attribute cannot be reliably applied or maintained.
-
-#### 2. Oracle Cloud Infrastructure (OCI) Example: Direct Policy Application
-
-OCI demonstrates a direct integration by allowing IAM policies to govern the Network Firewall service itself [5]. This suggests a model where the policy language is extended to include network verbs.
-
-Instead of writing:
-1.  *IAM Policy:* Allow User X to manage Network Firewall.
-2.  *Network Rule:* Allow traffic from A to B.
-
-The OCI model suggests a unified policy structure:
-*   *IAM Policy:* Allow User X to **configure network firewall rules** for the subnet `X` only if the request originates from a principal with the `SecurityAuditor` role.
-
-This consolidation minimizes the attack surface by reducing the number of distinct control planes that must be managed separately.
-
-#### 3. AWS Context: The Role of Resource Policies and Trust Relationships
-
-AWS, while historically more granular in its separation of concerns (IAM for identity, Security Groups for L3/L4), is evolving toward this convergence. The key mechanisms here are:
-
-*   **Resource Policies:** These policies are attached *to* a resource (e.g., an S3 bucket policy) and define *who* can access it, often overriding or supplementing the identity policies attached to the principal.
-*   **Trust Relationships:** These define *who* can assume a role. When a service (like an EC2 instance) assumes a role, the trust relationship dictates the initial boundary.
-
-The advanced technique here is chaining these: A service assumes Role A (Trust Boundary 1), which grants it permission to write a configuration file (IAM Policy 1). That configuration file, when processed by a service, then modifies a Security Group (Network Policy 1). The failure point is the assumption that the *write* permission on the configuration file implies safe network modification.
-
-### B. Pseudocode Illustration: Policy Evaluation Flow
-
-To illustrate the required depth, consider a pseudo-code representation of a highly constrained network access check:
-
-```pseudocode
-FUNCTION CheckNetworkAccess(Principal, SourceResource, TargetResource, Protocol, Port, ContextAttributes):
-    // 1. Check Identity Authorization (IAM Layer)
-    IF NOT EvaluateIAMPolicy(Principal, Action="Network_Modify", Target=SourceResource):
-        RETURN DENY, "IAM Policy Violation: Principal lacks authority to modify source resource."
-
-    // 2. Check Network Policy Authorization (Network Layer)
-    IF NOT EvaluateNetworkPolicy(SourceResource, TargetResource, Protocol, Port):
-        RETURN DENY, "Network Policy Violation: Direct L3/L4 block."
-
-    // 3. Check Contextual Overlays (ABAC/Zero Trust Layer)
-    IF NOT EvaluateContextualPolicy(ContextAttributes, Principal, TargetResource):
-        // Example: Check if the request is coming from a known, audited endpoint IP range
-        IF ContextAttributes.SourceIP NOT IN PIP.GetApprovedRanges(Principal.Department):
-            RETURN DENY, "Context Violation: Source IP outside approved operational envelope."
-
-    // 4. Final Decision
-    RETURN ALLOW, "Access granted across all layers."
+```json
+{
+    "Effect": "Allow",
+    "Action": "s3:GetObject",
+    "Resource": "arn:aws:s3:::my-bucket/data/*"
+}
 ```
 
-This structure highlights that a single "allow" decision requires successful traversal across three distinct, yet interdependent, policy evaluation engines.
+Specific service, specific action, specific resource. Not `s3:*` and not `*:*`.
 
----
+### Roles, not users
 
-## IV. Advanced Policy Modeling and Formal Verification
+Workloads should authenticate via roles, not user credentials. EC2 has instance profiles; Lambda has execution roles; ECS has task roles. Code calling AWS gets temporary credentials from the role.
 
-For researchers, the goal is not just to *implement* these policies, but to *prove* their correctness and completeness. This requires moving into formal methods.
+This is dramatically more secure than embedded user credentials.
 
-### A. Policy as Code (PaC) and Declarative Security
+### MFA everywhere
 
-The industry trend is undeniably towards treating security policies as code artifacts, managed in Git repositories, subjected to peer review, and deployed via CI/CD pipelines. This is the principle of **Policy as Code (PaC)**.
+Every human IAM user with console access should have MFA. The root user especially. The cost is minimal; the risk reduction is large.
 
-Tools like Open Policy Agent (OPA) and its policy language, Rego, are central to this movement. OPA acts as a universal PDP, capable of ingesting policies written in a declarative language and evaluating them against any structured input (JSON, YAML, etc.), regardless of the underlying cloud API.
+### Separate accounts for separation of concerns
 
-**Why OPA/Rego is critical for research:** It abstracts the *policy logic* away from the *cloud vendor API*. A single, well-written Rego policy can enforce a rule that translates into an AWS IAM policy, a GCP Firewall rule, and an OCI policy, provided the respective PEPs are configured to query the central OPA endpoint.
+Production, staging, dev, security tools, billing — separate accounts. Cross-account access via roles. Limits blast radius of compromise.
 
-### B. The Challenge of Policy Interoperability and Conflict Resolution
+AWS Organizations lets you manage many accounts coherently.
 
-The greatest theoretical hurdle is **Policy Conflict Resolution**. When multiple policies (IAM, Network, Application-level) can apply to the same resource, what is the definitive outcome?
+## Encryption
 
-1.  **Explicit Deny Overrides Everything (The Safest Default):** In most mature systems, an explicit `DENY` statement, regardless of where it originates (IAM, Network ACL, or application code), must take precedence. This is the principle of "Fail Closed."
-2.  **Least Permissive Wins:** If Policy A allows access on Port 80, and Policy B allows access on Port 443, but the resource is only intended for HTTPS, the system must resolve to the intersection of allowed ports.
+### At rest
 
-Researchers must model the policy evaluation engine to explicitly define this precedence hierarchy. If the cloud provider's native implementation does not expose this hierarchy, the system is inherently opaque and thus, insecure.
+All data at rest should be encrypted. Most managed services encrypt by default; some don't and need explicit configuration.
 
-### C. Mathematical Formalism: Set Theory in Policy Enforcement
+- S3: SSE-S3 or SSE-KMS
+- EBS: encrypted volumes
+- RDS: encrypted at rest
+- DynamoDB: encrypted by default
+- EFS: encrypted at rest
 
-At the deepest level, policy evaluation is a set theory problem.
+The choice between provider-managed keys and customer-managed (KMS) keys is real:
+- Provider-managed: easier; one less thing to lose
+- Customer-managed: more control; can revoke access; required by some compliance regimes
 
-Let $P$ be the set of all possible principals.
-Let $R$ be the set of all resources.
-Let $A$ be the set of all actions.
-Let $C$ be the set of all contextual attributes (time, location, etc.).
+### In transit
 
-A policy $\pi$ defines a subset of allowed tuples:
-$$\pi \subseteq P \times R \times A \times C$$
+All data in transit should be encrypted with TLS 1.2+.
 
-A request $q$ is a tuple $(p, r, a, c)$. The system must determine if $q$ is contained within the union of all active, non-contradictory policies:
-$$\text{Access Granted} \iff q \in \bigcup_{i=1}^{N} \pi_i$$
+Most cloud services support this; some require explicit configuration. Check that your application is using TLS, not falling back to plaintext.
 
-The difficulty arises because the set of policies $\Pi = \{\pi_1, \dots, \pi_N\}$ is dynamic, constantly changing due to infrastructure updates, making the formal verification of $\bigcup \pi_i$ computationally expensive and often intractable in real-time.
+### Key management
 
----
+KMS (AWS) handles encryption keys at scale. CMKs (Customer Master Keys) encrypt data keys; data keys encrypt actual data.
 
-## V. Operationalizing Security: Validation, Simulation, and Governance
+Key practices:
+- Rotate keys (KMS handles automatic rotation for managed keys)
+- Restrict key access via IAM
+- Enable key usage logging via CloudTrail
+- Plan for key compromise (you can't decrypt without the key)
 
-A policy written in a document is theoretical; a policy that fails in production is catastrophic. Therefore, the operational lifecycle of policy management is as critical as the policy logic itself.
+## Network security
 
-### A. The Necessity of Policy Simulation (The "Dry Run")
+### Security groups
 
-The existence of a Policy Simulator (like those offered by various cloud vendors or specialized tools [7]) is not a convenience; it is a mandatory security gate.
+Instance-level firewall. Default deny; allow specific traffic.
 
-Simulation allows the architect to test the *effect* of a policy change without the *risk* of the change. When testing network policies, simulation must account for:
+```
+Inbound: TCP 443 from ALB security group only
+Outbound: TCP 443 to anywhere
+```
 
-1.  **Statefulness:** Does the policy change affect established connections? (e.g., modifying a Security Group rule might drop existing, legitimate sessions).
-2.  **Dependency Graph Traversal:** If Policy X modifies Resource Y, and Resource Y is depended upon by Service Z, the simulator must trace the impact on Z's connectivity.
+The reference-by-security-group pattern (ALB SG can talk to backend SG) is more secure than CIDR blocks for internal traffic.
 
-Advanced simulation requires the ability to inject *hypothetical* attributes into the simulation environment—for instance, simulating a "compromised" principal that *should* fail access, even if the current policy set seems permissive.
+### NACLs
 
-### B. Multi-Cloud Abstraction and Policy Drift Management
+Subnet-level firewall. Stateless. Used for broad rules; security groups for specific.
 
-The reality of modern enterprises is that they are rarely single-cloud entities. They operate in multi-cloud environments [4]. This introduces the problem of **Policy Drift**.
+### Public subnets
 
-Policy Drift occurs when the intended security posture defined in the central governance model (e.g., "All production databases must be encrypted and only accessible from the corporate VPN subnet") diverges from the actual deployed state across AWS, Azure, GCP, and on-premises data centers.
+Limit what's in public subnets — only load balancers and bastion hosts. Application servers and databases in private subnets.
 
-**Mitigation Strategy: The Abstraction Layer:**
-To combat this, organizations must adopt a high-level, vendor-agnostic policy language (like OPA/Rego) that acts as the single source of truth. The CI/CD pipeline must then contain specialized "translators" or "renderers" that take the abstract policy and generate the native, vendor-specific code (e.g., Terraform HCL, AWS CloudFormation, GCP Deployment Manager).
+### NAT Gateway
 
-If the translation fails, or if the resulting native resource cannot be verified against the abstract policy, the deployment must halt.
+For private subnets that need outbound internet (downloads, API calls). Doesn't allow inbound; private resources stay private.
 
-### C. The Pitfalls of Universal IAM Policies (The Danger of Over-Permissiveness)
+### VPC endpoints
 
-The warning regarding "Universal IAM policy failings" [6] points to the danger of creating policies that are too broad—policies that grant permissions based on a single, easily exploitable attribute.
+For accessing AWS services without going through the internet. S3 endpoint, DynamoDB endpoint, etc. Faster and more secure than route through internet.
 
-Consider a policy that grants `s3:PutObject` to any principal whose IAM role contains the tag `Project:Alpha`. If an attacker compromises a low-privilege service account that *only* needed to read metadata, but that account happens to be associated with the `Project:Alpha` tag, the attacker inherits write access to all Alpha resources, regardless of the service's actual function.
+## Secrets management
 
-**The Solution: Contextual Least Privilege (CLP):**
-CLP mandates that permissions must be scoped not just by *what* the principal is, but by *why* it is acting, and *under what conditions* the action occurs. This requires integrating the identity system with runtime context (e.g., requiring MFA, requiring the request to originate from a specific geo-location, or requiring the request to pass a specific behavioral anomaly score).
+### Don't put secrets in code
 
----
+Database passwords, API keys, encryption keys. Never committed to git.
 
-## VI. Edge Cases and Advanced Threat Modeling
+### Don't put secrets in environment variables (raw)
 
-To truly master this domain, one must confront the edge cases where the clean theoretical model breaks down.
+Lambda environment variables, ECS task definitions. These are stored unencrypted in cloud control plane. Reference Secrets Manager / Parameter Store instead.
 
-### A. Ephemeral Identities and Workload Identity Federation
+### Use a secrets service
 
-The most advanced workloads (Kubernetes pods, serverless functions) do not possess static credentials. They are ephemeral. The solution is **Workload Identity Federation (WIF)**.
+- AWS Secrets Manager
+- AWS Parameter Store
+- HashiCorp Vault
+- Kubernetes Secrets (with encryption)
 
-WIF allows a workload running in one environment (e.g., a Kubernetes cluster managed by an external identity provider like Okta) to assume a cloud IAM role *without* ever possessing long-lived cloud credentials (like static keys).
+Application reads secrets at startup or on-demand. Secrets are rotated; service handles the mechanics.
 
-**The Policy Implication:** The IAM policy must now govern the *federation trust* itself. The policy must validate the token signature, the issuer, the audience, and the lifespan of the token provided by the external identity provider. The network policy must then trust the identity derived from this token, effectively making the external IdP the ultimate source of truth for the principal's identity context.
+## Logging and monitoring
 
-### B. The Supply Chain Risk in Policy Definition
+### CloudTrail (AWS)
 
-A novel attack vector is compromising the policy definition itself. If an attacker gains write access to the Git repository containing the OPA/Rego policies, they don't need to exploit a cloud API vulnerability; they simply need to inject a backdoor policy.
+Audit log of all API calls. Enable; ship to a separate account for tamper-resistance.
 
-**Mitigation:** This requires treating the policy repository with the same rigor as the core application code:
-1.  **Mandatory Multi-Party Review:** Policies affecting network boundaries must require sign-off from Security Engineering, Platform Engineering, and the Business Owner.
-2.  **Policy Drift Monitoring:** Continuous monitoring must compare the deployed policy state against the last approved, version-controlled state. Any deviation triggers an immediate, automated rollback and high-severity alert.
+### VPC Flow Logs
 
-### C. The Interplay with Service Mesh and Sidecars
+Network traffic logs. Useful for incident investigation.
 
-In a service mesh (like Istio or Linkerd), network policy enforcement is often delegated to a sidecar proxy (e.g., Envoy). This is a powerful enforcement point because it operates at Layer 7 (Application Layer) and is *proximal* to the workload.
+### Application logs
 
-The advanced IAM integration here is:
-1.  The workload authenticates to the mesh using its service identity (SPIFFE/SPIRE).
-2.  The sidecar proxy intercepts *all* traffic.
-3.  The sidecar proxy queries the central PDP (which uses the IAM context) to determine if the connection is allowed *before* forwarding the packet.
+Structured; centralized; not in CloudTrail.
 
-This effectively layers identity enforcement *inside* the network stack, making the network policy enforcement point itself identity-aware, which is the zenith of current cloud security architecture.
+### GuardDuty (AWS) / equivalent
 
----
+Anomaly detection. Catches known-bad patterns (compromised credentials, crypto-mining, data exfiltration). Enable.
 
-## VII. Conclusion: The Future State of Policy Governance
+### Config
 
-We have traversed the theoretical landscape from simple RBAC to the complex, attribute-rich, context-aware enforcement required by modern Zero Trust models. The evolution of cloud security IAM policies governing the network plane is not merely an addition of features; it is a fundamental architectural shift in how trust is established.
+Tracks configuration changes. Useful for compliance and post-incident review.
 
-The key takeaways for the researching expert are:
+## Common cloud security failures
 
-1.  **Decouple Logic from Enforcement:** Use a standardized, declarative policy language (like Rego) evaluated by a central PDP (like OPA) to define the *intent*, and use cloud-native tools (like GCP Tags or OCI IAM) as the *enforcement points* that consume that intent.
-2.  **Assume Failure:** Design policies assuming that any component—the identity provider, the network firewall, the workload runtime—can fail or be compromised. Therefore, the default must always be `DENY`.
-3.  **Embrace Context:** The most valuable policies are those that incorporate time, geography, behavioral baselines, and workload provenance into the decision matrix.
+### Public S3 buckets
 
-The complexity is immense, and the learning curve is steep. But mastering the interplay between the *who* (IAM), the *what* (Policy Logic), and the *where* (Network Plane) is the defining technical competency of the next decade of cloud security engineering. Failure to treat these three elements as a single, unified, verifiable system guarantees a vulnerability, no matter how robust the individual components appear.
+The classic. Bucket made public for some reason; sensitive data exposed. Use:
+- Bucket policies that deny public access
+- S3 Block Public Access at account level
+- Tools that scan for public buckets (AWS Config, third-party)
 
----
-*(Word Count Estimate: The detailed expansion across theoretical models, multi-cloud comparison, formal methods, and edge case analysis ensures the content depth required to meet the substantial length requirement while maintaining expert rigor.)*
+### Exposed access keys
+
+Access keys in code or in public git repos. Bots scan GitHub continuously for AWS keys.
+
+Use:
+- IAM roles instead of user keys
+- git-secrets (pre-commit hook)
+- GitHub secret scanning
+- Rotate keys; investigate exposed keys immediately
+
+### Over-permissioned IAM
+
+Too-broad policies because narrowing is hard. The fix:
+- IAM Access Analyzer (suggests policy refinements)
+- Review policies regularly
+- Lock down by default; broaden when needed
+
+### Misconfigured security groups
+
+0.0.0.0/0:22 (SSH from anywhere). Bots find these; brute-force or use leaked keys. Fix:
+- Limit SSH to specific IPs (VPN, office network)
+- Use SSM Session Manager instead of SSH
+- Bastion hosts for legitimate access
+
+### Outdated dependencies
+
+Vulnerable libraries, vulnerable AMIs, vulnerable base images. Scan continuously; patch promptly.
+
+## Common failure patterns
+
+- **Treating cloud as more secure by default.** It can be, but only with deliberate configuration.
+- **Relying on perimeter.** Defense in depth; assume breach.
+- **No audit logging.** Investigation impossible.
+- **No anomaly detection.** Compromise goes unnoticed for months.
+- **Slow patching.** Time-to-patch on critical CVEs matters.
+- **No incident response plan.** Surprise during the incident.
+
+## Further Reading
+
+- [AwsFundamentals](AwsFundamentals) — Service context
+- [CloudComplianceFrameworks](CloudComplianceFrameworks) — Compliance angle
+- [VulnerabilityManagement](VulnerabilityManagement) — Operational security
+- [WebApplicationFirewalls](WebApplicationFirewalls) — Edge security
+- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index

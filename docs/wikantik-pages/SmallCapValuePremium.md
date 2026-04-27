@@ -2,267 +2,169 @@
 canonical_id: 01KQ0P44WKZWZC5E72P3CVRBJQ
 title: Small Cap Value Premium
 type: article
+cluster: index-fund-investing
+status: active
+date: '2026-04-26'
+summary: The factor with the strongest historical record in equities — what the small-cap-value
+  premium is, why it has persisted, the recent decade of underperformance, and how
+  to actually access it in a portfolio.
 tags:
-- factor
-- premium
-- small
-summary: It is not merely a factor; it is a confluence of size, value, and often,
-  a degree of market neglect.
-auto-generated: true
+- small-cap-value
+- factor-investing
+- index-funds
+- portfolio-construction
+- equity-premium
+related:
+- LowCostIndexFundInvesting
+- AssetAllocationGuide
+- IndexFundPortfolioConstruction
+- TotalStockMarketFundAnatomy
+- MarketCapVsEqualWeightIndexing
+hubs:
+- LowCostIndexFundInvesting Hub
 ---
-# The Small Cap Value Premium
+# Small Cap Value Premium
 
-For those of us who spend our professional lives wrestling with the ghosts of academic anomalies and the stubborn persistence of market inefficiencies, the "Small Cap Value Premium" remains one of the most persistently debated, yet potentially lucrative, frontiers in quantitative finance. It is not merely a factor; it is a confluence of size, value, and often, a degree of market neglect.
+Among the equity factors that academic research has identified — size, value, momentum, quality, and others — small-cap value has the strongest historical record. Over the long run (decades), small-cap value stocks have outperformed the broader market by 2–4 percentage points per year. The mechanism is debated; the data is consistent across multiple countries and multiple decades.
 
-This tutorial is not intended for the casual portfolio manager looking for a quick alpha boost. We are addressing experts—researchers, quantitative strategists, and academic practitioners—who understand that any factor premium, no matter how robustly demonstrated historically, is ultimately a hypothesis subject to rigorous econometric testing, regime shifts, and the corrosive effects of academic attention itself.
+The complication: the premium has been weaker over the last 15 years, especially in US markets, leading some investors to question whether it still exists. This page is about what the premium is, what the recent underperformance might mean, and how to actually access the factor if you want to.
 
-We will dissect the theoretical underpinnings, critique the methodologies, explore the empirical nuances, and finally, chart the advanced frontiers for constructing and managing exposure to this factor.
+## What "small-cap value" means
 
-***
+Two factor exposures combined:
 
-## I. Introduction: Defining the Anomaly Landscape
+### Size factor
 
-The concept of [factor investing](FactorInvesting) posits that asset returns are not solely explained by systematic market risk ($\beta$), but by exposure to several measurable, persistent risk premia (e.g., size, value, momentum, quality). The Small Cap Value Premium (SCVP) suggests that a specific combination of characteristics—being small *and* being undervalued relative to its fundamentals—tends to generate excess returns ($\alpha$) over a risk-adjusted benchmark.
+Smaller companies (by market capitalization) have historically outperformed larger companies. The effect is most pronounced at the smaller end (small-cap and micro-cap) and weakens for mid-caps.
 
-### A. The Components
+### Value factor
 
-To treat this factor with the necessary academic rigor, we must first isolate its constituent parts:
+Cheaper companies (by metrics like price-to-book, price-to-earnings, dividend yield) have historically outperformed more expensive companies. "Cheap" here is defined by traditional value metrics, not by judgment about the underlying business.
 
-1.  **Small Cap (Size Factor):** Generally defined by market capitalization ($\text{Market Cap} < X$ billion USD). The initial theory, popularized by empirical work, suggests that smaller firms, due to their inherent structural disadvantages (less liquidity, less established governance, higher operational risk), require a higher expected return premium to compensate investors for this increased risk.
-2.  **Value (Book-to-Market/Price-to-Book Factor):** Value stocks are those whose current market price is low relative to their underlying tangible assets or historical earnings. The classic "value premium" suggests that investors are slow to recognize the true intrinsic worth of these assets, leading to systematic underpricing.
-3.  **The Interaction (Small Cap *AND* Value):** The core hypothesis is that the combination amplifies the premium. Small companies are often less visible, less scrutinized by institutional capital, and thus, when they are also undervalued, the mispricing effect is compounded.
+### Combined
 
-### B. The Academic Skepticism: The "Factor Zoo" Problem
+Stocks that are both small *and* cheap have produced even higher historical returns than either factor alone. The combination is more pronounced than the sum of the individual factors.
 
-Before diving into construction, we must acknowledge the elephant in the room: the factor zoo. Every persistent anomaly—from the size effect to the value effect—has been subjected to intense scrutiny, often resulting in findings that the premium is either non-existent, transient, or merely a reflection of unmodeled risk factors (e.g., liquidity risk, idiosyncratic risk).
+## The historical record
 
-As noted in the context, some argue that the observed premium might be a function of **repricing** (Context [3]). This suggests that the factor premium is not a stable, risk-adjusted compensation for bearing a persistent risk, but rather a temporary market overreaction or underreaction that eventually corrects. A sophisticated researcher must therefore model the *decay rate* of the premium, not just its existence.
+Over 1928–2020 in the US:
 
-***
+- US large-cap broad market: ~10% nominal return
+- US large-cap value: ~11.5%
+- US small-cap broad: ~12%
+- US small-cap value: ~13.5%
 
-## II. Theoretical Underpinnings: Why Should the Premium Exist?
+The 3.5 percentage point spread between large-cap broad and small-cap value compounded over a 40-year career produces roughly 3.5x more wealth — a substantial difference.
 
-If the factor premium were purely random noise, we wouldn't be here. The theoretical justification for the SCVP rests on several pillars, each requiring its own set of econometric models for validation.
+International data shows similar but somewhat weaker effects. The premium exists in most developed markets and most decades.
 
-### A. Limitations of the Capital Asset Pricing Model (CAPM)
+## The recent decade
 
-The CAPM is foundational but notoriously incomplete. It posits that expected return is linearly related only to systematic market risk ($\beta$).
+From roughly 2008–2023, US small-cap value underperformed US large-cap growth by a large margin. The reasons advanced include:
 
-$$\mathbb{E}[R_i] = R_f + \beta_i (\mathbb{E}[R_m] - R_f)$$
+- The dominance of large-cap technology in this era
+- Growth-stock multiple expansion (lower discount rates favored growth stocks)
+- Specific cyclical factors
 
-The existence of persistent premiums like size or value suggests that the true expected return function must be multi-factor:
+Whether this represents a temporary deviation or a permanent change in the premium is unsettled. Two views:
 
-$$\mathbb{E}[R_i] = R_f + \beta_{M} (\mathbb{E}[R_m] - R_f) + \beta_{Size} (\text{Size Premium}) + \beta_{Value} (\text{Value Premium}) + \dots$$
+### "The premium is dead"
 
-The SCVP hypothesis is essentially arguing for a significant, non-zero $\beta_{SmallCapValue}$ coefficient.
+The argument: factor premiums get arbitraged away once they are widely known. Once enough investors tilt toward small-cap value, the premium evaporates because the prices of those stocks are bid up.
 
-### B. Theoretical Drivers for Size and Value Anomalies
+This argument has some merit but is undermined by the persistence of the premium across decades and the fact that it has weakened-then-recovered multiple times historically.
 
-#### 1. Information Asymmetry and Agency Costs (The Small Cap Argument)
-Small firms inherently suffer from greater information asymmetry between management and external investors. They may have weaker corporate governance structures, making them more susceptible to agency costs. Investors demand compensation for bearing this *unobservable* risk.
+### "It is mean-reverting"
 
-*   **Advanced Consideration:** We must differentiate between *structural* risk (inherent to the industry/size) and *managerial* risk (poor governance). A robust factor model should attempt to isolate the latter.
+The argument: the premium is real but cyclical. Periods of underperformance are followed by periods of outperformance. The 2008–2023 underperformance is not unprecedented; similar stretches have happened before, and recoveries have followed.
 
-#### 2. Behavioral Finance and Underreaction (The Value Argument)
-The value premium is often linked to behavioral biases. Investors tend to overreact to new information, leading to temporary mispricing. Value stocks, being less followed by high-frequency trading algorithms and institutional mandates, are prime candidates for this behavioral mispricing.
+This view is the more common among academic researchers who built the factor models. It implies the premium will return, though timing is uncertain.
 
-#### 3. Liquidity Constraints and Capital Structure (The Interaction)
-Small caps often operate with tighter liquidity profiles. When combined with low valuation (suggesting distress or neglect), the combination implies a higher probability of needing emergency capital at unfavorable terms. This "distress premium" is the theoretical glue binding the two factors.
+The honest answer: nobody knows. Investors choosing to tilt toward small-cap value are making a judgment call that the long-run premium will continue.
 
-### C. The "Behavioral vs. Risk" Dichotomy
+## How to access small-cap value in a portfolio
 
-This is perhaps the most critical conceptual hurdle for any researcher. Is the premium:
-1.  **A Compensation for Unpriced Risk?** (e.g., higher default risk, operational risk). If so, it is a *risk factor* and theoretically arbitrable away if the risk is fully priced.
-2.  **A Behavioral Mispricing?** (e.g., investor inertia, herding). If so, it is an *anomaly* that may disappear when the market becomes perfectly rational.
+### Index ETFs
 
-A successful factor model must determine which component dominates the observed return stream.
+The most straightforward approach. Specific funds:
 
-***
+- **AVUV** (Avantis US Small Cap Value) — 0.25%, often considered the best implementation
+- **DFSV** (Dimensional US Small Cap Value) — 0.31%, from Dimensional Fund Advisors
+- **VBR** (Vanguard Small-Cap Value) — 0.07%, broader and less concentrated
+- **SLYV** (SPDR S&P 600 Small Cap Value) — 0.15%
 
-## III. Quantifying the Premium
+The differences between these funds are real:
 
-Moving from theory to practice requires selecting the appropriate econometric framework. The choice of model dictates the resulting factor exposure and, critically, the resulting risk profile.
+- **AVUV/DFSV** target the factor more aggressively (deeper value, smaller caps); higher expected factor exposure but higher fees
+- **VBR/SLYV** are broader and cheaper; weaker factor exposure but lower cost
 
-### A. Factor Model Selection: From Simple Regression to Multi-Factor Extensions
+For investors specifically wanting factor exposure, AVUV is often considered the best option. For investors wanting modest tilt at low cost, VBR works.
 
-The standard approach involves running time-series regressions on excess returns.
+### International small-cap value
 
-**1. Simple Regression (Initial Test):**
-We test the relationship between the return of a portfolio ($R_p$) and a proxy for the factor ($F$):
-$$\text{Excess Return}_t = \alpha + \beta \cdot \text{Factor Proxy}_t + \epsilon_t$$
-If $\alpha$ is statistically significant and positive, it suggests a persistent, unmodeled premium.
+If you want the factor outside US markets:
 
-**2. Fama-French Style Factor Models (The Benchmark):**
-The industry standard involves expanding the model to include multiple factors:
-$$\text{Excess Return}_i = \alpha + \beta_{MKT} (\text{MKT}_i) + \beta_{SMB} (\text{SMB}_i) + \beta_{HML} (\text{HML}_i) + \dots + \epsilon_i$$
-Where:
-*   $\text{MKT}$ is the market factor.
-*   $\text{SMB}$ (Small Minus Big) captures the size factor.
-*   $\text{HML}$ (High Minus Low) captures the value factor (using Book-to-Market ratio).
+- **AVDV** (Avantis International Small Cap Value) — 0.36%
+- **DISV** (Dimensional International Small Cap Value) — 0.45%
+- Vanguard does not have a clean international small-cap value fund
 
-**3. Constructing the Small Cap Value Factor ($\text{SCVP}$):**
-The expert approach requires constructing a factor that is *orthogonal* to the existing factors while maximizing the capture of the hypothesized interaction.
+### As part of a multi-factor fund
 
-Let $S$ be the set of small-cap stocks, and $V$ be the set of value stocks. The factor proxy ($\text{SCVP}_t$) should ideally represent the return differential between the most small and most value stocks, relative to the market average.
+Some funds combine multiple factors (size, value, quality, momentum) in one product. AVUV is technically a multi-factor fund; explicit "factor stack" funds exist but tend to be expensive.
 
-A potential factor construction, based on cross-sectional sorting, might look like this:
+## Sizing the allocation
 
-$$\text{SCVP}_t = \text{Return}(\text{Top Quintile Small, Bottom Quintile Value}) - \text{Return}(\text{Bottom Quintile Small, Top Quintile Value})$$
+If you choose to tilt toward small-cap value, the question is how much.
 
-This requires defining the quintiles based on the factor metrics (e.g., $\text{Market Cap}$ and $\text{B/M}$ ratio) at each time point $t$.
+### A modest tilt (5–15% of equity)
 
-### B. Addressing Data Snooping and Look-Ahead Bias
+Adds factor exposure without dramatically changing the portfolio's character. The most common approach. Low risk that the tilt dominates the experience if the factor underperforms.
 
-This is where most amateur factor research collapses. The ability to find a factor that worked perfectly in the past is not proof of future profitability.
+### A substantial tilt (20–40% of equity)
 
-**1. Survivorship Bias:**
-When constructing historical factor portfolios, one must *only* use the universe of stocks that existed and were actively traded during the period under study. Including delisted or merged companies artificially inflates the apparent factor performance.
+For investors with strong factor convictions. Provides meaningful exposure but accepts substantial tracking error vs. broad market.
 
-**2. Data Mining/Overfitting:**
-If you test 50 different combinations of size, value, liquidity, and momentum, and find a statistically significant result for one, you are likely suffering from data mining. The factor must demonstrate robustness across different time windows and factor definitions.
+### Heavy tilt (50%+)
 
-### C. Pseudocode Example: Cross-Sectional Factor Construction
+Rare; typically only for investors with very strong factor convictions and long horizons. Accepts the possibility of decade-plus periods of underperformance.
 
-To illustrate the rigorous process of constructing the factor portfolio return ($\text{SCVP}_t$):
+## The patience requirement
 
-```pseudocode
-FUNCTION Construct_SCVP_Factor(Data_Universe, Time_Period):
-    // 1. Define Screening Metrics
-    Metrics = {
-        'Size': Market_Cap,
-        'Value': Book_to_Market_Ratio
-    }
-    
-    // 2. Cross-Sectional Ranking (At time t)
-    Rank_Size = Rank(Metrics['Size'], ascending=True) // Smallest = Rank 1
-    Rank_Value = Rank(Metrics['Value'], ascending=True) // Lowest B/M = Rank 1
-    
-    // 3. Portfolio Construction (Quintile Sorting)
-    // P_High = Top 20% Small, Bottom 20% Value
-    P_High_Indices = Filter(Universe, Rank_Size <= 0.20 * N, Rank_Value <= 0.20 * N)
-    Return_High = Calculate_Portfolio_Return(P_High_Indices)
-    
-    // P_Low = Bottom 20% Small, Top 20% Value
-    P_Low_Indices = Filter(Universe, Rank_Size >= 0.80 * N, Rank_Value >= 0.80 * N)
-    Return_Low = Calculate_Portfolio_Return(P_Low_Indices)
-    
-    // 4. Factor Return Calculation
-    SCVP_t = Return_High - Return_Low
-    
-    RETURN SCVP_t
-```
+Factor investing requires patience. The premium materializes over decades, not years. An investor adding small-cap value at the wrong moment can experience 5–15 years of underperformance before the factor returns.
 
-***
+This is the single biggest behavioral challenge with factor investing: the conviction that the long-run return premium is real has to survive multi-year periods where the tilt is hurting performance.
 
-## IV. Empirical Evidence and Historical Interpretation
+If you would not hold a small-cap value fund through 10+ years of underperforming the broader market, you should not buy one. The factor premium is paid for by the willingness to hold through bad periods.
 
-The literature is voluminous, and the conclusions are often contradictory. We must synthesize the findings while maintaining a critical eye toward the underlying assumptions.
+## Common failure patterns
 
-### A. The Historical Performance Narrative (Context [6])
+- **Buying after a stretch of outperformance.** The factor is mean-reverting; buying after strong performance often catches the wrong end of the cycle.
+- **Selling during periods of underperformance.** Similar mistake on the other side.
+- **Comparing factor funds to broad market on short horizons.** The premium materializes over decades.
+- **Holding factor funds in taxable accounts without considering tax efficiency.** Some factor funds have high turnover; tax drag can offset factor gains.
+- **Stacking too many factors into a complex portfolio.** Each additional factor adds tracking error and complexity. For most investors, a single factor tilt (small-cap value) is plenty.
 
-Historical data often paints a compelling picture. When the Small Cap Value factor is isolated, the outperformance relative to broad indices (like the S&P 500) can be dramatic. This historical evidence is the primary driver for renewed interest (Context [7]).
+## A reasonable conclusion
 
-However, the interpretation of this performance must be tempered by the **time period** analyzed. Did the premium exist during periods of low inflation and stable growth, or was it inflated during periods of extreme market dislocation (e.g., 2008, early 2020)?
+For investors who want exposure to the strongest equity factor:
 
-### B. The Role of Economic Cycles and Catalysts (Context [8])
+- 5–15% of equity in a low-cost small-cap value fund (AVUV or VBR)
+- Hold in tax-advantaged accounts where possible
+- Plan to hold for decades; do not sell during underperformance
+- Accept that the premium may not show up over your specific horizon
 
-The factor premium is rarely static; it is highly cyclical. The context suggests that specific macroeconomic conditions act as catalysts:
+For investors who want simplicity and acceptable returns without factor bets:
 
-1.  **Interest Rate Cycles:** When interest rates are expected to fall (or are already falling), capital tends to flow toward risk assets. Small caps, which are more sensitive to the cost of capital and growth expectations, often benefit disproportionately.
-2.  **Economic Growth Expectations:** During periods of anticipated economic acceleration, small companies, which are often the engine of nascent growth, tend to outperform large, mature monopolies.
-3.  **Valuation Compression:** When broad market valuations (e.g., Shiller PE) are historically high, capital tends to rotate into "cheap" assets, which disproportionately includes small, neglected value names.
+- Just hold broad-market index funds
+- The implicit factor exposure (you have *some* small and *some* value in a total-market fund) is enough for most purposes
 
-### C. The Repricing Hypothesis Revisited (Context [3])
+Both approaches are defensible. Heavy factor tilting requires conviction and patience; choosing not to tilt requires accepting that you might leave 1–3% of expected return on the table over the long run.
 
-If the premium is primarily due to repricing, the factor is not a *risk premium* but a *mean-reverting opportunity*. This suggests that the optimal investment strategy is not to *hold* the factor indefinitely, but to *time* the entry into the factor when the market has significantly underpriced it relative to its historical mean.
+## Further Reading
 
-This leads to the concept of **Factor Momentum:** Buying the factor when it is historically *low* (i.e., when the market has been ignoring small, value stocks for too long) and exiting when it has reached its historical *high*.
-
-***
-
-## V. Advanced Factor Construction: Beyond Simple Metrics
-
-For the expert researcher, the goal is to move beyond simple binary classifications (Small/Large, Value/Growth) and build a factor that captures the *interaction* of multiple, non-linear risk dimensions.
-
-### A. Incorporating Liquidity and Profitability
-
-A simple $\text{B/M}$ ratio fails to account for the fact that a small, unprofitable company might be "cheap" but functionally worthless due to operational failure. We must augment the factor definition.
-
-**1. Liquidity Adjustment:**
-We should penalize the factor score for low liquidity. A small, deeply undervalued stock that trades infrequently is riskier than a small, undervalued stock that trades daily.
-
-Let $L_i$ be the average daily trading volume (or Amihud measure of illiquidity) for stock $i$. We can modify the factor score $F'_i$:
-
-$$F'_i = F_i \cdot \text{Liquidity\_Score}_i$$
-
-Where $\text{Liquidity\_Score}_i$ is inversely related to the observed illiquidity measure.
-
-**2. Profitability Screening:**
-We must filter out "zombie" small caps. A robust factor should only apply to small caps that demonstrate *some* positive cash flow generation or positive operating cash flow relative to their size.
-
-### B. The Small Cap Value Momentum (SCVM) Factor
-
-A highly advanced construction involves combining the value screen with a momentum screen.
-
-*   **Small Cap:** Size filter.
-*   **Value:** Low $\text{B/M}$ ratio.
-*   **Momentum:** Positive price return over the last 6-12 months.
-
-The hypothesis here is that the market has been *ignoring* small, cheap stocks (Value/Size), but when they finally start to move (Momentum), the resulting return is amplified. This suggests that the factor is not static, but rather a *trigger* mechanism.
-
-### C. Modeling the Factor Interaction Mathematically
-
-We can model the expected return premium ($\text{Prem}$) as a function of the interaction term:
-
-$$\text{Prem} = \beta_{Size} \cdot \text{Size} + \beta_{Value} \cdot \text{Value} + \beta_{Interaction} \cdot (\text{Size} \times \text{Value}) + \epsilon$$
-
-The core research question becomes: Is $\beta_{Interaction}$ significantly positive and robust across different time periods? If $\beta_{Interaction}$ is the dominant term, it validates the hypothesis that the *combination* is the source of alpha, not the individual components.
-
-***
-
-## VI. Risk Management, Edge Cases, and Factor Decay
-
-For experts, the discussion must pivot from "Does it work?" to "When, and how, does it fail?"
-
-### A. Regime Shifts and Factor Decay
-
-Factor premiums are not guaranteed. They are statistical artifacts of the prevailing economic regime.
-
-1.  **The "Great Moderation" Effect:** During periods of low volatility and predictable growth (the Great Moderation), the distinct premiums may shrink or disappear as market efficiency increases.
-2.  **Regulatory Changes:** Changes in accounting standards (e.g., IFRS adoption), changes in listing requirements, or sector-specific regulations can instantly invalidate historical factor definitions.
-3.  **Factor Crowding:** As the factor becomes widely adopted (e.g., many ETFs tracking "Small Cap Value"), the alpha source is arbitraged away. The premium decays toward zero as the factor becomes priced into the market.
-
-### B. Liquidity Risk as the Primary Risk
-
-The most significant risk associated with the SCVP is **liquidity mismatch**.
-
-*   **The Problem:** Small, value stocks are often illiquid. If a factor strategy requires selling a large position in a small-cap stock during a market downturn, the required execution volume may force the seller to accept a significantly lower price than the theoretical intrinsic value.
-*   **Mitigation:** Factor exposure must be dynamically scaled based on the average daily trading volume (ADTV) relative to the position size. A position in a stock with ADTV of \$1M should never exceed 5-10% of the total portfolio allocation, regardless of the factor signal strength.
-
-### C. Correlation Breakdown
-
-In times of systemic stress (e.g., a sudden credit crunch), correlations between seemingly uncorrelated factors can break down. During such events, the correlation between small cap returns and large cap returns can spike to 1.0, effectively neutralizing the size premium.
-
-**Actionable Insight:** Factor exposure should be modeled with stress-testing scenarios, specifically examining the factor's performance during periods where $\text{Corr}(R_{SmallCap}, R_{LargeCap}) > 0.95$.
-
-***
-
-## VII. Conclusion: Synthesis and Future Research Trajectories
-
-The Small Cap Value Premium is a sophisticated, multi-dimensional hypothesis. It is not a single factor, but rather a complex interaction term ($\text{Size} \times \text{Value}$) that is highly sensitive to the prevailing macroeconomic regime and the degree of market efficiency.
-
-### A. Summary of Expert Takeaways
-
-1.  **Hypothesis:** The premium likely exists due to a combination of information asymmetry (structural risk) and behavioral underreaction (mispricing).
-2.  **Methodology:** Factor construction must be cross-sectional, dynamically ranked, and rigorously tested for orthogonality against established factors (MKT, SMB, HML).
-3.  **Risk:** Liquidity risk and factor decay are the primary threats. The factor must be treated as a *signal* for *timing* rather than a perpetual *risk compensation*.
-
-### B. Directions for Advanced Research
-
-For those continuing to push the boundaries of factor research, we suggest focusing on these areas:
-
-1.  **[Machine Learning](MachineLearning) for Factor Discovery:** Instead of relying on linear factor models, employ non-linear techniques (e.g., Random Forests, Neural Networks) to model the return function, allowing the model to discover complex, non-additive interactions between size, value, and profitability metrics that traditional regression might miss.
-2.  **Incorporating ESG/Governance:** Develop a "Governance Discount" factor. Perhaps the true premium is not just "small" and "cheap," but "small," "cheap," *and* showing signs of governance improvement (i.e., a factor that measures the *potential* for improvement, rather than just the current state).
-3.  **Factor Hedging and Decay Modeling:** Develop quantitative models that estimate the expected decay rate ($\lambda$) of the premium based on the current level of market attention (e.g., tracking the number of academic papers or media mentions related to the factor).
-
-In essence, the Small Cap Value Premium is less a guaranteed alpha source and more a sophisticated, high-conviction bet on the market's persistent failure to fully price the combined risk and opportunity inherent in overlooked, smaller enterprises. Proceed with extreme caution, model with extreme rigor, and never, ever assume the factor will behave as it did in the last decade.
+- [LowCostIndexFundInvesting](LowCostIndexFundInvesting) — The default investment philosophy
+- [AssetAllocationGuide](AssetAllocationGuide) — Where factor tilts fit in allocation
+- [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction) — Building from these components
+- [TotalStockMarketFundAnatomy](TotalStockMarketFundAnatomy) — The cap-weighted alternative
+- [MarketCapVsEqualWeightIndexing](MarketCapVsEqualWeightIndexing) — Equal weighting as alternative tilt
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index

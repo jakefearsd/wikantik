@@ -2,285 +2,148 @@
 canonical_id: 01KQ0P44PGSS3FVDC176MP7AYM
 title: Debugging Strategies
 type: article
+cluster: software-engineering-practices
+status: active
+date: '2026-04-26'
+summary: The systematic approach to debugging — reproduce, narrow, hypothesize, verify
+  — and the specific techniques (bisection, logging, observability) that turn random
+  guessing into reliable problem-solving.
 tags:
-- must
-- failur
-- test
-summary: Failure Analysis Debugging, at its most fundamental level, is not merely
-  the act of finding and fixing bugs.
-auto-generated: true
+- debugging
+- problem-solving
+- software-engineering
+- bisection
+- observability
+related:
+- CleanCodePrinciples
+- RefactoringStrategies
+- LegacyCodeModernization
+- JavaExceptionHandlingPatterns
+- TechnicalDebtManagement
+hubs:
+- SoftwareEngineeringPractices Hub
 ---
-# Failure Analysis
+# Debugging Strategies
 
-Debugging, at its most fundamental level, is not merely the act of finding and fixing bugs. For the expert researcher operating at the frontier of computational science, it is a sophisticated, multi-layered discipline—a rigorous form of **failure analysis**. It requires a synthesis of deep domain knowledge, advanced mathematical reasoning, meticulous engineering discipline, and a healthy dose of intellectual skepticism.
+Most debugging is done by guess-and-check, which is why most debugging is slow. Effective debugging is a structured process: reproduce the bug, narrow its location, form a hypothesis about the cause, verify, fix, confirm. Each step has techniques that work better than guessing.
 
-This tutorial moves beyond the superficial "print statement" advice. We aim to establish a comprehensive, systematic framework for approaching any intractable computational failure, treating the bug itself as a complex, poorly defined system state that must be reverse-engineered.
+This page is about the systematic approach, the specific techniques that compound into faster diagnosis, and the patterns that catch even experienced engineers.
 
----
+## The four-step framework
 
-## 💡 Introduction: Debugging as Epistemological Inquiry
+### 1. Reproduce
 
-For the seasoned developer, the bug is an unwelcome data point. For the researcher, the bug is a **systematic failure of understanding**. When a complex model fails, or an algorithm produces an anomalous result, the immediate question is rarely, "What line of code is wrong?" Instead, the expert must ask: "What assumptions have been violated by the system, the data, or the model itself?"
+A bug you cannot reproduce is a bug you cannot fix reliably. Time spent making the bug reproducible is rarely wasted; you can iterate on potential fixes only after you have a reproducible test case.
 
-The goal of systematic debugging is to transform the process from **guesswork (heuristic trial-and-error)** into **deductive reasoning (formal proof of failure)**. We are not just patching symptoms; we are mapping the failure boundary conditions.
+Two kinds of reproduction:
+- **Minimal**: the smallest input or sequence that triggers the bug. The minimal case is what you want for debugging; full reproductions take time and obscure the cause.
+- **Reliable**: the bug happens every time you run the case. Intermittent bugs become priority-zero work to make reliable before debugging.
 
-### Defining the Scope: What is "Systematic"?
+If a bug seems unreproducible: look for environmental dependencies (timing, ordering, concurrency, state, time of day, configuration). The cause is often there.
 
-A systematic approach implies adherence to a repeatable, verifiable process that minimizes cognitive bias and maximizes the coverage of potential failure vectors. It demands that the investigator treat the entire system—hardware, operating system, runtime environment, and application logic—as a single, interconnected, and potentially hostile entity.
+### 2. Narrow
 
-We will structure this exploration across five major domains:
-1.  The Foundational Debugging Lifecycle (The Workflow).
-2.  Advanced Methodologies (The Theory).
-3.  Tooling and Automation (The Engineering Support).
-4.  Handling Concurrency and State (The Hard Problems).
-5.  Meta-Strategies and Cognitive Models (The Mindset).
+You have the bug reproducible. Now find where it happens. Two techniques dominate:
 
----
+#### Bisection
 
-## I. The Foundational Debugging Lifecycle: From Symptom to Root Cause
+Halve the suspect space repeatedly. If you have a recent set of changes that introduced the bug, `git bisect` literally halves the commit history — log(n) operations to find the offending commit.
 
-Before diving into esoteric techniques, one must master the canonical workflow. This lifecycle ensures that no critical step—from initial observation to final verification—is skipped due to intellectual fatigue or overconfidence.
+Bisection also works on code regions: comment out half the function, see if the bug persists, narrow accordingly.
 
-### A. Phase 1: Problem Definition and Scoping (The "What")
+#### Inspection at boundaries
 
-This is arguably the most neglected phase, yet it determines the success rate of the entire investigation. A poorly defined problem leads to an infinite search space.
+Add logging or assertions at function boundaries. Watch which boundary first sees bad data. The transition is your bug location.
 
-**1. Symptom vs. Root Cause:**
-An expert must rigorously distinguish between the *symptom* (the observable failure, e.g., "The output is $NaN$") and the *root cause* (the underlying flaw, e.g., "A division by zero occurred because the input validation failed to account for the zero vector").
+### 3. Hypothesize
 
-**2. Establishing the Contract:**
-Every piece of code, every function, and every module must have a clearly defined *contract*. This contract specifies:
-*   **Preconditions:** What must be true *before* the function is called (e.g., input array must be non-empty, $N > 0$).
-*   **Postconditions:** What must be true *after* the function successfully completes (e.g., the returned value must be positive, the state variable must be updated).
-*   **Invariants:** Properties that must hold true across the entire lifespan of the object or module, regardless of method calls (e.g., a linked list must always maintain the property that `head.next` is not null if the list has more than one element).
+You found *where* the bug happens. Now form a hypothesis about *why*. The hypothesis must be testable.
 
-If the failure occurs, the first step is to trace which contract was violated.
+Bad hypothesis: "It's a memory issue."
+Good hypothesis: "The for-loop on line 47 is processing entries in reverse order, so when entry 5 is processed, entries 0–4 have already been freed."
 
-**3. Scope Reduction (Bounding the Search Space):**
-The system must be reduced to the smallest possible reproducible unit. This is the principle of **Minimal Reproducible Example (MRE)**. If the bug only appears when processing a 10,000-element dataset, the first task is to find the smallest dataset (e.g., 3 elements) that still triggers the failure. This drastically reduces the combinatorial explosion of possibilities.
+The hypothesis names a specific mechanism. The mechanism makes a specific prediction.
 
-### B. Phase 2: Reproduction and Isolation (The "How")
+### 4. Verify
 
-The bug must be reliably triggered. If you cannot reproduce it, you cannot solve it.
+Test the hypothesis. The fix is not the verification; the verification is the test that confirms the mechanism *and* the test that confirms the fix resolves it.
 
-**1. Deterministic Reproduction:**
-The goal is to make the failure deterministic. If the bug only appears sometimes (a "Heisenbug"), the investigation shifts from pure debugging to **observability engineering**. This involves instrumenting the system to capture the precise environmental state (timing, memory layout, external inputs) at the moment of failure.
+If the hypothesis was wrong, you learned something — go back to step 3 with new information. Wrong hypotheses are part of the process.
 
-**2. Boundary Condition Testing:**
-Systematic testing must focus on the edges of the defined operational space:
-*   **Null/Empty Inputs:** Testing with `null`, empty collections, or zero values.
-*   **Maximum/Minimum Values:** Testing with the largest representable integer ($\text{INT\_MAX}$) or the smallest non-zero value.
-*   **Asymmetry:** Testing inputs that are structurally similar but mathematically distinct (e.g., testing `[1, 2, 3]` vs. `[3, 2, 1]`).
+## High-leverage techniques
 
-### C. Phase 3: Hypothesis Generation and Testing (The "Why")
+### Print debugging is fine
 
-This phase transitions from empirical observation to theoretical modeling.
+Print debugging gets disrespected in favor of debuggers, but print debugging is often faster for the kinds of bugs that span function boundaries or involve timing. The bias against print debugging is mostly cultural.
 
-**1. The Hypothesis Loop:**
-This is a scientific method applied to code.
-*   **Observation:** The system failed at point $P$ with state $S$.
-*   **Hypothesis ($\mathcal{H}$):** "The failure is caused because variable $X$ held an incorrect value $V'$ at time $T$."
-*   **Test:** Design the smallest possible test case that *only* validates $\mathcal{H}$.
-*   **Outcome:** If the test fails, $\mathcal{H}$ is accepted (we found the bug). If the test passes, $\mathcal{H}$ is rejected, and a new hypothesis ($\mathcal{H}'$) is formulated based on the failure of the test.
+The trick: print enough to know what is happening, not so much that signal drowns in noise. A few well-placed prints with structured output beats grep through 10MB of log dumps.
 
-**2. Backtracking and State Reconstruction:**
-When the failure point is deep within a call stack, one must employ **backtracking**. Instead of stepping forward from the start, one steps *backward* from the failure point, examining the state variables at each preceding call site to determine the exact sequence of incorrect assumptions that led to the faulty state.
+### Debuggers are best for state inspection
 
----
+A debugger shines when you need to inspect data structures at a specific moment. Stepping through code line-by-line is rarely the right use; setting a breakpoint at the suspect location and examining state usually is.
 
-## II. Advanced Methodologies: Theoretical Approaches to Failure
+### Logging at boundaries
 
-For experts, the problem often transcends simple logic errors. We must employ mathematical and theoretical tools to prove the absence or presence of errors.
+Permanent structured logs at function boundaries let you debug production issues without re-deploying. The logs cost nothing in normal operation; they pay back the first time you have to debug a customer-reported issue.
 
-### A. Invariants and Loop Invariants
+### Tracing for distributed systems
 
-This is perhaps the most powerful technique for analyzing iterative or recursive algorithms.
+Distributed traces (OpenTelemetry, Jaeger) show how a request flows through services. For bugs that span service boundaries, traces are essentially required — print debugging across services does not work.
 
-**1. Program Invariants:**
-An invariant is a condition that must hold true at specific points in the program's execution (e.g., at the entry and exit of a loop, or at the beginning of a function). If you can prove that a specific invariant *must* hold, and the observed state violates it, you have proven a bug.
+### Observability beats monitoring
 
-**2. Loop Invariants:**
-When analyzing a loop structure (e.g., `for (i=0; i < N; i++)`), the loop invariant must be established. It is a condition that remains true *before* each iteration.
+Monitoring tells you the bug is happening. Observability lets you understand why. Modern observability tools (tracing, structured logs, metrics tied to traces) can convert "the API is slow sometimes" into "the API is slow when this specific code path triggers, which happens when these inputs arrive."
 
-Consider a standard sorting algorithm. If the invariant is "After iteration $k$, the first $k$ elements are sorted and in their final correct positions," then any deviation from this invariant during the $k+1$ iteration signals a flaw in the logic governing that iteration.
+## Specific patterns
 
-**Formalizing the Concept:**
-If $S_k$ is the state before iteration $k$, and $S_{k+1}$ is the state after, the loop invariant $I$ must satisfy:
-1.  **Initialization:** $I$ is true before the first iteration.
-2.  **Maintenance:** If $I$ is true before iteration $k$, then the body of the loop ensures $I$ remains true after iteration $k$.
-3.  **Termination:** When the loop terminates, the desired postcondition $P$ must be derivable from $I$.
+### "It works on my machine"
 
-If the observed state violates $I$ at any point, the bug lies in the loop body's maintenance logic.
+Different environments have different state, configuration, dependencies. The bug exists; the question is what your machine has that production does not (or vice versa). Common causes: stale data, different OS, different timezone, different file permissions, environment variables, cached state.
 
-### B. Abstract Interpretation and Model Checking
+### Race conditions
 
-For the truly advanced researcher, debugging moves into the realm of formal methods.
+The bug appears under load but not in isolation. Or it appears intermittently with no clear pattern. Race conditions are real but over-attributed; a "race condition" is the wrong diagnosis when the underlying cause is shared mutable state without synchronization. Look for the shared state first.
 
-**Abstract Interpretation** is a mathematical framework for determining the semantics of a program without actually executing it on all possible inputs. Instead, it maps the concrete, potentially infinite set of possible program states into a finite, abstract domain.
+### Heisenbugs (the bug disappears when you debug)
 
-*   **Example:** Instead of tracking the exact value of a variable $x$ (which could be any floating-point number), the abstract domain might track the *range* of $x$ (e.g., $x \in [0, 1]$).
-*   **Application:** This is crucial for proving properties like "this function will never return a negative number" without running the function through every possible negative input.
+The act of debugging changes the bug. Common causes: timing changed by added prints, optimization disabled in debug builds, the bug depended on uninitialized memory now zero-initialized.
 
-**Model Checking** takes this further. It attempts to exhaustively check whether a system model (often described in [temporal logic](TemporalLogic), like LTL or CTL) satisfies a set of required properties. If the model checker finds a path that violates a property, it returns a **counterexample trace**—the exact sequence of inputs and states that caused the failure. This is the gold standard for proving the existence of a bug.
+### Schroedinbugs (impossible bugs)
 
-### C. Differential Debugging (Delta Debugging)
+Bugs in code that should never have worked. Often appear after a change that fixes some other bug — the original code was working "by accident." Look for the latent bug; the change just exposed it.
 
-When a bug is suspected to be related to a large, complex input set, differential debugging is invaluable. The core idea is to find the *minimal difference* between the failing input and a known working input.
+### Bugs that come and go
 
-If Input $A$ fails, and Input $B$ works, the bug is likely caused by the structural or semantic difference between $A$ and $B$. Techniques involve iteratively removing elements, simplifying [data structures](DataStructures), or reducing the complexity of the input until the failure boundary is hit. This is computationally intensive but mathematically sound for narrowing the search space.
+Often environmental: a flaky test that depends on filesystem state, a service that depends on an external system that has its own outages. Track them down before declaring the bug "intermittent and ignorable."
 
----
+## The patterns that produce most bugs
 
-## III. The Mechanics of State Tracking and Observability
+Most production bugs fall into a small number of categories:
 
-The modern debugger is a powerful tool, but the expert must know how to *out-think* the tool's limitations.
-
-### A. Advanced Logging and Observability Frameworks
-
-Simple `print()` statements are insufficient. Professional debugging requires structured, contextual logging.
-
-**1. Contextual Logging:**
-Logs must capture more than just the value; they must capture the *context* of the value.
-*   **Bad Log:** `User processed successfully.`
-*   **Good Log:** `[TXN_ID: 9001] [USER_ID: 45] [SERVICE: Auth] User processed successfully. Input payload hash: 0xDEADBEEF. Duration: 12ms.`
-
-**2. [Structured Logging](StructuredLogging) (JSON/Key-Value Pairs):**
-Using structured formats allows downstream analysis tools (like ELK stack or Splunk) to query the failure state with the precision of a database query, rather than relying on fragile regex matching on plain text.
-
-**3. Checkpointing and State Snapshots:**
-For long-running processes or simulations, the ability to take a full, serialized snapshot of the entire system state (memory, registers, object graphs) at critical junctures is vital. If a failure occurs hours later, one can "rewind" the execution to the last known good checkpoint and re-run the subsequent steps with controlled inputs.
-
-### B. Time-Travel Debugging (The Holy Grail)
-
-Time-travel debuggers (available in some advanced IDEs and specialized hardware emulators) allow the developer to execute code, pause, change a variable's value, and then *rewind* execution to see how the subsequent code path reacts to the artificial change.
-
-This capability is revolutionary because it allows the investigator to test "what-if" scenarios that would be impossible or prohibitively expensive to reproduce in real time (e.g., "What if this external API call returned a 503 error *right now*?").
-
-### C. Differential Debugging in Memory (Memory Differencing)
-
-When dealing with memory corruption (e.g., buffer overflows, use-after-free), the problem is that the corruption happens *before* the failure manifests.
-
-The strategy here is to use memory instrumentation tools (like Valgrind or AddressSanitizer) that track the *history* of memory writes. The expert must analyze the memory map to determine:
-1.  Which memory region was written to illegally?
-2.  What was the *expected* value in that region?
-3.  What was the *actual* value written?
-
-This moves the focus from the crash site to the **source of the corruption**.
-
----
-
-## IV. Concurrency, Parallelism, and Non-Determinism (The Expert Gauntlet)
-
-If single-threaded debugging is like solving a complex puzzle, debugging concurrent systems is like trying to solve the puzzle while the pieces are constantly vibrating and occasionally swapping places without warning. These bugs are notoriously difficult because they are **path-dependent** and **non-deterministic**.
-
-### A. Race Conditions: The Illusion of Sequence
-
-A race condition occurs when the outcome of the program depends on the unpredictable order in which multiple threads access and modify shared data.
-
-**The Problem:** The bug isn't in the code; it's in the *timing* of the execution.
-
-**Systematic Approach:**
-1.  **Identify Shared Resources:** Catalog every piece of data (variables, files, database records) accessed by more than one thread.
-2.  **Identify Critical Sections:** Determine the precise blocks of code where shared resources are read or written.
-3.  **Enforce Mutual Exclusion:** The primary fix is to wrap all critical sections with synchronization primitives:
-    *   **Locks/Mutexes:** Ensuring only one thread can enter the section at a time.
-    *   **Semaphores:** Controlling access to a limited pool of resources.
-    *   **Atomic Operations:** Using hardware-level guarantees for simple read-modify-write sequences (e.g., `std::atomic<int>`).
-
-**The Pitfall (Deadlocks):** Over-reliance on locks can introduce deadlocks. A deadlock occurs when two or more threads are each waiting indefinitely for the other to release a resource. The systematic solution here is **Lock Ordering**: all threads must acquire necessary locks in the exact same, predefined global order.
-
-### B. Livelocks and Starvation
-
-These are related but distinct failure modes:
-*   **Livelock:** Threads are active, consuming CPU cycles, but they are continuously reacting to each other's state changes without making any forward progress (e.g., two people repeatedly stepping aside from each other in a hallway). The system appears busy but achieves nothing.
-*   **Starvation:** A thread is perpetually denied necessary resources (CPU time, locks) by higher-priority or more aggressively scheduled threads.
-
-**Mitigation:** Implementing back-off strategies (e.g., exponential back-off with jitter) or using fairness mechanisms within the synchronization primitives.
-
-### C. Data Races and Memory Model Violations
-
-In highly optimized, multi-core environments, the compiler and CPU aggressively reorder instructions for performance (Out-of-Order Execution). This reordering can violate the logical sequence intended by the programmer, leading to data races even if locks *seem* to be in place.
-
-The expert must understand the underlying **Memory Model** (e.g., C++'s `std::memory_order` or Java's `volatile` semantics). Explicit memory barriers (`std::atomic` operations are often wrappers around these) are required to force the compiler and hardware to commit operations in the intended sequence, overriding the performance optimizations that mask the bug.
-
----
-
-## V. Tooling, Automation, and the AI Frontier
-
-The sheer complexity of modern systems mandates that the human investigator must leverage increasingly sophisticated tooling.
-
-### A. Static Analysis vs. Dynamic Analysis
-
-These two approaches are not mutually exclusive; they are complementary layers of defense.
-
-**1. Static Analysis (The Compiler's Best Friend):**
-This involves analyzing the source code *without* executing it. Tools check for patterns that are mathematically impossible or violate established coding standards.
-*   **What it finds:** Unreachable code, potential null pointer dereferences (if the type system allows it), uninitialized variables, and adherence to style guides.
-*   **Limitation:** It cannot know the runtime state. It can only prove what *cannot* happen, not what *will* happen given complex external inputs.
-
-**2. Dynamic Analysis (The Runtime Observer):**
-This involves executing the code while monitoring its behavior.
-*   **What it finds:** Actual crashes, race conditions, memory leaks, and incorrect runtime values.
-*   **Limitation:** It can only prove what *did* happen during the test run. If the test case misses the failure path, the bug remains hidden.
-
-**The Expert Workflow:** Use Static Analysis first to eliminate the low-hanging fruit (the obvious violations). Then, use Dynamic Analysis, guided by the insights from the static analysis, to hunt for the subtle, state-dependent failures.
-
-### B. Symbolic Execution (The Path Explorer)
-
-Symbolic execution is a powerful technique that treats input values not as concrete numbers (like `5`) but as *symbols* (like $x$). The tool then tracks all possible paths through the program logic, generating constraints on these symbols.
-
-If a function has $N$ branches (if/else statements), a traditional test suite only covers one path. Symbolic execution attempts to cover *all* paths by solving the resulting constraint system.
-
-**Example:**
-If the code is:
-```cpp
-if (x > 0) { return x * 2; }
-else if (x < 0) { return x * 2; }
-else { return 0; }
-```
-A test suite might only check $x=5$ (Path 1) and $x=-5$ (Path 2). Symbolic execution, by treating $x$ as a symbol, forces the solver to verify the path where $x=0$ (Path 3), ensuring the logic holds for all symbolic inputs.
-
-### C. The Role of Machine Learning in Debugging (The Future)
-
-The current frontier involves using ML to assist the human investigator, particularly in massive codebases.
-
-1.  **Anomaly Detection in Traces:** ML models can be trained on millions of successful execution traces. When a failure occurs, the model analyzes the resulting trace and flags deviations from the established "normal" operational profile, pointing the expert toward the most statistically anomalous sequence of events.
-2.  **Automated Test Case Generation:** Instead of manually writing unit tests for every edge case, ML techniques (like fuzzing guided by reinforcement learning) can intelligently mutate inputs to maximize the likelihood of triggering an unhandled exception or violating an invariant.
-
----
-
-## VI. Synthesis: The Meta-Strategy of Debugging
-
-To summarize the sheer volume of techniques, we must synthesize them into a single, overarching meta-strategy. This is the mindset required to tackle the truly intractable bugs.
-
-### A. The Principle of Maximum Entropy Reduction
-
-When faced with a bug, the system is in a state of high uncertainty (high entropy). Every piece of information gathered—a log line, a failed assertion, a memory dump—is a reduction in entropy. The expert's job is to acquire information that yields the *maximum reduction* in uncertainty with the *minimum cost* (time, computation, or complexity).
-
-*   **Poor Information:** "The system crashed." (Low entropy reduction).
-*   **Excellent Information:** "The crash occurred when the thread holding the write lock on the global counter released it *after* the network packet was acknowledged, but *before* the final commit transaction was logged." (High entropy reduction, pointing directly to the race condition boundary).
-
-### B. The "Rubber Duck" Principle Re-contextualized
-
-The classic "Rubber Duck Debugging" technique—explaining the code line-by-line to an inanimate object—is not merely about talking aloud. It is a powerful **cognitive forcing function**.
-
-When you are forced to articulate the logic to an external, non-judgmental entity, your brain is forced to move from the *intuitive* understanding (which is flawed) to the *formal* understanding (which must be precise). The act of formalizing the explanation reveals the gap between what you *think* the code does and what the code *actually* does.
-
-### C. The Iterative Deepening Approach
-
-If the initial systematic passes fail, the investigation must become iterative and deepening.
-
-1.  **Level 1 (Surface):** Check inputs, outputs, and obvious logic flow (Standard debugging).
-2.  **Level 2 (Systemic):** Check invariants, contracts, and resource management (Concurrency/State analysis).
-3.  **Level 3 (Theoretical):** Assume the code is correct and prove that the *environment* or the *assumptions* are flawed (Formal verification, memory model violations).
-4.  **Level 4 (Meta):** Assume the entire problem domain model is flawed. The bug isn't in the code; it's in the mathematical representation of reality that the code is trying to model.
-
----
-
-## Conclusion: The Debugger as the Ultimate Engineer
-
-Mastering systematic debugging is not about memorizing a checklist of tools; it is about cultivating a specific, highly disciplined, and relentlessly skeptical mindset. It requires viewing the entire software stack—from the silicon transistor up to the highest-level business logic—as a single, interconnected system whose failure modes must be exhaustively mapped.
-
-For the expert researcher, the bug is not a failure of the code; it is a failure of the *model*. By systematically applying the principles of formal verification, understanding the subtle timing dependencies of concurrent systems, and maintaining the rigorous discipline of the scientific method, one transforms the frustrating art of bug-fixing into the elegant, powerful science of failure analysis.
-
-The next time your system fails, do not panic. Instead, open your toolkit, select the appropriate theoretical lens—be it abstract interpretation, invariant checking, or memory differencing—and begin the methodical, inevitable process of deduction. The bug, no matter how elusive, has a traceable path, and you now possess the map to find it.
+1. **Off-by-one errors** in loops and ranges
+2. **Null/None handling** at unexpected callsites
+3. **Concurrency** issues with shared mutable state
+4. **Time and timezone** edge cases
+5. **Encoding** issues (Unicode, file format, character sets)
+6. **State machine** transitions in invalid orders
+7. **Resource cleanup** (connections, file handles, memory)
+8. **Configuration drift** between environments
+
+When stuck on a bug, mentally walk through these categories. The cause is often in one of them.
+
+## What not to do
+
+- **Random fix attempts.** "Maybe it's this" without a hypothesis usually wastes time.
+- **Adding catches that swallow exceptions.** This converts a clear bug into a silent one. Worse than the original bug.
+- **Rewriting the function "to be cleaner."** The bug is usually a specific mechanism; rewriting may move it without fixing it.
+- **Believing the user is wrong.** They might be, but the assumption costs more time than checking.
+- **Stopping after the first thing fixes the symptom.** The first fix is often a workaround that hides a deeper issue. Verify the root cause.
+
+## Further Reading
+
+- [CleanCodePrinciples](CleanCodePrinciples) — Code that is easier to debug
+- [RefactoringStrategies](RefactoringStrategies) — When debugging suggests structural changes
+- [LegacyCodeModernization](LegacyCodeModernization) — Debugging in unfamiliar codebases
+- [JavaExceptionHandlingPatterns](JavaExceptionHandlingPatterns) — Exception design that aids debugging
+- [TechnicalDebtManagement](TechnicalDebtManagement) — When debt makes debugging harder
+- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPractices+Hub) — Cluster index

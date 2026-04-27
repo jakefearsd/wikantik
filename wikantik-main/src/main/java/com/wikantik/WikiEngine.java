@@ -690,6 +690,9 @@ public class WikiEngine implements Engine {
                 managers.put( com.wikantik.kgpolicy.ReconciliationJobRunner.class, reconciler );
 
                 LOG.info( "KG inclusion policy wired (default-exclude active)" );
+
+                new com.wikantik.kgpolicy.SystemPageBackfillTask(
+                        getManager( com.wikantik.api.managers.SystemPageRegistry.class ), excludedRepo ).run();
             } else {
                 LOG.info( "KG inclusion policy DISABLED via wikantik.kg_policy.enabled=false" );
             }

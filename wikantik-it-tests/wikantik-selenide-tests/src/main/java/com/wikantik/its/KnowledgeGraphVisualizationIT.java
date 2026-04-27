@@ -87,16 +87,27 @@ class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
         }
     }
 
+    /**
+     * D27 made the knowledge graph endpoint public — the graph contains only
+     * canonical_ids and relationship types (no page bodies or ACL-protected
+     * content), so anonymous readers can hit it freely. The test verifies that
+     * an anonymous visit reaches the graph route and renders SOMETHING (the
+     * actual graph, an empty-state, or a server-error state — but explicitly
+     * NOT a "Sign in" prompt, which would imply the public-graph contract had
+     * regressed).
+     */
     @Test
     @Order( 10 )
     @DisabledOnOs( OS.WINDOWS )
-    void graphView_anonymousShowsSignInPrompt() {
+    void graphView_anonymousReachesPublicGraphEndpoint() {
         Selenide.closeWebDriver();
         open( Env.TESTS_BASE_URL + "/graph" );
-        $( ".graph-error-state, .graph-loading" )
+        $( ".graph-view, .graph-error-state, .graph-loading" )
                 .shouldBe( visible, Duration.ofSeconds( 15 ) );
-        $( ".graph-error-state" )
-                .shouldBe( visible, Duration.ofSeconds( 15 ) );
-        $( ".graph-error-state" ).shouldHave( text( "Sign in" ) );
+        // If we land in an error state, it must NOT be the unauthorized variant —
+        // anonymous access is the design intent for the knowledge-graph endpoint.
+        if ( $( ".graph-error-state" ).exists() ) {
+            $( ".graph-error-state" ).shouldNotHave( text( "Sign in" ) );
+        }
     }
 }

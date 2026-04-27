@@ -1,4 +1,5 @@
 ---
+cluster: mechanical-engineering
 canonical_id: 01KQ0P44QARWSJ7CAF20MTESFK
 title: Fastener Engineering
 type: article

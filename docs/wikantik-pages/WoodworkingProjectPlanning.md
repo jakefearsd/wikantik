@@ -1,4 +1,5 @@
 ---
+cluster: hobby-woodworking
 canonical_id: 01KQ0P44Z99WJT9PW3MKF1QHA5
 title: Woodworking Project Planning
 type: article

@@ -1,4 +1,5 @@
 ---
+cluster: distributed-systems
 canonical_id: 01KQ0P44PYDRSSJFPFRAXSZ4GK
 title: Domain And Integration Events
 type: article

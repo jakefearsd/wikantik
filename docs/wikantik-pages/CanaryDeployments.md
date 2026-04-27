@@ -1,4 +1,5 @@
 ---
+cluster: devops-sre
 canonical_id: 01KQ0P44MXK2X5DVXZ0MT3YVKD
 title: Canary Deployments
 type: article

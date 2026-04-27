@@ -1,4 +1,5 @@
 ---
+cluster: generative-ai
 canonical_id: 01KQ0P44KACYCMHVKSFFEW19FM
 title: Ai Governance Frameworks
 type: article

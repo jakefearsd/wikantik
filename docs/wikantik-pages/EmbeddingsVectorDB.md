@@ -1,4 +1,5 @@
 ---
+cluster: generative-ai
 canonical_id: 01KQ0P44Q3Y083P3R11WCRW3XR
 title: Embeddings Vector DB
 type: article

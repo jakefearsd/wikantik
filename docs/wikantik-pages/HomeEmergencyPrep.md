@@ -1,4 +1,5 @@
 ---
+cluster: emergency-prep
 canonical_id: 01KQ0P44QYWK5CMA6CB0VXP0MY
 title: Home Emergency Prep
 type: article

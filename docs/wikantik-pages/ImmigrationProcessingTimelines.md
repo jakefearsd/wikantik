@@ -1,4 +1,5 @@
 ---
+cluster: immigration
 canonical_id: 01KQ0P44R28KHTRQ27CBDM3Y1B
 title: Immigration Processing Timelines
 type: article

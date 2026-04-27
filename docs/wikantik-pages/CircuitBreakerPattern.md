@@ -1,4 +1,5 @@
 ---
+cluster: design-patterns
 canonical_id: 01KQ0P44N9S7WFVJJA94XTNBN7
 title: Circuit Breaker Pattern
 type: article

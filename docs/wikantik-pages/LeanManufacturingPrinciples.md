@@ -1,4 +1,5 @@
 ---
+cluster: warehouse-automation
 canonical_id: 01KQ0P44RRKM1FGP1XCBP3KEQW
 title: Lean Manufacturing Principles
 type: article

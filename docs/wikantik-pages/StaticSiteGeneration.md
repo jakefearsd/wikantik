@@ -1,4 +1,5 @@
 ---
+cluster: frontend-development
 canonical_id: 01KQ0P44WXXZHGMPJT9024QS5R
 title: Static Site Generation
 type: article

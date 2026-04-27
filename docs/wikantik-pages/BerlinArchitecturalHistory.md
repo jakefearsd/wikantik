@@ -1,4 +1,5 @@
 ---
+cluster: berlin-history
 canonical_id: 01KQ0P44MGY8K0GATYPQJD9PP1
 title: Berlin Architectural History
 type: article

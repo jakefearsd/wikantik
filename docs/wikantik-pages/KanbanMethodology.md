@@ -1,4 +1,5 @@
 ---
+cluster: software-engineering-practices
 canonical_id: 01KQ0P44RFMB8PECPTBW3RZGKB
 title: Kanban Methodology
 type: article

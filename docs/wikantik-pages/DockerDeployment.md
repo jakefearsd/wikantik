@@ -1,4 +1,5 @@
 ---
+cluster: cloud-platforms
 canonical_id: 01KQ0P44PWCCMS8D7BBBM6HEZ5
 type: article
 tags:

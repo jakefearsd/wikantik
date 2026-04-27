@@ -1,4 +1,5 @@
 ---
+cluster: warehouse-automation
 canonical_id: 01KQ0P44NM6MYFT80SCN5H7N8G
 title: Cold Chain Logistics
 type: article

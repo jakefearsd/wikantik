@@ -1,4 +1,5 @@
 ---
+cluster: van-life
 canonical_id: 01KQ0P44Y7B7ZSJAKJ3J699JE1
 title: Urban Exploration
 type: article

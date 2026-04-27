@@ -1,4 +1,5 @@
 ---
+cluster: van-life
 canonical_id: 01KQ0P44YBXM28P9ZFFVA86C57
 title: Van Sleep Hygiene
 type: article

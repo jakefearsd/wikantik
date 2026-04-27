@@ -1,4 +1,5 @@
 ---
+cluster: generative-ai
 canonical_id: 01KQ0P44XRC8X14MGN8J21P08J
 title: Token Budgeting
 type: article

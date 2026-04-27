@@ -1,4 +1,5 @@
 ---
+cluster: immigration
 canonical_id: 01KQ0P44R2Y3ZXVY107SA8YGF0
 title: Immigration Policy Overview
 type: article

@@ -1,4 +1,5 @@
 ---
+cluster: agentic-ai
 canonical_id: 01KQ0P44RHP0WX33T65KCB5HX4
 title: Knowledge Graph Construction Pipeline
 type: article

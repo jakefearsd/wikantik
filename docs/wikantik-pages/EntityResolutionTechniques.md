@@ -1,4 +1,5 @@
 ---
+cluster: machine-learning
 canonical_id: 01KQ0P44Q5E9YD8KC2K91KTZYK
 title: Entity Resolution Techniques
 type: article

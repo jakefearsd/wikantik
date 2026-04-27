@@ -1,4 +1,5 @@
 ---
+cluster: van-life
 canonical_id: 01KQ0P44QFH82YMAXY8R4RH4ZY
 type: article
 auto-generated: true

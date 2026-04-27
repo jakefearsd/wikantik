@@ -1,4 +1,5 @@
 ---
+cluster: design-patterns
 canonical_id: 01KQ0P44WXP5CMS1QZ2GFGERVM
 title: State Management Patterns
 type: article

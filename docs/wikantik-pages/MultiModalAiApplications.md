@@ -1,4 +1,5 @@
 ---
+cluster: generative-ai
 canonical_id: 01KQ0P44STSMPTY9CENPNM9Y63
 title: Multi Modal Ai Applications
 type: article

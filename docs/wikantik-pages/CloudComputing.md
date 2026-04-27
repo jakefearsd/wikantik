@@ -1,4 +1,5 @@
 ---
+cluster: cloud-platforms
 canonical_id: 01KQ0P44NCKFG083ANE076HVZG
 title: Cloud Computing
 type: article

@@ -1,4 +1,5 @@
 ---
+cluster: philosophy
 canonical_id: 01KQ0P44Q1CXP6V7WXWCJX9376
 title: Eastern Philosophy
 type: article

@@ -1,4 +1,5 @@
 ---
+cluster: berlin-history
 canonical_id: 01KQ0P44MHZ6ATPGCT075BCV2Y
 title: Berlin Immigration And Diversity
 type: article

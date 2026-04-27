@@ -1,4 +1,5 @@
 ---
+cluster: operations-research
 canonical_id: 01KQ0P44YF23KBS4503P4SK81P
 title: Vehicle Routing Problem
 type: article

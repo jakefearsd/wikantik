@@ -1,4 +1,5 @@
 ---
+cluster: hobby-woodworking
 canonical_id: 01KQ0P44PYSN07T9YZWJGATRTP
 title: Dovetail Joint Methods
 type: article

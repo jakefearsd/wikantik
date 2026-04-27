@@ -1,4 +1,5 @@
 ---
+cluster: agentic-ai
 canonical_id: 01KQ0P44R3NTEE5FR9E5BRFA5N
 title: Industrial Knowledge Graph Use Cases
 type: article

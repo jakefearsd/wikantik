@@ -1,4 +1,5 @@
 ---
+cluster: security
 canonical_id: 01KQ0P44KYCVPR6BBQNNKMVZ2V
 title: Api Security Patterns
 type: article

@@ -1,4 +1,5 @@
 ---
+cluster: operations-research
 canonical_id: 01KQ0P44TQDQBXM6TMX5SSVSE4
 title: Predictive Maintenance
 type: article

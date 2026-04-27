@@ -1,4 +1,5 @@
 ---
+cluster: operations-research
 canonical_id: 01KQ0P44R70Z2KWGKRTMCQFYGG
 title: Inventory Theory
 type: article

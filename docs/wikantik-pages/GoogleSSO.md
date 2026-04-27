@@ -1,4 +1,5 @@
 ---
+cluster: security
 canonical_id: 01KQ0P44QPXCZXWT5V96221F36
 title: Google SSO
 type: article

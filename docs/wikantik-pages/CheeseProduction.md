@@ -1,4 +1,5 @@
 ---
+cluster: cooking-and-food
 canonical_id: 01KQ0P44N3TX5H5A2WJ2PK6SYW
 title: Cheese Production
 type: article

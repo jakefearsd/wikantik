@@ -1,4 +1,5 @@
 ---
+cluster: emergency-prep
 canonical_id: 01KQ0P44QY16K5RBMXYH7QG610
 title: Home Hardening
 type: article

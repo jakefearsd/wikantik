@@ -1,4 +1,5 @@
 ---
+cluster: software-engineering-practices
 canonical_id: 01KQ0P44W7VKS643JKBG1KP4X2
 title: Semantic Versioning
 type: article

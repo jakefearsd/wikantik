@@ -1,4 +1,5 @@
 ---
+cluster: conflicts-equity-markets
 canonical_id: 01KQ0P44T5SE6RW2XVYAA6T9TH
 title: Nuclear Deterrence And Stability
 type: article

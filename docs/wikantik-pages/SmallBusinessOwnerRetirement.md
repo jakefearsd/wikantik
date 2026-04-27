@@ -1,4 +1,5 @@
 ---
+cluster: retirement-planning
 canonical_id: 01KQ0P44WKKHPEHYRB19P1MSZR
 title: Small Business Owner Retirement
 type: article

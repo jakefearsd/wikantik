@@ -1,4 +1,5 @@
 ---
+cluster: mechanical-engineering
 canonical_id: 01KQ0P44V0FGNDGE8R7NVJTW2M
 title: Pulley Systems
 type: article

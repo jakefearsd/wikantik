@@ -1,4 +1,5 @@
 ---
+cluster: van-life
 canonical_id: 01KQ0P44QBRRHZ4K64WQG99VTB
 title: Favorite Brews And Diners
 type: article

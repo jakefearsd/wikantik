@@ -1,4 +1,5 @@
 ---
+cluster: philosophy
 canonical_id: 01KQ0P44WZ7QEE42XSWE3A1KPZ
 title: Stoicism
 type: article

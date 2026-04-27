@@ -1,4 +1,5 @@
 ---
+cluster: philosophy
 canonical_id: 01KQ0P44RPJKXNY9F756XPN4AD
 title: Language Philosophy
 type: article

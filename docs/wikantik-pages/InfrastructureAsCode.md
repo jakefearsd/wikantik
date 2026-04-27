@@ -1,4 +1,5 @@
 ---
+cluster: cloud-platforms
 canonical_id: 01KQ0P44R4GVG4MQVMMEVADRKY
 title: Infrastructure As Code
 type: article

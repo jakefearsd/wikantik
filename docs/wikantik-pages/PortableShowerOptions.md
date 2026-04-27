@@ -1,4 +1,5 @@
 ---
+cluster: van-life
 canonical_id: 01KQ0P44TM7WGZJ5ZN22JQG1Y1
 title: Portable Shower Options
 type: article

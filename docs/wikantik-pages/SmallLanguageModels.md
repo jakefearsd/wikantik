@@ -1,4 +1,5 @@
 ---
+cluster: generative-ai
 canonical_id: 01KQ0P44WM690S8PG1E5TX8VTZ
 title: Small Language Models
 type: article

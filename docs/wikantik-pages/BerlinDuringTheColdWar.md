@@ -1,4 +1,5 @@
 ---
+cluster: berlin-history
 canonical_id: 01KQ0P44MG9H3JQTZPP7P3GCNF
 auto-generated: true
 type: article

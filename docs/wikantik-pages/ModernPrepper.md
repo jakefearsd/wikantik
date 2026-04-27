@@ -1,4 +1,5 @@
 ---
+cluster: emergency-prep
 canonical_id: 01KQ0P44SP4EQ9KDVQN07EWP4H
 title: Modern Prepper
 type: article

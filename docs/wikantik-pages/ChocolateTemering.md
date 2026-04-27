@@ -1,4 +1,5 @@
 ---
+cluster: cooking-and-food
 canonical_id: 01KQ0P44N3TC914XEXSVE35F3N
 title: Chocolate Temering
 type: article

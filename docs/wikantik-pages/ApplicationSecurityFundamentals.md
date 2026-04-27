@@ -1,4 +1,5 @@
 ---
+cluster: security
 canonical_id: 01KQ0P44KZCF59AWRWFXD47TD5
 title: Application Security Fundamentals
 type: article

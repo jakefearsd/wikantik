@@ -1,4 +1,5 @@
 ---
+cluster: security
 canonical_id: 01KQ0P44W6J6EDY0FD1NTHDXPK
 title: Security Logging And Audit Trails
 type: article

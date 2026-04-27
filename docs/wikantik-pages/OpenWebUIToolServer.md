@@ -1,4 +1,5 @@
 ---
+cluster: generative-ai
 canonical_id: 01KQ0P44TCX937ZGDWMJFPZ7JV
 title: OpenWebUI Tool Server
 summary: Configure and operate the Wikantik OpenAPI tool server for LLM integrations.

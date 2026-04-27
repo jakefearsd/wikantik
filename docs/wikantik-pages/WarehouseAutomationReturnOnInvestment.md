@@ -1,4 +1,5 @@
 ---
+cluster: warehouse-automation
 canonical_id: 01KQ0P44YKQT24RNWWHBXPTYDG
 title: Warehouse Automation Return On Investment
 type: article

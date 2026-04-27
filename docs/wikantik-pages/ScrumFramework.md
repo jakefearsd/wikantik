@@ -1,4 +1,5 @@
 ---
+cluster: software-engineering-practices
 canonical_id: 01KQ0P44W4V88HAYPBYJPVXF3Z
 title: Scrum Framework
 type: article

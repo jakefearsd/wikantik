@@ -1,4 +1,5 @@
 ---
+cluster: software-engineering-practices
 canonical_id: 01KQ0P44T8JVXV9XJS1SQ7W5R4
 title: Okrs And Goal Setting
 type: article

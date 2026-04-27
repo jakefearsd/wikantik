@@ -1,4 +1,5 @@
 ---
+cluster: emergency-prep
 canonical_id: 01KQ0P44NP8HY6K8D38T89F5N7
 title: Community Disaster Planning
 type: article

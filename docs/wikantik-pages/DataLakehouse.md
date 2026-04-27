@@ -1,4 +1,5 @@
 ---
+cluster: databases
 canonical_id: 01KQ0P44P8Y3AJNGEFQ9WZR6DQ
 title: Data Lakehouse
 type: article

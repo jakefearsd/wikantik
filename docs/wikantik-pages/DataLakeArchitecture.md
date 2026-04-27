@@ -1,4 +1,5 @@
 ---
+cluster: databases
 canonical_id: 01KQ0P44P8NKQJY36DAC0MM59C
 title: Data Lake Architecture
 type: article

@@ -1,4 +1,5 @@
 ---
+cluster: warehouse-automation
 canonical_id: 01KQ0P44P0693YZYB3QAYQGA5H
 title: Contract Management
 type: article

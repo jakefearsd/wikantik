@@ -1,4 +1,5 @@
 ---
+cluster: hobby-woodworking
 canonical_id: 01KQ0P44Z8RH8RDGCBZDB822X2
 title: Wood Species Selection Guide
 type: article

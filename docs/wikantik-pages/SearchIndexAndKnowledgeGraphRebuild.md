@@ -1,4 +1,5 @@
 ---
+cluster: wikantik-development
 title: Search Index and Knowledge Graph Rebuild
 type: article
 tags: [administration, operations, search, knowledge-graph, embeddings, chunking, entity-extraction]

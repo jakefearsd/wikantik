@@ -1,4 +1,5 @@
 ---
+cluster: van-life
 canonical_id: 01KQ0P44XZ7MRRX9AWA8RQGXNX
 title: Travel Photography
 type: article

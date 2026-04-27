@@ -1,4 +1,5 @@
 ---
+cluster: warehouse-automation
 canonical_id: 01KQ0P44YFRN8FPXNW6QVTPND3
 title: Vendor Management
 type: article

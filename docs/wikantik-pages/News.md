@@ -1,3 +1,15 @@
+---
+canonical_id: 01KQ0P450NEW00000NEWS00MAIN
+cluster: wikantik-development
+title: News
+type: log
+status: active
+summary: Running log of recent development activity on the Wikantik project.
+tags:
+- news
+- changelog
+- devlog
+---
 # JSPWiki Development News
 
 A log of recent development activity on the JSPWiki project.

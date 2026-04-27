@@ -1,4 +1,5 @@
 ---
+cluster: index-fund-investing
 canonical_id: 01KQ0P44R6HP57GYD6KTJCTTQ0
 title: International Index Funds
 type: article

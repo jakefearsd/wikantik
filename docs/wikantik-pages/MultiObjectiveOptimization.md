@@ -1,4 +1,5 @@
 ---
+cluster: operations-research
 canonical_id: 01KQ0P44SVSGPNGD6CB2SF3KVD
 title: Multi Objective Optimization
 type: article

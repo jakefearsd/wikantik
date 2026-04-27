@@ -1,4 +1,5 @@
 ---
+cluster: mechanical-engineering
 canonical_id: 01KQ0P44YG4DH76BEDBKKQDN4C
 title: Vibration Resonance
 type: article

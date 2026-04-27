@@ -1,4 +1,5 @@
 ---
+cluster: java
 canonical_id: 01KQ0P44R9K008EMQEC7XKG202
 title: Java Concurrency Patterns
 type: article

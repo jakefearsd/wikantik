@@ -1,4 +1,5 @@
 ---
+cluster: personal-finance
 canonical_id: 01KQ0P44PZT76WX45H605275VC
 title: Dual Life Insurance
 type: article

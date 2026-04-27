@@ -1,4 +1,5 @@
 ---
+cluster: remote-host-management
 canonical_id: 01KQ0P44VF6J7W3CAAN6T2KGBQ
 title: Remote Turnover Scheduling
 type: article

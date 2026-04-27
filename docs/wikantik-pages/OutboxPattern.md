@@ -1,4 +1,5 @@
 ---
+cluster: distributed-systems
 canonical_id: 01KQ0P44TDQR5Z0R057S05HGAJ
 title: Outbox Pattern
 type: article

@@ -1,4 +1,5 @@
 ---
+cluster: databases
 canonical_id: 01KQ0P44XGBAGJW390S9ZNSV42
 title: Temporal Tables
 type: article

@@ -1,4 +1,5 @@
 ---
+cluster: van-life
 canonical_id: 01KQ0P44QWJHV8HPDXSFS90KSA
 title: Healthy On The Road After40
 type: article

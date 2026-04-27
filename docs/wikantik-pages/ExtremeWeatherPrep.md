@@ -1,4 +1,5 @@
 ---
+cluster: emergency-prep
 canonical_id: 01KQ0P44Q9Y97ABS511SEK76TA
 title: Extreme Weather Prep
 type: article

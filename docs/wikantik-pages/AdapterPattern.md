@@ -1,4 +1,5 @@
 ---
+cluster: design-patterns
 canonical_id: 01KQ0P44H09BE8GQQA8RJEZ5V3
 title: Adapter Pattern
 type: article

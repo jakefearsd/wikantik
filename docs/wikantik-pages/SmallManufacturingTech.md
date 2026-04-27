@@ -1,4 +1,5 @@
 ---
+cluster: warehouse-automation
 canonical_id: 01KQ0P44WN4YKY8QQBCWA347ZN
 title: Small Manufacturing Tech
 type: article

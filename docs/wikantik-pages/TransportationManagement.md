@@ -1,4 +1,5 @@
 ---
+cluster: warehouse-automation
 canonical_id: 01KQ0P44XX6KTDRFBQT93P3XYT
 title: Transportation Management
 type: article

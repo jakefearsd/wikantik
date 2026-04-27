@@ -1,4 +1,5 @@
 ---
+cluster: warehouse-automation
 canonical_id: 01KQ0P44V2Z5EKHAWEVK5C2HA7
 title: Quality Management Systems
 type: article

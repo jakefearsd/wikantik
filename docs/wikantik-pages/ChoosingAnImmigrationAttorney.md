@@ -1,4 +1,5 @@
 ---
+cluster: immigration
 canonical_id: 01KQ0P44N803MFVNWTCERCGPYJ
 title: Choosing An Immigration Attorney
 type: article

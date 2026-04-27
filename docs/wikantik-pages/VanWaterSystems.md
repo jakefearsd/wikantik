@@ -1,4 +1,5 @@
 ---
+cluster: van-life
 canonical_id: 01KQ0P44YC2NKDT06YWAPHVB5J
 title: Van Water Systems
 type: article

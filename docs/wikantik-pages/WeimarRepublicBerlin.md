@@ -1,4 +1,5 @@
 ---
+cluster: berlin-history
 canonical_id: 01KQ0P44YVDFD78HN1Z1CPKJN4
 title: Weimar Republic Berlin
 type: article

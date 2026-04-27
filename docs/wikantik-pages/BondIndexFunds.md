@@ -1,4 +1,5 @@
 ---
+cluster: index-fund-investing
 canonical_id: 01KQ0P44MPW3AF27K7F459J3TR
 title: Bond Index Funds
 type: article

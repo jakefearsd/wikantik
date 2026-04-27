@@ -1,4 +1,5 @@
 ---
+cluster: software-engineering-practices
 canonical_id: 01KQ0P44Y7MWRMBZR2F1RWN6ZV
 title: User Story Writing
 type: article

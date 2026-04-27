@@ -1,4 +1,5 @@
 ---
+cluster: software-engineering-practices
 canonical_id: 01KQ0P44TWERZMKNN8CSPSK9PH
 title: Project Communication Strategies
 type: article

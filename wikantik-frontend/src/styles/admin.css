@@ -166,6 +166,50 @@
   color: #F88;
 }
 
+/* KG policy badge variants */
+.admin-badge.badge-success {
+  background: var(--sage-light);
+  color: var(--sage);
+}
+
+.admin-badge.badge-warning {
+  background: #FEF3CD;
+  color: #856404;
+}
+
+[data-theme="dark"] .admin-badge.badge-warning {
+  background: #3A3010;
+  color: #F0C04A;
+}
+
+.admin-badge.badge-default {
+  background: var(--border, #E0E0E0);
+  color: var(--text-secondary, #555);
+}
+
+/* KG policy — callout banner */
+.admin-callout {
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-lg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* KG policy — reason column truncation */
+.admin-reason {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 0.825rem;
+}
+
 /* Button variants */
 .btn-sm {
   padding: var(--space-xs) var(--space-sm) !important;

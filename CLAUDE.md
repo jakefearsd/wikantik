@@ -231,7 +231,7 @@ Wikantik is a modular Java-based wiki engine built on JEE technologies with the 
 | `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 15 read-only retrieval + KG + structural-spine + agent-projection tools | `KnowledgeMcpAccessFilter` (same scheme) |
 | `/tools/*` | wikantik-tools | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) | API key |
 | `/api/*` | wikantik-rest | REST/JSON | 24 Resource classes | `RestServletBase.checkPagePermission()` (ACL + policy grants) |
-| `/admin/*` | wikantik-rest | REST/JSON | 8 admin resources | `AdminAuthFilter` (`AllPermission`) |
+| `/admin/*` | wikantik-rest | REST/JSON | 9 admin resources (incl. `/admin/kg-policy/*`) | `AdminAuthFilter` (`AllPermission`) |
 | `/wiki/{slug}?format=md\|json` | wikantik-rest | HTTP | Raw content for RAG ingestion / crawlers | Public (same ACL as page view) |
 | `/api/changes?since=…` | wikantik-rest | REST/JSON | Incremental change feed for sync pipelines | Public |
 
@@ -316,6 +316,7 @@ Living design docs for in-flight architectural work (read before touching the re
 - **[docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md)** — Implemented. BM25 + dense + graph-aware rerank with fail-closed BM25 fallback.
 - **[docs/wikantik-pages/RetrievalExperimentHarness.md](docs/wikantik-pages/RetrievalExperimentHarness.md)** — Implemented but not yet scheduled; targeted by `AgentGradeContentDesign.md` for CI integration.
 - **[IndexingSupport.md](IndexingSupport.md)** — Implemented. Raw content + change feed + sitemap for RAG ingestion and SEO.
+- **[docs/superpowers/specs/2026-04-27-kg-inclusion-policy-design.md](docs/superpowers/specs/2026-04-27-kg-inclusion-policy-design.md)** — Cluster-primary KG inclusion/exclusion policy with admin dashboard, CLI, and frontmatter override. Implemented 2026-04-27 against `docs/superpowers/plans/2026-04-27-kg-inclusion-policy.md`. New `kg_cluster_policy` / `kg_policy_audit` / `kg_excluded_pages` tables; admin surface at `/admin/kg-policy/*`; `bin/kg-policy.sh` CLI. Default-exclude. System pages now also filtered out of the KG extraction pipeline (latent bug fix bundled in). Page-level override via `kg_include: true|false` frontmatter, validated at save time. See [KgInclusionPolicy](docs/wikantik-pages/KgInclusionPolicy.md) for the operator guide.
 
 ### Testing Approach
 

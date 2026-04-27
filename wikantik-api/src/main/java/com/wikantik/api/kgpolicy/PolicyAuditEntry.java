@@ -20,11 +20,22 @@ package com.wikantik.api.kgpolicy;
 
 import java.time.Instant;
 
+/**
+ * One row in {@code kg_policy_audit}. Append-only.
+ *
+ * <p>{@code oldAction} is null on the first set for a cluster.
+ *
+ * <p>{@code newAction} is intentionally a free-form string rather than a
+ * {@link ClusterAction} value: the audit log records action transitions
+ * including non-policy events such as {@code cleared} (row deleted) and
+ * {@code purged} (cluster's KG data hard-deleted). Valid values are:
+ * {@code include}, {@code exclude}, {@code cleared}, {@code purged}.
+ */
 public record PolicyAuditEntry(
         long id,
         String cluster,
-        String oldAction,    // null on first set
-        String newAction,    // include | exclude | cleared | purged
+        String oldAction,
+        String newAction,
         String reason,
         String actor,
         Instant changedAt

@@ -6,6 +6,16 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-27** — build: drop defectimages/ — keep triage screenshots out of git
+
+**2026-04-27** — build: gitignore Python caches, .claude state, RESUME, temp/, org/
+
+**2026-04-27** — ops: defect screenshots + dev helper scripts
+
+**2026-04-27** — content: bulk wiki rewrite — SE corpus, hubs, retirement, finance, agentic skills
+
+**2026-04-27** — content: rewrite 47 science/math/ML/CS orphan pages as substantive content
+
 **2026-04-26** — docs(rebuild): cover prefilter, chunker tuning, stats modes, lineage
 
 **2026-04-26** — feat(scripts,docs): --purge-kg full-destructive option for kg-rebuild

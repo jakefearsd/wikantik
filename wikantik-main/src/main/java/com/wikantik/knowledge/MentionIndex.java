@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge;
 
+import com.wikantik.kgpolicy.KgInclusionFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -49,16 +50,25 @@ public class MentionIndex {
     private static final Logger LOG = LogManager.getLogger( MentionIndex.class );
 
     private static final String EXISTS_SQL =
-        "SELECT 1 FROM chunk_entity_mentions WHERE node_id = ? LIMIT 1";
+        "SELECT 1 FROM chunk_entity_mentions m"
+        + KgInclusionFilter.MENTION_FILTER_JOIN
+        + "WHERE m.node_id = ? AND"
+        + KgInclusionFilter.MENTION_FILTER_WHERE
+        + "LIMIT 1";
 
     private static final String ALL_MENTIONED_IDS_SQL =
-        "SELECT DISTINCT node_id FROM chunk_entity_mentions";
+        "SELECT DISTINCT m.node_id FROM chunk_entity_mentions m"
+        + KgInclusionFilter.MENTION_FILTER_JOIN
+        + "WHERE" + KgInclusionFilter.MENTION_FILTER_WHERE;
 
     private static final String COMENTION_COUNTS_SQL =
         "SELECT m2.node_id, COUNT( DISTINCT m1.chunk_id ) AS shared "
       + "  FROM chunk_entity_mentions m1 "
+      + "  JOIN kg_content_chunks c     ON c.id = m1.chunk_id "
+      + "  LEFT JOIN kg_excluded_pages kgxm  ON c.page_name = kgxm.page_name "
       + "  JOIN chunk_entity_mentions m2 ON m1.chunk_id = m2.chunk_id "
       + " WHERE m1.node_id = ? AND m2.node_id <> m1.node_id "
+      + "   AND kgxm.page_name IS NULL "
       + " GROUP BY m2.node_id";
 
     private final DataSource dataSource;
@@ -171,8 +181,12 @@ public class MentionIndex {
           + "  JOIN chunk_entity_mentions other_m ON other_m.node_id = my_m.node_id "
           + "  JOIN kg_content_chunks other_c ON other_c.id = other_m.chunk_id "
           + "  JOIN kg_nodes n ON n.id = my_m.node_id "
+          + "  LEFT JOIN kg_excluded_pages kgxm_my    ON my_c.page_name    = kgxm_my.page_name "
+          + "  LEFT JOIN kg_excluded_pages kgxm_other ON other_c.page_name = kgxm_other.page_name "
           + " WHERE my_c.page_name = ? "
           + "   AND other_c.page_name <> my_c.page_name "
+          + "   AND kgxm_my.page_name    IS NULL "
+          + "   AND kgxm_other.page_name IS NULL "
           + " GROUP BY other_c.page_name "
           + " ORDER BY shared_count DESC, other_c.page_name ASC "
           + " LIMIT ?";

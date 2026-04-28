@@ -6,7 +6,95 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
-**2026-04-27** — feat(kgpolicy): cluster-primary KG inclusion/exclusion with admin dashboard, CLI, and frontmatter override. Default-exclude. See [KgInclusionPolicy](KgInclusionPolicy).
+**2026-04-28** — fix(test): scope KG policy assertions past filter-option / page-count collisions
+
+**2026-04-28** — admin(kgpolicy): hide reconciliation panel once nothing is RUNNING/QUEUED
+
+**2026-04-28** — admin(rebuild): EMBEDDING phase + helper text + readable destructive buttons
+
+**2026-04-28** — build: force-add bin/ files the gitignore was silently swallowing
+
+**2026-04-28** — chore: gitignore .keys + spec doc whitespace tidy
+
+**2026-04-28** — fix(it): graphView anonymous test matches D27 public-graph contract
+
+**2026-04-28** — fix(mcp): set structuredContent on responses (SDK 1.1.1 strict)
+
+**2026-04-27** — docs(generated): regenerate Main.md with KgInclusionPolicy entry
+
+**2026-04-27** — kgpolicy(it): admin REST smoke test
+
+**2026-04-27** — docs(CLAUDE.md): note KG inclusion policy
+
+**2026-04-27** — docs: link KgInclusionPolicy from KG admin guide; News entry
+
+**2026-04-27** — docs: KgInclusionPolicy admin runbook
+
+**2026-04-27** — kgpolicy(frontend): /admin/kg-policy routes + nav link
+
+**2026-04-27** — kgpolicy(frontend): explain | pending | bootstrap views
+
+**2026-04-27** — kgpolicy(frontend): AdminKgPolicyPage dashboard component
+
+**2026-04-27** — kgpolicy(frontend): admin.kgPolicy API client methods
+
+**2026-04-27** — kgpolicy: configuration knobs in wikantik.properties
+
+**2026-04-27** — kgpolicy(bin): kg-policy.sh launcher matching kg-extract.sh pattern
+
+**2026-04-27** — kgpolicy(cli): KgPolicyCli read + destructive subcommands
+
+**2026-04-27** — kgpolicy(rest): map AdminKgPolicyResource at /admin/kg-policy/*
+
+**2026-04-27** — kgpolicy(rest): PUT/DELETE/POST /admin/kg-policy endpoints
+
+**2026-04-27** — kgpolicy(rest): GET endpoints for /admin/kg-policy
+
+**2026-04-27** — kgpolicy: backfill system-page exclusions at startup
+
+**2026-04-27** — kgpolicy: integration test for kg_excluded_pages read filter
+
+**2026-04-27** — kgpolicy: filter excluded pages from NodeMentionSimilarity
+
+**2026-04-27** — kgpolicy: filter excluded pages from MentionIndex
+
+**2026-04-27** — kgpolicy: filter excluded pages from QueryEntityResolver
+
+**2026-04-27** — kgpolicy: filter excluded pages from InMemoryGraphNeighborIndex
+
+**2026-04-27** — kgpolicy: filter excluded pages from JdbcKnowledgeRepository
+
+**2026-04-27** — kgpolicy: KgInclusionFilter SQL fragment helper
+
+**2026-04-27** — kgpolicy: AsyncEntityExtractionListener filters excluded chunks; thread repo into pipeline
+
+**2026-04-27** — kgpolicy: BootstrapEntityExtractionIndexer skips excluded pages
+
+**2026-04-27** — kgpolicy: wire DefaultKgInclusionPolicy + ReconciliationJobRunner into WikiEngine
+
+**2026-04-27** — kgpolicy: ReconciliationJobRunner with per-cluster status tracking
+
+**2026-04-27** — kgpolicy: project kg_include into PageDescriptor; reader impl
+
+**2026-04-27** — kgpolicy: DefaultKgInclusionPolicy with caching + reason precedence
+
+**2026-04-27** — kgpolicy: StructuralSpinePageFilter validates kg_include frontmatter
+
+**2026-04-27** — kgpolicy: KgExcludedPagesRepository with reason-precedence upsert
+
+**2026-04-27** — kgpolicy: KgClusterPolicyRepository (policy + audit DAO)
+
+**2026-04-27** — kgpolicy: KgInclusionPolicy interface
+
+**2026-04-27** — kgpolicy: ClusterActionTest + clarify PolicyAuditEntry.newAction
+
+**2026-04-27** — kgpolicy: API enums and record types
+
+**2026-04-27** — db(V018): kg_cluster_policy, kg_policy_audit, kg_excluded_pages
+
+**2026-04-27** — docs(plan): KG inclusion policy implementation plan
+
+**2026-04-27** — docs(spec): KG inclusion/exclusion policy design
 
 **2026-04-27** — content: collapse singleton/typo clusters — 42 clean clusters
 
@@ -2278,6 +2366,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-10-29** — JSPWIKI-1211 adds notes for the rss path calculation
 
 **2025-10-29** — JSPWIKI-1213 adds jacoco to the build
-
-**2025-10-27** — JSPWIKI-1211 minor tweak to fix a bootup issue when the rss directory path does not exist
 

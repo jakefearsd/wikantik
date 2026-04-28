@@ -139,7 +139,7 @@ For mature teams running production services that customers care about, SLO disc
 
 ## Further reading
 
-- [BlamelessPostMortems] — the loop that closes after SLO violations
+- [BlamelessPostMortems]() — the loop that closes after SLO violations
 - [IncidentResponse] — what triggers when burn-rate alerts fire
-- [ChaosEngineering] — proactive verification of reliability claims
-- [DistributedTracing] — the data feeding SLI computation
+- [ChaosEngineering]() — proactive verification of reliability claims
+- [DistributedTracing]() — the data feeding SLI computation

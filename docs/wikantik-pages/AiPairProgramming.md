@@ -107,7 +107,7 @@ You: Review my last commit. Find bugs, missed edge cases, style issues.
 AI: [structured feedback]
 ```
 
-Catches a meaningful fraction of bugs, especially in unfamiliar areas. See [AiForCodeReview].
+Catches a meaningful fraction of bugs, especially in unfamiliar areas. See [AiForCodeReview]().
 
 ## What good prompting looks like
 
@@ -171,8 +171,8 @@ Six months in, most teams find AI tooling indispensable. The tooling will have c
 
 ## Further reading
 
-- [AiForCodeReview] — AI-assisted review specifically
-- [AiForSoftwareTesting] — AI in test workflows
-- [AiAugmentedWorkflows] — broader AI-augmented work patterns
-- [AgenticArchitecture] — when the AI is the agent, not the tool
-- [AcceleratingAiLearning] — building competence with AI tooling
+- [AiForCodeReview]() — AI-assisted review specifically
+- [AiForSoftwareTesting]() — AI in test workflows
+- [AiAugmentedWorkflows]() — broader AI-augmented work patterns
+- [AgenticArchitecture]() — when the AI is the agent, not the tool
+- [AcceleratingAiLearning]() — building competence with AI tooling

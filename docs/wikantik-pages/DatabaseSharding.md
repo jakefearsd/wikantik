@@ -48,7 +48,7 @@ Most teams that ask "should we shard?" need a query rewrite, an index, or a read
 | **Hash-based** | `hash(key) % N` chooses the shard | Even load distribution; simple | Range queries hit every shard; resharding (modulo N changes everything) |
 | **Directory / lookup** | A separate table maps key → shard | Maximum flexibility; arbitrary remapping | Lookup table is itself a bottleneck; needs caching |
 
-In practice, **consistent hashing** (a refinement of hash-based) is the working default for new systems. It avoids the "modulo N changes everything" problem when you add or remove shards. See [ConsistentHashing] for the mechanics.
+In practice, **consistent hashing** (a refinement of hash-based) is the working default for new systems. It avoids the "modulo N changes everything" problem when you add or remove shards. See [ConsistentHashing]() for the mechanics.
 
 ## The shard key choice is irrevocable
 
@@ -136,8 +136,8 @@ All of this is doable but adds up to 1–2 dedicated platform engineers per ~30 
 
 ## Further reading
 
-- [DatabasePartitioning] — partitioning vs sharding (related but distinct)
-- [ConsistentHashing] — the math behind smooth resharding
+- [DatabasePartitioning]() — partitioning vs sharding (related but distinct)
+- [ConsistentHashing]() — the math behind smooth resharding
 - [DatabaseReplication] — usually combined with sharding
-- [DatabaseDesign] — schema choices that make sharding tractable
-- [DatabaseIndexingStrategies] — per-shard index strategy
+- [DatabaseDesign]() — schema choices that make sharding tractable
+- [DatabaseIndexingStrategies]() — per-shard index strategy

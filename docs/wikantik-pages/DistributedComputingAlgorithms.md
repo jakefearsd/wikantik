@@ -119,7 +119,7 @@ When you don't:
 
 Consensus is expensive: each operation requires majority round-trips. Reaching for it when eventual consistency would do is a common over-engineering.
 
-See [PaxosAndRaft] for the algorithms.
+See [PaxosAndRaft]() for the algorithms.
 
 ## Two-phase commit (2PC)
 
@@ -147,7 +147,7 @@ Property: any two replicas, given the same set of updates, end up at the same st
 
 Cost: state grows over time without garbage collection; some types are storage-heavy.
 
-See [CrdtDataStructures] for depth.
+See [CrdtDataStructures]() for depth.
 
 ## Failure detection
 
@@ -172,7 +172,7 @@ Variants:
 - **Virtual nodes** — each physical node maps to multiple positions on the ring; reduces hot spots.
 - **Jump consistent hash** — newer; faster than ring-based; less flexible for weighted nodes.
 
-See [ConsistentHashing].
+See [ConsistentHashing]().
 
 ## Vector / counting Bloom filters in distributed contexts
 
@@ -196,8 +196,8 @@ Each component does one job; the composition produces a high-availability eventu
 
 ## Further reading
 
-- [PaxosAndRaft] — consensus algorithms
-- [ConsistentHashing] — partitioning details
-- [ConcurrencyDistributed] — broader concurrency context
-- [ByzantineFaultTolerance] — when nodes might lie
-- [CrdtDataStructures] — CRDTs in depth
+- [PaxosAndRaft]() — consensus algorithms
+- [ConsistentHashing]() — partitioning details
+- [ConcurrencyDistributed]() — broader concurrency context
+- [ByzantineFaultTolerance]() — when nodes might lie
+- [CrdtDataStructures]() — CRDTs in depth

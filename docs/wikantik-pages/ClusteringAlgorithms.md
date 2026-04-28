@@ -116,7 +116,7 @@ Weaknesses:
 - More complex than DBSCAN.
 - Slower than K-means but much smarter on real data.
 
-Use when: real-world clustering, especially on embeddings. The default for document clustering, customer segmentation, anomaly detection. See [DocumentClusteringApproaches].
+Use when: real-world clustering, especially on embeddings. The default for document clustering, customer segmentation, anomaly detection. See [DocumentClusteringApproaches]().
 
 ## Gaussian Mixture Models (GMM)
 
@@ -244,6 +244,6 @@ Most clustering tasks don't need fancy algorithms. They need sensible preprocess
 
 ## Further reading
 
-- [DocumentClusteringApproaches] — applied to text
-- [LinearAlgebra] — distance / projection math
-- [BayesianReasoning] — GMM and probabilistic clustering
+- [DocumentClusteringApproaches]() — applied to text
+- [LinearAlgebra]() — distance / projection math
+- [BayesianReasoning]() — GMM and probabilistic clustering

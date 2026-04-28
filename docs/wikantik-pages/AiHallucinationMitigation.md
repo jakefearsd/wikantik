@@ -38,7 +38,7 @@ Three requirements for RAG to actually reduce hallucination (not just add noise)
 2. **Retrieval recall is high enough.** If the right chunk isn't in context, the model answers from priors — i.e. hallucinates. Aim for recall@10 > 90% on your eval; if you're below, fix retrieval before blaming generation.
 3. **Source labels are explicit and parseable.** `[Source: doc-423]` per chunk. The model cites using these labels, and you can verify post-hoc that cited sources actually support the claim.
 
-This is [RagImplementationPatterns] territory in depth.
+This is [RagImplementationPatterns]() territory in depth.
 
 ## Constrained generation for structured outputs
 
@@ -113,7 +113,7 @@ Guidance:
 - Keep facts in retrieval, not in the model weights.
 - A fine-tuned model + RAG typically beats either alone on factuality.
 
-See [LLMFineTuning] for the recipe.
+See [LLMFineTuning]() for the recipe.
 
 ## What doesn't work as well as claimed
 
@@ -132,7 +132,7 @@ Build 100–500 questions where you know the right answer (from docs, database, 
 - **Citation correctness** — does each cited source actually support the claim?
 - **Abstention correctness** — on unanswerable questions, did the model correctly abstain?
 
-RAGAS, TruLens, or a homegrown LLM-judge over these three axes works. Run weekly at minimum. See [LlmEvaluationMetrics] for the metric catalogue.
+RAGAS, TruLens, or a homegrown LLM-judge over these three axes works. Run weekly at minimum. See [LlmEvaluationMetrics]() for the metric catalogue.
 
 ## Residual hallucination is a product problem
 
@@ -145,7 +145,7 @@ Even with everything above, residual hallucination rate won't hit zero. At some 
 
 ## Further reading
 
-- [RagImplementationPatterns] — grounding in depth
-- [HybridRetrieval] — retrieval quality determines upper bound
-- [LlmEvaluationMetrics] — metrics for factuality
-- [AiSafetyAndAlignment] — the broader safety context
+- [RagImplementationPatterns]() — grounding in depth
+- [HybridRetrieval]() — retrieval quality determines upper bound
+- [LlmEvaluationMetrics]() — metrics for factuality
+- [AiSafetyAndAlignment]() — the broader safety context

@@ -27,7 +27,7 @@ hubs:
 
 Standard observability — traces, logs, metrics — covers whether your LLM system is *running*. AI observability adds whether it's *behaving*. The question shifts from "is the API up" (easy) to "are responses still accurate, faithful, calibrated, fast, and cheap" (harder, more important).
 
-This page is what to add on top of standard observability for LLM systems specifically. For the standard stuff, see [AgentObservability]; for the eval methodology, [AgentTesting].
+This page is what to add on top of standard observability for LLM systems specifically. For the standard stuff, see [AgentObservability](); for the eval methodology, [AgentTesting]().
 
 ## The four signals to track
 
@@ -61,7 +61,7 @@ Alerts:
 - Cache hit rate drops > 10 percentage points (catches prompt-prefix instability).
 - Latency p95 > target (model degradation, provider issue, network).
 
-These are easy to implement and almost always worth the effort. See [LlmTokenEconomicsAndPricing] for the cost side.
+These are easy to implement and almost always worth the effort. See [LlmTokenEconomicsAndPricing]() for the cost side.
 
 ## Quality monitoring (the hard one)
 
@@ -90,7 +90,7 @@ Practical use: judge every Nth response (1-10%); aggregate scores by task type, 
 
 ### Eval set replay in production
 
-Your fixed eval set ([AgentTesting]) doesn't have to be eval-only. Run it nightly on production-deployed prompts. Catches regressions immediately rather than waiting for users to notice.
+Your fixed eval set ([AgentTesting]()) doesn't have to be eval-only. Run it nightly on production-deployed prompts. Catches regressions immediately rather than waiting for users to notice.
 
 Set up: eval task fixtures stored as JSON; nightly cron triggers rollouts against the live system; results sent to the same dashboard as production telemetry; alert on drop > 5%.
 
@@ -194,7 +194,7 @@ Storing every prompt and completion captures whatever users put in. Compliance i
 - **Deletion propagation** — DSAR has to find and delete trace records.
 - **Sampling reduces exposure** — don't store 100% of prompts.
 
-See [AiDataPrivacyAndCompliance].
+See [AiDataPrivacyAndCompliance]().
 
 ## Observability for agentic systems
 
@@ -209,8 +209,8 @@ The standard tooling above is catching up; expect agentic-specific instrumentati
 
 ## Further reading
 
-- [AgentObservability] — agentic-system observability in depth
-- [LlmEvaluationMetrics] — the metrics fed to dashboards
-- [AgentTesting] — eval methodology that production replays use
-- [AiHallucinationMitigation] — quality interventions
-- [DistributedTracing] — traces underneath the LLM-specific telemetry
+- [AgentObservability]() — agentic-system observability in depth
+- [LlmEvaluationMetrics]() — the metrics fed to dashboards
+- [AgentTesting]() — eval methodology that production replays use
+- [AiHallucinationMitigation]() — quality interventions
+- [DistributedTracing]() — traces underneath the LLM-specific telemetry

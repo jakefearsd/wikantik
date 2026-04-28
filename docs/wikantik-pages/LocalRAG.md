@@ -81,7 +81,7 @@ For most local deployments: pgvector or Qdrant.
 
 ### LLM
 
-See [OpenSourceLLMs] for the full landscape. For RAG specifically:
+See [OpenSourceLLMs]() for the full landscape. For RAG specifically:
 
 - **Smaller models often suffice.** RAG provides the knowledge; the LLM just needs to read and reason over the retrieved context. A 7B-13B model with strong context handling works.
 - **Strong long-context** matters. Models that handle 32k-128k tokens process larger retrieved contexts.
@@ -201,8 +201,8 @@ This stack runs comfortably on a single workstation; serves a small team.
 
 ## Further reading
 
-- [RagImplementationPatterns] — RAG patterns generally
-- [OpenSourceLLMs] — picking the LLM
-- [VectorDatabases] — substrate detail
-- [HybridRetrieval] — the fusion step
-- [RunningLocalLlms] — LLM-specific hosting
+- [RagImplementationPatterns]() — RAG patterns generally
+- [OpenSourceLLMs]() — picking the LLM
+- [VectorDatabases]() — substrate detail
+- [HybridRetrieval]() — the fusion step
+- [RunningLocalLlms]() — LLM-specific hosting

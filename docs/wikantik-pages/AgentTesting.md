@@ -28,7 +28,7 @@ hubs:
 
 You cannot unit-test an agent. You can test individual tools, the orchestration logic, and the prompt templates, but the agent's behaviour as a whole is a stochastic function of the model, the tools, and the state. The only honest form of agent testing is *rollout testing*: run the agent on a fixed set of tasks, grade the outcomes, track the scores over time.
 
-This page is the discipline around that rollout testing. For the loop being tested, see [AgentLoops]; for metric definitions in isolation, [LlmEvaluationMetrics].
+This page is the discipline around that rollout testing. For the loop being tested, see [AgentLoops](); for metric definitions in isolation, [LlmEvaluationMetrics]().
 
 ## The test pyramid, adjusted
 
@@ -96,7 +96,7 @@ The right approach: run each task at the production temperature, multiple times 
 
 ## Replaying past production traces
 
-Your observability stack (see [AgentObservability]) already logs every production rollout. Those are free regression tests.
+Your observability stack (see [AgentObservability]()) already logs every production rollout. Those are free regression tests.
 
 - Nightly: sample 100 recent production rollouts, re-run the orchestration code against the same LLM outputs, assert behavioural equivalence.
 - On every PR: replay the same sample, flag any trajectory whose tool-call set changes.
@@ -148,9 +148,9 @@ The ROI is high because the traffic is real. Synthetic fixtures always drift fro
 
 ## Further reading
 
-- [AgenticWorkflowDesign] — the system under test
-- [AgentLoops] — failure modes the tests should catch
-- [AgentObservability] — the telemetry feeding trace replay
-- [LlmEvaluationMetrics] — the metric catalogue
-- [AiEvaluationAndBenchmarks] — public benchmarks and their limits
-- [RetrievalExperimentHarness] — this wiki's own rollout harness for RAG
+- [AgenticWorkflowDesign]() — the system under test
+- [AgentLoops]() — failure modes the tests should catch
+- [AgentObservability]() — the telemetry feeding trace replay
+- [LlmEvaluationMetrics]() — the metric catalogue
+- [AiEvaluationAndBenchmarks]() — public benchmarks and their limits
+- [RetrievalExperimentHarness]() — this wiki's own rollout harness for RAG

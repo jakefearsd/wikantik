@@ -128,7 +128,7 @@ const subscription = source$.pipe(
 subscription.unsubscribe();
 ```
 
-For complex async event chains, reactive streams are the modern Observer pattern. See [ReactiveProgramming].
+For complex async event chains, reactive streams are the modern Observer pattern. See [ReactiveProgramming]().
 
 ### Signals (Solid, Angular, Vue 3, Svelte 5)
 
@@ -155,7 +155,7 @@ bus.emit("user.created", user);
 
 Domain events within a service. Decouples one part from another. Common in DDD-influenced architectures.
 
-For cross-service events, a real message broker — see [EventDrivenArchitecture].
+For cross-service events, a real message broker — see [EventDrivenArchitecture]().
 
 ### Domain events
 
@@ -172,7 +172,7 @@ class Order {
 
 After the transaction commits, events are dispatched. Receivers can be in the same process (sync handlers) or out (via outbox + broker).
 
-This is Observer pattern at the architecture level. See [DomainAndIntegrationEvents].
+This is Observer pattern at the architecture level. See [DomainAndIntegrationEvents]().
 
 ## Synchronous vs asynchronous
 
@@ -225,6 +225,6 @@ The Observer pattern's core insight — decoupled publish-subscribe — is funda
 
 ## Further reading
 
-- [DesignPatternsOverview] — broader pattern context
-- [EventDrivenArchitecture] — events at the architecture level
-- [ReactiveProgramming] — modern Observer pattern with backpressure
+- [DesignPatternsOverview]() — broader pattern context
+- [EventDrivenArchitecture]() — events at the architecture level
+- [ReactiveProgramming]() — modern Observer pattern with backpressure

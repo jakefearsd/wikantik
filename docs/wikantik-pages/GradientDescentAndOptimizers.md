@@ -235,7 +235,7 @@ Sudden discontinuities in any of these are usually bugs (data pipeline switched 
 
 ## Further reading
 
-- [DeepLearningFundamentals] — the broader context
-- [LinearAlgebra] — what the matrix operations are
-- [NeuralNetworkArchitectures] — what gets optimised
-- [LLMFineTuning] — applied optimiser choices for LLM training
+- [DeepLearningFundamentals]() — the broader context
+- [LinearAlgebra]() — what the matrix operations are
+- [NeuralNetworkArchitectures]() — what gets optimised
+- [LLMFineTuning]() — applied optimiser choices for LLM training

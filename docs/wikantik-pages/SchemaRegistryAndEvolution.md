@@ -194,8 +194,8 @@ For a team starting with Kafka in 2026: Apicurio (self-hosted) or Confluent (man
 
 The same principles apply to:
 
-- **Database schemas.** Migrations are schema evolution; rules are similar (add nullable columns, don't rename, etc.). See [DatabaseMigrationStrategies].
-- **REST API schemas.** OpenAPI specs versioned; backward-compatible changes preferred. See [ApiDesignBestPractices].
+- **Database schemas.** Migrations are schema evolution; rules are similar (add nullable columns, don't rename, etc.). See [DatabaseMigrationStrategies]().
+- **REST API schemas.** OpenAPI specs versioned; backward-compatible changes preferred. See [ApiDesignBestPractices]().
 - **GraphQL schemas.** Strong schema-typing; deprecation cycle for removals.
 - **gRPC services.** Protobuf rules apply.
 
@@ -203,7 +203,7 @@ Wherever you have a producer-consumer contract, the schema-evolution discipline 
 
 ## Further reading
 
-- [ApacheKafkaFundamentals] — Kafka as schema registry's natural habitat
-- [EventDrivenArchitecture] — events as schema-typed messages
-- [DatabaseMigrationStrategies] — schema evolution for storage
-- [ApiDesignBestPractices] — API-level schema design
+- [ApacheKafkaFundamentals]() — Kafka as schema registry's natural habitat
+- [EventDrivenArchitecture]() — events as schema-typed messages
+- [DatabaseMigrationStrategies]() — schema evolution for storage
+- [ApiDesignBestPractices]() — API-level schema design

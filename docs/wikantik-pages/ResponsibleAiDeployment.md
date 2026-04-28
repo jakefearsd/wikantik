@@ -142,7 +142,7 @@ Ship + deploy is not the end. Track:
 - **User feedback** — thumbs-up/down, complaint reports. Aggregate; investigate patterns.
 - **Adversarial probe success rate** — periodically, try to elicit known-bad outputs; track whether defences hold.
 
-See [AgentObservability] for the technical telemetry side.
+See [AgentObservability]() for the technical telemetry side.
 
 ## Incident response
 
@@ -210,7 +210,7 @@ The legal / regulatory requirements vary by jurisdiction:
 
 For a deployment, the question is: which apply, what do they require, who in-house owns the answer.
 
-See [AiDataPrivacyAndCompliance] for depth.
+See [AiDataPrivacyAndCompliance]() for depth.
 
 ## What "responsible" doesn't mean
 
@@ -223,8 +223,8 @@ It means having documented, evaluated, monitored systems with mitigations that m
 
 ## Further reading
 
-- [AiSafetyAndAlignment] — deeper technical safety topics
-- [AiDataPrivacyAndCompliance] — privacy and legal overlay
-- [AiGovernanceFrameworks] — frameworks from NIST, OECD, ISO
-- [AiHallucinationMitigation] — factuality interventions
-- [AgentObservability] — production monitoring
+- [AiSafetyAndAlignment]() — deeper technical safety topics
+- [AiDataPrivacyAndCompliance]() — privacy and legal overlay
+- [AiGovernanceFrameworks]() — frameworks from NIST, OECD, ISO
+- [AiHallucinationMitigation]() — factuality interventions
+- [AgentObservability]() — production monitoring

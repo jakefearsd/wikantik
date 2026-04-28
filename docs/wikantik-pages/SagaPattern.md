@@ -233,7 +233,7 @@ For a team adopting sagas:
 
 ## Further reading
 
-- [EventDrivenArchitecture] — events as saga substrate
-- [MicroservicesArchitecture] — context where sagas matter
-- [DomainAndIntegrationEvents] — events between services
-- [CqrsPattern] — adjacent pattern; often co-occurs with sagas
+- [EventDrivenArchitecture]() — events as saga substrate
+- [MicroservicesArchitecture]() — context where sagas matter
+- [DomainAndIntegrationEvents]() — events between services
+- [CqrsPattern]() — adjacent pattern; often co-occurs with sagas

@@ -162,7 +162,7 @@ Options:
 - **Confidential compute** environments (AWS Nitro, GCP Confidential VMs, Azure Confidential) reduce the trust boundary at additional cost.
 - **No LLM at all** for that workload — sometimes the right answer.
 
-See [PrivacyPreservingLLM] for technical mitigations specifically.
+See [PrivacyPreservingLLM]() for technical mitigations specifically.
 
 ## A pragmatic deployment checklist
 
@@ -182,8 +182,8 @@ A week of work for a small feature; longer for high-risk uses.
 
 ## Further reading
 
-- [ResponsibleAiDeployment] — the operational practices around responsible deployment
-- [AiSafetyAndAlignment] — the safety side of compliance
-- [AiGovernanceFrameworks] — the broader governance frame
-- [PrivacyPreservingLLM] — technical privacy controls
-- [AgentObservability] — the audit-trail mechanics
+- [ResponsibleAiDeployment]() — the operational practices around responsible deployment
+- [AiSafetyAndAlignment]() — the safety side of compliance
+- [AiGovernanceFrameworks]() — the broader governance frame
+- [PrivacyPreservingLLM]() — technical privacy controls
+- [AgentObservability]() — the audit-trail mechanics

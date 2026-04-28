@@ -47,7 +47,7 @@ Considerations:
 - **Stampede protection.** When a popular cache key expires, many requests miss simultaneously and hit the DB. Mitigate with stale-while-revalidate (return stale; refresh asynchronously) or a single-flight pattern (one request fetches; others wait).
 - **Cache stampede on cold start.** A new cache (or after a Redis restart) has 0% hit rate; the DB sees full traffic. Pre-warm critical keys; rate-limit; have headroom on the DB.
 
-See [CachingStrategies] for cache-aside vs write-through vs other patterns.
+See [CachingStrategies]() for cache-aside vs write-through vs other patterns.
 
 ## Rate limiting
 
@@ -77,7 +77,7 @@ redis.call('EXPIRE', key, 3600)
 return 1  -- allowed
 ```
 
-Atomic, fast, correct. See [ApiRateLimitingAlgorithms] for the full pattern.
+Atomic, fast, correct. See [ApiRateLimitingAlgorithms]() for the full pattern.
 
 ## Distributed locks (with caveats)
 
@@ -248,7 +248,7 @@ For a new deployment in 2026, Valkey is the most common pick. Functionally equiv
 
 ## Further reading
 
-- [CachingStrategies] — broader caching patterns
-- [ApiRateLimitingAlgorithms] — rate-limiting algorithms in detail
-- [ConsistentHashing] — distributed sharding mechanics
-- [DistributedComputingAlgorithms] — distributed primitives
+- [CachingStrategies]() — broader caching patterns
+- [ApiRateLimitingAlgorithms]() — rate-limiting algorithms in detail
+- [ConsistentHashing]() — distributed sharding mechanics
+- [DistributedComputingAlgorithms]() — distributed primitives

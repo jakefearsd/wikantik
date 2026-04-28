@@ -43,7 +43,7 @@ You need an explicit plan when at least one is true:
 
 - **Multiple users need to approve or inspect the plan before execution.** A human-in-loop checkpoint between plan and action is the canonical reason.
 - **Steps are expensive or slow.** A pre-committed plan lets you show progress, estimate completion, and cache intermediate results.
-- **The task spans multiple agents.** A shared plan is how specialists coordinate. See [AiAgentArchitectures].
+- **The task spans multiple agents.** A shared plan is how specialists coordinate. See [AiAgentArchitectures]().
 - **You need to resume from failure.** Pure ReAct has to redo everything after a crash; a stored plan lets you pick up at the failed step.
 
 For everything else, the plan-overhead costs more than it saves. A 5-step task runs faster as ReAct than as "plan → execute step 1 → execute step 2 → ..."
@@ -127,7 +127,7 @@ Track plans the same way you track the rest of agent behaviour — see [AgentTes
 
 ## Further reading
 
-- [AgenticWorkflowDesign] — the outer shape this planning fits into
-- [AgentReasoning] — the step-level reasoning strategies (CoT, ToT, reflection)
-- [AgentLoops] — failure modes that plans must defend against
-- [AiAgentArchitectures] — multi-agent coordination over shared plans
+- [AgenticWorkflowDesign]() — the outer shape this planning fits into
+- [AgentReasoning]() — the step-level reasoning strategies (CoT, ToT, reflection)
+- [AgentLoops]() — failure modes that plans must defend against
+- [AiAgentArchitectures]() — multi-agent coordination over shared plans

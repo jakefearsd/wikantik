@@ -137,7 +137,7 @@ Provide a revised answer based on the critique.
 
 Sometimes helps; cost-quality trade-off varies. Better with capable judges or external verification (e.g., running tests on generated code).
 
-For agent-shaped systems, see [AgentReasoning] for the broader reflection pattern.
+For agent-shaped systems, see [AgentReasoning]() for the broader reflection pattern.
 
 ## CoT in agent loops
 
@@ -174,6 +174,6 @@ For most production usage in 2026:
 
 ## Further reading
 
-- [AgentReasoning] — reasoning techniques in agentic systems
-- [AgenticWorkflowDesign] — reasoning in the agent loop
-- [PracticalPromptEngineering] — broader prompting context
+- [AgentReasoning]() — reasoning techniques in agentic systems
+- [AgenticWorkflowDesign]() — reasoning in the agent loop
+- [PracticalPromptEngineering]() — broader prompting context

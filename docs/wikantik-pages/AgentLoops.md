@@ -28,7 +28,7 @@ hubs:
 
 The agent loop is the thing that turns "LLM answers a question" into "LLM gets something done." It's also the thing that turns $0.002 in tokens into $40 in tokens when you look away. Most of agent engineering is designing the loop so it fails gracefully instead of expensively.
 
-This page is a failure-mode catalogue. For the shape of the loop itself and which pattern (ReAct vs graph vs supervisor) to pick, start at [AgenticWorkflowDesign].
+This page is a failure-mode catalogue. For the shape of the loop itself and which pattern (ReAct vs graph vs supervisor) to pick, start at [AgenticWorkflowDesign]().
 
 ## The minimum loop
 
@@ -137,10 +137,10 @@ Without this you'll spend half your debugging time re-running the failing task t
 
 ## Further reading
 
-- [AgenticWorkflowDesign] — higher-level patterns, when to pick each
-- [AgentPlanning] — plan representations and their trade-offs
-- [AgentMemory] — the state-layer defences in more depth
-- [AgentReasoning] — reasoning strategies (ReAct, ToT, reflection)
-- [AgentTesting] — fixed task sets to catch regressions
-- [AgentObservability] — building the traces referenced above
+- [AgenticWorkflowDesign]() — higher-level patterns, when to pick each
+- [AgentPlanning]() — plan representations and their trade-offs
+- [AgentMemory]() — the state-layer defences in more depth
+- [AgentReasoning]() — reasoning strategies (ReAct, ToT, reflection)
+- [AgentTesting]() — fixed task sets to catch regressions
+- [AgentObservability]() — building the traces referenced above
 - [ToolUse] — designing the tools themselves

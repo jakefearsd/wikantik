@@ -192,7 +192,7 @@ React Server Components don't ship JS for non-interactive UI. For most content s
 
 Page speed often bottlenecks on the API. Frontend optimisation can't help if the API takes 3 seconds.
 
-- **Database query optimisation** — see [DatabasePerformanceMonitoring].
+- **Database query optimisation** — see [DatabasePerformanceMonitoring]().
 - **Caching** — Redis, edge cache, browser cache.
 - **GraphQL / REST design** — avoid N+1; prefer batched / efficient endpoints.
 - **Streaming responses** — show partial content as it's available.
@@ -244,6 +244,6 @@ Most sites can hit Core Web Vitals targets with a week of focused work. Continuo
 
 ## Further reading
 
-- [ReactBestPractices] — React-specific performance
-- [DesignSystems] — components reusable across products without bloat
-- [SinglePageApplicationArchitecture] — broader SPA architecture
+- [ReactBestPractices]() — React-specific performance
+- [DesignSystems]() — components reusable across products without bloat
+- [SinglePageApplicationArchitecture]() — broader SPA architecture

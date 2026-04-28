@@ -248,5 +248,5 @@ When you encounter a Singleton in old code, gradually convert to DI. Add a const
 
 ## Further reading
 
-- [DesignPatternsOverview] — broader pattern context
-- [DependencyInjectionPatterns] — the modern alternative in depth
+- [DesignPatternsOverview]() — broader pattern context
+- [DependencyInjectionPatterns]() — the modern alternative in depth

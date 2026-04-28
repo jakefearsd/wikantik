@@ -47,7 +47,7 @@ def rrf(dense_hits, bm25_hits, k=60):
     return sorted(scores.items(), key=lambda x: -x[1])
 ```
 
-See [HybridRetrieval] for the full ranking pipeline this wiki uses.
+See [HybridRetrieval]() for the full ranking pipeline this wiki uses.
 
 **Do this first.** Nothing else in this list beats the effort-to-payoff ratio of adding BM25.
 
@@ -114,7 +114,7 @@ You cannot improve what you don't measure. Minimum RAG eval:
 | **Answer correctness** | Is the answer actually right? | Human label or LLM-as-judge |
 | **Latency p95** | Does the pipeline fit your budget? | Free |
 
-Build a frozen eval set of 100–500 queries with gold-labelled relevant chunks and expected answers. Run it on every change. This wiki's own retrieval is evaluated this way — see [HybridRetrieval] and [RetrievalExperimentHarness].
+Build a frozen eval set of 100–500 queries with gold-labelled relevant chunks and expected answers. Run it on every change. This wiki's own retrieval is evaluated this way — see [HybridRetrieval]() and [RetrievalExperimentHarness]().
 
 ## RAG vs long-context models
 
@@ -139,10 +139,10 @@ Instrument each layer with a trace span so a single query shows retrieval, reran
 
 ## Further reading
 
-- [HybridRetrieval] — the fusion architecture this wiki runs on
-- [VectorDatabases] — picking the substrate
-- [EmbeddingsVectorDB] — embedding model choices
-- [AiPoweredSearch] — query-side improvements beyond retrieval
-- [KnowledgeGraphCompletion] — when graphs complement vector retrieval
-- [LLMFineTuning] — when the generator needs training
-- [AgenticWorkflowDesign] — agents that retrieve as part of larger loops
+- [HybridRetrieval]() — the fusion architecture this wiki runs on
+- [VectorDatabases]() — picking the substrate
+- [EmbeddingsVectorDB]() — embedding model choices
+- [AiPoweredSearch]() — query-side improvements beyond retrieval
+- [KnowledgeGraphCompletion]() — when graphs complement vector retrieval
+- [LLMFineTuning]() — when the generator needs training
+- [AgenticWorkflowDesign]() — agents that retrieve as part of larger loops

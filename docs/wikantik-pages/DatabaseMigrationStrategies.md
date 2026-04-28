@@ -219,7 +219,7 @@ Each of these is a real outage. Each has a cheap mitigation. Apply them.
 
 ## Further reading
 
-- [DatabaseDesign] — schema design that anticipates evolution
-- [DatabaseDesignPatterns] — patterns at multi-table level
-- [DatabasePartitioning] — partition-aware migrations
-- [SchemaRegistryAndEvolution] — same problem on the messaging side
+- [DatabaseDesign]() — schema design that anticipates evolution
+- [DatabaseDesignPatterns]() — patterns at multi-table level
+- [DatabasePartitioning]() — partition-aware migrations
+- [SchemaRegistryAndEvolution]() — same problem on the messaging side

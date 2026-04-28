@@ -37,7 +37,7 @@ Two related but distinct tasks:
 
 The first is generative; the second is discriminative. Many algorithms do one and not the other; production systems usually need both.
 
-A third thing that often gets called completion but isn't: **entity resolution** (deciding that `Anthropic` and `Anthropic PBC` refer to the same node). That's a separate, important problem; see [EntityResolutionTechniques].
+A third thing that often gets called completion but isn't: **entity resolution** (deciding that `Anthropic` and `Anthropic PBC` refer to the same node). That's a separate, important problem; see [EntityResolutionTechniques]().
 
 ## Embedding-based completion
 
@@ -102,7 +102,7 @@ Flow:
 4. Verified triples added to the graph.
 5. Embedding retrained periodically.
 
-This wiki's own KG (see [KnowledgeGraphVsRelationalDatabase]) follows this rough pattern.
+This wiki's own KG (see [KnowledgeGraphVsRelationalDatabase]()) follows this rough pattern.
 
 ## Evaluation traps
 
@@ -125,7 +125,7 @@ For LLM extraction specifically, evaluate **precision** (of emitted triples, wha
 
 **Schema drift.** New relations appear in extraction without being added to the schema. Solution: schema is enforced at insert time; extraction prompt includes the current schema; new relation candidates queue for human review.
 
-**Entity explosion.** Without good resolution, every spelling variant becomes a node. The graph grows but the data quality drops. Invest in [EntityResolutionTechniques] before scaling extraction.
+**Entity explosion.** Without good resolution, every spelling variant becomes a node. The graph grows but the data quality drops. Invest in [EntityResolutionTechniques]() before scaling extraction.
 
 **Stale embeddings.** Graph evolves; embeddings don't. Predictions get progressively worse. Schedule periodic retraining; trigger on graph-size or graph-edit thresholds.
 
@@ -154,8 +154,8 @@ For a team starting in 2026: LangChain extraction → Neo4j or Postgres → PyKE
 
 ## Further reading
 
-- [KnowledgeGraphVsRelationalDatabase] — when graphs are the right substrate
-- [FederatedKnowledgeGraphs] — multi-source KGs
-- [EntityResolutionTechniques] — the prerequisite
-- [GraphRAG] — combining KG with RAG
-- [RagImplementationPatterns] — alternative when retrieval is enough
+- [KnowledgeGraphVsRelationalDatabase]() — when graphs are the right substrate
+- [FederatedKnowledgeGraphs]() — multi-source KGs
+- [EntityResolutionTechniques]() — the prerequisite
+- [GraphRAG]() — combining KG with RAG
+- [RagImplementationPatterns]() — alternative when retrieval is enough

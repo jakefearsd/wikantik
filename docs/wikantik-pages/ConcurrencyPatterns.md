@@ -108,7 +108,7 @@ class Counter extends Actor {
 
 Strong isolation; great for distributed systems where actors might be on different machines. Used in Erlang/Elixir (the canonical example), Akka, Orleans, Pony.
 
-See [ActorModelProgramming].
+See [ActorModelProgramming]().
 
 ## Patterns
 
@@ -199,7 +199,7 @@ When producer is faster than consumer, something has to give:
 - **Block producer** — simplest, can deadlock if producer holds resources.
 - **Sample / aggregate** — producer-side smarts to reduce volume.
 
-Reactive streams (Reactor, Rx, Akka Streams) make backpressure explicit and composable. See [ReactiveProgramming].
+Reactive streams (Reactor, Rx, Akka Streams) make backpressure explicit and composable. See [ReactiveProgramming]().
 
 ## Failure modes
 
@@ -228,7 +228,7 @@ For new code:
 
 ## Language-specific notes
 
-- **Go** — channels and goroutines as primary. Mature, well-trodden. See [JavaConcurrencyPatterns]-style equivalent for Go.
+- **Go** — channels and goroutines as primary. Mature, well-trodden. See [JavaConcurrencyPatterns]()-style equivalent for Go.
 - **Java** — threads + Executor framework + virtual threads (Project Loom, GA in JDK 21). Virtual threads change the calculus dramatically — async/await mostly unnecessary in modern Java.
 - **Python** — asyncio for I/O-bound, multiprocessing for CPU-bound (the GIL prevents true threading parallelism for CPU work). PEP 703 (no-GIL build) increasingly available.
 - **Rust** — async/await + tokio runtime. Borrow checker catches data races at compile time; phenomenally good for concurrent code correctness.
@@ -236,7 +236,7 @@ For new code:
 
 ## Further reading
 
-- [ConcurrencyDistributed] — concurrency across machines, not just cores
-- [ActorModelProgramming] — actor model in depth
-- [JavaConcurrencyPatterns] — Java specifics
-- [ReactiveProgramming] — push-based, explicit-backpressure approach
+- [ConcurrencyDistributed]() — concurrency across machines, not just cores
+- [ActorModelProgramming]() — actor model in depth
+- [JavaConcurrencyPatterns]() — Java specifics
+- [ReactiveProgramming]() — push-based, explicit-backpressure approach

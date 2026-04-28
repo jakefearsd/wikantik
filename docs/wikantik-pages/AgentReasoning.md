@@ -117,7 +117,7 @@ Tuning hints:
 
 - Drop the `Thought:` channel if the base model reasons implicitly well. You save tokens and lose nothing.
 - Keep `Thought:` if you need the reasoning log for debugging or audit.
-- The `Observation:` block should be aggressively summarised for older turns — see [AgentMemory].
+- The `Observation:` block should be aggressively summarised for older turns — see [AgentMemory]().
 
 ## Anti-patterns
 
@@ -128,7 +128,7 @@ Tuning hints:
 
 ## Measurement
 
-The only honest question is whether your reasoning strategy improves your task's outcome per dollar. Fixed rollout eval (see [AgentTesting]) with cost tracked:
+The only honest question is whether your reasoning strategy improves your task's outcome per dollar. Fixed rollout eval (see [AgentTesting]()) with cost tracked:
 
 - Regular mode: 60% success, $0.02/task
 - Regular + reflection: 68% success, $0.06/task
@@ -138,7 +138,7 @@ Which wins depends on what a success is worth to you. Know that number.
 
 ## Further reading
 
-- [AgenticWorkflowDesign] — how reasoning fits into the loop
-- [AgentPlanning] — the planning layer above turn-level reasoning
-- [AgentLoops] — failure modes reasoning should defend against
-- [ChainOfThoughtReasoning] — deeper on CoT specifically
+- [AgenticWorkflowDesign]() — how reasoning fits into the loop
+- [AgentPlanning]() — the planning layer above turn-level reasoning
+- [AgentLoops]() — failure modes reasoning should defend against
+- [ChainOfThoughtReasoning]() — deeper on CoT specifically

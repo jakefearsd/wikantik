@@ -163,7 +163,7 @@ A team running K8s that hasn't actively optimised costs is usually 20-50% over t
 
 ## Further reading
 
-- [ContainerSecurity] — security on top of orchestration
-- [MicroservicesArchitecture] — the architecture style most K8s users have
-- [ChaosEngineering] — testing K8s reliability claims
-- [ServiceLevelAgreements] — defining what "production-ready" means for K8s services
+- [ContainerSecurity]() — security on top of orchestration
+- [MicroservicesArchitecture]() — the architecture style most K8s users have
+- [ChaosEngineering]() — testing K8s reliability claims
+- [ServiceLevelAgreements]() — defining what "production-ready" means for K8s services

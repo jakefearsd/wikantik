@@ -147,7 +147,7 @@ Idempotency requires:
 - The check-and-perform happens atomically (transaction).
 - Keys eventually expire (otherwise the table grows forever).
 
-For any retried mutation, this is non-negotiable. See [SagaPattern].
+For any retried mutation, this is non-negotiable. See [SagaPattern]().
 
 ## Distributed transactions
 
@@ -159,7 +159,7 @@ Limitations:
 - **Latency.** Multiple round-trips; sensitive to slowest participant.
 - **Failure modes.** Many; subtle.
 
-In modern distributed systems, 2PC is rare for cross-service work. Sagas (compensating transactions) are preferred. See [SagaPattern], [DistributedComputingAlgorithms].
+In modern distributed systems, 2PC is rare for cross-service work. Sagas (compensating transactions) are preferred. See [SagaPattern](), [DistributedComputingAlgorithms]().
 
 For within-database distributed transactions (one Postgres cluster across nodes), the database handles this internally — Postgres uses 2PC for cross-shard with partition managers.
 
@@ -176,7 +176,7 @@ For most application-level concurrency: optimistic with retry on conflict. Confl
 
 ## Distributed rate limiting
 
-See [ApiRateLimitingAlgorithms]. The interesting concurrency aspect: counters per-user shared across N application instances. Centralised counter (Redis) is the simplest approach. Decentralised approaches gain throughput at the cost of approximation.
+See [ApiRateLimitingAlgorithms](). The interesting concurrency aspect: counters per-user shared across N application instances. Centralised counter (Redis) is the simplest approach. Decentralised approaches gain throughput at the cost of approximation.
 
 ## Eventual consistency vs strong consistency
 
@@ -193,7 +193,7 @@ Most modern distributed databases let you choose per-operation: strong reads vs 
 
 The opposite of locks: design so coordination isn't required.
 
-- **CRDTs** — see [DistributedComputingAlgorithms]. Concurrent updates merge automatically.
+- **CRDTs** — see [DistributedComputingAlgorithms](). Concurrent updates merge automatically.
 - **Idempotent operations.** Retry safe; no need for exactly-once.
 - **Append-only logs** — multiple writers append independently; readers reconcile.
 - **Sharding by key** — each key has one owner; no cross-key coordination.
@@ -239,11 +239,11 @@ For most distributed services in 2026:
 5. **Use saga / compensation** for cross-service transactions.
 6. **Default to eventually consistent** unless a specific requirement demands strong consistency.
 
-This stack handles 90% of distributed concurrency needs. The remaining 10% require deeper understanding of consensus, CRDTs, and the specific algorithms in [DistributedComputingAlgorithms].
+This stack handles 90% of distributed concurrency needs. The remaining 10% require deeper understanding of consensus, CRDTs, and the specific algorithms in [DistributedComputingAlgorithms]().
 
 ## Further reading
 
-- [ConcurrencyPatterns] — single-machine concurrency
-- [DistributedComputingAlgorithms] — algorithms in depth
-- [PaxosAndRaft] — consensus algorithms
-- [ApiRateLimitingAlgorithms] — distributed rate limiting specifically
+- [ConcurrencyPatterns]() — single-machine concurrency
+- [DistributedComputingAlgorithms]() — algorithms in depth
+- [PaxosAndRaft]() — consensus algorithms
+- [ApiRateLimitingAlgorithms]() — distributed rate limiting specifically

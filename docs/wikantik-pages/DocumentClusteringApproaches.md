@@ -168,7 +168,7 @@ A day's work; usually produces useful insight.
 
 ## Further reading
 
-- [ClusteringAlgorithms] — broader clustering context
-- [EmbeddingsVectorDB] — embedding model selection
-- [KnowledgeGraphCompletion] — when relations matter beyond clusters
-- [HybridRetrieval] — clusters as a retrieval-side feature
+- [ClusteringAlgorithms]() — broader clustering context
+- [EmbeddingsVectorDB]() — embedding model selection
+- [KnowledgeGraphCompletion]() — when relations matter beyond clusters
+- [HybridRetrieval]() — clusters as a retrieval-side feature

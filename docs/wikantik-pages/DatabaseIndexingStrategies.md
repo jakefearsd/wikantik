@@ -171,7 +171,7 @@ This loop catches 80% of indexing problems. The other 20% are workload-shape iss
 
 ## Further reading
 
-- [DatabaseDesign] — schema choices that make indexing tractable
-- [DatabasePerformanceMonitoring] — surfaces what to index
-- [PostgresqlAdvancedFeatures] — Postgres-specific index types in depth
-- [DatabasePartitioning] — when indexes alone aren't enough
+- [DatabaseDesign]() — schema choices that make indexing tractable
+- [DatabasePerformanceMonitoring]() — surfaces what to index
+- [PostgresqlAdvancedFeatures]() — Postgres-specific index types in depth
+- [DatabasePartitioning]() — when indexes alone aren't enough

@@ -196,6 +196,6 @@ For most teams: edge layer (Cloudflare) for abuse protection, application layer 
 
 ## Further reading
 
-- [ApiSecurityPatterns] — auth and authorisation alongside rate limiting
-- [ApiDesignBestPractices] — broader API design context
-- [DistributedComputingAlgorithms] — for the distributed-counter algorithms
+- [ApiSecurityPatterns]() — auth and authorisation alongside rate limiting
+- [ApiDesignBestPractices]() — broader API design context
+- [DistributedComputingAlgorithms]() — for the distributed-counter algorithms

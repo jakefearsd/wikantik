@@ -203,6 +203,6 @@ For Java:
 
 ## Further reading
 
-- [DesignPatternsOverview] — broader pattern context
-- [ObserverPattern] — different classic pattern
-- [AdapterPattern] — also wraps; for interface translation
+- [DesignPatternsOverview]() — broader pattern context
+- [ObserverPattern]() — different classic pattern
+- [AdapterPattern]() — also wraps; for interface translation

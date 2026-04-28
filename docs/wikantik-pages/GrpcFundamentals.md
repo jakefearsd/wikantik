@@ -217,7 +217,7 @@ For mobile, gRPC clients work natively (iOS, Android). For browsers in 2026, Con
 
 ### Schema evolution
 
-Use a registry (Buf, Apicurio) and compatibility checks. See [SchemaRegistryAndEvolution]. Without it, breaking changes ship silently.
+Use a registry (Buf, Apicurio) and compatibility checks. See [SchemaRegistryAndEvolution](). Without it, breaking changes ship silently.
 
 ### Observability
 
@@ -277,6 +277,6 @@ Run both during transition. The proto file becomes the source of truth; REST bec
 
 ## Further reading
 
-- [ApiDesignBestPractices] — broader API design context
-- [MicroservicesArchitecture] — service-to-service comms in microservices
-- [SchemaRegistryAndEvolution] — managing the Protobuf evolution
+- [ApiDesignBestPractices]() — broader API design context
+- [MicroservicesArchitecture]() — service-to-service comms in microservices
+- [SchemaRegistryAndEvolution]() — managing the Protobuf evolution

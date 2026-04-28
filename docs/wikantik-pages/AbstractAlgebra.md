@@ -167,7 +167,7 @@ For applied use, supplement with:
 
 ## Further reading
 
-- [NumberTheory] — adjacent and overlapping
-- [LinearAlgebra] — special case (vector spaces over a field)
-- [CategoryTheory] — generalises algebra
-- [EncryptionFundamentals] — algebra applied
+- [NumberTheory]() — adjacent and overlapping
+- [LinearAlgebra]() — special case (vector spaces over a field)
+- [CategoryTheory]() — generalises algebra
+- [EncryptionFundamentals]() — algebra applied

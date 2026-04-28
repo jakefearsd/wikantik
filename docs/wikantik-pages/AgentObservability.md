@@ -127,7 +127,7 @@ Aggregate to dashboards:
 - Cost trend week-over-week (surfaces prompt bloat early).
 - Cache hit rate over time (regressions here compound).
 
-See [LlmTokenEconomicsAndPricing] for the accounting specifics.
+See [LlmTokenEconomicsAndPricing]() for the accounting specifics.
 
 ## The tools worth using
 
@@ -163,7 +163,7 @@ A user reports the agent did something wrong. Ideal path:
 2. Open the full trace. See every LLM call, every tool call, every state transition.
 3. Click the failing step. See the full prompt sent, the full response, the tool validation result.
 4. Copy the prompt into a playground, reproduce the issue, iterate on a fix.
-5. The fix gets added to the rollout eval set — see [AgentTesting].
+5. The fix gets added to the rollout eval set — see [AgentTesting]().
 
 Without telemetry this cycle is "I can't reproduce it." That's the gap observability closes.
 
@@ -189,8 +189,8 @@ Three hours of work; years of saved debugging time.
 
 ## Further reading
 
-- [AgenticWorkflowDesign] — the system being observed
-- [AgentTesting] — how telemetry feeds eval replay
-- [AgentLoops] — failure modes you'll want to see in traces
-- [DistributedTracing] — trace semantics more broadly
-- [LlmTokenEconomicsAndPricing] — the cost side of observability
+- [AgenticWorkflowDesign]() — the system being observed
+- [AgentTesting]() — how telemetry feeds eval replay
+- [AgentLoops]() — failure modes you'll want to see in traces
+- [DistributedTracing]() — trace semantics more broadly
+- [LlmTokenEconomicsAndPricing]() — the cost side of observability

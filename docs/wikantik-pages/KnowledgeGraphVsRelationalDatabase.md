@@ -154,7 +154,7 @@ For retrieval-augmented generation:
 
 Pure vector RAG doesn't do these well. KG-augmented RAG ("GraphRAG") fills the gap. Microsoft's GraphRAG project popularised the approach; many production systems now combine KG and vector retrieval.
 
-See [KnowledgeGraphCompletion] for the construction side; [RagImplementationPatterns] for retrieval.
+See [KnowledgeGraphCompletion]() for the construction side; [RagImplementationPatterns]() for retrieval.
 
 ## Practical decision criteria
 
@@ -188,7 +188,7 @@ This is conservative advice; deviate when you have a specific reason.
 
 ## Further reading
 
-- [KnowledgeGraphCompletion] — building the graph
-- [GraphDatabaseFundamentals] — graph DB specifics
-- [DatabaseDesign] — relational schema design
-- [RagImplementationPatterns] — KGs in retrieval pipelines
+- [KnowledgeGraphCompletion]() — building the graph
+- [GraphDatabaseFundamentals]() — graph DB specifics
+- [DatabaseDesign]() — relational schema design
+- [RagImplementationPatterns]() — KGs in retrieval pipelines

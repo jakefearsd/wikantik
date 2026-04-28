@@ -142,7 +142,7 @@ Budget for traces explicitly; some teams spend more on traces than on the applic
 
 A small monolith doesn't need distributed tracing. Application-level profiling (e.g. `py-spy`, Chrome DevTools, language-native profilers) tells you the same things faster. Reach for distributed tracing when you have multiple services.
 
-A short-lived agent loop (see [AgentObservability]) needs the same kind of tracing but with LLM-call and tool-call semantics. The mechanics carry over; the attribute conventions are different.
+A short-lived agent loop (see [AgentObservability]()) needs the same kind of tracing but with LLM-call and tool-call semantics. The mechanics carry over; the attribute conventions are different.
 
 ## A starter setup
 
@@ -162,7 +162,7 @@ A week of work; permanent debugging dividend.
 
 ## Further reading
 
-- [AgentObservability] — LLM-specific extension of these patterns
-- [ServiceLevelAgreements] — SLO discipline traces help measure
-- [BlamelessPostMortems] — traces fuel post-incident analysis
-- [MicroservicesArchitecture] — the architecture style that makes tracing essential
+- [AgentObservability]() — LLM-specific extension of these patterns
+- [ServiceLevelAgreements]() — SLO discipline traces help measure
+- [BlamelessPostMortems]() — traces fuel post-incident analysis
+- [MicroservicesArchitecture]() — the architecture style that makes tracing essential

@@ -136,7 +136,7 @@ It is not, however, a free lunch. Chaos engineering takes a meaningful fraction 
 
 ## Further reading
 
-- [BlamelessPostMortems] — how to actually learn from incidents
-- [ServiceLevelAgreements] — SLO discipline; precondition for useful experiments
+- [BlamelessPostMortems]() — how to actually learn from incidents
+- [ServiceLevelAgreements]() — SLO discipline; precondition for useful experiments
 - [IncidentResponse] — the muscle chaos engineering builds
-- [DistributedTracing] — observability that makes experiments interpretable
+- [DistributedTracing]() — observability that makes experiments interpretable

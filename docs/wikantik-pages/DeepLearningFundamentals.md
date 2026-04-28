@@ -185,7 +185,7 @@ After this loop a few times, you have intuition. The intuition is what makes the
 
 ## Further reading
 
-- [NeuralNetworkArchitectures] — what to choose
-- [GradientDescentAndOptimizers] — training discipline
-- [LinearAlgebra] — the operations
-- [BayesianReasoning] — regularisation as priors
+- [NeuralNetworkArchitectures]() — what to choose
+- [GradientDescentAndOptimizers]() — training discipline
+- [LinearAlgebra]() — the operations
+- [BayesianReasoning]() — regularisation as priors

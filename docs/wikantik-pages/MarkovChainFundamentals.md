@@ -111,7 +111,7 @@ The dominant approach to sampling from complex probability distributions in Baye
 
 The idea: design a Markov chain whose stationary distribution is the target distribution `p(x)`. Run the chain; samples from the chain (after burn-in) are samples from `p(x)`.
 
-Algorithms (Metropolis-Hastings, Gibbs, Hamiltonian Monte Carlo) construct chains with the right stationary distribution. See [BayesianReasoning].
+Algorithms (Metropolis-Hastings, Gibbs, Hamiltonian Monte Carlo) construct chains with the right stationary distribution. See [BayesianReasoning]().
 
 ### Hidden Markov Models (HMM)
 
@@ -151,7 +151,7 @@ Markov Decision Processes (MDPs) extend Markov chains with actions and rewards. 
 
 Value iteration, policy iteration, Q-learning all operate on the underlying MDP structure.
 
-See [ReinforcementLearningFundamentals].
+See [ReinforcementLearningFundamentals]().
 
 ### Finance
 
@@ -216,6 +216,6 @@ def pagerank(adjacency, damping=0.85, max_iter=100, tol=1e-6):
 
 ## Further reading
 
-- [ProbabilityTheory] — foundations
-- [BayesianReasoning] — MCMC in depth
-- [LinearAlgebra] — eigenvectors and matrix iteration
+- [ProbabilityTheory]() — foundations
+- [BayesianReasoning]() — MCMC in depth
+- [LinearAlgebra]() — eigenvectors and matrix iteration

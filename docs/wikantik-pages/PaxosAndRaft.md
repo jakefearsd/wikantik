@@ -135,8 +135,8 @@ If you're building distributed systems courseware or want to truly understand co
 
 ## Further reading
 
-- [ConsistentHashing] — partitioning data once you have replicated state machines
-- [ConcurrencyDistributed] — broader concurrency context
+- [ConsistentHashing]() — partitioning data once you have replicated state machines
+- [ConcurrencyDistributed]() — broader concurrency context
 - [DatabaseReplication] — replication patterns built on consensus
-- [ByzantineFaultTolerance] — when nodes might lie, not just fail
-- [DistributedComputingAlgorithms] — gossip, vector clocks, related primitives
+- [ByzantineFaultTolerance]() — when nodes might lie, not just fail
+- [DistributedComputingAlgorithms]() — gossip, vector clocks, related primitives

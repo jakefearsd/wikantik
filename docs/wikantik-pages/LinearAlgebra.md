@@ -154,7 +154,7 @@ For prototyping, use numpy. For production ML, torch or jax. For HPC, learn what
 ## Where this shows up in practice
 
 - **Neural networks** — every forward pass is a chain of matmuls and element-wise nonlinearities.
-- **Embeddings / retrieval** — cosine similarity = normalised dot product. See [EmbeddingsVectorDB].
+- **Embeddings / retrieval** — cosine similarity = normalised dot product. See [EmbeddingsVectorDB]().
 - **PCA, t-SNE, UMAP** — dimensionality reduction; SVD or eigendecomposition under the hood.
 - **Graphics** — every transformation is a matrix; perspective projection is a matrix.
 - **Recommender systems** — collaborative filtering as low-rank matrix factorisation.
@@ -164,8 +164,8 @@ Linear algebra is the most-used college math in industry by a wide margin.
 
 ## Further reading
 
-- [AbstractAlgebra] — the algebraic structures linear algebra is a special case of
-- [DifferentialGeometry] — calculus on curved versions of vector spaces
-- [BayesianReasoning] — covariance matrices everywhere
-- [GradientDescentAndOptimizers] — calculus + linear algebra in ML training
-- [EmbeddingsVectorDB] — linear algebra at scale for retrieval
+- [AbstractAlgebra]() — the algebraic structures linear algebra is a special case of
+- [DifferentialGeometry]() — calculus on curved versions of vector spaces
+- [BayesianReasoning]() — covariance matrices everywhere
+- [GradientDescentAndOptimizers]() — calculus + linear algebra in ML training
+- [EmbeddingsVectorDB]() — linear algebra at scale for retrieval

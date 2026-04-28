@@ -239,6 +239,6 @@ The mistake is the all-or-nothing stance. Reactive is a tool; use where it fits.
 
 ## Further reading
 
-- [ConcurrencyPatterns] — concurrency primitives broadly
-- [EventDrivenArchitecture] — events at the architecture level
-- [ReactBestPractices] — React's specific take on reactivity
+- [ConcurrencyPatterns]() — concurrency primitives broadly
+- [EventDrivenArchitecture]() — events at the architecture level
+- [ReactBestPractices]() — React's specific take on reactivity

@@ -217,7 +217,7 @@ The right adoption pattern: layer AI assistance on top of existing testing disci
 
 ## Further reading
 
-- [AiPairProgramming] — broader AI coding context
-- [AiForCodeReview] — review of test code specifically
-- [AgentTesting] — testing AI agents (vs using AI for testing)
+- [AiPairProgramming]() — broader AI coding context
+- [AiForCodeReview]() — review of test code specifically
+- [AgentTesting]() — testing AI agents (vs using AI for testing)
 - [TestDrivenDevelopment] — discipline AI augments, not replaces

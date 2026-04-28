@@ -76,7 +76,7 @@ Tuning matters. HNSW with default `ef=40` recalls ~90%; `ef=200` recalls ~99% at
 
 **Embedding dimension trade-off.** 1536-dim (OpenAI v3) vs 768-dim (BGE-M3) vs 384-dim (MiniLM): a 4× dimension jump is a 4× memory and index-time cost. For most retrieval tasks the 768-dim options are near-tied with 1536-dim on recall. Pick 1536 only if a specific eval justifies it.
 
-**Hybrid search is usually the right answer.** Dense alone misses on exact-term queries ("error code 42"); BM25 alone misses on semantic paraphrases. Reciprocal rank fusion (RRF) of the two is a 2-line change that typically adds 5–15 points of retrieval recall at nearly zero cost. See [HybridRetrieval].
+**Hybrid search is usually the right answer.** Dense alone misses on exact-term queries ("error code 42"); BM25 alone misses on semantic paraphrases. Reciprocal rank fusion (RRF) of the two is a 2-line change that typically adds 5–15 points of retrieval recall at nearly zero cost. See [HybridRetrieval]().
 
 ## A minimum production stack
 
@@ -107,12 +107,12 @@ Don't mix embedding models in one index. You can have *multiple* indexes (per-do
 
 Public benchmarks (MTEB, BEIR) tell you the average. Your traffic isn't the average. Build a retrieval eval set of 100–500 real queries from your application, label relevance manually, track nDCG@10 and recall@20 per-embedding-model and per-index-config. This is the only honest way to pick.
 
-See [HybridRetrieval] for how this wiki actually evaluates its own retrieval pipeline end-to-end.
+See [HybridRetrieval]() for how this wiki actually evaluates its own retrieval pipeline end-to-end.
 
 ## Further reading
 
-- [EmbeddingsVectorDB] — conceptual intro, pair this with that
-- [HybridRetrieval] — the fusion step on top of vector search
-- [RagImplementationPatterns] — what you do with the results
-- [AiPoweredSearch] — agent-era query rewriting and rerank
-- [KnowledgeGraphVsRelationalDatabase] — when vector isn't the right substrate
+- [EmbeddingsVectorDB]() — conceptual intro, pair this with that
+- [HybridRetrieval]() — the fusion step on top of vector search
+- [RagImplementationPatterns]() — what you do with the results
+- [AiPoweredSearch]() — agent-era query rewriting and rerank
+- [KnowledgeGraphVsRelationalDatabase]() — when vector isn't the right substrate

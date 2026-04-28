@@ -167,8 +167,8 @@ For prototyping Bayesian models in 2026, PyMC or NumPyro. Stan if you need maxim
 
 ## Further reading
 
-- [ProbabilityTheory] — the foundation
-- [MarkovChainFundamentals] — the basis of MCMC
-- [LinearAlgebra] — covariance matrices, conjugate priors
-- [ClusteringAlgorithms] — Gaussian mixture models, etc.
+- [ProbabilityTheory]() — the foundation
+- [MarkovChainFundamentals]() — the basis of MCMC
+- [LinearAlgebra]() — covariance matrices, conjugate priors
+- [ClusteringAlgorithms]() — Gaussian mixture models, etc.
 - [BayesianHyperparameterTuning] — practical Bayesian optimisation

@@ -178,7 +178,7 @@ Yes/no answers for each. Anything "no" or "I don't know" → discuss in the revi
 
 ## Further reading
 
-- [ApplicationSecurityFundamentals] — broader app-sec context
-- [EncryptionFundamentals] — what crypto is for in your mitigations
-- [SecurityIncidentResponse] — when threats become incidents
-- [ZeroTrustArchitecture] — threat-modeling implications of zero-trust
+- [ApplicationSecurityFundamentals]() — broader app-sec context
+- [EncryptionFundamentals]() — what crypto is for in your mitigations
+- [SecurityIncidentResponse]() — when threats become incidents
+- [ZeroTrustArchitecture]() — threat-modeling implications of zero-trust

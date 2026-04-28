@@ -225,7 +225,7 @@ For huge graphs:
 - **Distributed graph processing** — Pregel (Google), Giraph (Apache), GraphX (Spark). Bulk-synchronous parallel model.
 - **GPU graph algorithms** — for some operations (PageRank, BFS at scale), GPUs win. Frameworks: cuGraph, Gunrock.
 
-Production graph database: Neo4j, JanusGraph, TigerGraph, ArangoDB. Each has built-in implementations of these algorithms; rarely write them yourself in production. See [GraphDatabaseFundamentals].
+Production graph database: Neo4j, JanusGraph, TigerGraph, ArangoDB. Each has built-in implementations of these algorithms; rarely write them yourself in production. See [GraphDatabaseFundamentals]().
 
 ## What you actually need
 
@@ -240,7 +240,7 @@ Beyond this is specialisation. If you find yourself reaching for "graph coloring
 
 ## Further reading
 
-- [DataStructures] — graphs in context
-- [DynamicProgrammingPatterns] — DP on graphs (TSP, edit distance, etc.)
-- [DistributedComputingAlgorithms] — graph algorithms across machines
-- [GraphDatabaseFundamentals] — purpose-built graph storage
+- [DataStructures]() — graphs in context
+- [DynamicProgrammingPatterns]() — DP on graphs (TSP, edit distance, etc.)
+- [DistributedComputingAlgorithms]() — graph algorithms across machines
+- [GraphDatabaseFundamentals]() — purpose-built graph storage

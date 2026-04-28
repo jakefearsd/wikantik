@@ -126,7 +126,7 @@ Work top-down:
 
 ## Further reading
 
-- [AgenticWorkflowDesign] — the engineering defences every architecture above needs
-- [AgentPlanning] — plan representations
-- [AgentReasoning] — turn-level reasoning techniques
-- [AgentLoops] — failure modes
+- [AgenticWorkflowDesign]() — the engineering defences every architecture above needs
+- [AgentPlanning]() — plan representations
+- [AgentReasoning]() — turn-level reasoning techniques
+- [AgentLoops]() — failure modes

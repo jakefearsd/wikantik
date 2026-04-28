@@ -61,7 +61,7 @@ When CNNs lose:
 - **General vision.** Vision Transformers (ViTs), Swin Transformers, and hybrid CLIP-like models beat CNNs on ImageNet, COCO, and most modern benchmarks given enough data.
 - **Multimodal tasks.** Transformers' shared input format makes vision-language modelling tractable in a way CNNs don't.
 
-See [ConvolutionalNeuralNetworks].
+See [ConvolutionalNeuralNetworks]().
 
 ## RNN / LSTM / GRU
 
@@ -75,7 +75,7 @@ By 2026, RNNs are mostly historical for language. Transformers replaced them in 
 
 For most sequence work in 2026, transformers are the default; state-space models are emerging as a contender for very-long-context tasks.
 
-See [RecurrentNeuralNetworks].
+See [RecurrentNeuralNetworks]().
 
 ## Transformers
 
@@ -173,8 +173,8 @@ Where the 2027-2028 architectures land is unclear. The trend over the past five 
 
 ## Further reading
 
-- [DeepLearningFundamentals] — the math underneath
-- [ConvolutionalNeuralNetworks] — CNNs in depth
-- [RecurrentNeuralNetworks] — RNNs and their successors
-- [GradientDescentAndOptimizers] — how any of these are trained
-- [LinearAlgebra] — the operations that fill GPUs
+- [DeepLearningFundamentals]() — the math underneath
+- [ConvolutionalNeuralNetworks]() — CNNs in depth
+- [RecurrentNeuralNetworks]() — RNNs and their successors
+- [GradientDescentAndOptimizers]() — how any of these are trained
+- [LinearAlgebra]() — the operations that fill GPUs

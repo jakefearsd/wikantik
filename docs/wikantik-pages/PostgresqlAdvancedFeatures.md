@@ -66,7 +66,7 @@ When not to use:
 - Data with a stable schema. Use real columns. JSONB is slower, harder to constrain, and harder to query.
 - High-frequency updates of nested fields. JSONB is rewritten as a whole; partial updates are expensive.
 
-See [JsonbInPostgresql] for depth.
+See [JsonbInPostgresql]() for depth.
 
 ## LISTEN / NOTIFY
 
@@ -121,7 +121,7 @@ ORDER BY embedding <=> $1
 LIMIT 10;
 ```
 
-For most teams in 2026, pgvector is the right vector database. Tens of millions of vectors, sub-100ms recall, no separate operational system. See [VectorDatabases] for the comparison.
+For most teams in 2026, pgvector is the right vector database. Tens of millions of vectors, sub-100ms recall, no separate operational system. See [VectorDatabases]() for the comparison.
 
 ## Common Table Expressions (CTEs)
 
@@ -267,7 +267,7 @@ Cheap, comprehensive, queryable. Adequate for most audit/history use cases witho
 - **`array_agg` / `jsonb_agg`** for compact aggregations.
 - **`tablefunc.crosstab`** for pivots.
 - **`unnest`** for exploding arrays into rows.
-- **GIST / GIN / BRIN / Bloom indexes** for non-B-tree indexing — see [DatabaseIndexingStrategies].
+- **GIST / GIN / BRIN / Bloom indexes** for non-B-tree indexing — see [DatabaseIndexingStrategies]().
 - **PostGIS** for geographic data; mature and excellent.
 - **TimescaleDB** for time-series at very large scale (extension on top of Postgres).
 - **Citus** for horizontal scaling (extension turning Postgres into a distributed SQL database).
@@ -288,8 +288,8 @@ For most teams under "extreme" scale, the Postgres-everywhere posture saves oper
 
 ## Further reading
 
-- [DatabaseDesign] — schema choices that take advantage of these features
-- [DatabaseIndexingStrategies] — Postgres index types in depth
-- [JsonbInPostgresql] — JSONB specifically
-- [VectorDatabases] — pgvector vs alternatives
-- [DatabasePartitioning] — partitioning patterns
+- [DatabaseDesign]() — schema choices that take advantage of these features
+- [DatabaseIndexingStrategies]() — Postgres index types in depth
+- [JsonbInPostgresql]() — JSONB specifically
+- [VectorDatabases]() — pgvector vs alternatives
+- [DatabasePartitioning]() — partitioning patterns

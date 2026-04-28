@@ -74,7 +74,7 @@ query ─▶│    Query understanding       │
 
 Each stage is independently swappable. This pipeline is what most production "AI search" looks like under the hood; calling it AI search overstates the AI's role and understates how much classical IR is still doing the work.
 
-See [HybridRetrieval] for this wiki's own implementation.
+See [HybridRetrieval]() for this wiki's own implementation.
 
 ## Stage by stage
 
@@ -115,7 +115,7 @@ Top 50 from retrieval is too noisy to feed directly to an LLM. A cross-encoder r
 
 ### Answer synthesis
 
-The "AI search experience" — generative answer with citations — is RAG ([RagImplementationPatterns]). The search-specific concerns:
+The "AI search experience" — generative answer with citations — is RAG ([RagImplementationPatterns]()). The search-specific concerns:
 
 - Cite sources prominently. The user trusts cited answers more, which is correct because they can verify.
 - Show snippets, not just links. The snippet should be the relevant span the model used.
@@ -166,12 +166,12 @@ Your search eval set has 100–500 query-document relevance labels. Track:
 - **Click-through and dwell time** — production proxies for relevance once you have traffic.
 - **Zero-result rate** — queries that return nothing. High = retrieval gaps; investigate.
 
-Run weekly on your eval set; deploy changes only when metrics improve. See [HybridRetrieval] for the full eval pattern.
+Run weekly on your eval set; deploy changes only when metrics improve. See [HybridRetrieval]() for the full eval pattern.
 
 ## Further reading
 
-- [HybridRetrieval] — fusion architecture details, with this wiki as the case study
-- [VectorDatabases] — substrate choices
-- [RagImplementationPatterns] — answer synthesis patterns
-- [EmbeddingsVectorDB] — embedding model selection
-- [KnowledgeGraphCompletion] — when graph traversal beats vector search
+- [HybridRetrieval]() — fusion architecture details, with this wiki as the case study
+- [VectorDatabases]() — substrate choices
+- [RagImplementationPatterns]() — answer synthesis patterns
+- [EmbeddingsVectorDB]() — embedding model selection
+- [KnowledgeGraphCompletion]() — when graph traversal beats vector search

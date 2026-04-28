@@ -91,7 +91,7 @@ Languages: Java TreeMap, C++ std::map, Python `sortedcontainers.SortedDict`, Rus
 
 Use when: range queries matter; you need ordered iteration; you need both fast lookup and sorted access.
 
-For massive datasets, B-trees (used in databases) outperform balanced binary trees because their fan-out matches disk / cache page sizes. See [BalancedSearchTrees], [DatabaseIndexingStrategies].
+For massive datasets, B-trees (used in databases) outperform balanced binary trees because their fan-out matches disk / cache page sizes. See [BalancedSearchTrees](), [DatabaseIndexingStrategies]().
 
 ## Heaps / Priority queues
 
@@ -129,13 +129,13 @@ Don't use a `LinkedList` to implement a stack or queue when the language has a d
 
 A set is a hash map with no values, or a sorted map with no values. Same complexity. Used for membership tests, deduplication, intersection / union / difference.
 
-For approximate membership at huge scale, see [BloomFilters].
+For approximate membership at huge scale, see [BloomFilters]().
 
 ## Tries
 
 Tree structures keyed on character sequences. Excellent for prefix queries.
 
-See [TrieDataStructure].
+See [TrieDataStructure]().
 
 ## Graphs
 
@@ -145,7 +145,7 @@ A graph is a collection of nodes and edges. Representations:
 - **Adjacency matrix**: 2D array; O(1) edge test; O(V²) memory. For dense graphs.
 - **Edge list**: list of (u, v) pairs. Compact; iteration-only.
 
-See [GraphAlgorithmsDeepDive].
+See [GraphAlgorithmsDeepDive]().
 
 ## Specialised structures worth knowing
 
@@ -165,7 +165,7 @@ Simpler to implement than balanced trees; competitive performance.
 
 Probabilistic membership test. False positives possible; false negatives impossible. Tiny memory.
 
-See [BloomFilters].
+See [BloomFilters]().
 
 ### Suffix tree / suffix array
 
@@ -179,7 +179,7 @@ Most languages have library implementations (Python `functools.lru_cache`, Java 
 
 ### B-tree / B+-tree
 
-Generalisation of balanced binary trees with high fan-out. Used in databases for on-disk indexes. See [DatabaseIndexingStrategies].
+Generalisation of balanced binary trees with high fan-out. Used in databases for on-disk indexes. See [DatabaseIndexingStrategies]().
 
 ## Cost model: amortised vs worst-case
 
@@ -212,8 +212,8 @@ Knowing the catalogue is what lets you pick the right one. The catalogue is what
 
 ## Further reading
 
-- [BloomFilters] — probabilistic membership
-- [TrieDataStructure] — prefix-keyed trees
-- [BalancedSearchTrees] — sorted-map implementations
-- [GraphAlgorithmsDeepDive] — algorithms over graph data
-- [DatabaseIndexingStrategies] — data structures inside databases
+- [BloomFilters]() — probabilistic membership
+- [TrieDataStructure]() — prefix-keyed trees
+- [BalancedSearchTrees]() — sorted-map implementations
+- [GraphAlgorithmsDeepDive]() — algorithms over graph data
+- [DatabaseIndexingStrategies]() — data structures inside databases

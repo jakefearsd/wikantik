@@ -287,7 +287,7 @@ A pragmatic JSONB schema ages well. A JSONB-everything schema stagnates.
 
 ## Further reading
 
-- [PostgresqlAdvancedFeatures] — JSONB in the broader feature context
-- [DatabaseDesign] — when to JSONB vs columns
-- [DatabaseIndexingStrategies] — GIN and functional index details
-- [NoSqlDatabaseTypes] — JSONB vs MongoDB in context
+- [PostgresqlAdvancedFeatures]() — JSONB in the broader feature context
+- [DatabaseDesign]() — when to JSONB vs columns
+- [DatabaseIndexingStrategies]() — GIN and functional index details
+- [NoSqlDatabaseTypes]() — JSONB vs MongoDB in context

@@ -1,25 +1,14 @@
 ---
-canonical_id: 01KQ0P44SXS1M8RCKWS201C8J7
-title: NP-Complete and NP-Hard Computability
-type: article
-cluster: data-structures
-status: active
-date: '2026-04-26'
-summary: Computational complexity classes — P, NP, NP-complete, NP-hard — and the
-  practical implications for software engineering: when problems are tractable,
-  when they aren't, and what to do when you encounter NP-hard problems in real
-  work.
+canonical_id: 01KQ96DZZ4YMZ0T1Y6Z5JMD0J0
+summary: NP-Complete and NP-Hard Computability Complexity theory classifies problems
+  by how hard they are to solve.
 tags:
-- complexity
-- np-complete
-- np-hard
-- algorithms
-- computability
-related:
-- GraphColoringDeepDive
-- BalancedSearchTrees
-hubs:
-- Data Structures Hub
+- np
+- problem
+- hard
+type: article
+auto-generated: true
+title: NP Complete And NP Hard Computability
 ---
 # NP-Complete and NP-Hard Computability
 

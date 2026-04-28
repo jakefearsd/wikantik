@@ -77,7 +77,7 @@ CREATE INDEX ON events USING GIN (payload);
 CREATE INDEX ON events ((payload->>'user_id'));
 ```
 
-JSONB queries support most MongoDB query patterns. You also get joins, transactions, the SQL ecosystem, and don't run a second database. See [JsonbInPostgresql].
+JSONB queries support most MongoDB query patterns. You also get joins, transactions, the SQL ecosystem, and don't run a second database. See [JsonbInPostgresql]().
 
 For most teams: prefer this over MongoDB unless you have specific MongoDB-shaped needs.
 
@@ -89,7 +89,7 @@ The simplest NoSQL: `set(key, value)`, `get(key)`. High throughput, sub-millisec
 
 The dominant key-value store; in-memory; rich data types beyond plain key-value (lists, sets, sorted sets, hashes, streams, geo, bitmap, hyperloglog).
 
-Use cases (see [RedisPatterns]):
+Use cases (see [RedisPatterns]()):
 - Caching (the dominant use).
 - Session storage.
 - Rate limiting.
@@ -155,7 +155,7 @@ Use cases similar to Cassandra; less common in non-Google / non-Hadoop shops.
 
 ## Graph databases
 
-Stores nodes and edges; queries traverse relationships. See [GraphDatabaseFundamentals], [KnowledgeGraphVsRelationalDatabase].
+Stores nodes and edges; queries traverse relationships. See [GraphDatabaseFundamentals](), [KnowledgeGraphVsRelationalDatabase]().
 
 For most "we have related data" cases, foreign keys in Postgres do the job. Graph databases are right when:
 - Traversals are deep (5+ hops).
@@ -209,7 +209,7 @@ Most production stacks in 2026 are Postgres + Redis + maybe one or two specialis
 
 ## Further reading
 
-- [DatabaseDesign] — relational design starting point
-- [RedisPatterns] — when key-value wins
-- [GraphDatabaseFundamentals] — graph DBs in depth
-- [DatabaseSharding] — horizontal scaling concerns
+- [DatabaseDesign]() — relational design starting point
+- [RedisPatterns]() — when key-value wins
+- [GraphDatabaseFundamentals]() — graph DBs in depth
+- [DatabaseSharding]() — horizontal scaling concerns

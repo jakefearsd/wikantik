@@ -165,7 +165,7 @@ For most production GPU serving in 2026: vLLM is the safe default. TensorRT-LLM 
 
 ## Fine-tuning open models
 
-LoRA / QLoRA fine-tuning on top of open-weights base. Standard tooling: HuggingFace `trl`, `peft`, axolotl, unsloth. See [LLMFineTuning].
+LoRA / QLoRA fine-tuning on top of open-weights base. Standard tooling: HuggingFace `trl`, `peft`, axolotl, unsloth. See [LLMFineTuning]().
 
 The full-finetune path (modify all weights) is rare unless you have unusual budget. LoRA suffices for nearly every domain adaptation use case.
 
@@ -173,7 +173,7 @@ A LoRA adapter is small (tens of MB); deploy alongside the base model. Multiple 
 
 ## Quantisation in production
 
-Most production self-hosted serving uses 4-bit or 8-bit quantisation. AWQ or GPTQ for GPU serving; GGUF for CPU / Apple Silicon. See [ModelQuantization].
+Most production self-hosted serving uses 4-bit or 8-bit quantisation. AWQ or GPTQ for GPU serving; GGUF for CPU / Apple Silicon. See [ModelQuantization]().
 
 Quality cost: 1-3% on most benchmarks at 4-bit. Memory savings: 4×. Throughput gain: 2-4× (memory-bandwidth-bound LLM inference).
 
@@ -198,15 +198,15 @@ For a team adopting open-weights:
 3. **Pick the strongest** for your task (often surprises; not always the latest).
 4. **Quantise** to 4-bit AWQ or 8-bit GPTQ.
 5. **Serve via vLLM** on appropriate hardware.
-6. **Set up observability** — see [AiObservabilityInProduction].
+6. **Set up observability** — see [AiObservabilityInProduction]().
 7. **Build a periodic re-eval habit** — check new model releases monthly.
 
 Two weeks of work; production-grade open-weights serving.
 
 ## Further reading
 
-- [LLMFineTuning] — adapting open models
-- [ModelQuantization] — making them cheaper
-- [CostEffectiveInference] — broader cost optimisation
+- [LLMFineTuning]() — adapting open models
+- [ModelQuantization]() — making them cheaper
+- [CostEffectiveInference]() — broader cost optimisation
 - [CpuInference] — when GPUs aren't available
-- [LlmTokenEconomicsAndPricing] — comparison economics
+- [LlmTokenEconomicsAndPricing]() — comparison economics

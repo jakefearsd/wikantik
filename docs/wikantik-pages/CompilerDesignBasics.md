@@ -290,6 +290,6 @@ For most engineers:
 
 ## Further reading
 
-- [DataStructures] — ASTs, symbol tables
-- [TypeSystemsComparison] — semantic analysis context
-- [AbstractAlgebra] — for the formal-language theory underneath
+- [DataStructures]() — ASTs, symbol tables
+- [TypeSystemsComparison]() — semantic analysis context
+- [AbstractAlgebra]() — for the formal-language theory underneath

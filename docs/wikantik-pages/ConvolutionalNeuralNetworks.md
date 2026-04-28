@@ -162,7 +162,7 @@ This produces a competitive baseline in days instead of weeks. Push for transfor
 
 ## Further reading
 
-- [NeuralNetworkArchitectures] — broader architecture context
-- [DeepLearningFundamentals] — math and training
-- [LinearAlgebra] — convolutions are linear maps
-- [GradientDescentAndOptimizers] — training discipline
+- [NeuralNetworkArchitectures]() — broader architecture context
+- [DeepLearningFundamentals]() — math and training
+- [LinearAlgebra]() — convolutions are linear maps
+- [GradientDescentAndOptimizers]() — training discipline

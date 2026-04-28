@@ -249,7 +249,7 @@ This stack handles batch and streaming, gives you ACID guarantees, scales reason
 
 ## Further reading
 
-- [BatchVsStreaming] — choosing approaches
-- [ApacheKafkaFundamentals] — usual upstream for Spark Streaming
-- [DataLakehouse] — substrate Spark increasingly writes to
-- [DistributedComputingAlgorithms] — concepts behind Spark internals
+- [BatchVsStreaming]() — choosing approaches
+- [ApacheKafkaFundamentals]() — usual upstream for Spark Streaming
+- [DataLakehouse]() — substrate Spark increasingly writes to
+- [DistributedComputingAlgorithms]() — concepts behind Spark internals

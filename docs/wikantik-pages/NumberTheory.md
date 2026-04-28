@@ -169,7 +169,7 @@ These are foundational for research-level crypto and post-quantum work but not f
 
 ## Further reading
 
-- [AbstractAlgebra] — adjacent and overlapping
-- [EncryptionFundamentals] — number theory applied
-- [LinearAlgebra] — when crypto goes lattice-based
-- [BayesianReasoning] — for probabilistic primality testing
+- [AbstractAlgebra]() — adjacent and overlapping
+- [EncryptionFundamentals]() — number theory applied
+- [LinearAlgebra]() — when crypto goes lattice-based
+- [BayesianReasoning]() — for probabilistic primality testing

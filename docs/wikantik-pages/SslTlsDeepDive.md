@@ -166,7 +166,7 @@ Aim for SSL Labs A+. Anything below A is missing something fixable.
 
 ## Further reading
 
-- [EncryptionFundamentals] — the symmetric and asymmetric primitives TLS uses
-- [PkiAndCertificates] — the CA/cert ecosystem in depth
-- [ApplicationSecurityFundamentals] — broader app-sec context
-- [ZeroTrustArchitecture] — TLS in zero-trust models
+- [EncryptionFundamentals]() — the symmetric and asymmetric primitives TLS uses
+- [PkiAndCertificates]() — the CA/cert ecosystem in depth
+- [ApplicationSecurityFundamentals]() — broader app-sec context
+- [ZeroTrustArchitecture]() — TLS in zero-trust models

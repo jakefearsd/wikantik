@@ -161,7 +161,7 @@ Alert on:
 - Cache hit rate drop > 10 percentage points (catches prefix instability).
 - Daily spend > budget threshold.
 
-Without these, prompt regressions silently triple your bill before the finance team notices. With them, you catch within a day. See [AgentObservability].
+Without these, prompt regressions silently triple your bill before the finance team notices. With them, you catch within a day. See [AgentObservability]().
 
 ## Common cost mistakes
 
@@ -180,8 +180,8 @@ Without these, prompt regressions silently triple your bill before the finance t
 
 ## Further reading
 
-- [ContextWindowManagement] — the input-token side
-- [ContextCompression] — reducing input tokens via summarisation
-- [AgentObservability] — the cost-tracking infrastructure
-- [ModelQuantization] — quality/cost trade for self-hosted
-- [CostEffectiveInference] — broader cost-optimisation context
+- [ContextWindowManagement]() — the input-token side
+- [ContextCompression]() — reducing input tokens via summarisation
+- [AgentObservability]() — the cost-tracking infrastructure
+- [ModelQuantization]() — quality/cost trade for self-hosted
+- [CostEffectiveInference]() — broader cost-optimisation context

@@ -174,7 +174,7 @@ The `userinfo` endpoint returns the same claims (and possibly more) and is query
 
 ## Further reading
 
-- [ApplicationSecurityFundamentals] — broader auth context
-- [AuthenticationAndAuthorization] — broader concepts
-- [EncryptionFundamentals] — JWT signing primitives
-- [SslTlsDeepDive] — the transport TLS underneath
+- [ApplicationSecurityFundamentals]() — broader auth context
+- [AuthenticationAndAuthorization]() — broader concepts
+- [EncryptionFundamentals]() — JWT signing primitives
+- [SslTlsDeepDive]() — the transport TLS underneath

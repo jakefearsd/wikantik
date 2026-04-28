@@ -48,7 +48,7 @@ A bounded context is a region of the system where one set of vocabulary applies 
 
 Example: in the **billing** context, an "account" is a payment relationship — credit card, billing address, invoice schedule. In the **identity** context, an "account" is the login credential — username, password, MFA token. Same word, different things, different schemas, different services.
 
-Bounded contexts are the load-bearing idea behind microservice boundaries (see [MicroservicesArchitecture]). Drawing service boundaries along bounded contexts produces services that are internally cohesive and externally decoupled. Drawing them anywhere else produces distributed monoliths.
+Bounded contexts are the load-bearing idea behind microservice boundaries (see [MicroservicesArchitecture]()). Drawing service boundaries along bounded contexts produces services that are internally cohesive and externally decoupled. Drawing them anywhere else produces distributed monoliths.
 
 How to actually do it:
 - Map the contexts before deciding service boundaries. Use Event Storming or Context Mapping (see below).
@@ -115,11 +115,11 @@ The names matter less than asking "how do these two contexts interact, and how d
 
 ## How DDD interacts with modern architecture
 
-Microservices: bounded contexts → service boundaries. See [MicroservicesArchitecture].
+Microservices: bounded contexts → service boundaries. See [MicroservicesArchitecture]().
 
-Event-driven systems: cross-aggregate consistency via events. See [EventDrivenArchitecture].
+Event-driven systems: cross-aggregate consistency via events. See [EventDrivenArchitecture]().
 
-CQRS: separating writes (command-side, aggregate-enforced invariants) from reads (query-side, denormalised). See [CqrsPattern].
+CQRS: separating writes (command-side, aggregate-enforced invariants) from reads (query-side, denormalised). See [CqrsPattern]().
 
 Hexagonal architecture: keeping the domain model independent of frameworks and infrastructure. See [HexagonalArchitecture].
 
@@ -145,8 +145,8 @@ Skip everything else until a specific situation justifies it. This is roughly th
 
 ## Further reading
 
-- [MicroservicesArchitecture] — bounded contexts as service boundaries
-- [EventDrivenArchitecture] — events between aggregates
+- [MicroservicesArchitecture]() — bounded contexts as service boundaries
+- [EventDrivenArchitecture]() — events between aggregates
 - [HexagonalArchitecture] — keeping the domain decoupled from infrastructure
-- [CqrsPattern] — read/write separation
-- [DesignPatternsOverview] — the broader pattern landscape DDD lives in
+- [CqrsPattern]() — read/write separation
+- [DesignPatternsOverview]() — the broader pattern landscape DDD lives in

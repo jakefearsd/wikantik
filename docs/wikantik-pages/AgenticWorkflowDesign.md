@@ -31,7 +31,7 @@ hubs:
 
 An agentic workflow is an LLM loop that chooses its own next tool call. That one-line definition hides every interesting design decision: how much autonomy you grant, how state survives between steps, and what you do when the model picks badly — which it will.
 
-This page is a working engineer's map of the design space. It is not neutral. Opinions are marked. If you want a gentler introduction, start at [AgentLoops] for the mechanical shape and [AiAgentArchitectures] for the framework comparison; come back here when you need to make real architectural choices.
+This page is a working engineer's map of the design space. It is not neutral. Opinions are marked. If you want a gentler introduction, start at [AgentLoops]() for the mechanical shape and [AiAgentArchitectures]() for the framework comparison; come back here when you need to make real architectural choices.
 
 ## What "agentic" means in practice
 
@@ -67,13 +67,13 @@ Agents accumulate four state channels, and you need to treat them differently:
 1. **Scratch reasoning** — the model's chain-of-thought between steps. Safe to truncate aggressively; rarely needed past the current turn.
 2. **Tool call history** — every tool invocation and its result. Keep every call *summary*, drop every full tool payload except the most recent. A `read_file` that returned 30k tokens three steps ago should now be a one-line note.
 3. **Working memory** — facts the agent has committed to as true (e.g. "user ID is 42"). These need to survive summarisation; pin them as structured data, not prose.
-4. **Episodic / long-term memory** — persists across sessions. Separate store, usually a vector DB or SQL table keyed on user. See [AgentMemory] for the cross-session story.
+4. **Episodic / long-term memory** — persists across sessions. Separate store, usually a vector DB or SQL table keyed on user. See [AgentMemory]() for the cross-session story.
 
 The single highest-leverage change most agent systems need is **structured working memory**. When the agent extracts a fact ("the ticket ID is INC-2291"), write it to a typed slot instead of leaving it in the chat transcript. Claude/GPT will drop it during summarisation otherwise, and you'll watch the agent re-query the same database for the fourth time in a 20-step run.
 
 ## Failure modes, ranked by frequency
 
-Observed failure frequencies from production agent deployments (loosely ordered — see [AgentLoops] for specific detection recipes):
+Observed failure frequencies from production agent deployments (loosely ordered — see [AgentLoops]() for specific detection recipes):
 
 1. **Schema drift on tool calls.** Model emits `{"user_id": "42"}` when the schema expects an integer. Fix: validate every tool call with JSON Schema *before* dispatching, feed the validation error back to the model as the tool response. Do not crash the loop on validation failure — prompt it to correct. This alone eliminates ~40% of hang/retry noise.
 2. **Silent context overflow.** The framework you picked truncates oldest-first, dropping the original user goal. The agent then finishes a task that's no longer the task it was asked to do. Fix: pin the goal statement as the first user message *and* as a system-level `goal` field the summariser can't drop.
@@ -113,7 +113,7 @@ What this buys you:
 - **Checkpoints at every state transition.** Cost of implementation: one `INSERT` per node. Value: every "the agent died 18 steps in after $4 of tokens" becomes a resume, not a restart.
 - **Prompt-cached model calls.** For Claude and OpenAI both, the tool definitions + system prompt are the cacheable prefix. Cache hit rate above 90% on long loops is routine and cuts cost ~10×.
 - **Schema-validated tool I/O both directions.** The model gets schema violations back as tool responses so it self-corrects. Your code never sees a malformed arg.
-- **Structured traces.** Every LLM call and tool call gets a span with cost, latency, input/output hashes, tool-call validity. LangSmith, Langfuse, or a homegrown Postgres table all work; pick the one you'll actually look at. See [AgentObservability].
+- **Structured traces.** Every LLM call and tool call gets a span with cost, latency, input/output hashes, tool-call validity. LangSmith, Langfuse, or a homegrown Postgres table all work; pick the one you'll actually look at. See [AgentObservability]().
 
 ## What to skip in v1
 
@@ -121,7 +121,7 @@ Things that sound important but usually aren't until your v2:
 
 - **Self-reflection / self-critique loops.** The classic "ask the agent to grade its own output" adds latency and, in controlled evals, rarely improves accuracy on tasks where the underlying model is already competent. If the base model can't do the task, reflection won't save it. If it can, reflection is overhead.
 - **Semantic routing between specialist agents.** Embedding-similarity routing is a plausible-sounding idea that collapses in practice because the embedding doesn't know which agent is *good at* the task, only which is topically close. Use rules or a small classifier.
-- **Vector memory for everything.** Chat history summarisation + structured working memory covers 90% of what people reach for vector memory to do, with none of the retrieval noise. See [AgentMemory] for when vector memory *is* the right call.
+- **Vector memory for everything.** Chat history summarisation + structured working memory covers 90% of what people reach for vector memory to do, with none of the retrieval noise. See [AgentMemory]() for when vector memory *is* the right call.
 
 ## Evaluation, because otherwise you're flying blind
 
@@ -132,14 +132,14 @@ Most teams build agents by vibes. Don't. The cheapest useful eval is a fixed set
 - Tool-call validity rate (catches schema drift before users do)
 - Total cost and p95 latency per task
 
-When these metrics plateau, you graduate to harder benchmarks — SWE-bench for code agents, τ-bench or agentbench for generalists. See [AgentTesting] and [LlmEvaluationMetrics] for the full discipline.
+When these metrics plateau, you graduate to harder benchmarks — SWE-bench for code agents, τ-bench or agentbench for generalists. See [AgentTesting]() and [LlmEvaluationMetrics]() for the full discipline.
 
 ## Further reading
 
-- [AgentLoops] — the mechanical failure catalogue these patterns defend against
-- [AgentPlanning] — plan representations and their trade-offs
-- [AgentMemory] — short-term, long-term, and when vector memory earns its keep
-- [RagImplementationPatterns] — agents that retrieve before they act
+- [AgentLoops]() — the mechanical failure catalogue these patterns defend against
+- [AgentPlanning]() — plan representations and their trade-offs
+- [AgentMemory]() — short-term, long-term, and when vector memory earns its keep
+- [RagImplementationPatterns]() — agents that retrieve before they act
 - [ToolUse] — designing the tools, not just the agent
-- [AgentObservability] — what to log, what to alert on
-- [AgentTesting] — fixed task sets and rollout comparison
+- [AgentObservability]() — what to log, what to alert on
+- [AgentTesting]() — fixed task sets and rollout comparison

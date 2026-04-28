@@ -198,7 +198,7 @@ Without monitoring, each of these is a frantic investigation. With it, a click a
 
 ## Further reading
 
-- [DatabaseIndexingStrategies] — what to do once monitoring tells you what's slow
-- [PostgresqlAdvancedFeatures] — Postgres-specific tuning
-- [DatabaseDesign] — schema choices that affect monitorability
-- [DistributedTracing] — joining DB telemetry to broader app traces
+- [DatabaseIndexingStrategies]() — what to do once monitoring tells you what's slow
+- [PostgresqlAdvancedFeatures]() — Postgres-specific tuning
+- [DatabaseDesign]() — schema choices that affect monitorability
+- [DistributedTracing]() — joining DB telemetry to broader app traces

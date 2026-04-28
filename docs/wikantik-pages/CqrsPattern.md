@@ -84,7 +84,7 @@ Writes go to Postgres (transactional, normalised). Reads go to Elasticsearch (fu
 Synchronisation is the hard part:
 
 - **Application dual-write** — naive, fragile, prone to inconsistency on partial failures.
-- **Outbox pattern** — write event to outbox table in same transaction; pipeline forwards to read store. Reliable. See [EventDrivenArchitecture].
+- **Outbox pattern** — write event to outbox table in same transaction; pipeline forwards to read store. Reliable. See [EventDrivenArchitecture]().
 - **Change Data Capture (CDC)** — Debezium or similar tails the DB log and forwards changes. Lower latency than outbox, more operational overhead.
 
 This variant is justified when the read store has materially different capabilities than the write store (full-text search, geospatial, sub-millisecond response). If the read store is "Postgres but denormalised," materialised views in the same DB are usually simpler.
@@ -137,7 +137,7 @@ Most teams stop at step 2 or 3. Step 4 is rare and should be.
 
 ## CQRS without DDD, or vice versa
 
-The pattern is often introduced together with [DomainDrivenDesign] and event sourcing as a single bundle. They aren't actually coupled.
+The pattern is often introduced together with [DomainDrivenDesign]() and event sourcing as a single bundle. They aren't actually coupled.
 
 - CQRS without DDD is fine — separate read/write models in any architecture.
 - DDD without CQRS is fine — bounded contexts and aggregates without read-side separation.
@@ -147,7 +147,7 @@ Adopt each independently based on whether it solves your specific problem.
 
 ## Further reading
 
-- [EventDrivenArchitecture] — common substrate for CQRS sync
-- [DomainDrivenDesign] — bounded contexts as the natural CQRS unit
-- [DatabaseDesign] — read-vs-write schema choices
-- [DomainAndIntegrationEvents] — events as the integration contract
+- [EventDrivenArchitecture]() — common substrate for CQRS sync
+- [DomainDrivenDesign]() — bounded contexts as the natural CQRS unit
+- [DatabaseDesign]() — read-vs-write schema choices
+- [DomainAndIntegrationEvents]() — events as the integration contract

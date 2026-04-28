@@ -58,7 +58,7 @@ Drawing the lines wrong is the failure mode. Two heuristics:
 
 **Boundaries follow team ownership.** A service that no team owns will rot. A service that two teams co-own will become a coordination nightmare. One team, one service (or one team owns multiple cohesive services). If the team boundaries are wrong, fix those before fixing service boundaries.
 
-Domain-driven design's *bounded contexts* (see [DomainDrivenDesign]) are the formalisation of "follow business capabilities." Worth reading the Evans book or skimming Vaughn Vernon's distillation.
+Domain-driven design's *bounded contexts* (see [DomainDrivenDesign]()) are the formalisation of "follow business capabilities." Worth reading the Evans book or skimming Vaughn Vernon's distillation.
 
 ## The operational cost, concretely
 
@@ -81,7 +81,7 @@ Each row is a real engineering investment. Total cost on a mature microservices 
 
 **Service mesh.** mTLS, retries, circuit breakers, observability — done at the network layer. Istio and Linkerd are the canonical options. Adopt only when you have enough services that doing this in libraries hurts.
 
-**Event-driven communication for cross-service coordination.** RPC for synchronous calls; events for "I changed something other services might care about." Mixing these or only using one creates pain. See [EventDrivenArchitecture].
+**Event-driven communication for cross-service coordination.** RPC for synchronous calls; events for "I changed something other services might care about." Mixing these or only using one creates pain. See [EventDrivenArchitecture]().
 
 **Database per service.** Each service owns its data. Cross-service queries go through APIs or replicated read models, never direct DB joins. This is the rule that distinguishes microservices from a distributed monolith.
 
@@ -129,8 +129,8 @@ This produces fewer services, slower, but each one is justified. It also keeps t
 
 ## Further reading
 
-- [DomainDrivenDesign] — bounded contexts as the basis for boundaries
-- [EventDrivenArchitecture] — async communication patterns
-- [ContainerOrchestration] — Kubernetes is usually the runtime
-- [ServiceLevelAgreements] — SLO discipline becomes more important with more services
-- [DistributedTracing] — observability foundation
+- [DomainDrivenDesign]() — bounded contexts as the basis for boundaries
+- [EventDrivenArchitecture]() — async communication patterns
+- [ContainerOrchestration]() — Kubernetes is usually the runtime
+- [ServiceLevelAgreements]() — SLO discipline becomes more important with more services
+- [DistributedTracing]() — observability foundation

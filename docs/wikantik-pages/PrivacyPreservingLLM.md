@@ -44,14 +44,14 @@ Each of these has different mitigations. Pick based on which threats matter for 
 
 If "data must not leave our infrastructure" is the constraint, run the model yourself.
 
-- **Open-weights LLM** (Llama, Qwen, Mistral). See [OpenSourceLLMs].
+- **Open-weights LLM** (Llama, Qwen, Mistral). See [OpenSourceLLMs]().
 - **Run on hardware you control** (cloud VPC, on-prem, customer-deployed).
 - **Logs and prompts stay in your perimeter.**
 - **Encryption at rest and in transit** as you'd do for any sensitive data.
 
 This is the answer for most "we can't send data to OpenAI" cases. Quality trades off vs commercial frontier; operational cost is real but bounded.
 
-See [LocalRAG] for the RAG variant of this story.
+See [LocalRAG]() for the RAG variant of this story.
 
 ## Confidential computing
 
@@ -175,7 +175,7 @@ Privacy regulations interact with LLM-specific concerns:
 - **HIPAA** — health-data-specific rules; "HIPAA-eligible" tiers exist for major LLM providers.
 - **State / local AI laws** — vary; track ones applicable to your users.
 
-See [AiDataPrivacyAndCompliance].
+See [AiDataPrivacyAndCompliance]().
 
 ## Where this is going
 
@@ -204,7 +204,7 @@ For most teams, "self-hosted open model" is the answer to "we have privacy conce
 
 ## Further reading
 
-- [AiDataPrivacyAndCompliance] — regulatory specifics
-- [LocalRAG] — local-only retrieval pipeline
-- [OpenSourceLLMs] — what to self-host
-- [ResponsibleAiDeployment] — broader responsible-AI context
+- [AiDataPrivacyAndCompliance]() — regulatory specifics
+- [LocalRAG]() — local-only retrieval pipeline
+- [OpenSourceLLMs]() — what to self-host
+- [ResponsibleAiDeployment]() — broader responsible-AI context

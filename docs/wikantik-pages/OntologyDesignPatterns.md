@@ -121,7 +121,7 @@ Cons: limited support for time-querying patterns.
 
 #### Effective-dated rows (relational)
 
-Each fact gets a separate row with `valid_from` / `valid_until`. See [DatabaseDesign].
+Each fact gets a separate row with `valid_from` / `valid_until`. See [DatabaseDesign]().
 
 For most modern KGs, edge properties suffice. Reified relationships are formally cleaner but heavier.
 
@@ -237,7 +237,7 @@ You'll have an ontology, just an informal one. That's usually enough.
 
 ## Further reading
 
-- [KnowledgeGraphCompletion] — building / extending the graph
-- [KnowledgeGraphVsRelationalDatabase] — substrate decision
-- [DatabaseDesign] — relational schema discipline carries over
-- [AbstractAlgebra] — formal-structure math underlying ontologies
+- [KnowledgeGraphCompletion]() — building / extending the graph
+- [KnowledgeGraphVsRelationalDatabase]() — substrate decision
+- [DatabaseDesign]() — relational schema discipline carries over
+- [AbstractAlgebra]() — formal-structure math underlying ontologies

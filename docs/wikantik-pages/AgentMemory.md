@@ -1,19 +1,5 @@
 ---
 canonical_id: 01KQ12YDRBZ9RPVCT0GCH9HG6Y
-title: Agent Memory
-type: article
-cluster: agentic-ai
-status: active
-date: '2026-04-24'
-tags:
-- agent
-- memory
-- context-window
-- vector-memory
-- state-management
-summary: How to keep LLM agents from forgetting what matters and remembering what
-  doesn't — four state channels, their storage substrates, and the patterns that
-  survive long-running loops.
 related:
 - AiMemoryAndPersistence
 - AgenticWorkflowDesign
@@ -21,9 +7,22 @@ related:
 - ContextWindowManagement
 - ContextCompression
 - VectorDatabases
+summary: How to keep LLM agents from forgetting what matters and remembering what doesn't — four state channels, their storage substrates, and the patterns that survive long-running loops.
+tags:
+- agent
+- memory
+- context-window
+- vector-memory
+- state-management
 hubs:
 - AgenticAi Hub
+title: Agent Memory
+date: '2026-04-24'
+cluster: agentic-ai
+status: active
+type: article
 ---
+
 # Agent Memory
 
 "Memory" in an LLM agent is a sloppy word. It collapses four very different engineering problems into one: the reasoning scratchpad, the tool-call history, the working facts the agent has extracted, and the long-term knowledge that spans sessions. Each needs a different storage substrate and a different eviction policy.
@@ -118,7 +117,7 @@ Vector memory is the **wrong** tool for:
 
 - Structured facts the user has explicitly stated (timezone, language, account ID). Use a SQL row.
 - Exact recall of prior operations ("did we issue a refund to user 42 last month?"). Use the transaction log.
-- Hierarchical knowledge that benefits from traversal. Use a knowledge graph — see [KnowledgeGraphCompletion].
+- Hierarchical knowledge that benefits from traversal. Use a knowledge graph — see [KnowledgeGraphCompletion]().
 
 A reasonable production long-term memory stack:
 
@@ -158,13 +157,13 @@ Without eval, you won't notice memory regressions until users do.
 - **Fact persistence**: plant a fact early ("the ticket ID is INC-2291"), measure whether the agent cites it correctly in turn 12+.
 - **Cross-session recall**: resume a task day later, check whether prior context was reconstructed.
 
-These go in the same fixture suite as your other rollout tests — see [AgentTesting].
+These go in the same fixture suite as your other rollout tests — see [AgentTesting]().
 
 ## Further reading
 
-- [AiMemoryAndPersistence] — companion page on the storage-substrate side
-- [AgenticWorkflowDesign] — system-level shape memory fits into
-- [AgentLoops] — failure modes when memory is wrong
-- [ContextWindowManagement] — the pure mechanics of token budgets
-- [ContextCompression] — summarisation prompts and techniques
-- [VectorDatabases] — the storage layer for semantic recall
+- [AiMemoryAndPersistence]() — companion page on the storage-substrate side
+- [AgenticWorkflowDesign]() — system-level shape memory fits into
+- [AgentLoops]() — failure modes when memory is wrong
+- [ContextWindowManagement]() — the pure mechanics of token budgets
+- [ContextCompression]() — summarisation prompts and techniques
+- [VectorDatabases]() — the storage layer for semantic recall

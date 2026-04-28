@@ -123,7 +123,7 @@ Result: roughly 100× fewer disk reads on negative lookups, ~1× on positive loo
 
 ## Further reading
 
-- [DataStructures] — broader context
+- [DataStructures]() — broader context
 - [HashFunctions] — choosing the underlying hash
-- [DatabaseIndexingStrategies] — Bloom filters in storage engines
-- [CachingStrategies] — Bloom filters in front of caches
+- [DatabaseIndexingStrategies]() — Bloom filters in storage engines
+- [CachingStrategies]() — Bloom filters in front of caches

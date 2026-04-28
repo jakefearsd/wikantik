@@ -38,7 +38,7 @@ A class that wraps another class to expose a different interface. Used everywher
 
 Example: your code expects `PaymentProcessor.charge(Money)` but the Stripe SDK has `stripe.Charge.create(amount=int_cents, currency='usd')`. Adapter: `StripePaymentProcessor` implements `PaymentProcessor.charge` and translates internally.
 
-Always relevant. See [AdapterPattern].
+Always relevant. See [AdapterPattern]().
 
 ### Strategy
 
@@ -61,7 +61,7 @@ Subjects publish events; subscribers react. Modern descendants: event buses, mes
 
 The OO version (a `Subject` class with `addObserver`/`removeObserver`) is rarely written by hand anymore — your event bus, framework signal system, or message broker handles it. The pattern persists; the implementation is library-provided.
 
-See [ObserverPattern], [EventDrivenArchitecture].
+See [ObserverPattern](), [EventDrivenArchitecture]().
 
 ### Decorator
 
@@ -69,7 +69,7 @@ Wrap an object to add behaviour without modifying it. The HTTP middleware stack 
 
 Python's `@decorator` syntax is named after this pattern. JavaScript / TypeScript decorators (TC39) too. The pattern is so embedded in modern language design that "decorator" the syntactic feature is what most engineers think of, not the GoF pattern.
 
-See [DecoratorPattern].
+See [DecoratorPattern]().
 
 ### Iterator
 
@@ -103,7 +103,7 @@ Originally: a class with a private constructor and a static `getInstance()`. In 
 
 Modern replacement: dependency injection container manages lifecycle; the "single instance" property is a configuration choice, not a class structural feature.
 
-If you find yourself reaching for Singleton, ask whether you actually want a registered service in your DI container. Usually you do. See [SingletonPatternAndAlternatives].
+If you find yourself reaching for Singleton, ask whether you actually want a registered service in your DI container. Usually you do. See [SingletonPatternAndAlternatives]().
 
 ### Factory / Abstract Factory
 
@@ -113,7 +113,7 @@ In modern languages, often just a function that returns a configured object. In 
 
 ### Command
 
-Encapsulate a request as an object. CQRS (see [CqrsPattern]) is Command at architecture scale. Undo/redo systems use Command. Job queues use Command.
+Encapsulate a request as an object. CQRS (see [CqrsPattern]()) is Command at architecture scale. Undo/redo systems use Command. Job queues use Command.
 
 The pattern is alive; the explicit hand-rolled `CommandInterface` is rarely how it shows up — it's serialized job records, message envelopes, or domain events.
 
@@ -170,10 +170,10 @@ Define a grammar and an interpreter for it. Useful for narrow DSLs; usually over
 The book is 30 years old. Patterns that have emerged or been formalised since:
 
 - **Dependency Injection** — the framework supplies what an object needs. Pervasive. Often replaces Factory and Singleton.
-- **Repository / Unit of Work** — abstraction over data access. Almost always paired with ORMs. See [DomainDrivenDesign].
-- **CQRS** — separate read and write models. See [CqrsPattern].
+- **Repository / Unit of Work** — abstraction over data access. Almost always paired with ORMs. See [DomainDrivenDesign]().
+- **CQRS** — separate read and write models. See [CqrsPattern]().
 - **Hexagonal / Ports and Adapters** — domain at the centre, adapters at the edges. See [HexagonalArchitecture].
-- **Saga** — long-running transactions across services. See [EventDrivenArchitecture].
+- **Saga** — long-running transactions across services. See [EventDrivenArchitecture]().
 - **Circuit Breaker** — fail fast when a downstream is unhealthy.
 - **Retry with backoff** — robust handling of transient failures.
 - **Bulkhead** — isolate failures so one part of the system doesn't take down others.
@@ -202,10 +202,10 @@ The pattern catalogue is a vocabulary, not a checklist.
 
 ## Further reading
 
-- [AdapterPattern] — most-used pattern in this list, in depth
-- [ObserverPattern] — and its modern descendants
-- [DecoratorPattern] — through to language-level decorators
-- [SingletonPatternAndAlternatives] — why DI usually wins
-- [DomainDrivenDesign] — modern higher-level patterns
+- [AdapterPattern]() — most-used pattern in this list, in depth
+- [ObserverPattern]() — and its modern descendants
+- [DecoratorPattern]() — through to language-level decorators
+- [SingletonPatternAndAlternatives]() — why DI usually wins
+- [DomainDrivenDesign]() — modern higher-level patterns
 - [HexagonalArchitecture] — modern higher-level patterns
-- [CqrsPattern] — modern higher-level patterns
+- [CqrsPattern]() — modern higher-level patterns

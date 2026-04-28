@@ -298,7 +298,7 @@ A few weeks of work; defends against the bulk of the threat surface.
 
 ## Further reading
 
-- [ContainerOrchestration] — Kubernetes mechanics
-- [ApplicationSecurityFundamentals] — broader app-sec context
-- [ThreatModeling] — anticipating threats
-- [ZeroTrustArchitecture] — broader zero-trust posture
+- [ContainerOrchestration]() — Kubernetes mechanics
+- [ApplicationSecurityFundamentals]() — broader app-sec context
+- [ThreatModeling]() — anticipating threats
+- [ZeroTrustArchitecture]() — broader zero-trust posture

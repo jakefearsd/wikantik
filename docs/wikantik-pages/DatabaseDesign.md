@@ -149,7 +149,7 @@ Index decisions can be deferred but the schema decisions that *enable* indexing 
 - **`updated_at` is often worth an index** for incremental sync queries (`WHERE updated_at > $1`).
 - **Composite columns on common filters.** If queries often `WHERE tenant_id = $1 AND status = $2`, a composite index `(tenant_id, status)` serves them.
 
-See [DatabaseIndexingStrategies] for the full strategy.
+See [DatabaseIndexingStrategies]() for the full strategy.
 
 ## Schema migration discipline
 
@@ -163,7 +163,7 @@ Backward-compatibility rules for online migrations:
 4. **Dropping columns is unsafe** while old code still reads them. Same expand/contract.
 5. **Type changes are usually unsafe** (rewriting a TEXT to JSONB on a 1B-row table = hours of lock).
 
-See [DatabaseMigrationStrategies] for the patterns.
+See [DatabaseMigrationStrategies]() for the patterns.
 
 ## What aging-well schemas have in common
 
@@ -181,7 +181,7 @@ What aging-poorly schemas have in common: natural-key foreign keys, missing cons
 
 ## Further reading
 
-- [DatabaseDesignPatterns] — patterns at table-set level (event sourcing, polymorphic associations)
-- [DatabaseIndexingStrategies] — indexing decisions
-- [DatabaseMigrationStrategies] — online schema change patterns
-- [DimensionalModeling] — schemas for analytics / DW work
+- [DatabaseDesignPatterns]() — patterns at table-set level (event sourcing, polymorphic associations)
+- [DatabaseIndexingStrategies]() — indexing decisions
+- [DatabaseMigrationStrategies]() — online schema change patterns
+- [DimensionalModeling]() — schemas for analytics / DW work

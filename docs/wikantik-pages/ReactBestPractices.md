@@ -205,7 +205,7 @@ When it does matter:
 - **Slow renders.** Often a single component doing expensive work synchronously. Move to `useDeferredValue`, `startTransition`, or web worker.
 - **Bundle size.** Use Server Components for non-interactive UI; lazy-load heavy components with `React.lazy`; analyse with `@next/bundle-analyzer` or equivalent.
 
-See [WebPerformanceOptimization].
+See [WebPerformanceOptimization]().
 
 ## Anti-patterns
 
@@ -246,7 +246,7 @@ For most new React apps in 2026: Next.js with App Router unless there's a specif
 
 ## Further reading
 
-- [WebPerformanceOptimization] — when React perf matters
-- [DesignSystems] — components reusable across products
-- [TypeSystemsComparison] — TypeScript context
-- [SinglePageApplicationArchitecture] — broader SPA architecture
+- [WebPerformanceOptimization]() — when React perf matters
+- [DesignSystems]() — components reusable across products
+- [TypeSystemsComparison]() — TypeScript context
+- [SinglePageApplicationArchitecture]() — broader SPA architecture

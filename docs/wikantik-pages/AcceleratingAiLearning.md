@@ -58,7 +58,7 @@ After completing a task with AI, explain to someone (or write down) exactly what
 
 ### Side-by-Side Model Comparison
 
-Run the same prompt through different models — GPT-4, Claude, Gemini, a local model via [RunningLocalLlms]. Compare not just quality but *character*: which model is more cautious? More creative? More likely to refuse? Understanding model personalities helps you choose the right tool for each job.
+Run the same prompt through different models — GPT-4, Claude, Gemini, a local model via [RunningLocalLlms](). Compare not just quality but *character*: which model is more cautious? More creative? More likely to refuse? Understanding model personalities helps you choose the right tool for each job.
 
 ## Building a Learning System
 
@@ -94,7 +94,7 @@ Avoid static courses — they are outdated on publication. Instead:
 
 ## The Local LLM Advantage for Learning
 
-Running your own models (see [RunningLocalLlms]) accelerates learning in ways that API-only access cannot:
+Running your own models (see [RunningLocalLlms]()) accelerates learning in ways that API-only access cannot:
 
 - **No cost barrier to experimentation.** When every prompt is free, you try things you would never pay for — weird prompts, deliberate edge cases, stress tests. These experiments teach you the most.
 - **Hands-on understanding.** Setting up inference teaches you about quantization, context windows, and hardware constraints in a visceral way that reading about them never will.
@@ -119,7 +119,7 @@ If you work with even one or two other people, structured sharing multiplies lea
 - **Weekly prompt swap:** Each person shares their best prompt of the week and explains why it works. Five minutes, enormous value.
 - **Failure stories:** Normalize sharing AI failures. The team learns more from "I tried X and it completely failed because..." than from success stories.
 - **Tool rotation:** Have different team members evaluate different tools, then present findings. Covers more ground than everyone trying the same thing.
-- **Shared prompt library:** Not a static document, but a living collection with notes on *when* and *why* each prompt works. See [PracticalPromptEngineering] for structure.
+- **Shared prompt library:** Not a static document, but a living collection with notes on *when* and *why* each prompt works. See [PracticalPromptEngineering]() for structure.
 
 ## Measuring Your Progress
 
@@ -133,8 +133,8 @@ AI competence is hard to measure because it is intertwined with domain expertise
 
 ## Further Reading
 
-- [GenerativeAiAdoptionGuide] — The complete adoption roadmap
-- [PracticalPromptEngineering] — Structured prompting techniques
-- [RunningLocalLlms] — Set up local models for unlimited practice
-- [AiAugmentedWorkflows] — Apply learning to real workflows
-- [UnderstandingGenerativeAi] — Build the conceptual foundation
+- [GenerativeAiAdoptionGuide]() — The complete adoption roadmap
+- [PracticalPromptEngineering]() — Structured prompting techniques
+- [RunningLocalLlms]() — Set up local models for unlimited practice
+- [AiAugmentedWorkflows]() — Apply learning to real workflows
+- [UnderstandingGenerativeAi]() — Build the conceptual foundation

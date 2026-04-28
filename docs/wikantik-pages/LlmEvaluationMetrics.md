@@ -171,7 +171,7 @@ This is what "good eval output" looks like: hard numbers, per-subset breakdown, 
 
 ## Further reading
 
-- [AgentTesting] — the rollout eval workflow in depth
-- [AiEvaluationAndBenchmarks] — public benchmarks in more detail
-- [AiHallucinationMitigation] — factuality-specific evaluation
-- [RetrievalExperimentHarness] — this wiki's own retrieval eval pipeline
+- [AgentTesting]() — the rollout eval workflow in depth
+- [AiEvaluationAndBenchmarks]() — public benchmarks in more detail
+- [AiHallucinationMitigation]() — factuality-specific evaluation
+- [RetrievalExperimentHarness]() — this wiki's own retrieval eval pipeline

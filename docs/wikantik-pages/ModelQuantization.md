@@ -86,7 +86,7 @@ Used when you want INT8 W&A quantisation (matmul fully in INT8) for hardware tha
 
 Designed for training, specifically QLoRA fine-tuning. NF4 is a 4-bit format optimised for normally-distributed weights. Double-quant further compresses the quantisation constants.
 
-For fine-tuning LoRA adapters on top of a quantised base, this is the right path. See [LLMFineTuning].
+For fine-tuning LoRA adapters on top of a quantised base, this is the right path. See [LLMFineTuning]().
 
 ## Bit-width trade-offs
 
@@ -155,7 +155,7 @@ A day of work; production-grade serving stack at the end.
 
 ## Further reading
 
-- [LLMFineTuning] — quantisation in fine-tuning context (QLoRA)
-- [CostEffectiveInference] — broader cost optimisation
+- [LLMFineTuning]() — quantisation in fine-tuning context (QLoRA)
+- [CostEffectiveInference]() — broader cost optimisation
 - [CpuInference] — CPU-specific paths
-- [OpenSourceLLMs] — picking the base model
+- [OpenSourceLLMs]() — picking the base model

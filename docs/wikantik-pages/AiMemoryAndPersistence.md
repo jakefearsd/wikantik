@@ -25,7 +25,7 @@ hubs:
 
 For an AI assistant to feel coherent across sessions — remembering your name, your preferences, your past projects — it needs persistence beyond the chat context window. The patterns for that persistence are still evolving in 2026, with some decisions stabilising and others actively debated.
 
-[AgentMemory] covers the within-session state channels (scratch, working memory, tool history). This page is the across-session story.
+[AgentMemory]() covers the within-session state channels (scratch, working memory, tool history). This page is the across-session story.
 
 ## What "memory" usefully means
 
@@ -234,7 +234,7 @@ The right architecture matches the use case. Don't apply "personal productivity"
 
 ## Further reading
 
-- [AgentMemory] — within-session memory channels
-- [ContextWindowManagement] — token budgeting
-- [VectorDatabases] — substrate for vector recall
-- [RagImplementationPatterns] — patterns adjacent to memory retrieval
+- [AgentMemory]() — within-session memory channels
+- [ContextWindowManagement]() — token budgeting
+- [VectorDatabases]() — substrate for vector recall
+- [RagImplementationPatterns]() — patterns adjacent to memory retrieval

@@ -114,7 +114,7 @@ Topic granularity is a recurring decision:
 - **Per-event-type topic** — `order_placed`, `order_shipped`. More topics, narrower consumers. Better at fine-grained subscriptions but more operational overhead.
 - **Single firehose** — all events on one topic. Simple but ungovernable; consumers filter what they want. Don't.
 
-For Kafka specifically, partition design dominates throughput. Pick a partition key with high cardinality and even distribution; key by aggregate ID so events for the same aggregate are ordered. See [ApacheKafkaFundamentals].
+For Kafka specifically, partition design dominates throughput. Pick a partition key with high cardinality and even distribution; key by aggregate ID so events for the same aggregate are ordered. See [ApacheKafkaFundamentals]().
 
 ## Failure modes
 
@@ -170,8 +170,8 @@ Don't use it for:
 
 ## Further reading
 
-- [DomainAndIntegrationEvents] — distinguishing the two
-- [ApacheKafkaFundamentals] — the most common substrate
-- [MicroservicesArchitecture] — events as the cross-service glue
-- [CqrsPattern] — separating command and query sides
-- [DistributedTracing] — observability for event flows
+- [DomainAndIntegrationEvents]() — distinguishing the two
+- [ApacheKafkaFundamentals]() — the most common substrate
+- [MicroservicesArchitecture]() — events as the cross-service glue
+- [CqrsPattern]() — separating command and query sides
+- [DistributedTracing]() — observability for event flows

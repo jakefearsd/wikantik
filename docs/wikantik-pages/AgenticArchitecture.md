@@ -24,7 +24,7 @@ hubs:
 ---
 # Agentic Architecture
 
-Where [AgenticWorkflowDesign] focuses on the loop and [AiAgentArchitectures] on the named patterns (ReAct, Plan-and-Execute, etc.), this page is about how agentic components fit into a larger system. Most production deployments aren't pure agents — they're traditional services with agents embedded at specific points.
+Where [AgenticWorkflowDesign]() focuses on the loop and [AiAgentArchitectures]() on the named patterns (ReAct, Plan-and-Execute, etc.), this page is about how agentic components fit into a larger system. Most production deployments aren't pure agents — they're traditional services with agents embedded at specific points.
 
 ## The composition spectrum
 
@@ -190,8 +190,8 @@ Stop at the simplest level that works. Don't skip levels.
 
 ## Further reading
 
-- [AgenticWorkflowDesign] — the per-loop engineering
-- [AiAgentArchitectures] — named architectural patterns
-- [AgentLoops] — failure modes
-- [AgentPlanning] — plan representations
+- [AgenticWorkflowDesign]() — the per-loop engineering
+- [AiAgentArchitectures]() — named architectural patterns
+- [AgentLoops]() — failure modes
+- [AgentPlanning]() — plan representations
 - [ToolUse] — tool design

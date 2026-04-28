@@ -176,8 +176,8 @@ Time to a meaningful mesh: 18-36 months for a typical large org. Anyone selling 
 
 ## Further reading
 
-- [DataLakehouse] — the typical substrate
-- [DataLakeArchitecture] — predecessor pattern
-- [DimensionalModeling] — schema patterns within data products
-- [DataObservability] — quality monitoring across the mesh
-- [DataGovernance] — federated governance specifically
+- [DataLakehouse]() — the typical substrate
+- [DataLakeArchitecture]() — predecessor pattern
+- [DimensionalModeling]() — schema patterns within data products
+- [DataObservability]() — quality monitoring across the mesh
+- [DataGovernance]() — federated governance specifically

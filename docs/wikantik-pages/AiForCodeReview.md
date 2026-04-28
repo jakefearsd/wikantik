@@ -201,6 +201,6 @@ The difference is workflow design, not tool choice.
 
 ## Further reading
 
-- [AiPairProgramming] — using AI during code creation
-- [AiForSoftwareTesting] — AI in testing specifically
-- [CodeReviewPractices] — broader code review discipline
+- [AiPairProgramming]() — using AI during code creation
+- [AiForSoftwareTesting]() — AI in testing specifically
+- [CodeReviewPractices]() — broader code review discipline

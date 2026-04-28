@@ -36,7 +36,7 @@ In Postgres, declarative partitioning since PG10 makes this a manageable operati
 What partitioning doesn't solve:
 
 - **Single-row latency.** Hitting one partition is similar to hitting one table; no magic speed-up.
-- **Scaling to multiple machines.** That's sharding; see [DatabaseSharding].
+- **Scaling to multiple machines.** That's sharding; see [DatabaseSharding]().
 - **Bad query patterns.** A bad query is bad on a partitioned table too.
 
 ## The three partitioning strategies
@@ -241,7 +241,7 @@ This handles 600M rows/year, queries hit one or two partitions, retention is che
 
 ## Further reading
 
-- [DatabaseSharding] — when partitioning isn't enough
-- [DatabaseDesign] — schema design that anticipates partitioning
-- [DatabaseIndexingStrategies] — per-partition index choices
-- [PostgresqlAdvancedFeatures] — Postgres-specific features (BRIN works well with time-partitioned data)
+- [DatabaseSharding]() — when partitioning isn't enough
+- [DatabaseDesign]() — schema design that anticipates partitioning
+- [DatabaseIndexingStrategies]() — per-partition index choices
+- [PostgresqlAdvancedFeatures]() — Postgres-specific features (BRIN works well with time-partitioned data)

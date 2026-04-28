@@ -98,7 +98,7 @@ Blue-green is hardest on databases. Both environments share the same database; s
 The discipline:
 
 - **Migrations are forward-compatible.** Old code (still on blue) and new code (on green) both work against the new schema.
-- **Use expand-contract.** Add new columns; backfill; switch traffic; later remove old. See [DatabaseMigrationStrategies].
+- **Use expand-contract.** Add new columns; backfill; switch traffic; later remove old. See [DatabaseMigrationStrategies]().
 - **Don't deploy schema changes during the cutover window.** Migrate in advance; roll out the application that uses the new schema.
 
 A naive blue-green where the database migrates during the switch produces broken state. Plan migrations to land before the application change.
@@ -154,7 +154,7 @@ Blue-green isn't dead; it's just not the default anymore.
 
 ## Further reading
 
-- [ContainerOrchestration] — Kubernetes deployment primitives
-- [DarkLaunchPatterns] — release without traffic
-- [CanaryDeployments] — the gradient version
-- [ChaosEngineering] — testing the deployment doesn't break things
+- [ContainerOrchestration]() — Kubernetes deployment primitives
+- [DarkLaunchPatterns]() — release without traffic
+- [CanaryDeployments]() — the gradient version
+- [ChaosEngineering]() — testing the deployment doesn't break things

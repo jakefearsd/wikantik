@@ -109,7 +109,7 @@ For these, graph DBs are the right tool.
 - **You don't need graph algorithms.** "We have related data" is not the same as "we need a graph database."
 - **Team unfamiliarity.** Cypher / GQL is a real learning curve.
 
-For most teams, Postgres with a `nodes` and `edges` table works. See [KnowledgeGraphVsRelationalDatabase].
+For most teams, Postgres with a `nodes` and `edges` table works. See [KnowledgeGraphVsRelationalDatabase]().
 
 ## The major options in 2026
 
@@ -217,7 +217,7 @@ Most teams should start with Postgres + graph schema. Migrate to a dedicated gra
 
 ## Further reading
 
-- [KnowledgeGraphVsRelationalDatabase] — when to reach for graph at all
-- [KnowledgeGraphCompletion] — building / extending the graph
-- [DatabaseSharding] — graph DBs and sharding
-- [NoSqlDatabaseTypes] — broader NoSQL context
+- [KnowledgeGraphVsRelationalDatabase]() — when to reach for graph at all
+- [KnowledgeGraphCompletion]() — building / extending the graph
+- [DatabaseSharding]() — graph DBs and sharding
+- [NoSqlDatabaseTypes]() — broader NoSQL context

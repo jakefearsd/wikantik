@@ -226,7 +226,7 @@ A few weeks of investment; weekly deployment confidence forever.
 
 ## Further reading
 
-- [BlueGreenDeployments] — alternative deployment strategy
-- [CanaryDeployments] — gradient rollout pattern
-- [ChaosEngineering] — testing reliability deliberately
-- [AgentTesting] — task-fixture testing for agents
+- [BlueGreenDeployments]() — alternative deployment strategy
+- [CanaryDeployments]() — gradient rollout pattern
+- [ChaosEngineering]() — testing reliability deliberately
+- [AgentTesting]() — task-fixture testing for agents

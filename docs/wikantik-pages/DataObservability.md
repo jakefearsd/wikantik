@@ -180,7 +180,7 @@ Two weeks of work; data quality catches most of the problems before consumers do
 
 ## Further reading
 
-- [DataMeshArchitecture] — data observability across distributed ownership
-- [DataGovernance] — broader data discipline
-- [DistributedTracing] — software observability for comparison
-- [DataLakehouse] — observability for the typical substrate
+- [DataMeshArchitecture]() — data observability across distributed ownership
+- [DataGovernance]() — broader data discipline
+- [DistributedTracing]() — software observability for comparison
+- [DataLakehouse]() — observability for the typical substrate

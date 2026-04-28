@@ -107,7 +107,7 @@ User query "what was Q3 revenue" can retrieve both the text discussion and the i
 
 ### Hybrid retrieval
 
-Combine multimodal dense retrieval with text BM25 (for exact-string queries on text components). Same RRF pattern as monomodal hybrid retrieval. See [HybridRetrieval].
+Combine multimodal dense retrieval with text BM25 (for exact-string queries on text components). Same RRF pattern as monomodal hybrid retrieval. See [HybridRetrieval]().
 
 ### Captioning via retrieval
 
@@ -180,8 +180,8 @@ A week to a working baseline; weeks to fine-tune for specialised domains.
 
 ## Further reading
 
-- [EmbeddingsVectorDB] — broader embedding context
-- [VectorDatabases] — substrate
-- [AiPoweredSearch] — broader search context
-- [MultiModalAiApplications] — multimodal applications beyond retrieval
-- [HybridRetrieval] — fusing dense and sparse
+- [EmbeddingsVectorDB]() — broader embedding context
+- [VectorDatabases]() — substrate
+- [AiPoweredSearch]() — broader search context
+- [MultiModalAiApplications]() — multimodal applications beyond retrieval
+- [HybridRetrieval]() — fusing dense and sparse

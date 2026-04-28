@@ -209,6 +209,6 @@ Different trade-off. For framework-heavy code (Rails, Spring), runtime types hel
 
 ## Further reading
 
-- [ReactBestPractices] — TypeScript in real frontend code
-- [DesignPatternsOverview] — patterns that type systems can replace
-- [AbstractAlgebra] — the math behind functional / dependent types
+- [ReactBestPractices]() — TypeScript in real frontend code
+- [DesignPatternsOverview]() — patterns that type systems can replace
+- [AbstractAlgebra]() — the math behind functional / dependent types

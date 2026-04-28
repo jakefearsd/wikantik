@@ -128,6 +128,6 @@ These appear in older literature; rarely in new production code.
 
 ## Further reading
 
-- [NeuralNetworkArchitectures] — full architecture landscape including SSMs
-- [DeepLearningFundamentals] — math
-- [GradientDescentAndOptimizers] — training discipline
+- [NeuralNetworkArchitectures]() — full architecture landscape including SSMs
+- [DeepLearningFundamentals]() — math
+- [GradientDescentAndOptimizers]() — training discipline

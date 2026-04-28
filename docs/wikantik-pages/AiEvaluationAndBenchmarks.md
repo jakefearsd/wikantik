@@ -142,7 +142,7 @@ Steps:
 
 Run on every prompt, model, or pipeline change. Track scores over time; alert on regressions.
 
-See [LlmEvaluationMetrics] for the metric details and [AgentTesting] for rollout-based variants for agents.
+See [LlmEvaluationMetrics]() for the metric details and [AgentTesting]() for rollout-based variants for agents.
 
 ## What "we evaluated against benchmarks" doesn't mean
 
@@ -176,7 +176,7 @@ Benchmarks ship pre-deployment. In production, you also want continuous eval:
 - **Eval-set replay nightly** against the deployed system. Catches regressions before users do.
 - **A/B testing for model or prompt changes** with primary metrics.
 
-See [AiObservabilityInProduction].
+See [AiObservabilityInProduction]().
 
 ## Failure modes in evaluation pipelines
 
@@ -201,6 +201,6 @@ A week of work; immediate decision-making clarity.
 
 ## Further reading
 
-- [LlmEvaluationMetrics] — metric details
-- [AgentTesting] — rollout-based eval for agents
-- [AiHallucinationMitigation] — factuality-specific evaluation
+- [LlmEvaluationMetrics]() — metric details
+- [AgentTesting]() — rollout-based eval for agents
+- [AiHallucinationMitigation]() — factuality-specific evaluation

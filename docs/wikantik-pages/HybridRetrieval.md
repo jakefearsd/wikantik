@@ -21,7 +21,7 @@ related:
 
 Wikantik's default search path fuses Lucene BM25 with dense embedding cosine similarity using weighted [Reciprocal Rank Fusion](https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf). BM25 remains the safety net — whenever the dense side is unavailable, `/api/search` returns the unmodified BM25 ordering so search never goes dark because of an embedding outage.
 
-This page is the operator reference. For the *design story* of semantic retrieval, see [AiPoweredSearch]; for the quality measurement harness, see [WikantikSearchRefinement].
+This page is the operator reference. For the *design story* of semantic retrieval, see [AiPoweredSearch](); for the quality measurement harness, see [WikantikSearchRefinement]().
 
 ## Wiring
 

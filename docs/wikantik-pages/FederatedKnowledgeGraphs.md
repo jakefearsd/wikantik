@@ -72,7 +72,7 @@ For entities without explicit cross-source IDs, match on attributes (name, addre
 
 Probabilistic matching is fuzzy; can produce false positives (wrong entities merged) and false negatives (same entity treated as different).
 
-Fundamental: entity resolution is its own discipline. See [EntityResolutionTechniques].
+Fundamental: entity resolution is its own discipline. See [EntityResolutionTechniques]().
 
 ### Embedding-based matching
 
@@ -200,7 +200,7 @@ Federation is an advanced pattern. Most teams that think they need it would be s
 
 ## Further reading
 
-- [KnowledgeGraphCompletion] — building each KG
-- [KnowledgeGraphVsRelationalDatabase] — when to use a graph at all
-- [EntityResolutionTechniques] — the central problem in federation
-- [GraphDatabaseFundamentals] — graph DB tooling
+- [KnowledgeGraphCompletion]() — building each KG
+- [KnowledgeGraphVsRelationalDatabase]() — when to use a graph at all
+- [EntityResolutionTechniques]() — the central problem in federation
+- [GraphDatabaseFundamentals]() — graph DB tooling

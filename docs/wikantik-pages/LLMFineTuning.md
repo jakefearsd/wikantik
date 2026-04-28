@@ -101,7 +101,7 @@ Track all four:
 3. **Task-specific metrics**: exact-match for structured output, ROUGE/BLEU for summarisation, pass@1 for code. These are what you actually care about.
 4. **Base-model regression check.** Run the fine-tuned model on a general benchmark (MMLU, HellaSwag, or a 100-sample internal set of general queries). If it dropped by more than 5%, you over-fine-tuned and the model forgot how to be useful outside your task.
 
-See [LlmEvaluationMetrics] for the detailed metric catalogue and [AgentTesting] for the rollout-based equivalents if your fine-tuned model is part of an agent.
+See [LlmEvaluationMetrics]() for the detailed metric catalogue and [AgentTesting]() for the rollout-based equivalents if your fine-tuned model is part of an agent.
 
 ## Catastrophic forgetting, concretely
 
@@ -139,9 +139,9 @@ The "both" case is where most mature production systems end up. The fine-tuned m
 
 ## Further reading
 
-- [FineTuningLargeLanguageModels] — related page, focus is conceptual
-- [ModelQuantization] — the quantization math behind QLoRA
-- [OpenSourceLLMs] — picking your base model
-- [PracticalPromptEngineering] — the step before you reach for fine-tuning
-- [RagImplementationPatterns] — when RAG is the right answer instead
-- [LlmEvaluationMetrics] — metric catalogue with formulas
+- [FineTuningLargeLanguageModels]() — related page, focus is conceptual
+- [ModelQuantization]() — the quantization math behind QLoRA
+- [OpenSourceLLMs]() — picking your base model
+- [PracticalPromptEngineering]() — the step before you reach for fine-tuning
+- [RagImplementationPatterns]() — when RAG is the right answer instead
+- [LlmEvaluationMetrics]() — metric catalogue with formulas

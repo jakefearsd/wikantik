@@ -148,7 +148,7 @@ Kafka shines at high volume, persistent retention, and multiple consumer groups 
 
 ## Further reading
 
-- [EventDrivenArchitecture] — Kafka as the substrate
-- [BatchVsStreaming] — when streaming is the right answer
-- [ApacheSparkFundamentals] — common downstream consumer
-- [DistributedTracing] — getting trace context through Kafka
+- [EventDrivenArchitecture]() — Kafka as the substrate
+- [BatchVsStreaming]() — when streaming is the right answer
+- [ApacheSparkFundamentals]() — common downstream consumer
+- [DistributedTracing]() — getting trace context through Kafka

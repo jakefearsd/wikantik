@@ -179,7 +179,7 @@ If you're working on networking, search, bioinformatics, or text-processing, you
 
 ## Further reading
 
-- [DataStructures] — broader data structure context
-- [BloomFilters] — alternative for membership tests
-- [StringMatchingAlgorithms] — Aho-Corasick and friends
-- [DatabaseIndexingStrategies] — when to reach for trie-flavour indexes
+- [DataStructures]() — broader data structure context
+- [BloomFilters]() — alternative for membership tests
+- [StringMatchingAlgorithms]() — Aho-Corasick and friends
+- [DatabaseIndexingStrategies]() — when to reach for trie-flavour indexes

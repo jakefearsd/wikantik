@@ -220,7 +220,7 @@ Libraries that make doing the right thing easy:
 
 ## Further reading
 
-- [SslTlsDeepDive] — TLS as the primary application of these primitives
-- [PkiAndCertificates] — how the asymmetric trust model is structured
-- [NumberTheory] — the math behind RSA / ECC
-- [AbstractAlgebra] — the deeper math behind ECC specifically
+- [SslTlsDeepDive]() — TLS as the primary application of these primitives
+- [PkiAndCertificates]() — how the asymmetric trust model is structured
+- [NumberTheory]() — the math behind RSA / ECC
+- [AbstractAlgebra]() — the deeper math behind ECC specifically

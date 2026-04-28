@@ -114,7 +114,7 @@ You can do simple tables by using pipe signs ('|'). Use double pipesigns to star
 ``
 || Heading 1 || Heading 2
 | ''Gobble'' | Bar \\ foo
-| [Main] | [SandBox]
+| [Main]() | [SandBox]()
 ``
 gives you the following table. Note how you can use links also inside tables.
 | Heading 1 | Heading 2

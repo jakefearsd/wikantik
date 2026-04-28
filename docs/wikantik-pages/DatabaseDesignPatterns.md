@@ -23,7 +23,7 @@ hubs:
 ---
 # Database Design Patterns
 
-Where [DatabaseDesign] covers single-table choices (columns, types, constraints), this page is about patterns spanning multiple tables — how to structure related data, audit changes, model time, handle inheritance-like scenarios.
+Where [DatabaseDesign]() covers single-table choices (columns, types, constraints), this page is about patterns spanning multiple tables — how to structure related data, audit changes, model time, handle inheritance-like scenarios.
 
 ## Audit trails
 
@@ -65,7 +65,7 @@ Trade-off: 2× storage; trigger overhead on writes. For tables with auditing req
 
 ### Event sourcing
 
-Events are the source of truth; current state is a projection. See [CqrsPattern], [EventDrivenArchitecture].
+Events are the source of truth; current state is a projection. See [CqrsPattern](), [EventDrivenArchitecture]().
 
 ```sql
 CREATE TABLE order_events (
@@ -231,7 +231,7 @@ CREATE TABLE bookings (
 );
 ```
 
-The DB enforces "no two overlapping bookings of the same room." See [PostgresqlAdvancedFeatures].
+The DB enforces "no two overlapping bookings of the same room." See [PostgresqlAdvancedFeatures]().
 
 ## Hierarchies
 
@@ -309,7 +309,7 @@ COMMIT;
 -- Background process polls/CDCs unpublished rows; publishes to broker; marks published_at.
 ```
 
-See [EventDrivenArchitecture].
+See [EventDrivenArchitecture]().
 
 ## State machines
 
@@ -338,7 +338,7 @@ The pattern matters more than the framework. Most ORMs let you implement these p
 
 ## Further reading
 
-- [DatabaseDesign] — single-table design choices
-- [DatabaseIndexingStrategies] — making patterns above performant
-- [CqrsPattern] — when read/write models diverge
-- [EventDrivenArchitecture] — outbox, event sourcing in context
+- [DatabaseDesign]() — single-table design choices
+- [DatabaseIndexingStrategies]() — making patterns above performant
+- [CqrsPattern]() — when read/write models diverge
+- [EventDrivenArchitecture]() — outbox, event sourcing in context

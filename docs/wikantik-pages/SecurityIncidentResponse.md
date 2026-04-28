@@ -25,7 +25,7 @@ hubs:
 
 A security incident is when an attacker has done or is doing something they shouldn't be able to. The response is what you do between detection and a return to safe operation. Most teams handle their first real security incident badly because they've never run the drill — and security incidents happen at 3am with imperfect information.
 
-This page is the working framework. For non-security incidents (outage, performance), see [IncidentResponse]; for the post-mortem, [BlamelessPostMortems].
+This page is the working framework. For non-security incidents (outage, performance), see [IncidentResponse]; for the post-mortem, [BlamelessPostMortems]().
 
 ## The five phases
 
@@ -203,7 +203,7 @@ If MTTD is in days/weeks, your detection pipeline isn't catching attacks. Improv
 
 ## Post-incident: actually learn
 
-A blameless post-mortem after every significant incident. See [BlamelessPostMortems]. Specific to security:
+A blameless post-mortem after every significant incident. See [BlamelessPostMortems](). Specific to security:
 
 - What detection signal would have caught this earlier?
 - What architectural change would have prevented it?
@@ -215,7 +215,7 @@ Action items must close. The next incident is partly defended by the lessons of 
 
 ## Further reading
 
-- [BlamelessPostMortems] — post-incident discipline
-- [ThreatModeling] — anticipate before responding
+- [BlamelessPostMortems]() — post-incident discipline
+- [ThreatModeling]() — anticipate before responding
 - [IncidentResponse] — non-security incident response
-- [ApplicationSecurityFundamentals] — broader security context
+- [ApplicationSecurityFundamentals]() — broader security context

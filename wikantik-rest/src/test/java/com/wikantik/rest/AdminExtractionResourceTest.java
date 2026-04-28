@@ -213,6 +213,40 @@ class AdminExtractionResourceTest {
     }
 
     @Test
+    void doGet_includesExtractorBackendFromConfig() throws Exception {
+        engine.getWikiProperties().setProperty( "wikantik.knowledge.extractor.backend", "claude" );
+        final BootstrapEntityExtractionIndexer indexer = Mockito.mock( BootstrapEntityExtractionIndexer.class );
+        Mockito.when( indexer.status() ).thenReturn( idleStatus() );
+        installIndexer( indexer );
+
+        final StringWriter sw = new StringWriter();
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge/extract-mentions" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        servlet.doGet( request, response );
+
+        final JsonObject body = gson.fromJson( sw.toString(), JsonObject.class );
+        assertEquals( "claude", body.get( "extractorBackend" ).getAsString() );
+    }
+
+    @Test
+    void doGet_extractorBackendDefaultsToDisabledWhenUnset() throws Exception {
+        engine.getWikiProperties().remove( "wikantik.knowledge.extractor.backend" );
+        final BootstrapEntityExtractionIndexer indexer = Mockito.mock( BootstrapEntityExtractionIndexer.class );
+        Mockito.when( indexer.status() ).thenReturn( idleStatus() );
+        installIndexer( indexer );
+
+        final StringWriter sw = new StringWriter();
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge/extract-mentions" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        servlet.doGet( request, response );
+
+        final JsonObject body = gson.fromJson( sw.toString(), JsonObject.class );
+        assertEquals( "disabled", body.get( "extractorBackend" ).getAsString() );
+    }
+
+    @Test
     void statusMap_includesLastErrorWhenPresent() throws Exception {
         final BootstrapEntityExtractionIndexer indexer = Mockito.mock( BootstrapEntityExtractionIndexer.class );
         Mockito.when( indexer.status() ).thenReturn( new BootstrapEntityExtractionIndexer.Status(

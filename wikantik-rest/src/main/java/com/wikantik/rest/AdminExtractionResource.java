@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 
 /**
  * Admin REST endpoint that triggers and monitors the full-corpus entity
@@ -66,7 +67,7 @@ public class AdminExtractionResource extends RestServletBase {
                 "Entity extraction batch is not configured (wikantik.knowledge.extractor.backend=disabled?)" );
             return;
         }
-        sendJson( response, statusToMap( indexer.status() ) );
+        sendJson( response, statusToMap( indexer.status(), extractorBackend() ) );
     }
 
     @Override
@@ -86,7 +87,7 @@ public class AdminExtractionResource extends RestServletBase {
             return;
         }
         LOG.info( "Admin requested batch extraction cancel" );
-        sendJson( response, statusToMap( indexer.status() ) );
+        sendJson( response, statusToMap( indexer.status(), extractorBackend() ) );
     }
 
     @Override
@@ -103,14 +104,21 @@ public class AdminExtractionResource extends RestServletBase {
         final boolean started = indexer.start( force );
         if ( !started ) {
             response.setStatus( HttpServletResponse.SC_CONFLICT );
-            final Map< String, Object > body = new LinkedHashMap<>( statusToMap( indexer.status() ) );
+            final Map< String, Object > body = new LinkedHashMap<>(
+                statusToMap( indexer.status(), extractorBackend() ) );
             body.put( "message", "A full-corpus extraction run is already in progress" );
             sendJson( response, body );
             return;
         }
         LOG.info( "Admin triggered batch extraction: force={}", force );
         response.setStatus( HttpServletResponse.SC_ACCEPTED );
-        sendJson( response, statusToMap( indexer.status() ) );
+        sendJson( response, statusToMap( indexer.status(), extractorBackend() ) );
+    }
+
+    private String extractorBackend() {
+        final Properties props = getEngine().getWikiProperties();
+        final String v = props == null ? null : props.getProperty( "wikantik.knowledge.extractor.backend" );
+        return ( v == null || v.isBlank() ) ? "disabled" : v.trim().toLowerCase( Locale.ROOT );
     }
 
     private static boolean parseForceParam( final HttpServletRequest request ) {
@@ -120,7 +128,8 @@ public class AdminExtractionResource extends RestServletBase {
         return "true".equals( normalized ) || "yes".equals( normalized ) || "1".equals( normalized );
     }
 
-    private static Map< String, Object > statusToMap( final BootstrapEntityExtractionIndexer.Status s ) {
+    private static Map< String, Object > statusToMap( final BootstrapEntityExtractionIndexer.Status s,
+                                                      final String extractorBackend ) {
         final Map< String, Object > m = new LinkedHashMap<>();
         m.put( "state", s.state().name() );
         m.put( "totalPages", s.totalPages() );
@@ -138,6 +147,7 @@ public class AdminExtractionResource extends RestServletBase {
         m.put( "finishedAt", isoOrNull( s.finishedAt() ) );
         m.put( "excludedSkipped", s.excludedSkipped() );
         if ( s.lastError() != null ) m.put( "lastError", s.lastError() );
+        m.put( "extractorBackend", extractorBackend );
         return m;
     }
 

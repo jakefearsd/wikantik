@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.IntConsumer;
 
 /**
  * Production data-layer for dense-vector embeddings of
@@ -132,6 +133,27 @@ public class EmbeddingIndexService {
      * @return number of rows successfully upserted (poisoned chunks excluded)
      */
     public int indexAll( final String modelCode ) {
+        return indexAll( modelCode, null );
+    }
+
+    /**
+     * Full-corpus rebuild with batch-level progress callback. Identical to
+     * {@link #indexAll(String)} but invokes {@code onBatchFlushed} after every
+     * successful batch with the running upserted total. The callback exists
+     * because {@code conn.commit()} only fires once at the end, so external
+     * observers polling {@code content_chunk_embeddings.row_count} don't see
+     * incremental progress — the rebuild orchestrator needs an in-process hook
+     * to drive the admin progress bar.
+     *
+     * <p>Any exception thrown by the callback is logged at WARN and swallowed —
+     * progress reporting is best-effort and must not abort the indexing run.</p>
+     *
+     * @param modelCode       the model identifier written into {@code model_code}
+     * @param onBatchFlushed  receives the running upserted count after each
+     *                        flushed batch; may be {@code null} for no callback
+     * @return number of rows successfully upserted (poisoned chunks excluded)
+     */
+    public int indexAll( final String modelCode, final IntConsumer onBatchFlushed ) {
         requireModelCode( modelCode );
         int upserted = 0;
         int progress = 200;
@@ -151,6 +173,7 @@ public class EmbeddingIndexService {
                             upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
                             batchIds.clear();
                             batchTexts.clear();
+                            fireProgress( onBatchFlushed, upserted );
                             if ( upserted >= progress ) {
                                 LOG.info( "  embedding indexer: {} rows upserted so far (model={})",
                                     upserted, modelCode );
@@ -160,6 +183,7 @@ public class EmbeddingIndexService {
                     }
                     if ( !batchIds.isEmpty() ) {
                         upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
+                        fireProgress( onBatchFlushed, upserted );
                     }
                 }
                 conn.commit();
@@ -174,6 +198,17 @@ public class EmbeddingIndexService {
         }
         LOG.info( "Embedding indexAll complete: model={} upserted={}", modelCode, upserted );
         return upserted;
+    }
+
+    private static void fireProgress( final IntConsumer cb, final int upserted ) {
+        if ( cb == null ) {
+            return;
+        }
+        try {
+            cb.accept( upserted );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "indexAll progress callback failed (upserted={}): {}", upserted, e.getMessage(), e );
+        }
     }
 
     /**

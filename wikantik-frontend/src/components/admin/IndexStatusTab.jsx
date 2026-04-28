@@ -137,6 +137,11 @@ export default function IndexStatusTab() {
           <div className="admin-section-header">
             <h3>Embeddings</h3>
           </div>
+          <p className="admin-section-help">
+            Recomputes dense-vector embeddings for the chunks already in the database.
+            Does <strong>not</strong> rechunk pages or touch Lucene — use <em>Rebuild Indexes</em> below
+            if chunks themselves need to be regenerated.
+          </p>
           <div className="admin-actions-row">
             <button
               className="btn btn-primary btn-danger"
@@ -158,6 +163,14 @@ export default function IndexStatusTab() {
       <div className="admin-section-header">
         <h3>Rebuild</h3>
       </div>
+      <p className="admin-section-help">
+        Full reprocess of the entire corpus. In order:
+        {' '}<strong>(1)</strong> wipes the Lucene index and the <code>kg_content_chunks</code> table;
+        {' '}<strong>(2)</strong> rechunks every non-system page from current source;
+        {' '}<strong>(3)</strong> refreshes dense-vector embeddings for the new chunks;
+        {' '}<strong>(4)</strong> drains the Lucene reindex queue.
+        Search and hybrid retrieval are degraded until all four phases complete.
+      </p>
       <div className="admin-actions-row">
         <button
           className="btn btn-primary btn-danger"
@@ -170,6 +183,7 @@ export default function IndexStatusTab() {
           <RebuildProgress
             rebuild={rebuild}
             luceneQueueDepth={status.lucene?.queue_depth ?? 0}
+            chunkTotal={status.chunks?.total_chunks ?? 0}
           />
         )}
       </div>
@@ -195,7 +209,7 @@ export default function IndexStatusTab() {
 
       {confirming && (
         <ConfirmDialog
-          message={`This will clear the Lucene index and the chunk table, then rebuild from all ${status.pages?.indexable ?? 0} indexable pages. Search will be degraded until the rebuild completes. Continue?`}
+          message={`This will (1) wipe the Lucene index and the kg_content_chunks table, (2) rechunk all ${status.pages?.indexable ?? 0} indexable pages, (3) refresh dense-vector embeddings for the new chunks, and (4) drain the Lucene reindex queue. Search and hybrid retrieval will be degraded until every phase completes. Continue?`}
           onConfirm={doRebuild}
           onCancel={() => setConfirming(false)}
         />
@@ -214,10 +228,17 @@ function StatCard({ label, value, subtitle }) {
   );
 }
 
-function RebuildProgress({ rebuild, luceneQueueDepth }) {
+function RebuildProgress({ rebuild, luceneQueueDepth, chunkTotal }) {
   const iterated = rebuild.pages_iterated ?? 0;
   const total = rebuild.pages_total || 1;
   const luceneDrained = Math.max(0, (rebuild.lucene_queued ?? 0) - luceneQueueDepth);
+  const embeddingsIndexed = rebuild.embeddings_indexed ?? 0;
+  // chunkTotal reflects the corpus AFTER the rechunk phase finishes; until
+  // then the snapshot returns the pre-rebuild count, which is fine as an
+  // upper-bound estimate. Fall back to the running counter if neither value
+  // is yet known so the bar still moves on a fresh database.
+  const embeddingMax = Math.max(chunkTotal || 0, embeddingsIndexed, 1);
+  const embeddingPct = Math.min(100, Math.round((embeddingsIndexed / embeddingMax) * 100));
   return (
     <div className="rebuild-progress" style={{ flex: 1 }}>
       <div><strong>State:</strong> {rebuild.state}</div>
@@ -226,6 +247,20 @@ function RebuildProgress({ rebuild, luceneQueueDepth }) {
         {iterated}/{rebuild.pages_total ?? 0} iterated — chunked {rebuild.pages_chunked ?? 0},
         system skipped {rebuild.system_pages_skipped ?? 0}
       </div>
+      {rebuild.state === 'EMBEDDING' && (
+        <div style={{ marginTop: 'var(--space-sm)' }}>
+          <div>Generating embeddings…</div>
+          <progress
+            value={embeddingsIndexed}
+            max={embeddingMax}
+            style={{ width: '100%' }}
+          />
+          <div className="stat-subtitle" style={{ fontSize: '0.85em', color: 'var(--text-muted)' }}>
+            {embeddingsIndexed}/{chunkTotal ?? 0} chunks embedded ({embeddingPct}%)
+            {' '}— this is the rebuild's longest phase; expect minutes at corpus scale.
+          </div>
+        </div>
+      )}
       {rebuild.state === 'DRAINING_LUCENE' && (
         <div style={{ marginTop: 'var(--space-sm)' }}>
           <div>Lucene queue draining…</div>

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import IndexStatusTab from './IndexStatusTab';
 import { api } from '../../api/client';
@@ -69,9 +69,11 @@ describe('IndexStatusTab', () => {
 
         await waitFor(() => screen.getByRole('button', { name: /Rebuild Indexes/i }));
         fireEvent.click(screen.getByRole('button', { name: /Rebuild Indexes/i }));
-        // Confirm dialog copy must include "clear"
-        expect(screen.getByText(/clear/i)).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: /Continue/i }));
+        // Confirm dialog must spell out the four-phase reprocess so operators
+        // know the rebuild rechunks + re-embeds, not just clears Lucene.
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByText(/wipe.*rechunk.*embeddings.*drain/i)).toBeInTheDocument();
+        fireEvent.click(within(dialog).getByRole('button', { name: /Continue/i }));
         await waitFor(() => expect(rebuild).toHaveBeenCalled());
     });
 
@@ -85,6 +87,27 @@ describe('IndexStatusTab', () => {
         render(<IndexStatusTab />);
         await waitFor(() => expect(
             screen.getByRole('button', { name: /Rebuild/i })).toBeDisabled());
+    });
+
+    it('renders embedding-phase progress when rebuild.state is EMBEDDING', async () => {
+        // EMBEDDING is the rebuild's longest phase — the operator must see it
+        // as a distinct, named, real-progress step (not a silent stretch of
+        // "RUNNING — done iterating"). Drives off rebuild.embeddings_indexed
+        // streamed by EmbeddingIndexService's batch callback.
+        vi.spyOn(api.admin, 'getIndexStatus').mockResolvedValue({
+            ...idleStatus,
+            chunks: { ...idleStatus.chunks, total_chunks: 800 },
+            rebuild: { ...idleStatus.rebuild,
+                state: 'EMBEDDING',
+                pages_total: 95, pages_iterated: 95, pages_chunked: 95,
+                lucene_queued: 95, chunks_written: 800,
+                embeddings_indexed: 200 }
+        });
+        render(<IndexStatusTab />);
+        await waitFor(() =>
+            expect(screen.getByText(/Generating embeddings/i)).toBeInTheDocument());
+        expect(screen.getByText(/200\/800 chunks embedded \(25%\)/)).toBeInTheDocument();
+        expect(screen.getByText(/longest phase/i)).toBeInTheDocument();
     });
 
     it('shows errors panel when rebuild.errors is non-empty', async () => {

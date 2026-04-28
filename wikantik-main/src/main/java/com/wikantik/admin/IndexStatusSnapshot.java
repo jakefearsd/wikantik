@@ -91,6 +91,9 @@ public record IndexStatusSnapshot( Pages pages,
 
     /**
      * Rebuild run progress. All counters are zero while {@code state == "IDLE"}.
+     * {@code embeddingsIndexed} ticks during {@code state == "EMBEDDING"} —
+     * the rebuild's longest phase at corpus scale — so the admin UI can render
+     * a real progress bar instead of an indeterminate spinner.
      */
     public record Rebuild( String state,
                            Instant startedAt,
@@ -100,6 +103,7 @@ public record IndexStatusSnapshot( Pages pages,
                            int systemPagesSkipped,
                            int luceneQueued,
                            int chunksWritten,
+                           int embeddingsIndexed,
                            List< RebuildError > errors ) {}
 
     /**

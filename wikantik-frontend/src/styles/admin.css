@@ -230,6 +230,18 @@
   color: #F88 !important;
 }
 
+/* Filled destructive buttons: keep white text so it stays legible on the
+   accent background (the accent itself is reddish — red-on-red disappears). */
+.btn-primary.btn-danger,
+.btn-primary.btn-danger:hover {
+  color: #fff !important;
+  background: #C44 !important;
+}
+
+.btn-primary.btn-danger:hover {
+  background: #A22 !important;
+}
+
 /* Modal overlay — reusable */
 .modal-overlay {
   position: fixed;
@@ -420,6 +432,24 @@
   font-family: var(--font-display);
   font-size: 1.1rem;
   font-weight: 600;
+  color: var(--text);
+}
+
+/* Helper paragraph that explains what an action button will do.
+   Sits between a section header and its actions row. */
+.admin-section-help {
+  margin: calc(var(--space-md) * -1) 0 var(--space-md);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 70ch;
+}
+
+.admin-section-help code {
+  font-size: 0.85em;
+  padding: 0 0.25em;
+  border-radius: var(--radius-sm);
+  background: var(--border);
   color: var(--text);
 }
 

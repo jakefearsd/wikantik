@@ -22,10 +22,16 @@ import com.wikantik.search.embedding.EmbeddingIndexService;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.function.IntConsumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -90,5 +96,56 @@ class ContentIndexRebuildServiceEmbeddingHookTest {
         final IndexStatusSnapshot snap = svc.snapshot();
         assertEquals( "", snap.embeddings().modelCode() );
         verify( embed, never() ).status( anyString() );
+    }
+
+    /**
+     * Drives the rebuild loop end-to-end with a real (3-page) corpus and a mock
+     * embedder. The mock blocks inside indexAll, fires two batch-progress
+     * callbacks, then unblocks — giving the test a synchronization point at
+     * which {@code state == EMBEDDING} and {@code embeddingsIndexed > 0} are
+     * both observable from {@code snapshot()}. This is the contract the admin
+     * UI's progress bar relies on.
+     */
+    @Test
+    void embeddingPhaseTransitionsToEmbeddingStateAndStreamsProgressCounter() throws Exception {
+        final ContentIndexRebuildService svc = RebuildTestFactory.build( 3, 0 );
+        final EmbeddingIndexService embed = mock( EmbeddingIndexService.class );
+        when( embed.status( MODEL ) )
+            .thenReturn( new EmbeddingIndexService.Status( MODEL, 768, 0, null ) );
+        final CountDownLatch midRun = new CountDownLatch( 1 );
+        final CountDownLatch release = new CountDownLatch( 1 );
+        when( embed.indexAll( eq( MODEL ), any( IntConsumer.class ) ) )
+            .thenAnswer( inv -> {
+                final IntConsumer cb = inv.getArgument( 1, IntConsumer.class );
+                cb.accept( 5 );  // first batch flushed — UI should see 5
+                midRun.countDown();
+                if ( !release.await( 5, TimeUnit.SECONDS ) ) {
+                    throw new AssertionError( "test never released embedding mock" );
+                }
+                cb.accept( 12 );  // second batch — final running count before commit
+                return 12;        // returned upserted total
+            } );
+        svc.setEmbeddingHook( embed, MODEL );
+
+        svc.triggerRebuild();
+        assertTrue( midRun.await( 5, TimeUnit.SECONDS ),
+            "embedding phase never reached the mid-run sync point" );
+
+        // Mid-run snapshot: state must be EMBEDDING and the live counter must
+        // reflect the first batch the mock streamed via the IntConsumer.
+        final IndexStatusSnapshot mid = svc.snapshot();
+        assertEquals( "EMBEDDING", mid.rebuild().state() );
+        assertEquals( 5, mid.rebuild().embeddingsIndexed() );
+
+        release.countDown();
+
+        // After completion, the rebuild returns to IDLE and the counter holds
+        // the total upserted value reported by indexAll.
+        for ( int i = 0; i < 200 && !"IDLE".equals( svc.snapshot().rebuild().state() ); i++ ) {
+            Thread.sleep( 10 );
+        }
+        final IndexStatusSnapshot end = svc.snapshot();
+        assertEquals( "IDLE", end.rebuild().state() );
+        assertEquals( 12, end.rebuild().embeddingsIndexed() );
     }
 }

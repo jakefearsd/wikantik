@@ -89,7 +89,7 @@ class AdminContentResourceChunksTest {
             new IndexStatusSnapshot.Lucene( 95, 0, Instant.parse( "2026-04-16T10:00:00Z" ) ),
             new IndexStatusSnapshot.Chunks( 95, 0, 800, 287, 42, 512 ),
             new IndexStatusSnapshot.Rebuild(
-                "IDLE", null, 0, 0, 0, 0, 0, 0, List.of() ) );
+                "IDLE", null, 0, 0, 0, 0, 0, 0, 0, List.of() ) );
         Mockito.doReturn( snap ).when( svc ).snapshot();
         engine.setManager( ContentIndexRebuildService.class, svc );
 
@@ -135,6 +135,7 @@ class AdminContentResourceChunksTest {
         assertEquals( 0, rebuild.get( "system_pages_skipped" ).getAsInt() );
         assertEquals( 0, rebuild.get( "lucene_queued" ).getAsInt() );
         assertEquals( 0, rebuild.get( "chunks_written" ).getAsInt() );
+        assertEquals( 0, rebuild.get( "embeddings_indexed" ).getAsInt() );
         assertTrue( rebuild.get( "errors" ).isJsonArray() );
         assertEquals( 0, rebuild.getAsJsonArray( "errors" ).size() );
     }
@@ -150,7 +151,7 @@ class AdminContentResourceChunksTest {
             new IndexStatusSnapshot.Lucene( 0, 0, null ),
             new IndexStatusSnapshot.Chunks( 0, 9, 0, 0, 0, 0 ),
             new IndexStatusSnapshot.Rebuild(
-                "STARTING", started, 0, 0, 0, 0, 0, 0, List.of() ) );
+                "STARTING", started, 0, 0, 0, 0, 0, 0, 0, List.of() ) );
         Mockito.doReturn( startingSnap ).when( svc ).triggerRebuild();
         engine.setManager( ContentIndexRebuildService.class, svc );
 
@@ -175,7 +176,7 @@ class AdminContentResourceChunksTest {
             new IndexStatusSnapshot.Chunks( 4, 5, 30, 250, 20, 400 ),
             new IndexStatusSnapshot.Rebuild(
                 "RUNNING", Instant.parse( "2026-04-17T09:00:00Z" ),
-                9, 4, 4, 0, 4, 30, List.of() ) );
+                9, 4, 4, 0, 4, 30, 0, List.of() ) );
         Mockito.doThrow( new ContentIndexRebuildService.ConflictException( running ) )
             .when( svc ).triggerRebuild();
         engine.setManager( ContentIndexRebuildService.class, svc );

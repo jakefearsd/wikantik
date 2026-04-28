@@ -609,8 +609,8 @@ public class AdminContentResource extends RestServletBase {
         embeddings.put( "embedder", embedderMap() );
         out.put( "embeddings", embeddings );
 
-        // Rebuild block has 9 fields — Map.of caps at 10 entries; use LinkedHashMap
-        // both to stay under the cap and to keep a predictable JSON ordering.
+        // Rebuild block now has 10 numeric fields plus state/started_at/errors —
+        // well past Map.of's 10-entry cap, so LinkedHashMap (also gives stable JSON ordering).
         final Map< String, Object > rebuild = new LinkedHashMap<>();
         rebuild.put( "state", s.rebuild().state() );
         rebuild.put( "started_at",
@@ -621,6 +621,7 @@ public class AdminContentResource extends RestServletBase {
         rebuild.put( "system_pages_skipped", s.rebuild().systemPagesSkipped() );
         rebuild.put( "lucene_queued", s.rebuild().luceneQueued() );
         rebuild.put( "chunks_written", s.rebuild().chunksWritten() );
+        rebuild.put( "embeddings_indexed", s.rebuild().embeddingsIndexed() );
         rebuild.put( "errors", s.rebuild().errors().stream().map( e -> {
             final Map< String, Object > m = new LinkedHashMap<>();
             m.put( "page", e.page() );

@@ -66,8 +66,15 @@ public class ContentIndexRebuildService {
 
     private static final Logger LOG = LogManager.getLogger( ContentIndexRebuildService.class );
 
-    /** Lifecycle states for the rebuild orchestrator. */
-    public enum State { IDLE, STARTING, RUNNING, DRAINING_LUCENE }
+    /**
+     * Lifecycle states for the rebuild orchestrator. {@code EMBEDDING} sits
+     * between {@code RUNNING} and {@code DRAINING_LUCENE} because — at corpus
+     * scale — chunking finishes in seconds while embedding takes minutes;
+     * surfacing the phase as its own state lets the admin UI render meaningful
+     * progress instead of leaving the bar pinned at "RUNNING — done iterating"
+     * for the slow majority of the run.
+     */
+    public enum State { IDLE, STARTING, RUNNING, EMBEDDING, DRAINING_LUCENE }
 
     /** Thrown when a trigger is rejected because a rebuild is already in flight. */
     public static class ConflictException extends RuntimeException {
@@ -117,11 +124,17 @@ public class ContentIndexRebuildService {
     // from the rebuild outcome counter.
     private volatile EmbeddingIndexService embeddingIndex;
     private volatile String embeddingModelCode;
-    protected volatile int embeddingsIndexed;
+    /**
+     * Live embedding-upsert counter for the current run. Driven by the
+     * {@link EmbeddingIndexService#indexAll(String, java.util.function.IntConsumer)}
+     * callback so the admin UI sees progress before the single end-of-run
+     * commit lands. Surfaced in {@link IndexStatusSnapshot.Rebuild#embeddingsIndexed()}.
+     */
+    protected final AtomicInteger embeddingsIndexed = new AtomicInteger();
 
     // --- metrics ---------------------------------------------------------
     private final MeterRegistry meterRegistry;
-    /** Gauge-backed integer: 0=IDLE, 1=STARTING, 2=RUNNING, 3=DRAINING_LUCENE. */
+    /** Gauge-backed integer: 0=IDLE, 1=STARTING, 2=RUNNING, 3=EMBEDDING, 4=DRAINING_LUCENE. */
     private final AtomicInteger stateMetric = new AtomicInteger( 0 );
     private final Timer durationTimer;
     /** Error count at the moment this run transitioned to STARTING, for outcome classification. */
@@ -156,7 +169,7 @@ public class ContentIndexRebuildService {
         this.meterRegistry = meterRegistry != null ? meterRegistry : new SimpleMeterRegistry();
 
         Gauge.builder( "wikantik_rebuild_state", stateMetric, AtomicInteger::get )
-            .description( "Rebuild state: 0=IDLE 1=STARTING 2=RUNNING 3=DRAINING_LUCENE" )
+            .description( "Rebuild state: 0=IDLE 1=STARTING 2=RUNNING 3=EMBEDDING 4=DRAINING_LUCENE" )
             .register( this.meterRegistry );
         Gauge.builder( "wikantik_rebuild_pages_iterated", this,
                 ContentIndexRebuildService::getPagesIterated )
@@ -267,6 +280,7 @@ public class ContentIndexRebuildService {
                 systemPagesSkipped.get(),
                 luceneQueued.get(),
                 chunksWritten.get(),
+                embeddingsIndexed.get(),
                 List.copyOf( errors ) ) );
     }
 
@@ -281,6 +295,12 @@ public class ContentIndexRebuildService {
      *       not) enqueue a Lucene reindex — system pages become no-ops in
      *       Lucene thanks to the preflight filter. Per-page failures are
      *       captured into {@link #errors} and the loop continues.</li>
+     *   <li>{@link State#EMBEDDING} — re-embed every chunk via
+     *       {@link EmbeddingIndexService#indexAll(String, java.util.function.IntConsumer)}.
+     *       Skipped if no embedding hook is wired. This phase dominates the
+     *       rebuild's wall time at corpus scale, so the orchestrator drives a
+     *       per-batch progress callback into {@link #embeddingsIndexed} for
+     *       the admin UI's progress bar.</li>
      *   <li>{@link State#DRAINING_LUCENE} — poll the Lucene queue depth at
      *       {@code luceneDrainPollMs}; exit after two consecutive zero
      *       readings.</li>
@@ -409,9 +429,10 @@ public class ContentIndexRebuildService {
         if ( svc == null || model == null ) {
             return;
         }
+        setState( State.EMBEDDING );
         try {
-            final int indexed = svc.indexAll( model );
-            embeddingsIndexed = indexed;
+            final int indexed = svc.indexAll( model, embeddingsIndexed::set );
+            embeddingsIndexed.set( indexed );
             LOG.info( "Embedding rebuild complete: model={} indexed={}", model, indexed );
         } catch( final RuntimeException e ) {
             LOG.warn( "Embedding rebuild failed for model={}: {}", model, e.getMessage(), e );
@@ -479,7 +500,7 @@ public class ContentIndexRebuildService {
         systemPagesSkipped.set( 0 );
         luceneQueued.set( 0 );
         chunksWritten.set( 0 );
-        embeddingsIndexed = 0;
+        embeddingsIndexed.set( 0 );
         errors.clear();
     }
 }

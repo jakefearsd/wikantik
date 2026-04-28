@@ -631,7 +631,7 @@ class AdminContentResourceTest {
             new com.wikantik.admin.IndexStatusSnapshot.Embeddings(
                 "qwen3-embedding-0.6b", 768, embeddingRowCount, null ),
             new com.wikantik.admin.IndexStatusSnapshot.Rebuild(
-                "IDLE", null, 0, 0, 0, 0, 0, 0, java.util.List.of() ) );
+                "IDLE", null, 0, 0, 0, 0, 0, 0, 0, java.util.List.of() ) );
         Mockito.doReturn( snap ).when( svc ).snapshot();
         return svc;
     }

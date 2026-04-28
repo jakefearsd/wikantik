@@ -70,10 +70,12 @@ describe('AdminKgPolicyPage', () => {
     expect(screen.getByText('lifestyle')).toBeInTheDocument();
     expect(screen.getByText('travel')).toBeInTheDocument();
 
-    // Badge variants
-    expect(screen.getByText('Include')).toBeInTheDocument();
-    expect(screen.getByText('Exclude')).toBeInTheDocument();
-    expect(screen.getByText('Unset')).toBeInTheDocument();
+    // Badge variants — scope to the table, since the filter <select> options
+    // share the same labels (Include/Exclude/Unset) and would otherwise match.
+    const table = screen.getByRole('table');
+    expect(within(table).getByText('Include')).toBeInTheDocument();
+    expect(within(table).getByText('Exclude')).toBeInTheDocument();
+    expect(within(table).getByText('Unset')).toBeInTheDocument();
   });
 
   // ---- 2. Filter by action narrows visible rows ----
@@ -171,15 +173,20 @@ describe('AdminKgPolicyPage', () => {
       'exclude',
     ));
 
-    // Estimate confirm modal should show page count and cluster name
-    await waitFor(() =>
-      expect(screen.getByText(/will affect/i)).toBeInTheDocument(),
+    // Estimate confirm modal should show page count and cluster name. Scope
+    // queries to the dialog because the underlying table also has a "25" cell
+    // (the personal-finance row's page_count) that would collide.
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    const confirmDialog = screen.getAllByRole('dialog').find(
+      (d) => /will affect/i.test(d.textContent),
     );
-    expect(screen.getByText('25')).toBeInTheDocument();
-    expect(screen.getByText(/All pages will be de-indexed/i)).toBeInTheDocument();
+    expect(within(confirmDialog).getByText(/will affect/i)).toBeInTheDocument();
+    expect(within(confirmDialog).getByText('25')).toBeInTheDocument();
+    expect(within(confirmDialog).getByText(/All pages will be de-indexed/i)).toBeInTheDocument();
 
-    // Confirm
-    fireEvent.click(screen.getByRole('button', { name: /Confirm/i }));
+    // Confirm — also scoped, since the Edit modal's underlying form may
+    // still be in the DOM behind the confirm dialog.
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: /Confirm/i }));
 
     await waitFor(() =>
       expect(setCluster).toHaveBeenCalledWith('personal-finance', {

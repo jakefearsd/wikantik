@@ -231,7 +231,7 @@ function EditModal({ target, onCancel, onApply }) {
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content admin-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content admin-modal" role="dialog" onClick={(e) => e.stopPropagation()}>
         <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: 'var(--space-lg)' }}>
           Edit policy: {target.cluster}
         </h2>
@@ -281,7 +281,7 @@ function EstimateConfirmModal({ target, estimate, onCancel, onConfirm }) {
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content admin-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content admin-modal" role="dialog" onClick={(e) => e.stopPropagation()}>
         <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: 'var(--space-md)' }}>
           Confirm: {target.cluster} → {nextVerb}
         </h2>

@@ -6,6 +6,10 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-28** — docs(news): backfill April 2026 development log
+
+**2026-04-28** — docs(wiki): repair bare [PageName] references to valid [PageName]() links
+
 **2026-04-28** — fix(test): scope KG policy assertions past filter-option / page-count collisions
 
 **2026-04-28** — admin(kgpolicy): hide reconciliation panel once nothing is RUNNING/QUEUED

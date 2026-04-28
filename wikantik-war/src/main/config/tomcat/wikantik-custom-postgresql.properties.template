@@ -69,3 +69,79 @@ wikantik.frontmatter.autoDefaults = true
 
 # Sitemap base URL for HTTPS behind proxy (e.g., cloudflared)
 #wikantik.sitemap.baseURL = https://example.com
+
+# =============================================================================
+# LLM / embedding interactions
+# =============================================================================
+# All keys below are commented out — a fresh install runs on the ini defaults
+# from wikantik-main/src/main/resources/ini/wikantik.properties (lines 1228-1302).
+# Uncomment and adjust to override at runtime. Comments document valid values
+# for each key.
+
+# ----- Hybrid retrieval: text embeddings -----
+# Master flag for BM25 + dense retrieval. When false, /api/search runs BM25 only
+# and no embedding client is built. Valid: true | false
+#wikantik.search.hybrid.enabled       = true
+
+# Embedding backend implementation. Valid: ollama
+# (OpenAI-compatible / TEI backends are stubs — only ollama is wired up today.)
+#wikantik.search.embedding.backend    = ollama
+
+# Root URL of the embedding server (no trailing slash required).
+#wikantik.search.embedding.base-url   = http://localhost:11434
+
+# Optional bearer token forwarded as `Authorization: Bearer <value>`.
+# Leave commented for un-authenticated loopback deployments.
+#wikantik.search.embedding.api-key   =
+
+# Embedding model. Valid (per ini reference):
+#   nomic-embed-v1.5        — dim 768,  asymmetric prefixes, Matryoshka
+#   bge-m3                  — dim 1024, no prefix, dense + sparse capable
+#   qwen3-embedding-0.6b    — dim 1024, Qwen3 instruction prompt on queries
+# Changing this requires re-embedding the corpus.
+#wikantik.search.embedding.model      = qwen3-embedding-0.6b
+
+# Optional override of the Ollama tag (e.g. a custom quantization).
+#wikantik.search.embedding.ollama-tag =
+
+# Per-request HTTP timeout, milliseconds. Integer > 0.
+#wikantik.search.embedding.timeout-ms = 30000
+
+# Texts per backend round-trip. Integer > 0. Larger = better throughput on warm
+# GPU; smaller = lower tail latency on CPU.
+#wikantik.search.embedding.batch-size = 32
+
+# ----- Knowledge-graph entity extraction -----
+# Backend for save-time + batch entity extraction.
+# Valid: disabled | ollama | claude
+#   disabled — no extraction (zero save-time overhead)
+#   ollama   — local model on the inference host (default)
+#   claude   — Anthropic SDK; requires ANTHROPIC_API_KEY env var on the JVM
+#wikantik.knowledge.extractor.backend                  = ollama
+
+# Anthropic model id used when backend=claude.
+# Valid (cost-vs-quality, lowest to highest): claude-haiku-4-5 | claude-sonnet-4-6 | claude-opus-4-7
+#wikantik.knowledge.extractor.claude.model             = claude-haiku-4-5
+
+# Ollama tag used when backend=ollama; must serve structured JSON.
+#wikantik.knowledge.extractor.ollama.model             = gemma4-assist:latest
+#wikantik.knowledge.extractor.ollama.base_url          = http://localhost:11434
+
+# Per-chunk HTTP timeout, milliseconds. Integer > 0. Self-hosted Ollama with
+# multi-thousand-token prompts can need well over 30s.
+#wikantik.knowledge.extractor.timeout_ms               = 120000
+
+# Proposals below this confidence are dropped, not filed. Float in [0.0, 1.0].
+#wikantik.knowledge.extractor.confidence_threshold     = 0.6
+
+# Cap on the existing-node dictionary embedded in each extractor prompt.
+# Bounds prompt size and keeps the cache prefix stable. Integer > 0.
+#wikantik.knowledge.extractor.max_existing_nodes       = 200
+
+# Minimum interval between extraction runs for the same page, in ms.
+# Integer >= 0; set to 0 to disable the per-page rate limit.
+#wikantik.knowledge.extractor.per_page_min_interval_ms = 5000
+
+# Max parallel extraction RPCs from the admin batch job. Save-time extraction
+# is always serial. Integer; clamped to [1, 4] at load time.
+#wikantik.knowledge.extractor.concurrency              = 2

@@ -37,6 +37,7 @@ For any page P, `effective_kg_action(P)` returns one of `INCLUDE`, `EXCLUDE` and
 ```
 
 Three valid frontmatter states for `kg_include`:
+
 - absent (the common case) — defer to cluster
 - `true` — force-include
 - `false` — force-exclude
@@ -109,6 +110,7 @@ if (systemPageRegistry.isSystemPage(page.getName())
 ```
 
 `KgInclusionPolicy.shouldInclude(WikiPage)` implements the four-step algorithm above. It reads:
+
 - `SystemPageRegistry` (already injected via `WikiEngine`)
 - frontmatter `kg_include` (from the structural-spine cache)
 - cluster policy (from a small in-memory cache backed by `kg_cluster_policy`, invalidated on policy write)
@@ -158,13 +160,14 @@ Mounted at `/admin/kg-policy` behind `AdminAuthFilter` (requires `AllPermission`
 
 Sortable, filterable table. One row per cluster present in the corpus.
 
-| Cluster | Pages | Action | Page-level overrides | Last reviewed | Reason | |
-|---------|-------|--------|----------------------|---------------|--------|---|
-| wikantik-development | 82 | include | 0 | 2026-04-27 | bootstrap | [edit] |
-| van-life | 32 | exclude | 0 | 2026-04-27 | personal/lifestyle | [edit] |
-| *(new cluster)* climbing-trips | 6 | **unset** *(default exclude)* | 0 | — | — | [decide] |
+| Cluster                        | Pages | Action                        | Page-level overrides | Last reviewed | Reason             |          |
+| ------------------------------ | ----- | ----------------------------- | -------------------- | ------------- | ------------------ | -------- |
+| wikantik-development           | 82    | include                       | 0                    | 2026-04-27    | bootstrap          | [edit]   |
+| van-life                       | 32    | exclude                       | 0                    | 2026-04-27    | personal/lifestyle | [edit]   |
+| *(new cluster)* climbing-trips | 6     | **unset** *(default exclude)* | 0                    | —             | —                  | [decide] |
 
 Columns:
+
 - **Cluster** — name, sortable
 - **Pages** — count, including pages with overrides
 - **Action** — `include` (green) / `exclude` (gray) / `unset` (yellow, highlighted)
@@ -174,6 +177,7 @@ Columns:
 - Inline `[edit]` opens a modal with Action toggle, Reason textarea, Confirm button.
 
 A toolbar above the table:
+
 - Filter by action (include / exclude / unset)
 - Search by cluster name
 - "Mark all reviewed" — bumps `reviewed_at` to NOW for all selected rows without changing action
@@ -216,10 +220,10 @@ First time `/admin/kg-policy` loads, if `kg_cluster_policy` is empty, render a w
 
 **Bootstrap mapping (27 include / 15 exclude):**
 
-| Default | Cluster |
-|---------|---------|
+| Default     | Cluster                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **include** | wikantik-development, agentic-ai, generative-ai, machine-learning, devops-sre, databases, software-engineering-practices, mathematics, security, distributed-systems, software-architecture, cloud-platforms, frontend-development, java, warehouse-automation, data-engineering, design-patterns, agent-cookbook, operations-research, web-services-and-apis, data-structures, mechanical-engineering, networking, computer-science-foundations, retirement-planning, index-fund-investing, personal-finance |
-| **exclude** | engineering-leadership, linux-for-windows-users, conflicts-equity-markets, van-life, hobby-woodworking, philosophy, cooking-and-food, emergency-prep, berlin-history, immigration, spousal-green-card, remote-host-management, russia-ukraine-war, hobbies, american-coinage |
+| **exclude** | engineering-leadership, linux-for-windows-users, conflicts-equity-markets, van-life, hobby-woodworking, philosophy, cooking-and-food, emergency-prep, berlin-history, immigration, spousal-green-card, remote-host-management, russia-ukraine-war, hobbies, american-coinage                                                                                                                                                                                                                                  |
 
 `reviewed_at` is set to NOW for all bootstrap rows so the staleness clock starts fresh.
 

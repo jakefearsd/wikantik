@@ -658,6 +658,17 @@ export const api = {
 
     syncHubMemberships: () =>
       request('/admin/knowledge/sync-hub-memberships', { method: 'POST' }),
+
+    // Entity extraction (LLM-based proposal regeneration)
+    getExtractionStatus: () =>
+      request('/admin/knowledge/extract-mentions'),
+
+    startExtraction: (force = false) =>
+      request(`/admin/knowledge/extract-mentions${force ? '?force=true' : ''}`,
+              { method: 'POST' }),
+
+    cancelExtraction: () =>
+      request('/admin/knowledge/extract-mentions', { method: 'DELETE' }),
   },
 
   // Public page similarity

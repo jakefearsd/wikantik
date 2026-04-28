@@ -292,6 +292,40 @@ describe('AdminKgPolicyPage', () => {
     expect(screen.getByText(/RUNNING/)).toBeInTheDocument();
   });
 
+  it('hides the reconciliation panel when every job has finished', async () => {
+    // Status entries are kept in-memory by ReconciliationJobRunner for the JVM
+    // lifetime, so DONE/ERROR rows linger after the work is over. The "in
+    // progress" header must not appear when nothing is actually running.
+    vi.spyOn(api.admin.kgPolicy, 'reconciliation').mockResolvedValue({
+      reconciliation: [
+        { cluster: 'personal-finance', state: 'DONE',  processed: 25, total_pages: 25, errors: 0 },
+        { cluster: 'home-cooking',    state: 'ERROR', processed: 12, total_pages: 30, errors: 3 },
+      ],
+    });
+
+    render(<AdminKgPolicyPage />);
+    await waitFor(() => expect(screen.getByText('personal-finance')).toBeInTheDocument());
+    expect(screen.queryByText(/Reconciliation in progress/i)).not.toBeInTheDocument();
+  });
+
+  it('shows only active rows in the reconciliation panel, hiding finished ones', async () => {
+    vi.spyOn(api.admin.kgPolicy, 'reconciliation').mockResolvedValue({
+      reconciliation: [
+        { cluster: 'personal-finance', state: 'RUNNING', processed: 10, total_pages: 25, errors: 0 },
+        { cluster: 'home-cooking',    state: 'DONE',    processed: 30, total_pages: 30, errors: 0 },
+      ],
+    });
+
+    render(<AdminKgPolicyPage />);
+    await waitFor(() =>
+      expect(screen.getByText(/Reconciliation in progress/i)).toBeInTheDocument(),
+    );
+    // RUNNING row is in the panel; DONE row must not appear inside the callout.
+    const callout = screen.getByText(/Reconciliation in progress/i).closest('.admin-callout');
+    expect(within(callout).getByText(/personal-finance/)).toBeInTheDocument();
+    expect(within(callout).queryByText(/home-cooking/)).not.toBeInTheDocument();
+  });
+
   // ---- Error state ----
 
   it('surfaces a list error via AdminPage error prop', async () => {

@@ -113,8 +113,12 @@ export default function AdminKgPolicyPage() {
         </div>
       )}
 
-      {reconciliation.length > 0 && (
-        <ReconciliationPanel statuses={reconciliation} />
+      {reconciliation.some((r) => r.state === 'RUNNING' || r.state === 'QUEUED') && (
+        <ReconciliationPanel
+          statuses={reconciliation.filter(
+            (r) => r.state === 'RUNNING' || r.state === 'QUEUED',
+          )}
+        />
       )}
 
       <div className="admin-toolbar">

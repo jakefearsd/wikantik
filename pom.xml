@@ -119,7 +119,7 @@
     <plugin.build-helper.version>3.6.1</plugin.build-helper.version>
     <plugin.checksum.version>1.11</plugin.checksum.version>
     <plugin.cargo.version>1.10.20</plugin.cargo.version>
-    <plugin.docker.version>0.46.0</plugin.docker.version>
+    <plugin.docker.version>0.48.1</plugin.docker.version>
     <plugin.pmd.version>3.28.0</plugin.pmd.version>
     <plugin.site.version>3.21.0</plugin.site.version>
     <plugin.spotbugs.version>4.9.8.3</plugin.spotbugs.version>

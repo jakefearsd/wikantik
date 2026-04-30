@@ -63,13 +63,13 @@ and the knowledge-graph endpoints under `/graph`, `/api/knowledge/*`, and
 
 **What pgvector is used for in Wikantik**
 
-- `kg_embeddings.embedding vector(100)` — ComplEx knowledge-graph embeddings
-  (real and imaginary components of 50-dimensional complex vectors concatenated
-  into a single 100-D real vector) powering link prediction and merge candidates.
-- `kg_content_embeddings.embedding vector(512)` — dense text embeddings over
-  page content used for similarity search and hub-proposal clustering.
-- `hubs.centroid vector(512)` — per-hub centroid for near-miss / drilldown
-  queries in the hub overview admin UI.
+- `content_chunk_embeddings.vec` — dense Ollama-backed embeddings (BYTEA
+  little-endian float32, dimension set by the active `model_code`) over
+  page-passage chunks, powering hybrid search and KG-node similarity. KG-node
+  vectors are derived on the fly as the L2-normalized centroid of the chunks
+  a node is mentioned in (joined via `chunk_entity_mentions`).
+- `hub_centroids.centroid vector(512)` — per-hub centroid for near-miss /
+  drilldown queries in the hub overview admin UI.
 - Cosine-distance operators (`<=>`) are used in-database for k-NN retrieval,
   which is far cheaper than shipping vectors to the JVM.
 

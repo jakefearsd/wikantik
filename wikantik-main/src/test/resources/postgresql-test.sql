@@ -134,32 +134,6 @@ CREATE TABLE IF NOT EXISTS kg_rejections (
     UNIQUE(proposed_source, proposed_target, proposed_relationship)
 );
 
-CREATE TABLE IF NOT EXISTS kg_embeddings (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    entity_id       UUID,
-    entity_type     VARCHAR(20) NOT NULL CHECK (entity_type IN ('node', 'relation')),
-    entity_name     VARCHAR(255) NOT NULL,
-    embedding       vector NOT NULL,
-    model_version   INTEGER NOT NULL DEFAULT 0,
-    created         TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE(entity_name, entity_type, model_version)
-);
-
-CREATE INDEX IF NOT EXISTS idx_kg_embeddings_entity ON kg_embeddings(entity_id, entity_type);
-CREATE INDEX IF NOT EXISTS idx_kg_embeddings_version ON kg_embeddings(model_version);
-
-CREATE TABLE IF NOT EXISTS kg_content_embeddings (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    entity_id       UUID,
-    entity_name     VARCHAR(255) NOT NULL,
-    embedding       vector NOT NULL,
-    model_version   INTEGER NOT NULL DEFAULT 0,
-    created         TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE(entity_name, model_version)
-);
-
-CREATE INDEX IF NOT EXISTS idx_kg_content_embeddings_version ON kg_content_embeddings(model_version);
-
 -- Passage-level content chunks (V008)
 CREATE TABLE IF NOT EXISTS kg_content_chunks (
     id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),

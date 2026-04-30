@@ -141,7 +141,6 @@ if [[ $PURGE_KG -eq 1 && $ASSUME_YES -eq 0 ]]; then
     echo -e "${RED}║  --purge-kg destroys the ENTIRE knowledge graph layer.           ║${NC}"
     echo -e "${RED}║  This INCLUDES human-authored nodes, edges, and curated hubs.    ║${NC}"
     echo -e "${RED}║  TRUNCATEs: kg_nodes, kg_edges, kg_proposals, kg_rejections,     ║${NC}"
-    echo -e "${RED}║             kg_embeddings, kg_content_embeddings,                ║${NC}"
     echo -e "${RED}║             chunk_entity_mentions,                               ║${NC}"
     echo -e "${RED}║             hub_centroids, hub_proposals, hub_discovery_proposals║${NC}"
     echo -e "${RED}║                                                                  ║${NC}"
@@ -317,8 +316,6 @@ if [[ $PURGE_KG -eq 1 ]]; then
         SELECT 'kg_edges', COUNT(*) FROM kg_edges UNION ALL
         SELECT 'kg_proposals', COUNT(*) FROM kg_proposals UNION ALL
         SELECT 'kg_rejections', COUNT(*) FROM kg_rejections UNION ALL
-        SELECT 'kg_embeddings', COUNT(*) FROM kg_embeddings UNION ALL
-        SELECT 'kg_content_embeddings', COUNT(*) FROM kg_content_embeddings UNION ALL
         SELECT 'chunk_entity_mentions', COUNT(*) FROM chunk_entity_mentions UNION ALL
         SELECT 'hub_centroids', COUNT(*) FROM hub_centroids UNION ALL
         SELECT 'hub_proposals', COUNT(*) FROM hub_proposals UNION ALL
@@ -333,7 +330,6 @@ if [[ $PURGE_KG -eq 1 ]]; then
         TRUNCATE TABLE
             kg_nodes, kg_edges,
             kg_proposals, kg_rejections,
-            kg_embeddings, kg_content_embeddings,
             chunk_entity_mentions,
             hub_centroids, hub_proposals, hub_discovery_proposals
         RESTART IDENTITY CASCADE;"
@@ -344,8 +340,6 @@ if [[ $PURGE_KG -eq 1 ]]; then
         SELECT 'kg_edges', COUNT(*) FROM kg_edges UNION ALL
         SELECT 'kg_proposals', COUNT(*) FROM kg_proposals UNION ALL
         SELECT 'kg_rejections', COUNT(*) FROM kg_rejections UNION ALL
-        SELECT 'kg_embeddings', COUNT(*) FROM kg_embeddings UNION ALL
-        SELECT 'kg_content_embeddings', COUNT(*) FROM kg_content_embeddings UNION ALL
         SELECT 'chunk_entity_mentions', COUNT(*) FROM chunk_entity_mentions UNION ALL
         SELECT 'hub_centroids', COUNT(*) FROM hub_centroids UNION ALL
         SELECT 'hub_proposals', COUNT(*) FROM hub_proposals UNION ALL

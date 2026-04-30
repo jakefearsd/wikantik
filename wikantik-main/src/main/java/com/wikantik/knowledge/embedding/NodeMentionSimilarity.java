@@ -40,8 +40,7 @@ import java.util.Set;
 
 /**
  * Derives per-KG-node vectors as the centroid of their mention-chunk vectors
- * from {@code content_chunk_embeddings}. Replaces the legacy TF-IDF
- * {@code kg_content_embeddings} stack so KG node similarity shares the same
+ * from {@code content_chunk_embeddings}, so KG node similarity shares the same
  * vector space (and the same Ollama-backed cadence) as the search path.
  *
  * <p>A node's vector is defined as the L2-normalized sum of the L2-normalized

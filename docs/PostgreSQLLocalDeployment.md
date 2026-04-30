@@ -97,14 +97,20 @@ sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
     bin/db/install-fresh.sh
 ```
 
-This creates the schema currently described by V001 through V007:
+This creates the schema currently described by V001 through V019:
 
 - `users`, `roles`, `groups`, `group_members` (V002)
 - `policy_grants` for database-backed authorization (V003)
-- `kg_nodes`, `kg_edges`, `kg_proposals`, `kg_rejections`, `kg_embeddings`,
-  `kg_content_embeddings` + the `vector` extension (V004)
+- `kg_nodes`, `kg_edges`, `kg_proposals`, `kg_rejections` + the `vector`
+  extension (V004; the legacy `kg_embeddings`/`kg_content_embeddings` tables
+  were dropped in V019)
 - `hub_centroids`, `hub_proposals` (V005)
 - `hub_discovery_proposals` (V006, V007)
+- `kg_content_chunks` (V008), `content_chunk_embeddings` (V009),
+  `chunk_entity_mentions` (V011) — the unified Ollama-backed embedding stack
+- `api_keys` (V010); `page_canonical_ids`, `page_slug_history`,
+  `page_relations` (V013); verification + runbook tables (V014); retrieval
+  quality (V016, V017); KG inclusion policy (V018)
 
 A default `admin` user is seeded with password `admin` (SSHA hashed).
 **Change this immediately after first login.**

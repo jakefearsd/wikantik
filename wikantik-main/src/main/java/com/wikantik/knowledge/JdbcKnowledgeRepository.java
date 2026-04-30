@@ -944,12 +944,11 @@ public class JdbcKnowledgeRepository {
     }
 
     /**
-     * Deletes all knowledge graph data: embeddings, edges, proposals, rejections, and nodes.
+     * Deletes all knowledge graph data: edges, proposals, rejections, and nodes.
      * Tables are cleared in FK-safe order.
      */
     public void clearAll() {
         final String[] tables = {
-            "kg_embeddings", "kg_content_embeddings",
             "kg_edges", "kg_proposals", "kg_rejections", "kg_nodes"
         };
         try( Connection conn = dataSource.getConnection();

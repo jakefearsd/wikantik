@@ -718,7 +718,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         final NodeMentionSimilarity sim = getSimilarity();
         if ( segments.length >= 2 && "status".equals( segments[1] ) ) {
             // GET /admin/knowledge/embeddings/status — reports the shared Ollama-backed
-            // mention-centroid index. The ComplEx/TF-IDF fields are gone with this migration.
+            // mention-centroid index.
             final Map< String, Object > result = new LinkedHashMap<>();
             final boolean ready = sim != null && sim.isReady();
             result.put( "ready", ready );
@@ -732,9 +732,9 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     private void handlePostEmbeddings( final HttpServletResponse response,
                                        final String[] segments ) throws IOException {
-        // No post actions remain on /admin/knowledge/embeddings — retrain/retrain-content
-        // were ComplEx/TF-IDF specific and the chunk embedding indexer runs continuously
-        // via AsyncEmbeddingIndexListener, so there is nothing to manually retrigger here.
+        // No post actions remain on /admin/knowledge/embeddings — the chunk
+        // embedding indexer runs continuously via AsyncEmbeddingIndexListener,
+        // so there is nothing to manually retrigger here.
         sendNotFound( response, "Unknown embeddings sub-resource" );
     }
 

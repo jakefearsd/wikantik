@@ -1,7 +1,7 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44YC8K9P6SRRQS5MWWS0
-title: Van Sanitation: A Comparative Bioremediation Analysis
+title: "Van Sanitation: A Comparative Bioremediation Analysis"
 type: article
 tags:
 - van-life

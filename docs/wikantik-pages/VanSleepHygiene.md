@@ -1,7 +1,7 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44YBXM28P9ZFFVA86C57
-title: Van Sleep Hygiene: Engineering the Circadian Anchor
+title: "Van Sleep Hygiene: Engineering the Circadian Anchor"
 type: article
 tags:
 - van-life

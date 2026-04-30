@@ -1,7 +1,7 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44XYR0R6JK4NRRSNXJ9T
-title: Travel Language: Micro-SLA for the Transient Learner
+title: "Travel Language: Micro-SLA for the Transient Learner"
 type: article
 tags:
 - language-learning

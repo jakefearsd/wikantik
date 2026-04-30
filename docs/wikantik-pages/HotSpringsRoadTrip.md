@@ -1,7 +1,7 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44QYDFF8CTRP1DYTEARF
-title: Geothermal Discovery: A Methodological Framework
+title: "Geothermal Discovery: A Methodological Framework"
 type: article
 tags:
 - van-life

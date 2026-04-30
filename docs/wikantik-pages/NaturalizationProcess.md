@@ -1,7 +1,7 @@
 ---
 cluster: immigration
 canonical_id: 01KQ0P44SYQZN3TC2FE2VNJ9MS
-title: Naturalization Process: A Compliance Workflow
+title: "Naturalization Process: A Compliance Workflow"
 type: article
 tags:
 - immigration-law

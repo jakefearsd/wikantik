@@ -1,7 +1,7 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44Y8K1YM9DXZ69AD3XP4
-title: Van Climate Control: Systemic Integration
+title: "Van Climate Control: Systemic Integration"
 type: article
 tags:
 - van-life

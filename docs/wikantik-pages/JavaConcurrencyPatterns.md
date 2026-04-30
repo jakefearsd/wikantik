@@ -1,7 +1,7 @@
 ---
 cluster: java
 canonical_id: 01KQ0P44R9K008EMQEC7XKG202
-title: Java Concurrency: Virtual Threads and Loom
+title: "Java Concurrency: Virtual Threads and Loom"
 type: article
 tags:
 - java

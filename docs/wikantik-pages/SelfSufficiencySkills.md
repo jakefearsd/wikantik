@@ -1,7 +1,7 @@
 ---
 cluster: emergency-prep
 canonical_id: 01KQ0P44W7DDYA20PQM6SMGXQ3
-title: Self-Sufficiency: The Architecture of Resilient Living
+title: "Self-Sufficiency: The Architecture of Resilient Living"
 type: article
 tags:
 - self-sufficiency

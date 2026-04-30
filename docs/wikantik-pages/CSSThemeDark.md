@@ -1,8 +1,10 @@
 ---
 cluster: frontend-development
-canonical_id: 01KQ0P44MVQSM7E65FF2XKF89V
+title: Dark Theme
+status: active
+date: 2026-04-30
+summary: Optimized dark mode CSS theme for Wikantik, derived from the Medium dark theme spec.
 ---
-
 
 /* Inspired by: [https://medium.com/@mwichary/dark-theme-in-a-day-3518dde2955a](). Adapted for JSPWIKI, as delta on top of haddock.css. */
 

@@ -1,7 +1,7 @@
 ---
 cluster: emergency-prep
 canonical_id: 01KQ0P44Z76TPQE2AYAB02YVQF
-title: Winter Preparedness: The Thermodynamics of Resilience
+title: "Winter Preparedness: The Thermodynamics of Resilience"
 type: article
 tags:
 - emergency-prep

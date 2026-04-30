@@ -1,7 +1,7 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44WR96S8T08TCCFGCTRV
-title: Sonora, California: Resource Economics and Path Dependency
+title: "Sonora, California: Resource Economics and Path Dependency"
 type: article
 tags:
 - history

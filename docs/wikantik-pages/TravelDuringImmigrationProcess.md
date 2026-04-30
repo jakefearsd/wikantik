@@ -1,7 +1,7 @@
 ---
 cluster: immigration
 canonical_id: 01KQ0P44XX7QG0DP0QH8C7B4AW
-title: Travel During Immigration: The AOS Paradox
+title: "Travel During Immigration: The AOS Paradox"
 type: article
 tags:
 - immigration-law

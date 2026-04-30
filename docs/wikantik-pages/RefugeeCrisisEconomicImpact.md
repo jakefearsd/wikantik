@@ -1,7 +1,7 @@
 ---
 cluster: conflicts-equity-markets
 canonical_id: 01KQ0P44VBT6YYP6WABA9QRQAJ
-title: Refugee Crisis: Economic Impact and Causal Modeling
+title: "Refugee Crisis: Economic Impact and Causal Modeling"
 type: article
 tags:
 - economics

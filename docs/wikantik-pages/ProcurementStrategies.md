@@ -1,7 +1,7 @@
 ---
 cluster: warehouse-automation
 canonical_id: 01KQ0P44TS9ZRPT1C9MY1AABAJ
-title: Procurement Strategies: Value Architecture and Risk
+title: "Procurement Strategies: Value Architecture and Risk"
 type: article
 tags:
 - procurement

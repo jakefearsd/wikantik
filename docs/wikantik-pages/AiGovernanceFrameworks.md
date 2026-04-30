@@ -1,16 +1,17 @@
 ---
-cluster: generative-ai
-canonical_id: 01KQ0P44KACYCMHVKSFFEW19FM
-title: Ai Governance Frameworks
-type: article
+canonical_id: 01KQEBA0FZS5MJ393EKA300SHC
+date: 2026-04-30T00:00:00Z
 tags:
-- polici
-- govern
-- agent
-summary: We are moving beyond simple API calls and predictive models; we are deploying
-  systems capable of complex, multi-step reasoning, decision-making, and interaction
-  with sensitive, proprietary data.
-auto-generated: true
+- ai-governance
+- policy-enforcement
+- enterprise-ai
+- compliance
+title: AI Governance Frameworks
+cluster: generative-ai
+type: article
+status: active
+summary: Comprehensive guide to architectural, methodological, and operational frameworks
+  for governing autonomous AI agents at scale.
 ---
 # AI Governance Policy Enterprise Deployment
 

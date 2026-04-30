@@ -1,14 +1,16 @@
 ---
-cluster: philosophy
-canonical_id: 01KQ0P44JPA5V1W8JVP6JJ0Q9F
-title: Aesthetics
-type: article
+canonical_id: 01KQEB7HAZYGT42NS01VNEZZMD
+date: 2026-04-30T00:00:00Z
 tags:
-- aesthet
-- art
-- we
-summary: Aesthetics and the Philosophy of Art Welcome.
-auto-generated: true
+- aesthetics
+- art-theory
+- philosophy
+title: Aesthetics
+cluster: philosophy
+type: article
+status: active
+summary: Comprehensive treatise on aesthetics and the philosophy of art, exploring
+  historical foundations, ontology, and phenomenological frameworks.
 ---
 # Aesthetics and the Philosophy of Art
 

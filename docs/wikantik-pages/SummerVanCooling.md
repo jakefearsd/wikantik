@@ -1,7 +1,7 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44X243X990XDDMQT2ZS2
-title: Summer Van Cooling: Advanced Thermal Management
+title: "Summer Van Cooling: Advanced Thermal Management"
 type: article
 tags:
 - van-life

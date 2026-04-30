@@ -1,7 +1,7 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44YA6SXDV1B6AS4GZW7C
-title: Van Outdoor Living Gear: Engineering the Module
+title: "Van Outdoor Living Gear: Engineering the Module"
 type: article
 tags:
 - van-life

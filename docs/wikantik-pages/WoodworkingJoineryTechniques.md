@@ -1,7 +1,7 @@
 ---
 cluster: hobby-woodworking
 canonical_id: 01KQ0P44Z9ETEZGEE0TRDTYXBX
-title: Woodworking Joinery: Structural Mechanics
+title: "Woodworking Joinery: Structural Mechanics"
 type: article
 tags:
 - woodworking

@@ -6,6 +6,24 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-30** — docs(superpowers): archive completed plan + spec docs
+
+**2026-04-30** — docs(gemini): add article-authoring + structural-spine section
+
+**2026-04-30** — rest(json): emit Date as UTC ISO-8601 regardless of JVM default timezone
+
+**2026-04-30** — kg(cleanup): drop retired ComplEx + TF-IDF embedding tables
+
+**2026-04-30** — mcp(frontmatter): two-layer normalization + validation guard
+
+**2026-04-30** — mcp(admin): sync instructions, system-page write protection, drift guards
+
+**2026-04-30** — docs(wiki): improve article metadata and migrate coin guide to markdown
+
+**2026-04-30** — docs(wiki): repair NameOfArticle.md and update internal links
+
+**2026-04-30** — docs(wiki): hub-naming pass + article quality cleanup
+
 **2026-04-29** — build(deps): docker-maven-plugin 0.46.0 → 0.48.1 for Docker 29 API compatibility
 
 **2026-04-28** — config(template): document LLM/embedding/extractor keys

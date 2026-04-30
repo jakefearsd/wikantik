@@ -1,7 +1,7 @@
 ---
 cluster: warehouse-automation
 canonical_id: 01KQ0P44X4AWQY22RHVHXZ57HK
-title: Supply Chain Visibility: The Architecture of Certainty
+title: "Supply Chain Visibility: The Architecture of Certainty"
 type: article
 tags:
 - supply-chain

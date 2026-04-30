@@ -1,7 +1,7 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44W2F2GZKB3XZZ4BFXGC
-title: Scenic Byways: A Spatio-Temporal Analysis
+title: "Scenic Byways: A Spatio-Temporal Analysis"
 type: article
 tags:
 - travel-planning

@@ -1,7 +1,7 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44MK67P6XRCQQDQHS6DH
-title: Best National Parks for Couples: A Behavioral Framework
+title: "Best National Parks for Couples: A Behavioral Framework"
 type: article
 tags:
 - travel-planning

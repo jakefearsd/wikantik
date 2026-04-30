@@ -1,7 +1,7 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44X46MVVM8NQH28FE5QQ
-title: Sustainable Tourism: Systemic Redesign
+title: "Sustainable Tourism: Systemic Redesign"
 type: article
 tags:
 - tourism

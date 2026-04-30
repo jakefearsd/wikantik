@@ -1,7 +1,7 @@
 ---
 cluster: warehouse-automation
 canonical_id: 01KQ0P44YMW82QV731Q6AN1HHM
-title: Warehouse Layout: The Flow Optimization Manifold
+title: "Warehouse Layout: The Flow Optimization Manifold"
 type: article
 tags:
 - warehouse-layout

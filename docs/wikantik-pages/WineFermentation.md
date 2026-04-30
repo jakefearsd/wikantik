@@ -1,7 +1,7 @@
 ---
 cluster: cooking-and-food
 canonical_id: 01KQ0P44Z6F8E9RX795PX8231X
-title: Wine Fermentation: Biochemical Kinetics
+title: "Wine Fermentation: Biochemical Kinetics"
 type: article
 tags:
 - viticulture

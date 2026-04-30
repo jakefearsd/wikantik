@@ -1,7 +1,7 @@
 ---
 cluster: warehouse-automation
 canonical_id: 01KQ0P44X31BY9V94WWQQRJ4CT
-title: Supply Chain Resilience: Echelon Zero Inventory
+title: "Supply Chain Resilience: Echelon Zero Inventory"
 type: article
 tags:
 - supply-chain

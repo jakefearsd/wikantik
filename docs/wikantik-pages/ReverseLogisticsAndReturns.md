@@ -1,7 +1,7 @@
 ---
 cluster: warehouse-automation
 canonical_id: 01KQ0P44VS0K9MZCWK3E90V49W
-title: Reverse Logistics: The Architecture of Value Recovery
+title: "Reverse Logistics: The Architecture of Value Recovery"
 type: article
 tags:
 - reverse-logistics

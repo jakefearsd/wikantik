@@ -1,7 +1,7 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44WNGP0HW1394JFS0FJ2
-title: Small Town America: A Field Research Methodology
+title: "Small Town America: A Field Research Methodology"
 type: article
 tags:
 - van-life

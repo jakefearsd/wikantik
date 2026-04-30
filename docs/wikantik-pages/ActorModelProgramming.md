@@ -1,15 +1,16 @@
 ---
-cluster: distributed-systems
-canonical_id: 01KQ0P44GZ38CMD1XSCWFQBB60
-title: Actor Model Programming
-type: article
+canonical_id: 01KQEBFEF393K97NXXAY5F2BCA
+date: 2026-04-30T00:00:00Z
 tags:
 - actor
 - messag
 - process
+title: Actor Model Programming
+cluster: distributed-systems
+type: article
+status: active
 summary: Traditional concurrency models, while mathematically sound in theory, often
   degrade into brittle, non-obvious failure modes in practice.
-auto-generated: true
 ---
 # Actor Model Programming
 

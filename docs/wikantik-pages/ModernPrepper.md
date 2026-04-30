@@ -1,7 +1,7 @@
 ---
 cluster: emergency-prep
 canonical_id: 01KQ0P44SP4EQ9KDVQN07EWP4H
-title: Modern Prepper: The Architecture of Resilience
+title: "Modern Prepper: The Architecture of Resilience"
 type: article
 tags:
 - emergency-prep

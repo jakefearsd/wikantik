@@ -1,25 +1,26 @@
 ---
+canonical_id: 01KQE9S4WNC4T07JWD6YZF044N
+related:
+- EventDrivenArchitecture
+- MicroservicesArchitecture
+- DomainAndIntegrationEvents
+- CqrsPattern
 title: Saga Pattern
-type: article
-cluster: software-architecture
+hubs:
+- SoftwareArchitectureHub
 status: active
-date: '2026-04-25'
+date: 2026-04-25T00:00:00Z
+summary: Saga pattern for distributed transactions across microservices — choreography
+  vs orchestration, when each pays, and the failure modes unique to compensating-transaction
+  designs.
 tags:
 - saga
 - distributed-transactions
 - microservices
 - compensating-transactions
 - event-driven
-summary: Saga pattern for distributed transactions across microservices —
-  choreography vs orchestration, when each pays, and the failure modes
-  unique to compensating-transaction designs.
-related:
-- EventDrivenArchitecture
-- MicroservicesArchitecture
-- DomainAndIntegrationEvents
-- CqrsPattern
-hubs:
-- SoftwareArchitectureHub
+type: article
+cluster: software-architecture
 ---
 # Saga Pattern
 

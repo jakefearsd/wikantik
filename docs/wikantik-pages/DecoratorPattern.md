@@ -1,23 +1,24 @@
 ---
+canonical_id: 01KQE9TGD56ZPE63K9Z787MVXZ
+related:
+- DesignPatternsOverview
+- ObserverPattern
+- AdapterPattern
 title: Decorator Pattern
-type: article
-cluster: software-architecture
+hubs:
+- SoftwareArchitectureHub
 status: active
-date: '2026-04-25'
+date: 2026-04-25T00:00:00Z
+summary: Decorator pattern from GoF to modern middleware — wrapping behaviour without
+  modifying the wrapped object. The HTTP middleware stack, Python's @decorator, retry/cache/log
+  wrappers — all the same idea.
 tags:
 - decorator-pattern
 - design-patterns
 - middleware
 - composition
-summary: Decorator pattern from GoF to modern middleware — wrapping behaviour
-  without modifying the wrapped object. The HTTP middleware stack, Python's
-  @decorator, retry/cache/log wrappers — all the same idea.
-related:
-- DesignPatternsOverview
-- ObserverPattern
-- AdapterPattern
-hubs:
-- SoftwareArchitectureHub
+type: article
+cluster: software-architecture
 ---
 # Decorator Pattern
 

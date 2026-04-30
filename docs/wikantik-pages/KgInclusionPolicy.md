@@ -1,5 +1,5 @@
 ---
-canonical_id: 01KQ0P450KGPOLICY00ADMIN0000
+canonical_id: 01KQEDYJR57WYQCV645PKSDBMQ
 cluster: wikantik-development
 title: KG Inclusion Policy
 type: runbook

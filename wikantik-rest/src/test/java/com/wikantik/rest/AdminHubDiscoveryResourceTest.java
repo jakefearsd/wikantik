@@ -476,7 +476,8 @@ class AdminHubDiscoveryResourceTest {
 
     @Test
     void getHubDrilldown_decodesPlusInName() throws Exception {
-        // %2B is the URL-encoded +. Hub names use the "Foo+Hub" convention.
+        // %2B is the URL-encoded +. Verifies the resource URL-decodes page names that contain
+        // a literal '+' (legacy pages predating the TopicHub rename).
         when( req.getPathInfo() ).thenReturn( "/hubs/Cooking%2BHub" );
 
         final HubOverviewService overview = mock( HubOverviewService.class );

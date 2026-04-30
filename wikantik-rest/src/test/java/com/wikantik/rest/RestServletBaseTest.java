@@ -18,6 +18,8 @@
  */
 package com.wikantik.rest;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
@@ -33,7 +35,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.Date;
 import java.util.Properties;
+import java.util.TimeZone;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -298,6 +302,30 @@ class RestServletBaseTest {
 
         assertNull( result );
         Mockito.verify( resp ).setStatus( HttpServletResponse.SC_BAD_REQUEST );
+    }
+
+    @Test
+    void utcIsoDateSerializer_emitsUtcRegardlessOfDefaultTimeZone() {
+        // 2026-04-28T08:23:20Z = epoch millis 1777616600000
+        final Date instant = new Date( 1777364600000L );
+        final TimeZone original = TimeZone.getDefault();
+        try {
+            // Force a non-UTC default TZ. The bug we're locking in: setDateFormat()
+            // would format these digits in CEST and append 'Z', producing wrong output.
+            TimeZone.setDefault( TimeZone.getTimeZone( "Europe/Berlin" ) );
+            final Gson gson = new GsonBuilder()
+                    .registerTypeAdapter( Date.class, RestServletBase.UTC_ISO_DATE_SERIALIZER )
+                    .create();
+            assertEquals( "\"2026-04-28T08:23:20Z\"", gson.toJson( instant ) );
+
+            TimeZone.setDefault( TimeZone.getTimeZone( "America/Los_Angeles" ) );
+            final Gson gson2 = new GsonBuilder()
+                    .registerTypeAdapter( Date.class, RestServletBase.UTC_ISO_DATE_SERIALIZER )
+                    .create();
+            assertEquals( "\"2026-04-28T08:23:20Z\"", gson2.toJson( instant ) );
+        } finally {
+            TimeZone.setDefault( original );
+        }
     }
 
     @Test

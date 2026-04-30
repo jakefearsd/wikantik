@@ -67,7 +67,7 @@ public class WikiPageFormatFilter implements Filter {
     private static final Logger LOG = LogManager.getLogger( WikiPageFormatFilter.class );
 
     private static final Gson GSON = new GsonBuilder()
-            .setDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" )
+            .registerTypeAdapter( java.util.Date.class, RestServletBase.UTC_ISO_DATE_SERIALIZER )
             .create();
 
     private static final int SUMMARY_MAX_CHARS = 300;

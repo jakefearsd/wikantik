@@ -200,9 +200,9 @@ public class AdminGroupResource extends RestServletBase {
         }
         map.put( "members", memberNames );
         map.put( "creator", group.getCreator() );
-        map.put( "created", group.getCreated() != null ? group.getCreated().toString() : null );
+        map.put( "created", group.getCreated() );
         map.put( "modifier", group.getModifier() );
-        map.put( "lastModified", group.getLastModified() != null ? group.getLastModified().toString() : null );
+        map.put( "lastModified", group.getLastModified() );
         return map;
     }
 

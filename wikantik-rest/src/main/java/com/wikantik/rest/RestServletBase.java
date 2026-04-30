@@ -20,7 +20,10 @@ package com.wikantik.rest;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializer;
 import java.util.Locale;
+import java.util.TimeZone;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
@@ -56,10 +59,25 @@ public abstract class RestServletBase extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( RestServletBase.class );
 
-    /** Shared Gson instance with pretty printing and ISO 8601 date format. */
+    /**
+     * Serializer that always emits {@link Date} as ISO 8601 in UTC with a
+     * literal {@code Z} suffix. Gson's {@code setDateFormat(String)} uses the
+     * JVM's default timezone, which produces wrong output (local-time digits
+     * with a {@code Z} suffix that lies about being UTC) on any non-UTC host.
+     */
+    public static final JsonSerializer< Date > UTC_ISO_DATE_SERIALIZER = ( src, typeOfSrc, context ) -> {
+        if ( src == null ) {
+            return null;
+        }
+        final SimpleDateFormat fmt = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT );
+        fmt.setTimeZone( TimeZone.getTimeZone( "UTC" ) );
+        return new JsonPrimitive( fmt.format( src ) );
+    };
+
+    /** Shared Gson instance with pretty printing and ISO 8601 (UTC) date format. */
     protected static final Gson GSON = new GsonBuilder()
             .setPrettyPrinting()
-            .setDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" )
+            .registerTypeAdapter( Date.class, UTC_ISO_DATE_SERIALIZER )
             .create();
 
     private Engine engine;

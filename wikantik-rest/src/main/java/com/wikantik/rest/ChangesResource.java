@@ -68,7 +68,7 @@ public class ChangesResource extends RestServletBase {
      */
     private static final Gson NULL_SAFE_GSON = new GsonBuilder()
             .setPrettyPrinting()
-            .setDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" )
+            .registerTypeAdapter( Date.class, UTC_ISO_DATE_SERIALIZER )
             .serializeNulls()
             .create();
 

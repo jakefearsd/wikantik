@@ -61,7 +61,7 @@ public class PageForAgentResource extends RestServletBase {
      */
     private static final Gson AGENT_GSON = new GsonBuilder()
             .setPrettyPrinting()
-            .setDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" )
+            .registerTypeAdapter( java.util.Date.class, UTC_ISO_DATE_SERIALIZER )
             .serializeNulls()
             .create();
 

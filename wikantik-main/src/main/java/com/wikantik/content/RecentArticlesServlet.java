@@ -20,6 +20,8 @@ package com.wikantik.content;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializer;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -34,9 +36,13 @@ import com.wikantik.api.core.Engine;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 
 /**
  * REST API servlet for retrieving recent articles as JSON.
@@ -97,9 +103,19 @@ public class RecentArticlesServlet extends HttpServlet {
         super.init( config );
         engine = Wiki.engine().find( config );
 
-        // Configure Gson with ISO 8601 date format
+        // Configure Gson with ISO 8601 date format. setDateFormat alone uses the JVM
+        // default timezone — register a UTC-explicit serializer so the literal 'Z'
+        // suffix matches the digits.
+        final JsonSerializer< Date > utcDate = ( src, typeOfSrc, context ) -> {
+            if ( src == null ) {
+                return null;
+            }
+            final SimpleDateFormat fmt = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT );
+            fmt.setTimeZone( TimeZone.getTimeZone( "UTC" ) );
+            return new JsonPrimitive( fmt.format( src ) );
+        };
         gson = new GsonBuilder()
-            .setDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'" )
+            .registerTypeAdapter( Date.class, utcDate )
             .setPrettyPrinting()
             .create();
 
@@ -177,7 +193,10 @@ public class RecentArticlesServlet extends HttpServlet {
         final RecentArticlesQuery query = new RecentArticlesQuery();
 
         parsePositiveInt( request, "count" ).ifPresent( v -> query.count( Math.min( v, MAX_COUNT ) ) );
+        // Accept both 'since' (documented) and 'sinceDays' (matches the response JSON
+        // key, which callers commonly mirror back). 'sinceDays' wins if both are set.
         parsePositiveInt( request, "since" ).ifPresent( query::sinceDays );
+        parsePositiveInt( request, "sinceDays" ).ifPresent( query::sinceDays );
         parsePositiveInt( request, "excerptLength" ).ifPresent( query::excerptLength );
 
         final String excerptParam = request.getParameter( "excerpt" );

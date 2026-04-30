@@ -1,10 +1,16 @@
 ---
 cluster: databases
 canonical_id: 01KQ0P44PMEYZGGZCXDSXGA3XR
+title: Developing with PostgreSQL
 type: article
+status: active
+date: 2026-04-30
 tags:
-- uncategorized
-summary: Developing with PostgreSQL as the Wikantik User Database
+- postgresql
+- database
+- setup
+- development
+summary: Comprehensive guide for configuring and developing with PostgreSQL as the Wikantik backend.
 ---
 
 # Developing with PostgreSQL as the Wikantik User Database

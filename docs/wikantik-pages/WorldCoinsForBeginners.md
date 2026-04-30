@@ -1,6 +1,9 @@
 ---
+canonical_id: 01KQ0P44XW8X2YZZ9A11BNNF92F
+title: World Coins for Beginners
 summary: Guide to collecting world coins including ancient Greek and Roman, medieval European, Asian, and modern international issues.
 date: '2026-03-20'
+status: active
 tags:
 - numismatics
 - coin-collecting
@@ -13,7 +16,6 @@ related:
 - CoinGradingAndAuthentication
 type: article
 cluster: coin-collecting
-status: active
 ---
 
 # World Coins for Beginners

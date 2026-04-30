@@ -352,6 +352,10 @@
        <servlet-class>com.wikantik.rest.AdminVerificationResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AdminFrontmatterIssuesResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminFrontmatterIssuesResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminRetrievalQualityResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminRetrievalQualityResource</servlet-class>
    </servlet>
@@ -536,6 +540,10 @@
    <servlet-mapping>
        <servlet-name>AdminVerificationResource</servlet-name>
        <url-pattern>/admin/verification</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminFrontmatterIssuesResource</servlet-name>
+       <url-pattern>/admin/frontmatter-issues</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminRetrievalQualityResource</servlet-name>

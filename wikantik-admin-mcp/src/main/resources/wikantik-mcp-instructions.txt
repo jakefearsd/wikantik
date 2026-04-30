@@ -64,6 +64,37 @@ JSON-LD (Home > Cluster > Page) and isPartOf referencing the collection.
 Page names use CamelCase (e.g. SecurityPolicy, ProjectAlpha, MeetingNotes2026).
 Names are case-sensitive and must not contain spaces.
 
+== Frontmatter normalization on write ==
+
+You can pass frontmatter to write_pages and update_page in either of two ways:
+
+  1. As structured fields in the metadata argument (preferred). The server
+     emits well-quoted YAML automatically — values like
+     "Woodworking Joinery: Structural Mechanics" are quoted for you.
+
+  2. Embedded in the content string as a YAML frontmatter block (---) at the
+     top. The server parses it, merges it with any explicit metadata argument
+     (explicit wins on conflict), and re-emits clean YAML on save. Either
+     style works; the structured metadata form skips the parse step entirely.
+
+If the embedded YAML is malformed, the tool returns a structured error with
+the SnakeYAML message and best-effort line/column, plus a hint. Common case:
+
+  title: Woodworking Joinery: Structural Mechanics
+
+The unquoted colon makes YAML parse 'title' as a nested mapping start. Fix
+either by quoting the value:
+
+  title: "Woodworking Joinery: Structural Mechanics"
+
+or by passing the field via the structured metadata argument:
+
+  metadata: { "title": "Woodworking Joinery: Structural Mechanics" }
+
+The same validation runs as a save-time filter on every write path
+(REST, JSP editor, direct provider) — pages with malformed frontmatter are
+rejected, not saved with empty metadata.
+
 == System pages are read-only via MCP ==
 
 The wiki ships with system pages — CSS theme pages (CSSRibbon, CSSPrettifyTheme*,

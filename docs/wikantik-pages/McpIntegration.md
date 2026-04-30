@@ -179,6 +179,7 @@ The same file feeds both `McpAccessFilter` (admin) and `KnowledgeMcpAccessFilter
 | `wikantik.indexnow.apiKey` | Required by `ping_search_engines` for IndexNow submissions. |
 | `wikantik.structural_spine.enforcement.enabled` | Default `true`. Auto-assigns canonical IDs and rejects bad relations on save. |
 | `wikantik.runbook.enforcement.enabled` | Default `true`. Schema-validates `type: runbook` pages at save time. |
+| `wikantik.frontmatter.enforcement.enabled` | Default `true`. Save-time guard that rejects pages whose YAML frontmatter fails strict parsing (e.g. unquoted colon in `title:`). Disable only as a temporary escape hatch while running the audit at `GET /admin/frontmatter-issues` on an existing dirty corpus. |
 | `wikantik.verification.stale_days` | Default `90`. After this many days, a verified page reports `confidence: stale`. |
 | `wikantik.retrieval.cron.enabled` | Default `true`. Nightly retrieval-quality CI run. |
 | `wikantik.retrieval.cron.hour_utc` | Default `3`. Hour of day (UTC) for the nightly run. |
@@ -347,6 +348,17 @@ Body in Markdown. Internal links use [text](PageName).
 ```
 
 Save-time enforcement is on: pages without `canonical_id` get one auto-assigned and injected; pages with invalid `relations:` are rejected; `type: runbook` pages are schema-validated; cluster KG-inclusion policy is applied. Most of the agent surface area assumes these invariants — read `[StructuralSpineDesign](StructuralSpineDesign)` and `[AgentGradeContentDesign](AgentGradeContentDesign)` for the full model.
+
+### Frontmatter validation and normalization
+
+YAML quoting trips up agents: a value like `title: Woodworking Joinery: Structural Mechanics` parses as a nested mapping start because of the unquoted colon, and the page used to save with empty metadata + a `WARN` log. Two layers now close that hole:
+
+1. **MCP-side normalization (Layer 1).** `WritePagesTool` and `UpdatePageTool` route every save through `FrontmatterNormalizer`: any embedded `---` block is parsed strictly, merged with the explicit `metadata` argument (explicit wins on conflict), and re-emitted via `FrontmatterWriter` (SnakeYAML's emitter, which always quotes correctly). If the embedded YAML is malformed, the tool returns a structured error with the message + 1-based line/column + a quoting hint instead of silently dropping metadata.
+2. **Save-time validation (Layer 2).** `FrontmatterValidationPageFilter` runs at `preSave` priority `-1006` (before chunking, defaults, structural spine, runbook validation). Rejects any save whose `---` block fails `FrontmatterParser.parseStrict`. Catches non-MCP paths (REST, JSP editor). Gated by `wikantik.frontmatter.enforcement.enabled` (default `true`).
+
+`FrontmatterParser.parse(...)` keeps its graceful-degrade behaviour for read-side callers — the strict path is opt-in via `parseStrict(...)` and only used on writes. Operators adopting the validator on an existing wiki should run `GET /admin/frontmatter-issues` first to find broken pages, fix them, then leave the flag at its default `true`.
+
+`GET /admin/frontmatter-issues` returns `{data: {issues: [{pageName, error, line?, column?}], issue_count, scanned, error_count}}`. Scan cost is O(N) page reads on the request thread — it's a migration tool, not a polling target.
 
 ## Why this rewrite is worth the effort to wire up
 

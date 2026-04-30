@@ -19,6 +19,7 @@
 package com.wikantik.mcp.tools;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.frontmatter.FrontmatterParseException;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -157,13 +158,40 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
                 failedCount++;
                 continue;
             }
+            // Normalize agent input: if content embeds a frontmatter block (the common
+            // case where an agent hand-crafts a markdown file), parse it strictly,
+            // merge with the explicit metadata arg (explicit wins), and pass the body
+            // alone to saveHelper which re-emits YAML via FrontmatterWriter — so values
+            // like 'title: Woodworking Joinery: Structural Mechanics' get quoted
+            // correctly without the agent having to know YAML rules.
+            final FrontmatterNormalizer.Normalized normalized;
             try {
-                saveHelper.saveText( pageName, content,
+                normalized = FrontmatterNormalizer.normalize( content, metadata );
+            } catch ( final FrontmatterParseException fpe ) {
+                entry.put( "created", false );
+                entry.put( "error", "frontmatter parse error: " + fpe.getMessage() );
+                if ( fpe.line() > 0 ) {
+                    entry.put( "frontmatterLine", fpe.line() );
+                }
+                if ( fpe.column() > 0 ) {
+                    entry.put( "frontmatterColumn", fpe.column() );
+                }
+                entry.put( "hint", "Wrap values containing ':' or other YAML special "
+                    + "characters in double quotes, e.g. title: \"Foo: Bar\". Or pass the "
+                    + "fields as the structured metadata argument and omit the YAML block "
+                    + "from content." );
+                results.add( entry );
+                failedCount++;
+                continue;
+            }
+            final Map< String, Object > mergedMetadata = normalized.metadata();
+            try {
+                saveHelper.saveText( pageName, normalized.body(),
                     SaveOptions.builder()
                         .author( defaultAuthor )
                         .changeNote( "write_pages" )
                         .markupSyntax( "markdown" )
-                        .metadata( metadata == null || metadata.isEmpty() ? null : metadata )
+                        .metadata( mergedMetadata.isEmpty() ? null : mergedMetadata )
                         .replaceMetadata( true )
                         .build() );
                 McpAudit.logWrite( TOOL_NAME, "created", pageName, defaultAuthor );

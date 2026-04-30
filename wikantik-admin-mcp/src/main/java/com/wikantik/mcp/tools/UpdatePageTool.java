@@ -19,6 +19,7 @@
 package com.wikantik.mcp.tools;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.frontmatter.FrontmatterParseException;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -172,17 +173,50 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             final Map< String, Object > metadata = arguments.get( "metadata" ) instanceof Map< ?, ? >
                 ? (Map< String, Object >) arguments.get( "metadata" ) : null;
 
-            saveHelper.saveText( pageName, content,
+            // Normalize agent input: parse any embedded frontmatter strictly, merge with
+            // the explicit metadata arg (explicit wins), and let saveHelper re-emit YAML
+            // via FrontmatterWriter — so values like 'title: Woodworking Joinery: Structural
+            // Mechanics' get quoted correctly without the agent knowing YAML rules.
+            final FrontmatterNormalizer.Normalized normalized;
+            try {
+                normalized = FrontmatterNormalizer.normalize( content, metadata );
+            } catch ( final FrontmatterParseException fpe ) {
+                final Map< String, Object > parseFail = new LinkedHashMap<>();
+                parseFail.put( "pageName", pageName );
+                parseFail.put( "updated", false );
+                parseFail.put( "error", "frontmatter parse error: " + fpe.getMessage() );
+                if ( fpe.line() > 0 ) {
+                    parseFail.put( "frontmatterLine", fpe.line() );
+                }
+                if ( fpe.column() > 0 ) {
+                    parseFail.put( "frontmatterColumn", fpe.column() );
+                }
+                parseFail.put( "hint", "Wrap values containing ':' or other YAML special "
+                    + "characters in double quotes, e.g. title: \"Foo: Bar\". Or pass the "
+                    + "fields as the structured metadata argument and omit the YAML block "
+                    + "from content." );
+                return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, parseFail );
+            }
+            final Map< String, Object > mergedMetadata = normalized.metadata();
+            final boolean hasMetadata = !mergedMetadata.isEmpty();
+
+            saveHelper.saveText( pageName, normalized.body(),
                 SaveOptions.builder()
                     .author( defaultAuthor )
                     .changeNote( "update_page" )
                     .markupSyntax( "markdown" )
-                    .metadata( metadata == null || metadata.isEmpty() ? null : metadata )
-                    .replaceMetadata( metadata != null && !metadata.isEmpty() )
+                    .metadata( hasMetadata ? mergedMetadata : null )
+                    .replaceMetadata( hasMetadata )
                     .build() );
             McpAudit.logWrite( TOOL_NAME, "updated", pageName, defaultAuthor );
 
-            final String newHash = McpToolUtils.computeContentHash( content );
+            // Hash the canonical post-save text so the agent's next update_page can
+            // optimistic-lock against it. Composed deterministically from body +
+            // merged metadata via the same writer the save pipeline uses.
+            final String savedText = hasMetadata
+                ? com.wikantik.api.frontmatter.FrontmatterWriter.write( mergedMetadata, normalized.body() )
+                : normalized.body();
+            final String newHash = McpToolUtils.computeContentHash( savedText );
             final Map< String, Object > ok = new LinkedHashMap<>();
             ok.put( "pageName", pageName );
             ok.put( "updated", true );

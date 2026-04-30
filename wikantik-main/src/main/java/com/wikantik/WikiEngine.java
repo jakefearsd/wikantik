@@ -780,6 +780,15 @@ public class WikiEngine implements Engine {
                 new com.wikantik.knowledge.agent.RunbookValidationPageFilter(
                     structuralIndex, getManager( PageManager.class ), props ),
                 -1003 );
+            // -1006 — runs BEFORE chunking (-1005), defaults (-1004), structural spine
+            // (-1003), and runbook validation (-1003). Rejects saves whose YAML
+            // frontmatter is malformed (e.g. unquoted colon in 'title: Foo: Bar') so
+            // downstream filters never see a page that will silently lose its metadata
+            // when re-read. Gated by wikantik.frontmatter.enforcement.enabled
+            // (default true).
+            filterManager.addPageFilter(
+                new com.wikantik.knowledge.FrontmatterValidationPageFilter( props ),
+                -1006 );
             filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
 
             LOG.info( "HubProposalService registered (reviewPercentile property='{}')",

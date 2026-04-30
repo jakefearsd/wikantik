@@ -21,6 +21,8 @@ package com.wikantik.api.frontmatter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.error.MarkedYAMLException;
+import org.yaml.snakeyaml.error.YAMLException;
 
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -112,6 +114,93 @@ public final class FrontmatterParser {
         } catch ( final Exception e ) {
             LOG.warn( "Failed to parse YAML frontmatter: {}", e.getMessage() );
             return new ParsedPage( Map.of(), body );
+        }
+    }
+
+    /**
+     * Strict variant of {@link #parse(String)} that throws {@link FrontmatterParseException}
+     * when a {@code ---}-delimited block exists but the YAML inside fails to parse. Used by
+     * MCP write tools and {@code FrontmatterValidationPageFilter} so authoring agents see
+     * the YAML error (e.g. unquoted colon in a {@code title:}) rather than silently saving
+     * a page with empty metadata.
+     *
+     * <p>Pages without a frontmatter block, or with empty {@code ---\n---\n} blocks, return
+     * a {@link ParsedPage} with empty metadata — those are valid states, not parse errors.</p>
+     *
+     * @throws FrontmatterParseException when the YAML block is malformed (carries SnakeYAML
+     *         message + best-effort line/column).
+     */
+    public static ParsedPage parseStrict( final String text ) throws FrontmatterParseException {
+        if ( text == null || text.isEmpty() ) {
+            return new ParsedPage( Map.of(), text == null ? "" : text );
+        }
+
+        final Matcher openMatcher = OPENING.matcher( text );
+        if ( !openMatcher.find() ) {
+            return new ParsedPage( Map.of(), text );
+        }
+
+        final int yamlStart = openMatcher.end();
+
+        // Empty frontmatter block — valid, no parsing to do.
+        final Matcher immediateMatcher = CLOSING_IMMEDIATE.matcher( text.substring( yamlStart ) );
+        if ( immediateMatcher.find() ) {
+            return new ParsedPage( Map.of(), text.substring( yamlStart + immediateMatcher.end() ) );
+        }
+
+        final Matcher closeMatcher = CLOSING.matcher( text );
+        final String yamlBlock;
+        final String body;
+        if ( !closeMatcher.find( yamlStart ) ) {
+            // Tolerate text ending with \n--- (no trailing newline) — same as parse().
+            if ( text.endsWith( "\n---" ) || text.endsWith( "\r\n---" ) ) {
+                final int lastDelim = text.lastIndexOf( "---" );
+                int bodyEnd = lastDelim;
+                if ( bodyEnd > 0 && text.charAt( bodyEnd - 1 ) == '\n' ) {
+                    bodyEnd--;
+                }
+                if ( bodyEnd > 0 && text.charAt( bodyEnd - 1 ) == '\r' ) {
+                    bodyEnd--;
+                }
+                if ( bodyEnd >= yamlStart ) {
+                    yamlBlock = text.substring( yamlStart, bodyEnd );
+                    body = "";
+                } else {
+                    return new ParsedPage( Map.of(), text );
+                }
+            } else {
+                // Opened a block but never closed it. parse() falls back to "no frontmatter";
+                // strict parsing flags this so the agent knows the closing --- is missing.
+                throw new FrontmatterParseException(
+                        "Frontmatter block opened with '---' but no closing '---' found before end of page.",
+                        -1, -1 );
+            }
+        } else {
+            yamlBlock = text.substring( yamlStart, closeMatcher.start() );
+            body = text.substring( closeMatcher.end() );
+        }
+
+        if ( yamlBlock.isBlank() ) {
+            return new ParsedPage( Map.of(), body );
+        }
+
+        try {
+            final Yaml yaml = new Yaml();
+            final Object parsed = yaml.load( yamlBlock );
+            if ( parsed instanceof Map ) {
+                @SuppressWarnings( "unchecked" )
+                final Map< String, Object > map = ( Map< String, Object > ) parsed;
+                return new ParsedPage( Map.copyOf( map ), body );
+            }
+            // Non-map at top level (e.g. a bare scalar) — treat as empty metadata, not an error.
+            return new ParsedPage( Map.of(), body );
+        } catch ( final MarkedYAMLException e ) {
+            // SnakeYAML's positioned error — pull line/column for the agent's message.
+            final int line = e.getProblemMark() != null ? e.getProblemMark().getLine() + 1 : -1;
+            final int column = e.getProblemMark() != null ? e.getProblemMark().getColumn() + 1 : -1;
+            throw new FrontmatterParseException( e.getMessage(), line, column, e );
+        } catch ( final YAMLException e ) {
+            throw new FrontmatterParseException( e.getMessage(), -1, -1, e );
         }
     }
 }

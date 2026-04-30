@@ -186,55 +186,83 @@ public class McpServerInitializer implements ServletContextListener {
     }
 
     /**
-     * D12: log a warning when the instructions text and the live tool registry disagree.
-     * The check is deliberately conservative — we only flag names that look like tool
-     * identifiers (lowercase + underscores). Hits an exact-name regex `\b[a-z][a-z0-9_]+\b`
-     * against the instructions, intersects with the registered set, and reports both
-     * directions of the diff.
+     * Tool-like verb prefixes that mark a snake_case token as a candidate tool name in the
+     * instructions text. Centralised so the live drift detector and the regression test
+     * agree on what counts as a "mention." Add a new prefix here when a new tool family
+     * lands (e.g. {@code archive_*}); otherwise the heuristic underreports drift.
      */
-    static void logToolNameDriftIfAny( final String instructions, final java.util.Set< String > registered ) {
-        // Find candidate tool names mentioned in the instructions: lower-case + underscore tokens.
+    static final java.util.Set< String > TOOL_NAME_PREFIXES = java.util.Set.of(
+            "get_", "list_", "search_", "find_", "write_", "delete_", "rename_", "diff_",
+            "verify_", "ping_", "preview_", "propose_", "mark_", "update_", "read_",
+            "retrieve_", "traverse_", "discover_", "query_" );
+
+    /**
+     * Snapshot of how the static instructions text and the live tool registry agree.
+     * Both sets are empty when the file is in sync.
+     */
+    public record ToolNameDrift( java.util.Set< String > mentionedButNotRegistered,
+                                 java.util.Set< String > registeredButNotMentioned ) {
+        public boolean isEmpty() {
+            return mentionedButNotRegistered.isEmpty() && registeredButNotMentioned.isEmpty();
+        }
+    }
+
+    /**
+     * Extracts tool-name candidates from a free-text instructions blob: snake_case tokens
+     * starting with one of {@link #TOOL_NAME_PREFIXES}. Shared between the runtime drift
+     * warning and the regression test that fails the build on drift.
+     */
+    static java.util.Set< String > extractToolLikeNames( final String instructions ) {
         final java.util.regex.Matcher m = java.util.regex.Pattern.compile( "\\b[a-z][a-z0-9_]{2,}\\b" )
                 .matcher( instructions );
-        final java.util.Set< String > mentioned = new java.util.LinkedHashSet<>();
+        final java.util.Set< String > result = new java.util.LinkedHashSet<>();
         while ( m.find() ) {
             final String tok = m.group();
-            // A heuristic to avoid noise: only consider tokens that look like tool names
-            // (must contain an underscore, since all our tools follow snake_case).
-            if ( tok.indexOf( '_' ) >= 0 ) {
-                mentioned.add( tok );
+            if ( tok.indexOf( '_' ) < 0 ) {
+                continue;
+            }
+            for ( final String prefix : TOOL_NAME_PREFIXES ) {
+                if ( tok.startsWith( prefix ) ) {
+                    result.add( tok );
+                    break;
+                }
             }
         }
-        // For drift reporting we look at "mentioned but not registered" — the most
-        // misleading case for an agent.
-        final java.util.Set< String > toolLikeNames = new java.util.LinkedHashSet<>();
-        for ( final String name : mentioned ) {
-            // Filter mentioned tokens to those that actually look like tool identifiers
-            // by intersecting with a small set of common verb prefixes used in our registry.
-            if ( name.startsWith( "get_" ) || name.startsWith( "list_" ) || name.startsWith( "search_" )
-                    || name.startsWith( "find_" ) || name.startsWith( "write_" ) || name.startsWith( "delete_" )
-                    || name.startsWith( "rename_" ) || name.startsWith( "diff_" ) || name.startsWith( "verify_" )
-                    || name.startsWith( "ping_" ) || name.startsWith( "preview_" ) || name.startsWith( "propose_" )
-                    || name.startsWith( "mark_" ) || name.startsWith( "update_" ) || name.startsWith( "read_" )
-                    || name.startsWith( "retrieve_" ) || name.startsWith( "traverse" ) || name.startsWith( "discover_" )
-                    || name.startsWith( "query_" ) ) {
-                toolLikeNames.add( name );
-            }
-        }
-        final java.util.Set< String > missingFromRegistry = new java.util.LinkedHashSet<>( toolLikeNames );
-        missingFromRegistry.removeAll( registered );
-        if ( !missingFromRegistry.isEmpty() ) {
+        return result;
+    }
+
+    /**
+     * Compares the snake_case tokens visible in the instructions to the live tool registry.
+     * Pure function — the runtime warning {@link #logToolNameDriftIfAny} and the
+     * regression test both build on this.
+     */
+    static ToolNameDrift computeToolNameDrift( final String instructions,
+                                                final java.util.Set< String > registered ) {
+        final java.util.Set< String > mentioned = extractToolLikeNames( instructions );
+        final java.util.Set< String > extras = new java.util.LinkedHashSet<>( mentioned );
+        extras.removeAll( registered );
+        final java.util.Set< String > missing = new java.util.LinkedHashSet<>( registered );
+        missing.removeAll( mentioned );
+        return new ToolNameDrift( extras, missing );
+    }
+
+    /**
+     * D12: warn loudly when the instructions and the live registry disagree. Production
+     * keeps booting (an outdated instructions file is annoying, not fatal); the
+     * regression test in {@code InstructionsRegistryDriftTest} fails the build instead.
+     */
+    static void logToolNameDriftIfAny( final String instructions, final java.util.Set< String > registered ) {
+        final ToolNameDrift drift = computeToolNameDrift( instructions, registered );
+        if ( !drift.mentionedButNotRegistered().isEmpty() ) {
             LOG.warn( "MCP instructions mention tool name(s) that are NOT registered: {} — "
                     + "the description text is drifting from the runtime registry. "
                     + "Update wikantik-mcp-instructions.txt or implement the missing tools.",
-                    missingFromRegistry );
+                    drift.mentionedButNotRegistered() );
         }
-        final java.util.Set< String > missingFromInstructions = new java.util.LinkedHashSet<>( registered );
-        missingFromInstructions.removeAll( toolLikeNames );
-        if ( !missingFromInstructions.isEmpty() ) {
+        if ( !drift.registeredButNotMentioned().isEmpty() ) {
             LOG.warn( "MCP tools registered but NOT mentioned in the instructions text: {} — "
                     + "the agent will not know about these without seeing tools/list directly.",
-                    missingFromInstructions );
+                    drift.registeredButNotMentioned() );
         }
     }
 

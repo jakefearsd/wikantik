@@ -23,6 +23,7 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.structure.Confidence;
@@ -55,10 +56,13 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool implements McpTool {
 
     private final PageSaveHelper saveHelper;
     private final PageManager pageManager;
+    private final SystemPageRegistry systemPageRegistry;
 
-    public MarkPageVerifiedTool( final PageSaveHelper saveHelper, final PageManager pageManager ) {
+    public MarkPageVerifiedTool( final PageSaveHelper saveHelper, final PageManager pageManager,
+                                 final SystemPageRegistry systemPageRegistry ) {
         this.saveHelper = saveHelper;
         this.pageManager = pageManager;
+        this.systemPageRegistry = systemPageRegistry;
     }
 
     @Override
@@ -119,7 +123,9 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool implements McpTool {
             .description( "Mark a list of pages as verified. Writes verified_at = NOW() and " +
                 "verified_by = <verifier> into each page's frontmatter. The structural index " +
                 "rebuilds verification state on the next save event; if the verifier is in the " +
-                "trusted-authors registry, confidence is computed as 'authoritative'." )
+                "trusted-authors registry, confidence is computed as 'authoritative'. System " +
+                "pages cannot be stamped via MCP — refusing prevents agents from elevating " +
+                "trust signals on shipped help / CSS / menu pages." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties,
                 List.of( "pageNames" ), null, null, null ) )
@@ -162,6 +168,13 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool implements McpTool {
                 if ( pageName == null || pageName.isEmpty() ) {
                     result.put( "ok", false );
                     result.put( "error", "blank page name" );
+                    results.add( result );
+                    continue;
+                }
+                if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
+                    result.put( "ok", false );
+                    result.put( "error", "system page — refusing to stamp via MCP" );
+                    McpAudit.logWrite( TOOL_NAME, "refused-system-page", pageName, verifier );
                     results.add( result );
                     continue;
                 }

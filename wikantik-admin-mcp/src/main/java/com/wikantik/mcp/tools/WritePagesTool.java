@@ -20,6 +20,7 @@ package com.wikantik.mcp.tools;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -43,10 +44,13 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
 
     private final PageSaveHelper saveHelper;
     private final PageManager pageManager;
+    private final SystemPageRegistry systemPageRegistry;
 
-    public WritePagesTool( final PageSaveHelper saveHelper, final PageManager pageManager ) {
+    public WritePagesTool( final PageSaveHelper saveHelper, final PageManager pageManager,
+                           final SystemPageRegistry systemPageRegistry ) {
         this.saveHelper = saveHelper;
         this.pageManager = pageManager;
+        this.systemPageRegistry = systemPageRegistry;
     }
 
     @Override
@@ -92,8 +96,10 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
             .description( "Batch-create new wiki pages. Fails individual pages that already exist " +
-                "— use update_page for those. Per-page {created, error?} results let the agent " +
-                "retry only the failures." )
+                "— use update_page for those. Refuses to create pages whose names match the " +
+                "system-page registry (CSS themes, menu fragments, help pages, anything shipped " +
+                "with the wiki). Per-page {created, error?} results let the agent retry only " +
+                "the failures." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties, List.of( "pages" ), null, null, null ) )
             .outputSchema( outputSchema )
@@ -131,6 +137,14 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
             if ( content == null ) {
                 entry.put( "created", false );
                 entry.put( "error", "content must not be null" );
+                results.add( entry );
+                failedCount++;
+                continue;
+            }
+            if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
+                entry.put( "created", false );
+                entry.put( "error", "system page — refusing to write via MCP" );
+                McpAudit.logWrite( TOOL_NAME, "refused-system-page", pageName, defaultAuthor );
                 results.add( entry );
                 failedCount++;
                 continue;

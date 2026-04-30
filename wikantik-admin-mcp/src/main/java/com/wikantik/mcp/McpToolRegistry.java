@@ -92,10 +92,13 @@ public class McpToolRegistry {
         readOnlyList.add( readPage );
 
         // --- Author-configurable tools (need author resolution from MCP exchange) ---
+        // SystemPageRegistry is passed to every write tool: rename/delete/write/update/mark-verified
+        // all refuse system pages (CSS themes, menu fragments, help pages, anything shipped with
+        // the wiki) so agents cannot rewrite, rename, stamp, or shadow-create system pages.
         final RenamePageTool renamePage = new RenamePageTool( engine, pageManager, pageRenamer, systemPageRegistry );
-        final WritePagesTool writePages = new WritePagesTool( pageSaveHelper, pageManager );
-        final UpdatePageTool updatePage = new UpdatePageTool( pageSaveHelper, pageManager );
-        final MarkPageVerifiedTool markPageVerified = new MarkPageVerifiedTool( pageSaveHelper, pageManager );
+        final WritePagesTool writePages = new WritePagesTool( pageSaveHelper, pageManager, systemPageRegistry );
+        final UpdatePageTool updatePage = new UpdatePageTool( pageSaveHelper, pageManager, systemPageRegistry );
+        final MarkPageVerifiedTool markPageVerified = new MarkPageVerifiedTool( pageSaveHelper, pageManager, systemPageRegistry );
 
         final List< McpTool > authorConfigurableList = new ArrayList<>( List.of(
                 renamePage, writePages, updatePage, markPageVerified

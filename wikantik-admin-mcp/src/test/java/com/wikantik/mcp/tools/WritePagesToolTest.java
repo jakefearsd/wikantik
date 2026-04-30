@@ -20,6 +20,7 @@ package com.wikantik.mcp.tools;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -36,13 +37,13 @@ class WritePagesToolTest {
 
     @Test
     void name_isWritePages() {
-        final WritePagesTool t = new WritePagesTool( mock( PageSaveHelper.class ), mock( PageManager.class ) );
+        final WritePagesTool t = new WritePagesTool( mock( PageSaveHelper.class ), mock( PageManager.class ), null );
         assertEquals( "write_pages", t.name() );
     }
 
     @Test
     void definition_requiresPagesArray() {
-        final WritePagesTool t = new WritePagesTool( mock( PageSaveHelper.class ), mock( PageManager.class ) );
+        final WritePagesTool t = new WritePagesTool( mock( PageSaveHelper.class ), mock( PageManager.class ), null );
         assertTrue( t.definition().inputSchema().required().contains( "pages" ) );
     }
 
@@ -52,7 +53,7 @@ class WritePagesToolTest {
         final PageSaveHelper helper = mock( PageSaveHelper.class );
         when( pm.getPage( anyString() ) ).thenReturn( null );
 
-        final WritePagesTool tool = new WritePagesTool( helper, pm );
+        final WritePagesTool tool = new WritePagesTool( helper, pm, null );
         tool.setDefaultAuthor( "test-agent" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pages", List.of(
@@ -76,7 +77,7 @@ class WritePagesToolTest {
         when( pm.getPage( "Exists" ) ).thenReturn( mock( Page.class ) );
         when( pm.getPage( "Fresh" ) ).thenReturn( null );
 
-        final WritePagesTool tool = new WritePagesTool( helper, pm );
+        final WritePagesTool tool = new WritePagesTool( helper, pm, null );
         tool.setDefaultAuthor( "bot" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pages", List.of(
@@ -95,7 +96,7 @@ class WritePagesToolTest {
     @Test
     void execute_rejectsEmptyPagesList() {
         final WritePagesTool tool = new WritePagesTool(
-            mock( PageSaveHelper.class ), mock( PageManager.class ) );
+            mock( PageSaveHelper.class ), mock( PageManager.class ), null );
         final McpSchema.CallToolResult result = tool.execute( Map.of( "pages", List.of() ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "error" ) );
@@ -104,7 +105,7 @@ class WritePagesToolTest {
     @Test
     void execute_rejectsMissingPagesKey() {
         final WritePagesTool tool = new WritePagesTool(
-            mock( PageSaveHelper.class ), mock( PageManager.class ) );
+            mock( PageSaveHelper.class ), mock( PageManager.class ), null );
         final McpSchema.CallToolResult result = tool.execute( Map.of() );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "error" ) );
@@ -114,7 +115,7 @@ class WritePagesToolTest {
     void execute_reportsPerPageFailureForBlankPageName() {
         final PageManager pm = mock( PageManager.class );
         final PageSaveHelper helper = mock( PageSaveHelper.class );
-        final WritePagesTool tool = new WritePagesTool( helper, pm );
+        final WritePagesTool tool = new WritePagesTool( helper, pm, null );
         tool.setDefaultAuthor( "bot" );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of(
@@ -130,7 +131,7 @@ class WritePagesToolTest {
         final PageManager pm = mock( PageManager.class );
         final PageSaveHelper helper = mock( PageSaveHelper.class );
         when( pm.getPage( anyString() ) ).thenReturn( null );
-        final WritePagesTool tool = new WritePagesTool( helper, pm );
+        final WritePagesTool tool = new WritePagesTool( helper, pm, null );
         tool.setDefaultAuthor( "bot" );
 
         final Map< String, Object > badPage = new java.util.HashMap<>();
@@ -144,6 +145,35 @@ class WritePagesToolTest {
     }
 
     @Test
+    void execute_refusesSystemPagesPerPage() throws Exception {
+        // Defense in depth: even though shipped system pages already exist (and the
+        // "already exists" branch would catch them), an extraPatterns regex match could
+        // reserve a name that's never been written. Either way, write_pages must refuse.
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final SystemPageRegistry sys = mock( SystemPageRegistry.class );
+        when( sys.isSystemPage( "CSSRibbon" ) ).thenReturn( true );
+        when( sys.isSystemPage( "RegularPage" ) ).thenReturn( false );
+        when( pm.getPage( "RegularPage" ) ).thenReturn( null );
+
+        final WritePagesTool tool = new WritePagesTool( helper, pm, sys );
+        tool.setDefaultAuthor( "bot" );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pages", List.of(
+                Map.of( "pageName", "CSSRibbon",   "content", "/* steal */" ),
+                Map.of( "pageName", "RegularPage", "content", "fine" ) ) ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "system page" ),
+            "system page refusal must surface in the per-page error" );
+        assertTrue( text.contains( "\"createdCount\":1" ) );
+        assertTrue( text.contains( "\"failedCount\":1" ) );
+
+        verify( helper, times( 1 ) ).saveText( eq( "RegularPage" ), anyString(), any( SaveOptions.class ) );
+        verify( helper, never() ).saveText( eq( "CSSRibbon" ), anyString(), any( SaveOptions.class ) );
+    }
+
+    @Test
     void execute_capturesSaveHelperExceptionPerPage() throws Exception {
         final PageManager pm = mock( PageManager.class );
         final PageSaveHelper helper = mock( PageSaveHelper.class );
@@ -151,7 +181,7 @@ class WritePagesToolTest {
         doThrow( new RuntimeException( "disk full" ) )
             .when( helper ).saveText( anyString(), anyString(), any( SaveOptions.class ) );
 
-        final WritePagesTool tool = new WritePagesTool( helper, pm );
+        final WritePagesTool tool = new WritePagesTool( helper, pm, null );
         tool.setDefaultAuthor( "bot" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pages", List.of(

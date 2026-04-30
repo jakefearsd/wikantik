@@ -90,6 +90,15 @@ public class McpTestClient implements AutoCloseable {
         return client.listTools();
     }
 
+    /**
+     * Returns the {@code instructions} text the server emitted in its MCP
+     * {@code initialize} response, or {@code null} if none was sent. Used by
+     * the drift IT to assert the live wire-format matches the live tool registry.
+     */
+    public String serverInstructions() {
+        return client.getServerInstructions();
+    }
+
     public Map< String, Object > callTool( final String name, final Map< String, Object > args ) {
         final CallToolResult result = client.callTool( new CallToolRequest( name, args ) );
         if ( Boolean.TRUE.equals( result.isError() ) ) {

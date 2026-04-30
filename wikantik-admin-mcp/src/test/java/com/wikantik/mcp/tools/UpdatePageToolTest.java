@@ -20,6 +20,7 @@ package com.wikantik.mcp.tools;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -36,13 +37,13 @@ class UpdatePageToolTest {
     @Test
     void name_isUpdatePage() {
         assertEquals( "update_page",
-            new UpdatePageTool( mock( PageSaveHelper.class ), mock( PageManager.class ) ).name() );
+            new UpdatePageTool( mock( PageSaveHelper.class ), mock( PageManager.class ), null ).name() );
     }
 
     @Test
     void definition_requiresPageNameContentAndHash() {
         final UpdatePageTool t = new UpdatePageTool(
-            mock( PageSaveHelper.class ), mock( PageManager.class ) );
+            mock( PageSaveHelper.class ), mock( PageManager.class ), null );
         final var req = t.definition().inputSchema().required();
         assertTrue( req.contains( "pageName" ) );
         assertTrue( req.contains( "content" ) );
@@ -60,7 +61,7 @@ class UpdatePageToolTest {
 
         final String currentHash = McpToolUtils.computeContentHash( "current body" );
 
-        final UpdatePageTool tool = new UpdatePageTool( helper, pm );
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         tool.setDefaultAuthor( "bot" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pageName", "P",
@@ -81,7 +82,7 @@ class UpdatePageToolTest {
         when( pm.getPage( "P" ) ).thenReturn( mock( Page.class ) );
         when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "drift body" );
 
-        final UpdatePageTool tool = new UpdatePageTool( helper, pm );
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         tool.setDefaultAuthor( "bot" );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pageName", "P",
@@ -101,7 +102,7 @@ class UpdatePageToolTest {
         final PageSaveHelper helper = mock( PageSaveHelper.class );
         when( pm.getPage( "Missing" ) ).thenReturn( null );
 
-        final UpdatePageTool tool = new UpdatePageTool( helper, pm );
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pageName", "Missing",
             "content", "body",
@@ -115,7 +116,7 @@ class UpdatePageToolTest {
     @Test
     void execute_returnsErrorOnBlankPageName() {
         final UpdatePageTool tool = new UpdatePageTool(
-            mock( PageSaveHelper.class ), mock( PageManager.class ) );
+            mock( PageSaveHelper.class ), mock( PageManager.class ), null );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pageName", "",
             "content", "body",
@@ -127,7 +128,7 @@ class UpdatePageToolTest {
     @Test
     void execute_returnsErrorOnMissingContent() {
         final UpdatePageTool tool = new UpdatePageTool(
-            mock( PageSaveHelper.class ), mock( PageManager.class ) );
+            mock( PageSaveHelper.class ), mock( PageManager.class ), null );
         final java.util.Map< String, Object > args = new java.util.HashMap<>();
         args.put( "pageName", "P" );
         args.put( "expectedContentHash", "h" );
@@ -140,7 +141,7 @@ class UpdatePageToolTest {
     @Test
     void execute_returnsErrorOnBlankHash() {
         final UpdatePageTool tool = new UpdatePageTool(
-            mock( PageSaveHelper.class ), mock( PageManager.class ) );
+            mock( PageSaveHelper.class ), mock( PageManager.class ), null );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pageName", "P",
             "content", "body",
@@ -150,11 +151,36 @@ class UpdatePageToolTest {
     }
 
     @Test
+    void execute_refusesSystemPage() throws Exception {
+        // Defends shipped CSS / menu / help pages: even if the agent has a valid
+        // contentHash for a system page, the tool must refuse to write.
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final SystemPageRegistry sys = mock( SystemPageRegistry.class );
+        when( sys.isSystemPage( "CSSRibbon" ) ).thenReturn( true );
+
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, sys );
+        tool.setDefaultAuthor( "bot" );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pageName", "CSSRibbon",
+            "content", ".malicious { display: none }",
+            "expectedContentHash", "anything" ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "\"updated\":false" ) );
+        assertTrue( text.contains( "system page" ),
+            "refusal must explain why so the agent doesn't retry mindlessly" );
+        verify( helper, never() ).saveText( anyString(), anyString(), any( SaveOptions.class ) );
+        // Refusal happens before the page lookup so we never hit pageManager.getPage either.
+        verify( pm, never() ).getPage( anyString() );
+    }
+
+    @Test
     void execute_returnsErrorOnRuntimeExceptionFromPageManager() {
         final PageManager pm = mock( PageManager.class );
         when( pm.getPage( anyString() ) ).thenThrow( new RuntimeException( "DB offline" ) );
         final UpdatePageTool tool = new UpdatePageTool(
-            mock( PageSaveHelper.class ), pm );
+            mock( PageSaveHelper.class ), pm, null );
         final McpSchema.CallToolResult result = tool.execute( Map.of(
             "pageName", "P",
             "content", "body",

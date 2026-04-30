@@ -20,6 +20,7 @@ package com.wikantik.mcp.tools;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.providers.PageProvider;
@@ -43,10 +44,13 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
 
     private final PageSaveHelper saveHelper;
     private final PageManager pageManager;
+    private final SystemPageRegistry systemPageRegistry;
 
-    public UpdatePageTool( final PageSaveHelper saveHelper, final PageManager pageManager ) {
+    public UpdatePageTool( final PageSaveHelper saveHelper, final PageManager pageManager,
+                           final SystemPageRegistry systemPageRegistry ) {
         this.saveHelper = saveHelper;
         this.pageManager = pageManager;
+        this.systemPageRegistry = systemPageRegistry;
     }
 
     @Override
@@ -104,7 +108,9 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             .description( "Edit an existing page with optimistic locking. Returns " +
                 "{updated, newContentHash, newVersion} on success or " +
                 "{updated:false, error:'hash mismatch', currentHash} on drift so " +
-                "the agent can re-fetch and retry." )
+                "the agent can re-fetch and retry. System pages (CSS themes, menu " +
+                "fragments, help pages, anything shipped with the wiki) cannot be " +
+                "edited via MCP — those updates require admin UI / direct DB access." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties,
                 List.of( "pageName", "content", "expectedContentHash" ), null, null, null ) )
@@ -130,6 +136,15 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             if ( expectedHash == null || expectedHash.isBlank() ) {
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "expectedContentHash required" );
+            }
+
+            if ( systemPageRegistry != null && systemPageRegistry.isSystemPage( pageName ) ) {
+                final Map< String, Object > refused = new LinkedHashMap<>();
+                refused.put( "pageName", pageName );
+                refused.put( "updated", false );
+                refused.put( "error", "system page — refusing to edit via MCP" );
+                McpAudit.logWrite( TOOL_NAME, "refused-system-page", pageName, defaultAuthor );
+                return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, refused );
             }
 
             final Page existing = pageManager.getPage( pageName );

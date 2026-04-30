@@ -311,9 +311,13 @@ rename-page / newName
 
 ### Server-side instructions
 
-The MCP `initialize` response carries an instructions text loaded from `wikantik-mcp-instructions.txt` (classpath). The instructions cover page format (Markdown + YAML frontmatter), CamelCase naming, link syntax, and tool usage. The bootstrap also runs a tool-name drift check (`McpServerInitializer.logToolNameDriftIfAny`): on startup it warns when the instructions text references tool names that are not actually registered, or when registered tools are missing from the instructions.
+The MCP `initialize` response carries an instructions text loaded from `wikantik-mcp-instructions.txt` (classpath). The instructions cover page format (Markdown + YAML frontmatter), CamelCase naming, link syntax, and tool usage. Three safeguards keep the text in sync with the live registry:
 
-> **Known drift (2026-04-29):** the bundled instructions text still references `write_page`, `delete_page`, `search_pages`, `recent_changes`, `query_metadata`, `batch_write_pages`, `patch_page`, `lock_page`, `unlock_page`, `upload_attachment`, `read_attachment`, `delete_attachment`, etc. — none of which are registered in the current `McpToolRegistry`. The drift check will log warnings on each startup until the instructions are refreshed to mirror today's 18-tool surface (`write_pages`, `delete_pages`, `update_page`, `read_page`, `verify_pages`, etc.). Until that refresh ships, agents may form expectations from the instructions that the live server cannot honour. Watch for `MCP instructions mention tool name(s) that are NOT registered` in the catalina logs.
+1. **Build-time (unit):** `InstructionsRegistryDriftTest` (under `wikantik-admin-mcp/src/test/`) loads the resource at test time, asks `McpToolRegistry` what it actually registers, and asserts every registered tool is mentioned by name and every tool-shaped mention is registered. The unit-test build fails on drift, so a stale instructions file cannot reach packaging unnoticed.
+2. **Build-time (wire):** `McpInstructionsDriftIT` (under `wikantik-it-tests/wikantik-selenide-tests`) does the same check against a deployed server: it pulls the `instructions` text from the SDK's `getServerInstructions()` and the live tool list from `tools/list`, then asserts both directions of the diff. This is the safety net for operator-supplied `mcp.instructions.file` overrides — the unit test only sees the file shipped in the WAR; the IT sees whatever the deployed server actually returns.
+3. **Runtime:** `McpServerInitializer.logToolNameDriftIfAny` re-runs the same check on every server start and warns at `WARN` level if the loaded file (bundled or override) has drifted from the registered tool set.
+
+The instructions were rewritten end-to-end on 2026-04-30 to match the current 18-tool surface (`read_page`, `write_pages`, `update_page`, `delete_pages`, `rename_page`, `mark_page_verified`, `verify_pages`, `preview_structured_data`, `ping_search_engines`, `get_backlinks`, `get_outbound_links`, `get_broken_links`, `get_orphaned_pages`, `get_wiki_stats`, `get_page_history`, `diff_page`, plus `list_proposals` / `propose_knowledge` when the knowledge service is wired). The legacy locking section (`lock_page` / `unlock_page`) is gone — concurrency is now optimistic via `expectedContentHash` on `update_page`.
 
 ## Page model agents need to understand
 
@@ -518,7 +522,7 @@ Log streams worth tailing:
    - The `Authorization` header.
    - The `Accept: text/event-stream` header (the Streamable HTTP transport requires SSE).
    - The client IP (so CIDR allowlists work).
-10. Refresh `wikantik-mcp-instructions.txt` so the server's static instructions match the live tool registry (see *Known drift* above).
+10. If you supply your own `mcp.instructions.file` override, mirror the live tool registry in it. The bundled file is regression-tested by `InstructionsRegistryDriftTest`; an external override is not.
 
 ## Troubleshooting
 
@@ -530,7 +534,7 @@ Log streams worth tailing:
 | `429 Rate limit exceeded` | Rate-limit knobs too tight, or runaway agent. Inspect `SecurityLog`. |
 | MCP tools list empty on `/knowledge-mcp` | None of `KnowledgeGraphService`, `ContextRetrievalService`, `StructuralIndexService`, `ForAgentProjectionService` are configured — check `wikantik.datasource` and the embeddings setup. |
 | `get_page_for_agent` returns `degraded: true` | One of the four extractors failed; the named field appears in `missing_fields`. Check log for the underlying exception. |
-| Startup log warns about tool-name drift | Static instructions disagree with live registry. Refresh `wikantik-mcp-instructions.txt`. |
+| Startup log warns about tool-name drift | An external `mcp.instructions.file` override disagrees with the live registry. The bundled instructions are regression-tested at build time; only an operator-supplied override can drift in a live deployment. Refresh the override or remove it. |
 | Authoring tool says `expectedContentHash` mismatch | Optimistic-lock guard fired. Re-fetch the page, recompute the hash, retry. |
 | `WikiEngine could not be created — MCP server not started` | The bootstrap servlet listener ran before SPIs were ready. Confirm `WikiBootstrapServletContextListener` is wired with a lower `load-on-startup` value than the MCP listeners (admin = 2, knowledge = 3, tools = 2). |
 

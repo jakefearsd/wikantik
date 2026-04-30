@@ -20,6 +20,8 @@ package com.wikantik.mcp.tools;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParseException;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -173,13 +175,21 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             final Map< String, Object > metadata = arguments.get( "metadata" ) instanceof Map< ?, ? >
                 ? (Map< String, Object >) arguments.get( "metadata" ) : null;
 
+            // Carry the existing canonical_id forward when the agent omits it. Without
+            // this defensive re-injection the StructuralSpinePageFilter would mint a
+            // fresh ULID (or, post-fix, fall back to a slug lookup), but in either case
+            // we'd be relying on a downstream filter to recover an identity the page
+            // already had on disk. Pin it here so update_page is identity-preserving
+            // by construction.
+            final String existingCanonicalId = extractCanonicalId( currentText );
+
             // Normalize agent input: parse any embedded frontmatter strictly, merge with
             // the explicit metadata arg (explicit wins), and let saveHelper re-emit YAML
             // via FrontmatterWriter — so values like 'title: Woodworking Joinery: Structural
             // Mechanics' get quoted correctly without the agent knowing YAML rules.
             final FrontmatterNormalizer.Normalized normalized;
             try {
-                normalized = FrontmatterNormalizer.normalize( content, metadata );
+                normalized = FrontmatterNormalizer.normalize( content, metadata, existingCanonicalId );
             } catch ( final FrontmatterParseException fpe ) {
                 final Map< String, Object > parseFail = new LinkedHashMap<>();
                 parseFail.put( "pageName", pageName );
@@ -230,5 +240,25 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             LOG.error( "update_page failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         }
+    }
+
+    /**
+     * Best-effort extraction of {@code canonical_id} from the current on-disk text.
+     * Uses the graceful parser so a page with a malformed frontmatter block (the
+     * very thing FrontmatterValidationPageFilter exists to catch on save) still
+     * round-trips here without throwing — we'd rather lose the canonical_id pin
+     * than refuse to update a page whose frontmatter is already broken.
+     */
+    private static String extractCanonicalId( final String currentText ) {
+        if ( currentText == null || currentText.isEmpty() ) {
+            return null;
+        }
+        final ParsedPage parsed = FrontmatterParser.parse( currentText );
+        final Object id = parsed.metadata().get( "canonical_id" );
+        if ( id == null ) {
+            return null;
+        }
+        final String s = id.toString().trim();
+        return s.isEmpty() ? null : s;
     }
 }

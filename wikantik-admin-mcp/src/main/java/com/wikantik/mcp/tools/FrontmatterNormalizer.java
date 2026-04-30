@@ -94,6 +94,26 @@ final class FrontmatterNormalizer {
      */
     static Normalized normalize( final String content, final Map< String, Object > explicitMetadata )
             throws FrontmatterParseException {
+        return normalize( content, explicitMetadata, null );
+    }
+
+    /**
+     * Same as {@link #normalize(String, Map)} but with a defensive fallback
+     * {@code canonical_id} for the update path. When the agent omits {@code canonical_id}
+     * from both the embedded frontmatter and the explicit metadata, we re-inject
+     * {@code existingCanonicalId} so the saved page keeps its identity. Without this,
+     * the structural-spine filter would either reuse the slug-bound id (good) or, if
+     * the lookup raced/missed, mint a fresh ULID — silently orphaning every relation
+     * pointing at the old id.
+     *
+     * @param existingCanonicalId the page's current {@code canonical_id} (from the
+     *                            on-disk frontmatter); ignored if {@code null}/blank
+     *                            or if the merged metadata already has one.
+     */
+    static Normalized normalize( final String content,
+                                  final Map< String, Object > explicitMetadata,
+                                  final String existingCanonicalId )
+            throws FrontmatterParseException {
         final String safeContent = content == null ? "" : content;
 
         final boolean hasEmbeddedFrontmatter = safeContent.startsWith( "---\r\n" )
@@ -112,6 +132,19 @@ final class FrontmatterNormalizer {
         if ( explicitMetadata != null && !explicitMetadata.isEmpty() ) {
             merged.putAll( explicitMetadata );
         }
+
+        if ( existingCanonicalId != null && !existingCanonicalId.isBlank() ) {
+            final Object current = merged.get( "canonical_id" );
+            final String currentStr = current == null ? "" : current.toString().trim();
+            if ( currentStr.isEmpty() ) {
+                final Map< String, Object > reordered = new LinkedHashMap<>( merged.size() + 1 );
+                reordered.put( "canonical_id", existingCanonicalId );
+                reordered.putAll( merged );
+                merged.clear();
+                merged.putAll( reordered );
+            }
+        }
+
         return new Normalized( body, merged );
     }
 }

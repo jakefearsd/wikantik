@@ -99,7 +99,13 @@ public class StructuralSpinePageFilter implements PageFilter {
         final Object canonicalRaw = metadata.get( "canonical_id" );
         final String existingId = canonicalRaw == null ? null : canonicalRaw.toString().trim();
         if ( existingId == null || existingId.isEmpty() ) {
-            final String newId = UlidCreator.getUlid().toString();
+            // Reuse the canonical_id already bound to this slug rather than minting
+            // a new one. Without this, an MCP write that omits canonical_id (or any
+            // save path that strips frontmatter) would orphan the existing DB row
+            // and trip the page_canonical_ids_current_slug_key unique constraint.
+            final String reusedId = pageName == null ? null
+                    : structuralIndex.resolveCanonicalIdFromSlug( pageName ).orElse( null );
+            final String newId = reusedId != null ? reusedId : UlidCreator.getUlid().toString();
             // Insert canonical_id as the first key for visual stability.
             final Map< String, Object > reordered = new LinkedHashMap<>( metadata.size() + 1 );
             reordered.put( "canonical_id", newId );
@@ -107,8 +113,13 @@ public class StructuralSpinePageFilter implements PageFilter {
             metadata.clear();
             metadata.putAll( reordered );
             rewritten = true;
-            LOG.info( "StructuralSpinePageFilter: assigned canonical_id={} to '{}'",
-                      newId, pageName );
+            if ( reusedId != null ) {
+                LOG.info( "StructuralSpinePageFilter: reused canonical_id={} for '{}' (slug already bound)",
+                          newId, pageName );
+            } else {
+                LOG.info( "StructuralSpinePageFilter: assigned canonical_id={} to '{}'",
+                          newId, pageName );
+            }
         }
 
         // -- relations validation --

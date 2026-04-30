@@ -80,6 +80,7 @@ class StructuralSpinePageFilterTest {
 
     @Test
     void missing_canonical_id_gets_auto_assigned_and_rewritten() throws Exception {
+        when( svc.resolveCanonicalIdFromSlug( anyString() ) ).thenReturn( Optional.empty() );
         final var f = new StructuralSpinePageFilter( svc, name -> false, enabled() );
         final String input = "---\ntitle: My Page\ntype: article\n---\nbody";
         final String out = f.preSave( ctx, input );
@@ -88,6 +89,20 @@ class StructuralSpinePageFilterTest {
                    "canonical_id should land as first frontmatter key" );
         assertTrue( out.contains( "title: My Page" ) );
         assertTrue( out.contains( "body" ) );
+    }
+
+    @Test
+    void missing_canonical_id_reuses_slug_bound_id_instead_of_minting_new() throws Exception {
+        // Regression: if the slug already has a canonical_id in the structural index,
+        // honour it. Otherwise the DAO upsert blows up on the unique-slug constraint
+        // because the on-disk frontmatter just won a fresh ULID for an already-bound slug.
+        when( svc.resolveCanonicalIdFromSlug( "MyPage" ) )
+                .thenReturn( Optional.of( "01KQ0P44GYQVKPXXFRY7TTW69C" ) );
+        final var f = new StructuralSpinePageFilter( svc, name -> false, enabled() );
+        final String input = "---\ntitle: My Page\ntype: article\n---\nbody";
+        final String out = f.preSave( ctx, input );
+        assertTrue( out.contains( "canonical_id: 01KQ0P44GYQVKPXXFRY7TTW69C" ),
+                "slug-bound canonical_id must be reused, not regenerated" );
     }
 
     @Test

@@ -98,6 +98,55 @@ class FrontmatterNormalizerTest {
     }
 
     @Test
+    void normalize_existingCanonicalIdInjectedWhenAgentOmitsIt() throws Exception {
+        // The bug this guards against: an agent calls update_page with content whose
+        // frontmatter omits canonical_id; without the fallback, the page would lose
+        // its identity (and StructuralSpinePageFilter would either look up by slug
+        // or — pre-fix — mint a fresh ULID, orphaning every relation pointing at
+        // the old id).
+        final String content = "---\n"
+                + "title: \"Acid Transactions And Isolation\"\n"
+                + "type: article\n"
+                + "---\n"
+                + "body";
+        final FrontmatterNormalizer.Normalized n = FrontmatterNormalizer.normalize(
+                content, null, "01KQ0P44GYQVKPXXFRY7TTW69C" );
+        assertEquals( "01KQ0P44GYQVKPXXFRY7TTW69C", n.metadata().get( "canonical_id" ) );
+        // Pinned at the front so FrontmatterWriter renders it first — visual stability
+        // matches StructuralSpinePageFilter's existing behaviour.
+        assertEquals( "canonical_id",
+                n.metadata().keySet().iterator().next(),
+                "canonical_id must be the first key for stable on-disk ordering" );
+    }
+
+    @Test
+    void normalize_existingCanonicalIdDoesNotOverrideAgentSupplied() throws Exception {
+        // If the agent did supply a canonical_id (in either embedded frontmatter or
+        // explicit metadata), respect it. The fallback is strictly a defensive backstop.
+        final String content = "---\n"
+                + "canonical_id: 01KQEDYJR57WYQCV645PKSDBMQ\n"
+                + "title: \"Hello\"\n"
+                + "---\n"
+                + "body";
+        final FrontmatterNormalizer.Normalized n = FrontmatterNormalizer.normalize(
+                content, null, "01KQ0P44GYQVKPXXFRY7TTW69C" );
+        assertEquals( "01KQEDYJR57WYQCV645PKSDBMQ", n.metadata().get( "canonical_id" ),
+                "agent-supplied canonical_id must win over the fallback" );
+    }
+
+    @Test
+    void normalize_existingCanonicalIdNullOrBlankIsNoop() throws Exception {
+        final String content = "---\n"
+                + "title: \"Hello\"\n"
+                + "---\n"
+                + "body";
+        final FrontmatterNormalizer.Normalized n1 = FrontmatterNormalizer.normalize( content, null, null );
+        assertEquals( null, n1.metadata().get( "canonical_id" ) );
+        final FrontmatterNormalizer.Normalized n2 = FrontmatterNormalizer.normalize( content, null, "   " );
+        assertEquals( null, n2.metadata().get( "canonical_id" ) );
+    }
+
+    @Test
     void normalize_outputRoundTripsThroughGracefulParser() throws Exception {
         // End-to-end: feed in the original failure mode (with explicit-quoted variant),
         // recompose via FrontmatterWriter (which is what saveHelper does), and assert

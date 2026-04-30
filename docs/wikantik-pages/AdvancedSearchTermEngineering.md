@@ -1,15 +1,17 @@
 ---
 cluster: wikantik-development
 canonical_id: 01KQ0P44SXF2N2KAP11ANNF92F
-title: Name Of Article
+title: Advanced Search Term Engineering
 type: article
 tags:
 - search
-- text
-- queri
-summary: We are not here to explain what an LLM is, nor are we here to explain what
-  cosine similarity means.
-auto-generated: true
+- rag
+- information-retrieval
+- embeddings
+- query-optimization
+summary: Deep dive into query engineering for RAG systems, moving beyond basic semantic search to expert-grade, multi-faceted retrieval.
+status: active
+date: 2026-04-30
 ---
 # Advanced Search Term Engineering for State-of-the-Art RAG Systems
 

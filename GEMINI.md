@@ -1,6 +1,6 @@
 # Gemini Development Guide: Tactical Refactoring & Feature Additions
 
-This guide orients Gemini to the Wikantik codebase for the specific purposes of **tactical quality refactoring** and **minor feature additions**. 
+This guide orients Gemini to the Wikantik codebase for the primary purposes of **article writing**, **tactical quality refactoring** and **minor feature additions**. 
 
 ### 1. Authoritative Rules (Via CLAUDE.md)
 *   **TDD First:** Always write or update a test before fixing a bug or refactoring.
@@ -11,7 +11,20 @@ This guide orients Gemini to the Wikantik codebase for the specific purposes of 
 
 ---
 
-### 2. Tactical Refactoring Guidelines
+### 2. Article Authoring & Structural Spine
+Writing content is a first-class engineering task in Wikantik. Every article must maintain the machine-readable "Structural Spine".
+
+*   **Syntax Authority:** Refer to `docs/wikantik-pages/TextFormattingRules.md`. Use CommonMark with Flexmark extensions.
+*   **Frontmatter is Mandatory:** Every page must start with a valid YAML block containing `title`, `type`, `cluster`, `status`, `date`, and `summary`.
+*   **Canonical IDs:** The `canonical_id` (ULID) is stable for the life of the page. It is auto-injected by `StructuralSpinePageFilter` on first save. **Never modify or delete it.**
+*   **Typed Relations:** Use the `relations:` block in frontmatter for knowledge-graph connectivity. Use stable `canonical_id` for targets, not slugs. Valid types: `part-of`, `example-of`, `prerequisite-for`, `supersedes`, `contradicts`, `implements`, `derived-from`.
+*   **Runbooks:** Pages of `type: runbook` must include a fully populated `runbook:` block (see `TextFormattingRules.md` for schema).
+*   **Verification Metadata:** Use the `mark_page_verified` MCP tool to stamp `verified_at` and `verified_by`.
+*   **KG Inclusion:** Use `kg_include: true|false` to override cluster-level knowledge graph extraction policy.
+
+---
+
+### 3. Tactical Refactoring Guidelines
 When performing refactoring (e.g., decoupling `WikiEngine` or modernizing legacy JSPWiki code):
 
 *   **Follow the Guice Migration:** Refer to `docs/ArchitectureCritique.md`. Prioritize moving "Leaf" managers (I18n, Variable, Progress) to the hybrid DI bridge before tackling core managers.
@@ -21,7 +34,7 @@ When performing refactoring (e.g., decoupling `WikiEngine` or modernizing legacy
 
 ---
 
-### 3. Minor Feature Addition Workflow
+### 4. Minor Feature Addition Workflow
 For adding small features like new Plugins, Filters, or REST endpoints:
 
 *   **New Plugins:** Implement `com.wikantik.api.plugin.Plugin` and add the package to `jspwiki.plugin.searchPath` in `wikantik-custom.properties`.
@@ -31,7 +44,7 @@ For adding small features like new Plugins, Filters, or REST endpoints:
 
 ---
 
-### 4. Build & Verification (Tactical Loop)
+### 5. Build & Verification (Tactical Loop)
 To keep the feedback loop fast and avoid massive context builds:
 
 ```bash
@@ -50,7 +63,7 @@ bin/deploy-local.sh
 
 ---
 
-### 5. Gemini Performance Tips
+### 6. Gemini Performance Tips
 *   **Ask for Context:** If a refactor involves a manager you haven't seen yet, ask me to grep for its usage in `WikiEngine` or `WikiContext` first.
 *   **Reasoning Over Code:** I excel at identifying patterns (like the "Service Locator" anti-pattern). Ask for an architectural opinion before I start editing large files.
 *   **Surgical Edits:** Favor the `replace` tool for targeted changes over `write_file` to keep the diffs clean and understandable.

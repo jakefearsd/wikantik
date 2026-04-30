@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD9XWDSFGH7TWHH63NZT
 title: Distributed Systems Hub
 type: hub
 cluster: distributed-systems
@@ -17,7 +18,6 @@ related:
   - NetworkingHub
   - DataStructuresHub
 ---
-
 # Distributed Systems Hub
 
 Distributed systems are collections of independent computers that appear to users as a single coherent system. This hub organizes Wikantik's content on the theoretical foundations and practical engineering patterns required to build resilient, scalable, and correct systems in an environment of network partitions and node failures.

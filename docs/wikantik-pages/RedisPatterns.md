@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDEN3NY8X8FK4H1SME56
 title: Redis Patterns
 type: article
 cluster: data-engineering

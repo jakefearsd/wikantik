@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDB6MKJC6RKBTM8EWPZX
 title: Grpc Fundamentals
 type: article
 cluster: software-architecture

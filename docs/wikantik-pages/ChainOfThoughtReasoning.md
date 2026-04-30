@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD852R46NB2G9DCBFT1H
 title: Chain Of Thought Reasoning
 type: article
 cluster: agentic-ai

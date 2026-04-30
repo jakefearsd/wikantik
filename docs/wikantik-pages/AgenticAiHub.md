@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD6VT29FGWF8YE9TM671
 title: Agentic AI Hub
 type: hub
 cluster: agentic-ai
@@ -16,7 +17,6 @@ related:
   - MLHub
   - SoftwareEngineeringPracticesHub
 ---
-
 # Agentic AI Hub
 
 Agentic AI marks the shift from passive Large Language Models (LLMs) to autonomous systems capable of planning, using tools, and achieving goals through iterative execution. This hub organizes Wikantik's content on the engineering of reliable, observable, and capable agentic systems.

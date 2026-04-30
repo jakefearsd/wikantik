@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD6WQ8QY6BW22RMKVNAW
 title: Agentic Architecture
 type: article
 cluster: agentic-ai

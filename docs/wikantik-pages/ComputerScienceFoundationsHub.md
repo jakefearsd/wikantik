@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD8QYAS6P09AM61S5E2W
 title: Computer Science Foundations Hub
 type: hub
 cluster: computer-science-foundations
@@ -18,7 +19,6 @@ related:
   - DistributedSystemsHub
   - SoftwareEngineeringPracticesHub
 ---
-
 # Computer Science Foundations Hub
 
 Computer Science Foundations provide the theoretical and structural principles that enable all modern computing. This hub organizes Wikantik's content on the fundamental "why" and "how" of computation, from the limits of what can be computed to the physical and logical architecture of the machines that execute our code.

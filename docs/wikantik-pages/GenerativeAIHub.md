@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDAZH3G3X2J4VFM9MP88
 title: Generative AI Hub
 type: hub
 cluster: generative-ai
@@ -16,7 +17,6 @@ related:
   - MLHub
   - DataEngineeringHub
 ---
-
 # Generative AI Hub
 
 Generative AI has transformed computing by enabling systems that can create high-quality text, code, images, and audio. This hub organizes Wikantik's content on the underlying models, the techniques for grounding them in real-world data, and the frameworks for responsible adoption.

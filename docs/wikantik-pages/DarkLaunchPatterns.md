@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD952FPCXB0AX354VS5H
 title: Dark Launch Patterns
 type: article
 cluster: software-architecture

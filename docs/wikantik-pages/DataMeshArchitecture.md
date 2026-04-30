@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD97R4YF8GTBKG2DF4FM
 title: Data Mesh Architecture
 type: article
 cluster: data-engineering

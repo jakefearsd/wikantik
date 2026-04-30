@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD9BBF969ECY66EJKZC8
 title: Data Structures
 type: article
 cluster: data-structures

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDDSYPZ37ER9HCAPNB5P
 title: Ontology Design Patterns
 type: article
 cluster: agentic-ai

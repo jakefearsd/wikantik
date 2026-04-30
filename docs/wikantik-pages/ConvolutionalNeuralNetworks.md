@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD90957BN0YHMXH9E35Y
 title: Convolutional Neural Networks
 type: article
 cluster: machine-learning

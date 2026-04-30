@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDFR2BQKABK17HG58CJW
 title: Singleton Pattern And Alternatives
 type: article
 cluster: software-architecture

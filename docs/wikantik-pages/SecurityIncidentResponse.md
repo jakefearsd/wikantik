@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDFH9MR7HT4KP35HZYGS
 title: Security Incident Response
 type: article
 cluster: security

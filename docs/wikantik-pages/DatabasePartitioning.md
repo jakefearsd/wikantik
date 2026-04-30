@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD9GN8RDWCBEKY58TRQ3
 title: Database Partitioning
 type: article
 cluster: databases

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD7VHR9Y4FJQRZZ1KC12
 title: Blue Green Deployments
 type: article
 cluster: software-architecture

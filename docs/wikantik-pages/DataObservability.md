@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD99PGM6JS8ZFR8P8H7V
 title: Data Observability
 type: article
 cluster: data-engineering

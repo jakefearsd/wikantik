@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDGVN7D85TV9003WHY1W
 title: Trie Data Structure
 type: article
 cluster: data-structures

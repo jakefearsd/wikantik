@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDFEFG0BHM7YDKRAXRAM
 title: Schema Registry And Evolution
 type: article
 cluster: data-engineering

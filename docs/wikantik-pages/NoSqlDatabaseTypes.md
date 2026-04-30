@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDDKWH1Q0DX0DA2B3026
 title: NoSql Database Types
 type: article
 cluster: databases

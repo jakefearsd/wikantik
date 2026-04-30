@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDD6EWGYTHZ65JHZRK4P
 title: Model Quantization
 type: article
 cluster: machine-learning

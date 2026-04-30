@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDC9S1MF41FAFJYKNC42
 title: Knowledge Graph Vs Relational Database
 type: article
 cluster: agentic-ai

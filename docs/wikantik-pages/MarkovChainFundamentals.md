@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDCWD98Q7C0SZSH9RXGB
 title: Markov Chain Fundamentals
 type: article
 cluster: mathematics

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDEX2Z80CPVN4QE8HSYE
 title: Responsible Ai Deployment
 type: article
 cluster: agentic-ai

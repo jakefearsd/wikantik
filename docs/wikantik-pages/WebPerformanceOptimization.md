@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDHDNSREYV0ZP35Z8SY2
 title: Web Performance Optimization
 type: article
 cluster: frontend-development

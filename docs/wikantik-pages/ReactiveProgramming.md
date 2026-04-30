@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDEJ06FVYA98A9ZPYFGD
 title: Reactive Programming
 type: article
 cluster: software-architecture

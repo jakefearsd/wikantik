@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD8R5TMV8CVZFQH7W3V3
 title: Concurrency Patterns
 type: article
 cluster: software-architecture

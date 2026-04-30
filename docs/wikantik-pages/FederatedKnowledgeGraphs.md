@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDAKG63GD9H5QDRV6QF8
 title: Federated Knowledge Graphs
 type: article
 cluster: agentic-ai

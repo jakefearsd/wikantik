@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDDDCQYHZN00W3ZGN3RS
 title: Multimodal Embeddings
 type: article
 cluster: agentic-ai

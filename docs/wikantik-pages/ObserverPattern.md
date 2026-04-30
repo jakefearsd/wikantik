@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDDQPMEGTWKM44XBTTSE
 title: Observer Pattern
 type: article
 cluster: software-architecture

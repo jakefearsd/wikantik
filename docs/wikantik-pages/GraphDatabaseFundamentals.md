@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDB4WDQQX7D2W6Z994KQ
 title: Graph Database Fundamentals
 type: article
 cluster: databases

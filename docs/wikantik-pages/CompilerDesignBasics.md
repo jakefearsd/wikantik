@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD8NEFZ9SS6X87GT5GSH
 title: Compiler Design Basics
 type: article
 cluster: computer-science-foundations

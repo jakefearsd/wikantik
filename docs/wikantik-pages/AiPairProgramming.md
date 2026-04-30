@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD74W8D90PZXX4JGNQDA
 title: Ai Pair Programming
 type: article
 cluster: agentic-ai

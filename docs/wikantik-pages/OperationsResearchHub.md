@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
 title: Operations Research Hub
 type: hub
 cluster: operations-research
@@ -17,7 +18,6 @@ related:
   - MLHub
   - DataEngineeringHub
 ---
-
 # Operations Research Hub
 
 Operations Research (OR) is the discipline of applying advanced analytical methods to help make better decisions. This hub organizes Wikantik's OR content, from foundational mathematical programming to specialized applications in logistics, warehouse automation, and revenue management.

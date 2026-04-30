@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD9N5AWR661ZAZMEYR69
 title: Deep Learning Fundamentals
 type: article
 cluster: machine-learning

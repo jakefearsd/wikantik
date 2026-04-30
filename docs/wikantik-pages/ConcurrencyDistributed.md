@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD8RQE2TN2B8W5ZC060W
 title: Concurrency Distributed
 type: article
 cluster: distributed-systems

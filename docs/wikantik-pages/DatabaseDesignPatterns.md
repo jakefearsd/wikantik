@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD9ED8G0WM5GFWCK094R
 title: Database Design Patterns
 type: article
 cluster: databases

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD9Z0VQ5MQP77NSZSNSP
 title: Document Clustering Approaches
 type: article
 cluster: agentic-ai

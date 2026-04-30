@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD9G0R9840B188SR09A0
 title: Database Migration Strategies
 type: article
 cluster: databases

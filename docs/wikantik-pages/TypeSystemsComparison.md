@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDGXAMX7R2V9YPFJK4TG
 title: Type Systems Comparison
 type: article
 cluster: computer-science-foundations

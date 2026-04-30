@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDA8BQ0VV6YPS8MP8ZCK
 title: Encryption Fundamentals
 type: article
 cluster: security

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD9W8DQ10V4S71M1W7P8
 title: Distributed Computing Algorithms
 type: article
 cluster: distributed-systems

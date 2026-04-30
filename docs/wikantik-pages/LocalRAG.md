@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDCNT2EXY4M4034M3YV5
 title: Local Rag
 type: article
 cluster: agentic-ai

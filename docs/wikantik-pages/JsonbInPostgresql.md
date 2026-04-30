@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGDC3JXPVYFJ3P85YWA8P
 title: Jsonb In Postgresql
 type: article
 cluster: databases

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD79GMF630STAZT8DEX5
 title: Apache Spark Fundamentals
 type: article
 cluster: data-engineering

@@ -1,4 +1,5 @@
 ---
+canonical_id: 01KQEKGD9BVAXF6X4HZYKF2513
 title: Data Structures Hub
 type: hub
 cluster: data-structures
@@ -16,7 +17,6 @@ related:
   - MathematicsHub
   - DistributedSystemsHub
 ---
-
 # Data Structures Hub
 
 Data structures are the specialized formats for organizing, processing, retrieving, and storing data. This hub organizes Wikantik's content on the fundamental building blocks of efficient software, from the formal analysis of algorithm complexity to specialized structures for search, geometry, and large-scale distribution.

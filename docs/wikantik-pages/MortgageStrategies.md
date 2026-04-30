@@ -21,7 +21,7 @@ related:
 - RealEstateInvestingBasics
 - FinancialResilience
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Mortgage Strategies
 
@@ -226,4 +226,4 @@ The "extra principal in the final years" framing is psychological. The dollars s
 - [DebtPayoffStrategies](DebtPayoffStrategies) — Where mortgage payoff fits in debt prioritization
 - [RealEstateInvestingBasics](RealEstateInvestingBasics) — Mortgages for investment properties
 - [FinancialResilience](FinancialResilience) — Why total housing cost matters for resilience
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

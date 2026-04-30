@@ -20,7 +20,7 @@ related:
 - LoadBalancingStrategies
 - NetworkTroubleshooting
 hubs:
-- Networking Hub
+- NetworkingHub
 ---
 # TCP/IP Fundamentals
 
@@ -148,4 +148,4 @@ TCP's slow-start means a new connection takes time to ramp up. For small short-l
 - [HttpTwoAndHttpThree](HttpTwoAndHttpThree) — Application protocols above TCP
 - [LoadBalancingStrategies](LoadBalancingStrategies) — How load balancers handle TCP
 - [NetworkTroubleshooting](NetworkTroubleshooting) — TCP-level diagnostic tools
-- [Networking Hub](Networking+Hub) — Cluster index
+- [Networking Hub](NetworkingHub) — Cluster index

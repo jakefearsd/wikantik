@@ -19,7 +19,7 @@ related:
 - TemporalLogic
 - SetTheoryLogic
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Symbolic Logic
 
@@ -263,4 +263,4 @@ Symbolic notation is precise; understanding what the symbols mean is the harder 
 - [ModalLogic](ModalLogic) — Necessity and possibility
 - [TemporalLogic](TemporalLogic) — Time-based modal logic
 - [SetTheoryLogic](SetTheoryLogic) — Foundational set theory
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

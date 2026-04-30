@@ -21,7 +21,7 @@ related:
 - AiHallucinationMitigation
 - DistributedTracing
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # AI Observability in Production
 

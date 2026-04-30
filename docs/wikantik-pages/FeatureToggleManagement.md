@@ -18,7 +18,7 @@ related:
 - CiCdPipelines
 - ReleaseEngineering
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # Feature Toggle Management
 
@@ -212,4 +212,4 @@ Production code depends on flag service being up. If it's down, what happens? Ei
 - [TrunkBasedDevelopment](TrunkBasedDevelopment) — Flags enable trunk-based
 - [CiCdPipelines](CiCdPipelines) — CI/CD with flags
 - [ReleaseEngineering](ReleaseEngineering) — Adjacent practice
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

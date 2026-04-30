@@ -21,7 +21,7 @@ related:
 - JavaExceptionHandlingPatterns
 - TechnicalDebtManagement
 hubs:
-- SoftwareEngineeringPractices Hub
+- SoftwareEngineeringPracticesHub
 ---
 # Debugging Strategies
 
@@ -146,4 +146,4 @@ When stuck on a bug, mentally walk through these categories. The cause is often 
 - [LegacyCodeModernization](LegacyCodeModernization) — Debugging in unfamiliar codebases
 - [JavaExceptionHandlingPatterns](JavaExceptionHandlingPatterns) — Exception design that aids debugging
 - [TechnicalDebtManagement](TechnicalDebtManagement) — When debt makes debugging harder
-- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPractices+Hub) — Cluster index
+- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPracticesHub) — Cluster index

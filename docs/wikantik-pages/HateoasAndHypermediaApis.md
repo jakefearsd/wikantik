@@ -18,7 +18,7 @@ related:
 - ApiProtocolComparison
 - GraphQlFundamentals
 hubs:
-- WebServicesAndApis Hub
+- WebServicesAndApisHub
 ---
 # HATEOAS and Hypermedia APIs
 
@@ -121,4 +121,4 @@ The HATEOAS-as-required-for-REST argument is technically correct but practically
 
 - [ApiProtocolComparison](ApiProtocolComparison) — REST in context
 - [GraphQlFundamentals](GraphQlFundamentals) — Schema-driven alternative
-- [WebServicesAndApis Hub](WebServicesAndApis+Hub) — Cluster index
+- [WebServicesAndApis Hub](WebServicesAndApisHub) — Cluster index

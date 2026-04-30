@@ -19,9 +19,9 @@ related:
 - JavaCollectionsFramework
 - ImmutableDataPatterns
 - JavaStreamsAndFunctionalProgramming
-- DesignPatterns+Hub
+- DesignPatternsHub
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Java Records and Sealed Classes
 
@@ -181,5 +181,5 @@ Less ceremony than exceptions; explicit handling required.
 - [JavaCollectionsFramework](JavaCollectionsFramework) — Pairing records with collections
 - [ImmutableDataPatterns](ImmutableDataPatterns) — Why immutable defaults matter
 - [JavaStreamsAndFunctionalProgramming](JavaStreamsAndFunctionalProgramming) — Records in functional pipelines
-- [Design Patterns Hub](DesignPatterns+Hub) — Patterns expressible with sealed + records
-- [Java Hub](Java+Hub) — Cluster index
+- [Design Patterns Hub](DesignPatternsHub) — Patterns expressible with sealed + records
+- [Java Hub](JavaHub) — Cluster index

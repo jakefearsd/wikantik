@@ -18,7 +18,7 @@ related:
 - SkillPerformance
 - CustomSkillsArchitecture
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Token Metrics
 
@@ -251,4 +251,4 @@ For agent systems:
 - [ToolOutputOptimization](ToolOutputOptimization) — Tool-side
 - [SkillPerformance](SkillPerformance) — Skill-side
 - [CustomSkillsArchitecture](CustomSkillsArchitecture) — Foundations
-- [AgenticAi Hub](AgenticAi+Hub) — Cluster index
+- [AgenticAi Hub](AgenticAiHub) — Cluster index

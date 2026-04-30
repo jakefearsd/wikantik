@@ -17,7 +17,7 @@ related:
 - PromptCaching
 - AgentPromptEngineering
 hubs:
-- Generative AI Hub
+- GenerativeAIHub
 ---
 # Prompt Caching Strategies
 
@@ -331,4 +331,4 @@ For now: structure prompts deliberately. Big payoff for moderate effort.
 
 - [PromptCaching](PromptCaching) — Mechanics
 - [AgentPromptEngineering](AgentPromptEngineering) — Agent patterns
-- [Generative AI Hub](Generative+AI+Hub) — Cluster index
+- [Generative AI Hub](GenerativeAIHub) — Cluster index

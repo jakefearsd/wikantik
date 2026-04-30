@@ -19,7 +19,7 @@ related:
 - HttpTwoAndHttpThree
 - WebApplicationFirewalls
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # CDN Architecture
 
@@ -196,4 +196,4 @@ For AWS shops, CloudFront is usually the default. For edge compute or aggressive
 - [AwsFundamentals](AwsFundamentals) — AWS context
 - [HttpTwoAndHttpThree](HttpTwoAndHttpThree) — Protocol-level efficiency
 - [WebApplicationFirewalls](WebApplicationFirewalls) — Security at CDN
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

@@ -25,7 +25,7 @@ tags:
 - beginners
 status: active
 hubs:
-- TypesofInvestmentAccountsTutorial Hub
+- TypesofInvestmentAccountsTutorialHub
 ---
 # Compounding Intuition
 

@@ -20,7 +20,7 @@ related:
 - NeuralNetworkArchitectures
 - LLMFineTuning
 hubs:
-- MachineLearning Hub
+- MachineLearningHub
 ---
 # Gradient Descent and Optimizers
 

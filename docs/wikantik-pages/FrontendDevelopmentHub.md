@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KZHC6PVT4SBQM9R0F3T7K8Z6
-title: FrontendDevelopment Hub
+title: FrontendDevelopmentHub
 type: hub
 cluster: frontend-development
 status: active
@@ -15,8 +15,8 @@ tags:
 - css
 - typescript
 related:
-- WebServicesAndApis+Hub
-- SoftwareEngineeringPractices+Hub
+- WebServicesAndApisHub
+- SoftwareEngineeringPracticesHub
 ---
 # FrontendDevelopment Hub
 
@@ -46,5 +46,5 @@ This cluster covers the practical territory of frontend web development — what
 
 ## Adjacent clusters
 
-- [Web Services and APIs Hub](WebServicesAndApis+Hub) — Backend that the frontend consumes
-- [Software Engineering Practices Hub](SoftwareEngineeringPractices+Hub) — Cross-cutting practices
+- [Web Services and APIs Hub](WebServicesAndApisHub) — Backend that the frontend consumes
+- [Software Engineering Practices Hub](SoftwareEngineeringPracticesHub) — Cross-cutting practices

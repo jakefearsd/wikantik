@@ -22,7 +22,7 @@ tags:
 - technology
 - future
 hubs:
-- MlModelDeployment Hub
+- MlModelDeploymentHub
 ---
 # The Future of Machine Learning
 

@@ -16,9 +16,9 @@ tags:
 related:
 - DataPipelineDesign
 - EtlVsElt
-- DistributedSystems+Hub
+- DistributedSystemsHub
 hubs:
-- DataEngineering Hub
+- DataEngineeringHub
 ---
 # MapReduce Paradigm
 
@@ -151,5 +151,5 @@ For typical analytics, you'll use SQL or dbt. The map/reduce mental model is use
 
 - [DataPipelineDesign](DataPipelineDesign) — Modern pipeline patterns
 - [EtlVsElt](EtlVsElt) — Where MapReduce fit historically
-- [Distributed Systems Hub](DistributedSystems+Hub) — Adjacent concepts
-- [DataEngineering Hub](DataEngineering+Hub) — Cluster index
+- [Distributed Systems Hub](DistributedSystemsHub) — Adjacent concepts
+- [DataEngineering Hub](DataEngineeringHub) — Cluster index

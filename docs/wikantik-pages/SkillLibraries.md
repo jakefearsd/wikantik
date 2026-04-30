@@ -20,7 +20,7 @@ related:
 - SkillDocumentation
 - SkillPerformance
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Skill Libraries
 
@@ -256,4 +256,4 @@ For your own libraries:
 - [SkillIntegration](SkillIntegration) — How skills compose
 - [SkillDocumentation](SkillDocumentation) — Required for sharing
 - [SkillPerformance](SkillPerformance) — Adjacent concern
-- [AgenticAi Hub](AgenticAi+Hub) — Cluster index
+- [AgenticAi Hub](AgenticAiHub) — Cluster index

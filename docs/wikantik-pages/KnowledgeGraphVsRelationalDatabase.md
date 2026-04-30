@@ -18,7 +18,7 @@ related:
 - DatabaseDesign
 - RagImplementationPatterns
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Knowledge Graph vs Relational Database
 

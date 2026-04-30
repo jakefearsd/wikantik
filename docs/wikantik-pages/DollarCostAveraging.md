@@ -21,7 +21,7 @@ related:
 - TheCaseAgainstMarketTiming
 - InvestmentPolicyStatement
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # Dollar Cost Averaging
 
@@ -122,4 +122,4 @@ For a $100K windfall in a stable life situation:
 - [BehavioralFinanceForInvestors](BehavioralFinanceForInvestors) — Why automation matters
 - [TheCaseAgainstMarketTiming](TheCaseAgainstMarketTiming) — Why trying to time is worse than DCA
 - [InvestmentPolicyStatement](InvestmentPolicyStatement) — Where DCA decisions get codified
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

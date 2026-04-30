@@ -20,7 +20,7 @@ related:
 - FunctionalProgrammingPrinciples
 - JavaRecordsAndSealedClasses
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Java Streams and Functional Programming
 
@@ -231,4 +231,4 @@ Lambdas that read or modify state outside themselves break under parallelism and
 - [JavaTwentyOneFeatures](JavaTwentyOneFeatures) — Modern Java syntax that pairs with streams
 - [FunctionalProgrammingPrinciples](FunctionalProgrammingPrinciples) — Underlying paradigm
 - [JavaRecordsAndSealedClasses](JavaRecordsAndSealedClasses) — Records flow well through streams
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

@@ -19,7 +19,7 @@ related:
 - CloudStorageOptions
 - StatusPageBestPractices
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # Cloud Disaster Recovery
 
@@ -210,4 +210,4 @@ Costs are modest. Coverage is real. Iterate based on actual incidents.
 - [AwsFundamentals](AwsFundamentals) — AWS context
 - [CloudStorageOptions](CloudStorageOptions) — Storage and replication
 - [StatusPageBestPractices](StatusPageBestPractices) — Communicating during outages
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

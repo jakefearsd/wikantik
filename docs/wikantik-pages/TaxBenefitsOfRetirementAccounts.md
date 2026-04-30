@@ -20,7 +20,7 @@ tags:
 - Roth
 - tax-planning
 hubs:
-- TypesofInvestmentAccountsTutorial Hub
+- TypesofInvestmentAccountsTutorialHub
 ---
 
 

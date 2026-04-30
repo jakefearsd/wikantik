@@ -20,7 +20,7 @@ related:
 - PromptCaching
 - ModelSelectionEfficiency
 hubs:
-- ML Hub
+- MLHub
 ---
 # Cost-Effective Inference
 
@@ -226,4 +226,4 @@ The strongest model is rarely needed. Test smaller models.
 - [CPUInference](CPUInference) — CPU-based deployment
 - [PromptCaching](PromptCaching) — Caching for LLMs
 - [ModelSelectionEfficiency](ModelSelectionEfficiency) — Model size tradeoffs
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

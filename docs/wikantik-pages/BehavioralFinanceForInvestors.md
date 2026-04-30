@@ -21,7 +21,7 @@ related:
 - DollarCostAveraging
 - RebalancingStrategies
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # Behavioral Finance For Investors
 
@@ -192,4 +192,4 @@ This is not advanced finance. It is basic discipline, structurally enforced. It 
 - [InvestmentPolicyStatement](InvestmentPolicyStatement) — The structural defense
 - [DollarCostAveraging](DollarCostAveraging) — Automation as bias defense
 - [RebalancingStrategies](RebalancingStrategies) — Rule-based portfolio decisions
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

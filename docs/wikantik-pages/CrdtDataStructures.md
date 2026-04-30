@@ -17,7 +17,7 @@ related:
 - EventualConsistency
 - ByzantineFaultTolerance
 hubs:
-- Distributed Systems Hub
+- DistributedSystemsHub
 ---
 # CRDT Data Structures
 
@@ -315,4 +315,4 @@ The math is well-developed. The engineering is the hard part.
 
 - [EventualConsistency](EventualConsistency) — Background
 - [ByzantineFaultTolerance](ByzantineFaultTolerance) — Different consistency challenge
-- [Distributed Systems Hub](Distributed+Systems+Hub) — Cluster index
+- [Distributed Systems Hub](DistributedSystemsHub) — Cluster index

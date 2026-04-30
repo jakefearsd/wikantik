@@ -21,7 +21,7 @@ related:
 - InflationProtectionStrategies
 - IndexFundPortfolioConstruction
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # REIT Index Funds
 
@@ -148,4 +148,4 @@ VNQ is the largest and most established. SCHH is slightly cheaper and tracks a s
 - [RealEstateInvestingBasics](RealEstateInvestingBasics) — Direct real estate alternative
 - [InflationProtectionStrategies](InflationProtectionStrategies) — REITs as inflation hedge
 - [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction) — Building from these components
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

@@ -20,7 +20,7 @@ related:
 - ServiceLevelAgreements
 - SecurityIncidentResponse
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Blameless Post-Mortems
 

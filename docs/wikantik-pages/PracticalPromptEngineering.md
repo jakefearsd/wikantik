@@ -16,7 +16,7 @@ tags:
 - productivity
 - prompt-engineering
 hubs:
-- MlModelDeployment Hub
+- MlModelDeploymentHub
 ---
 # Practical Prompt Engineering
 

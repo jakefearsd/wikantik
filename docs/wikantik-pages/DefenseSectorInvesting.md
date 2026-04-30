@@ -17,10 +17,10 @@ related:
 - GeopoliticalRiskAndInvesting
 - PostConflictReconstructionInvesting
 - WarBondsAndGovernmentDebt
-- ConflictMarketPatterns+Hub
+- ConflictMarketPatternsHub
 - ConflictsAndEquityMarkets
 hubs:
-- ConflictMarketPatterns Hub
+- ConflictMarketPatternsHub
 ---
 # Defense Sector Investing
 
@@ -168,5 +168,5 @@ Some defense companies have varying ESG profiles. Generic exclusion misses nuanc
 - [GeopoliticalRiskAndInvesting](GeopoliticalRiskAndInvesting) — Broader risk assessment
 - [PostConflictReconstructionInvesting](PostConflictReconstructionInvesting) — Adjacent thesis
 - [WarBondsAndGovernmentDebt](WarBondsAndGovernmentDebt) — Bond-side conflict investing
-- [ConflictMarketPatterns Hub](ConflictMarketPatterns+Hub) — Cluster index
+- [ConflictMarketPatterns Hub](ConflictMarketPatternsHub) — Cluster index
 - [ConflictsAndEquityMarkets](ConflictsAndEquityMarkets) — Broader conflict-market patterns

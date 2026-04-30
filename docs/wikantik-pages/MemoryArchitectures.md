@@ -18,7 +18,7 @@ related:
 - JavaMemoryManagement
 - QuantumComputing
 hubs:
-- Computer Science Foundations Hub
+- ComputerScienceFoundationsHub
 ---
 # Memory Architectures
 
@@ -347,4 +347,4 @@ For most application code: standard library defaults are good. Optimization matt
 - [MemoryManagementFundamentals](MemoryManagementFundamentals) — Allocator design
 - [JavaMemoryManagement](JavaMemoryManagement) — JVM specifics
 - [QuantumComputing](QuantumComputing) — Different paradigm
-- [Computer Science Foundations Hub](Computer+Science+Foundations+Hub) — Cluster index
+- [Computer Science Foundations Hub](ComputerScienceFoundationsHub) — Cluster index

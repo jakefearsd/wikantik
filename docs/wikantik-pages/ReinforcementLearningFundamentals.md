@@ -17,7 +17,7 @@ related:
 - TreeBasedModels
 - TransformerArchitecture
 hubs:
-- ML Hub
+- MLHub
 ---
 # Reinforcement Learning Fundamentals
 
@@ -264,4 +264,4 @@ Sim-to-real gap. Domain randomization helps.
 
 - [TreeBasedModels](TreeBasedModels) — Different ML paradigm
 - [TransformerArchitecture](TransformerArchitecture) — Often the policy network
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

@@ -20,7 +20,7 @@ related:
 - JdbcBestPractices
 - SpringBootFundamentals
 hubs:
-- DesignPatterns Hub
+- DesignPatternsHub
 ---
 # Repository Pattern
 
@@ -124,4 +124,4 @@ Active Record (Rails-style) couples the domain to persistence. Repository decoup
 - [JpaAndHibernatePatterns](JpaAndHibernatePatterns) — JPA implementation
 - [JdbcBestPractices](JdbcBestPractices) — Lower-level alternative
 - [SpringBootFundamentals](SpringBootFundamentals) — Spring Data conventions
-- [DesignPatterns Hub](DesignPatterns+Hub) — Cluster index
+- [DesignPatterns Hub](DesignPatternsHub) — Cluster index

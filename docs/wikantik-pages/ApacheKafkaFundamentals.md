@@ -20,7 +20,7 @@ related:
 - ApacheSparkFundamentals
 - DistributedTracing
 hubs:
-- DataSystems Hub
+- DataSystemsHub
 ---
 # Apache Kafka Fundamentals
 

@@ -20,7 +20,7 @@ related:
 - MavenMultiModuleProjects
 - JavaBuildToolComparison
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Java Module System
 
@@ -176,4 +176,4 @@ The Java module system is a real feature with real benefits in specific contexts
 - [JavaCollectionsFramework](JavaCollectionsFramework) — Collections work the same in both worlds
 - [MavenMultiModuleProjects](MavenMultiModuleProjects) — Maven modules vs. JPMS modules (different concepts)
 - [JavaBuildToolComparison](JavaBuildToolComparison) — Build tools and module support
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

@@ -19,7 +19,7 @@ related:
 - SkillComposition
 - TokenMetrics
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Multi-Agent Orchestration
 
@@ -250,4 +250,4 @@ For multi-agent design:
 - [CustomSkillsArchitecture](CustomSkillsArchitecture) — Skill basics
 - [SkillComposition](SkillComposition) — Single-agent skill chains
 - [TokenMetrics](TokenMetrics) — Cost measurement
-- [AgenticAi Hub](AgenticAi+Hub) — Cluster index
+- [AgenticAi Hub](AgenticAiHub) — Cluster index

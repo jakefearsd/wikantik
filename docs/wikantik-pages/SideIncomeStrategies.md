@@ -20,7 +20,7 @@ related:
 - BudgetingMethods
 - TaxPlanningFundamentals
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Side Income Strategies
 
@@ -202,4 +202,4 @@ If $Y < $X without compounding, do something else with the time.
 - [FinancialResilience](FinancialResilience) — Why income diversification matters beyond dollars
 - [BudgetingMethods](BudgetingMethods) — What to do with the additional income
 - [TaxPlanningFundamentals](TaxPlanningFundamentals) — Self-employment tax mechanics
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

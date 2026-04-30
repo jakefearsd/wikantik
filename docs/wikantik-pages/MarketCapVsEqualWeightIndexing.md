@@ -21,7 +21,7 @@ related:
 - IndexFundPortfolioConstruction
 - AssetAllocationGuide
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # Market Cap vs. Equal Weight Indexing
 
@@ -146,4 +146,4 @@ The equal-weighted approach is reasonable if you specifically want the implicit 
 - [SmallCapValuePremium](SmallCapValuePremium) — Explicit factor approach as alternative
 - [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction) — Building from these components
 - [AssetAllocationGuide](AssetAllocationGuide) — Where weighting fits in allocation
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

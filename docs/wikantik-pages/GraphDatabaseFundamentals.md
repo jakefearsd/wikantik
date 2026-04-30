@@ -19,7 +19,7 @@ related:
 - DatabaseSharding
 - NoSqlDatabaseTypes
 hubs:
-- Databases Hub
+- DatabasesHub
 ---
 # Graph Database Fundamentals
 

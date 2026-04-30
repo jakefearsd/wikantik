@@ -18,7 +18,7 @@ related:
 - EntityResolutionTechniques
 - GraphDatabaseFundamentals
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Federated Knowledge Graphs
 

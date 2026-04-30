@@ -19,9 +19,9 @@ related:
 - GeopoliticalRiskAndInvesting
 - PostConflictReconstructionInvesting
 - IBondsAndTreasuries
-- ConflictMarketPatterns+Hub
+- ConflictMarketPatternsHub
 hubs:
-- ConflictMarketPatterns Hub
+- ConflictMarketPatternsHub
 ---
 # War Bonds and Government Debt
 
@@ -212,4 +212,4 @@ For US investors during periods of geopolitical tension:
 - [GeopoliticalRiskAndInvesting](GeopoliticalRiskAndInvesting) — Broader risk
 - [PostConflictReconstructionInvesting](PostConflictReconstructionInvesting) — Recovery thesis
 - [IBondsAndTreasuries](IBondsAndTreasuries) — TIPS and I-bonds
-- [ConflictMarketPatterns Hub](ConflictMarketPatterns+Hub) — Cluster index
+- [ConflictMarketPatterns Hub](ConflictMarketPatternsHub) — Cluster index

@@ -22,7 +22,7 @@ related:
 - AgentObservability
 - ToolUse
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Agent Loops
 

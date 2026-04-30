@@ -19,7 +19,7 @@ related:
 - CloudMigrationStrategies
 - TerraformFundamentals
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # Cloud Native Application Design
 
@@ -133,4 +133,4 @@ Most successful migrations do both: lift-and-shift first to escape the data cent
 - [ServerlessArchitecture](ServerlessArchitecture) — Most cloud-native variant
 - [CloudMigrationStrategies](CloudMigrationStrategies) — Migration patterns
 - [TerraformFundamentals](TerraformFundamentals) — IaC for cloud-native
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

@@ -19,7 +19,7 @@ related:
 - ModalLogic
 - SetTheoryLogic
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Propositional Logic
 
@@ -258,4 +258,4 @@ Each proposition is atomic. To reason about "P about person X," you'd need separ
 - [SymbolicLogic](SymbolicLogic) — Broader logic context
 - [ModalLogic](ModalLogic) — Logic of necessity/possibility
 - [SetTheoryLogic](SetTheoryLogic) — Foundational set theory
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

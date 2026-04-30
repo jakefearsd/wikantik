@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQ0P44SJMT5AEWM122084DWB
-title: MlModelDeployment Hub
+title: MlModelDeploymentHub
 type: hub
 cluster: machine-learning
 status: active
@@ -37,8 +37,8 @@ Deploying machine learning models to production is its own discipline. A trained
 
 ## Adjacent
 
-- [Cloud Platforms Hub](CloudPlatforms+Hub) — Where ML usually deploys
-- [DevOps and SRE Hub](DevOpsAndSre+Hub) — Operational practices
+- [Cloud Platforms Hub](CloudPlatformsHub) — Where ML usually deploys
+- [DevOps and SRE Hub](DevOpsAndSreHub) — Operational practices
 - [MachineLearning](MachineLearning) — Foundational ML concepts
 - [PromptCachingStrategies](PromptCachingStrategies) — LLM-specific deployment optimization
 

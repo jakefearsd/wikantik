@@ -20,7 +20,7 @@ related:
 - WebhookPatterns
 - HttpTwoAndHttpThree
 hubs:
-- WebServicesAndApis Hub
+- WebServicesAndApisHub
 ---
 # WebSocket Patterns
 
@@ -182,4 +182,4 @@ Each TCP connection consumes a file descriptor. Tune `ulimit -n` and OS limits a
 - [ApiProtocolComparison](ApiProtocolComparison) — When WebSocket fits
 - [WebhookPatterns](WebhookPatterns) — Server-to-server alternative for callbacks
 - [HttpTwoAndHttpThree](HttpTwoAndHttpThree) — HTTP/3 + QUIC have their own streaming model
-- [WebServicesAndApis Hub](WebServicesAndApis+Hub) — Cluster index
+- [WebServicesAndApis Hub](WebServicesAndApisHub) — Cluster index

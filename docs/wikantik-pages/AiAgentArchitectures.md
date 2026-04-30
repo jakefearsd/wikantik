@@ -19,7 +19,7 @@ related:
 - AgentReasoning
 - AgentLoops
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # AI Agent Architectures
 

@@ -20,7 +20,7 @@ related:
 - AgentPlanning
 - ToolUse
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Agentic Architecture
 

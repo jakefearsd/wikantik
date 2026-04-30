@@ -19,7 +19,7 @@ related:
 - JavaRecordsAndSealedClasses
 - ImmutableDataPatterns
 hubs:
-- Java Hub
+- JavaHub
 ---
 # JPA and Hibernate Patterns
 
@@ -231,4 +231,4 @@ For these, raw JDBC (or Spring's JdbcTemplate, or jOOQ) is often clearer and fas
 - [SpringBootFundamentals](SpringBootFundamentals) — Spring Data conventions
 - [JavaRecordsAndSealedClasses](JavaRecordsAndSealedClasses) — Records as DTOs
 - [ImmutableDataPatterns](ImmutableDataPatterns) — Why DTOs should be immutable
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

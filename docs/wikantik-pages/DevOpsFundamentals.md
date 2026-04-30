@@ -19,7 +19,7 @@ related:
 - ToilReductionStrategies
 - CloudNativeApplicationDesign
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # DevOps Fundamentals
 
@@ -147,4 +147,4 @@ Each step is meaningful on its own. Don't try to adopt everything simultaneously
 - [OnCallPractices](OnCallPractices) — Operations rotation
 - [ToilReductionStrategies](ToilReductionStrategies) — SRE concept
 - [CloudNativeApplicationDesign](CloudNativeApplicationDesign) — Cloud-native fits DevOps
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

@@ -25,7 +25,7 @@ related:
 - RagImplementationPatterns
 - ToolUse
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Agentic Workflow Design
 

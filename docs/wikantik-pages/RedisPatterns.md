@@ -19,7 +19,7 @@ related:
 - ConsistentHashing
 - DistributedComputingAlgorithms
 hubs:
-- DataSystems Hub
+- DataSystemsHub
 ---
 # Redis Patterns
 

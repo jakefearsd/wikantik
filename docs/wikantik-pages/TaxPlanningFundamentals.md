@@ -22,7 +22,7 @@ related:
 - WillsAndTrusts
 - TaxPlanningForRetirementAccountWithdrawals
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Tax Planning Fundamentals
 
@@ -191,4 +191,4 @@ For most households with W-2 income, standard deductions, and standard accounts,
 - [WillsAndTrusts](WillsAndTrusts) — Estate-tax considerations
 - [USTaxTreatiesWithEuropeanCountries](USTaxTreatiesWithEuropeanCountries) — Cross-border planning
 - [TaxPlanningForRetirementAccountWithdrawals](TaxPlanningForRetirementAccountWithdrawals) — Withdrawal-phase tax mechanics
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

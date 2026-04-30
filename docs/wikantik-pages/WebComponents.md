@@ -19,7 +19,7 @@ related:
 - ServerSideRendering
 - CssArchitecturePatterns
 hubs:
-- FrontendDevelopment Hub
+- FrontendDevelopmentHub
 ---
 # Web Components
 
@@ -212,4 +212,4 @@ For specific cases:
 - [TypeScriptFundamentals](TypeScriptFundamentals) — Type-safe components
 - [ServerSideRendering](ServerSideRendering) — SSR considerations
 - [CssArchitecturePatterns](CssArchitecturePatterns) — Style architecture
-- [FrontendDevelopment Hub](FrontendDevelopment+Hub) — Cluster index
+- [FrontendDevelopment Hub](FrontendDevelopmentHub) — Cluster index

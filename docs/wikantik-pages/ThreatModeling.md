@@ -20,7 +20,7 @@ related:
 - SecurityIncidentResponse
 - ZeroTrustArchitecture
 hubs:
-- Security Hub
+- SecurityHub
 ---
 # Threat Modeling
 

@@ -18,7 +18,7 @@ related:
 - WebComponents
 - FormHandlingAndValidation
 hubs:
-- FrontendDevelopment Hub
+- FrontendDevelopmentHub
 ---
 # TypeScript Fundamentals
 
@@ -275,4 +275,4 @@ The function-component declaration is increasingly preferred over `React.FC`.
 - [ModernBundlersAndBuildTools](ModernBundlersAndBuildTools) — Build pipeline includes TS compilation
 - [WebComponents](WebComponents) — Components benefit from typed props
 - [FormHandlingAndValidation](FormHandlingAndValidation) — Type-safe form schemas
-- [FrontendDevelopment Hub](FrontendDevelopment+Hub) — Cluster index
+- [FrontendDevelopment Hub](FrontendDevelopmentHub) — Cluster index

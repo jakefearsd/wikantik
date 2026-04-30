@@ -19,7 +19,7 @@ related:
 - DevOpsFundamentals
 - AwsLambdaPatterns
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # Scheduled Task Management
 
@@ -220,4 +220,4 @@ For an existing chaotic cron-based setup, migrate one task at a time to a struct
 - [RunbookAutomation](RunbookAutomation) — Adjacent automation
 - [DevOpsFundamentals](DevOpsFundamentals) — Broader practice
 - [AwsLambdaPatterns](AwsLambdaPatterns) — Cloud function scheduling
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

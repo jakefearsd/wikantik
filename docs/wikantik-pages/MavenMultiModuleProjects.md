@@ -20,7 +20,7 @@ related:
 - SpringBootFundamentals
 - JpaAndHibernatePatterns
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Maven Multi-Module Projects
 
@@ -227,4 +227,4 @@ For dependencies that are provided by the runtime (servlet API, Spring Boot's au
 - [JavaModuleSystem](JavaModuleSystem) — JPMS modules (different from Maven modules)
 - [SpringBootFundamentals](SpringBootFundamentals) — Spring Boot's BOM and starter parents
 - [JpaAndHibernatePatterns](JpaAndHibernatePatterns) — A common Maven dependency
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

@@ -134,30 +134,17 @@ After projection, review the graph for quality:
 - **Edge Explorer:** Filter by relationship type to see whether the expected relationships were created. Check that `links_to` edges from body links are present.
 - **Schema summary:** Confirm the relationship types match what you expect from your frontmatter conventions.
 
-## Step 2: Training the Embedding Models
+## Step 2: Embeddings
 
-Once the graph is populated, train the embedding models to unlock predictive features.
+Wikantik uses a single Ollama-backed embedding model that produces dense vectors for every page chunk. Those vectors back hybrid search and are also reused — as on-the-fly centroids over `chunk_entity_mentions` — for KG-node similarity, so there is no longer a separate "structural" or "content" embedding model to retrain.
 
-### 2.1 Train the Structural Embedding Model (ComplEx)
+The chunk embedding indexer runs continuously: it picks up newly chunked pages on each save and writes vectors into `content_chunk_embeddings`. The status bar at **`/admin/knowledge/embeddings/status`** reports:
 
-Go to the **KG Embeddings** tab and click **Retrain Now**. This trains a ComplEx knowledge graph embedding model on the current graph structure. The model learns vector representations of entities and relationships that capture structural patterns — which nodes tend to connect via which relationship types.
+- **Ready** — true when the in-memory mention-centroid index has loaded
+- **Dimension** — vector size for the active model
+- **Mentioned node count** — KG nodes for which at least one mention chunk has an embedding
 
-The status bar shows:
-- **Model version** — increments with each retrain
-- **Entity count** — number of nodes in the model
-- **Relation count** — number of distinct relationship types
-- **Dimension** — embedding vector size (default: 50)
-- **Last trained** — timestamp of the most recent training
-
-Training is fast (milliseconds for typical wiki graphs of ~1K nodes) and the model is persisted to the database, so it survives server restarts.
-
-### 2.2 Train the Content Embedding Model (TF-IDF)
-
-Go to the **Content Embeddings** tab and click **Retrain Content**. This computes TF-IDF embeddings for all wiki page content, enabling content-based similarity comparisons between pages.
-
-### 2.3 Configure Automatic Retraining
-
-Both models support periodic automatic retraining via the `wikantik.kge.retrainMinutes` property in your `wikantik-custom.properties` file. When configured, both the structural and content models retrain on a background thread at the specified interval. This keeps the models current as pages are edited without requiring manual intervention.
+There is no manual "retrain" button — operators rebuild the embedding layer with `bin/kg-rebuild.sh --skip-chunks` (which forwards to the embedding indexer) when they want a wholesale recompute, e.g. after switching the active embedding model.
 
 ## Step 3: Reviewing AI Proposals
 
@@ -414,28 +401,13 @@ When agents submit proposals and receive timely feedback (approvals or rejection
 
 Stub nodes are dead ends for agent traversal. When an agent follows an edge to a stub node, it finds no properties, no source page to read, and no onward edges. Prioritize creating wiki pages for stubs that appear as targets of many edges — these are clearly important concepts that the graph references but cannot describe.
 
-### 9.5 Keep the Embedding Models Current
+### 9.5 Keep the Chunk Embeddings Current
 
-Agents benefit from structural similarity data when looking for related concepts. Stale embedding models trained on an old graph version miss new pages and relationships. Configure automatic retraining or retrain manually after significant content changes.
+Agents benefit from up-to-date similarity data when looking for related concepts. The chunk embedding indexer runs continuously on every page save, but if the active embedding model changes you'll want to issue `bin/kg-rebuild.sh --skip-chunks` to recompute all chunk vectors against the new model.
 
 ## Step 10: Advanced Configuration
 
-### 10.1 Embedding Model Hyperparameters
-
-The ComplEx structural embedding model can be tuned via `wikantik-custom.properties`:
-
-| Property | Default | Description |
-|---|---|---|
-| `wikantik.kge.dimension` | 50 | Embedding vector dimensionality. Higher values capture more nuance but use more memory. |
-| `wikantik.kge.epochs` | 100 | Number of training iterations. More epochs improve convergence but increase training time. |
-| `wikantik.kge.learningRate` | 0.01 | Step size for gradient updates. Lower values train more slowly but more stably. |
-| `wikantik.kge.negSamples` | 10 | Negative samples per positive triple. More samples improve discrimination but slow training. |
-| `wikantik.kge.margin` | 1.0 | Margin in the ranking loss. Larger margins push positive and negative scores further apart. |
-| `wikantik.kge.retrainMinutes` | (disabled) | Interval in minutes for automatic periodic retraining of both models. |
-
-For most wikis, the defaults work well. Consider increasing `dimension` to 100 and `epochs` to 200 if your graph has more than 5,000 nodes and you notice poor prediction quality.
-
-### 10.2 Adding Custom Relationship Types
+### 10.1 Adding Custom Relationship Types
 
 To introduce a new relationship type, simply start using it in page frontmatter:
 
@@ -447,7 +419,7 @@ audited_by: [ComplianceTeam, SecurityReview]
 
 Because `audited_by` is not in the reserved property set and its value is a list of strings, the Graph Projector will automatically create edges of type `audited_by` to each target. No configuration changes are needed — the schema is dynamic.
 
-### 10.3 Reserving New Property Keys
+### 10.2 Reserving New Property Keys
 
 If you need a list-valued frontmatter key to be treated as a property (not a relationship), it must be added to the `PROPERTY_ONLY_KEYS` set in the `FrontmatterRelationshipDetector` class. The current reserved set is: `tags`, `keywords`, `type`, `summary`, `date`, `author`, `cluster`, `status`, `title`, `description`, `category`, `language`.
 
@@ -455,9 +427,6 @@ If you need a list-valued frontmatter key to be treated as a property (not a rel
 
 ### Projection produces zero nodes
 Check that your pages have valid YAML frontmatter blocks delimited by `---` lines. Pages without frontmatter still produce nodes but with no properties or typed edges.
-
-### Predicted Missing Edges table is empty
-The structural embedding model needs at least 2 nodes and some edges to make predictions. Ensure the graph is populated and the model has been trained. Also check that predictions are filtered against existing edges — if all high-scoring pairs already have edges, no predictions appear.
 
 ### Proposals keep getting re-submitted by AI
 Ensure you're **rejecting** unwanted proposals (not just ignoring them) and providing clear rejection reasons. Only rejected proposals are recorded in the rejection history that prevents re-submission.

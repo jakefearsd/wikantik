@@ -20,7 +20,7 @@ related:
 - BurnoutPreventionInTech
 - PairProgrammingPractices
 hubs:
-- EngineeringLeadership Hub
+- EngineeringLeadershipHub
 ---
 # Technical Leadership Skills
 
@@ -159,4 +159,4 @@ The exact mix varies. The principle: the role isn't "senior engineer with extra 
 - [RemoteTeamManagement](RemoteTeamManagement) — Remote-specific
 - [BurnoutPreventionInTech](BurnoutPreventionInTech) — Self and team
 - [PairProgrammingPractices](PairProgrammingPractices) — Mentoring through pairing
-- [EngineeringLeadership Hub](EngineeringLeadership+Hub) — Cluster index
+- [EngineeringLeadership Hub](EngineeringLeadershipHub) — Cluster index

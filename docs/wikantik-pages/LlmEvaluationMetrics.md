@@ -21,7 +21,7 @@ related:
 - AiHallucinationMitigation
 - RetrievalExperimentHarness
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # LLM Evaluation Metrics
 

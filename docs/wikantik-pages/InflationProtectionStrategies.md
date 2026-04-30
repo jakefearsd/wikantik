@@ -23,7 +23,7 @@ related:
 - ReitIndexFunds
 - RealEstateInvestingBasics
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Inflation Protection Strategies
 
@@ -242,4 +242,4 @@ If you find yourself wanting to "do something" about inflation, the productive m
 - [LowCostIndexFundInvesting](LowCostIndexFundInvesting) — The long-horizon inflation hedge
 - [ReitIndexFunds](ReitIndexFunds) — Real estate via passive vehicles
 - [RealEstateInvestingBasics](RealEstateInvestingBasics) — Direct real estate
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

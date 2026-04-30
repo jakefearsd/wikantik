@@ -19,7 +19,7 @@ related:
 - DataPipelineDesign
 - JpaAndHibernatePatterns
 hubs:
-- DataEngineering Hub
+- DataEngineeringHub
 ---
 # Data Modeling Fundamentals
 
@@ -237,4 +237,4 @@ For warehouses, iterative usually wins. The transformation layer in dbt makes re
 - [DbtAndAnalyticsEngineering](DbtAndAnalyticsEngineering) — Tool for modeling
 - [DataPipelineDesign](DataPipelineDesign) — Pipelines that build models
 - [JpaAndHibernatePatterns](JpaAndHibernatePatterns) — OLTP modeling perspective
-- [DataEngineering Hub](DataEngineering+Hub) — Cluster index
+- [DataEngineering Hub](DataEngineeringHub) — Cluster index

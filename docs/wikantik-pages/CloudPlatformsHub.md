@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KZHC6PVU4SBQM9R0F3T7K8Z7
-title: CloudPlatforms Hub
+title: CloudPlatformsHub
 type: hub
 cluster: cloud-platforms
 status: active
@@ -15,9 +15,9 @@ tags:
 - hub
 - infrastructure
 related:
-- DevOpsAndSre+Hub
-- DistributedSystems+Hub
-- WebServicesAndApis+Hub
+- DevOpsAndSreHub
+- DistributedSystemsHub
+- WebServicesAndApisHub
 ---
 # CloudPlatforms Hub
 
@@ -54,5 +54,5 @@ This cluster covers cloud computing platforms — the patterns, services, and op
 
 ## Adjacent clusters
 
-- [DevOps and SRE Hub](DevOpsAndSre+Hub) — Operating cloud workloads
-- [Web Services and APIs Hub](WebServicesAndApis+Hub) — APIs running on cloud platforms
+- [DevOps and SRE Hub](DevOpsAndSreHub) — Operating cloud workloads
+- [Web Services and APIs Hub](WebServicesAndApisHub) — APIs running on cloud platforms

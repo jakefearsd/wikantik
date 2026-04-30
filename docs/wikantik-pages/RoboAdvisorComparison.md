@@ -20,7 +20,7 @@ related:
 - TaxLossHarvesting
 - TargetDateFunds
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # Robo Advisor Comparison
 
@@ -168,4 +168,4 @@ For the highest-leverage automation: robo handles taxable (where TLH provides va
 - [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction) — DIY equivalent
 - [TaxLossHarvesting](TaxLossHarvesting) — The mechanism robos automate
 - [TargetDateFunds](TargetDateFunds) — Simpler alternative for tax-deferred accounts
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

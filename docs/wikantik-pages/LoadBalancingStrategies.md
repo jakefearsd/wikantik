@@ -20,7 +20,7 @@ related:
 - DnsDeepDive
 - CdnArchitecture
 hubs:
-- Networking Hub
+- NetworkingHub
 ---
 # Load Balancing Strategies
 
@@ -218,4 +218,4 @@ DNS-level routing (Route 53, GCP Cloud Load Balancing global). Routes users to n
 - [ReverseProxyPatterns](ReverseProxyPatterns) — Adjacent role
 - [DnsDeepDive](DnsDeepDive) — DNS as LB
 - [CdnArchitecture](CdnArchitecture) — Edge LB role
-- [Networking Hub](Networking+Hub) — Cluster index
+- [Networking Hub](NetworkingHub) — Cluster index

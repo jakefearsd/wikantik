@@ -18,7 +18,7 @@ related:
 - EventDrivenArchitecture
 - ReactBestPractices
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Reactive Programming
 

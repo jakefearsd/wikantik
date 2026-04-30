@@ -22,7 +22,7 @@ related:
 - PrivacyPreservingLLM
 - AgentObservability
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # AI Data Privacy and Compliance
 

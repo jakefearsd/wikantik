@@ -19,7 +19,7 @@ tags:
 - 401k
 - tax-advantaged
 hubs:
-- TypesofInvestmentAccountsTutorial Hub
+- TypesofInvestmentAccountsTutorialHub
 ---
 
 # Compound Interest and Tax-Advantaged Accounts

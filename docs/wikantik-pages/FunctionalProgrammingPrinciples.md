@@ -21,7 +21,7 @@ related:
 - DebuggingStrategies
 - RefactoringStrategies
 hubs:
-- SoftwareEngineeringPractices Hub
+- SoftwareEngineeringPracticesHub
 ---
 # Functional Programming Principles
 
@@ -161,4 +161,4 @@ For most working programmers, the question is not "should I switch to Haskell" b
 - [JavaStreamsAndFunctionalProgramming](JavaStreamsAndFunctionalProgramming) — Java-specific FP features
 - [DebuggingStrategies](DebuggingStrategies) — Why pure functions are easier to debug
 - [RefactoringStrategies](RefactoringStrategies) — FP-style refactoring patterns
-- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPractices+Hub) — Cluster index
+- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPracticesHub) — Cluster index

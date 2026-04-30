@@ -20,7 +20,7 @@ related:
 - DatabaseDesign
 - DistributedTracing
 hubs:
-- Databases Hub
+- DatabasesHub
 ---
 # Database Performance Monitoring
 

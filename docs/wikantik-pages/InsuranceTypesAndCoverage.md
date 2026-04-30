@@ -21,7 +21,7 @@ related:
 - FinancialResilience
 - EmergencyFundStrategies
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Insurance Types and Coverage
 
@@ -215,4 +215,4 @@ Once a year, walk through the full insurance stack:
 - [LongTermCareInsurance](LongTermCareInsurance) — The retirement-era version
 - [FinancialResilience](FinancialResilience) — Insurance as one of four resilience pillars
 - [EmergencyFundStrategies](EmergencyFundStrategies) — The complement to insurance for smaller shocks
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

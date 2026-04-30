@@ -22,7 +22,7 @@ related:
 - BehavioralFinanceForInvestors
 - TheCaseAgainstMarketTiming
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Investment Policy Statement
 
@@ -225,4 +225,4 @@ That is a complete IPS. It fits on one page. The thinking that produced it is th
 - [RebalancingStrategies](RebalancingStrategies) — Choosing the rebalancing rule in section 5
 - [BehavioralFinanceForInvestors](BehavioralFinanceForInvestors) — Why the behavioral section matters most
 - [TheCaseAgainstMarketTiming](TheCaseAgainstMarketTiming) — The argument the IPS exists to enforce
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

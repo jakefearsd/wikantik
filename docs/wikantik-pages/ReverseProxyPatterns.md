@@ -19,7 +19,7 @@ related:
 - WebApplicationFirewalls
 - TcpIpFundamentals
 hubs:
-- Networking Hub
+- NetworkingHub
 ---
 # Reverse Proxy Patterns
 
@@ -220,4 +220,4 @@ Useful for migrations.
 - [CdnArchitecture](CdnArchitecture) — Edge-level reverse proxy
 - [WebApplicationFirewalls](WebApplicationFirewalls) — Often run as part of reverse proxy
 - [TcpIpFundamentals](TcpIpFundamentals) — Underneath
-- [Networking Hub](Networking+Hub) — Cluster index
+- [Networking Hub](NetworkingHub) — Cluster index

@@ -23,7 +23,7 @@ related:
 - PracticalPromptEngineering
 - RagImplementationPatterns
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # LLM Fine-Tuning
 

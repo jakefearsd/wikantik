@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQ0P44NVFH6WVSSJ39P1PVPB
-title: ConflictMarketPatterns Hub
+title: ConflictMarketPatternsHub
 type: hub
 cluster: conflicts-equity-markets
 status: active
@@ -52,5 +52,5 @@ This cluster covers both the historical patterns and the modern frameworks for i
 
 ## Adjacent
 
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Default investment philosophy that holds through conflicts
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Default investment philosophy that holds through conflicts
 - [Retirement Planning Guide](RetirementPlanningGuide) — Where conflict resilience matters for retirees

@@ -18,7 +18,7 @@ related:
 - IdempotencyPatterns
 - BatchApiDesign
 hubs:
-- WebServicesAndApis Hub
+- WebServicesAndApisHub
 ---
 # File Upload Patterns
 
@@ -141,4 +141,4 @@ After upload:
 - [ApiProtocolComparison](ApiProtocolComparison) — Protocol context
 - [IdempotencyPatterns](IdempotencyPatterns) — Retry semantics for upload
 - [BatchApiDesign](BatchApiDesign) — Bulk operations adjacent
-- [WebServicesAndApis Hub](WebServicesAndApis+Hub) — Cluster index
+- [WebServicesAndApis Hub](WebServicesAndApisHub) — Cluster index

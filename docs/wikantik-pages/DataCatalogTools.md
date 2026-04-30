@@ -18,7 +18,7 @@ related:
 - MasterDataManagement
 - DbtAndAnalyticsEngineering
 hubs:
-- DataEngineering Hub
+- DataEngineeringHub
 ---
 # Data Catalog Tools
 
@@ -186,4 +186,4 @@ For most organizations:
 - [DataModelingFundamentals](DataModelingFundamentals) — What you're cataloging
 - [MasterDataManagement](MasterDataManagement) — Adjacent governance
 - [DbtAndAnalyticsEngineering](DbtAndAnalyticsEngineering) — dbt's lightweight catalog
-- [DataEngineering Hub](DataEngineering+Hub) — Cluster index
+- [DataEngineering Hub](DataEngineeringHub) — Cluster index

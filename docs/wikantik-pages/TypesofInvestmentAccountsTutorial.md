@@ -27,7 +27,7 @@ tags:
 - UGMA
 - UTMA
 hubs:
-- TypesofInvestmentAccountsTutorial Hub
+- TypesofInvestmentAccountsTutorialHub
 ---
 
 # Types of Investment Accounts

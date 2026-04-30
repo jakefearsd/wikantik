@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQ0P44Y4A0DPESG2KMM32D5K
-title: TypesofInvestmentAccountsTutorial Hub
+title: TypesofInvestmentAccountsTutorialHub
 type: hub
 cluster: index-fund-investing
 status: active

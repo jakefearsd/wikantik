@@ -18,7 +18,7 @@ related:
 - TechnicalLeadershipSkills
 - TechnicalDebtManagement
 hubs:
-- EngineeringLeadership Hub
+- EngineeringLeadershipHub
 ---
 # Technology Radar Process
 
@@ -144,4 +144,4 @@ If you're considering a radar:
 - [EngineeringDecisionFrameworks](EngineeringDecisionFrameworks) — Adjacent decision tools
 - [TechnicalLeadershipSkills](TechnicalLeadershipSkills) — Where this fits
 - [TechnicalDebtManagement](TechnicalDebtManagement) — Hold ring often signals debt
-- [EngineeringLeadership Hub](EngineeringLeadership+Hub) — Cluster index
+- [EngineeringLeadership Hub](EngineeringLeadershipHub) — Cluster index

@@ -20,7 +20,7 @@ related:
 - ByzantineFaultTolerance
 - DistributedComputingAlgorithms
 hubs:
-- DistributedSystems Hub
+- DistributedSystemsHub
 ---
 # Paxos and Raft
 

@@ -16,7 +16,7 @@ related:
 - DesignPatternsOverview
 - DependencyInjectionPatterns
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Singleton Pattern and Alternatives
 

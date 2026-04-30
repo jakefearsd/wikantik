@@ -19,7 +19,7 @@ related:
 - ThreatModeling
 - ZeroTrustArchitecture
 hubs:
-- Security Hub
+- SecurityHub
 ---
 # Container Security
 

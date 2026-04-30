@@ -21,7 +21,7 @@ related:
 - JavaCollectionsFramework
 - DebuggingStrategies
 hubs:
-- SoftwareEngineeringPractices Hub
+- SoftwareEngineeringPracticesHub
 ---
 # Immutable Data Patterns
 
@@ -215,4 +215,4 @@ The change does not need to be all-at-once. Each immutable boundary added pays o
 - [JavaRecordsAndSealedClasses](JavaRecordsAndSealedClasses) — Java's immutable-data primitive
 - [JavaCollectionsFramework](JavaCollectionsFramework) — Mutable and immutable collections in Java
 - [DebuggingStrategies](DebuggingStrategies) — Why immutable data is easier to debug
-- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPractices+Hub) — Cluster index
+- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPracticesHub) — Cluster index

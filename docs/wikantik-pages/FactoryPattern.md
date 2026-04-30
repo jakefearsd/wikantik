@@ -18,7 +18,7 @@ related:
 - SpecificationPattern
 - CleanCodePrinciples
 hubs:
-- DesignPatterns Hub
+- DesignPatternsHub
 ---
 # Factory Pattern
 
@@ -140,4 +140,4 @@ Most "factory pattern" use cases in DI-heavy code are handled by the DI framewor
 - [RepositoryPattern](RepositoryPattern) — Often paired with factories
 - [SpecificationPattern](SpecificationPattern) — Constructed by factories
 - [CleanCodePrinciples](CleanCodePrinciples) — When factories help readability
-- [DesignPatterns Hub](DesignPatterns+Hub) — Cluster index
+- [DesignPatterns Hub](DesignPatternsHub) — Cluster index

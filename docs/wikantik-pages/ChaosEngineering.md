@@ -19,7 +19,7 @@ related:
 - IncidentResponse
 - DistributedTracing
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Chaos Engineering
 

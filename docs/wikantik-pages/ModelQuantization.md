@@ -20,7 +20,7 @@ related:
 - CpuInference
 - OpenSourceLLMs
 hubs:
-- MachineLearning Hub
+- MachineLearningHub
 ---
 # Model Quantization
 

@@ -18,7 +18,7 @@ related:
 - SkillDebugging
 - TechnicalWritingGuide
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Skill Documentation
 
@@ -277,4 +277,4 @@ Track changes. Especially important for skills used in production workflows.
 - [SkillComposition](SkillComposition) — Composition needs documentation
 - [SkillDebugging](SkillDebugging) — Diagnostic adjacent
 - [TechnicalWritingGuide](TechnicalWritingGuide) — General writing principles
-- [AgenticAi Hub](AgenticAi+Hub) — Cluster index
+- [AgenticAi Hub](AgenticAiHub) — Cluster index

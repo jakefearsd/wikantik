@@ -19,7 +19,7 @@ related:
 - ReleaseEngineering
 - FeatureToggleManagement
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # CI/CD Pipelines
 
@@ -192,4 +192,4 @@ Automatic comparison of canary metrics to baseline. If canary error rate is high
 - [TrunkBasedDevelopment](TrunkBasedDevelopment) — Branching strategy
 - [ReleaseEngineering](ReleaseEngineering) — Adjacent practice
 - [FeatureToggleManagement](FeatureToggleManagement) — Flags as control
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

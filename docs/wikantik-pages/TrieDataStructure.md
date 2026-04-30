@@ -19,7 +19,7 @@ related:
 - StringMatchingAlgorithms
 - DatabaseIndexingStrategies
 hubs:
-- DataStructures Hub
+- DataStructuresHub
 ---
 # Trie Data Structure
 

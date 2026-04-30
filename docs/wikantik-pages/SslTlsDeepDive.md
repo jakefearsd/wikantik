@@ -20,7 +20,7 @@ related:
 - ApplicationSecurityFundamentals
 - ZeroTrustArchitecture
 hubs:
-- Security Hub
+- SecurityHub
 ---
 # TLS Deep Dive
 

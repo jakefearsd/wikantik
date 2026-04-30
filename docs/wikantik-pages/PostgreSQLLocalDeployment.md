@@ -1,13 +1,14 @@
 ---
-cluster: databases
 canonical_id: 01KQ0P44TNFQMPBHGY5R4G4A4F
-type: article
+cluster: databases
+summary: End-to-end guide for bringing up a fresh Wikantik instance, including how to import pages from a legacy JSPWiki deployment.
 tags:
 - deployment
 - postgresql
 - operations
-summary: End-to-end guide for bringing up a fresh Wikantik instance, including how to import pages from a legacy JSPWiki deployment.
+type: article
 ---
+
 # Fresh Deployment & Legacy Article Import
 
 This guide walks you through standing up a new Wikantik instance against PostgreSQL and, optionally, importing an existing corpus from a legacy JSPWiki deployment. It reflects the current code on `main`: database migrations live in `bin/db/migrations/`, the WAR deploys as the ROOT context, and the React SPA is served from the same origin.
@@ -366,7 +367,7 @@ bin/deploy-local.sh
 
 ## Related Documentation
 
-- [Developing with PostgreSQL](DevelopingWithPostgresql.md) — JDBC and JNDI configuration reference
+- [Developing with PostgreSQL](DevelopingWithPostgresql) — JDBC and JNDI configuration reference
 - [Docker Deployment](DockerDeployment.md) — containerized production deployment
 - [Observability Design](ObservabilityDesign.md) — health checks, Prometheus metrics, request correlation
 - [Index Rebuild](IndexRebuild.md) — deeper dive on Lucene + embedding rebuild internals

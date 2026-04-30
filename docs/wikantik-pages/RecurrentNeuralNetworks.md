@@ -18,7 +18,7 @@ related:
 - DeepLearningFundamentals
 - GradientDescentAndOptimizers
 hubs:
-- MachineLearning Hub
+- MachineLearningHub
 ---
 # Recurrent Neural Networks
 

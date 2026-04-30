@@ -20,7 +20,7 @@ related:
 - NumberTheory
 - AbstractAlgebra
 hubs:
-- Security Hub
+- SecurityHub
 ---
 # Encryption Fundamentals
 

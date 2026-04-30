@@ -19,7 +19,7 @@ related:
 - CloudMigrationStrategies
 - TerraformFundamentals
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # Multi-Cloud Strategies
 
@@ -174,4 +174,4 @@ For specific cases multi-cloud earns its place. For most companies, it's overhea
 - [CloudNativeApplicationDesign](CloudNativeApplicationDesign) — Cloud-native vs. cloud-portable
 - [CloudMigrationStrategies](CloudMigrationStrategies) — Migration context
 - [TerraformFundamentals](TerraformFundamentals) — Tool that handles multi-cloud
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

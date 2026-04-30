@@ -20,7 +20,7 @@ related:
 - IntroductionToIndexFundsAndETFs
 - TotalStockMarketFundAnatomy
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # Emerging Market Index Funds
 
@@ -154,4 +154,4 @@ Smaller economies than emerging markets — Vietnam, Pakistan, Bangladesh, etc. 
 - [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction) — Building globally diversified portfolios
 - [IntroductionToIndexFundsAndETFs](IntroductionToIndexFundsAndETFs) — Foundations
 - [TotalStockMarketFundAnatomy](TotalStockMarketFundAnatomy) — The US side of the global portfolio
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

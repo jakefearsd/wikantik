@@ -15,7 +15,7 @@ tags:
 related:
 - WikiSearchOptimization
 - WikiPluginDevelopment
-- DatabasePerformanceMonitoring+Hub
+- DatabasePerformanceMonitoringHub
 ---
 # Wiki Performance Tuning
 
@@ -35,7 +35,7 @@ Indexing many pages; querying with complex filters. Search performance often the
 
 ### Database
 
-Page reads, writes, history queries. Standard database concerns. See [DatabasePerformanceMonitoring+Hub](DatabasePerformanceMonitoring+Hub).
+Page reads, writes, history queries. Standard database concerns. See [DatabasePerformanceMonitoringHub](DatabasePerformanceMonitoringHub).
 
 ### Large pages
 
@@ -248,4 +248,4 @@ For most wikis:
 
 - [WikiSearchOptimization](WikiSearchOptimization) — Search-specific
 - [WikiPluginDevelopment](WikiPluginDevelopment) — Plugin overhead
-- [DatabasePerformanceMonitoring+Hub](DatabasePerformanceMonitoring+Hub) — DB layer
+- [DatabasePerformanceMonitoringHub](DatabasePerformanceMonitoringHub) — DB layer

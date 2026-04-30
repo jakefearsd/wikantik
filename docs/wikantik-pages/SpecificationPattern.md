@@ -18,7 +18,7 @@ related:
 - RepositoryPattern
 - FunctionalProgrammingPrinciples
 hubs:
-- DesignPatterns Hub
+- DesignPatternsHub
 ---
 # Specification Pattern
 
@@ -152,4 +152,4 @@ The query is built dynamically from the composed specifications. Avoids reposito
 - [FactoryPattern](FactoryPattern) — Construct specifications via factories
 - [RepositoryPattern](RepositoryPattern) — Repositories accept specifications
 - [FunctionalProgrammingPrinciples](FunctionalProgrammingPrinciples) — Predicate-based alternative
-- [DesignPatterns Hub](DesignPatterns+Hub) — Cluster index
+- [DesignPatterns Hub](DesignPatternsHub) — Cluster index

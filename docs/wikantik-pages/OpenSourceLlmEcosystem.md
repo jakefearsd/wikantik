@@ -19,7 +19,7 @@ related:
 - AgentPromptEngineering
 - PromptCaching
 hubs:
-- Generative AI Hub
+- GenerativeAIHub
 ---
 # Open Source LLM Ecosystem
 
@@ -344,4 +344,4 @@ Many teams run hybrid: closed for hard tasks, open for high-volume ones.
 - [TransformerArchitecture](TransformerArchitecture) — Model foundation
 - [AgentPromptEngineering](AgentPromptEngineering) — Agent patterns
 - [PromptCaching](PromptCaching) — Cost optimization
-- [Generative AI Hub](Generative+AI+Hub) — Cluster index
+- [Generative AI Hub](GenerativeAIHub) — Cluster index

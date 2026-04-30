@@ -20,7 +20,7 @@ related:
 - AgenticArchitecture
 - AcceleratingAiLearning
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # AI Pair Programming
 

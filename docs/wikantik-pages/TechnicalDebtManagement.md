@@ -20,7 +20,7 @@ related:
 - CleanCodePrinciples
 - EngineeringDecisionFrameworks
 hubs:
-- SoftwareEngineeringPractices Hub
+- SoftwareEngineeringPracticesHub
 ---
 # Technical Debt Management
 
@@ -170,4 +170,4 @@ Generic "we have a lot of technical debt" is rarely persuasive without specifics
 - [LegacyCodeModernization](LegacyCodeModernization) — Inherited debt scenarios
 - [CleanCodePrinciples](CleanCodePrinciples) — Avoiding new debt
 - [EngineeringDecisionFrameworks](EngineeringDecisionFrameworks) — How to communicate trade-offs
-- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPractices+Hub) — Cluster index
+- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPracticesHub) — Cluster index

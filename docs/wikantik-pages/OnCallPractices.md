@@ -20,7 +20,7 @@ related:
 - StatusPageBestPractices
 - CloudMonitoring
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # On-Call Practices
 
@@ -235,4 +235,4 @@ Companies that don't compensate on-call lose engineers to companies that do.
 - [ToilReductionStrategies](ToilReductionStrategies) — Reduce on-call load
 - [StatusPageBestPractices](StatusPageBestPractices) — Customer communication
 - [CloudMonitoring](CloudMonitoring) — Where alerts come from
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

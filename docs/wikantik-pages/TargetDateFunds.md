@@ -21,7 +21,7 @@ related:
 - RebalancingStrategies
 - AccountTypeStrategy
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # Target Date Funds
 
@@ -140,4 +140,4 @@ Some investors want a target-date fund for retirement plus separate holdings for
 - [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction) — Building from individual funds
 - [RebalancingStrategies](RebalancingStrategies) — What target-date funds automate
 - [AccountTypeStrategy](AccountTypeStrategy) — Where target-date funds belong (tax-deferred, mostly)
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

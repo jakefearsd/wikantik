@@ -18,7 +18,7 @@ related:
 - CiCdPipelines
 - JavaBuildToolComparison
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # Monorepo vs. Polyrepo
 
@@ -191,4 +191,4 @@ Re-evaluate as you grow. The right answer at 10 engineers may not be right at 10
 - [GitWorkflows](GitWorkflows) — Workflow within either
 - [CiCdPipelines](CiCdPipelines) — CI strategies differ
 - [JavaBuildToolComparison](JavaBuildToolComparison) — Tools at different scales
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

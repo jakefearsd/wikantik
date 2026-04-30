@@ -19,7 +19,7 @@ related:
 - ModalLogic
 - ProbabilityTheory
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Fuzzy Logic
 
@@ -197,4 +197,4 @@ Used appropriately, fuzzy logic is effective. Used inappropriately (where probab
 - [PredicateLogic](PredicateLogic) — Quantified classical logic
 - [ModalLogic](ModalLogic) — Other logical extensions
 - [ProbabilityTheory](ProbabilityTheory) — The probabilistic alternative
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

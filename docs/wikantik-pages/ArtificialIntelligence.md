@@ -19,7 +19,7 @@ tags:
 - technology
 - overview
 hubs:
-- MlModelDeployment Hub
+- MlModelDeploymentHub
 ---
 
 # Artificial Intelligence

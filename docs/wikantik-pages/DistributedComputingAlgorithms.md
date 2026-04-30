@@ -20,7 +20,7 @@ related:
 - ByzantineFaultTolerance
 - CrdtDataStructures
 hubs:
-- DistributedSystems Hub
+- DistributedSystemsHub
 ---
 # Distributed Computing Algorithms
 

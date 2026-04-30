@@ -17,7 +17,7 @@ related:
 - AgenticWorkflowDesign
 - PracticalPromptEngineering
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Chain of Thought Reasoning
 

@@ -22,7 +22,7 @@ related:
 - InflationProtectionStrategies
 - LowCostIndexFundInvesting
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Real Estate Investing Basics
 
@@ -245,4 +245,4 @@ REITs make sense when:
 - [MortgageStrategies](MortgageStrategies) — Financing investment properties
 - [InflationProtectionStrategies](InflationProtectionStrategies) — Real estate as inflation hedge
 - [LowCostIndexFundInvesting](LowCostIndexFundInvesting) — The alternative for surplus capital
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

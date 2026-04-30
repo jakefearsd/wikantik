@@ -20,7 +20,7 @@ related:
 - EncryptionFundamentals
 - SslTlsDeepDive
 hubs:
-- Security Hub
+- SecurityHub
 ---
 # OAuth and OIDC Deep Dive
 

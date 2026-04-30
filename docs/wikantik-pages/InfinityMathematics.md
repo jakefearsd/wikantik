@@ -18,7 +18,7 @@ related:
 - AppliedMathSurvey
 - TopologyMathematics
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Infinity in Mathematics
 
@@ -192,4 +192,4 @@ IEEE-754 floats have +Inf and -Inf, but those are specific values, not actual in
 - [SetTheoryLogic](SetTheoryLogic) — Foundational framework
 - [AppliedMathSurvey](AppliedMathSurvey) — Where infinity fits
 - [TopologyMathematics](TopologyMathematics) — Topological infinity
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

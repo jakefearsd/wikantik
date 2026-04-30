@@ -19,7 +19,7 @@ related:
 - SentimentAnalysisWithMachineLearning
 - TransformerArchitecture
 hubs:
-- ML Hub
+- MLHub
 ---
 # Data Science NLP
 
@@ -265,4 +265,4 @@ Hybrid: use LLMs to label data; train smaller model.
 - [NLPOverview](NLPOverview) — Broader NLP context
 - [SentimentAnalysisWithMachineLearning](SentimentAnalysisWithMachineLearning) — Sentiment specifically
 - [TransformerArchitecture](TransformerArchitecture) — The model architecture
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

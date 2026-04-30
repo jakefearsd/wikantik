@@ -21,7 +21,7 @@ tags:
 - individual-contributor
 - small-business
 hubs:
-- MlModelDeployment Hub
+- MlModelDeploymentHub
 ---
 
 # Generative AI Adoption Guide

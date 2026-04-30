@@ -19,7 +19,7 @@ related:
 - CalculusRefreshForCS
 - ComplexAnalysis
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Differential Geometry
 
@@ -182,4 +182,4 @@ Books: do Carmo's "Differential Geometry of Curves and Surfaces" (intro), Lee's 
 - [TopologyMathematics](TopologyMathematics) — Topology underneath
 - [CalculusRefreshForCS](CalculusRefreshForCS) — Calculus foundations
 - [ComplexAnalysis](ComplexAnalysis) — Complex manifolds
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

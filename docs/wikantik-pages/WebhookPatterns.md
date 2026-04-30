@@ -20,7 +20,7 @@ related:
 - ServerSentEventsPatterns
 - WebSocketPatterns
 hubs:
-- WebServicesAndApis Hub
+- WebServicesAndApisHub
 ---
 # Webhook Patterns
 
@@ -209,4 +209,4 @@ Or: namespace event types per major version.
 - [ApiProtocolComparison](ApiProtocolComparison) — Where webhooks fit
 - [ServerSentEventsPatterns](ServerSentEventsPatterns) — Pull-based alternative
 - [WebSocketPatterns](WebSocketPatterns) — Bidirectional alternative
-- [WebServicesAndApis Hub](WebServicesAndApis+Hub) — Cluster index
+- [WebServicesAndApis Hub](WebServicesAndApisHub) — Cluster index

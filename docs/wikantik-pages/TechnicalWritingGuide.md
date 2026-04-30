@@ -20,7 +20,7 @@ related:
 - TechnicalLeadershipSkills
 - LegacyCodeModernization
 hubs:
-- SoftwareEngineeringPractices Hub
+- SoftwareEngineeringPracticesHub
 ---
 # Technical Writing Guide
 
@@ -201,4 +201,4 @@ Writing is a skill that improves with practice. Like any skill, the way to impro
 - [EngineeringDecisionFrameworks](EngineeringDecisionFrameworks) — How design docs fit into decisions
 - [TechnicalLeadershipSkills](TechnicalLeadershipSkills) — Writing as leadership practice
 - [LegacyCodeModernization](LegacyCodeModernization) — Documentation in modernization
-- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPractices+Hub) — Cluster index
+- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPracticesHub) — Cluster index

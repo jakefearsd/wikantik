@@ -19,7 +19,7 @@ related:
 - AgentLoops
 - ChainOfThoughtReasoning
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Agent Reasoning
 

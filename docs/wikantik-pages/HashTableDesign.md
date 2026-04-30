@@ -17,7 +17,7 @@ related:
 - BalancedSearchTrees
 - HeapAndPriorityQueues
 hubs:
-- Data Structures Hub
+- DataStructuresHub
 ---
 # Hash Table Design
 
@@ -305,4 +305,4 @@ When you do need to optimize:
 
 - [BalancedSearchTrees](BalancedSearchTrees) — Ordered alternative
 - [HeapAndPriorityQueues](HeapAndPriorityQueues) — Different access pattern
-- [Data Structures Hub](Data+Structures+Hub) — Cluster index
+- [Data Structures Hub](DataStructuresHub) — Cluster index

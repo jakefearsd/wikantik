@@ -19,7 +19,7 @@ related:
 - DatabaseDesign
 - AbstractAlgebra
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Ontology Design Patterns
 

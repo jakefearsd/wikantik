@@ -19,7 +19,7 @@ related:
 - TypeSystemsComparison
 - SinglePageApplicationArchitecture
 hubs:
-- Frontend Hub
+- FrontendHub
 ---
 # React Best Practices
 

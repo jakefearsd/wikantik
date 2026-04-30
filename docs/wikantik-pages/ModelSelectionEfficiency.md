@@ -19,7 +19,7 @@ related:
 - CostEffectiveInference
 - CPUInference
 hubs:
-- ML Hub
+- MLHub
 ---
 # Model Selection for Efficiency
 
@@ -240,4 +240,4 @@ For these, just pick the best model and ship.
 - [ModelSelection](ModelSelection) — General model selection
 - [CostEffectiveInference](CostEffectiveInference) — Cost optimization
 - [CPUInference](CPUInference) — CPU-based deployment
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

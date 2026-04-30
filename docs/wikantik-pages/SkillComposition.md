@@ -17,7 +17,7 @@ related:
 - SkillIntegration
 - SkillLibraries
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Skill Composition
 
@@ -222,4 +222,4 @@ Six skills compose for one feature. Each handles its piece.
 - [CustomSkillsArchitecture](CustomSkillsArchitecture) — Skill basics
 - [SkillIntegration](SkillIntegration) — Skills in workflows
 - [SkillLibraries](SkillLibraries) — Distributing skill collections
-- [AgenticAi Hub](AgenticAi+Hub) — Cluster index
+- [AgenticAi Hub](AgenticAiHub) — Cluster index

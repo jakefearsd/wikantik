@@ -18,7 +18,7 @@ related:
 - AgentPromptEngineering
 - OpenSourceLlmEcosystem
 hubs:
-- Generative AI Hub
+- GenerativeAIHub
 ---
 # Prompt Caching
 
@@ -286,4 +286,4 @@ The cost dynamics of LLM inference favor caching. Expect more sophistication.
 - [PromptCachingStrategies](PromptCachingStrategies) — Strategy details
 - [AgentPromptEngineering](AgentPromptEngineering) — Agent patterns
 - [OpenSourceLlmEcosystem](OpenSourceLlmEcosystem) — Self-hosted options
-- [Generative AI Hub](Generative+AI+Hub) — Cluster index
+- [Generative AI Hub](GenerativeAIHub) — Cluster index

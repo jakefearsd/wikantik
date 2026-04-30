@@ -17,7 +17,7 @@ related:
 - AiForSoftwareTesting
 - CodeReviewPractices
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # AI for Code Review
 

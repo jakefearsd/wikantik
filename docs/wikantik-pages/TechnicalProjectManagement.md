@@ -19,7 +19,7 @@ related:
 - RemoteTeamManagement
 - TechnicalWritingGuide
 hubs:
-- EngineeringLeadership Hub
+- EngineeringLeadershipHub
 ---
 # Technical Project Management
 
@@ -201,4 +201,4 @@ PMs need to recognize this case and not let the project drift while engineers st
 - [EngineeringDecisionFrameworks](EngineeringDecisionFrameworks) — Decisions during projects
 - [RemoteTeamManagement](RemoteTeamManagement) — Remote-specific concerns
 - [TechnicalWritingGuide](TechnicalWritingGuide) — Status documents
-- [EngineeringLeadership Hub](EngineeringLeadership+Hub) — Cluster index
+- [EngineeringLeadership Hub](EngineeringLeadershipHub) — Cluster index

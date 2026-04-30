@@ -19,7 +19,7 @@ related:
 - ApiDesignBestPractices
 - DistributedComputingAlgorithms
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # API Rate Limiting Algorithms
 

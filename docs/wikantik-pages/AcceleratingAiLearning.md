@@ -18,7 +18,7 @@ tags:
 - professional-development
 - ai-adoption
 hubs:
-- MlModelDeployment Hub
+- MlModelDeploymentHub
 ---
 # Accelerating Your AI Learning
 

@@ -20,7 +20,7 @@ related:
 - CqrsPattern
 - DistributedTracing
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Event-Driven Architecture
 

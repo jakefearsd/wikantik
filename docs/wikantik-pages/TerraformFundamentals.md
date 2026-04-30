@@ -19,7 +19,7 @@ related:
 - CloudSecurityFundamentals
 - MonorepoVsPolyrepo
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # Terraform Fundamentals
 
@@ -196,4 +196,4 @@ For most multi-cloud or even single-cloud usage, Terraform remains the default.
 - [CloudNativeApplicationDesign](CloudNativeApplicationDesign) — What you provision
 - [CloudSecurityFundamentals](CloudSecurityFundamentals) — Secrets, IAM
 - [MonorepoVsPolyrepo](MonorepoVsPolyrepo) — Where Terraform code lives
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

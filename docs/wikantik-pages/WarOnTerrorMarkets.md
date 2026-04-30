@@ -21,7 +21,7 @@ tags:
 - history
 - defence-sector
 hubs:
-- ConflictMarketPatterns Hub
+- ConflictMarketPatternsHub
 ---
 # The War on Terror and Equity Markets (2001–2021)
 

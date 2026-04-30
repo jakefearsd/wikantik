@@ -21,7 +21,7 @@ related:
 - EmbeddingsVectorDB
 - KnowledgeGraphCompletion
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # AI-Powered Search
 

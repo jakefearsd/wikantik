@@ -19,7 +19,7 @@ related:
 - SecurityComplianceFrameworks
 - VulnerabilityManagement
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # Cloud Compliance Frameworks
 
@@ -221,4 +221,4 @@ Production separate from dev/staging. Required for some frameworks.
 - [AwsFundamentals](AwsFundamentals) — Cloud context
 - [SecurityComplianceFrameworks](SecurityComplianceFrameworks) — Adjacent topic
 - [VulnerabilityManagement](VulnerabilityManagement) — Operational practice
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

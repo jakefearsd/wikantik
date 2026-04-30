@@ -18,7 +18,7 @@ tags:
 - compounding
 - index-funds
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 
 # Expense Ratios and Their Effect on Compounding

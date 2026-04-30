@@ -18,7 +18,7 @@ related:
 - TypeSystemsComparison
 - AbstractAlgebra
 hubs:
-- ProgrammingLanguages Hub
+- ProgrammingLanguagesHub
 ---
 # Compiler Design Basics
 

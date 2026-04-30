@@ -16,7 +16,7 @@ tags:
 related:
 - MemoryArchitectures
 hubs:
-- Computer Science Foundations Hub
+- ComputerScienceFoundationsHub
 ---
 # Quantum Computing
 
@@ -303,4 +303,4 @@ Quantum computing is real but not magic. Understanding what it can and can't do 
 ## Further Reading
 
 - [MemoryArchitectures](MemoryArchitectures) — Classical computing
-- [Computer Science Foundations Hub](Computer+Science+Foundations+Hub) — Cluster index
+- [Computer Science Foundations Hub](ComputerScienceFoundationsHub) — Cluster index

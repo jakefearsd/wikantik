@@ -18,7 +18,7 @@ related:
 - TransformerArchitecture
 - OpenSourceLlmEcosystem
 hubs:
-- Generative AI Hub
+- GenerativeAIHub
 ---
 # Agent Prompt Engineering
 
@@ -351,4 +351,4 @@ Treat prompts as code: versioned, tested, reviewed.
 - [PromptCaching](PromptCaching) — Caching long prompts
 - [TransformerArchitecture](TransformerArchitecture) — How LLMs work
 - [OpenSourceLlmEcosystem](OpenSourceLlmEcosystem) — Open models
-- [Generative AI Hub](Generative+AI+Hub) — Cluster index
+- [Generative AI Hub](GenerativeAIHub) — Cluster index

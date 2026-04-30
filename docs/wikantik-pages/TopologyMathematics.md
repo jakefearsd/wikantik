@@ -19,7 +19,7 @@ related:
 - ComplexAnalysis
 - SetTheoryLogic
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Topology
 
@@ -297,4 +297,4 @@ The conceptual framework (continuity, connectedness, compactness) appears more b
 - [DifferentialGeometry](DifferentialGeometry) — Geometry on manifolds
 - [ComplexAnalysis](ComplexAnalysis) — Complex topology
 - [SetTheoryLogic](SetTheoryLogic) — Foundational
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

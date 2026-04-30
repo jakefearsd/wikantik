@@ -16,7 +16,7 @@ tags:
 - discrete-event
 related: []
 hubs:
-- Operations Research Hub
+- OperationsResearchHub
 ---
 # Simulation Modeling
 
@@ -334,4 +334,4 @@ A simulation gives confidence in a model's behavior, not in reality's.
 
 ## Further Reading
 
-- [Operations Research Hub](Operations+Research+Hub) — Cluster index
+- [Operations Research Hub](OperationsResearchHub) — Cluster index

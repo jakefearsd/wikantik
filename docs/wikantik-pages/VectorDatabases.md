@@ -22,7 +22,7 @@ related:
 - AiPoweredSearch
 - KnowledgeGraphVsRelationalDatabase
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Vector Databases
 

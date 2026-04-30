@@ -17,7 +17,7 @@ related:
 - DesignSystems
 - SinglePageApplicationArchitecture
 hubs:
-- Frontend Hub
+- FrontendHub
 ---
 # Web Performance Optimization
 

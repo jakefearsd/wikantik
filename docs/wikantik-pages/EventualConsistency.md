@@ -17,7 +17,7 @@ related:
 - CrdtDataStructures
 - ByzantineFaultTolerance
 hubs:
-- Distributed Systems Hub
+- DistributedSystemsHub
 ---
 # Eventual Consistency
 
@@ -332,4 +332,4 @@ For architects:
 
 - [CrdtDataStructures](CrdtDataStructures) — Tools for managing
 - [ByzantineFaultTolerance](ByzantineFaultTolerance) — Different reliability problem
-- [Distributed Systems Hub](Distributed+Systems+Hub) — Cluster index
+- [Distributed Systems Hub](DistributedSystemsHub) — Cluster index

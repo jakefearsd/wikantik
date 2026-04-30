@@ -20,7 +20,7 @@ related:
 - ServiceLevelAgreements
 - DistributedTracing
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Microservices Architecture
 

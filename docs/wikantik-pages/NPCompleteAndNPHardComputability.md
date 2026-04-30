@@ -266,4 +266,4 @@ If you find yourself writing exhaustive search and worrying about scale, suspect
 
 - [GraphColoringDeepDive](GraphColoringDeepDive) — Worked NP-hard problem
 - [BalancedSearchTrees](BalancedSearchTrees) — Polynomial algorithms
-- [Data Structures Hub](Data+Structures+Hub) — Cluster index
+- [Data Structures Hub](DataStructuresHub) — Cluster index

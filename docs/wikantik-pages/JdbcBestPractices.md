@@ -20,7 +20,7 @@ related:
 - DatabaseConnectionSecurity
 - TaxonomyDesignPrinciples
 hubs:
-- Java Hub
+- JavaHub
 ---
 # JDBC Best Practices
 
@@ -239,4 +239,4 @@ PostgreSQL supports array parameters: `WHERE id = ANY(?::uuid[])`. Other databas
 - [JpaAndHibernatePatterns](JpaAndHibernatePatterns) — ORM that sits on top of JDBC
 - [SpringBootFundamentals](SpringBootFundamentals) — Spring's data access conventions
 - [DatabaseConnectionSecurity](DatabaseConnectionSecurity) — Connection security practices
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

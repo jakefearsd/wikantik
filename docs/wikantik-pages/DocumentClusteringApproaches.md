@@ -19,7 +19,7 @@ related:
 - KnowledgeGraphCompletion
 - HybridRetrieval
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Document Clustering Approaches
 

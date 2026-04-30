@@ -20,7 +20,7 @@ related:
 - ChaosEngineering
 - DistributedTracing
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Service Level Agreements (SLI / SLO / SLA)
 

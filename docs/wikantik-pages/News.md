@@ -6,6 +6,26 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-29** — build(deps): docker-maven-plugin 0.46.0 → 0.48.1 for Docker 29 API compatibility
+
+**2026-04-28** — config(template): document LLM/embedding/extractor keys
+
+**2026-04-28** — docs(news): backfill April 2026 development log entries
+
+**2026-04-28** — admin(extract): wire ExtractionTab into AdminKnowledgePage
+
+**2026-04-28** — admin(extract): Vitest coverage for ExtractionTab
+
+**2026-04-28** — admin(extract): ExtractionTab UI — status tracker + start/force/cancel
+
+**2026-04-28** — admin(extract): add knowledge.{get,start,cancel}Extraction REST clients
+
+**2026-04-28** — admin(extract): surface configured extractor backend in status payload
+
+**2026-04-28** — docs(plan): extraction admin UI implementation plan
+
+**2026-04-28** — docs(spec): extraction admin UI — design
+
 **2026-04-28** — docs(news): backfill April 2026 development log
 
 **2026-04-28** — docs(wiki): repair bare [PageName] references to valid [PageName]() links
@@ -2353,21 +2373,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-11-07** — JSPWIKI-1217 should resolve the maven parallel build failure on the ci server.
 
 **2025-11-01** — JSPWIKI-1216 removes references to the WikiWizard template/editor types. adds a test to ensure that there are no missing I18N strings among all the i18n properties files, none were found
-
-
----
-
-## October 2025
-
-**2025-10-29** — typo
-
-**2025-10-29** — JSPWIKI-615 adds some javadocs to the WikiEvent class as requested
-
-**2025-10-29** — JSPWIKI-1183 switches to commons-net to keep inline with apache guidance
-
-**2025-10-29** — JSPWIKI-1183 applies the suggestion change and patch file as submitted
-
-**2025-10-29** — JSPWIKI-1211 adds notes for the rss path calculation
-
-**2025-10-29** — JSPWIKI-1213 adds jacoco to the build
 

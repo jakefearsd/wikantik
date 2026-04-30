@@ -21,7 +21,7 @@ related:
 - TaxLossHarvesting
 - TaxPlanningFundamentals
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # Dividend vs. Total Return Investing
 
@@ -158,4 +158,4 @@ For investors who want hands-off, a target-date fund handles the income/withdraw
 - [AssetAllocationGuide](AssetAllocationGuide) — Where income generation fits
 - [TaxLossHarvesting](TaxLossHarvesting) — Adjacent tax-aware mechanic
 - [TaxPlanningFundamentals](TaxPlanningFundamentals) — Tax framework
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

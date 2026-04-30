@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQ0P44S4Y86MVCMAK9KJ3P9Y
-title: LowCostIndexFundInvesting Hub
+title: LowCostIndexFundInvestingHub
 type: hub
 cluster: index-fund-investing
 status: active
@@ -81,6 +81,6 @@ The canonical entry point is [LowCostIndexFundInvesting](LowCostIndexFundInvesti
 
 ## Adjacent
 
-- [Personal Finance Hub](PersonalFinance+Hub) — The cash-flow, debt, and protection work that has to happen first
+- [Personal Finance Hub](PersonalFinanceHub) — The cash-flow, debt, and protection work that has to happen first
 - [Retirement Planning Guide](RetirementPlanningGuide) — The decumulation phase that this cluster prepares you for
 - [Conflict-Resilient Portfolios](ConflictResilientPortfolios) — Geopolitical risk in long-horizon portfolios

@@ -21,7 +21,7 @@ related:
 - JavaModuleSystem
 - SpringBootFundamentals
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Java 21 Features
 
@@ -143,4 +143,4 @@ Most codebases can move from 8 directly to 21 if dependencies cooperate. The bre
 - [JavaCollectionsFramework](JavaCollectionsFramework) — Sequenced collections fit here
 - [JavaModuleSystem](JavaModuleSystem) — Modules background
 - [SpringBootFundamentals](SpringBootFundamentals) — Framework that's adopted these features
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

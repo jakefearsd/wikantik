@@ -23,7 +23,7 @@ tags:
 - portfolio-construction
 - index-funds
 hubs:
-- ConflictMarketPatterns Hub
+- ConflictMarketPatternsHub
 ---
 # Conflict-Resilient Portfolios
 

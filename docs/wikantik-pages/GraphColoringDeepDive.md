@@ -16,7 +16,7 @@ tags:
 related:
 - NPCompleteAndNPHardComputability
 hubs:
-- Data Structures Hub
+- DataStructuresHub
 ---
 # Graph Coloring Deep Dive
 
@@ -293,4 +293,4 @@ The applications (register allocation, scheduling) are practical and important.
 ## Further Reading
 
 - [NPCompleteAndNPHardComputability](NPCompleteAndNPHardComputability) — Complexity
-- [Data Structures Hub](Data+Structures+Hub) — Cluster index
+- [Data Structures Hub](DataStructuresHub) — Cluster index

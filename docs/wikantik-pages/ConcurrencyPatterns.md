@@ -19,7 +19,7 @@ related:
 - JavaConcurrencyPatterns
 - ReactiveProgramming
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Concurrency Patterns
 

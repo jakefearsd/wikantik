@@ -20,7 +20,7 @@ related:
 - FinancialResilience
 - InsuranceTypesAndCoverage
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Identity Theft Protection
 
@@ -196,4 +196,4 @@ A specific action sequence:
 - [CreditScoreOptimization](CreditScoreOptimization) — Healthy credit habits as a side benefit
 - [FinancialResilience](FinancialResilience) — Identity protection as a resilience layer
 - [InsuranceTypesAndCoverage](InsuranceTypesAndCoverage) — When identity-theft insurance is and is not duplicative
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

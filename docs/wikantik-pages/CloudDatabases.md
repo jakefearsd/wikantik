@@ -20,7 +20,7 @@ related:
 - CloudNativeApplicationDesign
 - JpaAndHibernatePatterns
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # Cloud Databases
 
@@ -194,4 +194,4 @@ Switching from RDS to Aurora is straightforward (compatible). Switching engines 
 - [CloudStorageOptions](CloudStorageOptions) — Object storage alternative
 - [CloudNativeApplicationDesign](CloudNativeApplicationDesign) — Where databases fit
 - [JpaAndHibernatePatterns](JpaAndHibernatePatterns) — Java-side data access
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

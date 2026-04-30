@@ -20,7 +20,7 @@ related:
 - DistributedComputingAlgorithms
 - GraphDatabaseFundamentals
 hubs:
-- DataStructures Hub
+- DataStructuresHub
 ---
 # Graph Algorithms Deep Dive
 

@@ -22,7 +22,7 @@ related:
 - TopologyMathematics
 - DifferentialGeometry
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Applied Math Survey
 
@@ -229,4 +229,4 @@ The "math you need" depends on the problems you tackle. The survey above provide
 - [TopologyMathematics](TopologyMathematics) — Spatial properties
 - [DifferentialGeometry](DifferentialGeometry) — Curved spaces
 - [ChaosDynamical](ChaosDynamical) — Time evolution
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

@@ -20,7 +20,7 @@ tags:
 - HSA
 - contributions
 hubs:
-- TypesofInvestmentAccountsTutorial Hub
+- TypesofInvestmentAccountsTutorialHub
 ---
 
 # Maximizing Retirement Account Contributions

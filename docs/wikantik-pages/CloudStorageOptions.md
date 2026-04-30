@@ -20,7 +20,7 @@ related:
 - CdnArchitecture
 - FileUploadPatterns
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # Cloud Storage Options
 
@@ -192,4 +192,4 @@ S3 Inventory provides reports of what's stored. S3 Storage Lens provides usage a
 - [CloudDatabases](CloudDatabases) — Database storage adjacent
 - [CdnArchitecture](CdnArchitecture) — S3 + CloudFront patterns
 - [FileUploadPatterns](FileUploadPatterns) — Direct-to-S3 uploads
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

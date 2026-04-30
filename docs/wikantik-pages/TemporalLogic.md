@@ -19,7 +19,7 @@ related:
 - PropositionalLogic
 - PredicateLogic
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Temporal Logic
 
@@ -231,4 +231,4 @@ The mental model (G, F, etc.) is useful even without formal use.
 - [ModalLogic](ModalLogic) — Modal logic foundation
 - [PropositionalLogic](PropositionalLogic) — Logic basics
 - [PredicateLogic](PredicateLogic) — Quantified extension
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

@@ -21,7 +21,7 @@ related:
 - AwsLambdaPatterns
 - CloudSecurityFundamentals
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # AWS Fundamentals
 
@@ -136,4 +136,4 @@ Surprises are usually data transfer (cross-region or out-to-internet) or NAT Gat
 - [ServerlessArchitecture](ServerlessArchitecture) — Lambda-centric design
 - [AwsLambdaPatterns](AwsLambdaPatterns) — Lambda specifics
 - [CloudSecurityFundamentals](CloudSecurityFundamentals) — IAM, encryption, network security
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

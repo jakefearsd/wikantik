@@ -18,7 +18,7 @@ related:
 - RunbookAutomation
 - CloudMonitoring
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # Status Page Best Practices
 
@@ -195,4 +195,4 @@ This is counterintuitive but important. Cover-up costs more than the original in
 - [OnCallPractices](OnCallPractices) — Source of incidents
 - [RunbookAutomation](RunbookAutomation) — Faster response
 - [CloudMonitoring](CloudMonitoring) — What feeds the status
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

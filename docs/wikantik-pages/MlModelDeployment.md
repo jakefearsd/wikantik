@@ -19,7 +19,7 @@ related:
 - CostEffectiveInference
 - CrossValidationAndModelEvaluation
 hubs:
-- ML Hub
+- MLHub
 ---
 # ML Model Deployment
 
@@ -306,4 +306,4 @@ Most teams are at level 1-2. Reach level 3 before automating retraining.
 - [InferenceServing](InferenceServing) — Serving infrastructure
 - [CostEffectiveInference](CostEffectiveInference) — Cost optimization
 - [CrossValidationAndModelEvaluation](CrossValidationAndModelEvaluation) — Evaluation
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

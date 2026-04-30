@@ -23,7 +23,7 @@ related:
 - AssetAllocationGuide
 - TaxPlanningFundamentals
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # I Bonds and Treasuries
 
@@ -235,4 +235,4 @@ This stack produces ~4–5% yield in 2026 conditions, full inflation protection 
 - [InflationProtectionStrategies](InflationProtectionStrategies) — The full landscape of inflation-resistant assets
 - [AssetAllocationGuide](AssetAllocationGuide) — Where Treasuries fit in the bond allocation
 - [TaxPlanningFundamentals](TaxPlanningFundamentals) — State tax treatment and asset location
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

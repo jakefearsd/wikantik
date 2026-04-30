@@ -22,7 +22,7 @@ related:
 - EstatePlanningForRetirees
 - RetirementSpendingPatterns
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Long-Term Care Insurance
 
@@ -160,4 +160,4 @@ This avoids the "premium increase" risk of standalone LTC, costs less than equiv
 - [MedicarePlanningAndHealthcare](MedicarePlanningAndHealthcare) — What Medicare does and does not cover
 - [EstatePlanningForRetirees](EstatePlanningForRetirees) — Asset protection in retirement
 - [RetirementSpendingPatterns](RetirementSpendingPatterns) — How healthcare costs evolve through retirement
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

@@ -20,7 +20,7 @@ related:
 - VulnerabilityManagement
 - WebApplicationFirewalls
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # Cloud Security Fundamentals
 
@@ -234,4 +234,4 @@ Vulnerable libraries, vulnerable AMIs, vulnerable base images. Scan continuously
 - [CloudComplianceFrameworks](CloudComplianceFrameworks) — Compliance angle
 - [VulnerabilityManagement](VulnerabilityManagement) — Operational security
 - [WebApplicationFirewalls](WebApplicationFirewalls) — Edge security
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

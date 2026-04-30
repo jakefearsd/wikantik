@@ -20,7 +20,7 @@ related:
 - AiHallucinationMitigation
 - AgentObservability
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Responsible AI Deployment
 

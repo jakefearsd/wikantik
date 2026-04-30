@@ -15,10 +15,10 @@ tags:
 - networking
 related:
 - HttpTwoAndHttpThree
-- WebServicesAndApis+Hub
+- WebServicesAndApisHub
 - WebApplicationFirewalls
 hubs:
-- Networking Hub
+- NetworkingHub
 ---
 # CORS Deep Dive
 
@@ -206,6 +206,6 @@ Same — no CORS.
 ## Further Reading
 
 - [HttpTwoAndHttpThree](HttpTwoAndHttpThree) — Underlying HTTP
-- [Web Services and APIs Hub](WebServicesAndApis+Hub) — APIs that use CORS
+- [Web Services and APIs Hub](WebServicesAndApisHub) — APIs that use CORS
 - [WebApplicationFirewalls](WebApplicationFirewalls) — Edge layer
-- [Networking Hub](Networking+Hub) — Cluster index
+- [Networking Hub](NetworkingHub) — Cluster index

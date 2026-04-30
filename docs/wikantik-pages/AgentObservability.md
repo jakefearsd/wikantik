@@ -20,7 +20,7 @@ related:
 - DistributedTracing
 - LlmTokenEconomicsAndPricing
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Agent Observability
 

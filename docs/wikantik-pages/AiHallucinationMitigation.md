@@ -20,7 +20,7 @@ related:
 - LlmEvaluationMetrics
 - AiSafetyAndAlignment
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # AI Hallucination Mitigation
 

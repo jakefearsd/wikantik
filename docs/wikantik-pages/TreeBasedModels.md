@@ -19,7 +19,7 @@ related:
 - CrossValidationAndModelEvaluation
 - ModelSelectionEfficiency
 hubs:
-- ML Hub
+- MLHub
 ---
 # Tree-Based Models
 
@@ -277,4 +277,4 @@ Tree-based models are reliable, fast, and accurate. They should be the default f
 - [ModelSelection](ModelSelection) — General selection
 - [CrossValidationAndModelEvaluation](CrossValidationAndModelEvaluation) — Evaluation
 - [ModelSelectionEfficiency](ModelSelectionEfficiency) — Efficiency tradeoffs
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

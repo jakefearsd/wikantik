@@ -18,7 +18,7 @@ related:
 - MemoryArchitectures
 - MemoryManagementFundamentals
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Java Memory Management
 
@@ -369,4 +369,4 @@ Don't tune blindly. JVM defaults are reasonable.
 
 - [MemoryArchitectures](MemoryArchitectures) — Hardware memory
 - [MemoryManagementFundamentals](MemoryManagementFundamentals) — General memory management
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

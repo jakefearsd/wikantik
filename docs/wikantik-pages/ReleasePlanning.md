@@ -19,7 +19,7 @@ related:
 - TechnicalProjectManagement
 - FeatureToggleManagement
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # Release Planning
 
@@ -200,4 +200,4 @@ Support needs to know what's new before customers ask. Briefings before launch.
 - [CiCdPipelines](CiCdPipelines) — Automation of releases
 - [TechnicalProjectManagement](TechnicalProjectManagement) — Adjacent role
 - [FeatureToggleManagement](FeatureToggleManagement) — Decouple deploy from release
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

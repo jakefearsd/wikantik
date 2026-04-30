@@ -19,7 +19,7 @@ related:
 - ModernBundlersAndBuildTools
 - CdnArchitecture
 hubs:
-- FrontendDevelopment Hub
+- FrontendDevelopmentHub
 ---
 # Server-Side Rendering
 
@@ -198,4 +198,4 @@ The decision matters less than it used to. Modern frameworks support multiple pa
 - [WebComponents](WebComponents) — Component models
 - [ModernBundlersAndBuildTools](ModernBundlersAndBuildTools) — Build infrastructure
 - [CdnArchitecture](CdnArchitecture) — Where SSG/ISR fit
-- [FrontendDevelopment Hub](FrontendDevelopment+Hub) — Cluster index
+- [FrontendDevelopment Hub](FrontendDevelopmentHub) — Cluster index

@@ -18,7 +18,7 @@ related:
 - PaxosAndRaft
 - ApiRateLimitingAlgorithms
 hubs:
-- DistributedSystems Hub
+- DistributedSystemsHub
 ---
 # Concurrency Distributed
 

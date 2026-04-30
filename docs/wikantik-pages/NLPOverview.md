@@ -19,7 +19,7 @@ related:
 - TransformerArchitecture
 - SentimentAnalysisWithMachineLearning
 hubs:
-- ML Hub
+- MLHub
 ---
 # NLP Overview
 
@@ -291,4 +291,4 @@ Don't trust automated generation metrics. Always sample outputs and read.
 - [DataScienceNLP](DataScienceNLP) — Practical NLP for data science
 - [TransformerArchitecture](TransformerArchitecture) — Modern foundation
 - [SentimentAnalysisWithMachineLearning](SentimentAnalysisWithMachineLearning) — A specific task
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

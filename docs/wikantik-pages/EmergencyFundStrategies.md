@@ -22,7 +22,7 @@ related:
 - IBondsAndTreasuries
 - HighYieldSavingsAccounts
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Emergency Fund Strategies
 
@@ -189,4 +189,4 @@ The fund did its job. David did not sell investments, did not revolve credit-car
 - [DebtPayoffStrategies](DebtPayoffStrategies) — The interaction between EF size and high-interest debt
 - [FinancialResilience](FinancialResilience) — The full picture; emergency fund is one of several layers
 - [IBondsAndTreasuries](IBondsAndTreasuries) — Vehicles for the deep tier of larger reserves
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

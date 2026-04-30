@@ -19,7 +19,7 @@ related:
 - WebAccessibilityGuide
 - WebComponents
 hubs:
-- FrontendDevelopment Hub
+- FrontendDevelopmentHub
 ---
 # Responsive Design Principles
 
@@ -238,4 +238,4 @@ For new responsive design:
 - [CssArchitecturePatterns](CssArchitecturePatterns) — Where these styles live
 - [WebAccessibilityGuide](WebAccessibilityGuide) — Responsive must be accessible
 - [WebComponents](WebComponents) — Components benefit from container queries
-- [FrontendDevelopment Hub](FrontendDevelopment+Hub) — Cluster index
+- [FrontendDevelopment Hub](FrontendDevelopmentHub) — Cluster index

@@ -19,7 +19,7 @@ related:
 - CqrsPattern
 - EventDrivenArchitecture
 hubs:
-- Databases Hub
+- DatabasesHub
 ---
 # Database Design Patterns
 

@@ -18,7 +18,7 @@ related:
 - ApiProtocolComparison
 - WebhookPatterns
 hubs:
-- WebServicesAndApis Hub
+- WebServicesAndApisHub
 ---
 # Server-Sent Events Patterns
 
@@ -187,4 +187,4 @@ events.addEventListener('shipments', handleShipment);
 - [WebSocketPatterns](WebSocketPatterns) — Bidirectional alternative
 - [ApiProtocolComparison](ApiProtocolComparison) — Where SSE fits
 - [WebhookPatterns](WebhookPatterns) — Server-to-server streaming alternative
-- [WebServicesAndApis Hub](WebServicesAndApis+Hub) — Cluster index
+- [WebServicesAndApis Hub](WebServicesAndApisHub) — Cluster index

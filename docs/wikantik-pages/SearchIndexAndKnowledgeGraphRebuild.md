@@ -239,7 +239,6 @@ What it does — single TRUNCATE across the entire KG layer:
 TRUNCATE TABLE
     kg_nodes, kg_edges,
     kg_proposals, kg_rejections,
-    kg_embeddings, kg_content_embeddings,
     chunk_entity_mentions,
     hub_centroids, hub_proposals, hub_discovery_proposals
 RESTART IDENTITY CASCADE;
@@ -256,7 +255,7 @@ What survives a `--purge-kg`:
 - Chunks (`kg_content_chunks`) and chunk embeddings (`kg_content_chunk_embeddings`) — unless phase 1 also runs, which it does in a default `bin/kg-rebuild.sh --purge-kg` invocation.
 - User accounts, groups, ACLs, API keys, retrieval-quality history, page verification metadata.
 
-After a purge, phase 4 will re-populate `kg_nodes`, `kg_proposals`, and `chunk_entity_mentions` from extraction. Hub clustering and structural-KG embeddings (`kg_embeddings`, `hub_centroids`) need to be rebuilt by their respective subsystems separately — typically the next page-save cycle or an explicit hub-discovery run.
+After a purge, phase 4 will re-populate `kg_nodes`, `kg_proposals`, and `chunk_entity_mentions` from extraction. Hub clustering (`hub_centroids`) needs to be rebuilt by its subsystem separately — typically the next page-save cycle or an explicit hub-discovery run.
 
 ### Phase 4 — Entity extraction
 
@@ -571,7 +570,7 @@ Phase 4's per-chunk progress comes from `bin/kg-extract.sh`'s own log4j2 lines, 
 
 **Embedding phase shows `state=DISABLED`** — `wikantik.search.hybrid.enabled=false` in your config. The rebuild script logs a warning and skips the phase rather than failing. To re-enable, flip the property and restart Tomcat.
 
-**Hub clustering / `kg_embeddings` table empty after `--purge-kg`** — by design. The KG-embedding and hub-clustering subsystems write their own data; phase 4's extraction doesn't repopulate them. They'll fill back up on the next page-save event or when the hub-discovery service runs.
+**Hub clustering empty after `--purge-kg`** — by design. The hub-clustering subsystem writes its own data; phase 4's extraction doesn't repopulate it. It will fill back up on the next page-save event or when the hub-discovery service runs.
 
 ## Extractor CLI flag reference
 

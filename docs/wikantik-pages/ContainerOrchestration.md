@@ -20,7 +20,7 @@ related:
 - ChaosEngineering
 - ServiceLevelAgreements
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Container Orchestration
 

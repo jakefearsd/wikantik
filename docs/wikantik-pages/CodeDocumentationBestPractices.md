@@ -20,7 +20,7 @@ related:
 - RefactoringStrategies
 - LegacyCodeModernization
 hubs:
-- SoftwareEngineeringPractices Hub
+- SoftwareEngineeringPracticesHub
 ---
 # Code Documentation Best Practices
 
@@ -199,4 +199,4 @@ Documentation of incidents: what happened, why, how it was resolved, what would 
 - [TechnicalWritingGuide](TechnicalWritingGuide) — Document writing that survives
 - [RefactoringStrategies](RefactoringStrategies) — When refactoring updates documentation
 - [LegacyCodeModernization](LegacyCodeModernization) — Adding documentation to undocumented code
-- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPractices+Hub) — Cluster index
+- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPracticesHub) — Cluster index

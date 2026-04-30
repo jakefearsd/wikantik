@@ -21,7 +21,7 @@ related:
 - GradientDescentAndOptimizers
 - EmbeddingsVectorDB
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Linear Algebra
 

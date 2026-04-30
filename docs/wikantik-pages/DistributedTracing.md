@@ -19,7 +19,7 @@ related:
 - BlamelessPostMortems
 - MicroservicesArchitecture
 hubs:
-- Observability Hub
+- ObservabilityHub
 ---
 # Distributed Tracing
 

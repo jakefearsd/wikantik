@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KZHC6PVQ4SBQM9R0F3T7K8Z3
-title: Java Hub
+title: JavaHub
 type: hub
 cluster: java
 status: active
@@ -15,9 +15,9 @@ tags:
 - language
 - standard-library
 related:
-- SoftwareEngineeringPractices+Hub
-- DesignPatterns+Hub
-- WebServicesAndApis+Hub
+- SoftwareEngineeringPracticesHub
+- DesignPatternsHub
+- WebServicesAndApisHub
 ---
 # Java Hub
 
@@ -34,7 +34,7 @@ The cluster covers modern Java — the language, the standard library, the build
 ## Platform internals
 
 - [JavaModuleSystem](JavaModuleSystem) — Modules in practice, when to adopt, when to skip
-- [JavaMemoryManagement Hub](JavaMemoryManagement+Hub) — Heap, GC, off-heap, the JVM tuning that actually matters
+- [JavaMemoryManagement Hub](JavaMemoryManagementHub) — Heap, GC, off-heap, the JVM tuning that actually matters
 - [JavaReflectionAndProxies](JavaReflectionAndProxies) — Where reflection earns its place; where it should be avoided
 - [JavaSecurityModel](JavaSecurityModel) — Security manager era and what replaced it
 - [JavaAnnotationProcessing](JavaAnnotationProcessing) — Compile-time code generation patterns
@@ -61,6 +61,6 @@ The cluster covers modern Java — the language, the standard library, the build
 
 ## Adjacent clusters
 
-- [Software Engineering Practices Hub](SoftwareEngineeringPractices+Hub) — Language-agnostic practices that apply to Java codebases
-- [Design Patterns Hub](DesignPatterns+Hub) — Pattern language with Java implementations
-- [Web Services and APIs Hub](WebServicesAndApis+Hub) — REST, GraphQL, and protocol-level concerns
+- [Software Engineering Practices Hub](SoftwareEngineeringPracticesHub) — Language-agnostic practices that apply to Java codebases
+- [Design Patterns Hub](DesignPatternsHub) — Pattern language with Java implementations
+- [Web Services and APIs Hub](WebServicesAndApisHub) — REST, GraphQL, and protocol-level concerns

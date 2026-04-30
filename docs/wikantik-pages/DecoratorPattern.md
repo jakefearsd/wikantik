@@ -17,7 +17,7 @@ related:
 - ObserverPattern
 - AdapterPattern
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Decorator Pattern
 

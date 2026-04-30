@@ -21,7 +21,7 @@ related:
 - InvestmentPolicyStatement
 - TaxLossHarvesting
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # Rebalancing Strategies
 
@@ -155,4 +155,4 @@ The glide path is implemented through rebalancing — your annual target shifts 
 - [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction) — Specific funds and structures
 - [InvestmentPolicyStatement](InvestmentPolicyStatement) — Where the rebalancing rule lives
 - [TaxLossHarvesting](TaxLossHarvesting) — Pairing tax loss with rebalancing
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

@@ -20,7 +20,7 @@ related:
 - DbtAndAnalyticsEngineering
 - DataModelingFundamentals
 hubs:
-- DataEngineering Hub
+- DataEngineeringHub
 ---
 # Data Pipeline Design
 
@@ -194,4 +194,4 @@ The "Lambda architecture" — batch + streaming both running the same logic — 
 - [MapReduceParadigm](MapReduceParadigm) — Foundational batch model
 - [DbtAndAnalyticsEngineering](DbtAndAnalyticsEngineering) — Warehouse-resident transform
 - [DataModelingFundamentals](DataModelingFundamentals) — What pipelines produce
-- [DataEngineering Hub](DataEngineering+Hub) — Cluster index
+- [DataEngineering Hub](DataEngineeringHub) — Cluster index

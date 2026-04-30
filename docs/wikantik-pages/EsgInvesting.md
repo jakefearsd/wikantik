@@ -20,7 +20,7 @@ related:
 - IndexFundPortfolioConstruction
 - IntroductionToIndexFundsAndETFs
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # ESG Investing
 
@@ -170,4 +170,4 @@ The combination of ESG screening plus active management often produces high fees
 - [AssetAllocationGuide](AssetAllocationGuide) — Where ESG fits in allocation
 - [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction) — Building portfolios with or without ESG tilt
 - [IntroductionToIndexFundsAndETFs](IntroductionToIndexFundsAndETFs) — Foundations
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

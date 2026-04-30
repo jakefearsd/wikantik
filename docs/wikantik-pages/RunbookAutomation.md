@@ -19,7 +19,7 @@ related:
 - ScheduledTaskManagement
 - CodeDocumentationBestPractices
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # Runbook Automation
 
@@ -199,4 +199,4 @@ The runbook coverage and automation grow over months, not weeks.
 - [ToilReductionStrategies](ToilReductionStrategies) — SRE concept
 - [ScheduledTaskManagement](ScheduledTaskManagement) — Adjacent automation
 - [CodeDocumentationBestPractices](CodeDocumentationBestPractices) — Documentation parallels
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

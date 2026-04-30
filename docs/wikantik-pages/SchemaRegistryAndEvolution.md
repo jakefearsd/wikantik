@@ -21,7 +21,7 @@ related:
 - DatabaseMigrationStrategies
 - ApiDesignBestPractices
 hubs:
-- DataSystems Hub
+- DataSystemsHub
 ---
 # Schema Registry and Evolution
 

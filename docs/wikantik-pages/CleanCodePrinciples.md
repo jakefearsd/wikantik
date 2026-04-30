@@ -21,7 +21,7 @@ related:
 - DebuggingStrategies
 - LegacyCodeModernization
 hubs:
-- SoftwareEngineeringPractices Hub
+- SoftwareEngineeringPracticesHub
 ---
 # Clean Code Principles
 
@@ -150,4 +150,4 @@ Validating every input at every level produces noise. Trusting the contract at i
 - [CodeDocumentationBestPractices](CodeDocumentationBestPractices) — Comments that earn their place
 - [DebuggingStrategies](DebuggingStrategies) — When unclean code makes debugging harder
 - [LegacyCodeModernization](LegacyCodeModernization) — Cleaning up code you did not write
-- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPractices+Hub) — Cluster index
+- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPracticesHub) — Cluster index

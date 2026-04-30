@@ -19,7 +19,7 @@ related:
 - SkillLibraries
 - SkillPerformance
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Skill Integration
 
@@ -210,4 +210,4 @@ For new skills:
 - [SkillComposition](SkillComposition) — Skill chains
 - [SkillLibraries](SkillLibraries) — Sharing skills
 - [SkillPerformance](SkillPerformance) — Adjacent concern
-- [AgenticAi Hub](AgenticAi+Hub) — Cluster index
+- [AgenticAi Hub](AgenticAiHub) — Cluster index

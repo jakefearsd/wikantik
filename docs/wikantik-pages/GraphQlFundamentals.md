@@ -19,7 +19,7 @@ related:
 - PaginationStrategies
 - IdempotencyPatterns
 hubs:
-- WebServicesAndApis Hub
+- WebServicesAndApisHub
 ---
 # GraphQL Fundamentals
 
@@ -261,4 +261,4 @@ See [ApiProtocolComparison](ApiProtocolComparison).
 - [HateoasAndHypermediaApis](HateoasAndHypermediaApis) — REST hypermedia approach
 - [PaginationStrategies](PaginationStrategies) — Pagination in GraphQL
 - [IdempotencyPatterns](IdempotencyPatterns) — Idempotency for mutations
-- [WebServicesAndApis Hub](WebServicesAndApis+Hub) — Cluster index
+- [WebServicesAndApis Hub](WebServicesAndApisHub) — Cluster index

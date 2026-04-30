@@ -19,7 +19,7 @@ related:
 - ProbabilityTheory
 - ComplexAnalysis
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Calculus Refresh for CS
 
@@ -215,4 +215,4 @@ At maxima and minima, the gradient is zero (the function is locally flat).
 - [AppliedMathSurvey](AppliedMathSurvey) — Where calculus fits
 - [ProbabilityTheory](ProbabilityTheory) — Probability uses integrals
 - [ComplexAnalysis](ComplexAnalysis) — Calculus extended
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

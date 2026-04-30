@@ -21,7 +21,7 @@ related:
 - DesignPatternsOverview
 - CqrsPattern
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Domain-Driven Design
 

@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KZHC6PVZ4SBQM9R0F3T7K8ZC
-title: EngineeringLeadership Hub
+title: EngineeringLeadershipHub
 type: hub
 cluster: engineering-leadership
 status: active
@@ -15,8 +15,8 @@ tags:
 - decision-making
 - teams
 related:
-- SoftwareEngineeringPractices+Hub
-- DevOpsAndSre+Hub
+- SoftwareEngineeringPracticesHub
+- DevOpsAndSreHub
 ---
 # EngineeringLeadership Hub
 
@@ -48,5 +48,5 @@ This cluster covers the leadership and management practices specific to engineer
 
 ## Adjacent clusters
 
-- [Software Engineering Practices Hub](SoftwareEngineeringPractices+Hub) — Individual contributor practices
-- [DevOps and SRE Hub](DevOpsAndSre+Hub) — Operational discipline
+- [Software Engineering Practices Hub](SoftwareEngineeringPracticesHub) — Individual contributor practices
+- [DevOps and SRE Hub](DevOpsAndSreHub) — Operational discipline

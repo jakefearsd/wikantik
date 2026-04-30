@@ -21,7 +21,7 @@ related:
 - GradientDescentAndOptimizers
 - LinearAlgebra
 hubs:
-- MachineLearning Hub
+- MachineLearningHub
 ---
 # Neural Network Architectures
 

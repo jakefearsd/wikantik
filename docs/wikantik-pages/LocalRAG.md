@@ -20,7 +20,7 @@ related:
 - HybridRetrieval
 - RunningLocalLlms
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Local RAG
 

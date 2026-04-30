@@ -22,7 +22,7 @@ related:
 - DebtPayoffStrategies
 - NetWorthTracking
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Financial Resilience
 
@@ -215,4 +215,4 @@ Same net worth. Very different resilience.
 - [DebtPayoffStrategies](DebtPayoffStrategies) — Reducing fixed obligations to improve flexibility
 - [NetWorthTracking](NetWorthTracking) — Measuring resilience progress over time
 - [SequenceOfReturnsRisk](SequenceOfReturnsRisk) — The retirement-specific failure mode
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

@@ -21,7 +21,7 @@ related:
 - NetWorthTracking
 - FirstJobFinancialChecklist
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Budgeting Methods
 
@@ -158,4 +158,4 @@ The spreadsheet route is underrated. A simple Google Sheet with monthly columns 
 - [DebtPayoffStrategies](DebtPayoffStrategies) — Avalanche, snowball, and how to integrate with the budget
 - [NetWorthTracking](NetWorthTracking) — The complement to budgeting; tracks the result, not the flow
 - [FirstJobFinancialChecklist](FirstJobFinancialChecklist) — The early-career version of all of the above
-- [PersonalFinance Hub](PersonalFinance+Hub) — Index of the full cluster
+- [PersonalFinance Hub](PersonalFinanceHub) — Index of the full cluster

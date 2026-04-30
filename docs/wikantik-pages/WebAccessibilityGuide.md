@@ -19,7 +19,7 @@ related:
 - FormHandlingAndValidation
 - WebComponents
 hubs:
-- FrontendDevelopment Hub
+- FrontendDevelopmentHub
 ---
 # Web Accessibility Guide
 
@@ -217,4 +217,4 @@ Automated tools catch ~30% of issues. Manual testing (keyboard, screen reader) c
 - [ResponsiveDesignPrinciples](ResponsiveDesignPrinciples) — Responsive must be accessible
 - [FormHandlingAndValidation](FormHandlingAndValidation) — Forms are common failure points
 - [WebComponents](WebComponents) — Custom components need explicit accessibility
-- [FrontendDevelopment Hub](FrontendDevelopment+Hub) — Cluster index
+- [FrontendDevelopment Hub](FrontendDevelopmentHub) — Cluster index

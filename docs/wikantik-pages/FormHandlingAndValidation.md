@@ -18,7 +18,7 @@ related:
 - TypeScriptFundamentals
 - IdempotencyPatterns
 hubs:
-- FrontendDevelopment Hub
+- FrontendDevelopmentHub
 ---
 # Form Handling and Validation
 
@@ -275,4 +275,4 @@ Always specify which fields you accept; reject the rest.
 - [WebAccessibilityGuide](WebAccessibilityGuide) — Forms must be accessible
 - [TypeScriptFundamentals](TypeScriptFundamentals) — Type-safe form schemas
 - [IdempotencyPatterns](IdempotencyPatterns) — Submission idempotency
-- [FrontendDevelopment Hub](FrontendDevelopment+Hub) — Cluster index
+- [FrontendDevelopment Hub](FrontendDevelopmentHub) — Cluster index

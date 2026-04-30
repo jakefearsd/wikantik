@@ -18,7 +18,7 @@ related:
 - MicroservicesArchitecture
 - SchemaRegistryAndEvolution
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # gRPC Fundamentals
 

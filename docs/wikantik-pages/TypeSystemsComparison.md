@@ -18,7 +18,7 @@ related:
 - DesignPatternsOverview
 - AbstractAlgebra
 hubs:
-- ProgrammingLanguages Hub
+- ProgrammingLanguagesHub
 ---
 # Type Systems Comparison
 

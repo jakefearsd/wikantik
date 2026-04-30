@@ -18,7 +18,7 @@ related:
 - MavenMultiModuleProjects
 - JavaBuildToolComparison
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Java Annotation Processing
 
@@ -135,4 +135,4 @@ For most Java teams:
 - [JavaTwentyOneFeatures](JavaTwentyOneFeatures) — Records reduce Lombok need
 - [MavenMultiModuleProjects](MavenMultiModuleProjects) — Build-tool annotation processor configuration
 - [JavaBuildToolComparison](JavaBuildToolComparison) — Annotation processor support across tools
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

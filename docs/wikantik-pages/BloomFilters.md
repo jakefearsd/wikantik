@@ -20,7 +20,7 @@ related:
 - DatabaseIndexingStrategies
 - CachingStrategies
 hubs:
-- DataStructures Hub
+- DataStructuresHub
 ---
 # Bloom Filters
 

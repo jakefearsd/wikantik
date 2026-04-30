@@ -19,7 +19,7 @@ related:
 - OpenSourceLLMs
 - ResponsibleAiDeployment
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Privacy-Preserving LLM
 

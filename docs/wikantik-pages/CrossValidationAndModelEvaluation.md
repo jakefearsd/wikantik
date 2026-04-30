@@ -19,7 +19,7 @@ related:
 - ModelSelectionEfficiency
 - TreeBasedModels
 hubs:
-- ML Hub
+- MLHub
 ---
 # Cross-Validation and Model Evaluation
 
@@ -245,4 +245,4 @@ A 0.1% accuracy gain that doubles latency may be a regression.
 - [ModelSelection](ModelSelection) — Choosing among models
 - [ModelSelectionEfficiency](ModelSelectionEfficiency) — Efficiency tradeoffs
 - [TreeBasedModels](TreeBasedModels) — Practical models
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

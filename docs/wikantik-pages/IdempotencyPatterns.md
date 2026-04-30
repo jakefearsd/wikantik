@@ -19,7 +19,7 @@ related:
 - WebhookPatterns
 - ServerSentEventsPatterns
 hubs:
-- WebServicesAndApis Hub
+- WebServicesAndApisHub
 ---
 # Idempotency Patterns
 
@@ -182,4 +182,4 @@ Designing operations to be idempotent by construction is often easier than retro
 - [ApiProtocolComparison](ApiProtocolComparison) — Idempotency across protocols
 - [BatchApiDesign](BatchApiDesign) — Idempotency for batches
 - [WebhookPatterns](WebhookPatterns) — Webhook delivery semantics
-- [WebServicesAndApis Hub](WebServicesAndApis+Hub) — Cluster index
+- [WebServicesAndApis Hub](WebServicesAndApisHub) — Cluster index

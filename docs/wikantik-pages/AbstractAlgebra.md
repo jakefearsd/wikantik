@@ -20,7 +20,7 @@ related:
 - CategoryTheory
 - EncryptionFundamentals
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Abstract Algebra
 

@@ -21,7 +21,7 @@ related:
 - IndexFundPortfolioConstruction
 - TaxLossHarvesting
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # Mutual Fund vs. ETF Comparison
 
@@ -119,4 +119,4 @@ Each pair holds nearly identical securities. Returns are typically within 0.05% 
 - [TotalStockMarketFundAnatomy](TotalStockMarketFundAnatomy) — What is inside the popular funds
 - [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction) — Building portfolios from these funds
 - [TaxLossHarvesting](TaxLossHarvesting) — Where ETFs offer specific advantages
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

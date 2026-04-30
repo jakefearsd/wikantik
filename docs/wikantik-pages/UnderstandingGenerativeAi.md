@@ -17,7 +17,7 @@ tags:
 - productivity
 - beginners
 hubs:
-- MlModelDeployment Hub
+- MlModelDeploymentHub
 ---
 # Generative AI
 

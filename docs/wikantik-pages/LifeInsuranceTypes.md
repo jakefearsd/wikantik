@@ -21,7 +21,7 @@ related:
 - FinancialResilience
 - WillsAndTrusts
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Life Insurance Types
 
@@ -192,4 +192,4 @@ The case for whole life only makes sense if the buyer wants the *guaranteed* dea
 - [LongTermCareInsurance](LongTermCareInsurance) — The retirement-era version of insurance planning
 - [FinancialResilience](FinancialResilience) — Where insurance fits in household balance-sheet design
 - [WillsAndTrusts](WillsAndTrusts) — Beneficiary designations and estate coordination
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

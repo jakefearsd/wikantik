@@ -19,7 +19,7 @@ related:
 - PaginationStrategies
 - FileUploadPatterns
 hubs:
-- WebServicesAndApis Hub
+- WebServicesAndApisHub
 ---
 # Batch API Design
 
@@ -172,4 +172,4 @@ This pattern decouples the request from the processing time.
 - [IdempotencyPatterns](IdempotencyPatterns) — Idempotency for retries
 - [PaginationStrategies](PaginationStrategies) — Read-side analog
 - [FileUploadPatterns](FileUploadPatterns) — Different style of bulk transfer
-- [WebServicesAndApis Hub](WebServicesAndApis+Hub) — Cluster index
+- [WebServicesAndApis Hub](WebServicesAndApisHub) — Cluster index

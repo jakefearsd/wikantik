@@ -23,7 +23,7 @@ related:
 - AgenticWorkflowDesign
 - KnowledgeGraphCompletion
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # RAG Implementation Patterns
 

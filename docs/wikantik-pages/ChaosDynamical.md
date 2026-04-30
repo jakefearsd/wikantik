@@ -19,7 +19,7 @@ related:
 - ProbabilityTheory
 - DifferentialGeometry
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Chaos and Dynamical Systems
 
@@ -180,4 +180,4 @@ For software engineers and ML practitioners:
 - [ComplexAnalysis](ComplexAnalysis) — Adjacent math
 - [ProbabilityTheory](ProbabilityTheory) — Statistical predictability
 - [DifferentialGeometry](DifferentialGeometry) — Geometry of state space
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

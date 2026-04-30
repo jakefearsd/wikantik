@@ -19,7 +19,7 @@ related:
 - DataModelingFundamentals
 - CleanCodePrinciples
 hubs:
-- DataEngineering Hub
+- DataEngineeringHub
 ---
 # dbt and Analytics Engineering
 
@@ -195,4 +195,4 @@ dbt is for "transform inside the warehouse." Other transformations need other to
 - [DataPipelineDesign](DataPipelineDesign) — Where dbt sits in pipelines
 - [DataModelingFundamentals](DataModelingFundamentals) — What you're modeling
 - [CleanCodePrinciples](CleanCodePrinciples) — Apply to SQL too
-- [DataEngineering Hub](DataEngineering+Hub) — Cluster index
+- [DataEngineering Hub](DataEngineeringHub) — Cluster index

@@ -19,7 +19,7 @@ related:
 - WebApplicationFirewalls
 - VulnerabilityManagement
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Java Security Model
 
@@ -149,4 +149,4 @@ Most production applications never used the Security Manager; they will not be a
 - [JavaReflectionAndProxies](JavaReflectionAndProxies) — Reflection and security boundaries
 - [WebApplicationFirewalls](WebApplicationFirewalls) — Defense layer above the JVM
 - [VulnerabilityManagement](VulnerabilityManagement) — Operational security practice
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

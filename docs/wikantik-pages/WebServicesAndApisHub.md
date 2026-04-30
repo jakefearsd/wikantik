@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KZHC6PVS4SBQM9R0F3T7K8Z5
-title: WebServicesAndApis Hub
+title: WebServicesAndApisHub
 type: hub
 cluster: web-services-and-apis
 status: active
@@ -16,10 +16,10 @@ tags:
 - GraphQL
 - protocol
 related:
-- Java+Hub
-- FrontendDevelopment+Hub
-- DevOpsAndSre+Hub
-- Networking+Hub
+- JavaHub
+- FrontendDevelopmentHub
+- DevOpsAndSreHub
+- NetworkingHub
 ---
 # WebServicesAndApis Hub
 
@@ -47,7 +47,7 @@ This cluster covers the patterns and protocols for service-to-service and client
 
 ## Adjacent clusters
 
-- [Java Hub](Java+Hub) — Server-side implementation
-- [Frontend Development Hub](FrontendDevelopment+Hub) — Client-side consumption
-- [DevOps and SRE Hub](DevOpsAndSre+Hub) — API operability concerns
-- [Networking Hub](Networking+Hub) — Protocol-level layer below APIs
+- [Java Hub](JavaHub) — Server-side implementation
+- [Frontend Development Hub](FrontendDevelopmentHub) — Client-side consumption
+- [DevOps and SRE Hub](DevOpsAndSreHub) — API operability concerns
+- [Networking Hub](NetworkingHub) — Protocol-level layer below APIs

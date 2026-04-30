@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KZHC6PVW4SBQM9R0F3T7K8Z9
-title: DesignPatterns Hub
+title: DesignPatternsHub
 type: hub
 cluster: design-patterns
 status: active
@@ -15,8 +15,8 @@ tags:
 - patterns
 - architecture
 related:
-- SoftwareEngineeringPractices+Hub
-- Java+Hub
+- SoftwareEngineeringPracticesHub
+- JavaHub
 ---
 # DesignPatterns Hub
 
@@ -40,5 +40,5 @@ The honest assessment of design patterns: most of the value is in the *vocabular
 
 ## Adjacent clusters
 
-- [Software Engineering Practices Hub](SoftwareEngineeringPractices+Hub) — Practices that complement patterns
-- [Java Hub](Java+Hub) — Java-specific applications
+- [Software Engineering Practices Hub](SoftwareEngineeringPracticesHub) — Practices that complement patterns
+- [Java Hub](JavaHub) — Java-specific applications

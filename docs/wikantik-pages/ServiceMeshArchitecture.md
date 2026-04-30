@@ -20,7 +20,7 @@ related:
 - CloudNativeApplicationDesign
 - WebApplicationFirewalls
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # Service Mesh Architecture
 
@@ -191,4 +191,4 @@ If unsure, the answer is probably "wait." The mesh is rarely the constraint on t
 - [ReverseProxyPatterns](ReverseProxyPatterns) — Sidecar is a reverse proxy
 - [CloudNativeApplicationDesign](CloudNativeApplicationDesign) — Where meshes fit
 - [WebApplicationFirewalls](WebApplicationFirewalls) — Adjacent infrastructure
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

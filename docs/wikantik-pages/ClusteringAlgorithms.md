@@ -17,7 +17,7 @@ related:
 - LinearAlgebra
 - BayesianReasoning
 hubs:
-- MachineLearning Hub
+- MachineLearningHub
 ---
 # Clustering Algorithms
 

@@ -18,7 +18,7 @@ related:
 - NLPOverview
 - TransformerArchitecture
 hubs:
-- ML Hub
+- MLHub
 ---
 # Sentiment Analysis with Machine Learning
 
@@ -284,4 +284,4 @@ Sentiment expressions evolve. Slang changes. Retrain periodically.
 - [DataScienceNLP](DataScienceNLP) — General NLP for data science
 - [NLPOverview](NLPOverview) — Broader context
 - [TransformerArchitecture](TransformerArchitecture) — Modern foundation
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

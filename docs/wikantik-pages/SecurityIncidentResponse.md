@@ -19,7 +19,7 @@ related:
 - IncidentResponse
 - ApplicationSecurityFundamentals
 hubs:
-- Security Hub
+- SecurityHub
 ---
 # Security Incident Response
 

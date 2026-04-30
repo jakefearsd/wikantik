@@ -18,7 +18,7 @@ related:
 - DatabasePartitioning
 - SchemaRegistryAndEvolution
 hubs:
-- Databases Hub
+- DatabasesHub
 ---
 # Database Migration Strategies
 

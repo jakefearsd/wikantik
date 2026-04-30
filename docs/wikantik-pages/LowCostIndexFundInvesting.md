@@ -18,7 +18,7 @@ tags:
 - passive-investing
 - expense-ratios
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 
 

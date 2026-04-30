@@ -19,7 +19,7 @@ related:
 - LegacyCodeModernization
 - CloudDisasterRecovery
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # Cloud Migration Strategies
 
@@ -167,4 +167,4 @@ Half-migration. Application is on-prem, database in cloud. Cross-region latency 
 - [AwsFundamentals](AwsFundamentals) — Cloud target context
 - [LegacyCodeModernization](LegacyCodeModernization) — Adjacent practice
 - [CloudDisasterRecovery](CloudDisasterRecovery) — DR during migration
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

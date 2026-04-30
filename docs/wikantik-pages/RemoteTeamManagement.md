@@ -19,7 +19,7 @@ related:
 - BurnoutPreventionInTech
 - PairProgrammingPractices
 hubs:
-- EngineeringLeadership Hub
+- EngineeringLeadershipHub
 ---
 # Remote Team Management
 
@@ -190,4 +190,4 @@ The patterns that work for one team may not for another. Iterate.
 - [TechnicalProjectManagement](TechnicalProjectManagement) — Remote PM specifics
 - [BurnoutPreventionInTech](BurnoutPreventionInTech) — Watch for it
 - [PairProgrammingPractices](PairProgrammingPractices) — Remote pairing
-- [EngineeringLeadership Hub](EngineeringLeadership+Hub) — Cluster index
+- [EngineeringLeadership Hub](EngineeringLeadershipHub) — Cluster index

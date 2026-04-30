@@ -20,7 +20,7 @@ related:
 - CpuInference
 - LlmTokenEconomicsAndPricing
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Open Source LLMs
 

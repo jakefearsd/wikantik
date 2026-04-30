@@ -19,7 +19,7 @@ related:
 - CodeDocumentationBestPractices
 - SpringBootFundamentals
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Java Logging Best Practices
 
@@ -206,4 +206,4 @@ Externalize log configuration. `logback.xml` (or `logback-spring.xml` in Spring 
 - [DebuggingStrategies](DebuggingStrategies) — Logs as debug tool
 - [CodeDocumentationBestPractices](CodeDocumentationBestPractices) — Logs as runtime documentation
 - [SpringBootFundamentals](SpringBootFundamentals) — Spring Boot's logging configuration
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

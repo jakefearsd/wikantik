@@ -17,7 +17,7 @@ related:
 - EventDrivenArchitecture
 - ReactiveProgramming
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Observer Pattern
 

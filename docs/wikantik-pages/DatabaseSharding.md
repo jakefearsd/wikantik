@@ -20,7 +20,7 @@ related:
 - DatabaseDesign
 - DatabaseIndexingStrategies
 hubs:
-- Databases Hub
+- DatabasesHub
 ---
 # Database Sharding
 

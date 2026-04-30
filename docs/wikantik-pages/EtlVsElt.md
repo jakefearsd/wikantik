@@ -19,7 +19,7 @@ related:
 - DataModelingFundamentals
 - CloudDatabases
 hubs:
-- DataEngineering Hub
+- DataEngineeringHub
 ---
 # ETL vs. ELT
 
@@ -164,4 +164,4 @@ This is functional ELT plus a "publish" step.
 - [DbtAndAnalyticsEngineering](DbtAndAnalyticsEngineering) — The transformation tool
 - [DataModelingFundamentals](DataModelingFundamentals) — What you're modeling
 - [CloudDatabases](CloudDatabases) — Warehouse options
-- [DataEngineering Hub](DataEngineering+Hub) — Cluster index
+- [DataEngineering Hub](DataEngineeringHub) — Cluster index

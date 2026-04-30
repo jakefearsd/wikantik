@@ -21,7 +21,7 @@ related:
 - TotalStockMarketFundAnatomy
 - MarketCapVsEqualWeightIndexing
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # Small Cap Value Premium
 
@@ -167,4 +167,4 @@ Both approaches are defensible. Heavy factor tilting requires conviction and pat
 - [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction) — Building from these components
 - [TotalStockMarketFundAnatomy](TotalStockMarketFundAnatomy) — The cap-weighted alternative
 - [MarketCapVsEqualWeightIndexing](MarketCapVsEqualWeightIndexing) — Equal weighting as alternative tilt
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

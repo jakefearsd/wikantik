@@ -19,8 +19,8 @@ related:
 - OpenSourceLlmEcosystem
 - NLPOverview
 hubs:
-- Generative AI Hub
-- ML Hub
+- GenerativeAIHub
+- MLHub
 ---
 # Transformer Architecture
 
@@ -285,4 +285,4 @@ For researchers: the architecture is mature; innovation happens at training, dat
 - [AgentPromptEngineering](AgentPromptEngineering) — Working with LLMs
 - [OpenSourceLlmEcosystem](OpenSourceLlmEcosystem) — Open models
 - [NLPOverview](NLPOverview) — Broader NLP context
-- [Generative AI Hub](Generative+AI+Hub) — Cluster index
+- [Generative AI Hub](GenerativeAIHub) — Cluster index

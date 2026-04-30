@@ -20,7 +20,7 @@ tags:
 - history
 - bretton-woods
 hubs:
-- ConflictMarketPatterns Hub
+- ConflictMarketPatternsHub
 ---
 # World War II and Global Equity Markets (1939–1945)
 

@@ -19,7 +19,7 @@ related:
 - JavaAnnotationProcessing
 - MonorepoVsPolyrepo
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Java Build Tool Comparison
 
@@ -157,4 +157,4 @@ The migration path is one direction usually: Maven → Gradle is feasible; Maven
 - [JavaModuleSystem](JavaModuleSystem) — JPMS support across build tools
 - [JavaAnnotationProcessing](JavaAnnotationProcessing) — Annotation processor configuration
 - [MonorepoVsPolyrepo](MonorepoVsPolyrepo) — Build tool choice often follows repo strategy
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

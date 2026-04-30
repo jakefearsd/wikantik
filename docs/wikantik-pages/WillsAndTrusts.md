@@ -21,7 +21,7 @@ related:
 - CharitableGivingInRetirement
 - FinancialResilience
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Wills and Trusts
 
@@ -201,4 +201,4 @@ This is not optimal estate planning. It is the version that exists, which is dra
 - [EstatePlanningForRetirees](EstatePlanningForRetirees) — The retirement-stage version of estate planning
 - [CharitableGivingInRetirement](CharitableGivingInRetirement) — DAFs, QCDs, charitable trusts
 - [FinancialResilience](FinancialResilience) — Estate planning as part of household resilience
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

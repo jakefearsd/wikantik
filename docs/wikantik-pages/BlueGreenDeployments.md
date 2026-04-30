@@ -19,7 +19,7 @@ related:
 - CanaryDeployments
 - ChaosEngineering
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Blue-Green Deployments
 

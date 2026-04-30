@@ -18,7 +18,7 @@ related:
 - LinearAlgebra
 - BayesianReasoning
 hubs:
-- MachineLearning Hub
+- MachineLearningHub
 ---
 # Deep Learning Fundamentals
 

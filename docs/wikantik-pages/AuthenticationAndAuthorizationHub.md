@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQ0P44M52Z0XGC1BE1R04NFY
-title: AuthenticationAndAuthorization Hub
+title: AuthenticationAndAuthorizationHub
 type: hub
 cluster: security
 status: active

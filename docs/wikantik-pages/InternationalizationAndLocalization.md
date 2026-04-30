@@ -19,7 +19,7 @@ related:
 - ResponsiveDesignPrinciples
 - TypeScriptFundamentals
 hubs:
-- FrontendDevelopment Hub
+- FrontendDevelopmentHub
 ---
 # Internationalization and Localization
 
@@ -253,4 +253,4 @@ new Intl.DateTimeFormat(locale, options).format(date)
 - [WebAccessibilityGuide](WebAccessibilityGuide) — i18n is part of accessibility
 - [ResponsiveDesignPrinciples](ResponsiveDesignPrinciples) — Layouts must accommodate text length variation
 - [TypeScriptFundamentals](TypeScriptFundamentals) — Type-safe translation keys
-- [FrontendDevelopment Hub](FrontendDevelopment+Hub) — Cluster index
+- [FrontendDevelopment Hub](FrontendDevelopmentHub) — Cluster index

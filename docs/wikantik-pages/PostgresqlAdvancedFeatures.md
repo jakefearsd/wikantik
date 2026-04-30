@@ -22,7 +22,7 @@ related:
 - VectorDatabases
 - DatabasePartitioning
 hubs:
-- Databases Hub
+- DatabasesHub
 ---
 # PostgreSQL Advanced Features
 

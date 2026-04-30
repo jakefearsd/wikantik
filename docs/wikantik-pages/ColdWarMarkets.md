@@ -21,7 +21,7 @@ tags:
 - defence-sector
 - oil-crisis
 hubs:
-- ConflictMarketPatterns Hub
+- ConflictMarketPatternsHub
 ---
 # The Cold War Era and Equity Markets (1947–1991)
 

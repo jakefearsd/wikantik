@@ -18,7 +18,7 @@ tags:
 - coding
 - generative-ai
 hubs:
-- MlModelDeployment Hub
+- MlModelDeploymentHub
 ---
 # AI-Augmented Workflows
 

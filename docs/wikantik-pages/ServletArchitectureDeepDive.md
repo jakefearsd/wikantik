@@ -15,11 +15,11 @@ tags:
 - filters
 related:
 - SpringBootFundamentals
-- WebServicesAndApis+Hub
+- WebServicesAndApisHub
 - WebApplicationFirewalls
 - HttpTwoAndHttpThree
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Servlet Architecture Deep Dive
 
@@ -177,7 +177,7 @@ With virtual threads (Java 21+), the servlet model's traditional weakness — bl
 ## Further Reading
 
 - [SpringBootFundamentals](SpringBootFundamentals) — Spring on top of servlets
-- [Web Services and APIs Hub](WebServicesAndApis+Hub) — API design above servlet level
+- [Web Services and APIs Hub](WebServicesAndApisHub) — API design above servlet level
 - [WebApplicationFirewalls](WebApplicationFirewalls) — Layer above servlet
 - [HttpTwoAndHttpThree](HttpTwoAndHttpThree) — Protocol layer below
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

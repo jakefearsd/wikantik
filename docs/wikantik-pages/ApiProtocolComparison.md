@@ -19,7 +19,7 @@ related:
 - IdempotencyPatterns
 - PaginationStrategies
 hubs:
-- WebServicesAndApis Hub
+- WebServicesAndApisHub
 ---
 # API Protocol Comparison
 
@@ -127,4 +127,4 @@ Pick based on team familiarity, client requirements, and operational fit. Avoid 
 - [HateoasAndHypermediaApis](HateoasAndHypermediaApis) — REST's hypermedia constraint
 - [IdempotencyPatterns](IdempotencyPatterns) — Cross-protocol concern
 - [PaginationStrategies](PaginationStrategies) — Same
-- [WebServicesAndApis Hub](WebServicesAndApis+Hub) — Cluster index
+- [WebServicesAndApis Hub](WebServicesAndApisHub) — Cluster index

@@ -19,7 +19,7 @@ related:
 - SetTheoryLogic
 - FuzzyLogic
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Probability Theory
 
@@ -251,4 +251,4 @@ The medical-test example above; base rate dominates the result.
 - [CalculusRefreshForCS](CalculusRefreshForCS) — Calculus underlies continuous distributions
 - [SetTheoryLogic](SetTheoryLogic) — Probability is over sets
 - [FuzzyLogic](FuzzyLogic) — Different framework for uncertainty
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

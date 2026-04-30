@@ -21,7 +21,7 @@ related:
 - CalculatingYourFiNumber
 - FinancialResilience
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Net Worth Tracking
 
@@ -203,4 +203,4 @@ Set it up once; spend 15 minutes per month thereafter. Most households' net wort
 - [CalculatingYourFiNumber](CalculatingYourFiNumber) — Translating net worth into a retirement target
 - [FinancialResilience](FinancialResilience) — Net worth is one of several resilience indicators
 - [EmergencyFundStrategies](EmergencyFundStrategies) — The liquid component of the balance sheet
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

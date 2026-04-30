@@ -19,7 +19,7 @@ related:
 - ReleasePlanning
 - TrunkBasedDevelopment
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # Release Engineering
 
@@ -204,4 +204,4 @@ Who's on call during this deploy? They should know what's deploying and have rol
 - [FeatureToggleManagement](FeatureToggleManagement) — Flag-driven release
 - [ReleasePlanning](ReleasePlanning) — Coordination across releases
 - [TrunkBasedDevelopment](TrunkBasedDevelopment) — Branching for release
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

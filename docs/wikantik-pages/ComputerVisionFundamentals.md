@@ -20,7 +20,7 @@ related:
 - MlModelDeployment
 - InferenceServing
 hubs:
-- ML Hub
+- MLHub
 ---
 # Computer Vision Fundamentals
 
@@ -205,4 +205,4 @@ The model is rarely the bottleneck. Data quality and quantity usually matter mor
 - [TransformerArchitecture](TransformerArchitecture) — ViT foundation
 - [MlModelDeployment](MlModelDeployment) — Getting models to production
 - [InferenceServing](InferenceServing) — Serving infrastructure
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

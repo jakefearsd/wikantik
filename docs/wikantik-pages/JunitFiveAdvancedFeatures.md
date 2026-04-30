@@ -20,7 +20,7 @@ related:
 - DebuggingStrategies
 - SpringBootFundamentals
 hubs:
-- Java Hub
+- JavaHub
 ---
 # JUnit 5 Advanced Features
 
@@ -238,4 +238,4 @@ void modernOnlyTest() { /* ... */ }
 - [JavaCollectionsFramework](JavaCollectionsFramework) — Test data structures
 - [DebuggingStrategies](DebuggingStrategies) — Tests as debugging aid
 - [SpringBootFundamentals](SpringBootFundamentals) — Spring's test slices
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

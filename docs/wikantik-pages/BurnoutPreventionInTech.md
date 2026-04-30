@@ -19,7 +19,7 @@ related:
 - TechnicalProjectManagement
 - ToilReductionStrategies
 hubs:
-- EngineeringLeadership Hub
+- EngineeringLeadershipHub
 ---
 # Burnout Prevention in Tech
 
@@ -202,4 +202,4 @@ If every quarter is a crisis, the team isn't operating sustainably. Crises happe
 - [RemoteTeamManagement](RemoteTeamManagement) — Remote-specific concerns
 - [TechnicalProjectManagement](TechnicalProjectManagement) — Pacing projects
 - [ToilReductionStrategies](ToilReductionStrategies) — Reducing the unrewarding work
-- [EngineeringLeadership Hub](EngineeringLeadership+Hub) — Cluster index
+- [EngineeringLeadership Hub](EngineeringLeadershipHub) — Cluster index

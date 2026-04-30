@@ -18,7 +18,7 @@ related:
 - CalculusRefreshForCS
 - TopologyMathematics
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Complex Analysis
 
@@ -188,4 +188,4 @@ Knowing it exists and what it can do is valuable; deep mastery is needed only in
 - [AppliedMathSurvey](AppliedMathSurvey) — Where complex analysis fits
 - [CalculusRefreshForCS](CalculusRefreshForCS) — Real calculus foundations
 - [TopologyMathematics](TopologyMathematics) — Topology of the complex plane
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

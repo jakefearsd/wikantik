@@ -17,11 +17,11 @@ related:
 - DefenseSectorInvesting
 - PostConflictReconstructionInvesting
 - WarBondsAndGovernmentDebt
-- ConflictMarketPatterns+Hub
+- ConflictMarketPatternsHub
 - ConflictsAndEquityMarkets
 - ConflictResilientPortfolios
 hubs:
-- ConflictMarketPatterns Hub
+- ConflictMarketPatternsHub
 ---
 # Geopolitical Risk and Investing
 
@@ -236,6 +236,6 @@ For most investors:
 - [DefenseSectorInvesting](DefenseSectorInvesting) — Sector-specific
 - [PostConflictReconstructionInvesting](PostConflictReconstructionInvesting) — Recovery thesis
 - [WarBondsAndGovernmentDebt](WarBondsAndGovernmentDebt) — Bond-side
-- [ConflictMarketPatterns Hub](ConflictMarketPatterns+Hub) — Cluster index
+- [ConflictMarketPatterns Hub](ConflictMarketPatternsHub) — Cluster index
 - [ConflictsAndEquityMarkets](ConflictsAndEquityMarkets) — Broader patterns
 - [ConflictResilientPortfolios](ConflictResilientPortfolios) — Portfolio construction

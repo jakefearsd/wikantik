@@ -18,7 +18,7 @@ related:
 - LinearAlgebra
 - GradientDescentAndOptimizers
 hubs:
-- MachineLearning Hub
+- MachineLearningHub
 ---
 # Convolutional Neural Networks
 

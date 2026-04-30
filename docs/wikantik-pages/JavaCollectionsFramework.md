@@ -20,7 +20,7 @@ related:
 - ImmutableDataPatterns
 - JavaRecordsAndSealedClasses
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Java Collections Framework
 
@@ -195,4 +195,4 @@ For maps shared across threads, `ConcurrentHashMap` is almost always the right c
 - [JavaTwentyOneFeatures](JavaTwentyOneFeatures) — Sequenced collections and other additions
 - [ImmutableDataPatterns](ImmutableDataPatterns) — Immutable collection design
 - [JavaRecordsAndSealedClasses](JavaRecordsAndSealedClasses) — Records often flow through collections
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

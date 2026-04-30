@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KZHC6PVR4SBQM9R0F3T7K8Z4
-title: SoftwareEngineeringPractices Hub
+title: SoftwareEngineeringPracticesHub
 type: hub
 cluster: software-engineering-practices
 status: active
@@ -15,9 +15,9 @@ tags:
 - code-quality
 - engineering-discipline
 related:
-- DesignPatterns+Hub
-- Java+Hub
-- DevOpsAndSre+Hub
+- DesignPatternsHub
+- JavaHub
+- DevOpsAndSreHub
 ---
 # SoftwareEngineeringPractices Hub
 
@@ -48,6 +48,6 @@ This cluster covers practices that apply across languages, frameworks, and techn
 
 ## Adjacent clusters
 
-- [Design Patterns Hub](DesignPatterns+Hub) — Pattern language for common problems
-- [Java Hub](Java+Hub) — Language-specific applications of these practices
-- [DevOps and SRE Hub](DevOpsAndSre+Hub) — Practices for the operational side of software
+- [Design Patterns Hub](DesignPatternsHub) — Pattern language for common problems
+- [Java Hub](JavaHub) — Language-specific applications of these practices
+- [DevOps and SRE Hub](DevOpsAndSreHub) — Practices for the operational side of software

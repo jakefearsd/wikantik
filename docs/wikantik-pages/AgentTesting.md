@@ -22,7 +22,7 @@ related:
 - AiEvaluationAndBenchmarks
 - RetrievalExperimentHarness
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Agent Testing
 

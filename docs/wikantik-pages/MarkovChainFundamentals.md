@@ -17,7 +17,7 @@ related:
 - BayesianReasoning
 - LinearAlgebra
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Markov Chain Fundamentals
 

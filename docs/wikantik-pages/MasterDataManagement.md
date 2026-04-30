@@ -18,7 +18,7 @@ related:
 - DataCatalogTools
 - DataPipelineDesign
 hubs:
-- DataEngineering Hub
+- DataEngineeringHub
 ---
 # Master Data Management
 
@@ -167,4 +167,4 @@ Every master entity has a steward — a person responsible for resolving conflic
 - [DataModelingFundamentals](DataModelingFundamentals) — Modeling context
 - [DataCatalogTools](DataCatalogTools) — Adjacent governance
 - [DataPipelineDesign](DataPipelineDesign) — How master data flows
-- [DataEngineering Hub](DataEngineering+Hub) — Cluster index
+- [DataEngineering Hub](DataEngineeringHub) — Cluster index

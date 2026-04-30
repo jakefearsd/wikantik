@@ -21,7 +21,7 @@ tags:
 - oil-prices
 - buy-the-invasion
 hubs:
-- ConflictMarketPatterns Hub
+- ConflictMarketPatternsHub
 ---
 # The Gulf War and Equity Markets (1990–1991)
 

@@ -21,7 +21,7 @@ related:
 - HomeBuyingProcess
 - FirstJobFinancialChecklist
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Credit Score Optimization
 
@@ -210,4 +210,4 @@ Recovery from poor credit takes time but follows the same fundamentals. The goal
 - [IdentityTheftProtection](IdentityTheftProtection) — Catching credit-report problems before they cost you
 - [HomeBuyingProcess](HomeBuyingProcess) — When credit work matters most
 - [FirstJobFinancialChecklist](FirstJobFinancialChecklist) — Building credit from the start
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

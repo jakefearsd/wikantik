@@ -21,7 +21,7 @@ related:
 - EuRetirementTaxComparison
 - GermanRetirementSystem
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # US Tax Treaties With European Countries
 
@@ -224,4 +224,4 @@ These reporting requirements exist independently of tax treaties. A US citizen a
 - [EuRetirementSavingsGuide](EuRetirementSavingsGuide) — European retirement systems for US citizens
 - [EuRetirementTaxComparison](EuRetirementTaxComparison) — Comparative tax landscape
 - [GermanRetirementSystem](GermanRetirementSystem) — Germany-specific deep dive
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

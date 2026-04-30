@@ -18,7 +18,7 @@ related:
 - WebComponents
 - ServerSideRendering
 hubs:
-- FrontendDevelopment Hub
+- FrontendDevelopmentHub
 ---
 # CSS Architecture Patterns
 
@@ -228,4 +228,4 @@ body {
 - [ResponsiveDesignPrinciples](ResponsiveDesignPrinciples) — Layout patterns
 - [WebComponents](WebComponents) — Style isolation via shadow DOM
 - [ServerSideRendering](ServerSideRendering) — CSS in SSR
-- [FrontendDevelopment Hub](FrontendDevelopment+Hub) — Cluster index
+- [FrontendDevelopment Hub](FrontendDevelopmentHub) — Cluster index

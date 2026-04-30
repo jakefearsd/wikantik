@@ -21,7 +21,7 @@ related:
 - CleanCodePrinciples
 - TechnicalLeadershipSkills
 hubs:
-- SoftwareEngineeringPractices Hub
+- SoftwareEngineeringPracticesHub
 ---
 # Legacy Code Modernization
 
@@ -190,4 +190,4 @@ The work is long; the steps are short.
 - [DebuggingStrategies](DebuggingStrategies) — Debugging legacy code
 - [CleanCodePrinciples](CleanCodePrinciples) — The destination
 - [TechnicalLeadershipSkills](TechnicalLeadershipSkills) — Leading a modernization project
-- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPractices+Hub) — Cluster index
+- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPracticesHub) — Cluster index

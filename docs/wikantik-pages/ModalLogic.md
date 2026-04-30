@@ -19,7 +19,7 @@ related:
 - TemporalLogic
 - SymbolicLogic
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Modal Logic
 
@@ -207,4 +207,4 @@ Knowing it exists and what it can express is valuable.
 - [PredicateLogic](PredicateLogic) — Quantified classical logic
 - [TemporalLogic](TemporalLogic) — Temporal modality
 - [SymbolicLogic](SymbolicLogic) — Broader formal logic
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

@@ -20,7 +20,7 @@ related:
 - LinearAlgebra
 - BayesianReasoning
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Number Theory
 

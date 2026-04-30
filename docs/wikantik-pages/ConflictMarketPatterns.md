@@ -24,7 +24,7 @@ tags:
 - sector-rotation
 - investment-lessons
 hubs:
-- ConflictMarketPatterns Hub
+- ConflictMarketPatternsHub
 ---
 # Patterns Across Conflicts: What Markets Teach Us About War
 

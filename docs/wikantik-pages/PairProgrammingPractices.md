@@ -20,7 +20,7 @@ related:
 - TechnicalLeadershipSkills
 - RemoteTeamManagement
 hubs:
-- SoftwareEngineeringPractices Hub
+- SoftwareEngineeringPracticesHub
 ---
 # Pair Programming Practices
 
@@ -159,4 +159,4 @@ Pairing constantly produces shallower thinking than solo work in some areas. Don
 - [DebuggingStrategies](DebuggingStrategies) — Pairing accelerates difficult debugging
 - [TechnicalLeadershipSkills](TechnicalLeadershipSkills) — Pairing as leadership practice
 - [RemoteTeamManagement](RemoteTeamManagement) — Remote pairing specifics
-- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPractices+Hub) — Cluster index
+- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPracticesHub) — Cluster index

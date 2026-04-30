@@ -19,7 +19,7 @@ related:
 - SkillIntegration
 - ToolOutputOptimization
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Custom Skills Architecture
 
@@ -217,4 +217,4 @@ Each conversation loads them fresh. Skill changes affect future conversations, n
 - [SkillDocumentation](SkillDocumentation) — Documenting skills
 - [SkillIntegration](SkillIntegration) — Skills in workflows
 - [ToolOutputOptimization](ToolOutputOptimization) — Adjacent agent concern
-- [AgenticAi Hub](AgenticAi+Hub) — Cluster index
+- [AgenticAi Hub](AgenticAiHub) — Cluster index

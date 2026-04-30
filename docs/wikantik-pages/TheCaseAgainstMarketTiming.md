@@ -21,7 +21,7 @@ related:
 - InvestmentPolicyStatement
 - RebalancingStrategies
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # The Case Against Market Timing
 
@@ -174,4 +174,4 @@ The case against market timing is not a recommendation to be cavalier. It is the
 - [BehavioralFinanceForInvestors](BehavioralFinanceForInvestors) — Why the bias is structural
 - [InvestmentPolicyStatement](InvestmentPolicyStatement) — The document that prevents timing decisions
 - [RebalancingStrategies](RebalancingStrategies) — The disciplined alternative to timing
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

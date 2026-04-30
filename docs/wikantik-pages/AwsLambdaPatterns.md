@@ -19,7 +19,7 @@ related:
 - CloudMonitoring
 - IdempotencyPatterns
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # AWS Lambda Patterns
 
@@ -200,4 +200,4 @@ For most teams, a deployment framework (SAM, Serverless Framework, CDK) over raw
 - [AwsFundamentals](AwsFundamentals) — Lambda's place in AWS
 - [CloudMonitoring](CloudMonitoring) — Observability
 - [IdempotencyPatterns](IdempotencyPatterns) — Critical for retry-safe handlers
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

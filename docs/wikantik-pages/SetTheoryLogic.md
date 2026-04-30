@@ -19,7 +19,7 @@ related:
 - InfinityMathematics
 - TopologyMathematics
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Set Theory and Logic
 
@@ -228,4 +228,4 @@ Even more abstract foundation. Math built from categories and functors.
 - [PredicateLogic](PredicateLogic) — First-order foundation
 - [InfinityMathematics](InfinityMathematics) — Cardinalities
 - [TopologyMathematics](TopologyMathematics) — Built on set theory
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

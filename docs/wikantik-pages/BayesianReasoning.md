@@ -21,7 +21,7 @@ related:
 - ClusteringAlgorithms
 - BayesianHyperparameterTuning
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Bayesian Reasoning
 

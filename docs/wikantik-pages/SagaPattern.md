@@ -19,7 +19,7 @@ related:
 - DomainAndIntegrationEvents
 - CqrsPattern
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Saga Pattern
 

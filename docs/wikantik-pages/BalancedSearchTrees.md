@@ -17,7 +17,7 @@ related:
 - HashTableDesign
 - HeapAndPriorityQueues
 hubs:
-- Data Structures Hub
+- DataStructuresHub
 ---
 # Balanced Search Trees
 
@@ -285,4 +285,4 @@ For learning:
 
 - [HashTableDesign](HashTableDesign) — Alternative for unordered data
 - [HeapAndPriorityQueues](HeapAndPriorityQueues) — Different tree structure
-- [Data Structures Hub](Data+Structures+Hub) — Cluster index
+- [Data Structures Hub](DataStructuresHub) — Cluster index

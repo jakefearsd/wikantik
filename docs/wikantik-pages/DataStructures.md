@@ -20,7 +20,7 @@ related:
 - GraphAlgorithmsDeepDive
 - DatabaseIndexingStrategies
 hubs:
-- DataStructures Hub
+- DataStructuresHub
 ---
 # Data Structures
 

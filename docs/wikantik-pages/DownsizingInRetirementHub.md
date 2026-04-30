@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQ0P44PZQTMDH4RXPEXJWQA6
-title: DownsizingInRetirement Hub
+title: DownsizingInRetirementHub
 type: hub
 cluster: retirement-planning
 status: active

@@ -18,7 +18,7 @@ related:
 - ModelSelectionEfficiency
 - TreeBasedModels
 hubs:
-- ML Hub
+- MLHub
 ---
 # Model Selection
 
@@ -242,4 +242,4 @@ Resist over-engineering. Most ML wins come from data and feature work, not model
 - [CrossValidationAndModelEvaluation](CrossValidationAndModelEvaluation) — Evaluation methods
 - [ModelSelectionEfficiency](ModelSelectionEfficiency) — Efficiency considerations
 - [TreeBasedModels](TreeBasedModels) — A common strong baseline
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

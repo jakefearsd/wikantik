@@ -18,7 +18,7 @@ related:
 - DataLakehouse
 - DistributedComputingAlgorithms
 hubs:
-- DataSystems Hub
+- DataSystemsHub
 ---
 # Apache Spark Fundamentals
 

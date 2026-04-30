@@ -18,7 +18,7 @@ related:
 - CiCdPipelines
 - MonorepoVsPolyrepo
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # Git Workflows
 
@@ -210,4 +210,4 @@ Default git becomes slow at scale; these features help.
 - [TrunkBasedDevelopment](TrunkBasedDevelopment) — Branching strategy
 - [CiCdPipelines](CiCdPipelines) — CI integration
 - [MonorepoVsPolyrepo](MonorepoVsPolyrepo) — Where git workflows differ
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

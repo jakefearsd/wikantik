@@ -22,7 +22,7 @@ related:
 - CreditScoreOptimization
 - MortgageStrategies
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Debt Payoff Strategies
 
@@ -194,4 +194,4 @@ Compared to making minimums: this household pays off the full $41,500 about 14 y
 - [BudgetingMethods](BudgetingMethods) — Finding the surplus to attack debt with
 - [CreditScoreOptimization](CreditScoreOptimization) — How payoff strategy affects your credit score
 - [MortgageStrategies](MortgageStrategies) — The largest, lowest-rate debt most households carry
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

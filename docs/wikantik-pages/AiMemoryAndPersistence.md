@@ -19,7 +19,7 @@ related:
 - VectorDatabases
 - RagImplementationPatterns
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # AI Memory and Persistence
 

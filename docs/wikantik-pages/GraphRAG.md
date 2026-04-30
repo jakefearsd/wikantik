@@ -18,7 +18,7 @@ related:
 - AgentPromptEngineering
 - TransformerArchitecture
 hubs:
-- Generative AI Hub
+- GenerativeAIHub
 ---
 # Graph RAG
 
@@ -306,4 +306,4 @@ It's promising for complex domains; not always needed.
 
 - [AgentPromptEngineering](AgentPromptEngineering) — Agent patterns
 - [TransformerArchitecture](TransformerArchitecture) — LLM foundation
-- [Generative AI Hub](Generative+AI+Hub) — Cluster index
+- [Generative AI Hub](GenerativeAIHub) — Cluster index

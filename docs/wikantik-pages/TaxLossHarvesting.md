@@ -21,7 +21,7 @@ related:
 - RoboAdvisorComparison
 - RebalancingStrategies
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # Tax Loss Harvesting
 
@@ -171,4 +171,4 @@ A practical approach for self-managed taxable accounts:
 - [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction) — Building portfolios with TLH-friendly structures
 - [RoboAdvisorComparison](RoboAdvisorComparison) — Automated TLH
 - [RebalancingStrategies](RebalancingStrategies) — TLH in coordination with rebalancing
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

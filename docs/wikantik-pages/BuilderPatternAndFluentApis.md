@@ -18,7 +18,7 @@ related:
 - JavaRecordsAndSealedClasses
 - CleanCodePrinciples
 hubs:
-- DesignPatterns Hub
+- DesignPatternsHub
 ---
 # Builder Pattern and Fluent APIs
 
@@ -129,4 +129,4 @@ Works for 2-3 parameters; doesn't scale.
 - [ImmutableDataPatterns](ImmutableDataPatterns) — Builder for immutable construction
 - [JavaRecordsAndSealedClasses](JavaRecordsAndSealedClasses) — Records reduce builder need
 - [CleanCodePrinciples](CleanCodePrinciples) — Clarity at construction sites
-- [DesignPatterns Hub](DesignPatterns+Hub) — Cluster index
+- [DesignPatterns Hub](DesignPatternsHub) — Cluster index

@@ -18,7 +18,7 @@ related:
 - DatabaseIndexingStrategies
 - NoSqlDatabaseTypes
 hubs:
-- Databases Hub
+- DatabasesHub
 ---
 # JSONB in PostgreSQL
 

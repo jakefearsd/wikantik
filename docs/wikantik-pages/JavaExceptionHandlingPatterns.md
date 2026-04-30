@@ -19,7 +19,7 @@ related:
 - DebuggingStrategies
 - CleanCodePrinciples
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Java Exception Handling Patterns
 
@@ -227,4 +227,4 @@ Anti-patterns:
 - [JavaRecordsAndSealedClasses](JavaRecordsAndSealedClasses) — Result types with records
 - [DebuggingStrategies](DebuggingStrategies) — Exception traces in debugging
 - [CleanCodePrinciples](CleanCodePrinciples) — Errors as part of the contract
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

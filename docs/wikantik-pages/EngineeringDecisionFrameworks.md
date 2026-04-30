@@ -19,7 +19,7 @@ related:
 - TechnicalWritingGuide
 - TechnologyRadarProcess
 hubs:
-- EngineeringLeadership Hub
+- EngineeringLeadershipHub
 ---
 # Engineering Decision Frameworks
 
@@ -176,4 +176,4 @@ The decision is made; communicate; move on. Reopening every decision because som
 - [TechnicalProjectManagement](TechnicalProjectManagement) — Where decisions fit in projects
 - [TechnicalWritingGuide](TechnicalWritingGuide) — Writing decisions clearly
 - [TechnologyRadarProcess](TechnologyRadarProcess) — Tech-decision-specific framework
-- [EngineeringLeadership Hub](EngineeringLeadership+Hub) — Cluster index
+- [EngineeringLeadership Hub](EngineeringLeadershipHub) — Cluster index

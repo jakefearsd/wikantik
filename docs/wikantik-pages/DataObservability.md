@@ -19,7 +19,7 @@ related:
 - DistributedTracing
 - DataLakehouse
 hubs:
-- DataSystems Hub
+- DataSystemsHub
 ---
 # Data Observability
 

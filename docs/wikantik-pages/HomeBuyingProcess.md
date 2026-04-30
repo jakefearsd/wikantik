@@ -21,7 +21,7 @@ related:
 - EmergencyFundStrategies
 - RealEstateInvestingBasics
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Home Buying Process
 
@@ -227,4 +227,4 @@ Plan for ongoing costs:
 - [CreditScoreOptimization](CreditScoreOptimization) — Pre-purchase credit prep
 - [EmergencyFundStrategies](EmergencyFundStrategies) — Reserves before and after closing
 - [RealEstateInvestingBasics](RealEstateInvestingBasics) — Adjacent topic for non-primary properties
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

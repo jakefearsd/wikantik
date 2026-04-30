@@ -17,7 +17,7 @@ related:
 - MemoryArchitectures
 - JavaMemoryManagement
 hubs:
-- Computer Science Foundations Hub
+- ComputerScienceFoundationsHub
 ---
 # Memory Management Fundamentals
 
@@ -388,4 +388,4 @@ For learning: implement an allocator once. Builds intuition.
 
 - [MemoryArchitectures](MemoryArchitectures) — Hardware
 - [JavaMemoryManagement](JavaMemoryManagement) — Specific runtime
-- [Computer Science Foundations Hub](Computer+Science+Foundations+Hub) — Cluster index
+- [Computer Science Foundations Hub](ComputerScienceFoundationsHub) — Cluster index

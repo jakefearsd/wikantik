@@ -19,7 +19,7 @@ related:
 - JavaTwentyOneFeatures
 - SpringBootFundamentals
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Java Reflection and Proxies
 
@@ -129,4 +129,4 @@ For cold paths (configuration, startup, occasional invocation): the performance 
 - [JavaAnnotationProcessing](JavaAnnotationProcessing) — Compile-time alternative to reflection
 - [JavaTwentyOneFeatures](JavaTwentyOneFeatures) — Modern features that reduce reflection need
 - [SpringBootFundamentals](SpringBootFundamentals) — A heavy reflection user
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

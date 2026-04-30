@@ -18,7 +18,7 @@ related:
 - SetTheoryLogic
 - SymbolicLogic
 hubs:
-- Mathematics Hub
+- MathematicsHub
 ---
 # Predicate Logic
 
@@ -223,4 +223,4 @@ Express specifications as predicate-logic formulas; verify implementations satis
 - [ModalLogic](ModalLogic) — Adding modality
 - [SetTheoryLogic](SetTheoryLogic) — Where first-order grounds
 - [SymbolicLogic](SymbolicLogic) — Broader framework
-- [Mathematics Hub](Mathematics+Hub) — Cluster index
+- [Mathematics Hub](MathematicsHub) — Cluster index

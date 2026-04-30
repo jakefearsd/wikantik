@@ -18,7 +18,7 @@ related:
 - SpecificationPattern
 - CleanCodePrinciples
 hubs:
-- DesignPatterns Hub
+- DesignPatternsHub
 ---
 # State Machine Pattern
 
@@ -177,4 +177,4 @@ For sealed-type states, persistence is more complex (which type? which fields?).
 - [JavaRecordsAndSealedClasses](JavaRecordsAndSealedClasses) — Sealed types for state representation
 - [SpecificationPattern](SpecificationPattern) — Guards as specifications
 - [CleanCodePrinciples](CleanCodePrinciples) — Why explicit state beats implicit
-- [DesignPatterns Hub](DesignPatterns+Hub) — Cluster index
+- [DesignPatterns Hub](DesignPatternsHub) — Cluster index

@@ -17,7 +17,7 @@ related:
 - EventualConsistency
 - CrdtDataStructures
 hubs:
-- Distributed Systems Hub
+- DistributedSystemsHub
 ---
 # Byzantine Fault Tolerance
 
@@ -271,4 +271,4 @@ When you genuinely need BFT, use a proven protocol; don't roll your own.
 
 - [EventualConsistency](EventualConsistency) — Different consistency model
 - [CrdtDataStructures](CrdtDataStructures) — Coordination-free
-- [Distributed Systems Hub](Distributed+Systems+Hub) — Cluster index
+- [Distributed Systems Hub](DistributedSystemsHub) — Cluster index

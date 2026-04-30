@@ -17,10 +17,10 @@ related:
 - DefenseSectorInvesting
 - GeopoliticalRiskAndInvesting
 - WarBondsAndGovernmentDebt
-- ConflictMarketPatterns+Hub
+- ConflictMarketPatternsHub
 - ConflictsAndEquityMarkets
 hubs:
-- ConflictMarketPatterns Hub
+- ConflictMarketPatternsHub
 ---
 # Post-Conflict Reconstruction Investing
 
@@ -257,5 +257,5 @@ For most: pass entirely. The thesis is real but the execution is hard for retail
 - [DefenseSectorInvesting](DefenseSectorInvesting) — Adjacent conflict-investing
 - [GeopoliticalRiskAndInvesting](GeopoliticalRiskAndInvesting) — Broader risk
 - [WarBondsAndGovernmentDebt](WarBondsAndGovernmentDebt) — Bond approach
-- [ConflictMarketPatterns Hub](ConflictMarketPatterns+Hub) — Cluster index
+- [ConflictMarketPatterns Hub](ConflictMarketPatternsHub) — Cluster index
 - [ConflictsAndEquityMarkets](ConflictsAndEquityMarkets) — Broader patterns

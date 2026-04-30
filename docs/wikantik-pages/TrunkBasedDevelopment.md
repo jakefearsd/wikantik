@@ -20,7 +20,7 @@ related:
 - FeatureToggleManagement
 - MonorepoVsPolyrepo
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # Trunk-Based Development
 
@@ -156,4 +156,4 @@ The cultural shift takes longer than the technical shift.
 - [CiCdPipelines](CiCdPipelines) — Required for trunk-based
 - [FeatureToggleManagement](FeatureToggleManagement) — Required for in-progress work
 - [MonorepoVsPolyrepo](MonorepoVsPolyrepo) — Affects branching strategy
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

@@ -20,7 +20,7 @@ related:
 - GraphRAG
 - RagImplementationPatterns
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Knowledge Graph Completion
 

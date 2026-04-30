@@ -21,7 +21,7 @@ related:
 - DebuggingStrategies
 - JavaCollectionsFramework
 hubs:
-- SoftwareEngineeringPractices Hub
+- SoftwareEngineeringPracticesHub
 ---
 # Refactoring Strategies
 
@@ -143,4 +143,4 @@ A switch statement that varies behavior by type can sometimes be cleaner as poly
 - [TechnicalDebtManagement](TechnicalDebtManagement) — When refactoring is debt repayment
 - [DebuggingStrategies](DebuggingStrategies) — Refactoring for debuggability
 - [JavaCollectionsFramework](JavaCollectionsFramework) — Specific Java refactoring opportunities
-- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPractices+Hub) — Cluster index
+- [SoftwareEngineeringPractices Hub](SoftwareEngineeringPracticesHub) — Cluster index

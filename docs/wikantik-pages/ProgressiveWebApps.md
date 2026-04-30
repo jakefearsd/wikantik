@@ -19,7 +19,7 @@ related:
 - WebComponents
 - FormHandlingAndValidation
 hubs:
-- FrontendDevelopment Hub
+- FrontendDevelopmentHub
 ---
 # Progressive Web Apps
 
@@ -219,4 +219,4 @@ Browser tool; audits PWA conformance. Useful for checking compliance.
 - [ServerSideRendering](ServerSideRendering) — Adjacent rendering pattern
 - [WebComponents](WebComponents) — Component model
 - [FormHandlingAndValidation](FormHandlingAndValidation) — UI input
-- [FrontendDevelopment Hub](FrontendDevelopment+Hub) — Cluster index
+- [FrontendDevelopment Hub](FrontendDevelopmentHub) — Cluster index

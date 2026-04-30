@@ -20,7 +20,7 @@ related:
 - LoadBalancingStrategies
 - DebuggingStrategies
 hubs:
-- Networking Hub
+- NetworkingHub
 ---
 # Network Troubleshooting
 
@@ -235,4 +235,4 @@ Fragmented packets through tunnels. Ping with `-M do -s 1472` to test path MTU.
 - [DnsDeepDive](DnsDeepDive) — DNS-specific
 - [LoadBalancingStrategies](LoadBalancingStrategies) — LB-related issues
 - [DebuggingStrategies](DebuggingStrategies) — Broader debugging discipline
-- [Networking Hub](Networking+Hub) — Cluster index
+- [Networking Hub](NetworkingHub) — Cluster index

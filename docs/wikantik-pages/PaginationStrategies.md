@@ -19,7 +19,7 @@ related:
 - BatchApiDesign
 - GraphQlFundamentals
 hubs:
-- WebServicesAndApis Hub
+- WebServicesAndApisHub
 ---
 # Pagination Strategies
 
@@ -219,4 +219,4 @@ For legacy / migration:
 - [ApiProtocolComparison](ApiProtocolComparison) — Pagination across protocols
 - [BatchApiDesign](BatchApiDesign) — Bulk-write analog
 - [GraphQlFundamentals](GraphQlFundamentals) — Pagination in GraphQL
-- [WebServicesAndApis Hub](WebServicesAndApis+Hub) — Cluster index
+- [WebServicesAndApis Hub](WebServicesAndApisHub) — Cluster index

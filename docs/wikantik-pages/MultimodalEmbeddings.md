@@ -20,7 +20,7 @@ related:
 - MultiModalAiApplications
 - HybridRetrieval
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Multimodal Embeddings
 

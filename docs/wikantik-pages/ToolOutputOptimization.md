@@ -19,7 +19,7 @@ related:
 - SkillPerformance
 - CustomSkillsArchitecture
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Tool Output Optimization
 
@@ -274,4 +274,4 @@ For new tools:
 - [TokenMetrics](TokenMetrics) — Measuring efficiency
 - [SkillPerformance](SkillPerformance) — Adjacent concern
 - [CustomSkillsArchitecture](CustomSkillsArchitecture) — How tools compose with skills
-- [AgenticAi Hub](AgenticAi+Hub) — Cluster index
+- [AgenticAi Hub](AgenticAiHub) — Cluster index

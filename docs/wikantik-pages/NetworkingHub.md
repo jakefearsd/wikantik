@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KZHC6PVY4SBQM9R0F3T7K8ZB
-title: Networking Hub
+title: NetworkingHub
 type: hub
 cluster: networking
 status: active
@@ -15,9 +15,9 @@ tags:
 - tcp-ip
 - http
 related:
-- WebServicesAndApis+Hub
-- CloudPlatforms+Hub
-- DevOpsAndSre+Hub
+- WebServicesAndApisHub
+- CloudPlatformsHub
+- DevOpsAndSreHub
 ---
 # Networking Hub
 
@@ -41,6 +41,6 @@ This cluster covers the networking layer of distributed systems — protocols, r
 
 ## Adjacent clusters
 
-- [Web Services and APIs Hub](WebServicesAndApis+Hub) — Application protocols above networking
-- [Cloud Platforms Hub](CloudPlatforms+Hub) — Cloud networking specifics (VPC, security groups)
-- [DevOps and SRE Hub](DevOpsAndSre+Hub) — Operations and on-call concerns
+- [Web Services and APIs Hub](WebServicesAndApisHub) — Application protocols above networking
+- [Cloud Platforms Hub](CloudPlatformsHub) — Cloud networking specifics (VPC, security groups)
+- [DevOps and SRE Hub](DevOpsAndSreHub) — Operations and on-call concerns

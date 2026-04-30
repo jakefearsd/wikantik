@@ -16,12 +16,12 @@ tags:
 - logs
 - traces
 related:
-- DevOpsAndSre+Hub
+- DevOpsAndSreHub
 - AwsFundamentals
 - AwsLambdaPatterns
 - StatusPageBestPractices
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # Cloud Monitoring
 
@@ -185,8 +185,8 @@ Skip the rest until needed.
 
 ## Further Reading
 
-- [DevOps and SRE Hub](DevOpsAndSre+Hub) — Operating cloud workloads
+- [DevOps and SRE Hub](DevOpsAndSreHub) — Operating cloud workloads
 - [AwsFundamentals](AwsFundamentals) — AWS context
 - [AwsLambdaPatterns](AwsLambdaPatterns) — Lambda-specific monitoring
 - [StatusPageBestPractices](StatusPageBestPractices) — User-facing status
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

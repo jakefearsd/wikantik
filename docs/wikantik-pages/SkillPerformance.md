@@ -20,7 +20,7 @@ related:
 - TokenMetrics
 - ToolOutputOptimization
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Skill Performance
 
@@ -205,4 +205,4 @@ For skill design:
 - [SkillIntegration](SkillIntegration) — Where skills compose
 - [TokenMetrics](TokenMetrics) — Adjacent measurement
 - [ToolOutputOptimization](ToolOutputOptimization) — Tool-output side
-- [AgenticAi Hub](AgenticAi+Hub) — Cluster index
+- [AgenticAi Hub](AgenticAiHub) — Cluster index

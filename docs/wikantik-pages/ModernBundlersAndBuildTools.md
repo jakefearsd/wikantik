@@ -18,7 +18,7 @@ related:
 - WebComponents
 - ServerSideRendering
 hubs:
-- FrontendDevelopment Hub
+- FrontendDevelopmentHub
 ---
 # Modern Bundlers and Build Tools
 
@@ -190,4 +190,4 @@ For very large monorepos, Turborepo or Nx provides cross-project build caching.
 - [TypeScriptFundamentals](TypeScriptFundamentals) — TS in build pipelines
 - [WebComponents](WebComponents) — Component output formats
 - [ServerSideRendering](ServerSideRendering) — Build for SSR vs CSR
-- [FrontendDevelopment Hub](FrontendDevelopment+Hub) — Cluster index
+- [FrontendDevelopment Hub](FrontendDevelopmentHub) — Cluster index

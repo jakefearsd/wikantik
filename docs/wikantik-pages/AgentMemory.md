@@ -15,7 +15,7 @@ tags:
 - vector-memory
 - state-management
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 title: Agent Memory
 date: '2026-04-24'
 cluster: agentic-ai

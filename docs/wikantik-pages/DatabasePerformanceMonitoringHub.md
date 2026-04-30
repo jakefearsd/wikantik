@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQ0P44PEJG4KBKH84YFQP91Z
-title: DatabasePerformanceMonitoring Hub
+title: DatabasePerformanceMonitoringHub
 type: hub
 cluster: databases
 status: active

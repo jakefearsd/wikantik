@@ -18,7 +18,7 @@ tags:
 - fine-tuning
 - rlhf
 hubs:
-- MlModelDeployment Hub
+- MlModelDeploymentHub
 ---
 # AI Model Training
 

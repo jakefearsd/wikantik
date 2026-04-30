@@ -18,7 +18,7 @@ related:
 - AgentTesting
 - AiHallucinationMitigation
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # AI Evaluation and Benchmarks
 

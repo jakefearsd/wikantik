@@ -18,7 +18,7 @@ related:
 - SkillComposition
 - SkillDocumentation
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # Skill Debugging
 
@@ -219,4 +219,4 @@ Most issues fall into one of these.
 - [CustomSkillsArchitecture](CustomSkillsArchitecture) — Skill basics
 - [SkillComposition](SkillComposition) — Where issues compound
 - [SkillDocumentation](SkillDocumentation) — Adjacent practice
-- [AgenticAi Hub](AgenticAi+Hub) — Cluster index
+- [AgenticAi Hub](AgenticAiHub) — Cluster index

@@ -19,7 +19,7 @@ tags:
 - passive-investing
 - beginners
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 
 # Introduction to Index Funds and ETFs

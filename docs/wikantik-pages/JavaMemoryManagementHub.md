@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQ0P44RANZ15BBDJFRH6BDPS
-title: JavaMemoryManagement Hub
+title: JavaMemoryManagementHub
 type: hub
 cluster: java
 status: active
@@ -14,7 +14,7 @@ tags:
 - garbage-collection
 - hub
 related:
-- Java+Hub
+- JavaHub
 - JavaCollectionsFramework
 - JavaTwentyOneFeatures
 ---
@@ -35,6 +35,6 @@ The honest framing: most Java applications do not need GC tuning. The default co
 
 ## Adjacent
 
-- [Java Hub](Java+Hub) — Parent cluster
+- [Java Hub](JavaHub) — Parent cluster
 - [JavaCollectionsFramework](JavaCollectionsFramework) — Memory characteristics of common collections
 - [JavaTwentyOneFeatures](JavaTwentyOneFeatures) — Generational ZGC and other memory-related additions

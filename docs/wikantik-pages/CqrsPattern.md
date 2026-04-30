@@ -19,7 +19,7 @@ related:
 - DatabaseDesign
 - DomainAndIntegrationEvents
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # CQRS Pattern
 

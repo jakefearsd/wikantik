@@ -18,7 +18,7 @@ related:
 - DatabaseIndexingStrategies
 - PostgresqlAdvancedFeatures
 hubs:
-- Databases Hub
+- DatabasesHub
 ---
 # Database Partitioning
 

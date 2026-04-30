@@ -16,11 +16,11 @@ tags:
 - performance
 related:
 - TcpIpFundamentals
-- WebServicesAndApis+Hub
+- WebServicesAndApisHub
 - CdnArchitecture
 - LoadBalancingStrategies
 hubs:
-- Networking Hub
+- NetworkingHub
 ---
 # HTTP/2 and HTTP/3
 
@@ -170,7 +170,7 @@ For external-facing traffic, HTTP/2 is the default; HTTP/3 is increasing adoptio
 ## Further Reading
 
 - [TcpIpFundamentals](TcpIpFundamentals) — Below HTTP
-- [Web Services and APIs Hub](WebServicesAndApis+Hub) — Application protocols
+- [Web Services and APIs Hub](WebServicesAndApisHub) — Application protocols
 - [CdnArchitecture](CdnArchitecture) — CDNs handle HTTP/2 and HTTP/3
 - [LoadBalancingStrategies](LoadBalancingStrategies) — Load balancers and HTTP/2
-- [Networking Hub](Networking+Hub) — Cluster index
+- [Networking Hub](NetworkingHub) — Cluster index

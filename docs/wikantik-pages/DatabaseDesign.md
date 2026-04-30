@@ -20,7 +20,7 @@ related:
 - DatabaseMigrationStrategies
 - DimensionalModeling
 hubs:
-- Databases Hub
+- DatabasesHub
 ---
 # Database Design
 

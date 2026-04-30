@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KZHC6PVX4SBQM9R0F3T7K8ZA
-title: DataEngineering Hub
+title: DataEngineeringHub
 type: hub
 cluster: data-engineering
 status: active
@@ -14,8 +14,8 @@ tags:
 - hub
 - analytics
 related:
-- CloudPlatforms+Hub
-- DevOpsAndSre+Hub
+- CloudPlatformsHub
+- DevOpsAndSreHub
 ---
 # DataEngineering Hub
 
@@ -39,5 +39,5 @@ This cluster covers the engineering side of data — pipelines, modeling, transf
 
 ## Adjacent clusters
 
-- [Cloud Platforms Hub](CloudPlatforms+Hub) — Where pipelines and warehouses run
-- [DevOps and SRE Hub](DevOpsAndSre+Hub) — Operating data pipelines
+- [Cloud Platforms Hub](CloudPlatformsHub) — Where pipelines and warehouses run
+- [DevOps and SRE Hub](DevOpsAndSreHub) — Operating data pipelines

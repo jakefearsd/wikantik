@@ -17,7 +17,7 @@ related:
 - BalancedSearchTrees
 - HashTableDesign
 hubs:
-- Data Structures Hub
+- DataStructuresHub
 ---
 # Heaps and Priority Queues
 
@@ -273,4 +273,4 @@ If you need:
 
 - [BalancedSearchTrees](BalancedSearchTrees) — Different access pattern
 - [HashTableDesign](HashTableDesign) — Different access pattern
-- [Data Structures Hub](Data+Structures+Hub) — Cluster index
+- [Data Structures Hub](DataStructuresHub) — Cluster index

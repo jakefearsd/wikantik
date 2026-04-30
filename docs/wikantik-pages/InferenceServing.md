@@ -19,7 +19,7 @@ related:
 - CPUInference
 - MlModelDeployment
 hubs:
-- ML Hub
+- MLHub
 ---
 # Inference Serving
 
@@ -303,4 +303,4 @@ For small teams, hosted is often the right call until cost becomes prohibitive.
 - [CostEffectiveInference](CostEffectiveInference) — Cost optimization
 - [CPUInference](CPUInference) — CPU-based serving
 - [MlModelDeployment](MlModelDeployment) — Deployment processes
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

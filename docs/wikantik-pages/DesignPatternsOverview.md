@@ -22,7 +22,7 @@ related:
 - HexagonalArchitecture
 - CqrsPattern
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Design Patterns Overview
 

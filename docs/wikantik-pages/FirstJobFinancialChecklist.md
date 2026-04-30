@@ -23,7 +23,7 @@ related:
 - SalaryNegotiationStrategies
 - AccountTypeStrategy
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # First Job Financial Checklist
 
@@ -184,4 +184,4 @@ Total invested: $13,780 plus market growth. At 7% real returns over 40 years, th
 - [LowCostIndexFundInvesting](LowCostIndexFundInvesting) — The investment philosophy for the Roth IRA
 - [AccountTypeStrategy](AccountTypeStrategy) — Roth vs. traditional sequencing
 - [InvestingInYourTwenties](InvestingInYourTwenties) — Long-form on the decade-1 case
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

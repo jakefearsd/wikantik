@@ -23,7 +23,7 @@ related:
 - RetirementPlanningGuide
 - LowCostIndexFundInvesting
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # Personal Finance Guide
 
@@ -142,5 +142,5 @@ This cluster covers personal finance. The retirement-planning and index-fund-inv
 - [LowCostIndexFundInvesting](LowCostIndexFundInvesting) — Section 7
 - [TaxPlanningFundamentals](TaxPlanningFundamentals) — Section 8
 - [WillsAndTrusts](WillsAndTrusts) — Section 9
-- [PersonalFinance Hub](PersonalFinance+Hub) — Index of every page in this cluster
+- [PersonalFinance Hub](PersonalFinanceHub) — Index of every page in this cluster
 - [Retirement Planning Guide](RetirementPlanningGuide) — Adjacent cluster, picks up after step 7

@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQ0P44PP4126N42S5H9SHNDP
-title: DimensionalModeling Hub
+title: DimensionalModelingHub
 type: hub
 cluster: data-engineering
 status: active
@@ -34,6 +34,6 @@ Dimensional modeling — fact and dimension tables, star and snowflake schemas �
 ## Adjacent
 
 - [Data Modeling Fundamentals](DataModelingFundamentals) — Dimensional vs. transactional modeling
-- [Data Engineering Hub](DataEngineering+Hub) — Where dimensional modeling fits
+- [Data Engineering Hub](DataEngineeringHub) — Where dimensional modeling fits
 - [DbtAndAnalyticsEngineering](DbtAndAnalyticsEngineering) — Tool for implementing dimensional models
 - [EtlVsElt](EtlVsElt) — Where transformations land

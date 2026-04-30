@@ -18,7 +18,7 @@ related:
 - CdnArchitecture
 - NetworkTroubleshooting
 hubs:
-- Networking Hub
+- NetworkingHub
 ---
 # DNS Deep Dive
 
@@ -175,4 +175,4 @@ For services hosted at apex pointing to cloud-managed endpoints, this can be awk
 - [LoadBalancingStrategies](LoadBalancingStrategies) — DNS as a load balancing layer
 - [CdnArchitecture](CdnArchitecture) — DNS-based traffic routing
 - [NetworkTroubleshooting](NetworkTroubleshooting) — `dig`, `nslookup`, etc.
-- [Networking Hub](Networking+Hub) — Cluster index
+- [Networking Hub](NetworkingHub) — Cluster index

@@ -20,7 +20,7 @@ related:
 - ServletArchitectureDeepDive
 - JavaCollectionsFramework
 hubs:
-- Java Hub
+- JavaHub
 ---
 # Spring Boot Fundamentals
 
@@ -255,4 +255,4 @@ The fundamentals above cover ~80% of typical Spring Boot usage. Beyond that:
 - [JpaAndHibernatePatterns](JpaAndHibernatePatterns) — Data layer underlying Spring Data JPA
 - [ServletArchitectureDeepDive](ServletArchitectureDeepDive) — What Spring MVC sits on
 - [JavaCollectionsFramework](JavaCollectionsFramework) — Common return types from Spring data
-- [Java Hub](Java+Hub) — Cluster index
+- [Java Hub](JavaHub) — Cluster index

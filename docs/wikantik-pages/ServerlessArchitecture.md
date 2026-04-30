@@ -19,7 +19,7 @@ related:
 - CloudNativeApplicationDesign
 - CloudMonitoring
 hubs:
-- CloudPlatforms Hub
+- CloudPlatformsHub
 ---
 # Serverless Architecture
 
@@ -163,4 +163,4 @@ For p99-sensitive paths, provisioned concurrency. For everything else, on-demand
 - [AwsFundamentals](AwsFundamentals) — Service context
 - [CloudNativeApplicationDesign](CloudNativeApplicationDesign) — Broader pattern
 - [CloudMonitoring](CloudMonitoring) — Observability for serverless
-- [CloudPlatforms Hub](CloudPlatforms+Hub) — Cluster index
+- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index

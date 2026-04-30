@@ -18,7 +18,7 @@ related:
 - WikantikKnowledgeGraphAdmin
 - StructuralSpineDesign
 hubs:
-- Wikantik Development Hub
+- WikantikDevelopmentHub
 runbook:
   when_to_use: When deciding whether a cluster of pages should contribute to
     the knowledge graph; when triaging "this content showed up in retrieval
@@ -194,4 +194,4 @@ the override.
 - [WikantikKnowledgeGraphAdmin](WikantikKnowledgeGraphAdmin) — the broader
   KG administration guide
 - [StructuralSpineDesign](StructuralSpineDesign) — how clusters are tracked
-- [Wikantik Development Hub](Wikantik+Development+Hub) — cluster index
+- [Wikantik Development Hub](WikantikDevelopmentHub) — cluster index

@@ -19,7 +19,7 @@ related:
 - DevOpsFundamentals
 - BurnoutPreventionInTech
 hubs:
-- DevOpsAndSre Hub
+- DevOpsAndSreHub
 ---
 # Toil Reduction Strategies
 
@@ -216,4 +216,4 @@ This is ongoing work, not a project. Toil constantly emerges; reduction must be 
 - [OnCallPractices](OnCallPractices) — Where toil shows up
 - [DevOpsFundamentals](DevOpsFundamentals) — Broader practice
 - [BurnoutPreventionInTech](BurnoutPreventionInTech) — Why toil matters for people
-- [DevOpsAndSre Hub](DevOpsAndSre+Hub) — Cluster index
+- [DevOpsAndSre Hub](DevOpsAndSreHub) — Cluster index

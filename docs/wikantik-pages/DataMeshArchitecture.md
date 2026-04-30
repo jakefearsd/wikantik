@@ -19,7 +19,7 @@ related:
 - DataObservability
 - DataGovernance
 hubs:
-- DataSystems Hub
+- DataSystemsHub
 ---
 # Data Mesh Architecture
 

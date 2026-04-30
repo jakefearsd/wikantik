@@ -19,7 +19,7 @@ related:
 - InferenceServing
 - ModelSelectionEfficiency
 hubs:
-- ML Hub
+- MLHub
 ---
 # CPU Inference
 
@@ -215,4 +215,4 @@ For ~1 QPS embedding workload, CPU likely wins decisively.
 - [CostEffectiveInference](CostEffectiveInference) — Cost optimization
 - [InferenceServing](InferenceServing) — Serving infrastructure
 - [ModelSelectionEfficiency](ModelSelectionEfficiency) — Model size tradeoffs
-- [ML Hub](ML+Hub) — Cluster index
+- [ML Hub](MLHub) — Cluster index

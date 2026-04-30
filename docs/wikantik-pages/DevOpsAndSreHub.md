@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KZHC6PVV4SBQM9R0F3T7K8Z8
-title: DevOpsAndSre Hub
+title: DevOpsAndSreHub
 type: hub
 cluster: devops-sre
 status: active
@@ -15,9 +15,9 @@ tags:
 - hub
 - operations
 related:
-- CloudPlatforms+Hub
-- SoftwareEngineeringPractices+Hub
-- WebServicesAndApis+Hub
+- CloudPlatformsHub
+- SoftwareEngineeringPracticesHub
+- WebServicesAndApisHub
 ---
 # DevOpsAndSre Hub
 
@@ -48,6 +48,6 @@ This cluster covers the operational discipline of running software in production
 
 ## Adjacent clusters
 
-- [Cloud Platforms Hub](CloudPlatforms+Hub) — Where DevOps practices land in cloud
-- [Software Engineering Practices Hub](SoftwareEngineeringPractices+Hub) — Code-side disciplines
-- [Web Services and APIs Hub](WebServicesAndApis+Hub) — Service-level concerns
+- [Cloud Platforms Hub](CloudPlatformsHub) — Where DevOps practices land in cloud
+- [Software Engineering Practices Hub](SoftwareEngineeringPracticesHub) — Code-side disciplines
+- [Web Services and APIs Hub](WebServicesAndApisHub) — Service-level concerns

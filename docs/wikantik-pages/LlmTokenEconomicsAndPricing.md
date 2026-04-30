@@ -21,7 +21,7 @@ related:
 - ModelQuantization
 - CostEffectiveInference
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # LLM Token Economics and Pricing
 

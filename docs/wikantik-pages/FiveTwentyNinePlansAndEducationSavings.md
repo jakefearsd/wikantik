@@ -20,7 +20,7 @@ related:
 - AccountTypeStrategy
 - HealthSavingsAccounts
 hubs:
-- PersonalFinance Hub
+- PersonalFinanceHub
 ---
 # 529 Plans and Education Savings
 
@@ -218,4 +218,4 @@ The flexibility added by SECURE 2.0 (Roth IRA rollover) plus the existing abilit
 - [TaxPlanningFundamentals](TaxPlanningFundamentals) — The tax mechanics and 529 deduction
 - [AccountTypeStrategy](AccountTypeStrategy) — Where 529 fits relative to retirement accounts
 - [HealthSavingsAccounts](HealthSavingsAccounts) — Adjacent triple-tax-advantaged account
-- [PersonalFinance Hub](PersonalFinance+Hub) — Cluster index
+- [PersonalFinance Hub](PersonalFinanceHub) — Cluster index

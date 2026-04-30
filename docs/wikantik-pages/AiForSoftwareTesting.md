@@ -18,7 +18,7 @@ related:
 - AgentTesting
 - TestDrivenDevelopment
 hubs:
-- AgenticAi Hub
+- AgenticAiHub
 ---
 # AI for Software Testing
 

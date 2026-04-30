@@ -20,7 +20,7 @@ related:
 - GraphDatabaseFundamentals
 - DatabaseSharding
 hubs:
-- Databases Hub
+- DatabasesHub
 ---
 # NoSQL Database Types
 

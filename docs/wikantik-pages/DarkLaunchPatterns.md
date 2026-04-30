@@ -19,7 +19,7 @@ related:
 - ChaosEngineering
 - AgentTesting
 hubs:
-- SoftwareArchitecture Hub
+- SoftwareArchitectureHub
 ---
 # Dark Launch Patterns
 

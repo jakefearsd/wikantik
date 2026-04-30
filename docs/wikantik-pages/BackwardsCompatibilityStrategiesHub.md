@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQ0P44MA4M3XQ42T887AY1S0
-title: BackwardsCompatibilityStrategies Hub
+title: BackwardsCompatibilityStrategiesHub
 type: hub
 cluster: software-engineering-practices
 status: active
@@ -17,7 +17,7 @@ related:
 - BackwardsCompatibilityStrategies
 - ApiDesignBestPractices
 - SemanticVersioning
-- WebServicesAndApis+Hub
+- WebServicesAndApisHub
 ---
 # BackwardsCompatibilityStrategies Hub
 
@@ -31,6 +31,6 @@ APIs evolve. Consumers depend on them. Breaking changes are sometimes necessary;
 
 ## Adjacent
 
-- [Web Services and APIs Hub](WebServicesAndApis+Hub) — API design context
+- [Web Services and APIs Hub](WebServicesAndApisHub) — API design context
 - [ApiProtocolComparison](ApiProtocolComparison) — Different protocols, different evolution patterns
 - [Refactoring Strategies](RefactoringStrategies) — Internal evolution patterns

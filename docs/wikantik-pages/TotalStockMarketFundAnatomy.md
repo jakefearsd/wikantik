@@ -21,7 +21,7 @@ related:
 - IndexFundPortfolioConstruction
 - AssetAllocationGuide
 hubs:
-- LowCostIndexFundInvesting Hub
+- LowCostIndexFundInvestingHub
 ---
 # Total Stock Market Fund Anatomy
 
@@ -169,4 +169,4 @@ The "three-fund portfolio" — total US stock, total international stock, total 
 - [MutualFundVsEtfComparison](MutualFundVsEtfComparison) — Choosing between fund types
 - [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction) — Building from total-market as the foundation
 - [AssetAllocationGuide](AssetAllocationGuide) — Where total-market fits in allocation
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvesting+Hub) — Cluster index
+- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Cluster index

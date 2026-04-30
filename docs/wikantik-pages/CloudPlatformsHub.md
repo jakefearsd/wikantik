@@ -1,5 +1,5 @@
 ---
-canonical_id: 01KZHC6PVU4SBQM9R0F3T7K8Z7
+canonical_id: 01KQEKBKX2QVEW6716V6Y8N5QT
 title: CloudPlatformsHub
 type: hub
 cluster: cloud-platforms

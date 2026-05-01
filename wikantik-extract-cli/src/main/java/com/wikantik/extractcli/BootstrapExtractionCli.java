@@ -30,6 +30,7 @@ import com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository;
 import com.wikantik.knowledge.embedding.KgNodeEmbeddingService;
 import com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer;
 import com.wikantik.knowledge.extraction.ChunkEntityMentionRepository;
+import com.wikantik.knowledge.extraction.ClaudeProposalJudge;
 import com.wikantik.knowledge.extraction.EntityExtractorConfig;
 import com.wikantik.knowledge.extraction.EvidenceGroundingVerifier;
 import com.wikantik.knowledge.extraction.MentionAttributor;
@@ -200,9 +201,17 @@ public final class BootstrapExtractionCli {
                     throw new IllegalStateException(
                         "--judge claude requires -Dwikantik.kg.judge.allow_claude=true (gated cost guard)." );
                 }
-                throw new IllegalStateException(
-                    "--judge claude is not yet implemented (Phase 6 of the redesign). "
-                  + "Re-run with --judge none, or wait for ClaudeProposalJudge to land." );
+                if( a.anthropicKeyEnv == null || a.anthropicKeyEnv.isBlank() ) {
+                    throw new IllegalStateException(
+                        "--judge claude requires --anthropic-key-env <VAR> naming the env var "
+                      + "that holds the Anthropic API key." );
+                }
+                final String key = System.getenv( a.anthropicKeyEnv );
+                if( key == null || key.isBlank() ) {
+                    throw new IllegalStateException(
+                        "environment variable '" + a.anthropicKeyEnv + "' is unset or empty." );
+                }
+                yield new ClaudeProposalJudge( key, a.judgeModel, a.timeoutMs );
             }
             default -> throw new IllegalStateException(
                 "unknown --judge value '" + a.judge + "' (expected: none|ollama|claude)" );

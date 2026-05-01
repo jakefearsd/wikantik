@@ -19,20 +19,28 @@
 package com.wikantik.knowledge.extraction;
 
 import com.wikantik.api.kgpolicy.ExclusionReason;
+import com.wikantik.api.knowledge.ConsolidatedProposal;
+import com.wikantik.api.knowledge.ExtractedEntity;
+import com.wikantik.api.knowledge.ExtractionContext;
+import com.wikantik.api.knowledge.JudgeContext;
+import com.wikantik.api.knowledge.Page;
+import com.wikantik.api.knowledge.PageExtractionResult;
+import com.wikantik.api.knowledge.PageExtractor;
+import com.wikantik.api.knowledge.ProposalJudge;
+import com.wikantik.api.knowledge.Verdict;
+import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.kgpolicy.KgExcludedPagesRepository;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -44,267 +52,267 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link BootstrapEntityExtractionIndexer}. Runs on an
- * in-process synchronous executor so assertions don't race the background
- * thread.
+ * Unit tests for the per-page-pipeline {@link BootstrapEntityExtractionIndexer}.
+ * The synchronous executor variants run extraction inline so assertions don't
+ * race the background thread.
  */
 class BootstrapEntityExtractionIndexerTest {
 
+    /**
+     * Two pages each emit one "Python" entity. The consolidator must collapse
+     * them to a single ConsolidatedProposal; the NoOp judge accepts; the
+     * upserter inserts one row.
+     */
     @Test
-    void walksEveryPageAndRecordsAggregateCounts() {
+    void newPipelineDrivesPageExtractorAndConsolidator() {
         final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
+        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "PageA", "PageB" ) );
+        final UUID a1 = UUID.randomUUID();
+        final UUID b1 = UUID.randomUUID();
+        when( chunkRepo.listChunkIdsForPage( "PageA" ) ).thenReturn( List.of( a1 ) );
+        when( chunkRepo.listChunkIdsForPage( "PageB" ) ).thenReturn( List.of( b1 ) );
+        when( chunkRepo.findByIds( List.of( a1 ) ) ).thenReturn( List.of(
+            new ContentChunkRepository.MentionableChunk( a1, "PageA", 0, List.of(),
+                "Python is a programming language." ) ) );
+        when( chunkRepo.findByIds( List.of( b1 ) ) ).thenReturn( List.of(
+            new ContentChunkRepository.MentionableChunk( b1, "PageB", 0, List.of(),
+                "Python rocks." ) ) );
+        when( chunkRepo.stats() ).thenReturn(
+            new ContentChunkRepository.AggregateStats( 0, 0, 2, 0, 0, 0 ) );
+
         final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
-        final AsyncEntityExtractionListener listener = Mockito.mock( AsyncEntityExtractionListener.class );
 
-        final UUID c1 = UUID.randomUUID();
-        final UUID c2 = UUID.randomUUID();
-        final UUID c3 = UUID.randomUUID();
+        final PageExtractor extractor = Mockito.mock( PageExtractor.class );
+        when( extractor.code() ).thenReturn( "ollama:test" );
+        when( extractor.extract( any( Page.class ), any( ExtractionContext.class ) ) ).thenAnswer( inv -> {
+            final Page p = inv.getArgument( 0 );
+            return new PageExtractionResult(
+                "ollama:test", p.name(),
+                List.of( new ExtractedEntity( "Python", "Technology", "Python", 0.9 ) ),
+                List.of(),
+                new PageExtractionResult.Stats( 1, 0, 0, 0, Duration.ZERO ) );
+        } );
 
-        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "A", "B" ) );
-        when( chunkRepo.listChunkIdsForPage( "A" ) ).thenReturn( List.of( c1, c2 ) );
-        when( chunkRepo.listChunkIdsForPage( "B" ) ).thenReturn( List.of( c3 ) );
-        when( listener.runExtractionSync( List.of( c1 ) ) )
-                .thenReturn( new AsyncEntityExtractionListener.RunResult( 3, 1 ) );
-        when( listener.runExtractionSync( List.of( c2 ) ) )
-                .thenReturn( new AsyncEntityExtractionListener.RunResult( 2, 0 ) );
-        when( listener.runExtractionSync( List.of( c3 ) ) )
-                .thenReturn( new AsyncEntityExtractionListener.RunResult( 2, 0 ) );
+        final ProposalUpserter upserter = Mockito.mock( ProposalUpserter.class );
+        when( upserter.upsert( any( ConsolidatedProposal.class ) ) )
+            .thenReturn( new ProposalUpserter.Result( /*inserted*/ true, /*supportCount*/ 2 ) );
+
+        final JdbcKnowledgeRepository kgRepo = Mockito.mock( JdbcKnowledgeRepository.class );
+        when( kgRepo.getAllNodes() ).thenReturn( List.of() );
+        when( kgRepo.getNodeByName( any() ) ).thenReturn( null );
 
         final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-                listener, chunkRepo, mentionRepo, directExecutor() );
+            extractor, new NoOpProposalJudge(), new ProposalConsolidator(), upserter,
+            /*embeddingService*/ null, /*embeddingRepo*/ null,
+            chunkRepo, mentionRepo, kgRepo, new MentionAttributor(),
+            PageEmbeddingProvider.EMPTY, /*excludedPages*/ null,
+            directExecutor(), directExecutor(), /*concurrency*/ 1,
+            /*dictionaryTopK*/ 0, /*maxEntitiesPerPage*/ 12, /*maxRelationsPerPage*/ 8 );
+
         assertTrue( indexer.start( /*forceOverwrite*/ false ) );
 
         final BootstrapEntityExtractionIndexer.Status s = indexer.status();
         assertEquals( BootstrapEntityExtractionIndexer.State.COMPLETED, s.state() );
         assertEquals( 2, s.totalPages() );
         assertEquals( 2, s.processedPages() );
-        assertEquals( 0, s.failedPages() );
-        assertEquals( 7, s.mentionsWritten() );
-        assertEquals( 1, s.proposalsFiled() );
-        // No overwrite requested → no clears per chunk.
-        verify( mentionRepo, never() ).deleteByChunkId( any() );
+        assertEquals( 1, s.consolidatedCandidates(), "two extractions of 'Python' must collapse to 1" );
+        assertEquals( 1, s.judgeAccepted() );
+        assertEquals( 0, s.judgeRejected() );
+        assertEquals( 1, s.proposalsInserted() );
+        assertEquals( 0, s.proposalsMerged() );
+        assertEquals( 1, s.proposalsFiled(), "proposalsFiled aliases inserted+merged" );
+        verify( upserter, times( 1 ) ).upsert( any() );
     }
 
     @Test
-    void forceOverwriteClearsEachChunkBeforeExtraction() {
+    void rejectVerdictBypassesUpserterAndCountsReason() {
         final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
-        final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
-        final AsyncEntityExtractionListener listener = Mockito.mock( AsyncEntityExtractionListener.class );
-        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "PageOne" ) );
         final UUID c1 = UUID.randomUUID();
-        final UUID c2 = UUID.randomUUID();
-        when( chunkRepo.listChunkIdsForPage( "PageOne" ) ).thenReturn( List.of( c1, c2 ) );
-        when( listener.runExtractionSync( any() ) )
-                .thenReturn( AsyncEntityExtractionListener.RunResult.EMPTY );
+        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "P" ) );
+        when( chunkRepo.listChunkIdsForPage( "P" ) ).thenReturn( List.of( c1 ) );
+        when( chunkRepo.findByIds( List.of( c1 ) ) ).thenReturn( List.of(
+            new ContentChunkRepository.MentionableChunk( c1, "P", 0, List.of(), "Concept text." ) ) );
+        when( chunkRepo.stats() ).thenReturn( new ContentChunkRepository.AggregateStats( 0, 0, 1, 0, 0, 0 ) );
+
+        final PageExtractor extractor = Mockito.mock( PageExtractor.class );
+        when( extractor.code() ).thenReturn( "ollama:test" );
+        when( extractor.extract( any(), any() ) ).thenReturn( new PageExtractionResult(
+            "ollama:test", "P",
+            List.of( new ExtractedEntity( "Concept", "Concept", "Concept", 0.7 ) ),
+            List.of(),
+            new PageExtractionResult.Stats( 1, 0, 0, 0, Duration.ZERO ) ) );
+
+        final ProposalJudge rejector = new ProposalJudge() {
+            @Override public String code() { return "test:reject" ; }
+            @Override public Verdict judge( final ConsolidatedProposal p, final JudgeContext ctx ) {
+                return new Verdict.Reject( "too_generic", "Concept is the universal placeholder" );
+            }
+        };
+
+        final ProposalUpserter upserter = Mockito.mock( ProposalUpserter.class );
+        final JdbcKnowledgeRepository kgRepo = Mockito.mock( JdbcKnowledgeRepository.class );
+        when( kgRepo.getAllNodes() ).thenReturn( List.of() );
 
         final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-                listener, chunkRepo, mentionRepo, directExecutor() );
-        assertTrue( indexer.start( /*forceOverwrite*/ true ) );
+            extractor, rejector, new ProposalConsolidator(), upserter,
+            null, null, chunkRepo, Mockito.mock( ChunkEntityMentionRepository.class ),
+            kgRepo, new MentionAttributor(), PageEmbeddingProvider.EMPTY, null,
+            directExecutor(), directExecutor(), 1, 0, 12, 8 );
+        assertTrue( indexer.start( false ) );
 
-        final ArgumentCaptor< UUID > cleared = ArgumentCaptor.forClass( UUID.class );
-        verify( mentionRepo, times( 2 ) ).deleteByChunkId( cleared.capture() );
-        assertTrue( cleared.getAllValues().contains( c1 ) );
-        assertTrue( cleared.getAllValues().contains( c2 ) );
-        assertTrue( indexer.status().forceOverwrite() );
+        final BootstrapEntityExtractionIndexer.Status s = indexer.status();
+        assertEquals( BootstrapEntityExtractionIndexer.State.COMPLETED, s.state() );
+        assertEquals( 1, s.consolidatedCandidates() );
+        assertEquals( 0, s.judgeAccepted() );
+        assertEquals( 1, s.judgeRejected() );
+        assertEquals( 0, s.proposalsInserted() );
+        assertEquals( 1, s.rejectionReasons().getOrDefault( "too_generic", 0 ).intValue() );
+        verify( upserter, never() ).upsert( any() );
+    }
+
+    @Test
+    void dryRunSkipsUpsertButRunsConsolidationAndJudge() {
+        final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
+        final UUID c1 = UUID.randomUUID();
+        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "P" ) );
+        when( chunkRepo.listChunkIdsForPage( "P" ) ).thenReturn( List.of( c1 ) );
+        when( chunkRepo.findByIds( List.of( c1 ) ) ).thenReturn( List.of(
+            new ContentChunkRepository.MentionableChunk( c1, "P", 0, List.of(), "x" ) ) );
+        when( chunkRepo.stats() ).thenReturn( new ContentChunkRepository.AggregateStats( 0, 0, 1, 0, 0, 0 ) );
+
+        final PageExtractor extractor = Mockito.mock( PageExtractor.class );
+        when( extractor.code() ).thenReturn( "ollama:test" );
+        when( extractor.extract( any(), any() ) ).thenReturn( new PageExtractionResult(
+            "ollama:test", "P",
+            List.of( new ExtractedEntity( "X", "Concept", "X", 0.9 ) ), List.of(),
+            new PageExtractionResult.Stats( 1, 0, 0, 0, Duration.ZERO ) ) );
+
+        final ProposalUpserter upserter = Mockito.mock( ProposalUpserter.class );
+        final JdbcKnowledgeRepository kgRepo = Mockito.mock( JdbcKnowledgeRepository.class );
+        when( kgRepo.getAllNodes() ).thenReturn( List.of() );
+
+        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
+            extractor, new NoOpProposalJudge(), new ProposalConsolidator(), upserter,
+            null, null, chunkRepo, Mockito.mock( ChunkEntityMentionRepository.class ),
+            kgRepo, new MentionAttributor(), PageEmbeddingProvider.EMPTY, null,
+            directExecutor(), directExecutor(), 1, 0, 12, 8 );
+        indexer.setDryRun( true );
+        assertTrue( indexer.start( false ) );
+
+        final BootstrapEntityExtractionIndexer.Status s = indexer.status();
+        assertEquals( 1, s.judgeAccepted() );
+        assertEquals( 0, s.proposalsInserted() );
+        verify( upserter, never() ).upsert( any() );
+    }
+
+    @Test
+    void excludedPagesAreSkippedBeforeExtractor() {
+        final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
+        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "Skip", "Keep" ) );
+        when( chunkRepo.stats() ).thenReturn( new ContentChunkRepository.AggregateStats( 0, 0, 0, 0, 0, 0 ) );
+        final UUID kc = UUID.randomUUID();
+        when( chunkRepo.listChunkIdsForPage( "Keep" ) ).thenReturn( List.of( kc ) );
+        when( chunkRepo.findByIds( List.of( kc ) ) ).thenReturn( List.of(
+            new ContentChunkRepository.MentionableChunk( kc, "Keep", 0, List.of(), "Kept text." ) ) );
+
+        final KgExcludedPagesRepository excluded = Mockito.mock( KgExcludedPagesRepository.class );
+        when( excluded.findReason( "Skip" ) ).thenReturn( Optional.of( ExclusionReason.SYSTEM_PAGE ) );
+        when( excluded.findReason( "Keep" ) ).thenReturn( Optional.empty() );
+
+        final PageExtractor extractor = Mockito.mock( PageExtractor.class );
+        when( extractor.code() ).thenReturn( "ollama:test" );
+        when( extractor.extract( any(), any() ) ).thenReturn( new PageExtractionResult(
+            "ollama:test", "Keep",
+            List.of( new ExtractedEntity( "Foo", "Concept", "Foo", 0.9 ) ), List.of(),
+            new PageExtractionResult.Stats( 1, 0, 0, 0, Duration.ZERO ) ) );
+
+        final ProposalUpserter upserter = Mockito.mock( ProposalUpserter.class );
+        when( upserter.upsert( any() ) ).thenReturn( new ProposalUpserter.Result( true, 1 ) );
+        final JdbcKnowledgeRepository kgRepo = Mockito.mock( JdbcKnowledgeRepository.class );
+        when( kgRepo.getAllNodes() ).thenReturn( List.of() );
+
+        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
+            extractor, new NoOpProposalJudge(), new ProposalConsolidator(), upserter,
+            null, null, chunkRepo, Mockito.mock( ChunkEntityMentionRepository.class ),
+            kgRepo, new MentionAttributor(), PageEmbeddingProvider.EMPTY, excluded,
+            directExecutor(), directExecutor(), 1, 0, 12, 8 );
+        assertTrue( indexer.start( false ) );
+
+        final BootstrapEntityExtractionIndexer.Status s = indexer.status();
+        assertEquals( 1, s.excludedSkipped() );
+        // Extractor only ever sees the un-excluded page.
+        verify( extractor, times( 1 ) ).extract( any(), any() );
+    }
+
+    @Test
+    void extractorFailureForOnePageIsIsolatedAndCountsAsFailure() {
+        final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
+        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "Alpha", "Beta" ) );
+        final UUID a = UUID.randomUUID();
+        final UUID b = UUID.randomUUID();
+        when( chunkRepo.listChunkIdsForPage( "Alpha" ) ).thenReturn( List.of( a ) );
+        when( chunkRepo.listChunkIdsForPage( "Beta" ) ).thenReturn( List.of( b ) );
+        when( chunkRepo.findByIds( List.of( a ) ) ).thenReturn( List.of(
+            new ContentChunkRepository.MentionableChunk( a, "Alpha", 0, List.of(), "x" ) ) );
+        when( chunkRepo.findByIds( List.of( b ) ) ).thenReturn( List.of(
+            new ContentChunkRepository.MentionableChunk( b, "Beta", 0, List.of(), "y" ) ) );
+        when( chunkRepo.stats() ).thenReturn( new ContentChunkRepository.AggregateStats( 0, 0, 2, 0, 0, 0 ) );
+
+        final PageExtractor extractor = Mockito.mock( PageExtractor.class );
+        when( extractor.code() ).thenReturn( "ollama:test" );
+        when( extractor.extract( any(), any() ) )
+            .thenThrow( new RuntimeException( "ollama down" ) )
+            .thenReturn( new PageExtractionResult(
+                "ollama:test", "Beta",
+                List.of( new ExtractedEntity( "Beta", "Concept", "Beta", 0.9 ) ), List.of(),
+                new PageExtractionResult.Stats( 1, 0, 0, 0, Duration.ZERO ) ) );
+
+        final ProposalUpserter upserter = Mockito.mock( ProposalUpserter.class );
+        when( upserter.upsert( any() ) ).thenReturn( new ProposalUpserter.Result( true, 1 ) );
+        final JdbcKnowledgeRepository kgRepo = Mockito.mock( JdbcKnowledgeRepository.class );
+        when( kgRepo.getAllNodes() ).thenReturn( List.of() );
+
+        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
+            extractor, new NoOpProposalJudge(), new ProposalConsolidator(), upserter,
+            null, null, chunkRepo, Mockito.mock( ChunkEntityMentionRepository.class ),
+            kgRepo, new MentionAttributor(), PageEmbeddingProvider.EMPTY, null,
+            directExecutor(), directExecutor(), 1, 0, 12, 8 );
+        indexer.start( false );
+
+        final BootstrapEntityExtractionIndexer.Status s = indexer.status();
+        assertEquals( BootstrapEntityExtractionIndexer.State.COMPLETED, s.state() );
+        assertEquals( 1, s.failedPages(), "the failing page is counted" );
+        // The surviving page still produces one consolidated proposal.
+        assertEquals( 1, s.consolidatedCandidates() );
+        assertEquals( 1, s.proposalsInserted() );
     }
 
     @Test
     void secondStartIsRejectedWhileFirstRunning() {
         final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
-        final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
-        final AsyncEntityExtractionListener listener = Mockito.mock( AsyncEntityExtractionListener.class );
-
-        // Executor that keeps the first submitted task pending so state stays RUNNING.
-        final BlockingExecutor blocking = new BlockingExecutor();
         when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of() );
+        when( chunkRepo.stats() ).thenReturn( new ContentChunkRepository.AggregateStats( 0, 0, 0, 0, 0, 0 ) );
+
+        final BlockingExecutor blocking = new BlockingExecutor();
+        final PageExtractor extractor = Mockito.mock( PageExtractor.class );
+        when( extractor.code() ).thenReturn( "ollama:test" );
+        final JdbcKnowledgeRepository kgRepo = Mockito.mock( JdbcKnowledgeRepository.class );
+        when( kgRepo.getAllNodes() ).thenReturn( List.of() );
+
         final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-                listener, chunkRepo, mentionRepo, blocking );
+            extractor, new NoOpProposalJudge(), new ProposalConsolidator(),
+            Mockito.mock( ProposalUpserter.class ), null, null, chunkRepo,
+            Mockito.mock( ChunkEntityMentionRepository.class ), kgRepo,
+            new MentionAttributor(), PageEmbeddingProvider.EMPTY, null,
+            blocking, directExecutor(), 1, 0, 12, 8 );
 
         assertTrue( indexer.start( false ) );
         assertEquals( BootstrapEntityExtractionIndexer.State.RUNNING, indexer.status().state() );
         assertFalse( indexer.start( false ), "second start must be rejected while first is running" );
 
         blocking.release();
-        // After the blocked task has run, state transitions to COMPLETED.
         assertEquals( BootstrapEntityExtractionIndexer.State.COMPLETED, indexer.status().state() );
-        // And a fresh start is allowed.
         assertTrue( indexer.start( false ) );
-    }
-
-    @Test
-    void extractorFailureForOnePageIsIsolatedAndCountsAsFailure() {
-        final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
-        final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
-        final AsyncEntityExtractionListener listener = Mockito.mock( AsyncEntityExtractionListener.class );
-
-        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "Alpha", "Beta" ) );
-        when( chunkRepo.listChunkIdsForPage( "Alpha" ) ).thenReturn( List.of( UUID.randomUUID() ) );
-        when( chunkRepo.listChunkIdsForPage( "Beta" ) ).thenReturn( List.of( UUID.randomUUID() ) );
-        when( listener.runExtractionSync( any() ) )
-                .thenThrow( new RuntimeException( "ollama down" ) )
-                .thenReturn( new AsyncEntityExtractionListener.RunResult( 3, 0 ) );
-
-        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-                listener, chunkRepo, mentionRepo, directExecutor() );
-        indexer.start( false );
-
-        final BootstrapEntityExtractionIndexer.Status s = indexer.status();
-        assertEquals( BootstrapEntityExtractionIndexer.State.COMPLETED, s.state() );
-        assertEquals( 2, s.totalPages() );
-        // Both pages count as processed even if individual chunks fail — the
-        // failure tracking is at page granularity, so a single failed chunk
-        // flags the page without discarding successful ones.
-        assertEquals( 2, s.processedPages() );
-        assertEquals( 1, s.failedPages() );
-        assertEquals( 3, s.mentionsWritten() );
-    }
-
-    @Test
-    void configuredConcurrencyRunsChunksInParallel() throws Exception {
-        final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
-        final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
-        final AsyncEntityExtractionListener listener = Mockito.mock( AsyncEntityExtractionListener.class );
-
-        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "P" ) );
-        final List< UUID > chunks = List.of(
-            UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID() );
-        when( chunkRepo.listChunkIdsForPage( "P" ) ).thenReturn( chunks );
-
-        // Each extraction call blocks on a latch until all 3 workers are in flight.
-        // If the indexer accidentally runs chunks serially the latch will never trip.
-        final CountDownLatch inFlight = new CountDownLatch( 3 );
-        final AtomicInteger concurrentPeak = new AtomicInteger();
-        final AtomicInteger concurrentNow = new AtomicInteger();
-        when( listener.runExtractionSync( any() ) ).thenAnswer( inv -> {
-            final int now = concurrentNow.incrementAndGet();
-            concurrentPeak.accumulateAndGet( now, Math::max );
-            inFlight.countDown();
-            inFlight.await( 5, TimeUnit.SECONDS );
-            concurrentNow.decrementAndGet();
-            return new AsyncEntityExtractionListener.RunResult( 1, 0 );
-        } );
-
-        final ExecutorService driver = Executors.newSingleThreadExecutor();
-        final ExecutorService workers = Executors.newFixedThreadPool( 3 );
-        try {
-            final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-                    listener, chunkRepo, mentionRepo, driver, workers, 3 );
-            assertTrue( indexer.start( false ) );
-            // Wait for completion.
-            for( int i = 0; i < 50 && indexer.status().state() == BootstrapEntityExtractionIndexer.State.RUNNING; i++ ) {
-                Thread.sleep( 100 );
-            }
-            assertEquals( BootstrapEntityExtractionIndexer.State.COMPLETED, indexer.status().state() );
-            assertEquals( 4, indexer.status().mentionsWritten() );
-            assertEquals( 3, concurrentPeak.get(), "at least 3 chunks must have run concurrently" );
-        } finally {
-            driver.shutdownNow();
-            workers.shutdownNow();
-        }
-    }
-
-    @Test
-    void prefilterSkipsChunksAndIncrementsCounters() {
-        final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
-        final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
-        final AsyncEntityExtractionListener listener = Mockito.mock( AsyncEntityExtractionListener.class );
-
-        final UUID keep = UUID.randomUUID();
-        final UUID skipCode = UUID.randomUUID();
-        final UUID skipNoProper = UUID.randomUUID();
-
-        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "PageOne" ) );
-        when( chunkRepo.listChunkIdsForPage( "PageOne" ) )
-                .thenReturn( List.of( keep, skipCode, skipNoProper ) );
-        when( chunkRepo.findByIds( List.of( keep, skipCode, skipNoProper ) ) ).thenReturn( List.of(
-            new ContentChunkRepository.MentionableChunk( keep, "PageOne", 0, List.of(),
-                "PostgreSQL is a database." ),
-            new ContentChunkRepository.MentionableChunk( skipCode, "PageOne", 1, List.of(),
-                "```\nselect 1;\n```" ),
-            new ContentChunkRepository.MentionableChunk( skipNoProper, "PageOne", 2, List.of(),
-                "lower case prose only." )
-        ) );
-        when( listener.runExtractionSync( List.of( keep ) ) )
-                .thenReturn( new AsyncEntityExtractionListener.RunResult( 1, 0 ) );
-
-        // Length predicate intentionally off — this test exercises the
-        // code/proper-noun rules with short fixture chunks that would
-        // otherwise all trip the too_short rule.
-        final ChunkExtractionPrefilter filter = new ChunkExtractionPrefilter(
-            /*enabled*/ true, /*dryRun*/ false,
-            /*skipPureCode*/ true, /*skipNoProperNoun*/ true,
-            /*skipTooShort*/ false, /*minTokens*/ 0 );
-
-        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-                listener, chunkRepo, mentionRepo, directExecutor(), filter );
-        assertTrue( indexer.start( /*forceOverwrite*/ false ) );
-
-        final BootstrapEntityExtractionIndexer.Status s = indexer.status();
-        assertEquals( BootstrapEntityExtractionIndexer.State.COMPLETED, s.state() );
-        assertEquals( 1, s.processedChunks(), "only one chunk reaches the extractor" );
-        assertEquals( 2, s.skippedChunks() );
-        assertEquals( 1, s.skipReasons().getOrDefault( "pure_code", 0 ).intValue() );
-        assertEquals( 1, s.skipReasons().getOrDefault( "no_proper_noun", 0 ).intValue() );
-        verify( listener, times( 1 ) ).runExtractionSync( List.of( keep ) );
-        verify( listener, never() ).runExtractionSync( List.of( skipCode ) );
-        verify( listener, never() ).runExtractionSync( List.of( skipNoProper ) );
-    }
-
-    @Test
-    void prefilterDisabledByDefaultMatchesLegacyBehaviour() {
-        final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
-        final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
-        final AsyncEntityExtractionListener listener = Mockito.mock( AsyncEntityExtractionListener.class );
-
-        final UUID c = UUID.randomUUID();
-        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "P" ) );
-        when( chunkRepo.listChunkIdsForPage( "P" ) ).thenReturn( List.of( c ) );
-        when( listener.runExtractionSync( List.of( c ) ) )
-                .thenReturn( new AsyncEntityExtractionListener.RunResult( 0, 0 ) );
-
-        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-                listener, chunkRepo, mentionRepo, directExecutor() );
-        assertTrue( indexer.start( /*forceOverwrite*/ false ) );
-
-        final BootstrapEntityExtractionIndexer.Status s = indexer.status();
-        assertEquals( 0, s.skippedChunks() );
-        assertTrue( s.skipReasons().isEmpty() );
-        // No findByIds call when filter is passthrough — legacy path is byte-identical.
-        verify( chunkRepo, never() ).findByIds( any() );
-        verify( listener ).runExtractionSync( List.of( c ) );
-    }
-
-    @Test
-    void skips_pages_present_in_excluded_table() {
-        final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
-        final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
-        final AsyncEntityExtractionListener listener = Mockito.mock( AsyncEntityExtractionListener.class );
-        final KgExcludedPagesRepository excluded = Mockito.mock( KgExcludedPagesRepository.class );
-
-        final UUID keepChunk = UUID.randomUUID();
-        final UUID skipChunk = UUID.randomUUID();
-
-        when( chunkRepo.listDistinctPageNames() ).thenReturn( List.of( "Skip", "Keep" ) );
-        when( chunkRepo.listChunkIdsForPage( "Skip" ) ).thenReturn( List.of( skipChunk ) );
-        when( chunkRepo.listChunkIdsForPage( "Keep" ) ).thenReturn( List.of( keepChunk ) );
-        when( excluded.findReason( "Skip" ) ).thenReturn( java.util.Optional.of( ExclusionReason.SYSTEM_PAGE ) );
-        when( excluded.findReason( "Keep" ) ).thenReturn( java.util.Optional.empty() );
-        when( listener.runExtractionSync( List.of( keepChunk ) ) )
-                .thenReturn( new AsyncEntityExtractionListener.RunResult( 2, 1 ) );
-
-        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-                listener, chunkRepo, mentionRepo, directExecutor(),
-                ChunkExtractionPrefilter.passthrough(), excluded );
-        assertTrue( indexer.start( /*forceOverwrite*/ false ) );
-
-        final BootstrapEntityExtractionIndexer.Status s = indexer.status();
-        assertEquals( BootstrapEntityExtractionIndexer.State.COMPLETED, s.state() );
-        assertEquals( 1, s.excludedSkipped(), "excluded page must be counted" );
-        // listener was called only for Keep
-        verify( listener, times( 1 ) ).runExtractionSync( List.of( keepChunk ) );
-        verify( listener, never() ).runExtractionSync( List.of( skipChunk ) );
-        // listChunkIdsForPage is still called for the excluded page (early-out happens after)
-        verify( chunkRepo ).listChunkIdsForPage( "Skip" );
     }
 
     // ---- helpers ----
@@ -328,8 +336,9 @@ class BootstrapEntityExtractionIndexerTest {
     }
 
     /**
-     * Lets us hold the bootstrap task in RUNNING state deterministically so the
-     * test can observe the "second start rejected" transition without races.
+     * Holds the bootstrap task in RUNNING state until {@link #release()} is
+     * called, so the test can observe the "second start rejected" transition
+     * without races.
      */
     private static final class BlockingExecutor extends java.util.concurrent.AbstractExecutorService {
         private Runnable pending;
@@ -349,7 +358,6 @@ class BootstrapEntityExtractionIndexerTest {
         @Override public boolean awaitTermination( final long timeout, final TimeUnit unit ) {
             return true;
         }
-        // unused
         @SuppressWarnings( "unused" ) private void unused( final Executor e ) {}
     }
 }

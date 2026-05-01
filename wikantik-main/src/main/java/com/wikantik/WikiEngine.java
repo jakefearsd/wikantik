@@ -968,22 +968,15 @@ public class WikiEngine implements Engine {
         managers.put( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class, mentionRepo );
         managers.put( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class, listener );
 
-        // Admin-triggered full-corpus extraction: re-runs the extractor for
-        // every chunk. Shares the listener's extractor + persistence logic so
-        // there's exactly one code path for how mentions / proposals land.
-        final com.wikantik.knowledge.extraction.ChunkExtractionPrefilter bootstrapPrefilter =
-            new com.wikantik.knowledge.extraction.ChunkExtractionPrefilter(
-                extractorCfg.prefilterEnabled(),
-                extractorCfg.prefilterDryRun(),
-                extractorCfg.prefilterSkipPureCode(),
-                extractorCfg.prefilterSkipNoProperNoun(),
-                extractorCfg.prefilterSkipTooShort(),
-                extractorCfg.prefilterMinTokens() );
-        final com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer bootstrap =
-            new com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer(
-                listener, contentChunkRepo, mentionRepo, extractorCfg.concurrency(), bootstrapPrefilter,
-                excludedPagesRepo );
-        managers.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class, bootstrap );
+        // Admin-triggered full-corpus extraction is being rewired for the new
+        // per-page pipeline (PageExtractor → consolidator → judge → upserter →
+        // mention attribution). Phase 3 of the redesign replaced the indexer's
+        // internals; Phase 4 wires the production collaborators here. Until
+        // Phase 4 lands the indexer is intentionally not registered as a
+        // manager — AdminExtractionResource handles the missing manager by
+        // returning 503, which is the correct degraded state for a partially-
+        // landed redesign on this single-developer branch.
+        // See: docs/superpowers/plans/2026-05-01-kg-extraction-redesign.md (Phase 4).
 
         // Compose with any existing post-chunk sink so embedding indexing and
         // entity extraction both run on every save. Consumer.andThen catches

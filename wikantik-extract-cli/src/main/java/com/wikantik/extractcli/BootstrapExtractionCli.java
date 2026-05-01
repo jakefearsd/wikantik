@@ -18,24 +18,19 @@
  */
 package com.wikantik.extractcli;
 
-import com.wikantik.api.knowledge.EntityExtractor;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
-import com.wikantik.knowledge.extraction.AsyncEntityExtractionListener;
 import com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer;
 import com.wikantik.knowledge.extraction.ChunkEntityMentionRepository;
 import com.wikantik.knowledge.extraction.ChunkExtractionPrefilter;
 import com.wikantik.knowledge.extraction.EntityExtractorConfig;
-import com.wikantik.knowledge.extraction.EntityExtractorFactory;
 
-import io.micrometer.core.instrument.Metrics;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.postgresql.ds.PGSimpleDataSource;
 
 import javax.sql.DataSource;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
@@ -113,47 +108,18 @@ public final class BootstrapExtractionCli {
             return runStatsOnly( cfg, chunkRepo );
         }
 
-        final Optional< EntityExtractor > ext = EntityExtractorFactory.create( cfg );
-        if( ext.isEmpty() ) {
-            System.err.println( "error: extractor backend '" + cfg.backend()
-                + "' is not available — missing credentials or unsupported value." );
-            return 1;
-        }
-
-        final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-            ext.get(), cfg, chunkRepo, mentionRepo, kgRepo, Metrics.globalRegistry );
-        final ChunkExtractionPrefilter prefilter = new ChunkExtractionPrefilter(
-            cfg.prefilterEnabled(),
-            cfg.prefilterDryRun(),
-            cfg.prefilterSkipPureCode(),
-            cfg.prefilterSkipNoProperNoun(),
-            cfg.prefilterSkipTooShort(),
-            cfg.prefilterMinTokens() );
-        try( BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
-                 listener, chunkRepo, mentionRepo, cfg.concurrency(), prefilter ) ) {
-            LOG.info( "Extract-CLI starting (backend={}, model={}, concurrency={}, force={}, prefilter={}{})",
-                cfg.backend(), modelLabel( cfg ), cfg.concurrency(), a.force,
-                cfg.prefilterEnabled(), cfg.prefilterDryRun() ? " dry-run" : "" );
-            // Ctrl-C / SIGTERM → request graceful cancel. The indexer finishes
-            // any in-flight chunks (the Ollama RPC is blocking) but does not
-            // submit new ones. The JVM shutdown sequence then waits on the
-            // executor via the indexer's close() inside try-with-resources.
-            Runtime.getRuntime().addShutdownHook( new Thread( () -> {
-                if( indexer.isRunning() ) {
-                    System.out.println();
-                    LOG.warn( "Extract-CLI received shutdown signal — cancelling between chunks." );
-                    indexer.cancel();
-                }
-            }, "extract-cli-shutdown" ) );
-            final boolean started = indexer.start( a.force, a.maxPages );
-            if( !started ) {
-                System.err.println( "error: indexer refused to start — another run is already in flight." );
-                return 1;
-            }
-            return waitAndReport( indexer, a.pollSeconds );
-        } finally {
-            try( listener ) { /* try-with-resources drains the async executor */ }
-        }
+        // Phase 3 of the KG-extraction redesign replaced the chunk-driven
+        // indexer with the per-page pipeline (PageExtractor → consolidator →
+        // judge → upserter → mention attribution). This CLI is rewired in
+        // Phase 4 (Tasks 4.1-4.3 of docs/superpowers/plans/2026-05-01-kg-
+        // extraction-redesign.md). Until then, the admin REST endpoint at
+        // POST /admin/knowledge/extract-mentions remains the supported entry
+        // point. Return non-zero so scripts that grep "BUILD SUCCESS" don't
+        // silently treat "nothing happened" as success.
+        System.err.println( "error: extract-cli is being rewired for the per-page pipeline (Phase 4)." );
+        System.err.println( "       Use POST /admin/knowledge/extract-mentions for now — see" );
+        System.err.println( "       docs/superpowers/plans/2026-05-01-kg-extraction-redesign.md task 4.1." );
+        return 1;
     }
 
     /**

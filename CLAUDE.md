@@ -182,6 +182,35 @@ mvn wro4j:run -Dminimize=true
 mvn wro4j:run -Dminimize=false
 ```
 
+## Running the entity extractor
+
+`bin/kg-extract.sh` runs the per-page entity-extraction pipeline against the
+local PostgreSQL via the deployed ROOT.xml. Defaults — `gemma4-assist:latest`
+at concurrency 2, no judge — produce ~200–500 deduplicated, evidence-grounded
+proposals in ~3.6 hours over a 1000-page corpus.
+
+Routine usage:
+```bash
+bin/kg-extract.sh --max-pages 50 --dry-run --report reports/smoke.json   # smoke
+bin/kg-extract.sh --report reports/extract-$(date +%Y%m%d).json          # full run
+```
+
+If the pending-proposal queue gets unwieldy and a clean restart is the right
+call, snapshot pending proposals first, then wipe:
+
+```bash
+PGPASSWORD=… pg_dump -h localhost -U jspwiki -d jspwiki \
+    --data-only --table=kg_proposals --column-inserts \
+    --where="status = 'pending'" \
+    > backups/kg_proposals_pending_$(date +%Y%m%d).sql
+
+PGPASSWORD=… psql -h localhost -U jspwiki -d jspwiki -c \
+    "DELETE FROM kg_proposals WHERE status = 'pending';"
+```
+
+Per the no-data-in-migrations rule, wipes are never landed in `Vxxx`
+migrations — they are documented one-shots run by the operator.
+
 ## Architecture Overview
 
 Wikantik is a modular Java-based wiki engine built on JEE technologies with the following key characteristics:

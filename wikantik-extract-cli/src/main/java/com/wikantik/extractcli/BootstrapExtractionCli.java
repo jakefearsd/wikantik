@@ -20,6 +20,8 @@ package com.wikantik.extractcli;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializer;
 import com.wikantik.api.knowledge.PageExtractor;
 import com.wikantik.api.knowledge.ProposalJudge;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
@@ -55,6 +57,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.Statement;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -209,22 +212,8 @@ public final class BootstrapExtractionCli {
     private static KgNodeEmbeddingService buildEmbeddingService( final Args a,
                                                                  final HttpClient http,
                                                                  final KgNodeEmbeddingRepository repo ) {
-        // Tag-form input ("bge-m3:latest"): strip ":latest" to get the model
-        // code ("bge-m3") so EmbeddingModel.fromCode resolves. Bare codes work
-        // unchanged. Unknown codes fall back to BGE_M3 with a warning rather
-        // than failing the run — node embeddings are best-effort.
         final String tag = a.nodeEmbeddingModel;
-        final String maybeCode = tag.endsWith( ":latest" )
-            ? tag.substring( 0, tag.length() - ":latest".length() ) : tag;
-        EmbeddingModel model;
-        try {
-            model = EmbeddingModel.fromCode( maybeCode );
-        } catch( final IllegalArgumentException e ) {
-            LOG.warn( "Unknown --node-embedding-model '{}'; falling back to bge-m3 metadata "
-                    + "(dimension/prefix). The Ollama tag '{}' is still passed through verbatim.",
-                tag, tag );
-            model = EmbeddingModel.BGE_M3;
-        }
+        final EmbeddingModel model = resolveEmbeddingModel( tag );
         final EmbeddingConfig cfg = new EmbeddingConfig(
             /*enabled*/ true,
             EmbeddingConfig.BACKEND_OLLAMA,
@@ -239,6 +228,30 @@ public final class BootstrapExtractionCli {
         final EmbeddingClient single = text ->
             batched.embed( List.of( text ), EmbeddingKind.DOCUMENT ).get( 0 );
         return new KgNodeEmbeddingService( repo, single, tag );
+    }
+
+    /**
+     * Resolves an Ollama-style tag (e.g. {@code qwen3-embedding:0.6b}) or a
+     * bare model code (e.g. {@code qwen3-embedding-0.6b}) back to the
+     * matching {@link EmbeddingModel} entry, so that the model's prefix and
+     * dimension metadata are applied even when the user passes a tag rather
+     * than a code. Falls back to {@link EmbeddingModel#QWEN3_EMBEDDING_06B}
+     * with a warning when nothing matches — node embeddings are best-effort
+     * and we'd rather degrade than abort.
+     */
+    static EmbeddingModel resolveEmbeddingModel( final String tagOrCode ) {
+        if( tagOrCode != null ) {
+            for( final EmbeddingModel m : EmbeddingModel.values() ) {
+                if( tagOrCode.equalsIgnoreCase( m.code() )
+                 || tagOrCode.equalsIgnoreCase( m.defaultOllamaTag() ) ) {
+                    return m;
+                }
+            }
+        }
+        LOG.warn( "Unknown --node-embedding-model '{}'; falling back to qwen3-embedding-0.6b "
+                + "metadata (dimension/prefix). The tag '{}' is still passed through verbatim.",
+            tagOrCode, tagOrCode );
+        return EmbeddingModel.QWEN3_EMBEDDING_06B;
     }
 
     private static ContentChunkRepository pagePatternFiltered( final DataSource ds, final String glob ) {
@@ -277,14 +290,27 @@ public final class BootstrapExtractionCli {
         }
     }
 
-    private static void writeReport( final String path, final BootstrapEntityExtractionIndexer.Status s ) {
-        final Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
+    static void writeReport( final String path, final BootstrapEntityExtractionIndexer.Status s ) {
         try {
-            Files.writeString( Path.of( path ), gson.toJson( s ) );
+            Files.writeString( Path.of( path ), reportJson( s ) );
             LOG.info( "Wrote run report → {}", path );
         } catch( final IOException ioe ) {
             LOG.warn( "Failed to write --report {}: {}", path, ioe.getMessage() );
         }
+    }
+
+    /** Serialize a {@link BootstrapEntityExtractionIndexer.Status} to JSON.
+     * {@link Instant} fields render as ISO-8601 because Gson's default reflective
+     * adapter cannot reach {@code java.time}'s private fields under JDK17+. */
+    static String reportJson( final BootstrapEntityExtractionIndexer.Status s ) {
+        final JsonSerializer< Instant > instantToIso =
+            ( src, type, ctx ) -> src == null ? null : new JsonPrimitive( src.toString() );
+        final Gson gson = new GsonBuilder()
+            .setPrettyPrinting()
+            .serializeNulls()
+            .registerTypeAdapter( Instant.class, instantToIso )
+            .create();
+        return gson.toJson( s );
     }
 
     /**
@@ -363,7 +389,7 @@ public final class BootstrapExtractionCli {
               --dictionary-top-k <N>                top-K existing nodes injected per page (default 12, 0=off)
               --max-entities-per-page <N>           hard cap per LLM response (default 12)
               --max-relations-per-page <N>          hard cap per LLM response (default 8)
-              --node-embedding-model <tag>          model for the kg_node_embeddings cache (default bge-m3:latest)
+              --node-embedding-model <tag>          model for the kg_node_embeddings cache (default qwen3-embedding:0.6b)
               --rebuild-node-embeddings             TRUNCATE the embedding cache before warmup
               --max-pages <N>                       stop after first N pages, 0 = unlimited
               --page-pattern <glob>                 limit to page names matching glob (* and ? supported)
@@ -403,7 +429,7 @@ public final class BootstrapExtractionCli {
         public int    maxEntitiesPerPage   = 12;
         public int    maxRelationsPerPage  = 8;
         public int    dictionaryTopK       = 12;
-        public String nodeEmbeddingModel   = "bge-m3:latest";
+        public String nodeEmbeddingModel   = "qwen3-embedding:0.6b";
         public String pagePattern          = null;
         public boolean rebuildNodeEmbeddings = false;
         public boolean dryRun              = false;

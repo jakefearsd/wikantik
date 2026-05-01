@@ -42,7 +42,7 @@ class BootstrapExtractionCliArgsTest {
             "--max-entities-per-page", "10",
             "--max-relations-per-page", "5",
             "--dictionary-top-k", "30",
-            "--node-embedding-model", "bge-m3:latest",
+            "--node-embedding-model", "qwen3-embedding:0.6b",
             "--max-pages", "20",
             "--page-pattern", "Knowledge*",
             "--rebuild-node-embeddings",
@@ -55,7 +55,7 @@ class BootstrapExtractionCliArgsTest {
         assertEquals( 10, a.maxEntitiesPerPage );
         assertEquals( 5, a.maxRelationsPerPage );
         assertEquals( 30, a.dictionaryTopK );
-        assertEquals( "bge-m3:latest", a.nodeEmbeddingModel );
+        assertEquals( "qwen3-embedding:0.6b", a.nodeEmbeddingModel );
         assertEquals( 20, a.maxPages );
         assertEquals( "Knowledge*", a.pagePattern );
         assertTrue( a.rebuildNodeEmbeddings );

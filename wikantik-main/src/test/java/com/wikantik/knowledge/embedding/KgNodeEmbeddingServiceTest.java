@@ -48,7 +48,7 @@ class KgNodeEmbeddingServiceTest {
         when(repo.findById(id)).thenReturn(
             Optional.of(new KgNodeEmbeddingRepository.Cached(expectedHash, new float[1024])));
 
-        final KgNodeEmbeddingService svc = new KgNodeEmbeddingService(repo, client, "bge-m3:latest");
+        final KgNodeEmbeddingService svc = new KgNodeEmbeddingService(repo, client, "qwen3-embedding:0.6b");
         final KgNodeEmbeddingService.Result r = svc.warmUp(List.of(node));
         assertEquals(1, r.cached());
         assertEquals(0, r.reEmbedded());
@@ -70,7 +70,7 @@ class KgNodeEmbeddingServiceTest {
         vec[0] = 0.5f;
         when(client.embed("Kafka :: Technology :: Kafka")).thenReturn(vec);
 
-        final KgNodeEmbeddingService svc = new KgNodeEmbeddingService(repo, client, "bge-m3:latest");
+        final KgNodeEmbeddingService svc = new KgNodeEmbeddingService(repo, client, "qwen3-embedding:0.6b");
         final KgNodeEmbeddingService.Result r = svc.warmUp(List.of(node));
         assertEquals(0, r.cached());
         assertEquals(1, r.reEmbedded());
@@ -89,7 +89,7 @@ class KgNodeEmbeddingServiceTest {
         vec[0] = 0.5f;
         when(client.embed("Kafka :: Technology :: Kafka")).thenReturn(vec);
 
-        final KgNodeEmbeddingService svc = new KgNodeEmbeddingService(repo, client, "bge-m3:latest");
+        final KgNodeEmbeddingService svc = new KgNodeEmbeddingService(repo, client, "qwen3-embedding:0.6b");
         final KgNodeEmbeddingService.Result r = svc.warmUp(List.of(node));
         assertEquals(0, r.cached());
         assertEquals(1, r.reEmbedded());
@@ -110,7 +110,7 @@ class KgNodeEmbeddingServiceTest {
         when(client.embed("X :: Concept :: X")).thenThrow(new RuntimeException("boom"));
         when(client.embed("Y :: Concept :: Y")).thenReturn(new float[1024]);
 
-        final KgNodeEmbeddingService svc = new KgNodeEmbeddingService(repo, client, "bge-m3:latest");
+        final KgNodeEmbeddingService svc = new KgNodeEmbeddingService(repo, client, "qwen3-embedding:0.6b");
         final KgNodeEmbeddingService.Result r = svc.warmUp(List.of(bad, good));
         assertEquals(1, r.errors());
         assertEquals(1, r.reEmbedded());
@@ -128,7 +128,7 @@ class KgNodeEmbeddingServiceTest {
         when(client.embed(any())).thenReturn(new float[1024]);
         doThrow(new RuntimeException("db down")).when(repo).upsert(any(), any(), any());
 
-        final KgNodeEmbeddingService svc = new KgNodeEmbeddingService(repo, client, "bge-m3:latest");
+        final KgNodeEmbeddingService svc = new KgNodeEmbeddingService(repo, client, "qwen3-embedding:0.6b");
         final KgNodeEmbeddingService.Result r = svc.warmUp(List.of(node));
         assertEquals(1, r.errors());
         assertEquals(0, r.reEmbedded());
@@ -144,7 +144,7 @@ class KgNodeEmbeddingServiceTest {
         when(repo.findById(id)).thenReturn(Optional.empty());
         when(client.embed("Solo :: Concept :: Solo")).thenReturn(new float[1024]);
 
-        final KgNodeEmbeddingService svc = new KgNodeEmbeddingService(repo, client, "bge-m3:latest");
+        final KgNodeEmbeddingService svc = new KgNodeEmbeddingService(repo, client, "qwen3-embedding:0.6b");
         final KgNodeEmbeddingService.Result r = svc.warmUp(List.of(node));
         assertEquals(1, r.reEmbedded());
         verify(client).embed("Solo :: Concept :: Solo");

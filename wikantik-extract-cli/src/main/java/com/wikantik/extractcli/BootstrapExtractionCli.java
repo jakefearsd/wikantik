@@ -282,11 +282,18 @@ public final class BootstrapExtractionCli {
         return Pattern.compile( sb.append( '$' ).toString() );
     }
 
+    /** Wipe the KG-node embedding cache. {@code DELETE FROM} (not
+     * {@code TRUNCATE}) because the {@code jspwiki} app role only has
+     * SELECT/INSERT/UPDATE/DELETE — TRUNCATE requires owner privileges.
+     * The cache is at most ~1k rows, so the row-level cost is negligible.
+     * <p>The method name still reads "truncate" because that's the public
+     * intent ({@code --rebuild-node-embeddings} = empty the cache); the
+     * underlying SQL choice is an implementation detail. */
     private static void truncateNodeEmbeddings( final DataSource ds ) {
         try( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
-            st.executeUpdate( "TRUNCATE TABLE kg_node_embeddings" );
+            st.executeUpdate( "DELETE FROM kg_node_embeddings" );
         } catch( final java.sql.SQLException e ) {
-            throw new RuntimeException( "TRUNCATE kg_node_embeddings failed: " + e.getMessage(), e );
+            throw new RuntimeException( "wipe kg_node_embeddings failed: " + e.getMessage(), e );
         }
     }
 

@@ -57,7 +57,7 @@ public final class KgNodeEmbeddingService {
             final String hash = contentHashOf(n);
             final Optional<KgNodeEmbeddingRepository.Cached> existing;
             try {
-                existing = repo.findById(n.id());
+                existing = repo.findById(n.id(), modelTag);
             } catch (final RuntimeException e) {
                 LOG.warn("findById failed for node {}: {}", n.id(), e.getMessage());
                 errors++;
@@ -77,7 +77,7 @@ public final class KgNodeEmbeddingService {
                 continue;
             }
             try {
-                repo.upsert(n.id(), hash, vec);
+                repo.upsert(n.id(), modelTag, hash, vec);
                 reEmbedded++;
             } catch (final RuntimeException e) {
                 LOG.warn("upsert embedding failed for node '{}': {}", n.name(), e.getMessage());
@@ -85,6 +85,14 @@ public final class KgNodeEmbeddingService {
             }
         }
         return new Result(cached, reEmbedded, errors);
+    }
+
+    /** The model tag this service writes (and reads back) embeddings under.
+     * Callers that bypass the service for queries (e.g. the indexer's top-K
+     * dictionary lookup) thread this into the repository so they hit the
+     * same model slice as the warmer wrote. */
+    public String modelTag() {
+        return modelTag;
     }
 
     static String embeddingTextOf(final KgNode n) {

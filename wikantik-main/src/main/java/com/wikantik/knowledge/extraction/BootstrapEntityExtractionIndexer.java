@@ -605,8 +605,10 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         List< KgNode > dictionary = List.of();
         try {
             final Optional< float[] > mean = pageEmbeddings.meanFor( pageName );
-            if( mean.isPresent() && embeddingRepo != null && dictionaryTopK > 0 ) {
-                dictionary = embeddingRepo.findTopKByPageEmbedding( mean.get(), dictionaryTopK );
+            if( mean.isPresent() && embeddingRepo != null && embeddingService != null
+                                 && dictionaryTopK > 0 ) {
+                dictionary = embeddingRepo.findTopKByPageEmbedding(
+                    mean.get(), dictionaryTopK, embeddingService.modelTag() );
             }
         } catch( final RuntimeException e ) {
             LOG.warn( "Bootstrap extraction: dictionary lookup failed for page '{}': {}",

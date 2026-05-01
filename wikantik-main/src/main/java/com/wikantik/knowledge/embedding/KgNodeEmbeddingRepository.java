@@ -50,26 +50,29 @@ public final class KgNodeEmbeddingRepository {
         this.dataSource = dataSource;
     }
 
-    public Optional<Cached> findById(final UUID nodeId) {
-        final String sql = "SELECT content_hash, embedding::text FROM kg_node_embeddings WHERE node_id = ?";
+    public Optional<Cached> findById(final UUID nodeId, final String modelCode) {
+        final String sql = "SELECT content_hash, embedding::text FROM kg_node_embeddings"
+                         + " WHERE node_id = ? AND model_code = ?";
         try (Connection c = dataSource.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setObject(1, nodeId);
+            ps.setString(2, modelCode);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return Optional.empty();
                 return Optional.of(new Cached(rs.getString(1), parseVector(rs.getString(2))));
             }
         } catch (final SQLException e) {
-            LOG.warn("findById({}) failed: {}", nodeId, e.getMessage());
+            LOG.warn("findById({}, {}) failed: {}", nodeId, modelCode, e.getMessage());
             throw new RuntimeException(e);
         }
     }
 
-    public void upsert(final UUID nodeId, final String contentHash, final float[] embedding) {
+    public void upsert(final UUID nodeId, final String modelCode,
+                        final String contentHash, final float[] embedding) {
         final String sql = """
-            INSERT INTO kg_node_embeddings (node_id, content_hash, embedding, embedded_at)
-            VALUES (?, ?, ?::vector, NOW())
-            ON CONFLICT (node_id) DO UPDATE
+            INSERT INTO kg_node_embeddings (node_id, model_code, content_hash, embedding, embedded_at)
+            VALUES (?, ?, ?, ?::vector, NOW())
+            ON CONFLICT (node_id, model_code) DO UPDATE
             SET content_hash = EXCLUDED.content_hash,
                 embedding    = EXCLUDED.embedding,
                 embedded_at  = NOW()
@@ -77,28 +80,35 @@ public final class KgNodeEmbeddingRepository {
         try (Connection c = dataSource.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setObject(1, nodeId);
-            ps.setString(2, contentHash);
-            ps.setString(3, formatVector(embedding));
+            ps.setString(2, modelCode);
+            ps.setString(3, contentHash);
+            ps.setString(4, formatVector(embedding));
             ps.executeUpdate();
         } catch (final SQLException e) {
-            LOG.warn("upsert({}) failed: {}", nodeId, e.getMessage());
+            LOG.warn("upsert({}, {}) failed: {}", nodeId, modelCode, e.getMessage());
             throw new RuntimeException(e);
         }
     }
 
-    public List<KgNode> findTopKByPageEmbedding(final float[] pageEmbedding, final int k) {
+    public List<KgNode> findTopKByPageEmbedding(final float[] pageEmbedding, final int k,
+                                                 final String modelCode) {
+        // Filter to a single model so different embedders never share a
+        // similarity space (cosine across, say, bge-m3 and qwen3 vectors is
+        // meaningless even though both are 1024-dim).
         final String sql = """
             SELECT n.id, n.name, n.node_type, n.source_page, n.provenance,
                    n.created, n.modified
             FROM kg_node_embeddings ne
             JOIN kg_nodes n ON n.id = ne.node_id
+            WHERE ne.model_code = ?
             ORDER BY ne.embedding <=> ?::vector
             LIMIT ?
             """;
         try (Connection c = dataSource.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, formatVector(pageEmbedding));
-            ps.setInt(2, k);
+            ps.setString(1, modelCode);
+            ps.setString(2, formatVector(pageEmbedding));
+            ps.setInt(3, k);
             try (ResultSet rs = ps.executeQuery()) {
                 final List<KgNode> out = new ArrayList<>(k);
                 while (rs.next()) {

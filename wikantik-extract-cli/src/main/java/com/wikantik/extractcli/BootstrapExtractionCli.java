@@ -18,28 +18,54 @@
  */
 package com.wikantik.extractcli;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.wikantik.api.knowledge.PageExtractor;
+import com.wikantik.api.knowledge.ProposalJudge;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
+import com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository;
+import com.wikantik.knowledge.embedding.KgNodeEmbeddingService;
 import com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer;
 import com.wikantik.knowledge.extraction.ChunkEntityMentionRepository;
-import com.wikantik.knowledge.extraction.ChunkExtractionPrefilter;
 import com.wikantik.knowledge.extraction.EntityExtractorConfig;
+import com.wikantik.knowledge.extraction.EvidenceGroundingVerifier;
+import com.wikantik.knowledge.extraction.MentionAttributor;
+import com.wikantik.knowledge.extraction.NoOpProposalJudge;
+import com.wikantik.knowledge.extraction.OllamaPageExtractor;
+import com.wikantik.knowledge.extraction.PageEmbeddingProvider;
+import com.wikantik.knowledge.extraction.PageExtractionResponseParser;
+import com.wikantik.knowledge.extraction.ProposalConsolidator;
+import com.wikantik.knowledge.extraction.ProposalUpserter;
+import com.wikantik.search.embedding.EmbeddingClient;
+import com.wikantik.search.embedding.EmbeddingConfig;
+import com.wikantik.search.embedding.EmbeddingKind;
+import com.wikantik.search.embedding.EmbeddingModel;
+import com.wikantik.search.embedding.OllamaEmbeddingClient;
+import com.wikantik.search.embedding.TextEmbeddingClient;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.postgresql.ds.PGSimpleDataSource;
 
 import javax.sql.DataSource;
+import java.io.IOException;
+import java.net.http.HttpClient;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.Statement;
+import java.util.List;
 import java.util.Locale;
-import java.util.Properties;
+import java.util.regex.Pattern;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Standalone command-line driver for the save-time entity-extraction pipeline.
- * Wires just enough of {@code wikantik-main} to run
- * {@link BootstrapEntityExtractionIndexer} against an existing database,
- * without booting a servlet container. Intended for multi-hour batch runs that
- * should survive Tomcat restarts / redeploys during local development.
+ * Standalone command-line driver for the per-page entity-extraction pipeline.
+ * Wires {@link BootstrapEntityExtractionIndexer} (and the Phase 2
+ * collaborators it depends on) against an existing Postgres database without
+ * booting a servlet container, so multi-hour batch runs survive Tomcat
+ * redeploys during local development.
  *
  * <h3>Example</h3>
  * <pre>{@code
@@ -49,14 +75,15 @@ import java.util.concurrent.TimeUnit;
  *      --jdbc-password-env PG_PASSWORD \
  *      --ollama-model gemma4-assist:latest \
  *      --concurrency 2 \
- *      --force
+ *      --report reports/run.json
  * }</pre>
  *
  * <h3>Exit codes</h3>
  * <ul>
  *   <li>{@code 0} — run reached {@code COMPLETED} state.</li>
- *   <li>{@code 1} — run reached {@code ERROR} state or the indexer
- *       failed to start.</li>
+ *   <li>{@code 1} — run reached {@code ERROR}, the indexer refused to start,
+ *       or {@code --judge ollama|claude} was passed without their Phase 6
+ *       implementations being available yet.</li>
  *   <li>{@code 2} — invalid CLI arguments.</li>
  * </ul>
  */
@@ -86,222 +113,183 @@ public final class BootstrapExtractionCli {
     }
 
     private static int run( final Args a ) {
-        final EntityExtractorConfig cfg = a.toExtractorConfig();
-
-        // --chunker-stats-only doesn't touch the DB — re-chunks pages from
-        // disk in memory and prints distribution stats. Handle it before
-        // we even open a JDBC connection.
-        if( a.chunkerStatsOnly ) {
-            return runChunkerStatsOnly( a, cfg );
+        final ProposalJudge judge;
+        try {
+            judge = buildJudge( a );
+        } catch( final IllegalStateException e ) {
+            System.err.println( "error: " + e.getMessage() );
+            return 1;
         }
 
         final DataSource ds = dataSource( a );
-        final ContentChunkRepository chunkRepo = new ContentChunkRepository( ds );
-        final ChunkEntityMentionRepository mentionRepo = new ChunkEntityMentionRepository( ds );
+
+        if( a.rebuildNodeEmbeddings ) {
+            try {
+                truncateNodeEmbeddings( ds );
+                LOG.info( "Cleared kg_node_embeddings (--rebuild-node-embeddings)" );
+            } catch( final RuntimeException e ) {
+                System.err.println( "error: --rebuild-node-embeddings failed to truncate kg_node_embeddings: "
+                                  + e.getMessage() );
+                return 1;
+            }
+        }
+
+        // Pipeline collaborators — see plan §4.1 step 2 for the construction recipe.
+        final PageExtractionResponseParser parser = new PageExtractionResponseParser(
+            new EvidenceGroundingVerifier(), a.maxEntitiesPerPage, a.maxRelationsPerPage );
+        final HttpClient http = HttpClient.newHttpClient();
+        final OllamaPageExtractor extractor = new OllamaPageExtractor(
+            http, a.ollamaUrl, a.ollamaModel, a.timeoutMs, parser );
+
         final JdbcKnowledgeRepository kgRepo = new JdbcKnowledgeRepository( ds );
+        final KgNodeEmbeddingRepository embRepo = new KgNodeEmbeddingRepository( ds );
+        final KgNodeEmbeddingService embService = buildEmbeddingService( a, http, embRepo );
 
-        // --stats-only short-circuits before we touch any extractor: walk every
-        // chunk, evaluate the prefilter, print reason-by-reason counts, exit.
-        // No LLM calls, no persistence — useful for sizing a run before
-        // committing GPU hours to it.
-        if( a.statsOnly ) {
-            return runStatsOnly( cfg, chunkRepo );
+        // --page-pattern is implemented by wrapping ContentChunkRepository so
+        // listDistinctPageNames() applies a glob filter — same seam the
+        // PageExtractionPgTestBase uses to scope the IT to its own pages
+        // without modifying the indexer.
+        final ContentChunkRepository chunkRepo = a.pagePattern == null
+            ? new ContentChunkRepository( ds )
+            : pagePatternFiltered( ds, a.pagePattern );
+
+        final ChunkEntityMentionRepository mentionRepo = new ChunkEntityMentionRepository( ds );
+        final ProposalConsolidator consolidator = new ProposalConsolidator();
+        final ProposalUpserter upserter = new ProposalUpserter( kgRepo );
+
+        final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
+            extractor, judge, consolidator, upserter,
+            embService, embRepo,
+            chunkRepo, mentionRepo, kgRepo, new MentionAttributor(),
+            PageEmbeddingProvider.EMPTY, /*excludedPages*/ null,
+            a.concurrency, a.dictionaryTopK, a.maxEntitiesPerPage, a.maxRelationsPerPage );
+
+        if( a.dryRun ) {
+            indexer.setDryRun( true );
         }
 
-        // Phase 3 of the KG-extraction redesign replaced the chunk-driven
-        // indexer with the per-page pipeline (PageExtractor → consolidator →
-        // judge → upserter → mention attribution). This CLI is rewired in
-        // Phase 4 (Tasks 4.1-4.3 of docs/superpowers/plans/2026-05-01-kg-
-        // extraction-redesign.md). Until then, the admin REST endpoint at
-        // POST /admin/knowledge/extract-mentions remains the supported entry
-        // point. Return non-zero so scripts that grep "BUILD SUCCESS" don't
-        // silently treat "nothing happened" as success.
-        System.err.println( "error: extract-cli is being rewired for the per-page pipeline (Phase 4)." );
-        System.err.println( "       Use POST /admin/knowledge/extract-mentions for now — see" );
-        System.err.println( "       docs/superpowers/plans/2026-05-01-kg-extraction-redesign.md task 4.1." );
-        return 1;
-    }
+        LOG.info( "Extract-CLI starting: model={}, judge={}, concurrency={}, maxPages={}, dryRun={}, report={}",
+            a.ollamaModel, judge.code(), a.concurrency, a.maxPages, a.dryRun, a.report );
 
-    /**
-     * Reads every {@code .md} file under {@code --pages-dir}, parses
-     * frontmatter, runs the chunker with the supplied {@code --chunker-*}
-     * overrides, and reports the chunk-size distribution and (optionally) the
-     * prefilter's effect on those re-chunked chunks. No DB access, no
-     * extractor call. Pure in-memory exercise for tuning chunker config
-     * before committing to a re-chunk + extraction round-trip.
-     *
-     * <p>Token estimate uses the same chars/4 heuristic as the chunker, so
-     * the numbers reported here match what the chunker writes to
-     * {@code kg_content_chunks.token_count_estimate}.
-     */
-    private static int runChunkerStatsOnly( final Args a, final EntityExtractorConfig cfg ) {
-        final java.nio.file.Path dir = java.nio.file.Paths.get( a.pagesDir ).toAbsolutePath().normalize();
-        if( !java.nio.file.Files.isDirectory( dir ) ) {
-            System.err.println( "error: --pages-dir does not exist or is not a directory: " + dir );
+        final boolean started = indexer.start( /*forceOverwrite*/ false, a.maxPages );
+        if( !started ) {
+            System.err.println( "error: indexer refused to start (already running?)" );
             return 1;
         }
 
-        final com.wikantik.knowledge.chunking.ContentChunker chunker =
-            new com.wikantik.knowledge.chunking.ContentChunker(
-                new com.wikantik.knowledge.chunking.ContentChunker.Config(
-                    a.chunkerMaxTokens, a.chunkerMergeForwardTokens ) );
-        final ChunkExtractionPrefilter prefilter = new ChunkExtractionPrefilter(
-            /*enabled*/ true, /*dryRun*/ false,
-            cfg.prefilterSkipPureCode(),
-            cfg.prefilterSkipNoProperNoun(),
-            cfg.prefilterSkipTooShort(),
-            cfg.prefilterMinTokens() );
-
-        LOG.info( "Chunker-stats: scanning {} for *.md (max_tokens={}, merge_forward_tokens={})",
-            dir, a.chunkerMaxTokens, a.chunkerMergeForwardTokens );
-
-        final long started = System.nanoTime();
-        final java.util.List< Integer > sizes = new java.util.ArrayList<>();
-        final java.util.Map< String, Integer > prefilterReasons = new java.util.TreeMap<>();
-        int pages = 0;
-        int prefilterKept = 0;
-        int prefilterSkipped = 0;
-        try( java.util.stream.Stream< java.nio.file.Path > walk = java.nio.file.Files.walk( dir ) ) {
-            for( final java.nio.file.Path p : (Iterable< java.nio.file.Path >) walk::iterator ) {
-                if( !java.nio.file.Files.isRegularFile( p ) ) continue;
-                final String name = p.getFileName().toString();
-                if( !name.endsWith( ".md" ) ) continue;
-                final String text;
-                try {
-                    text = java.nio.file.Files.readString( p );
-                } catch( final java.io.IOException ioe ) {
-                    LOG.warn( "Skipping {}: read failed: {}", p, ioe.getMessage() );
-                    continue;
-                }
-                final com.wikantik.api.frontmatter.ParsedPage parsed =
-                    com.wikantik.api.frontmatter.FrontmatterParser.parse( text );
-                final String pageName = name.substring( 0, name.length() - 3 );
-                final java.util.List< com.wikantik.knowledge.chunking.Chunk > chunks =
-                    chunker.chunk( pageName, parsed );
-                pages++;
-                for( final com.wikantik.knowledge.chunking.Chunk c : chunks ) {
-                    sizes.add( c.tokenCountEstimate() );
-                    final ChunkExtractionPrefilter.Decision d = prefilter.evaluate( c.text(), c.headingPath() );
-                    if( d.shouldExtract() ) {
-                        prefilterKept++;
-                    } else {
-                        prefilterSkipped++;
-                        prefilterReasons.merge( d.reason(), 1, Integer::sum );
-                    }
-                }
-            }
-        } catch( final java.io.IOException ioe ) {
-            System.err.println( "error: walking pages dir failed: " + ioe.getMessage() );
-            return 1;
+        final int exit = waitAndReport( indexer, a.pollSeconds );
+        if( a.report != null ) {
+            writeReport( a.report, indexer.status() );
         }
-
-        final long elapsedMs = ( System.nanoTime() - started ) / 1_000_000L;
-        if( sizes.isEmpty() ) {
-            LOG.warn( "Chunker-stats: no .md files found under {}", dir );
-            return 0;
-        }
-        java.util.Collections.sort( sizes );
-        final int total = sizes.size();
-        final int min = sizes.get( 0 );
-        final int max = sizes.get( total - 1 );
-        final double mean = sizes.stream().mapToInt( Integer::intValue ).average().orElse( 0 );
-        final int p50 = sizes.get( total / 2 );
-        final int p90 = sizes.get( Math.min( total - 1, (int)( total * 0.90 ) ) );
-        final int p99 = sizes.get( Math.min( total - 1, (int)( total * 0.99 ) ) );
-
-        LOG.info( "Chunker-stats: pages={} chunks={} elapsedMs={}", pages, total, elapsedMs );
-        LOG.info( "Tokens per chunk: min={} mean={} p50={} p90={} p99={} max={}",
-            min, String.format( Locale.ROOT, "%.0f", mean ), p50, p90, p99, max );
-
-        final int[] cuts   = { 50, 150, 300, 500, 1000, Integer.MAX_VALUE };
-        final String[] lbl = { "  0-50 ", " 51-150", "151-300", "301-500", "501-1k ", "1001+  " };
-        final int[] counts = new int[ cuts.length ];
-        for( final int s : sizes ) {
-            for( int i = 0; i < cuts.length; i++ ) {
-                if( s <= cuts[ i ] ) { counts[ i ]++; break; }
-            }
-        }
-        LOG.info( "Distribution:" );
-        for( int i = 0; i < counts.length; i++ ) {
-            final double pct = 100.0 * counts[ i ] / total;
-            LOG.info( "  {} : {} ({}%)", lbl[ i ], counts[ i ], String.format( Locale.ROOT, "%.1f", pct ) );
-        }
-
-        final double skipPct = 100.0 * prefilterSkipped / total;
-        LOG.info( "Prefilter on these chunks: kept={} skipped={} ({}%)",
-            prefilterKept, prefilterSkipped, String.format( Locale.ROOT, "%.1f", skipPct ) );
-        for( final java.util.Map.Entry< String, Integer > e : prefilterReasons.entrySet() ) {
-            final double rPct = 100.0 * e.getValue() / total;
-            LOG.info( "  reason={} count={} ({}%)", e.getKey(), e.getValue(),
-                String.format( Locale.ROOT, "%.1f", rPct ) );
-        }
-        return 0;
+        return exit;
     }
 
-    /**
-     * Walks every chunk in the corpus, evaluates the configured prefilter
-     * against each, prints reason-by-reason counts, and exits. No extractor
-     * call, no persistence, no LLM. Lets an operator size a filter run before
-     * committing GPU hours to it.
-     *
-     * <p>The prefilter is built with {@code skipTooShort} forced on (regardless
-     * of {@code --no-prefilter-skip-short}) so the {@code too_short} reason
-     * still appears in the report — the operator can see what each rule would
-     * catch independently. Dry-run is forced off here because we never persist
-     * anything anyway.
-     */
-    private static int runStatsOnly( final EntityExtractorConfig cfg,
-                                     final ContentChunkRepository chunkRepo ) {
-        final ChunkExtractionPrefilter f = new ChunkExtractionPrefilter(
-            /*enabled*/ true, /*dryRun*/ false,
-            cfg.prefilterSkipPureCode(),
-            cfg.prefilterSkipNoProperNoun(),
-            cfg.prefilterSkipTooShort(),
-            cfg.prefilterMinTokens() );
-
-        final long started = System.nanoTime();
-        final java.util.List< String > pages = chunkRepo.listDistinctPageNames();
-        LOG.info( "Stats-only: walking {} pages…", pages.size() );
-
-        int total = 0;
-        int kept = 0;
-        final java.util.Map< String, Integer > reasons = new java.util.TreeMap<>();
-
-        for( final String page : pages ) {
-            final java.util.List< java.util.UUID > ids = chunkRepo.listChunkIdsForPage( page );
-            if( ids.isEmpty() ) continue;
-            for( final ContentChunkRepository.MentionableChunk c : chunkRepo.findByIds( ids ) ) {
-                total++;
-                final ChunkExtractionPrefilter.Decision d = f.evaluate( c.text(), c.headingPath() );
-                if( d.shouldExtract() ) {
-                    kept++;
-                } else {
-                    reasons.merge( d.reason(), 1, Integer::sum );
+    /** Throws {@link IllegalStateException} when an opt-in judge is requested but not yet implemented. */
+    private static ProposalJudge buildJudge( final Args a ) {
+        return switch( a.judge ) {
+            case "none" -> new NoOpProposalJudge();
+            case "ollama" -> throw new IllegalStateException(
+                "--judge ollama is not yet implemented (Phase 6 of the redesign). "
+              + "Re-run with --judge none, or wait for OllamaProposalJudge to land." );
+            case "claude" -> {
+                if( !Boolean.parseBoolean(
+                    System.getProperty( "wikantik.kg.judge.allow_claude", "false" ) ) ) {
+                    throw new IllegalStateException(
+                        "--judge claude requires -Dwikantik.kg.judge.allow_claude=true (gated cost guard)." );
                 }
+                throw new IllegalStateException(
+                    "--judge claude is not yet implemented (Phase 6 of the redesign). "
+                  + "Re-run with --judge none, or wait for ClaudeProposalJudge to land." );
+            }
+            default -> throw new IllegalStateException(
+                "unknown --judge value '" + a.judge + "' (expected: none|ollama|claude)" );
+        };
+    }
+
+    private static KgNodeEmbeddingService buildEmbeddingService( final Args a,
+                                                                 final HttpClient http,
+                                                                 final KgNodeEmbeddingRepository repo ) {
+        // Tag-form input ("bge-m3:latest"): strip ":latest" to get the model
+        // code ("bge-m3") so EmbeddingModel.fromCode resolves. Bare codes work
+        // unchanged. Unknown codes fall back to BGE_M3 with a warning rather
+        // than failing the run — node embeddings are best-effort.
+        final String tag = a.nodeEmbeddingModel;
+        final String maybeCode = tag.endsWith( ":latest" )
+            ? tag.substring( 0, tag.length() - ":latest".length() ) : tag;
+        EmbeddingModel model;
+        try {
+            model = EmbeddingModel.fromCode( maybeCode );
+        } catch( final IllegalArgumentException e ) {
+            LOG.warn( "Unknown --node-embedding-model '{}'; falling back to bge-m3 metadata "
+                    + "(dimension/prefix). The Ollama tag '{}' is still passed through verbatim.",
+                tag, tag );
+            model = EmbeddingModel.BGE_M3;
+        }
+        final EmbeddingConfig cfg = new EmbeddingConfig(
+            /*enabled*/ true,
+            EmbeddingConfig.BACKEND_OLLAMA,
+            a.ollamaUrl,
+            /*apiKey*/ null,
+            model,
+            /*ollamaTagOverride*/ tag,
+            /*timeoutMs*/ Math.max( 1, (int) Math.min( a.timeoutMs, Integer.MAX_VALUE ) ),
+            EmbeddingConfig.DEFAULT_BATCH_SIZE );
+        final TextEmbeddingClient batched = new OllamaEmbeddingClient( http, cfg );
+        // Single-text adapter — KgNodeEmbeddingService never batches.
+        final EmbeddingClient single = text ->
+            batched.embed( List.of( text ), EmbeddingKind.DOCUMENT ).get( 0 );
+        return new KgNodeEmbeddingService( repo, single, tag );
+    }
+
+    private static ContentChunkRepository pagePatternFiltered( final DataSource ds, final String glob ) {
+        final Pattern regex = globToRegex( glob );
+        return new ContentChunkRepository( ds ) {
+            @Override
+            public List< String > listDistinctPageNames() {
+                return super.listDistinctPageNames().stream()
+                    .filter( name -> regex.matcher( name ).matches() )
+                    .toList();
+            }
+        };
+    }
+
+    /** Minimal glob → regex (supports {@code *} and {@code ?} only). */
+    static Pattern globToRegex( final String glob ) {
+        final StringBuilder sb = new StringBuilder( glob.length() + 8 ).append( '^' );
+        for( int i = 0; i < glob.length(); i++ ) {
+            final char c = glob.charAt( i );
+            switch( c ) {
+                case '*' -> sb.append( ".*" );
+                case '?' -> sb.append( '.' );
+                case '.', '(', ')', '[', ']', '{', '}', '+', '|', '^', '$', '\\' ->
+                    sb.append( '\\' ).append( c );
+                default -> sb.append( c );
             }
         }
+        return Pattern.compile( sb.append( '$' ).toString() );
+    }
 
-        final long elapsedMs = ( System.nanoTime() - started ) / 1_000_000L;
-        final int skipped = total - kept;
-        final double pct = total > 0 ? ( 100.0 * skipped / total ) : 0.0;
-        LOG.info( "Stats-only: total={} kept={} skipped={} ({}%) in {}ms",
-            total, kept, skipped, String.format( Locale.ROOT, "%.1f", pct ), elapsedMs );
-        for( final java.util.Map.Entry< String, Integer > e : reasons.entrySet() ) {
-            final double rPct = total > 0 ? ( 100.0 * e.getValue() / total ) : 0.0;
-            LOG.info( "  reason={} count={} ({}%)", e.getKey(), e.getValue(),
-                String.format( Locale.ROOT, "%.1f", rPct ) );
+    private static void truncateNodeEmbeddings( final DataSource ds ) {
+        try( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
+            st.executeUpdate( "TRUNCATE TABLE kg_node_embeddings" );
+        } catch( final java.sql.SQLException e ) {
+            throw new RuntimeException( "TRUNCATE kg_node_embeddings failed: " + e.getMessage(), e );
         }
-        if( !cfg.prefilterEnabled() ) {
-            LOG.info( "(Master prefilter switch is OFF in config; numbers above show "
-                    + "what would happen if --prefilter were passed at run time.)" );
+    }
+
+    private static void writeReport( final String path, final BootstrapEntityExtractionIndexer.Status s ) {
+        final Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
+        try {
+            Files.writeString( Path.of( path ), gson.toJson( s ) );
+            LOG.info( "Wrote run report → {}", path );
+        } catch( final IOException ioe ) {
+            LOG.warn( "Failed to write --report {}: {}", path, ioe.getMessage() );
         }
-        return 0;
     }
 
     /**
      * Polls the indexer at {@code pollSeconds} cadence, logs an aggregate
-     * progress line at INFO (goes to stdout via the CLI's log4j2.xml), and
-     * returns the exit code when the state leaves RUNNING.
+     * progress line at INFO, and returns the exit code when state leaves RUNNING.
      */
     private static int waitAndReport( final BootstrapEntityExtractionIndexer indexer,
                                       final int pollSeconds ) {
@@ -320,35 +308,21 @@ public final class BootstrapExtractionCli {
         return finalStatus.state() == BootstrapEntityExtractionIndexer.State.COMPLETED ? 0 : 1;
     }
 
-    /**
-     * Renders the indexer status as a single line that includes both page and
-     * chunk progress, plus throughput counters — detailed enough to answer
-     * "how many of what total" at a glance without opening the JSON.
-     */
+    /** One-line progress digest covering the per-page pipeline counters. */
     private static String formatProgress( final BootstrapEntityExtractionIndexer.Status s ) {
-        final int totalChunks    = s.totalChunks();
-        final int extractedChunks = s.processedChunks(); // includes failed; skipped are disjoint
-        final int doneChunks     = extractedChunks + s.skippedChunks();
-        final double pct = totalChunks > 0
-            ? ( 100.0 * doneChunks / totalChunks )
-            : 0.0;
+        final int totalPages = s.totalPages();
+        final int donePages  = s.processedPages();
+        final double pct = totalPages > 0 ? ( 100.0 * donePages / totalPages ) : 0.0;
         final long elapsedSec = s.elapsedMs() / 1000L;
-        final long perChunkMs = extractedChunks > 0 ? s.elapsedMs() / extractedChunks : 0L;
-        final String skipSuffix = s.skippedChunks() > 0
-            ? String.format( Locale.ROOT, " skipped=%d %s", s.skippedChunks(), s.skipReasons() )
-            : "";
+        final long perPageMs = donePages > 0 ? s.elapsedMs() / donePages : 0L;
         return String.format( Locale.ROOT,
-            "state=%s pages=%d/%d chunks=%d/%d (%.1f%%) failedChunks=%d "
-          + "mentions=%d proposals=%d elapsed=%ds perChunkMs=%d%s",
-            s.state(), s.processedPages(), s.totalPages(),
-            doneChunks, totalChunks, pct, s.failedChunks(),
-            s.mentionsWritten(), s.proposalsFiled(), elapsedSec, perChunkMs, skipSuffix );
-    }
-
-    private static String modelLabel( final EntityExtractorConfig cfg ) {
-        return EntityExtractorConfig.BACKEND_CLAUDE.equalsIgnoreCase( cfg.backend() )
-            ? cfg.claudeModel()
-            : cfg.ollamaModel();
+            "state=%s pages=%d/%d (%.1f%%) failed=%d excluded=%d "
+          + "consolidated=%d accepted=%d rejected=%d rewritten=%d "
+          + "inserted=%d merged=%d mentions=%d elapsed=%ds perPageMs=%d rejectionReasons=%s",
+            s.state(), donePages, totalPages, pct, s.failedPages(), s.excludedSkipped(),
+            s.consolidatedCandidates(), s.judgeAccepted(), s.judgeRejected(), s.judgeRewritten(),
+            s.proposalsInserted(), s.proposalsMerged(), s.mentionsWritten(),
+            elapsedSec, perPageMs, s.rejectionReasons() );
     }
 
     private static DataSource dataSource( final Args a ) {
@@ -361,7 +335,7 @@ public final class BootstrapExtractionCli {
 
     private static void printUsage() {
         final String usage = """
-            wikantik-extract-cli — standalone driver for the entity-extraction batch.
+            wikantik-extract-cli — standalone driver for the per-page entity-extraction pipeline.
 
             Usage:
               java -jar wikantik-extract-cli.jar [options]
@@ -372,43 +346,31 @@ public final class BootstrapExtractionCli {
               --jdbc-password <value>        password literal (not recommended)
               --jdbc-password-env <VAR>      read password from env var (preferred)
 
-            Extractor backend:
-              --backend <ollama|claude|disabled>   (default ollama)
-              --ollama-url <url>                   (default http://inference.jakefear.com:11434)
-              --ollama-model <tag>                 (default gemma4-assist:latest)
-              --claude-model <id>                  (default claude-haiku-4-5)
-              --anthropic-key-env <VAR>            (Claude only)
+            Extractor:
+              --ollama-url <url>             (default http://inference.jakefear.com:11434)
+              --ollama-model <tag>           (default gemma4-assist:latest)
+              --timeout-ms <ms>              per-page extractor timeout (default 120000)
 
-            Run tuning:
-              --concurrency <1..10>                (default 2; silently clamped)
-              --confidence-threshold <0.0..1.0>    (default 0.6)
-              --max-existing-nodes <N>             (default 200)
-              --timeout-ms <ms>                    (default 120000)
-              --force                              replace existing mentions per chunk before extracting
-              --poll-seconds <N>                   progress-log cadence (default 30)
-              --max-pages <N>                      stop after the first N pages (alphabetical), 0 = unlimited.
-                                                   Use for end-to-end smoke tests against a small subset.
-              -h, --help                           show this message
+            Judge (opt-in proposal review; see Phase 6 of the redesign plan):
+              --judge <none|ollama|claude>   (default none — accept everything verbatim)
+              --judge-model <tag/id>         model used by the judge (defaults vary per backend)
+              --anthropic-key-env <VAR>      env var holding the Anthropic API key (claude only)
+              -Dwikantik.kg.judge.allow_claude=true   required to actually use --judge claude
 
-            Pre-filter (optional, opt-in):
-              --prefilter                        enable chunk prefilter (skip pure code + no-proper-noun + too-short chunks)
-              --prefilter-dry-run                enable filter but log decisions only — no chunks are skipped
-              --no-prefilter-skip-code           keep the prefilter on but disable the pure-code rule
-              --no-prefilter-skip-nopn           keep the prefilter on but disable the no-proper-noun rule
-              --no-prefilter-skip-short          keep the prefilter on but disable the too-short rule
-              --prefilter-min-tokens <N>         token threshold for too-short rule (default 20; chars/4 estimate)
-              --stats-only                       walk every chunk, evaluate the prefilter, print reason
-                                                 counts, and exit. No extractor calls — useful for sizing
-                                                 a run before committing GPU hours to it.
-
-            Chunker stats (no DB, no LLM — reads pages from disk and re-chunks in memory):
-              --chunker-stats-only                 read --pages-dir, re-chunk every page with the supplied
-                                                   --chunker-* overrides, print size distribution + the
-                                                   prefilter's effect on the new chunks. Exits 0.
-              --chunker-max-tokens <N>             chunker hard ceiling (default 512)
-              --chunker-merge-forward-tokens <N>   chunker floor below which chunks merge into the next
-                                                   section (default 150). Must be <= --chunker-max-tokens.
-              --pages-dir <path>                   markdown source root (default docs/wikantik-pages)
+            Pipeline tuning:
+              --concurrency <1..6>                  (default 2; clamped)
+              --confidence-threshold <0.0..1.0>     judge cutoff (default 0.55)
+              --dictionary-top-k <N>                top-K existing nodes injected per page (default 12, 0=off)
+              --max-entities-per-page <N>           hard cap per LLM response (default 12)
+              --max-relations-per-page <N>          hard cap per LLM response (default 8)
+              --node-embedding-model <tag>          model for the kg_node_embeddings cache (default bge-m3:latest)
+              --rebuild-node-embeddings             TRUNCATE the embedding cache before warmup
+              --max-pages <N>                       stop after first N pages, 0 = unlimited
+              --page-pattern <glob>                 limit to page names matching glob (* and ? supported)
+              --dry-run                             skip the kg_proposals upsert step (smoke runs)
+              --report <path>                       on completion, write the final Status as JSON
+              --poll-seconds <N>                    progress-log cadence (default 30)
+              -h, --help                            show this message
 
             Exit codes: 0 = completed, 1 = errored / refused to start, 2 = bad arguments.
             """;
@@ -417,135 +379,92 @@ public final class BootstrapExtractionCli {
 
     // ---- args ----
 
-    static final class Args {
-        String jdbcUrl       = "jdbc:postgresql://localhost:5432/jspwiki";
-        String jdbcUser      = "jspwiki";
-        String jdbcPassword  = "";
-        String backend       = EntityExtractorConfig.BACKEND_OLLAMA;
-        String ollamaUrl     = "http://inference.jakefear.com:11434";
-        String ollamaModel   = "gemma4-assist:latest";
-        String claudeModel   = "claude-haiku-4-5";
-        int    concurrency   = 2;
-        double confThreshold = 0.6;
-        int    maxNodes      = 200;
-        long   timeoutMs     = 120_000L;
-        int    pollSeconds   = 30;
-        boolean force                 = false;
-        boolean showHelp              = false;
-        boolean prefilterEnabled      = false;
-        boolean prefilterDryRun       = false;
-        boolean prefilterSkipCode     = true;
-        boolean prefilterSkipNoProper = true;
-        boolean prefilterSkipShort    = true;
-        int     prefilterMinTokens    = 20;
-        boolean statsOnly             = false;
-        boolean chunkerStatsOnly      = false;
-        int     chunkerMaxTokens      = 512;
-        int     chunkerMergeForwardTokens = 150;
-        String  pagesDir              = "docs/wikantik-pages";
-        int     maxPages              = 0;
+    /**
+     * CLI argument bag. Made {@code public} so {@link BootstrapExtractionCliArgsTest}
+     * can drive {@link #parse(String[])} directly without reflection.
+     */
+    public static final class Args {
+        public String jdbcUrl              = "jdbc:postgresql://localhost:5432/jspwiki";
+        public String jdbcUser             = "jspwiki";
+        public String jdbcPassword         = "";
+        public String ollamaUrl            = "http://inference.jakefear.com:11434";
+        public String ollamaModel          = "gemma4-assist:latest";
+        public int    concurrency          = 2;
+        public double confThreshold        = 0.55;
+        public long   timeoutMs            = 120_000L;
+        public int    pollSeconds          = 30;
+        public boolean showHelp            = false;
+        public int    maxPages             = 0;
 
-        static Args parse( final String[] argv ) {
+        // ---- new per-page pipeline knobs ----
+        public String judge                = "none";
+        public String judgeModel           = "qwen3.5:9b";
+        public String anthropicKeyEnv      = null;
+        public int    maxEntitiesPerPage   = 12;
+        public int    maxRelationsPerPage  = 8;
+        public int    dictionaryTopK       = 12;
+        public String nodeEmbeddingModel   = "bge-m3:latest";
+        public String pagePattern          = null;
+        public boolean rebuildNodeEmbeddings = false;
+        public boolean dryRun              = false;
+        public String report               = null;
+
+        /** Maximum allowed concurrency for the per-page pipeline (clamped on parse). */
+        public static final int CLI_CONCURRENCY_MAX = 6;
+
+        public static Args parse( final String[] argv ) {
             final Args a = new Args();
             for( int i = 0; i < argv.length; i++ ) {
                 final String k = argv[ i ];
                 switch( k ) {
                     case "-h", "--help"              -> a.showHelp = true;
-                    case "--force"                   -> a.force = true;
                     case "--jdbc-url"                -> a.jdbcUrl = req( argv, ++i, k );
                     case "--jdbc-user"               -> a.jdbcUser = req( argv, ++i, k );
                     case "--jdbc-password"           -> a.jdbcPassword = req( argv, ++i, k );
                     case "--jdbc-password-env"       -> a.jdbcPassword = env( req( argv, ++i, k ) );
-                    case "--backend"                 -> a.backend = req( argv, ++i, k );
                     case "--ollama-url"              -> a.ollamaUrl = req( argv, ++i, k );
                     case "--ollama-model"            -> a.ollamaModel = req( argv, ++i, k );
-                    case "--claude-model"            -> a.claudeModel = req( argv, ++i, k );
-                    case "--anthropic-key-env"       -> System.setProperty( "ANTHROPIC_API_KEY",
-                                                          env( req( argv, ++i, k ) ) );
                     case "--concurrency"             -> a.concurrency = parseInt( req( argv, ++i, k ), k );
                     case "--confidence-threshold"    -> a.confThreshold = parseDouble( req( argv, ++i, k ), k );
-                    case "--max-existing-nodes"      -> a.maxNodes = parseInt( req( argv, ++i, k ), k );
                     case "--timeout-ms"              -> a.timeoutMs = parseLong( req( argv, ++i, k ), k );
                     case "--poll-seconds"            -> a.pollSeconds = parseInt( req( argv, ++i, k ), k );
-                    case "--prefilter"               -> a.prefilterEnabled = true;
-                    case "--prefilter-dry-run"       -> { a.prefilterEnabled = true; a.prefilterDryRun = true; }
-                    case "--no-prefilter-skip-code"  -> a.prefilterSkipCode = false;
-                    case "--no-prefilter-skip-nopn"  -> a.prefilterSkipNoProper = false;
-                    case "--no-prefilter-skip-short" -> a.prefilterSkipShort = false;
-                    case "--prefilter-min-tokens"    -> a.prefilterMinTokens = parseInt( req( argv, ++i, k ), k );
-                    case "--stats-only"              -> a.statsOnly = true;
-                    case "--chunker-stats-only"      -> a.chunkerStatsOnly = true;
-                    case "--chunker-max-tokens"      -> a.chunkerMaxTokens = parseInt( req( argv, ++i, k ), k );
-                    case "--chunker-merge-forward-tokens" -> a.chunkerMergeForwardTokens = parseInt( req( argv, ++i, k ), k );
-                    case "--pages-dir"               -> a.pagesDir = req( argv, ++i, k );
                     case "--max-pages"               -> a.maxPages = parseInt( req( argv, ++i, k ), k );
+
+                    case "--judge"                   -> a.judge = req( argv, ++i, k ).toLowerCase( Locale.ROOT );
+                    case "--judge-model"             -> a.judgeModel = req( argv, ++i, k );
+                    case "--anthropic-key-env"       -> a.anthropicKeyEnv = req( argv, ++i, k );
+                    case "--max-entities-per-page"   -> a.maxEntitiesPerPage = parseInt( req( argv, ++i, k ), k );
+                    case "--max-relations-per-page"  -> a.maxRelationsPerPage = parseInt( req( argv, ++i, k ), k );
+                    case "--dictionary-top-k"        -> a.dictionaryTopK = parseInt( req( argv, ++i, k ), k );
+                    case "--node-embedding-model"    -> a.nodeEmbeddingModel = req( argv, ++i, k );
+                    case "--page-pattern"            -> a.pagePattern = req( argv, ++i, k );
+                    case "--rebuild-node-embeddings" -> a.rebuildNodeEmbeddings = true;
+                    case "--dry-run"                 -> a.dryRun = true;
+                    case "--report"                  -> a.report = req( argv, ++i, k );
+
                     default -> throw new IllegalArgumentException( "unknown argument: " + k );
                 }
             }
             if( !a.showHelp ) {
-                // --chunker-stats-only is the only mode that doesn't touch the
-                // database — its other args (chunker overrides + pages dir)
-                // are validated below regardless.
-                if( !a.chunkerStatsOnly ) {
-                    if( a.jdbcUrl.isBlank() ) throw new IllegalArgumentException( "--jdbc-url is required" );
-                    if( a.jdbcUser.isBlank() ) throw new IllegalArgumentException( "--jdbc-user is required" );
-                }
+                if( a.jdbcUrl.isBlank() ) throw new IllegalArgumentException( "--jdbc-url is required" );
+                if( a.jdbcUser.isBlank() ) throw new IllegalArgumentException( "--jdbc-user is required" );
                 if( a.pollSeconds < 1 ) throw new IllegalArgumentException( "--poll-seconds must be >= 1" );
-                // --stats-only and --chunker-stats-only both synthesise an
-                // enabled prefilter internally, so sub-flags are meaningful
-                // there even without --prefilter.
-                final boolean anySubFlagFlipped =
-                    !a.prefilterSkipCode || !a.prefilterSkipNoProper || !a.prefilterSkipShort
-                    || a.prefilterMinTokens != 20;
-                final boolean prefilterImplicit = a.prefilterEnabled || a.statsOnly || a.chunkerStatsOnly;
-                if( anySubFlagFlipped && !prefilterImplicit ) {
-                    throw new IllegalArgumentException(
-                        "--no-prefilter-skip-* / --prefilter-min-tokens have no effect "
-                      + "without --prefilter (or --prefilter-dry-run, --stats-only, "
-                      + "--chunker-stats-only); pass one of those too." );
+                if( a.maxPages < 0 ) throw new IllegalArgumentException( "--max-pages must be >= 0 (0 = unlimited)" );
+                if( a.maxEntitiesPerPage < 1 ) throw new IllegalArgumentException( "--max-entities-per-page must be >= 1" );
+                if( a.maxRelationsPerPage < 0 ) throw new IllegalArgumentException( "--max-relations-per-page must be >= 0" );
+                if( a.dictionaryTopK < 0 ) throw new IllegalArgumentException( "--dictionary-top-k must be >= 0 (0 = off)" );
+                if( a.confThreshold < 0.0 || a.confThreshold > 1.0 ) {
+                    throw new IllegalArgumentException( "--confidence-threshold must be in [0.0, 1.0]" );
                 }
-                if( a.prefilterMinTokens < 0 ) {
-                    throw new IllegalArgumentException( "--prefilter-min-tokens must be >= 0" );
+                if( !a.judge.equals( "none" ) && !a.judge.equals( "ollama" ) && !a.judge.equals( "claude" ) ) {
+                    throw new IllegalArgumentException( "--judge must be one of: none, ollama, claude" );
                 }
-                if( a.chunkerMaxTokens < 1 ) {
-                    throw new IllegalArgumentException( "--chunker-max-tokens must be >= 1" );
-                }
-                if( a.chunkerMergeForwardTokens < 0 ) {
-                    throw new IllegalArgumentException( "--chunker-merge-forward-tokens must be >= 0" );
-                }
-                if( a.chunkerMergeForwardTokens > a.chunkerMaxTokens ) {
-                    throw new IllegalArgumentException(
-                        "--chunker-merge-forward-tokens must be <= --chunker-max-tokens "
-                      + "(floor cannot exceed ceiling)" );
-                }
-                if( a.maxPages < 0 ) {
-                    throw new IllegalArgumentException( "--max-pages must be >= 0 (0 = unlimited)" );
-                }
+                a.concurrency = clamp( a.concurrency, 1, CLI_CONCURRENCY_MAX );
+                // The indexer's own clamp is wider (1..CONCURRENCY_MAX=10); ours is
+                // tighter so the CLI can't accidentally over-saturate the inference
+                // backend even if a typo gets past the operator.
             }
             return a;
-        }
-
-        EntityExtractorConfig toExtractorConfig() {
-            // Route through EntityExtractorConfig.fromProperties so CLI defaults
-            // pick up every validation / clamp the save-time path already applies.
-            final Properties p = new Properties();
-            p.setProperty( EntityExtractorConfig.PREFIX + "backend", backend );
-            p.setProperty( EntityExtractorConfig.PREFIX + "claude.model", claudeModel );
-            p.setProperty( EntityExtractorConfig.PREFIX + "ollama.model", ollamaModel );
-            p.setProperty( EntityExtractorConfig.PREFIX + "ollama.base_url", ollamaUrl );
-            p.setProperty( EntityExtractorConfig.PREFIX + "timeout_ms", Long.toString( timeoutMs ) );
-            p.setProperty( EntityExtractorConfig.PREFIX + "confidence_threshold", Double.toString( confThreshold ) );
-            p.setProperty( EntityExtractorConfig.PREFIX + "max_existing_nodes", Integer.toString( maxNodes ) );
-            // Per-page rate limit is irrelevant in batch mode — we drive chunks directly, not via save events.
-            p.setProperty( EntityExtractorConfig.PREFIX + "per_page_min_interval_ms", "0" );
-            p.setProperty( EntityExtractorConfig.PREFIX + "concurrency", Integer.toString( concurrency ) );
-            p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.enabled", Boolean.toString( prefilterEnabled ) );
-            p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.dry_run", Boolean.toString( prefilterDryRun ) );
-            p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.skip_pure_code", Boolean.toString( prefilterSkipCode ) );
-            p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.skip_no_proper_noun", Boolean.toString( prefilterSkipNoProper ) );
-            p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.skip_too_short", Boolean.toString( prefilterSkipShort ) );
-            p.setProperty( EntityExtractorConfig.PREFIX + "prefilter.min_tokens", Integer.toString( prefilterMinTokens ) );
-            return EntityExtractorConfig.fromProperties( p );
         }
 
         private static String req( final String[] argv, final int i, final String flag ) {
@@ -559,6 +478,10 @@ public final class BootstrapExtractionCli {
                 throw new IllegalArgumentException( "environment variable '" + name + "' is unset or empty" );
             }
             return v;
+        }
+
+        private static int clamp( final int v, final int lo, final int hi ) {
+            return Math.max( lo, Math.min( hi, v ) );
         }
 
         private static int parseInt( final String s, final String flag ) {

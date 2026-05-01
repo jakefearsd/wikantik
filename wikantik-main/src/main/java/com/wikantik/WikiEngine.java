@@ -968,15 +968,20 @@ public class WikiEngine implements Engine {
         managers.put( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class, mentionRepo );
         managers.put( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class, listener );
 
-        // Admin-triggered full-corpus extraction is being rewired for the new
-        // per-page pipeline (PageExtractor → consolidator → judge → upserter →
-        // mention attribution). Phase 3 of the redesign replaced the indexer's
-        // internals; Phase 4 wires the production collaborators here. Until
-        // Phase 4 lands the indexer is intentionally not registered as a
-        // manager — AdminExtractionResource handles the missing manager by
-        // returning 503, which is the correct degraded state for a partially-
-        // landed redesign on this single-developer branch.
-        // See: docs/superpowers/plans/2026-05-01-kg-extraction-redesign.md (Phase 4).
+        // Admin-triggered full-corpus extraction now runs through the per-page
+        // pipeline. The OllamaPageExtractor only supports an Ollama backend;
+        // when the save-time extractor is configured for a different backend
+        // (claude, disabled) we leave the indexer manager unregistered and the
+        // admin REST endpoint returns 503 — the same degraded state as before
+        // wiring landed. Production runs go through wikantik-extract-cli.
+        if ( "ollama".equalsIgnoreCase( extractorCfg.backend() ) ) {
+            wireBootstrapIndexer( props, ds, contentChunkRepo, mentionRepo, kgRepo,
+                                  excludedPagesRepo, extractorCfg );
+        } else {
+            LOG.info( "Bootstrap indexer not wired (backend={}); /admin/knowledge/extract-mentions "
+                    + "will return 503 until an Ollama-backed extractor is configured",
+                extractorCfg.backend() );
+        }
 
         // Compose with any existing post-chunk sink so embedding indexing and
         // entity extraction both run on every save. Consumer.andThen catches
@@ -1004,6 +1009,65 @@ public class WikiEngine implements Engine {
         LOG.info( "Entity extraction wired (backend={}, model={}, threshold={}, timeoutMs={}, batchConcurrency={})",
                   extractorCfg.backend(), modelLabel, extractorCfg.confidenceThreshold(),
                   extractorCfg.timeoutMs(), extractorCfg.concurrency() );
+    }
+
+    /**
+     * Wires the per-page entity-extraction indexer that backs the
+     * {@code POST /admin/knowledge/extract-mentions} REST trigger. The judge
+     * defaults to {@link com.wikantik.knowledge.extraction.NoOpProposalJudge}
+     * (accept everything) so admin-triggered runs match the production
+     * behaviour of the wikantik-extract-cli's default invocation. Operators
+     * who want a real judge should run the CLI instead — the REST surface is
+     * intentionally minimal.
+     *
+     * <p>Page-mean embeddings (used to fetch a per-page dictionary of nearby
+     * existing nodes) are not provided here — the admin trigger pays the
+     * dictionary lookup cost only via the CLI, which constructs a real
+     * {@link com.wikantik.knowledge.extraction.PageEmbeddingProvider}. For
+     * the REST surface, {@link com.wikantik.knowledge.extraction.PageEmbeddingProvider#EMPTY}
+     * is sufficient: the LLM still extracts cleanly without dictionary anchoring,
+     * just less aligned with existing nodes.</p>
+     */
+    private void wireBootstrapIndexer( final Properties props,
+                                       final javax.sql.DataSource ds,
+                                       final com.wikantik.knowledge.chunking.ContentChunkRepository chunkRepo,
+                                       final com.wikantik.knowledge.extraction.ChunkEntityMentionRepository mentionRepo,
+                                       final com.wikantik.knowledge.JdbcKnowledgeRepository kgRepo,
+                                       final com.wikantik.kgpolicy.KgExcludedPagesRepository excludedPagesRepo,
+                                       final com.wikantik.knowledge.extraction.EntityExtractorConfig extractorCfg ) {
+        final java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+        final int maxEntitiesPerPage = 12;
+        final int maxRelationsPerPage = 8;
+        final int dictionaryTopK = 0; // No PageEmbeddingProvider wired — top-K skipped anyway.
+
+        final com.wikantik.knowledge.extraction.PageExtractionResponseParser parser =
+            new com.wikantik.knowledge.extraction.PageExtractionResponseParser(
+                new com.wikantik.knowledge.extraction.EvidenceGroundingVerifier(),
+                maxEntitiesPerPage, maxRelationsPerPage );
+        final com.wikantik.knowledge.extraction.OllamaPageExtractor extractor =
+            new com.wikantik.knowledge.extraction.OllamaPageExtractor(
+                http, extractorCfg.ollamaBaseUrl(), extractorCfg.ollamaModel(),
+                extractorCfg.timeoutMs(), parser );
+
+        final com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer indexer =
+            new com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer(
+                extractor,
+                new com.wikantik.knowledge.extraction.NoOpProposalJudge(),
+                new com.wikantik.knowledge.extraction.ProposalConsolidator(),
+                new com.wikantik.knowledge.extraction.ProposalUpserter( kgRepo ),
+                /*embeddingService*/ null,
+                /*embeddingRepo*/ null,
+                chunkRepo, mentionRepo, kgRepo,
+                new com.wikantik.knowledge.extraction.MentionAttributor(),
+                com.wikantik.knowledge.extraction.PageEmbeddingProvider.EMPTY,
+                excludedPagesRepo,
+                extractorCfg.concurrency(), dictionaryTopK,
+                maxEntitiesPerPage, maxRelationsPerPage );
+        managers.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class, indexer );
+        LOG.info( "Bootstrap indexer wired (model={}, concurrency={}, judge=none, "
+                + "maxEntitiesPerPage={}, maxRelationsPerPage={})",
+            extractorCfg.ollamaModel(), extractorCfg.concurrency(),
+            maxEntitiesPerPage, maxRelationsPerPage );
     }
 
     /**

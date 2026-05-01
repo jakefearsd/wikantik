@@ -50,4 +50,29 @@ class NodeSignatureTest {
         assertThrows(IllegalArgumentException.class,
             () -> NodeSignature.of("   ", "Concept"));
     }
+
+    @Test
+    void noisyLlmExtractionMatchesCleanForm() {
+        // Regression: LLM emits noisy mention strings like ", GitHub, " or
+        // "His company, GitHub,". After normalization these should match the
+        // clean "GitHub" form so the consolidator sees one proposal, not many.
+        assertEquals(NodeSignature.of("GitHub", "Organization").asHash(),
+                     NodeSignature.of(" ., GitHub .,  ", "Organization").asHash());
+        assertEquals(NodeSignature.of("GitHub", "Organization").asHash(),
+                     NodeSignature.of(",GitHub,", "Organization").asHash());
+    }
+
+    @Test
+    void preservesIdentifierPunctuation() {
+        // Regression: tech identifiers like C++, C#, .NET, F# carry semantic
+        // punctuation. They must NOT collide with each other or with bare 'C'.
+        assertNotEquals(NodeSignature.of("C", "Technology").asHash(),
+                        NodeSignature.of("C++", "Technology").asHash());
+        assertNotEquals(NodeSignature.of("C", "Technology").asHash(),
+                        NodeSignature.of("C#", "Technology").asHash());
+        assertNotEquals(NodeSignature.of("C++", "Technology").asHash(),
+                        NodeSignature.of("C#", "Technology").asHash());
+        assertNotEquals(NodeSignature.of("net", "Technology").asHash(),
+                        NodeSignature.of(".NET", "Technology").asHash());
+    }
 }

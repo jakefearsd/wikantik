@@ -40,11 +40,53 @@ public record NodeSignature(String normalizedName, String normalizedType) {
         if (s == null) {
             throw new IllegalArgumentException("input must not be null");
         }
+        // NFC → strip wrapper noise from the outer edges, preserving
+        // identifier-bearing punctuation (.NET, C++, C#, @user) → collapse
+        // internal whitespace → trim → lowercase. The collapse + trim happen
+        // last because edge stripping can re-expose whitespace.
         String nfc = Normalizer.normalize(s, Normalizer.Form.NFC);
-        String trimmed = nfc.trim();
-        trimmed = trimmed.replaceAll("^[\\p{Punct}]+|[\\p{Punct}]+$", "");
-        String collapsed = trimmed.replaceAll("\\s+", " ");
+        String stripped = stripEdgeNoise(nfc);
+        String collapsed = stripped.replaceAll("\\s+", " ").trim();
         return collapsed.toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Trims wrapper/sentence punctuation and whitespace from the edges while
+     * preserving identifier-bearing prefixes/suffixes adjacent to alphanumeric
+     * content. Examples: {@code ".NET"} keeps its leading dot; {@code "C++"}
+     * and {@code "C#"} keep their trailing {@code +}/{@code #}; {@code "GitHub."}
+     * loses its trailing dot; {@code " ., GitHub .,  "} reduces to
+     * {@code "GitHub"}.
+     */
+    static String stripEdgeNoise(String s) {
+        int start = 0;
+        int end = s.length();
+        while (start < end) {
+            char c = s.charAt(start);
+            if (Character.isLetterOrDigit(c)) break;
+            // Preserve a leading identifier prefix (.NET, #tag, @user) when the
+            // very next char is alphanumeric.
+            if ((c == '.' || c == '#' || c == '@')
+                && start + 1 < end
+                && Character.isLetterOrDigit(s.charAt(start + 1))) {
+                break;
+            }
+            start++;
+        }
+        while (end > start) {
+            char c = s.charAt(end - 1);
+            if (Character.isLetterOrDigit(c)) break;
+            // Preserve a trailing identifier suffix (++ on C++, # on C#) when
+            // the prior char is alphanumeric or another instance of the same
+            // suffix character (so "C++" keeps both '+' chars).
+            if ((c == '+' || c == '#')
+                && end - 2 >= start
+                && (Character.isLetterOrDigit(s.charAt(end - 2)) || s.charAt(end - 2) == c)) {
+                break;
+            }
+            end--;
+        }
+        return s.substring(start, end);
     }
 
     static String sha256Hex(String input) {

@@ -35,6 +35,7 @@ import com.wikantik.knowledge.extraction.EvidenceGroundingVerifier;
 import com.wikantik.knowledge.extraction.MentionAttributor;
 import com.wikantik.knowledge.extraction.NoOpProposalJudge;
 import com.wikantik.knowledge.extraction.OllamaPageExtractor;
+import com.wikantik.knowledge.extraction.OllamaProposalJudge;
 import com.wikantik.knowledge.extraction.PageEmbeddingProvider;
 import com.wikantik.knowledge.extraction.PageExtractionResponseParser;
 import com.wikantik.knowledge.extraction.ProposalConsolidator;
@@ -85,8 +86,8 @@ import java.util.concurrent.TimeUnit;
  * <ul>
  *   <li>{@code 0} — run reached {@code COMPLETED} state.</li>
  *   <li>{@code 1} — run reached {@code ERROR}, the indexer refused to start,
- *       or {@code --judge ollama|claude} was passed without their Phase 6
- *       implementations being available yet.</li>
+ *       or {@code --judge claude} was requested without
+ *       {@code -Dwikantik.kg.judge.allow_claude=true}.</li>
  *   <li>{@code 2} — invalid CLI arguments.</li>
  * </ul>
  */
@@ -191,9 +192,8 @@ public final class BootstrapExtractionCli {
     private static ProposalJudge buildJudge( final Args a ) {
         return switch( a.judge ) {
             case "none" -> new NoOpProposalJudge();
-            case "ollama" -> throw new IllegalStateException(
-                "--judge ollama is not yet implemented (Phase 6 of the redesign). "
-              + "Re-run with --judge none, or wait for OllamaProposalJudge to land." );
+            case "ollama" -> new OllamaProposalJudge(
+                HttpClient.newHttpClient(), a.ollamaUrl, a.judgeModel, a.timeoutMs );
             case "claude" -> {
                 if( !Boolean.parseBoolean(
                     System.getProperty( "wikantik.kg.judge.allow_claude", "false" ) ) ) {

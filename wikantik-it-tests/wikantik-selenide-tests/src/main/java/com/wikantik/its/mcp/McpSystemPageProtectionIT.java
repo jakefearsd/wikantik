@@ -40,15 +40,17 @@ import java.util.Map;
  *   <li>{@code mark_page_verified} — per-page error.</li>
  * </ul>
  *
- * <p>{@code CSSRibbon} is a real CSS theme page shipped in {@code wikantik-wikipages}
- * (verified at the time of writing; if the page is ever renamed in the source pages
+ * <p>{@code LeftMenu} is a real menu-fragment page shipped in {@code wikantik-wikipages}
+ * and present in the IT {@code test-repo}, so {@code read_page} can verify the
+ * write-only nature of the protection. If the page is ever renamed in the source pages
  * jar, swap the constant for any other page reported by
- * {@code DefaultSystemPageRegistry.getSystemPageNames()}).</p>
+ * {@code DefaultSystemPageRegistry.getSystemPageNames()} that is also seeded into
+ * {@code wikantik-selenide-tests/src/test/resources/test-repo/}.</p>
  */
 public class McpSystemPageProtectionIT extends WithMcpTestSetup {
 
-    /** A real system page that ships with the wiki. */
-    private static final String SYSTEM_PAGE = "CSSRibbon";
+    /** A real system page that ships with the wiki and is seeded into the IT test-repo. */
+    private static final String SYSTEM_PAGE = "LeftMenu";
 
     @Test
     public void updatePageRefusesSystemPage() {

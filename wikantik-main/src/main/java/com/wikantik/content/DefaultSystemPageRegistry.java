@@ -21,6 +21,7 @@ package com.wikantik.content;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.managers.PageManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -73,6 +74,45 @@ public class DefaultSystemPageRegistry implements com.wikantik.api.managers.Syst
         LOG.info( "SystemPageRegistry initialized: {} system pages discovered, {} extra patterns",
                   systemPageNames.size(), extraPatterns.size() );
         LOG.debug( "System pages: {}", systemPageNames );
+
+        warnOnUnreachableSystemPages( engine );
+    }
+
+    /**
+     * Logs a warning for any system page discovered on the classpath that the
+     * configured {@link PageManager} cannot resolve. Drift here means the wiki
+     * advertises and write-protects a page (e.g. {@code CSSRibbon}) that readers
+     * will get a 404 for — usually a sign the page provider directory wasn't
+     * seeded from the {@code wikantik-wikipages} JAR. Best-effort: any failure
+     * (PageManager not yet available, provider error) is swallowed at warn level.
+     */
+    private void warnOnUnreachableSystemPages( final Engine engine ) {
+        if ( engine == null || systemPageNames.isEmpty() ) {
+            return;
+        }
+        try {
+            final PageManager pageManager = engine.getManager( PageManager.class );
+            if ( pageManager == null ) {
+                return;
+            }
+            final List<String> missing = new ArrayList<>();
+            for ( final String name : systemPageNames ) {
+                try {
+                    if ( !pageManager.pageExists( name ) ) {
+                        missing.add( name );
+                    }
+                } catch ( final Exception e ) {
+                    LOG.debug( "pageExists check failed for system page {}: {}", name, e.getMessage() );
+                }
+            }
+            if ( !missing.isEmpty() ) {
+                LOG.warn( "{} system page(s) discovered on the classpath are not resolvable via PageManager — "
+                        + "the page provider directory may be missing wikipages JAR content. Missing: {}",
+                        missing.size(), missing );
+            }
+        } catch ( final Exception e ) {
+            LOG.debug( "system-page reachability check skipped: {}", e.getMessage() );
+        }
     }
 
     @Override

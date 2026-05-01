@@ -6,6 +6,14 @@ A log of recent development activity on the JSPWiki project.
 
 ## April 2026
 
+**2026-04-30** — content: backfill canonical_id on 57 articles missing it
+
+**2026-04-30** — content: repair MCP write damage on five pages + DB cleanup
+
+**2026-04-30** — spine+mcp: preserve canonical_id across MCP write paths
+
+**2026-04-30** — docs(wiki): fix unquoted colons in titles and finalize structural spine injection
+
 **2026-04-30** — docs(superpowers): archive completed plan + spec docs
 
 **2026-04-30** — docs(gemini): add article-authoring + structural-spine section

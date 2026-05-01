@@ -944,6 +944,79 @@ public class JdbcKnowledgeRepository {
     }
 
     /**
+     * Upserts a {@link ConsolidatedProposal} into {@code kg_proposals}, merging
+     * support evidence by source page on collision. The unique partial index on
+     * {@code (signature) WHERE status='pending'} drives the conflict target;
+     * approved/rejected history is allowed to repeat.
+     *
+     * <p>Idempotency: re-running extraction against the same source page does
+     * not double the support entry — {@code DISTINCT ON (sourcePage)} keeps the
+     * highest-confidence quote per page.</p>
+     *
+     * @param cp the consolidated proposal to upsert (node or edge)
+     * @return inserted/merged flag plus the resulting support_count
+     */
+    public com.wikantik.knowledge.extraction.ProposalUpserter.Result upsertConsolidatedProposal( final ConsolidatedProposal cp ) {
+        final String proposedJson = GSON.toJson( buildProposedData( cp ) );
+        final String supportJson  = GSON.toJson( cp.support() );
+        final String sql = """
+            WITH merged AS (
+                SELECT (
+                    SELECT jsonb_agg(s ORDER BY (s->>'sourcePage'))
+                    FROM (
+                        SELECT DISTINCT ON (s->>'sourcePage') s
+                        FROM jsonb_array_elements(
+                            COALESCE(kp.support, '[]'::jsonb) || ?::jsonb
+                        ) s
+                        ORDER BY (s->>'sourcePage'), (s->>'confidence')::numeric DESC
+                    ) deduped
+                ) AS support_merged
+                FROM kg_proposals kp
+                WHERE kp.signature = ? AND kp.status = 'pending'
+            )
+            INSERT INTO kg_proposals
+                (proposal_type, source_page, proposed_data, confidence, reasoning,
+                 signature, support, support_count, first_seen_at, last_seen_at)
+            VALUES (?, ?, ?::jsonb, ?, ?, ?, ?::jsonb, 1, NOW(), NOW())
+            ON CONFLICT (signature) WHERE status = 'pending' DO UPDATE
+            SET support       = COALESCE((SELECT support_merged FROM merged), kg_proposals.support),
+                support_count = jsonb_array_length(COALESCE((SELECT support_merged FROM merged), kg_proposals.support)),
+                confidence    = GREATEST(kg_proposals.confidence, EXCLUDED.confidence),
+                last_seen_at  = NOW()
+            RETURNING (xmax = 0) AS inserted, support_count
+            """;
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setString( 1, supportJson );
+            ps.setString( 2, cp.signature() );
+            ps.setString( 3, cp.kind() == ConsolidatedProposal.Kind.NEW_NODE ? "new-node" : "new-edge" );
+            ps.setString( 4, cp.support().isEmpty() ? null : cp.support().get( 0 ).sourcePage() );
+            ps.setString( 5, proposedJson );
+            ps.setDouble( 6, cp.aggregateConfidence() );
+            ps.setString( 7, "consolidated by " + cp.support().size() + " support(s)" );
+            ps.setString( 8, cp.signature() );
+            ps.setString( 9, supportJson );
+            try( ResultSet rs = ps.executeQuery() ) {
+                if( rs.next() ) {
+                    return new com.wikantik.knowledge.extraction.ProposalUpserter.Result( rs.getBoolean( 1 ), rs.getInt( 2 ) );
+                }
+                throw new IllegalStateException( "upsert returned no rows for signature " + cp.signature() );
+            }
+        } catch( final SQLException e ) {
+            LOG.warn( "upsertConsolidatedProposal failed for signature {}: {}", cp.signature(), e.getMessage() );
+            throw new RuntimeException( "upsert failed: " + e.getMessage(), e );
+        }
+    }
+
+    private static Map< String, Object > buildProposedData( final ConsolidatedProposal cp ) {
+        if( cp.kind() == ConsolidatedProposal.Kind.NEW_NODE ) {
+            return Map.of( "name", cp.displayName(), "nodeType", cp.type() );
+        }
+        return Map.of( "source", cp.source(), "target", cp.target(),
+                       "relationship", cp.predicate() );
+    }
+
+    /**
      * Deletes all knowledge graph data: edges, proposals, rejections, and nodes.
      * Tables are cleared in FK-safe order.
      */

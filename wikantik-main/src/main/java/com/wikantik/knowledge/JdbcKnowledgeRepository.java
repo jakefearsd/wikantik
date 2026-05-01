@@ -977,7 +977,8 @@ public class JdbcKnowledgeRepository {
             INSERT INTO kg_proposals
                 (proposal_type, source_page, proposed_data, confidence, reasoning,
                  signature, support, support_count, first_seen_at, last_seen_at)
-            VALUES (?, ?, ?::jsonb, ?, ?, ?, ?::jsonb, 1, NOW(), NOW())
+            VALUES (?, ?, ?::jsonb, ?, ?, ?, ?::jsonb,
+                    jsonb_array_length(?::jsonb), NOW(), NOW())
             ON CONFLICT (signature) WHERE status = 'pending' DO UPDATE
             SET support       = COALESCE((SELECT support_merged FROM merged), kg_proposals.support),
                 support_count = jsonb_array_length(COALESCE((SELECT support_merged FROM merged), kg_proposals.support)),
@@ -996,6 +997,11 @@ public class JdbcKnowledgeRepository {
             ps.setString( 7, "consolidated by " + cp.support().size() + " support(s)" );
             ps.setString( 8, cp.signature() );
             ps.setString( 9, supportJson );
+            // Phase 2 wrote a hardcoded 1 here, so a first-run insert with
+            // multi-page support always reported support_count=1; the new
+            // per-page indexer feeds a multi-element array on the very first
+            // upsert, so we now compute the count from the array length.
+            ps.setString( 10, supportJson );
             try( ResultSet rs = ps.executeQuery() ) {
                 if( rs.next() ) {
                     return new com.wikantik.knowledge.extraction.ProposalUpserter.Result( rs.getBoolean( 1 ), rs.getInt( 2 ) );

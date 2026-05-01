@@ -4,10 +4,12 @@
 # Tomcat configuration.
 #
 # Usage:
-#   bin/kg-extract.sh                    # resume / incremental extraction
-#   bin/kg-extract.sh --force            # clear each chunk's prior mentions first
-#   bin/kg-extract.sh --concurrency 1    # single-in-flight for low GPU pressure
-#   bin/kg-extract.sh --help             # show full CLI help
+#   bin/kg-extract.sh                                 # full corpus, no judge
+#   bin/kg-extract.sh --max-pages 50 --dry-run        # smoke run (no upsert)
+#   bin/kg-extract.sh --judge ollama --judge-model qwen3.5:9b
+#   bin/kg-extract.sh --report reports/extract-$(date +%Y%m%d).json
+#   bin/kg-extract.sh --concurrency 1                 # single-in-flight, low GPU pressure
+#   bin/kg-extract.sh --help                          # show full CLI help
 #
 # Behaviour:
 #   - Builds wikantik-extract-cli if target/wikantik-extract-cli.jar is missing
@@ -119,25 +121,20 @@ has_flag() {
     return 1
 }
 
-backend=$(extract_flag --backend "$@");        backend="${backend:-ollama}"
-model=$(extract_flag --ollama-model "$@");     model="${model:-gemma4-assist:latest}"
-[[ "${backend}" == "claude" ]] && model="$(extract_flag --claude-model "$@")" \
-    && model="${model:-claude-haiku-4-5}"
+judge=$(extract_flag --judge "$@");             judge="${judge:-none}"
+model=$(extract_flag --ollama-model "$@");      model="${model:-gemma4-assist:latest}"
 concurrency=$(extract_flag --concurrency "$@"); concurrency="${concurrency:-2}"
-prefilter="off"
-if has_flag --prefilter-dry-run "$@"; then prefilter="dry-run"
-elif has_flag --prefilter "$@";          then prefilter="on"
-fi
-force="no"; has_flag --force "$@" && force="yes"
+dryrun="no";   has_flag --dry-run "$@"   && dryrun="yes"
+report=$(extract_flag --report "$@");           report="${report:-<none>}"
 
 echo
-echo -e "${BOLD}== Wikantik entity extraction =="
+echo -e "${BOLD}== Wikantik per-page entity extraction =="
 info "DB:          ${jdbc_url} as ${jdbc_user}"
-info "Backend:     ${backend}  model: ${model}"
-info "Concurrency: ${concurrency}  prefilter: ${prefilter}  force: ${force}"
+info "Model:       ${model}    judge: ${judge}"
+info "Concurrency: ${concurrency}    dry-run: ${dryrun}    report: ${report}"
 info "Forwarded:   $*"
 info "Progress lines arrive every --poll-seconds (default 30s)."
-info "Ctrl-C asks the indexer to cancel between chunks (in-flight RPC finishes first)."
+info "Ctrl-C asks the indexer to cancel between pages (in-flight RPC finishes first)."
 echo
 
 # Wall-clock + exit-status summary on the way out, regardless of cause

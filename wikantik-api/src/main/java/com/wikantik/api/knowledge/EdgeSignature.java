@@ -46,7 +46,7 @@ public record EdgeSignature(String normalizedSource,
                                        + "|" + normalizedPredicate);
     }
 
-    static String normalizePredicate(String predicate) {
+    public static String normalizePredicate(String predicate) {
         if (predicate == null) {
             throw new IllegalArgumentException("predicate must not be null");
         }

@@ -705,6 +705,98 @@ public class JdbcKnowledgeRepository {
         }
     }
 
+    public void recordReview( final UUID proposalId, final String reviewerKind,
+                              final String reviewerId, final String verdict,
+                              final Double confidence, final String rationale ) {
+        final String sql = "INSERT INTO kg_proposal_reviews " +
+            "(proposal_id, reviewer_kind, reviewer_id, verdict, confidence, rationale) " +
+            "VALUES (?, ?, ?, ?, ?, ?)";
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( sql ) ) {
+            ps.setObject( 1, proposalId );
+            ps.setString( 2, reviewerKind );
+            ps.setString( 3, reviewerId );
+            ps.setString( 4, verdict );
+            if ( confidence == null ) ps.setNull( 5, java.sql.Types.DOUBLE );
+            else ps.setDouble( 5, confidence );
+            ps.setString( 6, rationale );
+            ps.executeUpdate();
+        } catch ( final SQLException e ) {
+            LOG.warn( "recordReview({}, {}, {}) failed: {}", proposalId, reviewerKind,
+                verdict, e.getMessage(), e );
+            throw new RuntimeException( "recordReview failed: " + e.getMessage(), e );
+        }
+    }
+
+    public List< KgProposalReview > listReviews( final UUID proposalId ) {
+        final String sql = "SELECT * FROM kg_proposal_reviews WHERE proposal_id = ? " +
+            "ORDER BY created DESC, id DESC";
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( sql ) ) {
+            ps.setObject( 1, proposalId );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                final List< KgProposalReview > out = new ArrayList<>();
+                while ( rs.next() ) {
+                    final Double conf = rs.getObject( "confidence", Double.class );
+                    out.add( new KgProposalReview(
+                        rs.getObject( "id", UUID.class ),
+                        rs.getObject( "proposal_id", UUID.class ),
+                        rs.getString( "reviewer_kind" ),
+                        rs.getString( "reviewer_id" ),
+                        rs.getString( "verdict" ),
+                        conf,
+                        rs.getString( "rationale" ),
+                        rs.getTimestamp( "created" ).toInstant()
+                    ) );
+                }
+                return out;
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "listReviews({}) failed: {}", proposalId, e.getMessage(), e );
+            throw new RuntimeException( "listReviews failed: " + e.getMessage(), e );
+        }
+    }
+
+    /**
+     * Picks up to {@code batch} pending proposals whose machine_status is NULL.
+     * Uses FOR UPDATE SKIP LOCKED so multiple judge runners don't double-pick.
+     *
+     * <p>Note on transaction scope: this method opens a connection, runs the
+     * locking SELECT, copies rows into Java, and commits — releasing the locks.
+     * Callers are then free to process rows with their own transactions, and a
+     * subsequent runner pass can re-pick the same row only if its
+     * machine_status is still NULL (i.e. nothing actually judged it). This is
+     * safe for the single-instance deployment; once the runner UPDATEs
+     * machine_status, the WHERE clause excludes the row.</p>
+     */
+    public List< KgProposal > getProposalsForJudging( final int batch ) {
+        final String sql = "SELECT * FROM kg_proposals " +
+            "WHERE status = 'pending' AND machine_status IS NULL " +
+            "ORDER BY created ASC " +
+            "LIMIT ? FOR UPDATE SKIP LOCKED";
+        try ( Connection c = dataSource.getConnection() ) {
+            final boolean prevAutoCommit = c.getAutoCommit();
+            c.setAutoCommit( false );
+            try ( PreparedStatement ps = c.prepareStatement( sql ) ) {
+                ps.setInt( 1, batch );
+                try ( ResultSet rs = ps.executeQuery() ) {
+                    final List< KgProposal > out = new ArrayList<>();
+                    while ( rs.next() ) out.add( mapProposal( rs ) );
+                    c.commit();
+                    return out;
+                }
+            } catch ( final SQLException e ) {
+                try { c.rollback(); } catch ( final SQLException ignore ) { /* best effort */ }
+                throw e;
+            } finally {
+                try { c.setAutoCommit( prevAutoCommit ); } catch ( final SQLException ignore ) { /* best effort */ }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "getProposalsForJudging({}) failed: {}", batch, e.getMessage(), e );
+            throw new RuntimeException( "getProposalsForJudging failed: " + e.getMessage(), e );
+        }
+    }
+
     // ---- Rejection operations ----
 
     /**

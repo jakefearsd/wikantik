@@ -6,6 +6,188 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-02** — fix(kg-it): correct snapshot URL to /api/knowledge/graph
+
+**2026-05-02** — chore(kg-mcp): update SearchKnowledgeToolTest stubs for 4-arg searchKnowledge
+
+**2026-05-02** — chore(kg-mcp): update TraverseToolTest stubs for 4-arg traverseByCoMention
+
+**2026-05-02** — test(kg-it): end-to-end smoke for staged validation lifecycle
+
+**2026-05-02** — feat(kg-judge): bin/kg-judge.sh CLI + wikantik.properties config
+
+**2026-05-02** — feat(kg-frontend): machine verdict column + Judge Now action
+
+**2026-05-02** — chore(kg-mcp): stub-fix T3 record-widening cascade in wikantik-knowledge tests
+
+**2026-05-02** — feat(kg-mcp): min_tier on search_knowledge + traverse_by_co_mention
+
+**2026-05-02** — feat(kg-rest): admin judge run + per-proposal judge + reviews + filters
+
+**2026-05-02** — feat(kg-rest): min_tier query param on /api/knowledge-graph/snapshot
+
+**2026-05-02** — feat(kg-judge): wire judge service + materialisation + runner
+
+**2026-05-02** — feat(kg-svc): judgeNow synchronous single-proposal trigger
+
+**2026-05-02** — feat(kg-svc): approveProposal/rejectProposal materialise + audit
+
+**2026-05-02** — feat(kg-svc): tier-aware reads with default Tier.MACHINE
+
+**2026-05-02** — feat(kg-judge): JudgeRunner background task with max_attempts cap
+
+**2026-05-02** — feat(kg-judge): DefaultKgProposalJudgeService Ollama implementation
+
+**2026-05-02** — feat(kg-judge): KgProposalJudgeService interface + KgJudgeConfig
+
+**2026-05-02** — feat(kg-judge): KgMaterializationService.promoteToHuman + retract
+
+**2026-05-02** — feat(kg-judge): KgMaterializationService.materializeMachine + provenance-aware upserts
+
+**2026-05-02** — feat(kg-repo): applyMachineVerdict + applyHumanVerdict; clearAll truncates reviews
+
+**2026-05-02** — feat(kg-repo): recordReview + listReviews + getProposalsForJudging
+
+**2026-05-02** — feat(kg-repo): tier-aware searchNodes overload
+
+**2026-05-02** — chore(kg): stub-fix T3 record-widening cascade in test + main
+
+**2026-05-02** — feat(kg-repo): tier-aware getAllNodes/getAllEdges + row-mapper updates
+
+**2026-05-02** — feat(kg-api): widen KgProposal/KgNode/KgEdge with tier + provenance
+
+**2026-05-02** — feat(kg-api): Tier, JudgeVerdict, KgProposalReview records
+
+**2026-05-02** — feat(kg): V024 staged-validation schema (tier + audit)
+
+**2026-05-02** — docs(plan): KG staged validation implementation plan
+
+**2026-05-02** — docs(spec): default min_tier to 'machine' on KG read paths
+
+**2026-05-02** — docs(spec): KG staged validation design (machine + human tiers)
+
+**2026-05-02** — test(it,pagegraph): assert /api/page-graph/snapshot renders seeded wikilinks
+
+**2026-05-02** — feat(frontend,pagegraph): point /page-graph view at the wikilink endpoint
+
+**2026-05-02** — feat(pagegraph): serve Page Graph snapshot from wikilinks, not KG entities
+
+**2026-05-02** — fix(frontend): App.jsx isGraphRoute check now matches /page-graph
+
+**2026-05-02** — fix(spa): register /page-graph filter mapping; update Selenide ITs
+
+**2026-05-02** — docs: add PageGraphVsKnowledgeGraph explainer; link from sidebar and views
+
+**2026-05-02** — docs: qualify 'graph' refs in HybridRetrieval and AgentGradeContentDesign
+
+**2026-05-02** — docs(StructuralSpineDesign): rewrite for narrower spine; relations: grammar removed
+
+**2026-05-02** — docs(README): add Page Graph vs Knowledge Graph note; sweep ambiguous refs
+
+**2026-05-02** — docs(CLAUDE.md): add Page Graph vs Knowledge Graph section; sweep ambiguous 'graph' refs
+
+**2026-05-02** — knowledge-mcp: qualify tool descriptions to say 'Knowledge Graph'
+
+**2026-05-02** — admin-mcp: qualify tool descriptions to say 'Page Graph'
+
+**2026-05-02** — rename: /admin/knowledge backend mounts + client paths → /admin/knowledge-graph
+
+**2026-05-02** — frontend(admin): nav 'Knowledge' → 'Knowledge Graph'; route /admin/knowledge → /admin/knowledge-graph
+
+**2026-05-02** — frontend: sidebar 'Knowledge Graph' (page-link view) → 'Page Graph' at /page-graph
+
+**2026-05-02** — frontend: rename components/graph → components/pagegraph; GraphView → PageGraphView
+
+**2026-05-02** — rest: move /admin/structural-conflicts → /admin/page-graph/conflicts
+
+**2026-05-02** — rest: rename /graph → /page-graph SPA route + 301 redirect
+
+**2026-05-02** — refactor: rename com.wikantik.api.structure → com.wikantik.api.pagegraph
+
+**2026-05-02** — refactor: move com.wikantik.knowledge.structure → com.wikantik.pagegraph.spine
+
+**2026-05-02** — refactor: move com.wikantik.references → com.wikantik.pagegraph.references
+
+**2026-05-02** — db: V023 drop page_relations table (relations: mechanism removed)
+
+**2026-05-02** — frontend(graph): collapse typed-edge palette to single page-link color
+
+**2026-05-02** — api: delete relation grammar types
+
+**2026-05-02** — spine: drop relation collections from StructuralProjection
+
+**2026-05-02** — test: update GetPageForAgentToolTest for new ForAgentProjection signature
+
+**2026-05-02** — spine: purge remaining relations handling from DefaultStructuralIndexService
+
+**2026-05-02** — spine: drop relation methods from StructuralIndexService
+
+**2026-05-02** — test: update PageForAgentResourceTest for new ForAgentProjection signature
+
+**2026-05-02** — for-agent: drop outgoing/incomingRelations fields (relations: deprecated)
+
+**2026-05-02** — spine: drop relations: validation branch from StructuralSpinePageFilter
+
+**2026-05-02** — docs: remove stale PageRelationsResource reference from API client comment
+
+**2026-05-02** — rest: remove PageRelationsResource (frontmatter relations: deprecated)
+
+**2026-05-02** — knowledge-mcp: scrub traverse_relations from instructions and tool_hints
+
+**2026-05-02** — knowledge-mcp: remove TraverseRelationsTool (frontmatter relations: deprecated)
+
+**2026-05-02** — docs: strip relations: examples from McpIntegration and TextFormattingRules
+
+**2026-05-02** — docs(spec/plan): correct Task 1 scope — body examples, not frontmatter
+
+**2026-05-02** — docs(plan): page graph vs knowledge graph implementation plan
+
+**2026-05-02** — docs(spec): page graph = wikilinks only; remove frontmatter relations:
+
+**2026-05-02** — docs(spec): page graph vs knowledge graph separation design
+
+**2026-05-02** — admin: widen layout 20% and stop KG-Policy tab + Clear button from clipping
+
+**2026-05-02** — extraction: flip default --judge-model from qwen3.5:9b to gemma4-assist
+
+**2026-05-02** — docs: add RunningTheJudgeExperimentHarness runbook page
+
+**2026-05-01** — cli: add JudgeExperimentCli + bin/kg-judge-experiment.sh
+
+**2026-05-01** — extraction: add ClaudeProposalJudge (gated by allow_claude property)
+
+**2026-05-01** — extraction: add OllamaProposalJudge (opt-in; fail-open)
+
+**2026-05-01** — kg: model-key the kg_node_embeddings cache (V022) + DELETE-based wipe
+
+**2026-05-01** — extract-cli: fix Instant serialization + collapse node embeddings to qwen3
+
+**2026-05-01** — docs(claude.md): document the new extractor + wipe-then-fill workflow
+
+**2026-05-01** — cli: split chunker-stats into ChunkerStatsCli + bin/kg-chunker-stats.sh
+
+**2026-05-01** — bin: update kg-extract.sh banner and flags for page-extraction pipeline
+
+**2026-05-01** — cli: rewire BootstrapExtractionCli for the page-extraction pipeline
+
+**2026-05-01** — test: extend AdminExtractionResourceTest Status fixtures for the new fields
+
+**2026-05-01** — test: PG-gated end-to-end + idempotency tests for the page extraction pipeline
+
+**2026-05-01** — extraction: fix support_count=1 hardcoded on first kg_proposals insert
+
+**2026-05-01** — extraction: refactor BootstrapEntityExtractionIndexer to drive page pipeline
+
+**2026-05-01** — extraction: add NoOpProposalJudge (production default)
+
+**2026-05-01** — extraction: add MentionAttributor (deterministic whole-word match)
+
+**2026-05-01** — extraction: add OllamaPageExtractor (per-page, format=json)
+
+**2026-05-01** — embedding: add KgNodeEmbeddingService with content-hash skip
+
+**2026-05-01** — embedding: add KgNodeEmbeddingRepository for kg_node_embeddings cache
+
 **2026-05-01** — docs(news): backfill 2026-04-30 entries for spine + MCP repair work
 
 **2026-05-01** — docs(wiki): normalize ReformationEraInBerlin frontmatter

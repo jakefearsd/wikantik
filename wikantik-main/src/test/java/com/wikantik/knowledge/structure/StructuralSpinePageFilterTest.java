@@ -21,14 +21,10 @@ package com.wikantik.knowledge.structure;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.FilterException;
-import com.wikantik.api.structure.PageDescriptor;
-import com.wikantik.api.structure.PageType;
 import com.wikantik.api.structure.StructuralIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -110,50 +106,7 @@ class StructuralSpinePageFilterTest {
         final var f = new StructuralSpinePageFilter( svc, name -> false, enabled() );
         final String input = "---\ncanonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: X\n---\nbody";
         final String out = f.preSave( ctx, input );
-        // No relations declared → output equals input (no rewrite).
         assertEquals( input, out );
-    }
-
-    @Test
-    void valid_relations_pass() throws Exception {
-        when( svc.getByCanonicalId( "01TARGETXXXXXXXXXXXXXXXXXX" ) ).thenReturn( Optional.of(
-                new PageDescriptor( "01TARGETXXXXXXXXXXXXXXXXXX", "Target", "Target",
-                        PageType.HUB, null, List.of(), "summary", Instant.EPOCH, Optional.empty() ) ) );
-        final var f = new StructuralSpinePageFilter( svc, name -> false, enabled() );
-        final String input = "---\n" +
-                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\n" +
-                "title: X\n" +
-                "relations:\n" +
-                "  - {type: part-of, target: 01TARGETXXXXXXXXXXXXXXXXXX}\n" +
-                "---\nbody";
-        assertDoesNotThrow( () -> f.preSave( ctx, input ) );
-    }
-
-    @Test
-    void invalid_relation_target_throws_FilterException() {
-        when( svc.getByCanonicalId( anyString() ) ).thenReturn( Optional.empty() );
-        final var f = new StructuralSpinePageFilter( svc, name -> false, enabled() );
-        final String input = "---\n" +
-                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\n" +
-                "title: X\n" +
-                "relations:\n" +
-                "  - {type: part-of, target: 01GHOSTGHOSTGHOSTGHOSTGHOST}\n" +
-                "---\nbody";
-        final FilterException ex = assertThrows( FilterException.class,
-                () -> f.preSave( ctx, input ) );
-        assertTrue( ex.getMessage().contains( "TARGET_MISSING" ) );
-    }
-
-    @Test
-    void unknown_relation_type_throws_FilterException() {
-        final var f = new StructuralSpinePageFilter( svc, name -> false, enabled() );
-        final String input = "---\n" +
-                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\n" +
-                "title: X\n" +
-                "relations:\n" +
-                "  - {type: is-a, target: 01ANYTHINGXXXXXXXXXXXXXXXX}\n" +
-                "---\nbody";
-        assertThrows( FilterException.class, () -> f.preSave( ctx, input ) );
     }
 
     @Test

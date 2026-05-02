@@ -36,20 +36,16 @@ import java.util.function.Predicate;
 
 /**
  * Phase 4 enforcement filter for the structural spine. Runs in {@code preSave}
- * with two responsibilities:
+ * with one responsibility:
  *
  * <ol>
  *   <li><b>Auto-assign canonical_id.</b> Pages saved without a {@code canonical_id}
  *       in frontmatter get a fresh ULID injected at the top of the block. This
  *       keeps the structural spine intact even when content reaches the wiki
  *       through a save path that wasn't routed through the backfill CLI.</li>
- *   <li><b>Validate relations.</b> If the page declares a {@code relations:}
- *       field, every entry must have a known relation type and a target that
- *       resolves in the structural index. Invalid entries cause the save to
- *       abort via {@link FilterException}.</li>
  * </ol>
  *
- * <p>Both behaviours are gated by {@link #PROP_ENFORCEMENT_ENABLED} (default
+ * <p>This behaviour is gated by {@link #PROP_ENFORCEMENT_ENABLED} (default
  * {@code true}). System pages (registry-determined) are exempt — they are
  * managed by the engine itself and don't flow through the structural spine.</p>
  *
@@ -119,24 +115,6 @@ public class StructuralSpinePageFilter implements PageFilter {
             } else {
                 LOG.info( "StructuralSpinePageFilter: assigned canonical_id={} to '{}'",
                           newId, pageName );
-            }
-        }
-
-        // -- relations validation --
-        final Object relationsField = metadata.get( "relations" );
-        if ( relationsField != null ) {
-            final String sourceId = metadata.get( "canonical_id" ).toString().trim();
-            final var validation = FrontmatterRelationValidator.validate(
-                    sourceId, relationsField,
-                    target -> structuralIndex.getByCanonicalId( target ).isPresent() );
-            if ( validation.hasIssues() ) {
-                final StringBuilder msg = new StringBuilder();
-                msg.append( "Page '" ).append( pageName ).append( "' has invalid relations: " );
-                for ( final var issue : validation.issues() ) {
-                    msg.append( '[' ).append( issue.kind() ).append( ' ' )
-                       .append( issue.detail() ).append( "] " );
-                }
-                throw new FilterException( msg.toString().trim() );
             }
         }
 

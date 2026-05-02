@@ -408,25 +408,40 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     @Override
     public KgProposal approveProposal( final UUID proposalId, final String reviewedBy ) {
-        repo.updateProposalStatus( proposalId, "approved", reviewedBy );
-        return repo.getProposal( proposalId );
+        repo.applyHumanVerdict( proposalId, "approved", reviewedBy );
+        repo.recordReview( proposalId, KgProposalReview.REVIEWER_HUMAN, reviewedBy,
+            "approved", null, null );
+        final KgProposal proposal = repo.getProposal( proposalId );
+        if ( proposal != null && materialization != null ) {
+            materialization.promoteToHuman( proposal );
+            invalidateSnapshotCache();
+        }
+        return proposal;
     }
 
     @Override
     public KgProposal rejectProposal( final UUID proposalId, final String reviewedBy, final String reason ) {
-        repo.updateProposalStatus( proposalId, "rejected", reviewedBy );
-
-        // For "new-edge" proposals, record the rejection so the same edge won't be proposed again
         final KgProposal proposal = repo.getProposal( proposalId );
-        if( proposal != null && "new-edge".equals( proposal.proposalType() ) && proposal.proposedData() != null ) {
-            final String source = Objects.toString( proposal.proposedData().get( "source" ), null );
-            final String target = Objects.toString( proposal.proposedData().get( "target" ), null );
-            final String relationship = Objects.toString( proposal.proposedData().get( "relationship" ), null );
-            if( source != null && target != null && relationship != null ) {
-                repo.insertRejection( source, target, relationship, reviewedBy, reason );
+        repo.applyHumanVerdict( proposalId, "rejected", reviewedBy );
+        repo.recordReview( proposalId, KgProposalReview.REVIEWER_HUMAN, reviewedBy,
+            "rejected", null, reason );
+
+        if ( proposal != null ) {
+            if ( materialization != null ) {
+                materialization.retract( proposal );
+                invalidateSnapshotCache();
+            }
+            // Existing behaviour: also write the negative-knowledge entry for new-edge proposals.
+            if ( "new-edge".equals( proposal.proposalType() ) && proposal.proposedData() != null ) {
+                final String source = Objects.toString( proposal.proposedData().get( "source" ), null );
+                final String target = Objects.toString( proposal.proposedData().get( "target" ), null );
+                final String relationship = Objects.toString( proposal.proposedData().get( "relationship" ), null );
+                if ( source != null && target != null && relationship != null ) {
+                    repo.insertRejection( source, target, relationship, reviewedBy, reason );
+                }
             }
         }
-        return proposal;
+        return repo.getProposal( proposalId );
     }
 
     // --- Rejection queries ---

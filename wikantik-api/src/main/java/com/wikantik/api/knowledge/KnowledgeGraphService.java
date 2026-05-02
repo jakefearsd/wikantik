@@ -119,4 +119,17 @@ public interface KnowledgeGraphService {
      * @return a complete snapshot of all nodes and edges
      */
     GraphSnapshot snapshotGraph( com.wikantik.api.core.Session viewer );
+
+    // --- Tier-aware overloads (T13) ---
+
+    GraphSnapshot snapshotGraph( com.wikantik.api.core.Session viewer, Tier minTier );
+
+    List< KgNode > searchKnowledge( String query, java.util.Set< Provenance > provenanceFilter,
+                                     int limit, Tier minTier );
+
+    TraversalResult traverseByCoMention( String startNodeName, int maxDepth, int minSharedChunks, Tier minTier );
+
+    // --- Synchronous judge trigger (impl in T15) ---
+
+    JudgeVerdict judgeNow( java.util.UUID proposalId, String triggeredBy );
 }

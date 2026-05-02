@@ -50,25 +50,37 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     private final JdbcKnowledgeRepository repo;
     private Engine engine;
     private final MentionIndex mentionIndex;
+    private final com.wikantik.knowledge.judge.KgMaterializationService materialization;
+    private final com.wikantik.api.knowledge.KgProposalJudgeService judgeService;
 
-    private volatile GraphSnapshot cachedSnapshot;
-    private volatile Instant cacheTimestamp;
+    private final java.util.Map< Tier, GraphSnapshot > cachedByTier = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map< Tier, Instant > cacheTsByTier = new java.util.concurrent.ConcurrentHashMap<>();
     private static final long CACHE_TTL_SECONDS = 60;
 
     public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo ) {
-        this( repo, null, null );
+        this( repo, null, null, null, null );
     }
 
     public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo, final Engine engine ) {
-        this( repo, engine, null );
+        this( repo, engine, null, null, null );
     }
 
     public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo,
                                           final Engine engine,
                                           final MentionIndex mentionIndex ) {
+        this( repo, engine, mentionIndex, null, null );
+    }
+
+    public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo,
+                                          final Engine engine,
+                                          final MentionIndex mentionIndex,
+                                          final com.wikantik.knowledge.judge.KgMaterializationService materialization,
+                                          final com.wikantik.api.knowledge.KgProposalJudgeService judgeService ) {
         this.repo = repo;
         this.engine = engine;
         this.mentionIndex = mentionIndex;
+        this.materialization = materialization;
+        this.judgeService = judgeService;
     }
 
     public void setEngine( final Engine engine ) {
@@ -290,12 +302,18 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     public TraversalResult traverseByCoMention( final String startNodeName,
                                                  final int maxDepth,
                                                  final int minSharedChunks ) {
+        return traverseByCoMention( startNodeName, maxDepth, minSharedChunks, Tier.MACHINE );
+    }
+
+    @Override
+    public TraversalResult traverseByCoMention( final String startNodeName, final int maxDepth,
+                                                 final int minSharedChunks, final Tier minTier ) {
         if ( mentionIndex == null ) {
             LOG.warn( "traverseByCoMention called but MentionIndex is not configured" );
             return new TraversalResult( List.of(), List.of() );
         }
         final KgNode startNode = repo.getNodeByName( startNodeName );
-        if ( startNode == null ) {
+        if ( startNode == null || !minTier.includes( startNode.tier() ) ) {
             return new TraversalResult( List.of(), List.of() );
         }
         final int effectiveMin = Math.max( 1, minSharedChunks );
@@ -320,6 +338,17 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                 final UUID neighborId = e.getKey();
                 final int shared = e.getValue();
 
+                // Tier-filter the neighbor before admitting it.
+                if ( !visited.containsKey( neighborId ) ) {
+                    final KgNode neighbor = repo.getNode( neighborId );
+                    if ( neighbor == null || !minTier.includes( neighbor.tier() ) ) {
+                        continue;
+                    }
+                    visited.put( neighborId, neighbor );
+                    queue.add( neighborId );
+                    depthMap.put( neighborId, currentDepth + 1 );
+                }
+
                 collectedEdges.add( new KgEdge(
                     UUID.randomUUID(),
                     currentId, neighborId,
@@ -330,15 +359,6 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                     Instant.now(),
                     "human",
                     null ) );
-
-                if ( !visited.containsKey( neighborId ) ) {
-                    final KgNode neighbor = repo.getNode( neighborId );
-                    if ( neighbor != null ) {
-                        visited.put( neighborId, neighbor );
-                        queue.add( neighborId );
-                        depthMap.put( neighborId, currentDepth + 1 );
-                    }
-                }
             }
         }
 
@@ -350,7 +370,13 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     @Override
     public List< KgNode > searchKnowledge( final String query, final Set< Provenance > provenanceFilter,
                                            final int limit ) {
-        return repo.searchNodes( query, provenanceFilter, limit );
+        return searchKnowledge( query, provenanceFilter, limit, Tier.MACHINE );
+    }
+
+    @Override
+    public List< KgNode > searchKnowledge( final String query, final Set< Provenance > provenanceFilter,
+                                           final int limit, final Tier minTier ) {
+        return repo.searchNodes( query, provenanceFilter, limit, minTier );
     }
 
     // --- Proposal management ---
@@ -427,27 +453,32 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     @Override
     public GraphSnapshot snapshotGraph( final Session viewer ) {
+        return snapshotGraph( viewer, Tier.MACHINE );
+    }
+
+    @Override
+    public GraphSnapshot snapshotGraph( final Session viewer, final Tier minTier ) {
         // D27: knowledge graph snapshots are public reads. Previously this guard
         // rejected anonymous viewers; the graph contains only canonical IDs and typed
         // edges (no page bodies), so it is safe to expose to unauthenticated callers.
         // The redaction step below still hides nodes and edges that the viewer
         // shouldn't see based on per-page ACLs.
 
-        GraphSnapshot base = cachedSnapshot;
+        GraphSnapshot base = cachedByTier.get( minTier );
+        final Instant ts = cacheTsByTier.get( minTier );
         final Instant now = Instant.now();
-        if ( base == null || cacheTimestamp == null
-                || now.isAfter( cacheTimestamp.plusSeconds( CACHE_TTL_SECONDS ) ) ) {
-            base = buildUnredactedSnapshot();
-            cachedSnapshot = base;
-            cacheTimestamp = now;
+        if ( base == null || ts == null || now.isAfter( ts.plusSeconds( CACHE_TTL_SECONDS ) ) ) {
+            base = buildUnredactedSnapshot( minTier );
+            cachedByTier.put( minTier, base );
+            cacheTsByTier.put( minTier, now );
         }
 
         return redactForViewer( base, viewer );
     }
 
-    private GraphSnapshot buildUnredactedSnapshot() {
-        final List< KgNode > allNodes = repo.getAllNodes();
-        final List< KgEdge > allEdges = repo.getAllEdges();
+    private GraphSnapshot buildUnredactedSnapshot( final Tier minTier ) {
+        final List< KgNode > allNodes = repo.getAllNodes( minTier );
+        final List< KgEdge > allEdges = repo.getAllEdges( minTier );
 
         final Map< UUID, int[] > degrees = new HashMap<>();
         for ( final KgEdge edge : allEdges ) {
@@ -551,7 +582,18 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     }
 
     private void invalidateSnapshotCache() {
-        cachedSnapshot = null;
-        cacheTimestamp = null;
+        cachedByTier.clear();
+        cacheTsByTier.clear();
+    }
+
+    // --- Synchronous judge trigger (T15) ---
+
+    @Override
+    public JudgeVerdict judgeNow( final UUID proposalId, final String triggeredBy ) {
+        if ( judgeService == null ) {
+            throw new IllegalStateException( "judgeService not configured" );
+        }
+        // Real impl in T15.
+        throw new UnsupportedOperationException( "judgeNow implementation pending (T15)" );
     }
 }

@@ -214,6 +214,7 @@ export default function KnowledgeGraphView() {
           timestamp={timestamp}
           minTier={minTier}
           onTierChange={handleTierChange}
+          nodeCount={snapshot?.nodeCount || 0}
         />
         <GraphCanvas
           elements={elements}

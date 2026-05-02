@@ -36,8 +36,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -562,6 +565,125 @@ public class RestApiIT {
         final HttpResponse< String > resp = get( "/api/structure/tags" );
         assertEquals( 200, resp.statusCode() );
         assertTrue( hasJsonKey( resp.body(), "tags" ) );
+    }
+
+    // ---- Page Graph snapshot ----
+
+    /**
+     * End-to-end coverage for the Page Graph snapshot endpoint that powers the
+     * {@code /page-graph} React view. Seeds a small, deterministic wikilink
+     * topology (PageA → PageB, PageA → PageC, PageB → PageC, PageD orphan),
+     * waits for the reference manager to index the new links, and asserts the
+     * snapshot reports correct nodes, in/out degrees, edges, and the orphan
+     * role classification. Edge {@code relationshipType} is always
+     * {@code "page-link"} for the Page Graph (typed relations were removed
+     * 2026-05-02 — see PageGraphVsKnowledgeGraph).
+     *
+     * <p>Catches the regression class where the SPA route or REST snapshot
+     * endpoint silently breaks after a rename of either the {@code /page-graph}
+     * UI route or the underlying service wiring. Without this test, the IT
+     * suite passes while {@code /page-graph} returns 404 or wrong data.
+     */
+    @Test
+    @Order( 30 )
+    @SuppressWarnings( "unchecked" )
+    void testPageGraphSnapshotRendersSeededWikilinks() throws Exception {
+        loginAsAdmin();
+        try {
+            final String prefix = "PgIT";
+            put( "/api/pages/" + prefix + "PageA", GSON.toJson( Map.of(
+                "content", "Page A links to [" + prefix + "PageB]() and [" + prefix + "PageC]()." ) ) );
+            put( "/api/pages/" + prefix + "PageB", GSON.toJson( Map.of(
+                "content", "Page B links to [" + prefix + "PageC]()." ) ) );
+            put( "/api/pages/" + prefix + "PageC", GSON.toJson( Map.of(
+                "content", "Page C is a leaf." ) ) );
+            put( "/api/pages/" + prefix + "PageD", GSON.toJson( Map.of(
+                "content", "Page D is an orphan with no inbound or outbound wikilinks." ) ) );
+
+            // Reference manager indexes new pages on every save event but the
+            // event dispatch is best-effort async — give the structural index
+            // time to settle, plus a small buffer for the reference manager.
+            waitForStructuralIndexUp();
+            Thread.sleep( 2000 );
+
+            final HttpResponse< String > resp = get( "/api/page-graph/snapshot" );
+            assertEquals( 200, resp.statusCode(),
+                "GET /api/page-graph/snapshot should return 200, got " + resp.statusCode()
+                    + ": " + resp.body() );
+
+            final Map< String, Object > snap = parseJson( resp.body() );
+            assertNotNull( snap.get( "generatedAt" ), "snapshot should carry generatedAt" );
+            assertNotNull( snap.get( "nodeCount" ), "snapshot should carry nodeCount" );
+            assertNotNull( snap.get( "edgeCount" ), "snapshot should carry edgeCount" );
+            assertNotNull( snap.get( "hubDegreeThreshold" ), "snapshot should carry hubDegreeThreshold" );
+
+            final List< Map< String, Object > > nodes = ( List< Map< String, Object > > ) snap.get( "nodes" );
+            final List< Map< String, Object > > edges = ( List< Map< String, Object > > ) snap.get( "edges" );
+            assertNotNull( nodes, "snapshot.nodes must not be null" );
+            assertNotNull( edges, "snapshot.edges must not be null" );
+
+            final Map< String, Map< String, Object > > nodesByName = new HashMap<>();
+            for ( final Map< String, Object > n : nodes ) {
+                nodesByName.put( ( String ) n.get( "name" ), n );
+            }
+            assertTrue( nodesByName.containsKey( prefix + "PageA" ),
+                "snapshot must include PageA; got names: " + nodesByName.keySet() );
+            assertTrue( nodesByName.containsKey( prefix + "PageB" ),
+                "snapshot must include PageB; got names: " + nodesByName.keySet() );
+            assertTrue( nodesByName.containsKey( prefix + "PageC" ),
+                "snapshot must include PageC; got names: " + nodesByName.keySet() );
+            assertTrue( nodesByName.containsKey( prefix + "PageD" ),
+                "snapshot must include PageD; got names: " + nodesByName.keySet() );
+
+            assertEquals( 0, intField( nodesByName.get( prefix + "PageA" ), "degreeIn" ),
+                "PageA: nothing links to it yet" );
+            assertEquals( 2, intField( nodesByName.get( prefix + "PageA" ), "degreeOut" ),
+                "PageA: links to PageB and PageC" );
+            assertEquals( 1, intField( nodesByName.get( prefix + "PageB" ), "degreeIn" ),
+                "PageB: PageA links to it" );
+            assertEquals( 1, intField( nodesByName.get( prefix + "PageB" ), "degreeOut" ),
+                "PageB: links to PageC" );
+            assertEquals( 2, intField( nodesByName.get( prefix + "PageC" ), "degreeIn" ),
+                "PageC: PageA and PageB both link to it" );
+            assertEquals( 0, intField( nodesByName.get( prefix + "PageC" ), "degreeOut" ),
+                "PageC: leaf, links to nothing" );
+            assertEquals( 0, intField( nodesByName.get( prefix + "PageD" ), "degreeIn" ),
+                "PageD: orphan" );
+            assertEquals( 0, intField( nodesByName.get( prefix + "PageD" ), "degreeOut" ),
+                "PageD: orphan" );
+
+            assertEquals( "orphan", nodesByName.get( prefix + "PageD" ).get( "role" ),
+                "PageD has degree 0 in and 0 out → orphan role" );
+
+            final Map< String, String > idToName = new HashMap<>();
+            for ( final Map< String, Object > n : nodes ) {
+                idToName.put( ( String ) n.get( "id" ), ( String ) n.get( "name" ) );
+            }
+            final Set< String > edgePairs = new HashSet<>();
+            for ( final Map< String, Object > e : edges ) {
+                final String src = idToName.get( ( String ) e.get( "source" ) );
+                final String tgt = idToName.get( ( String ) e.get( "target" ) );
+                if ( src != null && tgt != null ) {
+                    edgePairs.add( src + "->" + tgt );
+                }
+                assertEquals( "page-link", e.get( "relationshipType" ),
+                    "every Page Graph edge must be relationshipType=page-link" );
+            }
+            assertTrue( edgePairs.contains( prefix + "PageA->" + prefix + "PageB" ),
+                "expected edge PageA->PageB; got: " + edgePairs );
+            assertTrue( edgePairs.contains( prefix + "PageA->" + prefix + "PageC" ),
+                "expected edge PageA->PageC; got: " + edgePairs );
+            assertTrue( edgePairs.contains( prefix + "PageB->" + prefix + "PageC" ),
+                "expected edge PageB->PageC; got: " + edgePairs );
+        } finally {
+            logoutAdmin();
+        }
+    }
+
+    private static int intField( final Map< String, Object > node, final String key ) {
+        final Object v = node.get( key );
+        assertNotNull( v, "field '" + key + "' must be present on node " + node.get( "name" ) );
+        return ( ( Number ) v ).intValue();
     }
 
 }

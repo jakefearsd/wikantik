@@ -72,7 +72,7 @@ confidence: authoritative
 # runbook-specific (validated when type == runbook)
 runbook:
   when_to_use:
-    - Agent needs to pick between BM25-only, hybrid, and graph-traversal retrieval for a query
+    - Agent needs to pick between BM25-only, hybrid, and Knowledge Graph-traversal retrieval for a query
     - Agent is mid-workflow and suspects the default retriever is losing recall
   inputs:
     - Query text
@@ -81,7 +81,7 @@ runbook:
   steps:
     - Start with /knowledge-mcp `search_knowledge` (hybrid default)
     - If top-5 results all share a cluster, call `list_pages_by_filter` with cluster=X to broaden
-    - If query is about a named entity, call `query_nodes` on the graph
+    - If query is about a named entity, call `query_nodes` on the Knowledge Graph
     - If no mode returns >3 relevant hits, fall back to `/api/search` BM25 with a loosened query
   pitfalls:
     - Do not chain more than 3 retrieval calls — budget it
@@ -191,9 +191,16 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON retrieval_query_sets, retrieval_queries,
 
 ## `/for-agent` projection
 
+> **Update 2026-05-02.** The `outgoingRelations` and
+> `incomingRelations` fields were removed from `ForAgentProjection`
+> when the frontmatter `relations:` mechanism was deleted. Agents
+> needing page-link traversal should call the `get_outbound_links`
+> or `get_backlinks` MCP tools on `/wikantik-admin-mcp` instead.
+> See `docs/superpowers/specs/2026-05-02-page-graph-vs-knowledge-graph-design.md`.
+
 ### `GET /api/pages/{canonical_id}/for-agent`
 
-A token-optimised projection of a page. Lives in `wikantik-rest` alongside `PageResource`. Reads from `PageManager`, `FrontmatterParser`, `StructuralIndexService` (relations), and `ReferenceManager` (backlinks).
+A token-optimised projection of a page. Lives in `wikantik-rest` alongside `PageResource`. Reads from `PageManager`, `FrontmatterParser`, `StructuralIndexService` (cluster/tags), and `ReferenceManager` (backlinks).
 
 ```json
 {
@@ -225,18 +232,8 @@ A token-optimised projection of a page. Lives in `wikantik-rest` alongside `Page
       {"level":2,"text":"Metrics"}
     ],
 
-    "typed_relations": {
-      "outgoing": [
-        {"type":"example-of","target_id":"01H8G3Z1PRN5Q3X4T9M2V7K0AB","target_slug":"InformationRetrieval"},
-        {"type":"prerequisite-for","target_id":"01H8G3Z2E7FD8R1Q4V9X2T0NMP","target_slug":"RetrievalExperimentHarness"}
-      ],
-      "incoming": [
-        {"type":"part-of","source_id":"01H8G3Z3Q0V2W5X7P8N9M1K4TF","source_slug":"WikantikDevelopment"}
-      ]
-    },
-
     "recent_changes": [
-      {"version":42,"at":"2026-04-22T11:10:00Z","author":"jakefear","summary":"Add graph-aware rerank section"}
+      {"version":42,"at":"2026-04-22T11:10:00Z","author":"jakefear","summary":"Add Knowledge Graph-aware rerank section"}
     ],
 
     "mcp_tool_hints": [
@@ -266,7 +263,7 @@ Design notes:
 
 ### Authoring
 
-Authors do not write `key_facts`, `headings_outline`, `recent_changes`, `typed_relations`, or `mcp_tool_hints` — those are projections of existing data. They *do* write `summary`, `audience`, `verified_at`, `verified_by`, `confidence`, and, for runbooks, the `runbook:` block.
+Authors do not write `key_facts`, `headings_outline`, `recent_changes`, or `mcp_tool_hints` — those are projections of existing data. They *do* write `summary`, `audience`, `verified_at`, `verified_by`, `confidence`, and, for runbooks, the `runbook:` block.
 
 ## The `runbook` page type
 
@@ -313,7 +310,7 @@ A new cluster `agent-cookbook` seeded with ~15 runbooks that target the actual q
 
 Initial cookbook set (hub page: `AgentCookbook.md`):
 
-1. **ChoosingARetrievalMode** — BM25 vs hybrid vs graph traversal.
+1. **ChoosingARetrievalMode** — BM25 vs hybrid vs Knowledge Graph traversal.
 2. **AnsweringRestApiQuestions** — how to find the right endpoint, method, and permission model.
 3. **CitingAWikiPage** — use canonical_id not slug; link format.
 4. **ExploringAModulesApiSurface** — grep patterns + MCP tools for a new module.
@@ -400,7 +397,7 @@ Every MCP tool in `/wikantik-admin-mcp` and `/knowledge-mcp` gets:
 ```json
 {
   "name": "search_knowledge",
-  "description": "Full-text search across node names and properties. Bridges the gap between arbitrary queries and the graph's node IDs.",
+  "description": "Full-text search across node names and properties. Bridges the gap between arbitrary queries and the Knowledge Graph's node IDs.",
   "inputSchema": {
     "type": "object",
     "properties": {
@@ -555,9 +552,10 @@ Grafana panel additions: "Content quality" dashboard with verification-state pie
 This design explicitly depends on [StructuralSpineDesign](StructuralSpineDesign) for:
 
 - `canonical_id` (primary key for `page_verification`, referenced by retrieval query sets).
-- `typed_relations` (populated in `/for-agent`).
 - `list_pages_by_filter` (used by the admin verification UI and by agents discovering cookbook runbooks).
 - Generated Main.md (the agent cookbook cluster needs to be visible in the generated cluster index).
+
+The `typed_relations` field that was described in early drafts was removed 2026-05-02 when the `relations:` frontmatter mechanism was dropped. See `docs/superpowers/specs/2026-05-02-page-graph-vs-knowledge-graph-design.md`.
 
 If the structural spine ships first, this design plugs into it. If this design ships first (acceptable — the two are loosely coupled), the `canonical_id` requirement can be provisional: use page slug as a stand-in, and migrate to canonical_id once the structural spine lands. The DB schemas are designed so slug-based rows can be re-keyed without data loss.
 

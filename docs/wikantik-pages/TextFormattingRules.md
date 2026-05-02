@@ -421,34 +421,6 @@ confidence: authoritative
 
 Most authors leave `confidence` unset and let `ConfidenceComputer` derive it from `verified_at` plus the trusted-authors registry. Pin it explicitly only when you need to override the computation.
 
-### Typed relations
-
-Beyond `related:` (a free-form bag of slugs), the structural spine recognises a closed-vocabulary `relations:` block addressed by canonical_id:
-
-```yaml
-relations:
-  - type: example-of
-    target: 01H8G3Z1PRN5Q3X4T9M2V7K0AB
-  - type: prerequisite-for
-    target: 01H8G3Z2E7FD8R1Q4V9X2T0NMP
-  - type: supersedes
-    target: 01H8F2Y0R5Q3X4T9M2V7K0AB12
-```
-
-The closed vocabulary:
-
-| Type | Meaning |
-|---|---|
-| `part-of` | This page is a sub-component of the target. |
-| `example-of` | This page is a concrete example of the abstract concept on target. |
-| `prerequisite-for` | The target depends on understanding this page. |
-| `supersedes` | This page replaces the target (target should usually flip to `status: deprecated`). |
-| `contradicts` | This page disagrees with the target — useful for documenting open debates. |
-| `implements` | This page describes an implementation of a design or interface on target. |
-| `derived-from` | This page was derived from / is a reformulation of the target. |
-
-`StructuralSpinePageFilter` rejects saves with unknown `type` values or unresolvable `target` canonical_ids. Comments after the ULID (`# WhateverPageName`) are common as authoring hints.
-
 ### Knowledge-graph inclusion
 
 Pages can opt in or out of knowledge-graph extraction:

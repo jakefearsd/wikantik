@@ -334,8 +334,6 @@ related: [About, KnowledgeGraphCore]
 depends-on: [KnowledgeGraphCore]
 summary: Short, used for meta description / og:description / Atom <summary>
 date: 2026-04-29
-relations:
-  - { type: depends_on, target: KnowledgeGraphCore }
 verified_at: 2026-04-29T14:00:00Z
 verified_by: jakefear
 confidence: authoritative   # authoritative | provisional | stale (usually computed)

@@ -33,7 +33,7 @@ runbook:
     - Bundling unrelated DDL in one migration — each migration should answer one schema question
     - Hand-running DDL against the live database without a migration file — the migration history loses authority
   related_tools:
-    - /admin/structural-conflicts
+    - /admin/page-graph/conflicts
   references:
     - StructuralSpineDesign
     - BuildingAndDeployingLocally

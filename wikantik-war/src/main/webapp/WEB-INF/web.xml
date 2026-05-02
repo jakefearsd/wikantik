@@ -527,7 +527,7 @@
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminStructuralConflictsResource</servlet-name>
-       <url-pattern>/admin/structural-conflicts</url-pattern>
+       <url-pattern>/admin/page-graph/conflicts</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminVerificationResource</servlet-name>

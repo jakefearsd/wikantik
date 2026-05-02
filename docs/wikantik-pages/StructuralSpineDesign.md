@@ -379,7 +379,7 @@ Exit criterion: every hub page has outgoing `part-of` relations from its sub-art
 | Projection empty (not yet rebuilt) | `health().status = rebuilding` | Endpoints return HTTP 503 with `Retry-After`. MCP tools return structured `rebuilding` error with ETA. |
 | Duplicate canonical_id detected | On save, unique constraint fires | Reject save with actionable error: *"canonical_id X already used by page Y. Pick a different ID or delete Y."* |
 | Relation target missing | Validator on save | Reject save with error naming the missing ID. Soft mode (Phase 1 only) warns + admits. |
-| Two-way disagreement (A says `supersedes B`, B says `supersedes A`) | Cycle detector on save or background check | Surface both pages in `/admin/structural-conflicts`. Do not auto-break cycles. |
+| Two-way disagreement (A says `supersedes B`, B says `supersedes A`) | Cycle detector on save or background check | Surface both pages in `/admin/page-graph/conflicts`. Do not auto-break cycles. |
 | `page_relations` row with missing source/target | CASCADE DELETE protects it in-process; manual DB edits could break it | Nightly consistency scan emits `wikantik_structural_orphan_relations_total`; surfaces orphans in admin UI. |
 | DB outage | `StructuralIndexService` falls back to in-memory projection | Reads continue to serve; writes that require DB persistence return 503 `{"fallback": "memory", "writes_deferred": true}` and replay when DB returns. |
 

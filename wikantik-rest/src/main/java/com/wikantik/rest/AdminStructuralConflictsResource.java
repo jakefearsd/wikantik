@@ -32,7 +32,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * {@code GET /admin/structural-conflicts} — admin-only listing of pages the
+ * {@code GET /admin/page-graph/conflicts} — admin-only listing of pages the
  * structural-index rebuild flagged as needing attention. The structural-spine
  * Phase 4 enforcement filter prevents new pages from joining this list, but
  * existing rows surface here until an author resolves them.

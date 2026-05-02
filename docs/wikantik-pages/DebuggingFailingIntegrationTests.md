@@ -31,7 +31,7 @@ runbook:
     - Reading only the maven output — the actual exception is usually in the surefire txt or the Cargo catalina log
     - Re-running the full IT suite when only one module is failing — slow and obscures the signal
   related_tools:
-    - /admin/structural-conflicts
+    - /admin/page-graph/conflicts
   references:
     - BuildingAndDeployingLocally
 ---

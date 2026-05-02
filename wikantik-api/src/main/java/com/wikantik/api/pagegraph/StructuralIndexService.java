@@ -68,7 +68,7 @@ public interface StructuralIndexService {
     /**
      * Conflicts surfaced by the most recent rebuild — pages with a missing
      * canonical_id, relations whose target didn't resolve, etc. Admin-facing
-     * endpoints expose this list under {@code /api/admin/structural-conflicts}.
+     * endpoints expose this list under {@code /admin/page-graph/conflicts}.
      * Returns an immutable snapshot; safe to retain across calls.
      */
     List< StructuralConflict > conflicts();

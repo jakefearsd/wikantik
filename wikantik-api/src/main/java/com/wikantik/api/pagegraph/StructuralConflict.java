@@ -20,7 +20,7 @@ package com.wikantik.api.pagegraph;
 
 /**
  * A finding from the rebuild pass that an admin should see and resolve. Phase 4
- * surfaces these via {@code /api/admin/structural-conflicts}; Phase 1 produced
+ * surfaces these via {@code /admin/page-graph/conflicts}; Phase 1 produced
  * them silently via the {@code unclaimed_canonical_ids} health gauge.
  *
  * @param slug         current slug of the affected page (always set)

@@ -92,7 +92,7 @@ class PageForAgentResourceTest {
                 "Operator reference for hybrid retrieval.",
                 List.of( new KeyFact( "BM25 + dense via RRF.", "frontmatter" ) ),
                 List.of( new HeadingOutline( 2, "Wiring" ) ),
-                List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(),
                 null,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
                 false, List.of() );
@@ -127,7 +127,7 @@ class PageForAgentResourceTest {
                 "01ABC", "Slug", "Title", "article", null,
                 Audience.HUMANS_AND_AGENTS, Confidence.PROVISIONAL,
                 null, null, null, null,
-                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(),
                 null,
                 "/api/pages/Slug", "/wiki/Slug?format=md",
                 true, List.of( "headings_outline", "key_facts" ) );

@@ -532,6 +532,26 @@ export const api = {
     listProposals: (status = 'pending', limit = 50) =>
       request(`/admin/knowledge-graph/proposals?status=${status}&limit=${limit}`),
 
+    listProposalsFiltered: (opts) => {
+      const params = new URLSearchParams();
+      if (opts?.status) params.set('status', opts.status);
+      if (opts?.tier) params.set('tier', opts.tier);
+      if (opts?.machineStatus) params.set('machine_status', opts.machineStatus);
+      if (opts?.sourcePage) params.set('source_page', opts.sourcePage);
+      if (opts?.limit) params.set('limit', String(opts.limit));
+      if (opts?.includeMachineRejected) params.set('include_machine_rejected', 'true');
+      return request(`/admin/knowledge-graph/proposals?${params}`);
+    },
+
+    judgeProposal: (id) =>
+      request(`/admin/knowledge-graph/proposals/${id}/judge`, { method: 'POST' }),
+
+    runJudge: () =>
+      request('/admin/knowledge-graph/judge/run', { method: 'POST' }),
+
+    listProposalReviews: (id) =>
+      request(`/admin/knowledge-graph/proposals/${id}/reviews`),
+
     approveProposal: (id) =>
       request(`/admin/knowledge-graph/proposals/${id}/approve`, { method: 'POST' }),
 

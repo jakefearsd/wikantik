@@ -28,7 +28,7 @@ import NewBlogEntry from './components/NewBlogEntry';
 import BlogEditor from './components/BlogEditor';
 import './styles/globals.css';
 
-const GraphView = React.lazy(() => import('./components/graph/GraphView.jsx'));
+const PageGraphView = React.lazy(() => import('./components/pagegraph/PageGraphView.jsx'));
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -43,9 +43,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/edit/:name" element={<PageEditor />} />
             <Route path="/diff/:name" element={<DiffViewer />} />
             <Route path="/search" element={<SearchResultsPage />} />
-            <Route path="/graph" element={
-              <Suspense fallback={<div className="graph-loading"><p>Loading knowledge graph...</p></div>}>
-                <GraphView />
+            <Route path="/page-graph" element={
+              <Suspense fallback={<div className="graph-loading"><p>Loading page graph...</p></div>}>
+                <PageGraphView />
               </Suspense>
             } />
             <Route path="/preferences" element={<UserPreferencesPage />} />
@@ -55,7 +55,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="content" element={<AdminContentPage />} />
               <Route path="security" element={<AdminSecurityPage />} />
-              <Route path="knowledge" element={<AdminKnowledgePage />} />
+              <Route path="knowledge-graph" element={<AdminKnowledgePage />} />
               <Route path="apikeys" element={<AdminApiKeysPage />} />
               <Route path="retrieval-quality" element={<AdminRetrievalQualityPage />} />
               <Route path="kg-policy" element={<AdminKgPolicyPage />} />

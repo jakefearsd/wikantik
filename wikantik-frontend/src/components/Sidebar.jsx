@@ -109,11 +109,11 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           {navLink('/wiki/UndefinedPages', 'Undefined pages')}
           {navLink('/wiki/SystemInfo', 'System Info')}
           <Link
-            to={activePage ? `/graph?focus=${encodeURIComponent(activePage)}` : '/graph'}
+            to={activePage ? `/page-graph?focus=${encodeURIComponent(activePage)}` : '/page-graph'}
             className="sidebar-link"
             onClick={onMobileClose}
           >
-            Knowledge Graph
+            Page Graph
           </Link>
         </div>
 
@@ -160,7 +160,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
               Security
             </Link>
             <Link
-              to="/admin/knowledge"
+              to="/admin/knowledge-graph"
               className="sidebar-link"
               onClick={onMobileClose}
             >

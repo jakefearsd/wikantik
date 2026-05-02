@@ -41,7 +41,7 @@ async function request(path, options = {}) {
 // House style on the REST side wraps newer resources in `{ data: ... }`
 // (PageByIdResource, PageForAgentResource, AdminVerificationResource,
 // AdminStructuralConflictsResource, AdminRetrievalQualityResource,
-// PageRelationsResource, StructureResource). Auto-unwrap so callers don't
+// StructureResource). Auto-unwrap so callers don't
 // have to repeat `resp?.data?.X` at every site. Conservative shape check —
 // only single-key `{data: …}` objects unwrap, so legacy responses that
 // happen to include a top-level `data` field stay untouched.

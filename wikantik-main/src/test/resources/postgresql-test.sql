@@ -336,3 +336,72 @@ CREATE TABLE IF NOT EXISTS kg_excluded_pages (
 
 CREATE INDEX IF NOT EXISTS idx_kg_excluded_pages_reason
     ON kg_excluded_pages (reason);
+
+-- V024: Staged validation infrastructure (test fixture mirroring bin/db/migrations/V024)
+ALTER TABLE kg_proposals
+    ADD COLUMN IF NOT EXISTS tier               VARCHAR(16) NOT NULL DEFAULT 'none',
+    ADD COLUMN IF NOT EXISTS machine_status     VARCHAR(16),
+    ADD COLUMN IF NOT EXISTS machine_confidence DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS machine_judged_at  TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS machine_model      VARCHAR(64);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.constraint_column_usage
+        WHERE table_name = 'kg_proposals' AND constraint_name = 'kg_proposals_tier_check'
+    ) THEN
+        ALTER TABLE kg_proposals
+            ADD CONSTRAINT kg_proposals_tier_check
+            CHECK (tier IN ('none','machine','human'));
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.constraint_column_usage
+        WHERE table_name = 'kg_proposals' AND constraint_name = 'kg_proposals_human_terminal_check'
+    ) THEN
+        ALTER TABLE kg_proposals
+            ADD CONSTRAINT kg_proposals_human_terminal_check
+            CHECK (tier <> 'human' OR status IN ('approved','rejected'));
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS kg_proposal_reviews (
+    id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    proposal_id   UUID         NOT NULL REFERENCES kg_proposals(id) ON DELETE CASCADE,
+    reviewer_kind VARCHAR(16)  NOT NULL CHECK (reviewer_kind IN ('machine','human')),
+    reviewer_id   VARCHAR(100) NOT NULL,
+    verdict       VARCHAR(16)  NOT NULL CHECK (verdict IN ('approved','rejected','abstain')),
+    confidence    DOUBLE PRECISION,
+    rationale     TEXT,
+    created       TIMESTAMP    NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS kg_proposal_reviews_proposal_idx
+    ON kg_proposal_reviews (proposal_id, created DESC);
+
+ALTER TABLE kg_nodes
+    ADD COLUMN IF NOT EXISTS tier                   VARCHAR(16) NOT NULL DEFAULT 'human',
+    ADD COLUMN IF NOT EXISTS provenance_proposal_id UUID;
+ALTER TABLE kg_edges
+    ADD COLUMN IF NOT EXISTS tier                   VARCHAR(16) NOT NULL DEFAULT 'human',
+    ADD COLUMN IF NOT EXISTS provenance_proposal_id UUID;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.constraint_column_usage
+        WHERE table_name = 'kg_nodes' AND constraint_name = 'kg_nodes_tier_check') THEN
+        ALTER TABLE kg_nodes ADD CONSTRAINT kg_nodes_tier_check CHECK (tier IN ('machine','human'));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.constraint_column_usage
+        WHERE table_name = 'kg_edges' AND constraint_name = 'kg_edges_tier_check') THEN
+        ALTER TABLE kg_edges ADD CONSTRAINT kg_edges_tier_check CHECK (tier IN ('machine','human'));
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS kg_nodes_tier_idx        ON kg_nodes (tier);
+CREATE INDEX IF NOT EXISTS kg_nodes_tier_name_idx   ON kg_nodes (tier, name);
+CREATE INDEX IF NOT EXISTS kg_edges_tier_source_idx ON kg_edges (tier, source_id);
+CREATE INDEX IF NOT EXISTS kg_edges_tier_target_idx ON kg_edges (tier, target_id);
+CREATE INDEX IF NOT EXISTS kg_nodes_provenance_idx  ON kg_nodes (provenance_proposal_id);
+CREATE INDEX IF NOT EXISTS kg_edges_provenance_idx  ON kg_edges (provenance_proposal_id);
+
+UPDATE kg_proposals SET tier = 'human' WHERE status = 'approved' AND tier = 'none';

@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.api.knowledge.Tier;
 import com.wikantik.api.knowledge.TraversalResult;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
@@ -64,6 +65,13 @@ public class TraverseTool implements McpTool {
             "type", "integer",
             "description", "Minimum shared-chunk count required to follow an edge (default 1).",
             "examples", List.of( 2 ) ) );
+        properties.put( "min_tier", Map.of(
+            "type", "string",
+            "enum", List.of( "human", "machine" ),
+            "default", "machine",
+            "description", "Trust tier filter; 'human' enforces the strict human-vetted-only view",
+            "examples", List.of( "machine", "human" )
+        ) );
 
         final Map< String, Object > outputSchema = new LinkedHashMap<>();
         outputSchema.put( "type", "object" );
@@ -98,8 +106,17 @@ public class TraverseTool implements McpTool {
             final int maxDepth = McpToolUtils.getInt( arguments, "max_depth", 2 );
             final int minSharedChunks = McpToolUtils.getInt( arguments, "min_shared_chunks", 1 );
 
+            final String tierRaw = McpToolUtils.getString( arguments, "min_tier", "machine" );
+            final Tier minTier;
+            try {
+                minTier = Tier.fromWire( tierRaw );
+            } catch ( final IllegalArgumentException e ) {
+                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                    "min_tier must be 'human' or 'machine'" );
+            }
+
             final TraversalResult result = service.traverseByCoMention(
-                startNode, maxDepth, minSharedChunks );
+                startNode, maxDepth, minSharedChunks, minTier );
             return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, result );
         } catch ( final Exception e ) {
             LOG.error( "Traverse failed: {}", e.getMessage(), e );

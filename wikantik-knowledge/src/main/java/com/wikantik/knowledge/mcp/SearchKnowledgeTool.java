@@ -21,6 +21,7 @@ package com.wikantik.knowledge.mcp;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
+import com.wikantik.api.knowledge.Tier;
 import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
@@ -77,6 +78,13 @@ public class SearchKnowledgeTool implements McpTool {
                 "description", "Maximum number of results (default 20)",
                 "examples", List.of( 5 )
         ) );
+        properties.put( "min_tier", Map.of(
+                "type", "string",
+                "enum", List.of( "human", "machine" ),
+                "default", "machine",
+                "description", "Trust tier filter; 'human' enforces the strict human-vetted-only view",
+                "examples", List.of( "machine", "human" )
+        ) );
 
         final Map< String, Object > outputSchema = new LinkedHashMap<>();
         outputSchema.put( "type", "object" );
@@ -128,7 +136,16 @@ public class SearchKnowledgeTool implements McpTool {
             final Set< Provenance > provenanceFilter = KnowledgeMcpUtils.parseProvenanceFilter( arguments );
             final int limit = McpToolUtils.getInt( arguments, "limit", 20 );
 
-            final List< KgNode > nodes = service.searchKnowledge( query, provenanceFilter, limit );
+            final String tierRaw = McpToolUtils.getString( arguments, "min_tier", "machine" );
+            final Tier minTier;
+            try {
+                minTier = Tier.fromWire( tierRaw );
+            } catch ( final IllegalArgumentException e ) {
+                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                    "min_tier must be 'human' or 'machine'" );
+            }
+
+            final List< KgNode > nodes = service.searchKnowledge( query, provenanceFilter, limit, minTier );
             final List< KgNode > filtered = filterToMentioned( nodes );
             // D29: surface the scope-difference up-front so callers know to fall back to
             // retrieve_context for body-content matches when the KG returned nothing.

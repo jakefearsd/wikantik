@@ -170,7 +170,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                         "no full-text search) use list_clusters, list_tags, list_pages_by_filter, " +
                         "or get_page_by_id. For wiki content use retrieve_context " +
                         "(primary RAG), get_page (pinned fetch), list_pages (browse), or " +
-                        "list_metadata_values (discovery). For Knowledge Graph structure use " +
+                        "list_metadata_values (discovery). For Knowledge Graph (LLM-extracted entities) use " +
                         "discover_schema, query_nodes, get_node, traverse, search_knowledge, " +
                         "or find_similar." )
                     .capabilities( ServerCapabilities.builder()

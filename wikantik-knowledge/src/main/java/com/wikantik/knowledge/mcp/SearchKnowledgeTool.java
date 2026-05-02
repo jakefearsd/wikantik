@@ -108,12 +108,12 @@ public class SearchKnowledgeTool implements McpTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Full-text search across knowledge-graph node names and properties. " +
+                .description( "Full-text search across Knowledge Graph node names and properties. " +
                         "Bridges 'I don't know the exact name' and the structured query tools. " +
                         "Results are filtered to nodes the entity extractor has actually found in " +
                         "wiki content; nodes present only from legacy frontmatter/link projection " +
                         "are hidden. " +
-                        "D29: NOTE — this searches the knowledge-graph node table only. For " +
+                        "D29: NOTE — this searches the Knowledge Graph node table only. For " +
                         "page-body content searches use retrieve_context (hybrid BM25+dense) instead." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "query" ), null, null, null ) )
                 .outputSchema( outputSchema )
@@ -136,7 +136,7 @@ public class SearchKnowledgeTool implements McpTool {
             payload.put( "results", filtered );
             payload.put( "scope", "knowledge_graph_nodes_only" );
             if ( filtered.isEmpty() ) {
-                payload.put( "hint", "search_knowledge searches knowledge-graph nodes only; "
+                payload.put( "hint", "search_knowledge searches Knowledge Graph nodes only; "
                         + "if you expected page-body matches, call retrieve_context with the same query." );
             }
             return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, payload );

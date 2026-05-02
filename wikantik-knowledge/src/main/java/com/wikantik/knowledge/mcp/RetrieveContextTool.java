@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MCP tool: run the full retrieval pipeline (BM25 + dense + graph rerank)
+ * MCP tool: run the full retrieval pipeline (BM25 + dense + Knowledge Graph rerank)
  * for a natural-language query. Returns pages with their top contributing
  * chunks and a small list of KG-mention neighbors.
  */

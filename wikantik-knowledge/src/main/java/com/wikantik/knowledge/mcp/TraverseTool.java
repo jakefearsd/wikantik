@@ -29,7 +29,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.*;
 
 /**
- * MCP tool that traverses the co-mention graph from a seed node via BFS.
+ * MCP tool that traverses the Knowledge Graph (co-mention graph) from a seed node via BFS.
  * Nodes are connected when they appear together in the same content chunk
  * as recorded by the entity extractor.
  */
@@ -81,7 +81,7 @@ public class TraverseTool implements McpTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Walk the co-mention graph from a seed node. Nodes are connected " +
+                .description( "Walk the Knowledge Graph (co-mention graph) from a seed node. Nodes are connected " +
                         "when they appear in the same chunk per the entity extractor. Returns " +
                         "{nodes, edges} with each edge carrying its 'sharedChunks' count." )
                 .inputSchema( new McpSchema.JsonSchema(

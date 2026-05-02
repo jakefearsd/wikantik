@@ -77,16 +77,19 @@ replacement. If the same authoring intent (e.g. "this page supersedes
 that one") needs to come back later, it belongs on the Knowledge
 Graph as a curated edge, not in page frontmatter.
 
-**Pages currently using it (3).** Strip the `relations:` block from:
+**Pages currently referencing it.** On closer inspection, **no content
+page has `relations:` in its frontmatter**. The earlier "3 affected
+pages" claim came from a too-loose grep that matched unrelated `- type:`
+lines in body code blocks (Kubernetes pod manifests, github action
+checks, ontology examples). The only real `relations:` occurrences are
+illustrative YAML examples inside code blocks in three doc pages:
 
-- `docs/wikantik-pages/AutoScalingStrategies.md`
-- `docs/wikantik-pages/OpenSourceContribution.md`
-- `docs/wikantik-pages/OntologyDesignPatterns.md`
-
-The existing entries reference relation `type:` values (`Pods`,
-`coverage_threshold`, `security_scan`, `architectural_drift`) that
-aren't in the validator's allow-list anyway — they would have been
-rejected on next save. They are not load-bearing.
+- `docs/wikantik-pages/StructuralSpineDesign.md` (handled by Task 27 —
+  full rewrite of the doc).
+- `docs/wikantik-pages/TextFormattingRules.md` (the "Typed relations"
+  section is removed).
+- `docs/wikantik-pages/McpIntegration.md` (the `relations:` line is
+  stripped from an example frontmatter block).
 
 **Database.** New migration `V<NNN>__drop_page_relations.sql` (the
 next free number at implementation time — V023 today) drops the

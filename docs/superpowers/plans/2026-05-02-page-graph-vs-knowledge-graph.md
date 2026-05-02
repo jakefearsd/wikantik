@@ -14,34 +14,70 @@
 
 ## Phase A — Remove the `relations:` mechanism
 
-### Task 1: Strip `relations:` blocks from the 3 affected pages
+### Task 1: Strip `relations:` examples from the 2 doc pages that show them
+
+**Discovery correction:** No content pages have `relations:` in their actual
+frontmatter. The only `relations:` references in the corpus are illustrative
+YAML examples inside code blocks in three documentation pages
+(`McpIntegration.md`, `TextFormattingRules.md`, `StructuralSpineDesign.md`).
+`StructuralSpineDesign.md` is rewritten in Task 27, so this task handles
+only the other two.
 
 **Files:**
-- Modify: `docs/wikantik-pages/AutoScalingStrategies.md`
-- Modify: `docs/wikantik-pages/OpenSourceContribution.md`
-- Modify: `docs/wikantik-pages/OntologyDesignPatterns.md`
+- Modify: `docs/wikantik-pages/McpIntegration.md`
+- Modify: `docs/wikantik-pages/TextFormattingRules.md`
 
-- [ ] **Step 1: Read each page's frontmatter and remove the `relations:` block.**
+- [ ] **Step 1: Strip the `relations:` lines from McpIntegration.md.**
 
-For each file, open it, locate the frontmatter (between the leading `---` lines), and delete the `relations:` key plus its nested list. Leave all other frontmatter keys (title, canonical_id, cluster, type, etc.) untouched. Remove any blank lines created by the deletion.
+Open `docs/wikantik-pages/McpIntegration.md`. Around line 337 there is an
+example frontmatter block in a code fence. Delete the two lines:
 
-- [ ] **Step 2: Verify nothing else uses these blocks.**
+```
+relations:
+  - { type: depends_on, target: KnowledgeGraphCore }
+```
 
-Run: `grep -rE "^relations:" docs/wikantik-pages/`
+Leave every other line in the example frontmatter intact.
+
+- [ ] **Step 2: Remove the "Typed relations" section from TextFormattingRules.md.**
+
+Open `docs/wikantik-pages/TextFormattingRules.md`. Around line 425 there is a
+section beginning with the heading `### Typed relations` (or similar level),
+immediately followed by an explanatory paragraph and a code-block example
+(lines ~429–435 show the `relations:` YAML), and a vocabulary table. Delete
+the entire section: from the heading through the end of the table that
+documents the relation-type vocabulary, stopping just before the next
+section header. Adjust surrounding blank lines so the document remains
+tidy.
+
+If the section's removal leaves an awkward seam (e.g. the previous section
+referenced "Typed relations" inline), edit the prior paragraph to remove
+or rewrite that forward-reference. Do not invent new content.
+
+- [ ] **Step 3: Verify no `relations:` remains outside StructuralSpineDesign.md.**
+
+Run: `grep -rnE "^relations:" docs/wikantik-pages/ | grep -v StructuralSpineDesign.md`
 Expected: no output.
 
-- [ ] **Step 3: Commit.**
+(`StructuralSpineDesign.md` still contains an example `relations:` block
+which Task 27 will remove during its full rewrite.)
+
+- [ ] **Step 4: Commit.**
 
 ```bash
-git add docs/wikantik-pages/AutoScalingStrategies.md docs/wikantik-pages/OpenSourceContribution.md docs/wikantik-pages/OntologyDesignPatterns.md
+git add docs/wikantik-pages/McpIntegration.md docs/wikantik-pages/TextFormattingRules.md
 git commit -m "$(cat <<'EOF'
-docs: strip frontmatter relations: from 3 pages
+docs: strip relations: examples from McpIntegration and TextFormattingRules
 
-Removes the relations: block from the only 3 content pages that used
-it. Entries referenced relation type values (Pods, coverage_threshold,
-security_scan, architectural_drift) outside the validator's allow-list
-and were not load-bearing. Preparation for full removal of the typed-
-relation grammar; see 2026-05-02 spec.
+Both pages contained illustrative YAML showing the typed-relation
+grammar inside code-block examples. The grammar is being removed
+in this work (see 2026-05-02 spec); the examples are stripped to
+match. StructuralSpineDesign.md retains its example for now and is
+rewritten in Task 27.
+
+Original spec asserted three content pages used relations: in their
+frontmatter; on inspection, no content pages did — only doc-page
+examples. Spec/plan updated to match reality.
 EOF
 )"
 ```

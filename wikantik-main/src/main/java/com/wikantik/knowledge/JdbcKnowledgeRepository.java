@@ -68,10 +68,10 @@ public class JdbcKnowledgeRepository {
     public KgNode upsertNode( final String name, final String nodeType, final String sourcePage,
                               final Provenance provenance, final Map< String, Object > properties ) {
         final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
-        final String sql = "INSERT INTO kg_nodes ( name, node_type, source_page, provenance, properties, modified ) "
-                + "VALUES ( ?, ?, ?, ?, ?::jsonb, CURRENT_TIMESTAMP ) "
+        final String sql = "INSERT INTO kg_nodes ( name, node_type, source_page, provenance, properties, tier, provenance_proposal_id, modified ) "
+                + "VALUES ( ?, ?, ?, ?, ?::jsonb, 'human', NULL, CURRENT_TIMESTAMP ) "
                 + "ON CONFLICT ( name ) DO UPDATE SET node_type = EXCLUDED.node_type, "
-                + "source_page = EXCLUDED.source_page, provenance = EXCLUDED.provenance, "
+                + "source_page = COALESCE(EXCLUDED.source_page, kg_nodes.source_page), provenance = EXCLUDED.provenance, "
                 + "properties = EXCLUDED.properties, modified = CURRENT_TIMESTAMP";
         try( Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement( sql ) ) {
@@ -290,8 +290,8 @@ public class JdbcKnowledgeRepository {
     public KgEdge upsertEdge( final UUID sourceId, final UUID targetId, final String relationshipType,
                               final Provenance provenance, final Map< String, Object > properties ) {
         final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
-        final String sql = "INSERT INTO kg_edges ( source_id, target_id, relationship_type, provenance, properties, modified ) "
-                + "VALUES ( ?, ?, ?, ?, ?::jsonb, CURRENT_TIMESTAMP ) "
+        final String sql = "INSERT INTO kg_edges ( source_id, target_id, relationship_type, provenance, properties, tier, provenance_proposal_id, modified ) "
+                + "VALUES ( ?, ?, ?, ?, ?::jsonb, 'human', NULL, CURRENT_TIMESTAMP ) "
                 + "ON CONFLICT ( source_id, target_id, relationship_type ) DO UPDATE SET "
                 + "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, "
                 + "modified = CURRENT_TIMESTAMP";
@@ -387,6 +387,54 @@ public class JdbcKnowledgeRepository {
             throw new RuntimeException( e );
         }
         return results;
+    }
+
+    /**
+     * Returns nodes whose {@code tier} column is in the set implied by {@code minTier}.
+     * {@link Tier#HUMAN} returns only human-vetted rows; {@link Tier#MACHINE} returns
+     * both machine and human rows.
+     *
+     * @param minTier the minimum trust tier to include
+     * @return list of matching nodes
+     */
+    public List< KgNode > getAllNodes( final Tier minTier ) {
+        final String sql = "SELECT * FROM kg_nodes WHERE tier = ANY( ? )";
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setArray( 1, conn.createArrayOf( "varchar", minTier.includedTiers().toArray() ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                final List< KgNode > out = new ArrayList<>();
+                while ( rs.next() ) out.add( mapNode( rs ) );
+                return out;
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "getAllNodes({}) failed: {}", minTier.wireName(), e.getMessage(), e );
+            throw new RuntimeException( "getAllNodes failed: " + e.getMessage(), e );
+        }
+    }
+
+    /**
+     * Returns edges whose {@code tier} column is in the set implied by {@code minTier}.
+     * {@link Tier#HUMAN} returns only human-vetted rows; {@link Tier#MACHINE} returns
+     * both machine and human rows.
+     *
+     * @param minTier the minimum trust tier to include
+     * @return list of matching edges
+     */
+    public List< KgEdge > getAllEdges( final Tier minTier ) {
+        final String sql = "SELECT * FROM kg_edges WHERE tier = ANY( ? )";
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setArray( 1, conn.createArrayOf( "varchar", minTier.includedTiers().toArray() ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                final List< KgEdge > out = new ArrayList<>();
+                while ( rs.next() ) out.add( mapEdge( rs ) );
+                return out;
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "getAllEdges({}) failed: {}", minTier.wireName(), e.getMessage(), e );
+            throw new RuntimeException( "getAllEdges failed: " + e.getMessage(), e );
+        }
     }
 
     /**
@@ -861,7 +909,9 @@ public class JdbcKnowledgeRepository {
             Provenance.fromValue( rs.getString( "provenance" ) ),
             parseJson( rs.getString( "properties" ) ),
             toInstant( rs.getTimestamp( "created" ) ),
-            toInstant( rs.getTimestamp( "modified" ) )
+            toInstant( rs.getTimestamp( "modified" ) ),
+            rs.getString( "tier" ),
+            rs.getObject( "provenance_proposal_id", UUID.class )
         );
     }
 
@@ -874,7 +924,9 @@ public class JdbcKnowledgeRepository {
             Provenance.fromValue( rs.getString( "provenance" ) ),
             parseJson( rs.getString( "properties" ) ),
             toInstant( rs.getTimestamp( "created" ) ),
-            toInstant( rs.getTimestamp( "modified" ) )
+            toInstant( rs.getTimestamp( "modified" ) ),
+            rs.getString( "tier" ),
+            rs.getObject( "provenance_proposal_id", UUID.class )
         );
     }
 
@@ -889,7 +941,12 @@ public class JdbcKnowledgeRepository {
             rs.getString( "status" ),
             rs.getString( "reviewed_by" ),
             toInstant( rs.getTimestamp( "created" ) ),
-            toInstant( rs.getTimestamp( "reviewed_at" ) )
+            toInstant( rs.getTimestamp( "reviewed_at" ) ),
+            rs.getString( "tier" ),
+            rs.getString( "machine_status" ),
+            rs.getObject( "machine_confidence", Double.class ),
+            toInstant( rs.getTimestamp( "machine_judged_at" ) ),
+            rs.getString( "machine_model" )
         );
     }
 

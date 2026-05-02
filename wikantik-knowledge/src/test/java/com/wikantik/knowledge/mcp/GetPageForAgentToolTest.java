@@ -75,7 +75,7 @@ class GetPageForAgentToolTest {
                 Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE,
                 null, null, null,
                 "Operator reference for hybrid retrieval.",
-                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(),
                 null,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
                 false, List.of() );

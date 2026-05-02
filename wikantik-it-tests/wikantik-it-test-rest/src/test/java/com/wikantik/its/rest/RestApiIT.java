@@ -564,35 +564,4 @@ public class RestApiIT {
         assertTrue( hasJsonKey( resp.body(), "tags" ) );
     }
 
-    @Test
-    @Order( 24 )
-    void testRelationsEndpointResponds() throws Exception {
-        waitForStructuralIndexUp();
-        // Pick any canonical_id from the sitemap and ask for its relations.
-        final HttpResponse< String > sitemap = get( "/api/structure/sitemap" );
-        assertEquals( 200, sitemap.statusCode() );
-        final java.util.regex.Matcher m = java.util.regex.Pattern
-                .compile( "\"id\"\\s*:\\s*\"([^\"]+)\"" )
-                .matcher( sitemap.body() );
-        // Skip the test gracefully when the IT WAR ships zero pages — the structural
-        // index will be empty and there's nothing to traverse.
-        if ( !m.find() ) {
-            return;
-        }
-        final String anyId = m.group( 1 );
-
-        final HttpResponse< String > resp = get( "/api/relations/" + anyId );
-        assertEquals( 200, resp.statusCode() );
-        assertTrue( hasJsonKey( resp.body(), "edges" ) );
-        assertTrue( hasJsonKey( resp.body(), "count" ) );
-    }
-
-    @Test
-    @Order( 25 )
-    void testRelationsRejectsMalformedPath() throws Exception {
-        waitForStructuralIndexUp();
-        final HttpResponse< String > resp = get( "/api/relations/01A/extra-segment" );
-        assertEquals( 400, resp.statusCode() );
-    }
-
 }

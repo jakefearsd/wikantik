@@ -33,6 +33,10 @@ import java.util.Optional;
  * still indexed (their ID is synthesised and flagged in {@code unclaimedCanonicalIds}).
  * Phase 4 tightens this into a hard save-time requirement — see
  * {@code docs/wikantik-pages/StructuralSpineDesign.md}.</p>
+ *
+ * <p>Relation-graph traversal ({@code outgoingRelations}, {@code incomingRelations},
+ * {@code traverse}) has been removed from this interface; that responsibility now
+ * lives in the page-graph subsystem.</p>
  */
 public interface StructuralIndexService {
 
@@ -53,22 +57,6 @@ public interface StructuralIndexService {
     Optional< String > resolveSlugFromCanonicalId( String canonicalId );
 
     Optional< String > resolveCanonicalIdFromSlug( String slug );
-
-    /* --------------------------------------------------- Relation graph (Phase 2) */
-
-    /** Outgoing relations from {@code canonicalId}, optionally filtered by type. */
-    List< RelationEdge > outgoingRelations( String canonicalId, Optional< RelationType > typeFilter );
-
-    /** Incoming relations into {@code canonicalId}, optionally filtered by type. */
-    List< RelationEdge > incomingRelations( String canonicalId, Optional< RelationType > typeFilter );
-
-    /**
-     * Bounded BFS over the typed-relation graph rooted at {@code canonicalId}.
-     * Direction, type filter, and depth cap come from the {@link TraversalSpec}.
-     * Returns edges in BFS order; depth field on each edge reflects how many
-     * hops from the root it was discovered.
-     */
-    List< RelationEdge > traverse( String canonicalId, TraversalSpec spec );
 
     /* --------------------------------------------------- Lifecycle */
 

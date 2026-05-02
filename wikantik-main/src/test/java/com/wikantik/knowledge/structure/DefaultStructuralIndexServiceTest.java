@@ -31,7 +31,6 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -123,33 +122,6 @@ class DefaultStructuralIndexServiceTest {
 
     @Test
     @SuppressWarnings( { "unchecked", "rawtypes" } )
-    void rebuild_indexes_relations_when_target_resolves() throws Exception {
-        final Page a = fakePage( "A",
-                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\n" +
-                "title: A\ntype: article\n" +
-                "relations:\n" +
-                "  - {type: part-of, target: 01BBBBBBBBBBBBBBBBBBBBBBBB}\n" +
-                "  - {type: example-of, target: 01CCCCCCCCCCCCCCCCCCCCCCCC}\n", "" );
-        final Page b = fakePage( "B",
-                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\ntitle: B\ntype: hub", "" );
-        final Page c = fakePage( "C",
-                "canonical_id: 01CCCCCCCCCCCCCCCCCCCCCCCC\ntitle: C\ntype: article", "" );
-        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a, b, c ) );
-
-        final PageRelationsDao relDao = mock( PageRelationsDao.class );
-        final DefaultStructuralIndexService withRel = new DefaultStructuralIndexService(
-                pageManager, dao, relDao, new StructuralIndexMetrics() );
-
-        withRel.rebuild();
-
-        final var outgoing = withRel.outgoingRelations(
-                "01AAAAAAAAAAAAAAAAAAAAAAAA", Optional.empty() );
-        assertEquals( 2, outgoing.size() );
-        verify( relDao, times( 1 ) ).replaceFor( eq( "01AAAAAAAAAAAAAAAAAAAAAAAA" ), any() );
-    }
-
-    @Test
-    @SuppressWarnings( { "unchecked", "rawtypes" } )
     void rebuild_persists_verification_with_computed_confidence() throws Exception {
         final java.time.Instant nowish = java.time.Instant.now().minus( java.time.Duration.ofDays( 1 ) );
         final String iso = nowish.toString();
@@ -184,23 +156,6 @@ class DefaultStructuralIndexServiceTest {
         assertTrue( values.stream().anyMatch(
                 v -> v.confidence() == com.wikantik.api.structure.Confidence.PROVISIONAL ),
                 "bob is not trusted → PROVISIONAL" );
-    }
-
-    @Test
-    @SuppressWarnings( { "unchecked", "rawtypes" } )
-    void rebuild_skips_relations_with_unresolved_target() throws Exception {
-        final Page a = fakePage( "A",
-                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\n" +
-                "title: A\ntype: article\n" +
-                "relations:\n" +
-                "  - {type: part-of, target: 01GHOSTGHOSTGHOSTGHOSTGHOS}\n", "" );
-        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a ) );
-
-        svc.rebuild();
-
-        final var outgoing = svc.outgoingRelations(
-                "01AAAAAAAAAAAAAAAAAAAAAAAA", Optional.empty() );
-        assertEquals( 0, outgoing.size(), "ghost target must be filtered out" );
     }
 
     @Test
@@ -262,69 +217,6 @@ class DefaultStructuralIndexServiceTest {
         assertEquals( 2, svc.snapshot().pageCount() );
         assertTrue( svc.getByCanonicalId( "01CCCCCCCCCCCCCCCCCCCCCCCC" ).isPresent() );
         assertTrue( svc.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).isPresent() );
-    }
-
-    @Test
-    @SuppressWarnings( { "unchecked", "rawtypes" } )
-    void onPageSaved_replaces_relations_from_new_content() throws Exception {
-        final Page a = fakePage( "A",
-                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article\n" +
-                "relations:\n" +
-                "  - {type: part-of, target: 01BBBBBBBBBBBBBBBBBBBBBBBB}\n", "" );
-        final Page b = fakePage( "B",
-                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\ntitle: B\ntype: hub", "" );
-        final Page c = fakePage( "C",
-                "canonical_id: 01CCCCCCCCCCCCCCCCCCCCCCCC\ntitle: C\ntype: article", "" );
-        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a, b, c ) );
-
-        final PageRelationsDao relDao = mock( PageRelationsDao.class );
-        final DefaultStructuralIndexService withRel = new DefaultStructuralIndexService(
-                pageManager, dao, relDao, new StructuralIndexMetrics() );
-        withRel.rebuild();
-        clearInvocations( relDao );
-
-        // A is rewritten: drops part-of(B), adds example-of(C).
-        final Page aUpdated = fakePage( "A",
-                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article\n" +
-                "relations:\n" +
-                "  - {type: example-of, target: 01CCCCCCCCCCCCCCCCCCCCCCCC}\n", "" );
-        when( pageManager.getPage( "A" ) ).thenReturn( aUpdated );
-
-        withRel.onPageSaved( "A" );
-
-        final var outgoing = withRel.outgoingRelations(
-                "01AAAAAAAAAAAAAAAAAAAAAAAA", Optional.empty() );
-        assertEquals( 1, outgoing.size() );
-        assertEquals( "01CCCCCCCCCCCCCCCCCCCCCCCC", outgoing.get( 0 ).targetId() );
-        verify( relDao, times( 1 ) ).replaceFor( eq( "01AAAAAAAAAAAAAAAAAAAAAAAA" ), any() );
-    }
-
-    @Test
-    @SuppressWarnings( { "unchecked", "rawtypes" } )
-    void onPageDeleted_removes_descriptor_and_outgoing_relations_without_full_rebuild() throws Exception {
-        final Page a = fakePage( "A",
-                "canonical_id: 01AAAAAAAAAAAAAAAAAAAAAAAA\ntitle: A\ntype: article\n" +
-                "relations:\n" +
-                "  - {type: part-of, target: 01BBBBBBBBBBBBBBBBBBBBBBBB}\n", "" );
-        final Page b = fakePage( "B",
-                "canonical_id: 01BBBBBBBBBBBBBBBBBBBBBBBB\ntitle: B\ntype: hub", "" );
-        when( pageManager.getAllPages() ).thenReturn( (Collection) List.of( a, b ) );
-
-        final PageRelationsDao relDao = mock( PageRelationsDao.class );
-        final DefaultStructuralIndexService withRel = new DefaultStructuralIndexService(
-                pageManager, dao, relDao, new StructuralIndexMetrics() );
-        withRel.rebuild();
-        clearInvocations( pageManager, dao, relDao );
-
-        withRel.onPageDeleted( "A" );
-
-        verify( pageManager, never() ).getAllPages();
-        assertTrue( withRel.getByCanonicalId( "01AAAAAAAAAAAAAAAAAAAAAAAA" ).isEmpty() );
-        assertTrue( withRel.getByCanonicalId( "01BBBBBBBBBBBBBBBBBBBBBBBB" ).isPresent() );
-        assertEquals( 0,
-                withRel.outgoingRelations( "01AAAAAAAAAAAAAAAAAAAAAAAA", Optional.empty() ).size() );
-        verify( dao, times( 1 ) ).delete( "01AAAAAAAAAAAAAAAAAAAAAAAA" );
-        verify( relDao, times( 1 ) ).deleteBySource( "01AAAAAAAAAAAAAAAAAAAAAAAA" );
     }
 
     @Test

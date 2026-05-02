@@ -25,6 +25,10 @@ const kgOverrides = [
     selector: 'node[status = "deprecated"]',
     style: { 'opacity': 0.5, 'background-color': '#888' },
   },
+  {
+    selector: 'node[tier = "human"]',
+    style: { 'border-width': 2, 'border-style': 'solid', 'border-color': '#f0b400' },
+  },
 ];
 
 export const kgGraphStylesheet = [...baseStylesheet, ...kgOverrides];

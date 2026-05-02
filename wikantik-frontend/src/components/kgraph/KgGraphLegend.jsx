@@ -40,6 +40,13 @@ export default function KgGraphLegend({ hubDegreeThreshold, timestamp, machineCo
           <span style={{ display: 'inline-block', width: '10px', height: '10px', border: '1px dashed #888', marginRight: '3px', verticalAlign: 'middle' }} /> AI-inferred
         </span>
       </div>
+      <div style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
+        <strong>Tier:</strong>{' '}
+        <span>
+          <span style={{ display: 'inline-block', width: '10px', height: '10px', border: '2px solid #f0b400', marginRight: '3px', verticalAlign: 'middle' }} />
+          human-validated
+        </span>
+      </div>
       <GraphLegend hubDegreeThreshold={hubDegreeThreshold} timestamp={timestamp} />
     </div>
   );

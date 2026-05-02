@@ -19,13 +19,13 @@ runbook:
     - You are calibrating the judge prompt against a hand-labelled sample (see Pitfalls below)
   inputs:
     - The judge backend — `ollama` (cheap, local) or `claude` (gated, billed)
-    - The judge model tag — defaults to `qwen3.5:9b` for ollama and `claude-haiku-4-5` for claude; pass `--judge-model` to override
+    - The judge model tag — defaults to `gemma4-assist:latest` for ollama (chosen 2026-05-02 over `qwen3.5:9b` after the latter timed out on 19/30 calls; see Observed model behaviour below) and `claude-haiku-4-5` for claude; pass `--judge-model` to override
     - Sample size — `--sample N` (default 100; use 25–50 for fast spot-checks, 100+ for calibration)
     - Output path — `--output reports/judge-<tag>.json` (required)
     - For `--judge claude`, the env-var name holding the API key (`--anthropic-key-env ANTHROPIC_API_KEY`) and the `-Dwikantik.kg.judge.allow_claude=true` system property (the script auto-injects this when you pass `--judge claude`)
   steps:
     - Confirm the local Tomcat is deployed (so `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml` carries the JDBC creds) — alternatively export `PG_PASSWORD` and the script falls back to env vars
-    - Run `bin/kg-judge-experiment.sh --judge ollama --judge-model qwen3.5:9b --sample 50 --output reports/judge-qwen.json` — the script rebuilds `wikantik-extract-cli.jar` if stale, samples `ORDER BY random() LIMIT 50` from `kg_proposals WHERE status='pending'`, and judges each row through `NoOpProposalJudge` plus the comparator
+    - Run `bin/kg-judge-experiment.sh --judge ollama --sample 50 --output reports/judge.json` — the script rebuilds `wikantik-extract-cli.jar` if stale, samples `ORDER BY random() LIMIT 50` from `kg_proposals WHERE status='pending'`, and judges each row through `NoOpProposalJudge` plus the comparator (default model `gemma4-assist:latest`; pass `--judge-model` to override)
     - Read the JSON report — `noopVerdicts` is the production-default baseline (always 100% accept); `comparatorVerdicts` shows what the judge would have done; `examples` is the per-row diff
     - Inspect `comparatorVerdicts.judge_failed_accepts` — these are fail-open accepts caused by HTTP errors / timeouts / parse failures, NOT real verdicts; if this is more than ~5% of the sample the run is unreliable
     - Inspect `comparatorVerdicts.reject_reasons` — the closed enum is `ungrounded`, `redundant_with_existing_node`, `wrong_type`, `too_generic`, `weak_support`; any unknown reason code from the model collapses to `weak_support`
@@ -67,11 +67,11 @@ Three concrete situations:
 
 ```bash
 # Cheap, local — about 25–30 seconds per proposal, model-dependent.
+# Default --judge-model is gemma4-assist:latest; pass --judge-model to override.
 bin/kg-judge-experiment.sh \
     --judge ollama \
-    --judge-model qwen3.5:9b \
     --sample 30 \
-    --output reports/judge-qwen.json
+    --output reports/judge-gemma.json
 
 # Gated, billed — only after the local one looks promising.
 export ANTHROPIC_API_KEY=sk-…
@@ -126,12 +126,13 @@ The harness only takes one comparator per run. To compare models, run
 twice with different `--judge-model` / `--output`:
 
 ```bash
-bin/kg-judge-experiment.sh --judge ollama --judge-model qwen3.5:9b \
-    --sample 30 --output reports/judge-qwen.json
 bin/kg-judge-experiment.sh --judge ollama --judge-model gemma4-assist:latest \
     --sample 30 --output reports/judge-gemma.json
-diff <(jq -S '.comparatorVerdicts' reports/judge-qwen.json) \
-     <(jq -S '.comparatorVerdicts' reports/judge-gemma.json)
+bin/kg-judge-experiment.sh --judge ollama --judge-model qwen3.5:9b \
+    --timeout-ms 180000 \
+    --sample 30 --output reports/judge-qwen.json
+diff <(jq -S '.comparatorVerdicts' reports/judge-gemma.json) \
+     <(jq -S '.comparatorVerdicts' reports/judge-qwen.json)
 ```
 
 Two runs see *different* rows (the sample is `ORDER BY random()` and
@@ -158,6 +159,14 @@ distinguishing factor is reliability: qwen3.5:9b consistently exceeds
 default settings. If you want to use it anyway, pass
 `--timeout-ms 180000` (or larger) and re-test before drawing
 quality conclusions.
+
+This evidence drove the 2026-05-02 default flip in
+`BootstrapExtractionCli.Args.judgeModel` and
+`JudgeExperimentCli.Args.judgeModel` from `qwen3.5:9b` to
+`gemma4-assist:latest`. The same-model self-judging concern (the page
+extractor also uses `gemma4-assist:latest`) is a real but distant
+second to a 63% timeout rate; revisit if a future Ollama deployment
+makes qwen reliable at the default budget.
 
 ## Calibration before flipping the production default
 

@@ -68,7 +68,7 @@ import java.util.TreeMap;
  *      com.wikantik.extractcli.JudgeExperimentCli \
  *      --jdbc-url jdbc:postgresql://localhost/jspwiki \
  *      --jdbc-user jspwiki --jdbc-password-env PG_PASSWORD \
- *      --judge ollama --judge-model qwen3.5:9b \
+ *      --judge ollama --judge-model gemma4-assist:latest \
  *      --sample 50 --output reports/judge-experiment.json
  * }</pre>
  *
@@ -456,7 +456,7 @@ public final class JudgeExperimentCli {
               --jdbc-password-env <VAR>        read password from env var (preferred)
 
             Comparator config:
-              --judge-model <tag/id>           default qwen3.5:9b (ollama) or claude-haiku-4-5 (claude)
+              --judge-model <tag/id>           default gemma4-assist:latest (ollama) or claude-haiku-4-5 (claude)
               --ollama-url <url>               default http://inference.jakefear.com:11434
               --anthropic-key-env <VAR>        env var holding the Anthropic API key (claude only)
               -Dwikantik.kg.judge.allow_claude=true   required for --judge claude
@@ -477,7 +477,7 @@ public final class JudgeExperimentCli {
         public String jdbcUser      = "jspwiki";
         public String jdbcPassword  = "";
         public String judge         = null;
-        public String judgeModel    = "qwen3.5:9b";
+        public String judgeModel    = "gemma4-assist:latest";
         public String ollamaUrl     = "http://inference.jakefear.com:11434";
         public String anthropicKeyEnv = null;
         public int    sample        = 100;

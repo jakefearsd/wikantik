@@ -440,7 +440,7 @@ public final class BootstrapExtractionCli {
 
         // ---- new per-page pipeline knobs ----
         public String judge                = "none";
-        public String judgeModel           = "qwen3.5:9b";
+        public String judgeModel           = "gemma4-assist:latest";
         public String anthropicKeyEnv      = null;
         public int    maxEntitiesPerPage   = 12;
         public int    maxRelationsPerPage  = 8;

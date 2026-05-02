@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
-import { toCytoscapeElements } from '../pagegraph/graph-data.js';
+import { toKgCytoscapeElements } from './kg-graph-data.js';
 import { applyFilters } from '../pagegraph/filter-engine.js';
 import { paramsToFilterState, filterStateToParams } from '../pagegraph/filter-url.js';
 import FilterPanel from '../pagegraph/FilterPanel.jsx';
 import GraphCanvas from '../pagegraph/GraphCanvas.jsx';
 import KgGraphToolbar from './KgGraphToolbar.jsx';
+import { kgGraphStylesheet } from './kg-graph-style.js';
 import KgGraphLegend from './KgGraphLegend.jsx';
 import GraphZoomSlider from '../pagegraph/GraphZoomSlider.jsx';
-import GraphDetailsDrawer from '../pagegraph/GraphDetailsDrawer.jsx';
+import KgGraphDetailsDrawer from './KgGraphDetailsDrawer.jsx';
 import GraphErrorBoundary from '../pagegraph/GraphErrorBoundary.jsx';
 import GraphLoadingFallback from '../pagegraph/GraphLoadingFallback.jsx';
 import { setEdgeTypeHidden, setShowOrphansStubs } from '../pagegraph/filter-state.js';
@@ -80,7 +81,7 @@ export default function KnowledgeGraphView() {
 
   const elements = useMemo(() => {
     if (!snapshot || fetchState !== 'ready') return { nodes: [], edges: [] };
-    return toCytoscapeElements(snapshot, filterResult);
+    return toKgCytoscapeElements(snapshot, filterResult);
   }, [snapshot, fetchState, filterResult]);
 
   const edgeTypes = useMemo(() => {
@@ -92,6 +93,11 @@ export default function KnowledgeGraphView() {
     if (!snapshot?.generatedAt) return '';
     try { return new Date(snapshot.generatedAt).toLocaleTimeString(); }
     catch { return snapshot.generatedAt; }
+  }, [snapshot]);
+
+  const observedTypes = useMemo(() => {
+    if (!snapshot) return new Set();
+    return new Set(snapshot.nodes.map(n => n.type).filter(Boolean));
   }, [snapshot]);
 
   const tierCounts = useMemo(() => {
@@ -218,14 +224,14 @@ export default function KnowledgeGraphView() {
           onBackgroundClick={handleBackgroundClick}
           onReady={handleReady}
           onLayoutTimeout={() => console.warn('Layout took too long')}
+          stylesheet={kgGraphStylesheet}
         />
         {selectedNode && (
-          <GraphDetailsDrawer
+          <KgGraphDetailsDrawer
             selectedNode={selectedNode}
             incidentEdges={incidentEdges}
             onClose={() => setSelectedId(null)}
             onSelectNeighbor={handleNodeClick}
-            onOpenPage={handleOpenPage}
           />
         )}
         <div className="graph-bottom-right">
@@ -235,6 +241,7 @@ export default function KnowledgeGraphView() {
             timestamp={timestamp}
             machineCount={tierCounts.machineCount}
             humanCount={tierCounts.humanCount}
+            observedTypes={observedTypes}
           />
         </div>
         {noVisibleNodes && (

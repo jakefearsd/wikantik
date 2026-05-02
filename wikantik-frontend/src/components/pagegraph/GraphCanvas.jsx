@@ -18,9 +18,11 @@ const LAYOUT_OPTIONS = {
 
 const LAYOUT_TIMEOUT_MS = 15000;
 
+// stylesheet prop is optional; defaults to the Page Graph stylesheet so existing callers are unaffected
 export default function GraphCanvas({
   elements, selectedId, hiddenEdgeTypes, onlyAnomalies,
   focusNodeId, onNodeClick, onBackgroundClick, onReady, onLayoutTimeout,
+  stylesheet = graphStylesheet,
 }) {
   const cyRef = useRef(null);
   const layoutTimeoutRef = useRef(null);
@@ -182,7 +184,7 @@ export default function GraphCanvas({
     <div className="graph-canvas-container">
       <CytoscapeComponent
         elements={CytoscapeComponent.normalizeElements(elements)}
-        stylesheet={graphStylesheet}
+        stylesheet={stylesheet}
         layout={LAYOUT_OPTIONS}
         style={{ width: '100%', height: '100%' }}
         cy={(cy) => {

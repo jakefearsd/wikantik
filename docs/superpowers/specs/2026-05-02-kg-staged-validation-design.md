@@ -16,9 +16,13 @@ Stage Knowledge Graph validation into two tiers:
    triple in `kg_rejections` (negative knowledge).
 2. **Human tier** — admin review remains the final gate. Promotion to human
    tier monotonically increases trust and overrides any machine verdict.
+   Human approval is an *additional* quality gate; it does not add new graph
+   data, only re-labels machine-tier rows as human-tier (or inserts directly
+   at human-tier if a human approves before the judge runs).
 
-Read consumers default to `tier='human'` data; callers may opt in per request
-to `tier='machine'` via a `min_tier` query parameter.
+Read consumers default to `min_tier='machine'` (i.e. they see the broader
+view — everything human- or machine-approved). Callers that want the
+stricter human-vetted-only view pass `min_tier=human` per request.
 
 ## 2. Non-goals
 
@@ -182,9 +186,9 @@ human rejects.
 
 - **`KnowledgeGraphService` (interface in `wikantik-api`)**
   - Read methods that today expose graph data gain a `Tier minTier` parameter
-    (default `HUMAN` for safety). Snapshot, search, traversal.
+    (default `MACHINE` — the broader view). Snapshot, search, traversal.
   - `Tier` enum (`HUMAN`, `MACHINE`) lives in `wikantik-api`. `MACHINE` means
-    "machine OR human" (monotonic in trust).
+    "machine OR human" (monotonic in trust); `HUMAN` means "human only".
   - `approveProposal(UUID, String)` and `rejectProposal(UUID, String, String)`
     now also call `KgMaterializationService` and append review rows.
   - New: `JudgeVerdict judgeNow(UUID proposalId, String triggeredBy)` for
@@ -236,9 +240,11 @@ wikantik.kg.judge.batch_size         = 50
 wikantik.kg.judge.concurrency        = 2
 wikantik.kg.judge.timeout_seconds    = 30
 wikantik.kg.judge.max_attempts       = 3
-# Safety override for read paths; default human means a misconfigured caller
-# never sees machine-tier data without explicit opt-in.
-wikantik.kg.read.default_min_tier    = human
+# Default tier for read paths when the caller does not pass min_tier.
+# 'machine' = broader view (machine + human); 'human' = strict (human only).
+# Operators can flip this to 'human' to enforce strict-only across the
+# deployment without changing client code.
+wikantik.kg.read.default_min_tier    = machine
 ```
 
 The fallback to extractor settings is performed in
@@ -300,7 +306,8 @@ Re-judging on model upgrade: operator runs
 
 ### 7.1 REST
 
-- `GET /api/knowledge-graph/snapshot?min_tier=human|machine` — default `human`.
+- `GET /api/knowledge-graph/snapshot?min_tier=human|machine` — default
+  `machine` (configurable via `wikantik.kg.read.default_min_tier`).
   Invalid value → 400 `{"error": "min_tier must be 'human' or 'machine'"}`.
 - The snapshot cache becomes keyed by `(viewer, minTier)`. The existing
   per-viewer ACL redaction runs after the tier filter.
@@ -310,12 +317,12 @@ Re-judging on model upgrade: operator runs
 
 - `search_knowledge`, `traverse_by_co_mention`, and the structural-spine tools
   that touch the KG gain a `min_tier` input property
-  (`{"type": "string", "enum": ["human","machine"], "default": "human"}`).
-- Each schema ships at least one input example with `min_tier='human'` and
-  one with `min_tier='machine'`, matching the existing Phase 6 examples
-  convention.
-- The output schema is unchanged. The response simply includes
-  machine-tier nodes/edges when requested.
+  (`{"type": "string", "enum": ["human","machine"], "default": "machine"}`).
+- Each schema ships at least one input example with `min_tier='machine'`
+  (the default, broader view) and one with `min_tier='human'` (strict
+  filter), matching the existing Phase 6 examples convention.
+- The output schema is unchanged. The response includes only human-tier
+  nodes/edges when `min_tier='human'` is passed.
 
 ### 7.3 Page Graph (`/api/page-graph/*`, `/page-graph` UI)
 
@@ -324,10 +331,13 @@ Re-judging on model upgrade: operator runs
 
 ### 7.4 Auditing
 
-Every response served with `min_tier=machine` is logged at `INFO` with the
-calling credential (API key id or session principal) and the request URL.
-This produces the data needed to evaluate which clients consume machine-tier
-content.
+When the caller passes `min_tier` explicitly (either value), the request is
+logged at `INFO` with the calling credential (API key id or session
+principal), the request URL, and the resolved tier. This produces the data
+needed to see which clients enforce strict (`human`) filtering vs. accept
+the default broader view, and to evaluate adoption patterns over time.
+Default-resolved requests (no `min_tier` parameter) are not extra-logged —
+they're the baseline.
 
 ## 8. Failure Handling & Edge Cases
 
@@ -427,7 +437,7 @@ pairing and `mvn test-compile` after signature changes.
 | Q1: machine-approval mechanism | B — judge LLM with second opinion. |
 | Q2: lifecycle shape | C — single `tier` column + `kg_proposal_reviews` audit history. |
 | Q3: where machine-approved data lives | A — materialize into `kg_nodes`/`kg_edges` with `tier` column. |
-| Q4: caller opt-in | A — per-call `min_tier` parameter. |
+| Q4: caller opt-in | A — per-call `min_tier` parameter; default is `machine` (broader view). Callers that want the strict view pass `min_tier=human`. |
 | Q5: judge timing | B + admin trigger — async runner with admin "run now" endpoint and CLI. |
 | Q6: machine-rejected proposals | A — hard auto-reject, write `kg_rejections`. |
 | Judge model | Same model as extractor (`gemma4-assist:latest`); distinct system prompt. |

@@ -608,7 +608,28 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         if ( judgeService == null ) {
             throw new IllegalStateException( "judgeService not configured" );
         }
-        // Real impl in T15.
-        throw new UnsupportedOperationException( "judgeNow implementation pending (T15)" );
+        final KgProposal proposal = repo.getProposal( proposalId );
+        if ( proposal == null ) {
+            throw new IllegalArgumentException( "no proposal: " + proposalId );
+        }
+        final JudgeVerdict v = judgeService.judge( proposal );
+        repo.applyMachineVerdict( proposalId, v.verdict(), v.confidence(), v.model() );
+        repo.recordReview( proposalId, KgProposalReview.REVIEWER_MACHINE, v.model(),
+            v.verdict(), v.confidence(), v.rationale() );
+        if ( JudgeVerdict.APPROVED.equals( v.verdict() ) && materialization != null ) {
+            materialization.materializeMachine( proposal );
+            invalidateSnapshotCache();
+        } else if ( JudgeVerdict.REJECTED.equals( v.verdict() )
+                && "new-edge".equals( proposal.proposalType() ) ) {
+            final var data = proposal.proposedData();
+            final String src = Objects.toString( data.get( "source" ), null );
+            final String tgt = Objects.toString( data.get( "target" ), null );
+            final String rel = Objects.toString( data.get( "relationship" ), null );
+            if ( src != null && tgt != null && rel != null ) {
+                repo.insertRejection( src, tgt, rel, v.model(), v.rationale() );
+            }
+        }
+        LOG.info( "judgeNow proposal={} verdict={} triggeredBy={}", proposalId, v.verdict(), triggeredBy );
+        return v;
     }
 }

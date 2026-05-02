@@ -36,7 +36,7 @@ import static com.codeborne.selenide.Selenide.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * Selenide ITs for the {@code /graph} filter UI and URL synchronisation.
+ * Selenide ITs for the {@code /page-graph} filter UI and URL synchronisation.
  *
  * <p>The IT modules may or may not have PostgreSQL. When the database is
  * absent the graph API returns 500 and the frontend shows an error state.
@@ -44,7 +44,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * so that, if {@code .graph-view} is not rendered, the test is skipped rather
  * than failed.
  *
- * <p>Test ordering: order 1 performs the login and opens {@code /graph};
+ * <p>Test ordering: order 1 performs the login and opens {@code /page-graph};
  * subsequent tests reuse the authenticated browser session without
  * re-logging in.
  */
@@ -56,13 +56,13 @@ class GraphFilterViewsIT extends WithIntegrationTestSetup {
     // -----------------------------------------------------------------------
 
     /**
-     * Opens {@code /graph}, waits up to 15 s for either the graph view or an
+     * Opens {@code /page-graph}, waits up to 15 s for either the graph view or an
      * error state to become visible, then calls
      * {@code assumeTrue($(".graph-view").is(visible))} so that the calling
      * test is skipped (not failed) when the database is absent.
      */
     private static void openGraphAndAssumeGraphViewVisible() {
-        open( Env.TESTS_BASE_URL + "/graph" );
+        open( Env.TESTS_BASE_URL + "/page-graph" );
         $( ".graph-view, .graph-error-state" )
                 .shouldBe( visible, Duration.ofSeconds( 15 ) );
         assumeTrue( $( ".graph-view" ).is( visible ),
@@ -120,7 +120,7 @@ class GraphFilterViewsIT extends WithIntegrationTestSetup {
     @Order( 3 )
     @DisabledOnOs( OS.WINDOWS )
     void backboneHopStateRestoredFromUrl() {
-        open( Env.TESTS_BASE_URL + "/graph?preset=backbone&hop=1" );
+        open( Env.TESTS_BASE_URL + "/page-graph?preset=backbone&hop=1" );
         $( ".graph-view, .graph-error-state" )
                 .shouldBe( visible, Duration.ofSeconds( 15 ) );
         assumeTrue( $( ".graph-view" ).is( visible ),

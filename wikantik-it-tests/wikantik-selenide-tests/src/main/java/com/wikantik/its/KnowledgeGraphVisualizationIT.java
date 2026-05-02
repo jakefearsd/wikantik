@@ -34,7 +34,7 @@ import static com.codeborne.selenide.Condition.*;
 import static com.codeborne.selenide.Selenide.*;
 
 /**
- * Selenide ITs for the {@code /graph} knowledge graph visualization route.
+ * Selenide ITs for the {@code /page-graph} Page Graph visualization route.
  *
  * <p>The IT modules may or may not have PostgreSQL. When the database is
  * absent the graph API returns 500 and the frontend shows an error state.
@@ -57,16 +57,16 @@ class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
         ViewWikiPage.open( "Main" )
             .clickOnLogin()
             .performLogin( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
-        $$( "a" ).findBy( text( "Knowledge Graph" ) )
+        $$( "a.sidebar-link" ).findBy( exactText( "Page Graph" ) )
                 .shouldBe( visible )
-                .shouldHave( attributeMatching( "href", ".*?/graph\\?focus=Main" ) );
+                .shouldHave( attributeMatching( "href", ".*?/page-graph\\?focus=Main" ) );
     }
 
     @Test
     @Order( 2 )
     @DisabledOnOs( OS.WINDOWS )
     void graphView_routeRendersReactComponent() {
-        open( Env.TESTS_BASE_URL + "/graph" );
+        open( Env.TESTS_BASE_URL + "/page-graph" );
         $( ".graph-view, .graph-error-state, .graph-loading" )
                 .shouldBe( visible, Duration.ofSeconds( 15 ) );
     }
@@ -75,7 +75,7 @@ class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
     @Order( 3 )
     @DisabledOnOs( OS.WINDOWS )
     void graphView_authenticatedSeesGraphOrServerError() {
-        open( Env.TESTS_BASE_URL + "/graph" );
+        open( Env.TESTS_BASE_URL + "/page-graph" );
         $( ".graph-view, [data-testid='graph-error-state']" )
                 .shouldBe( visible, Duration.ofSeconds( 15 ) );
         // If the server error state rendered (graph API returned non-2xx),
@@ -101,7 +101,7 @@ class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
     @DisabledOnOs( OS.WINDOWS )
     void graphView_anonymousReachesPublicGraphEndpoint() {
         Selenide.closeWebDriver();
-        open( Env.TESTS_BASE_URL + "/graph" );
+        open( Env.TESTS_BASE_URL + "/page-graph" );
         $( ".graph-view, .graph-error-state, .graph-loading" )
                 .shouldBe( visible, Duration.ofSeconds( 15 ) );
         // If we land in an error state, it must NOT be the unauthorized variant —

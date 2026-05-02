@@ -30,14 +30,12 @@ import com.wikantik.api.agent.KeyFact;
 import com.wikantik.api.agent.McpToolHint;
 import com.wikantik.api.agent.RecentChange;
 import com.wikantik.api.core.Engine;
-import com.wikantik.api.structure.RelationEdge;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -137,11 +135,6 @@ public class PageForAgentResource extends RestServletBase {
         }
         d.add( "headings_outline", outline );
 
-        final JsonObject relations = new JsonObject();
-        relations.add( "outgoing", relationsToJson( p.outgoingRelations() ) );
-        relations.add( "incoming", relationsToJson( p.incomingRelations() ) );
-        d.add( "typed_relations", relations );
-
         final JsonArray changes = new JsonArray();
         for ( final RecentChange c : p.recentChanges() ) {
             final JsonObject o = new JsonObject();
@@ -174,18 +167,4 @@ public class PageForAgentResource extends RestServletBase {
         return d;
     }
 
-    private static JsonArray relationsToJson( final List< RelationEdge > rels ) {
-        final JsonArray a = new JsonArray();
-        for ( final RelationEdge r : rels ) {
-            final JsonObject o = new JsonObject();
-            o.addProperty( "type",         r.type().wireName() );
-            o.addProperty( "source_id",    r.sourceId() );
-            if ( r.sourceSlug()  != null ) o.addProperty( "source_slug",  r.sourceSlug() );
-            o.addProperty( "target_id",    r.targetId() );
-            if ( r.targetSlug()  != null ) o.addProperty( "target_slug",  r.targetSlug() );
-            if ( r.targetTitle() != null ) o.addProperty( "target_title", r.targetTitle() );
-            a.add( o );
-        }
-        return a;
-    }
 }

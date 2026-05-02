@@ -20,7 +20,6 @@ package com.wikantik.api.agent;
 
 import com.wikantik.api.structure.Audience;
 import com.wikantik.api.structure.Confidence;
-import com.wikantik.api.structure.RelationEdge;
 
 import java.time.Instant;
 import java.util.List;
@@ -53,8 +52,6 @@ public record ForAgentProjection(
         String summary,
         List< KeyFact > keyFacts,
         List< HeadingOutline > headingsOutline,
-        List< RelationEdge > outgoingRelations,
-        List< RelationEdge > incomingRelations,
         List< RecentChange > recentChanges,
         List< McpToolHint > mcpToolHints,
         Object runbook,
@@ -72,8 +69,6 @@ public record ForAgentProjection(
         }
         keyFacts            = keyFacts            == null ? List.of() : List.copyOf( keyFacts );
         headingsOutline     = headingsOutline     == null ? List.of() : List.copyOf( headingsOutline );
-        outgoingRelations   = outgoingRelations   == null ? List.of() : List.copyOf( outgoingRelations );
-        incomingRelations   = incomingRelations   == null ? List.of() : List.copyOf( incomingRelations );
         recentChanges       = recentChanges       == null ? List.of() : List.copyOf( recentChanges );
         mcpToolHints        = mcpToolHints        == null ? List.of() : List.copyOf( mcpToolHints );
         missingFields       = missingFields       == null ? List.of() : List.copyOf( missingFields );

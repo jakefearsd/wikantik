@@ -30,7 +30,6 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.structure.PageDescriptor;
 import com.wikantik.api.structure.PageType;
-import com.wikantik.api.structure.RelationEdge;
 import com.wikantik.api.structure.StructuralIndexService;
 import com.wikantik.api.structure.Verification;
 import com.wikantik.cache.CachingManager;
@@ -149,17 +148,6 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             missing.add( "key_facts" );
         }
 
-        // Relations.
-        List< RelationEdge > outgoing = List.of();
-        List< RelationEdge > incoming = List.of();
-        try {
-            outgoing = index.outgoingRelations( d.canonicalId(), Optional.empty() );
-            incoming = index.incomingRelations( d.canonicalId(), Optional.empty() );
-        } catch ( final Exception e ) {
-            LOG.warn( "for-agent: relations lookup threw for {}: {}", d.slug(), e.getMessage() );
-            missing.add( "typed_relations" );
-        }
-
         // Recent changes.
         List< RecentChange > changes;
         try {
@@ -226,8 +214,6 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 d.summary(),
                 facts,
                 outline,
-                outgoing,
-                incoming,
                 changes,
                 hints,
                 runbook,

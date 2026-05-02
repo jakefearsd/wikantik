@@ -25,8 +25,6 @@ import com.wikantik.api.structure.Audience;
 import com.wikantik.api.structure.Confidence;
 import com.wikantik.api.structure.PageDescriptor;
 import com.wikantik.api.structure.PageType;
-import com.wikantik.api.structure.RelationEdge;
-import com.wikantik.api.structure.RelationType;
 import com.wikantik.api.structure.StructuralIndexService;
 import com.wikantik.api.structure.Verification;
 import com.wikantik.cache.CachingManager;
@@ -83,10 +81,6 @@ class DefaultForAgentProjectionServiceTest {
         when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.of(
                 new Verification( Instant.parse( "2026-04-20T00:00:00Z" ), "jakefear",
                         Confidence.AUTHORITATIVE, Audience.HUMANS_AND_AGENTS ) ) );
-        when( idx.outgoingRelations( eq( "01ABC" ), any() ) ).thenReturn( List.of(
-                new RelationEdge( "01ABC", "HybridRetrieval", "01XYZ", "InfoRetrieval",
-                        "Information Retrieval", RelationType.EXAMPLE_OF, 1 ) ) );
-        when( idx.incomingRelations( eq( "01ABC" ), any() ) ).thenReturn( List.of() );
 
         when( pm.getPureText( "HybridRetrieval", -1 ) ).thenReturn(
                 "---\n" +
@@ -111,7 +105,6 @@ class DefaultForAgentProjectionServiceTest {
         assertEquals( "Operator reference for hybrid retrieval.", p.summary() );
         assertEquals( 1, p.keyFacts().size() );
         assertEquals( 2, p.headingsOutline().size() );
-        assertEquals( 1, p.outgoingRelations().size() );
         assertEquals( 1, p.recentChanges().size() );
         assertFalse( p.mcpToolHints().isEmpty() );
         assertNull( p.runbook(), "runbook must be null until Phase 3" );
@@ -128,8 +121,6 @@ class DefaultForAgentProjectionServiceTest {
                 "wikantik-development", List.of(), null, Instant.now(), Optional.empty() );
         when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
         when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
-        when( idx.outgoingRelations( anyString(), any() ) ).thenReturn( List.of() );
-        when( idx.incomingRelations( anyString(), any() ) ).thenReturn( List.of() );
         when( pm.getPureText( "HybridRetrieval", -1 ) ).thenThrow( new RuntimeException( "boom" ) );
         when( pm.getVersionHistory( "HybridRetrieval" ) ).thenReturn( List.of() );
 
@@ -177,8 +168,6 @@ class DefaultForAgentProjectionServiceTest {
                 java.time.Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty() );
         when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
         when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
-        when( idx.outgoingRelations( anyString(), any() ) ).thenReturn( List.of() );
-        when( idx.incomingRelations( anyString(), any() ) ).thenReturn( List.of() );
         when( pm.getVersionHistory( "ChoosingARetrievalMode" ) ).thenReturn( List.of() );
         when( pm.getPureText( "ChoosingARetrievalMode", -1 ) ).thenReturn(
                 "---\n" +
@@ -212,8 +201,6 @@ class DefaultForAgentProjectionServiceTest {
                 java.time.Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty() );
         when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
         when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
-        when( idx.outgoingRelations( anyString(), any() ) ).thenReturn( List.of() );
-        when( idx.incomingRelations( anyString(), any() ) ).thenReturn( List.of() );
         when( pm.getVersionHistory( "BadRunbook" ) ).thenReturn( List.of() );
         when( pm.getPureText( "BadRunbook", -1 ) ).thenReturn(
                 "---\n" +
@@ -240,7 +227,7 @@ class DefaultForAgentProjectionServiceTest {
                 Audience.HUMANS_AND_AGENTS, Confidence.PROVISIONAL,
                 null, null, null,
                 "summary",
-                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(),
                 null,
                 "/api/pages/Slug", "/wiki/Slug?format=md",
                 false, List.of() );

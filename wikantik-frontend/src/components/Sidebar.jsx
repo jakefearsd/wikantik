@@ -122,9 +122,6 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           >
             Knowledge Graph
           </Link>
-          <a href="/wiki/PageGraphVsKnowledgeGraph" className="sidebar-link" onClick={onMobileClose}>
-            Page Graph vs Knowledge Graph
-          </a>
         </div>
 
         {/* Recent Changes — live feed */}

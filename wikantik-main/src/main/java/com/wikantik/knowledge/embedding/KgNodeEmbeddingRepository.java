@@ -120,7 +120,9 @@ public final class KgNodeEmbeddingRepository {
                         Provenance.fromValue(rs.getString(5)),
                         Map.of(),
                         rs.getTimestamp(6) == null ? Instant.now() : rs.getTimestamp(6).toInstant(),
-                        rs.getTimestamp(7) == null ? Instant.now() : rs.getTimestamp(7).toInstant()
+                        rs.getTimestamp(7) == null ? Instant.now() : rs.getTimestamp(7).toInstant(),
+                        "human",
+                        null
                     ));
                 }
                 return out;

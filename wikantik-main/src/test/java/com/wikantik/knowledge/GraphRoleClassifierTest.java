@@ -14,7 +14,7 @@ class GraphRoleClassifierTest {
 
     private static KgNode node( final String name, final String sourcePage ) {
         return new KgNode( UUID.randomUUID(), name, "page", sourcePage,
-                Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now() );
+                Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null );
     }
 
     @Test

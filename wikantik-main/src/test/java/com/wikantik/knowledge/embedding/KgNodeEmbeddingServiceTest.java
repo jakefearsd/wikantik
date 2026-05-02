@@ -42,7 +42,7 @@ class KgNodeEmbeddingServiceTest {
         final EmbeddingClient client = mock(EmbeddingClient.class);
         final UUID id = UUID.randomUUID();
         final KgNode node = new KgNode(id, "Kafka", "Technology", "Kafka",
-            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now());
+            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null);
 
         final String expectedHash = KgNodeEmbeddingService.contentHashOf(node);
         when(repo.findById(eq(id), eq("qwen3-embedding:0.6b"))).thenReturn(
@@ -63,7 +63,7 @@ class KgNodeEmbeddingServiceTest {
         final EmbeddingClient client = mock(EmbeddingClient.class);
         final UUID id = UUID.randomUUID();
         final KgNode node = new KgNode(id, "Kafka", "Technology", "Kafka",
-            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now());
+            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null);
         when(repo.findById(eq(id), eq("qwen3-embedding:0.6b"))).thenReturn(
             Optional.of(new KgNodeEmbeddingRepository.Cached("stale-hash", new float[1024])));
         final float[] vec = new float[1024];
@@ -84,7 +84,7 @@ class KgNodeEmbeddingServiceTest {
         final EmbeddingClient client = mock(EmbeddingClient.class);
         final UUID id = UUID.randomUUID();
         final KgNode node = new KgNode(id, "Kafka", "Technology", "Kafka",
-            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now());
+            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null);
         when(repo.findById(eq(id), eq("qwen3-embedding:0.6b"))).thenReturn(Optional.empty());
         final float[] vec = new float[1024];
         vec[0] = 0.5f;
@@ -105,9 +105,9 @@ class KgNodeEmbeddingServiceTest {
         final UUID id1 = UUID.randomUUID();
         final UUID id2 = UUID.randomUUID();
         final KgNode bad  = new KgNode(id1, "X", "Concept", "X",
-            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now());
+            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null);
         final KgNode good = new KgNode(id2, "Y", "Concept", "Y",
-            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now());
+            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null);
         when(repo.findById(any(), eq("qwen3-embedding:0.6b"))).thenReturn(Optional.empty());
         when(client.embed("X :: Concept :: X")).thenThrow(new RuntimeException("boom"));
         when(client.embed("Y :: Concept :: Y")).thenReturn(new float[1024]);
@@ -125,7 +125,7 @@ class KgNodeEmbeddingServiceTest {
         final EmbeddingClient client = mock(EmbeddingClient.class);
         final UUID id = UUID.randomUUID();
         final KgNode node = new KgNode(id, "Z", "Concept", "Z",
-            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now());
+            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null);
         when(repo.findById(eq(id), eq("qwen3-embedding:0.6b"))).thenReturn(Optional.empty());
         when(client.embed(any())).thenReturn(new float[1024]);
         doThrow(new RuntimeException("db down")).when(repo).upsert(any(), any(), any(), any());
@@ -145,7 +145,7 @@ class KgNodeEmbeddingServiceTest {
         final EmbeddingClient client = mock(EmbeddingClient.class);
         final UUID id = UUID.randomUUID();
         final KgNode node = new KgNode(id, "Kafka", "Technology", "Kafka",
-            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now());
+            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null);
 
         // Repo has a row for bge-m3 but not for qwen3 — the qwen3-tagged
         // service should miss-and-re-embed instead of reusing the bge-m3 row.
@@ -181,7 +181,7 @@ class KgNodeEmbeddingServiceTest {
         final EmbeddingClient client = mock(EmbeddingClient.class);
         final UUID id = UUID.randomUUID();
         final KgNode node = new KgNode(id, "Solo", null, null,
-            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now());
+            Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null);
         when(repo.findById(eq(id), eq("qwen3-embedding:0.6b"))).thenReturn(Optional.empty());
         when(client.embed("Solo :: Concept :: Solo")).thenReturn(new float[1024]);
 

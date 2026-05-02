@@ -327,7 +327,9 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                     Provenance.AI_INFERRED,
                     Map.of( "sharedChunks", shared ),
                     Instant.now(),
-                    Instant.now() ) );
+                    Instant.now(),
+                    "human",
+                    null ) );
 
                 if ( !visited.containsKey( neighborId ) ) {
                     final KgNode neighbor = repo.getNode( neighborId );

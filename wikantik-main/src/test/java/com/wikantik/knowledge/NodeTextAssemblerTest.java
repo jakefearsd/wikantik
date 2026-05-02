@@ -142,7 +142,7 @@ class NodeTextAssemblerTest {
     private KgNode makeNode( final String name, final String type,
                              final Map< String, Object > props ) {
         return new KgNode( UUID.randomUUID(), name, type, name + ".md",
-            Provenance.HUMAN_AUTHORED, props, Instant.now(), Instant.now() );
+            Provenance.HUMAN_AUTHORED, props, Instant.now(), Instant.now(), "human", null );
     }
 
     private int countOccurrences( final String text, final String sub ) {

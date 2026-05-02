@@ -64,10 +64,10 @@ class JdbcKnowledgeRepositoryTierReadsTest {
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute(
                 "INSERT INTO kg_nodes (name, node_type, source_page, provenance, properties, tier, modified) " +
-                "VALUES ('Human', 'concept', null, 'markdown_section', '{}'::jsonb, 'human', NOW())" );
+                "VALUES ('Human', 'concept', null, 'human-authored', '{}'::jsonb, 'human', NOW())" );
             c.createStatement().execute(
                 "INSERT INTO kg_nodes (name, node_type, source_page, provenance, properties, tier, modified) " +
-                "VALUES ('Machine', 'concept', null, 'markdown_section', '{}'::jsonb, 'machine', NOW())" );
+                "VALUES ('Machine', 'concept', null, 'human-authored', '{}'::jsonb, 'machine', NOW())" );
         }
 
         final List< KgNode > humanOnly = repo.getAllNodes( Tier.HUMAN );
@@ -81,16 +81,16 @@ class JdbcKnowledgeRepositoryTierReadsTest {
 
     @Test
     void getAllEdges_filters_by_tier() throws Exception {
-        final KgNode a = repo.upsertNode( "A", "concept", null, Provenance.MARKDOWN_SECTION, Map.of() );
-        final KgNode b = repo.upsertNode( "B", "concept", null, Provenance.MARKDOWN_SECTION, Map.of() );
+        final KgNode a = repo.upsertNode( "A", "concept", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = repo.upsertNode( "B", "concept", null, Provenance.HUMAN_AUTHORED, Map.of() );
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( String.format(
                 "INSERT INTO kg_edges (source_id, target_id, relationship_type, provenance, properties, tier, modified) " +
-                "VALUES ('%s'::uuid, '%s'::uuid, 'human-rel', 'markdown_section', '{}'::jsonb, 'human', NOW())",
+                "VALUES ('%s'::uuid, '%s'::uuid, 'human-rel', 'human-authored', '{}'::jsonb, 'human', NOW())",
                 a.id(), b.id() ) );
             c.createStatement().execute( String.format(
                 "INSERT INTO kg_edges (source_id, target_id, relationship_type, provenance, properties, tier, modified) " +
-                "VALUES ('%s'::uuid, '%s'::uuid, 'machine-rel', 'markdown_section', '{}'::jsonb, 'machine', NOW())",
+                "VALUES ('%s'::uuid, '%s'::uuid, 'machine-rel', 'human-authored', '{}'::jsonb, 'machine', NOW())",
                 a.id(), b.id() ) );
         }
 

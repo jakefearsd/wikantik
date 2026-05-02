@@ -34,7 +34,7 @@ class PageExtractionPromptBuilderTest {
                              List.of("Overview"));
         KgNode existing = new KgNode(UUID.randomUUID(), "PostgreSQL", "Technology",
                                      "PostgreSQL", Provenance.HUMAN_AUTHORED,
-                                     Map.of(), Instant.now(), Instant.now());
+                                     Map.of(), Instant.now(), Instant.now(), "human", null);
         ExtractionContext ctx = new ExtractionContext("Kafka", List.of(existing), Map.of());
         String prompt = PageExtractionPromptBuilder.buildUserPrompt(page, ctx);
         assertTrue(prompt.contains("Page: Kafka"));

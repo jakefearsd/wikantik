@@ -243,6 +243,8 @@ public class HubOverviewService {
             com.wikantik.api.knowledge.Provenance.HUMAN_AUTHORED,
             Map.of( "type", "hub" ),
             null,
+            null,
+            "human",
             null
         );
     }

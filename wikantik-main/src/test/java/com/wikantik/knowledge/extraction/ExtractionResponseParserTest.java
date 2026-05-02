@@ -53,7 +53,7 @@ class ExtractionResponseParserTest {
     private static ExtractionContext contextWithKnownNodes( final String... knownNames ) {
         final List< KgNode > existing = java.util.Arrays.stream( knownNames )
             .map( n -> new KgNode( UUID.randomUUID(), n, "Person", null,
-                                    Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now() ) )
+                                    Provenance.HUMAN_AUTHORED, Map.of(), Instant.now(), Instant.now(), "human", null ) )
             .toList();
         return new ExtractionContext( "TestPage", existing, Map.of() );
     }

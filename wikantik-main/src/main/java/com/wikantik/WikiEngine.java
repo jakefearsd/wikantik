@@ -658,6 +658,20 @@ public class WikiEngine implements Engine {
             new Thread( structuralIndex::rebuild, "structural-index-bootstrap" ).start();
             LOG.info( "StructuralIndexService registered; initial rebuild dispatched" );
 
+            // Page Graph snapshot service — backs the /page-graph React route.
+            // Reads wikilinks from ReferenceManager + page metadata from
+            // StructuralIndexService and projects them into a cytoscape-friendly
+            // snapshot. Distinct from KnowledgeGraphService (LLM-extracted entities)
+            // — see docs/wikantik-pages/PageGraphVsKnowledgeGraph.md.
+            final com.wikantik.api.managers.ReferenceManager refMgrForGraph =
+                getManager( com.wikantik.api.managers.ReferenceManager.class );
+            final com.wikantik.pagegraph.DefaultPageGraphService pageGraphService =
+                new com.wikantik.pagegraph.DefaultPageGraphService(
+                    structuralIndex, refMgrForGraph, getManager( PageManager.class ) );
+            pageGraphService.setEngine( this );
+            managers.put( com.wikantik.api.pagegraph.PageGraphService.class, pageGraphService );
+            LOG.info( "PageGraphService registered" );
+
             // KG inclusion policy — cluster-primary include/exclude with frontmatter
             // override. See docs/superpowers/specs/2026-04-27-kg-inclusion-policy-design.md.
             // The master switch wikantik.kg_policy.enabled (default true) gates the wiring;

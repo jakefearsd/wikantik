@@ -41,7 +41,7 @@ import java.util.Map;
  * Phase 1 of the Agent-Grade Content design: mark a set of pages as verified.
  * Writes {@code verified_at = NOW()} and {@code verified_by = <exchange author>}
  * into each page's frontmatter via the standard save pipeline. The
- * {@link com.wikantik.knowledge.structure.DefaultStructuralIndexService}'s
+ * {@link com.wikantik.pagegraph.spine.DefaultStructuralIndexService}'s
  * post-save rebuild propagates the change into {@code page_verification},
  * where {@code ConfidenceComputer} promotes the confidence to
  * {@code authoritative} when the verifier is on the trusted-authors list.

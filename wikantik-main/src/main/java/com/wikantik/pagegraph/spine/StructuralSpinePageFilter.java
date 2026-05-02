@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.knowledge.structure;
+package com.wikantik.pagegraph.spine;
 
 import com.github.f4b6a3.ulid.UlidCreator;
 import com.wikantik.api.core.Context;

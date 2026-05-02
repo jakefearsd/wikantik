@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.knowledge.structure;
+package com.wikantik.pagegraph.spine;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;

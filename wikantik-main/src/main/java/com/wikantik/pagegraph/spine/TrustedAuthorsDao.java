@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.knowledge.structure;
+package com.wikantik.pagegraph.spine;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Tiny registry of authors whose verified pages are promoted from
  * {@code provisional} to {@code authoritative} confidence. Read-mostly:
- * the {@link com.wikantik.knowledge.structure.ConfidenceComputer} hits
+ * the {@link com.wikantik.pagegraph.spine.ConfidenceComputer} hits
  * {@link #contains} on every rebuild, so we cache the set in memory and
  * refresh on writes.
  */

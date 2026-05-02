@@ -50,6 +50,33 @@ public class KgMaterializationService {
         materialize( proposal, "machine" );
     }
 
+    /**
+     * Promote (or insert) the proposal at tier='human'. Cleans up any
+     * negative-knowledge entry (kg_rejections) for the same triple — a human
+     * override removes the previously-recorded reject.
+     */
+    public void promoteToHuman( final KgProposal proposal ) {
+        if ( "new-edge".equals( proposal.proposalType() ) ) {
+            final Map< String, Object > data = proposal.proposedData();
+            final String src = Objects.toString( data.get( "source" ), null );
+            final String tgt = Objects.toString( data.get( "target" ), null );
+            final String rel = Objects.toString( data.get( "relationship" ), null );
+            if ( src != null && tgt != null && rel != null ) {
+                repo.deleteRejection( src, tgt, rel );
+            }
+        }
+        // Insert if absent (preserves existing tier on conflict).
+        materialize( proposal, "human" );
+        // Then promote any pre-existing machine-tier rows to human.
+        repo.updateTierByProvenance( proposal.id(), "human" );
+    }
+
+    /** Delete materialised rows for this proposal. Used when a human rejects a machine-approved edge. */
+    public void retract( final KgProposal proposal ) {
+        repo.deleteEdgesByProvenance( proposal.id() );
+        repo.deleteNodesByProvenance( proposal.id() );
+    }
+
     void materialize( final KgProposal proposal, final String tier ) {
         if ( !"new-edge".equals( proposal.proposalType() ) ) {
             LOG.debug( "materialize: skipping unsupported proposalType={}", proposal.proposalType() );

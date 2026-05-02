@@ -470,6 +470,91 @@ public class JdbcKnowledgeRepository {
     }
 
     /**
+     * Updates the tier of all kg_nodes and kg_edges rows with a given provenance_proposal_id.
+     *
+     * @param proposalId the proposal UUID
+     * @param newTier    the new tier ('machine' or 'human')
+     * @return the total count of updated rows (nodes + edges)
+     */
+    public int updateTierByProvenance( final UUID proposalId, final String newTier ) {
+        int rows = 0;
+        try ( Connection c = dataSource.getConnection() ) {
+            try ( PreparedStatement ps = c.prepareStatement(
+                    "UPDATE kg_nodes SET tier = ? WHERE provenance_proposal_id = ?" ) ) {
+                ps.setString( 1, newTier );
+                ps.setObject( 2, proposalId );
+                rows += ps.executeUpdate();
+            }
+            try ( PreparedStatement ps = c.prepareStatement(
+                    "UPDATE kg_edges SET tier = ? WHERE provenance_proposal_id = ?" ) ) {
+                ps.setString( 1, newTier );
+                ps.setObject( 2, proposalId );
+                rows += ps.executeUpdate();
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "updateTierByProvenance({}, {}) failed: {}", proposalId, newTier,
+                e.getMessage(), e );
+            throw new RuntimeException( "updateTierByProvenance failed: " + e.getMessage(), e );
+        }
+        return rows;
+    }
+
+    /**
+     * Deletes all kg_nodes rows with a given provenance_proposal_id.
+     *
+     * @param proposalId the proposal UUID
+     * @return the count of deleted rows
+     */
+    public int deleteNodesByProvenance( final UUID proposalId ) {
+        return executeDelete( "DELETE FROM kg_nodes WHERE provenance_proposal_id = ?", proposalId );
+    }
+
+    /**
+     * Deletes all kg_edges rows with a given provenance_proposal_id.
+     *
+     * @param proposalId the proposal UUID
+     * @return the count of deleted rows
+     */
+    public int deleteEdgesByProvenance( final UUID proposalId ) {
+        return executeDelete( "DELETE FROM kg_edges WHERE provenance_proposal_id = ?", proposalId );
+    }
+
+    /**
+     * Deletes a rejection by triple (source, target, relationship).
+     *
+     * @param source       the proposed source node name
+     * @param target       the proposed target node name
+     * @param relationship the proposed relationship type
+     * @return the count of deleted rows
+     */
+    public int deleteRejection( final String source, final String target, final String relationship ) {
+        final String sql = "DELETE FROM kg_rejections WHERE proposed_source = ? " +
+            "AND proposed_target = ? AND proposed_relationship = ?";
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( sql ) ) {
+            ps.setString( 1, source );
+            ps.setString( 2, target );
+            ps.setString( 3, relationship );
+            return ps.executeUpdate();
+        } catch ( final SQLException e ) {
+            LOG.warn( "deleteRejection({}, {}, {}) failed: {}", source, target, relationship,
+                e.getMessage(), e );
+            throw new RuntimeException( "deleteRejection failed: " + e.getMessage(), e );
+        }
+    }
+
+    private int executeDelete( final String sql, final UUID id ) {
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( sql ) ) {
+            ps.setObject( 1, id );
+            return ps.executeUpdate();
+        } catch ( final SQLException e ) {
+            LOG.warn( "deleteByProvenance({}) failed: {}", id, e.getMessage(), e );
+            throw new RuntimeException( "deleteByProvenance failed: " + e.getMessage(), e );
+        }
+    }
+
+    /**
      * Deletes an edge by its UUID.
      *
      * @param id the edge UUID

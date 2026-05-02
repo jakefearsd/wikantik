@@ -143,7 +143,7 @@ public class KgStagedValidationIT {
     @Test
     @Order( 1 )
     void snapshot_default_returns_200() throws Exception {
-        final HttpResponse< String > resp = get( "/api/knowledge-graph/snapshot" );
+        final HttpResponse< String > resp = get( "/api/knowledge/graph" );
         assertEquals( 200, resp.statusCode(), "snapshot must be public + 200; got: " + resp.body() );
         final JsonObject body = JsonParser.parseString( resp.body() ).getAsJsonObject();
         assertTrue( body.has( "nodes" ), "snapshot must include nodes envelope" );
@@ -153,21 +153,21 @@ public class KgStagedValidationIT {
     @Test
     @Order( 2 )
     void snapshot_min_tier_human_returns_200() throws Exception {
-        final HttpResponse< String > resp = get( "/api/knowledge-graph/snapshot?min_tier=human" );
+        final HttpResponse< String > resp = get( "/api/knowledge/graph?min_tier=human" );
         assertEquals( 200, resp.statusCode(), resp.body() );
     }
 
     @Test
     @Order( 3 )
     void snapshot_min_tier_machine_returns_200() throws Exception {
-        final HttpResponse< String > resp = get( "/api/knowledge-graph/snapshot?min_tier=machine" );
+        final HttpResponse< String > resp = get( "/api/knowledge/graph?min_tier=machine" );
         assertEquals( 200, resp.statusCode(), resp.body() );
     }
 
     @Test
     @Order( 4 )
     void snapshot_invalid_min_tier_returns_400() throws Exception {
-        final HttpResponse< String > resp = get( "/api/knowledge-graph/snapshot?min_tier=garbage" );
+        final HttpResponse< String > resp = get( "/api/knowledge/graph?min_tier=garbage" );
         assertEquals( 400, resp.statusCode(), "expected 400 for invalid tier; got: " + resp.body() );
     }
 
@@ -207,7 +207,7 @@ public class KgStagedValidationIT {
     @Test
     @Order( 7 )
     void approved_node_visible_in_human_tier_snapshot() throws Exception {
-        final HttpResponse< String > resp = get( "/api/knowledge-graph/snapshot?min_tier=human" );
+        final HttpResponse< String > resp = get( "/api/knowledge/graph?min_tier=human" );
         assertEquals( 200, resp.statusCode(), resp.body() );
         final JsonObject body = JsonParser.parseString( resp.body() ).getAsJsonObject();
         final JsonArray nodes = body.getAsJsonArray( "nodes" );

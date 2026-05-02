@@ -59,8 +59,8 @@ public class GetOrphanedPagesTool implements McpTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Find orphaned pages — pages that exist but have no incoming links " +
-                        "from other pages. System/template pages are excluded. " +
+                .description( "Find orphaned pages — pages with no incoming edges in the Page Graph. " +
+                        "System/template pages are excluded. " +
                         "Returns {orphanedPages: [...], count}. " +
                         "Use this for wiki maintenance to find disconnected content." )
                 .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )

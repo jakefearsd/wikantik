@@ -82,7 +82,7 @@ public class GetBrokenLinksTool implements McpTool {
 
         // D16: filter out targets that aren't valid wiki page names. Source-file paths
         // (e.g. "../wikantik-main/src/main/java/.../JDBCGroupDatabase.java") leaked
-        // into the link graph and surfaced as broken-link false positives. A real wiki
+        // into the Page Graph and surfaced as broken-link false positives. A real wiki
         // page name never contains a '/' or '\\' and never starts with '..'.
         sorted.removeIf( GetBrokenLinksTool::isNonWikiTarget );
 
@@ -108,7 +108,7 @@ public class GetBrokenLinksTool implements McpTool {
      * D16: returns true when {@code target} cannot be a wiki page name. A valid wiki
      * page name is non-blank and contains no path separators or relative-path
      * indicators. Anything else is a stray source-file or external-URL reference
-     * that bled into the reference graph.
+     * that bled into the Page Graph.
      */
     static boolean isNonWikiTarget( final String target ) {
         if ( target == null || target.isBlank() ) {

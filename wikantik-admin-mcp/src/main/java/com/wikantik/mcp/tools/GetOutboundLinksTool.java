@@ -61,9 +61,9 @@ public class GetOutboundLinksTool implements McpTool {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Find all pages that a given page links to (outbound links). " +
+                .description( "Find all pages that a given page links to (outbound edges in the Page Graph). " +
                         "Returns {pageName, links: [names]} sorted alphabetically. " +
-                        "Use get_backlinks for the reverse direction (who links to this page)." )
+                        "Use get_backlinks for the reverse direction (incoming edges in the Page Graph)." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
                 .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )

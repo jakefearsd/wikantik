@@ -705,6 +705,64 @@ public class JdbcKnowledgeRepository {
         }
     }
 
+    public void applyMachineVerdict( final UUID proposalId, final String verdict,
+                                      final double confidence, final String model ) {
+        final String newTier;
+        final String newStatus;
+        if ( "approved".equals( verdict ) ) {
+            newTier = "machine"; newStatus = null;
+        } else if ( "rejected".equals( verdict ) ) {
+            newTier = "none"; newStatus = "rejected";
+        } else if ( "abstain".equals( verdict ) ) {
+            newTier = "none"; newStatus = null;
+        } else {
+            throw new IllegalArgumentException( "verdict must be approved|rejected|abstain, got: " + verdict );
+        }
+
+        final String sql = "UPDATE kg_proposals SET " +
+            "machine_status = ?, machine_confidence = ?, machine_judged_at = NOW(), " +
+            "machine_model = ?, tier = ?" +
+            ( newStatus != null ? ", status = ?" : "" ) +
+            " WHERE id = ?";
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( sql ) ) {
+            int idx = 1;
+            ps.setString( idx++, verdict );
+            ps.setDouble( idx++, confidence );
+            ps.setString( idx++, model );
+            ps.setString( idx++, newTier );
+            if ( newStatus != null ) ps.setString( idx++, newStatus );
+            ps.setObject( idx, proposalId );
+            ps.executeUpdate();
+        } catch ( final SQLException e ) {
+            LOG.warn( "applyMachineVerdict({}, {}) failed: {}", proposalId, verdict,
+                e.getMessage(), e );
+            throw new RuntimeException( "applyMachineVerdict failed: " + e.getMessage(), e );
+        }
+    }
+
+    public void applyHumanVerdict( final UUID proposalId, final String verdict,
+                                    final String reviewedBy ) {
+        if ( !( "approved".equals( verdict ) || "rejected".equals( verdict ) ) ) {
+            throw new IllegalArgumentException( "human verdict must be approved|rejected, got: " + verdict );
+        }
+        final String newTier = "approved".equals( verdict ) ? "human" : "none";
+        final String sql = "UPDATE kg_proposals SET " +
+            "status = ?, reviewed_by = ?, reviewed_at = NOW(), tier = ? WHERE id = ?";
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( sql ) ) {
+            ps.setString( 1, verdict );
+            ps.setString( 2, reviewedBy );
+            ps.setString( 3, newTier );
+            ps.setObject( 4, proposalId );
+            ps.executeUpdate();
+        } catch ( final SQLException e ) {
+            LOG.warn( "applyHumanVerdict({}, {}, {}) failed: {}", proposalId, verdict,
+                reviewedBy, e.getMessage(), e );
+            throw new RuntimeException( "applyHumanVerdict failed: " + e.getMessage(), e );
+        }
+    }
+
     public void recordReview( final UUID proposalId, final String reviewerKind,
                               final String reviewerId, final String verdict,
                               final Double confidence, final String rationale ) {
@@ -1238,7 +1296,7 @@ public class JdbcKnowledgeRepository {
      */
     public void clearAll() {
         final String[] tables = {
-            "kg_edges", "kg_proposals", "kg_rejections", "kg_nodes"
+            "kg_proposal_reviews", "kg_edges", "kg_proposals", "kg_rejections", "kg_nodes"
         };
         try( Connection conn = dataSource.getConnection();
              var stmt = conn.createStatement() ) {

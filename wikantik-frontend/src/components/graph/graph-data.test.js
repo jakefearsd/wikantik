@@ -30,12 +30,11 @@ describe('toCytoscapeElements', () => {
     expect(restricted.classes).toContain('role-restricted');
   });
 
-  it('assigns edge color from palette', () => {
+  it('assigns the single page-link color to all edges', () => {
     const { edges } = toCytoscapeElements(SNAPSHOT);
-    const linksTo = edges.find(e => e.data.relationshipType === 'links_to');
-    expect(linksTo.data.edgeColor).toBe('#94a3b8');
-    const relatedTo = edges.find(e => e.data.relationshipType === 'related_to');
-    expect(relatedTo.data.edgeColor).toBe('#2563eb');
+    for (const e of edges) {
+      expect(e.data.edgeColor).toBe('#94a3b8');
+    }
   });
 
   it('preserves restricted nodes with null fields', () => {
@@ -184,16 +183,12 @@ describe('toCytoscapeElements parallel merge', () => {
 });
 
 describe('edge palette', () => {
-  it('is deterministic for unknown types', () => {
-    const snap1 = { ...SNAPSHOT, edges: [
+  it('always returns the single page-link color regardless of relationship type', () => {
+    const snap = { ...SNAPSHOT, edges: [
       { id: 'x', source: 'aaa', target: 'bbb', relationshipType: 'custom_type', provenance: 'HUMAN_AUTHORED' },
     ]};
-    const snap2 = { ...SNAPSHOT, edges: [
-      { id: 'x', source: 'aaa', target: 'bbb', relationshipType: 'custom_type', provenance: 'HUMAN_AUTHORED' },
-    ]};
-    const c1 = toCytoscapeElements(snap1).edges[0].data.edgeColor;
-    const c2 = toCytoscapeElements(snap2).edges[0].data.edgeColor;
-    expect(c1).toBe(c2);
+    const color = toCytoscapeElements(snap).edges[0].data.edgeColor;
+    expect(color).toBe('#94a3b8');
   });
 });
 

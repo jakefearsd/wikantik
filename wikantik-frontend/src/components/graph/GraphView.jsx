@@ -79,6 +79,8 @@ export default function GraphView() {
     return [...new Set(snapshot.edges.map(e => e.relationshipType))].sort();
   }, [snapshot]);
 
+  /* edgeTypes kept for GraphToolbar edge-filter popover; not passed to GraphLegend */
+
   const timestamp = useMemo(() => {
     if (!snapshot?.generatedAt) return '';
     try { return new Date(snapshot.generatedAt).toLocaleTimeString(); }
@@ -192,7 +194,6 @@ export default function GraphView() {
           <GraphZoomSlider layoutDone={layoutDone} />
           <GraphLegend
             hubDegreeThreshold={snapshot?.hubDegreeThreshold || 10}
-            edgeTypes={edgeTypes}
             timestamp={timestamp}
           />
         </div>

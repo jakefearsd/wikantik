@@ -1,25 +1,7 @@
-const KNOWN_PALETTE = {
-  links_to:   '#94a3b8',
-  related_to: '#2563eb',
-  part_of:    '#7c3aed',
-};
+const PAGE_LINK_COLOR = '#94a3b8';
 
-const FALLBACK_PALETTE = [
-  '#06b6d4', '#ec4899', '#14b8a6', '#f97316',
-  '#84cc16', '#d946ef', '#6366f1',
-];
-
-function stableHash(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
-}
-
-function colorFor(relationshipType) {
-  if (KNOWN_PALETTE[relationshipType]) return KNOWN_PALETTE[relationshipType];
-  return FALLBACK_PALETTE[stableHash(relationshipType) % FALLBACK_PALETTE.length];
+function colorFor() {
+  return PAGE_LINK_COLOR;
 }
 
 export function mergeBidirectionalEdges(edges) {

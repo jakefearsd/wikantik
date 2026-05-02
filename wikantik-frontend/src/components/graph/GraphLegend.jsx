@@ -8,7 +8,9 @@ const NODE_ROLES = [
   { role: 'restricted', color: '#e5e7eb', label: 'Restricted' },
 ];
 
-export default function GraphLegend({ hubDegreeThreshold, edgeTypes, timestamp }) {
+const PAGE_LINK_COLOR = '#94a3b8';
+
+export default function GraphLegend({ hubDegreeThreshold, timestamp }) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -30,11 +32,13 @@ export default function GraphLegend({ hubDegreeThreshold, edgeTypes, timestamp }
             ))}
           </div>
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--space-xs)' }}>
-            {edgeTypes.map(t => (
-              <div key={t} className="graph-legend-item">
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t}</span>
-              </div>
-            ))}
+            <div className="graph-legend-item">
+              <span
+                className="graph-legend-swatch"
+                style={{ backgroundColor: PAGE_LINK_COLOR }}
+              />
+              <span>Page link</span>
+            </div>
           </div>
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--space-xs)', marginTop: 'var(--space-xs)' }}>
             <div className="graph-legend-item">

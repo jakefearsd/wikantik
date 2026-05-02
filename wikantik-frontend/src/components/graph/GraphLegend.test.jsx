@@ -5,7 +5,6 @@ import GraphLegend from './GraphLegend.jsx';
 describe('GraphLegend', () => {
   const defaultProps = {
     hubDegreeThreshold: 12,
-    edgeTypes: ['links_to', 'related_to', 'part_of'],
     timestamp: '14:32:07',
   };
 
@@ -23,10 +22,9 @@ describe('GraphLegend', () => {
     expect(screen.getByText(/12/)).toBeTruthy();
   });
 
-  it('lists edge types', () => {
+  it('shows single page-link edge entry', () => {
     render(<GraphLegend {...defaultProps} />);
-    expect(screen.getByText('links_to')).toBeTruthy();
-    expect(screen.getByText('related_to')).toBeTruthy();
+    expect(screen.getByText('Page link')).toBeTruthy();
   });
 
   it('shows directionality convention', () => {
@@ -39,9 +37,9 @@ describe('GraphLegend', () => {
     render(<GraphLegend {...defaultProps} />);
     const toggle = screen.getByText(/legend/i);
     fireEvent.click(toggle);
-    expect(screen.queryByText('links_to')).toBeNull();
+    expect(screen.queryByText('Page link')).toBeNull();
     fireEvent.click(toggle);
-    expect(screen.getByText('links_to')).toBeTruthy();
+    expect(screen.getByText('Page link')).toBeTruthy();
   });
 
   it('shows timestamp', () => {

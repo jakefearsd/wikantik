@@ -275,6 +275,67 @@ public class JdbcKnowledgeRepository {
         return results;
     }
 
+    /**
+     * Search for nodes by name or properties, filtered by tier.
+     *
+     * @param query            search string (case-insensitive)
+     * @param provenanceFilter optional set of provenances to include; null/empty = no provenance filter
+     * @param limit            maximum number of results
+     * @param minTier          minimum tier level to include (includes tier and all superior tiers)
+     * @return list of matching nodes
+     */
+    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
+            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
+    public List< KgNode > searchNodes( final String query, final Set< Provenance > provenanceFilter,
+                                       final int limit, final Tier minTier ) {
+        final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
+                .append( KgInclusionFilter.NODE_FILTER_JOIN )
+                .append( "WHERE" ).append( KgInclusionFilter.NODE_FILTER_WHERE )
+                .append( " AND ( LOWER( n.name ) LIKE ? OR LOWER( n.properties::text ) LIKE ? )" )
+                .append( " AND n.tier = ANY( ? )" );
+        final List< Object > params = new ArrayList<>();
+        final String pattern = "%" + query.toLowerCase( Locale.ROOT ) + "%";
+        params.add( pattern );
+        params.add( pattern );
+        params.add( minTier ); // sentinel — replaced by setArray below
+
+        if( provenanceFilter != null && !provenanceFilter.isEmpty() ) {
+            sql.append( " AND n.provenance IN (" );
+            final StringJoiner sj = new StringJoiner( ", " );
+            for( final Provenance p : provenanceFilter ) {
+                sj.add( "?" );
+                params.add( p.value() );
+            }
+            sql.append( sj );
+            sql.append(')');
+        }
+
+        sql.append( " ORDER BY n.name LIMIT ?" );
+        params.add( limit );
+
+        final List< KgNode > results = new ArrayList<>();
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+            for( int i = 0; i < params.size(); i++ ) {
+                final Object v = params.get( i );
+                if ( v instanceof Tier t ) {
+                    ps.setArray( i + 1, conn.createArrayOf( "varchar", t.includedTiers().toArray() ) );
+                } else {
+                    ps.setObject( i + 1, v );
+                }
+            }
+            try( ResultSet rs = ps.executeQuery() ) {
+                while( rs.next() ) {
+                    results.add( mapNode( rs ) );
+                }
+            }
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to search nodes (tier={}): {}", minTier.wireName(), e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
+        return results;
+    }
+
     // ---- Edge operations ----
 
     /**

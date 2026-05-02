@@ -386,6 +386,90 @@ public class JdbcKnowledgeRepository {
     }
 
     /**
+     * Upsert a node with explicit tier and provenance proposal ID tracking.
+     * Used by materialisation to record machine-tier rows from approved proposals.
+     *
+     * @param name                the unique node name
+     * @param nodeType            the node type (e.g. "concept")
+     * @param sourcePage          the source wiki page, or null
+     * @param provenance          the provenance of the node
+     * @param properties          additional properties as a map
+     * @param tier                the tier ('machine' or 'human')
+     * @param provenanceProposalId the proposal UUID that caused this upsert, or null
+     * @return the upserted node
+     */
+    public KgNode upsertNodeWithProvenance( final String name, final String nodeType,
+                                            final String sourcePage, final Provenance provenance,
+                                            final Map< String, Object > properties,
+                                            final String tier, final UUID provenanceProposalId ) {
+        final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
+        final String sql = "INSERT INTO kg_nodes ( name, node_type, source_page, provenance, properties, " +
+            "tier, provenance_proposal_id, modified ) " +
+            "VALUES ( ?, ?, ?, ?, ?::jsonb, ?, ?, CURRENT_TIMESTAMP ) " +
+            "ON CONFLICT ( name ) DO UPDATE SET node_type = EXCLUDED.node_type, " +
+            "source_page = COALESCE(EXCLUDED.source_page, kg_nodes.source_page), " +
+            "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, " +
+            "modified = CURRENT_TIMESTAMP";
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setString( 1, name );
+            ps.setString( 2, nodeType );
+            ps.setString( 3, sourcePage );
+            ps.setString( 4, provenance.value() );
+            ps.setString( 5, propsJson );
+            ps.setString( 6, tier );
+            if ( provenanceProposalId == null ) ps.setNull( 7, java.sql.Types.OTHER );
+            else ps.setObject( 7, provenanceProposalId );
+            ps.executeUpdate();
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to upsertNodeWithProvenance '{}': {}", name, e.getMessage(), e );
+            throw new RuntimeException( "Failed to upsertNodeWithProvenance: " + e.getMessage(), e );
+        }
+        return getNodeByName( name );
+    }
+
+    /**
+     * Upsert an edge with explicit tier and provenance proposal ID tracking.
+     * Used by materialisation to record machine-tier rows from approved proposals.
+     *
+     * @param sourceId            the source node UUID
+     * @param targetId            the target node UUID
+     * @param relationshipType     the relationship type
+     * @param provenance          the provenance of the edge
+     * @param properties          additional properties as a map
+     * @param tier                the tier ('machine' or 'human')
+     * @param provenanceProposalId the proposal UUID that caused this upsert, or null
+     */
+    public void upsertEdgeWithProvenance( final UUID sourceId, final UUID targetId,
+                                          final String relationshipType, final Provenance provenance,
+                                          final Map< String, Object > properties,
+                                          final String tier, final UUID provenanceProposalId ) {
+        final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
+        final String sql = "INSERT INTO kg_edges ( source_id, target_id, relationship_type, provenance, " +
+            "properties, tier, provenance_proposal_id, modified ) " +
+            "VALUES ( ?, ?, ?, ?, ?::jsonb, ?, ?, CURRENT_TIMESTAMP ) " +
+            "ON CONFLICT ( source_id, target_id, relationship_type ) DO UPDATE SET " +
+            "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, " +
+            "modified = CURRENT_TIMESTAMP";
+        try( Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setObject( 1, sourceId );
+            ps.setObject( 2, targetId );
+            ps.setString( 3, relationshipType );
+            ps.setString( 4, provenance.value() );
+            ps.setString( 5, propsJson );
+            ps.setString( 6, tier );
+            if ( provenanceProposalId == null ) ps.setNull( 7, java.sql.Types.OTHER );
+            else ps.setObject( 7, provenanceProposalId );
+            ps.executeUpdate();
+        } catch( final SQLException e ) {
+            LOG.warn( "Failed to upsertEdgeWithProvenance ({},{},{}): {}",
+                sourceId, targetId, relationshipType, e.getMessage(), e );
+            throw new RuntimeException( "Failed to upsertEdgeWithProvenance: " + e.getMessage(), e );
+        }
+    }
+
+    /**
      * Deletes an edge by its UUID.
      *
      * @param id the edge UUID

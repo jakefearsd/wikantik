@@ -22,19 +22,25 @@ The license file can be found in LICENSE.
 
 ## What is Wikantik?
 
-Wikantik is a modular Java-based knowledge base platform built on JEE technologies. It combines a Markdown-native authoring system with a React single-page application, a REST API, two dedicated Model Context Protocol (MCP) servers for AI agent integration, an OpenAPI tool server for non-MCP clients, a knowledge graph visualiser, and a full observability stack. Content is organised into thematic clusters with structured frontmatter metadata, indexed by Lucene for full-text and faceted search, and ranked by a hybrid BM25 + dense-vector + graph retrieval pipeline.
+Wikantik is a modular Java-based knowledge base platform built on JEE technologies. It combines a Markdown-native authoring system with a React single-page application, a REST API, two dedicated Model Context Protocol (MCP) servers for AI agent integration, an OpenAPI tool server for non-MCP clients, and a full observability stack. Content is organised into thematic clusters with structured frontmatter metadata, indexed by Lucene for full-text and faceted search, and ranked by a hybrid BM25 + dense-vector + Knowledge Graph retrieval pipeline.
+
+**Page Graph vs Knowledge Graph.** Wikantik distinguishes two graph
+subsystems: the *Page Graph* (edges are real wikilinks; reader-facing
+at `/page-graph`) and the *Knowledge Graph* (LLM-extracted entities and
+relations; admin and agent surfaces). See [PageGraphVsKnowledgeGraph](docs/wikantik-pages/PageGraphVsKnowledgeGraph.md)
+for the long form.
 
 Key capabilities:
 
 - **Markdown rendering** with Flexmark — fenced code blocks, tables, footnotes, definition lists, TOC generation, wiki-style internal links, and LaTeX math (see [MathematicalNotation.md](docs/MathematicalNotation.md))
 - **React SPA** served at `/` — editorial magazine aesthetic with dark mode, metadata chips, change history, similar-pages panel, and inline editing
-- **Knowledge graph** at `/graph` — interactive Cytoscape visualisation of page relationships (backlinks, frontmatter, clusters) with semantic zoom, edge-type filtering, and parallel-edge merging
-- **REST API** at `/api/` — full CRUD for pages, attachments, search, history, diffs, backlinks, and the knowledge graph snapshot, with ACL-based permission enforcement
-- **Admin MCP server** at `/wikantik-admin-mcp` — 16 tools (page writes, link analysis, metadata queries, knowledge proposals, structural audits), 6 resources, 8 prompts, 3 completions. Bearer-token / API-key authenticated.
-- **Knowledge MCP server** at `/knowledge-mcp` — 10 read-only tools for hybrid retrieval (BM25 + dense), knowledge-graph traversal, schema discovery, and metadata enumeration. Same auth scheme.
+- **Page Graph** at `/page-graph` — interactive Cytoscape visualisation of the wikilink graph (backlinks, frontmatter, clusters) with semantic zoom, edge-type filtering, and parallel-edge merging
+- **REST API** at `/api/` — full CRUD for pages, attachments, search, history, diffs, backlinks, and the Knowledge Graph snapshot, with ACL-based permission enforcement
+- **Admin MCP server** at `/wikantik-admin-mcp` — 16 tools (page writes, Page Graph link analysis, metadata queries, Knowledge Graph proposals, structural audits), 6 resources, 8 prompts, 3 completions. Bearer-token / API-key authenticated.
+- **Knowledge MCP server** at `/knowledge-mcp` — 10 read-only tools for hybrid retrieval (BM25 + dense), Knowledge Graph traversal, schema discovery, and metadata enumeration. Same auth scheme.
 - **OpenAPI tool server** at `/tools/*` — OpenWebUI-compatible OpenAPI 3.1 endpoint exposing `search_wiki` and `get_page` for non-MCP LLM clients
 - **Raw content and change feed** — `GET /wiki/{slug}?format=md|json` and `GET /api/changes?since=…` for search-engine crawlers and RAG ingestion pipelines (see [IndexingSupport.md](IndexingSupport.md))
-- **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60), with graph-aware rerank; fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
+- **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60), with Knowledge Graph-aware rerank; fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
 - **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, cache stats), security management (groups and policy grants)
 - **Database-backed authorisation** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
 - **Observability** — health checks, Prometheus metrics at `/metrics`, structured logging with request correlation, IP-restricted to internal networks
@@ -51,15 +57,15 @@ Key capabilities:
 | Maven | 3.9+ | `mvn -version` |
 | Node.js + npm | 18+ | Required — WAR build runs `npm install` + `vite build` automatically |
 | PostgreSQL | 15+ | For local deployment; unit tests use in-memory H2 |
-| pgvector | 0.5+ | PostgreSQL extension — required for the knowledge graph (see below) |
+| pgvector | 0.5+ | PostgreSQL extension — required for the Knowledge Graph (see below) |
 
 ### Installing pgvector
 
-The knowledge graph and hub-discovery features store machine-learning
+The Knowledge Graph and hub-discovery features store machine-learning
 embeddings directly in PostgreSQL using the [`pgvector`](https://github.com/pgvector/pgvector)
 extension. Without it, migration `V004` will fail (`CREATE EXTENSION vector`)
-and the knowledge-graph endpoints under `/graph`, `/api/knowledge/*`, and
-`/admin/knowledge/*` will not function.
+and the Knowledge Graph endpoints under `/api/knowledge/*`, `/knowledge-mcp`, and
+`/admin/knowledge-graph/*` will not function.
 
 **What pgvector is used for in Wikantik**
 
@@ -205,7 +211,7 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 | Module | Purpose |
 |--------|---------|
 | `wikantik-bom` | Bill-of-materials POM pinning shared dependency versions |
-| `wikantik-api` | Core interfaces and contracts (manager interfaces, frontmatter, page save, knowledge graph service) |
+| `wikantik-api` | Core interfaces and contracts (manager interfaces, frontmatter, page save, Knowledge Graph service, Page Graph interfaces) |
 | `wikantik-main` | Main implementation — Markdown rendering, providers, auth, search, references, math parser |
 | `wikantik-event` | Event system for decoupled communication |
 | `wikantik-util` | Utility classes and helpers |
@@ -214,11 +220,11 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 | `wikantik-http` | Servlet filters — CSRF, CORS, CSP, security headers, SPA routing |
 | `wikantik-rest` | REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`) |
 | `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 16 tools (writes + analytics), 6 resources, 8 prompts, 3 completions |
-| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 10 read-only retrieval + KG tools; also hosts the knowledge-graph service (pgvector embeddings, co-mention graph, hub discovery) |
+| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 10 read-only retrieval + Knowledge Graph tools; also hosts the Knowledge Graph service (pgvector embeddings, co-mention graph, hub discovery) |
 | `wikantik-tools` | OpenAPI 3.1 tool server at `/tools/*` — 2 tools for OpenWebUI-compatible non-MCP clients |
 | `wikantik-extract-cli` | Standalone entity-extractor CLI for offline batch extraction |
 | `wikantik-observability` | Health checks, Prometheus metrics, request correlation |
-| `wikantik-frontend` | React SPA (Vite build) — reader, editor, admin panel, knowledge graph viewer |
+| `wikantik-frontend` | React SPA (Vite build) — reader, editor, admin panel, Knowledge Graph viewer, Page Graph viewer |
 | `wikantik-war` | WAR packaging and deployment config; bundles the frontend build output |
 | `wikantik-wikipages` | Default wiki pages shipped with a fresh install |
 | `wikantik-it-tests` | Integration tests (Selenide browser automation, REST API, Cargo-launched Tomcat against PostgreSQL + pgvector) |
@@ -245,9 +251,9 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 
 - [MarkdownLinks.md](docs/MarkdownLinks.md) — Markdown internal and external link syntax
 - [MathematicalNotation.md](docs/MathematicalNotation.md) — LaTeX math rendering (`$…$`, `$$…$$`, ```` ```math ````) via Flexmark + KaTeX
-- [NewUI.md](docs/NewUI.md) — React SPA design and architecture (reader, editor, admin, knowledge graph)
-- [DatabaseUpdates.md](docs/DatabaseUpdates.md) — Knowledge graph schema and index layout
-- [KnowledgeGraphRerank.md](docs/KnowledgeGraphRerank.md) — Configuration, verification, and tuning guide for the entity extractor, unified embeddings, and graph-aware search rerank
+- [NewUI.md](docs/NewUI.md) — React SPA design and architecture (reader, editor, admin, Knowledge Graph viewer)
+- [DatabaseUpdates.md](docs/DatabaseUpdates.md) — Knowledge Graph schema and index layout
+- [KnowledgeGraphRerank.md](docs/KnowledgeGraphRerank.md) — Configuration, verification, and tuning guide for the entity extractor, unified embeddings, and Knowledge Graph-aware search rerank
 - [RelationalUserDatabase.md](docs/RelationalUserDatabase.md) — PostgreSQL user and group database configuration
 - [Sitemap.md](docs/Sitemap.md) — Sitemap.xml and Atom feed servlets
 - [OAuthImplementation.md](docs/OAuthImplementation.md) — OAuth SSO implementation plan (Google, GitHub)
@@ -276,15 +282,15 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 
 Wikantik exposes two independent Model Context Protocol servers (both using the Streamable HTTP transport), plus an OpenAPI 3.1 tool server for non-MCP clients:
 
-**`/wikantik-admin-mcp`** — `wikantik-admin-mcp` module. Admin / write surface for AI-assisted wiki operations: structural-verification checks, link and backlink analysis, history and diffs, metadata querying, recent changes, an export/import workflow for bulk editing, knowledge-graph proposals, and page writes. Exposes **16 tools, 6 resources, 8 prompts, 3 completions**. Authoritative tool list: `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java`. Initializer: `com.wikantik.mcp.McpServerInitializer`.
+**`/wikantik-admin-mcp`** — `wikantik-admin-mcp` module. Admin / write surface for AI-assisted wiki operations: structural-verification checks, Page Graph link and backlink analysis, history and diffs, metadata querying, recent changes, an export/import workflow for bulk editing, Knowledge Graph proposals, and page writes. Exposes **16 tools, 6 resources, 8 prompts, 3 completions**. Authoritative tool list: `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java`. Initializer: `com.wikantik.mcp.McpServerInitializer`.
 
-**`/knowledge-mcp`** — `wikantik-knowledge` module. Read-only retrieval surface designed for coding agents consuming the wiki as a knowledge base: hybrid search (BM25 + dense), knowledge-graph schema discovery, node querying, graph traversal, similarity search, and page/metadata lookup. Exposes **10 tools**. Authoritative tool list: `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/`. Initializer: `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
+**`/knowledge-mcp`** — `wikantik-knowledge` module. Read-only retrieval surface designed for coding agents consuming the wiki as a knowledge base: hybrid search (BM25 + dense), Knowledge Graph schema discovery, node querying, Knowledge Graph traversal, similarity search, and page/metadata lookup. Exposes **10 tools**. Authoritative tool list: `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/`. Initializer: `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 
 **`/tools/*`** — `wikantik-tools` module. OpenAPI 3.1 tool server (OpenWebUI-compatible) exposing two tools (`search_wiki`, `get_page`) for LLM clients that cannot speak MCP.
 
 Both MCP endpoints share the same bearer-token / API-key authentication scheme (`McpAccessFilter`, `KnowledgeMcpAccessFilter`). Tool naming is `snake_case` across all three endpoints. See [docs/wikantik-pages/GoodMcpDesign.md](docs/wikantik-pages/GoodMcpDesign.md) for the design principles these servers follow.
 
-**Planned structural-spine additions** (see [docs/wikantik-pages/StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md)): `list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`, and typed cross-reference traversal — all mirrored at `/api/structure/*`.
+**Structural spine** (see [docs/wikantik-pages/StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md)): `list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id` — all mirrored at `/api/structure/*`. Part of the Page Graph subsystem; typed `relations:` frontmatter was removed 2026-05-02.
 
 **Planned agent-grade content layer** (see [docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md)): `type: runbook` pages, verification metadata (`verified_at`, `confidence`), a token-optimised `/api/pages/{id}/for-agent` projection, and a scheduled retrieval-quality CI loop using `RetrievalExperimentHarness`.
 

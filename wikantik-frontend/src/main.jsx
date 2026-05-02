@@ -29,6 +29,7 @@ import BlogEditor from './components/BlogEditor';
 import './styles/globals.css';
 
 const PageGraphView = React.lazy(() => import('./components/pagegraph/PageGraphView.jsx'));
+const KnowledgeGraphView = React.lazy(() => import('./components/kgraph/KnowledgeGraphView.jsx'));
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -46,6 +47,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/page-graph" element={
               <Suspense fallback={<div className="graph-loading"><p>Loading page graph...</p></div>}>
                 <PageGraphView />
+              </Suspense>
+            } />
+            <Route path="/knowledge-graph" element={
+              <Suspense fallback={<div className="graph-loading"><p>Loading knowledge graph...</p></div>}>
+                <KnowledgeGraphView />
               </Suspense>
             } />
             <Route path="/preferences" element={<UserPreferencesPage />} />

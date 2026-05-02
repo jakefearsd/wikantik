@@ -143,6 +143,7 @@
      <url-pattern>/search</url-pattern>
      <url-pattern>/graph</url-pattern>
      <url-pattern>/page-graph</url-pattern>
+     <url-pattern>/knowledge-graph</url-pattern>
      <url-pattern>/preferences</url-pattern>
      <url-pattern>/reset-password</url-pattern>
      <url-pattern>/blog/*</url-pattern>

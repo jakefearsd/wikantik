@@ -87,7 +87,7 @@ public class SpaRoutingFilter implements Filter {
     private static final Logger LOG = LogManager.getLogger( SpaRoutingFilter.class );
 
     private static final String[] SPA_PREFIXES = { "/wiki/", "/edit/", "/diff/", "/admin/", "/blog/" };
-    private static final String[] SPA_EXACT = { "/search", "/page-graph", "/preferences", "/reset-password", "/blog" };
+    private static final String[] SPA_EXACT = { "/search", "/page-graph", "/knowledge-graph", "/preferences", "/reset-password", "/blog" };
 
     private volatile Engine engine;
     private ServletContext servletContext;

@@ -88,7 +88,7 @@ public class GetPageForAgentTool implements McpTool {
         ) ) );
         exampleProjection.put( "tool_hints", List.of(
                 "call get_page for the full body",
-                "call traverse_relations to expand the neighborhood"
+                "call get_outbound_links on /wikantik-admin-mcp to expand neighbors"
         ) );
 
         final Map< String, Object > outputSchema = new LinkedHashMap<>();

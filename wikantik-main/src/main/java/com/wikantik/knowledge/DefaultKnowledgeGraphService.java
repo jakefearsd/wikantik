@@ -407,6 +407,21 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     }
 
     @Override
+    public List< KgProposal > listProposals( final String status, final String tier,
+                                             final String machineStatus,
+                                             final boolean includeMachineRejected,
+                                             final String sourcePage,
+                                             final int limit, final int offset ) {
+        return repo.listProposalsFiltered( status, tier, machineStatus, includeMachineRejected,
+            sourcePage, limit, offset );
+    }
+
+    @Override
+    public List< KgProposalReview > listReviews( final UUID proposalId ) {
+        return repo.listReviews( proposalId );
+    }
+
+    @Override
     public KgProposal approveProposal( final UUID proposalId, final String reviewedBy ) {
         repo.applyHumanVerdict( proposalId, "approved", reviewedBy );
         repo.recordReview( proposalId, KgProposalReview.REVIEWER_HUMAN, reviewedBy,

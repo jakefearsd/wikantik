@@ -90,6 +90,14 @@ public interface KnowledgeGraphService {
 
     List< KgProposal > listProposals( String status, String sourcePage, int limit, int offset );
 
+    /** Extended filter overload — supports tier, machine_status, and include_machine_rejected. */
+    List< KgProposal > listProposals( String status, String tier, String machineStatus,
+                                      boolean includeMachineRejected, String sourcePage,
+                                      int limit, int offset );
+
+    /** Returns the audit history of review actions for a single proposal. */
+    List< KgProposalReview > listReviews( UUID proposalId );
+
     KgProposal approveProposal( UUID proposalId, String reviewedBy );
 
     KgProposal rejectProposal( UUID proposalId, String reviewedBy, String reason );

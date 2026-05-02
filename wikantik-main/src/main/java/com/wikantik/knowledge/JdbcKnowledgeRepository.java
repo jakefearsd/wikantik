@@ -854,6 +854,44 @@ public class JdbcKnowledgeRepository {
     }
 
     /**
+     * Extended proposal listing with tier, machine_status and machine-rejected suppression filters.
+     */
+    public List< KgProposal > listProposalsFiltered( final String status, final String tier,
+                                                      final String machineStatus,
+                                                      final boolean includeMachineRejected,
+                                                      final String sourcePage,
+                                                      final int limit, final int offset ) {
+        final StringBuilder sql = new StringBuilder( "SELECT * FROM kg_proposals WHERE 1=1" );
+        final List< Object > params = new ArrayList<>();
+
+        if ( status != null ) { sql.append( " AND status = ?" ); params.add( status ); }
+        if ( tier != null ) { sql.append( " AND tier = ?" ); params.add( tier ); }
+        if ( machineStatus != null ) {
+            sql.append( " AND machine_status = ?" ); params.add( machineStatus );
+        }
+        if ( !includeMachineRejected ) {
+            sql.append( " AND ( machine_status IS NULL OR machine_status <> 'rejected' )" );
+        }
+        if ( sourcePage != null ) { sql.append( " AND source_page = ?" ); params.add( sourcePage ); }
+        sql.append( " ORDER BY created DESC LIMIT ? OFFSET ?" );
+        params.add( limit );
+        params.add( offset );
+
+        final List< KgProposal > results = new ArrayList<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) results.add( mapProposal( rs ) );
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "listProposalsFiltered failed: {}", e.getMessage(), e );
+            throw new RuntimeException( "listProposalsFiltered failed: " + e.getMessage(), e );
+        }
+        return results;
+    }
+
+    /**
      * Updates the status of a proposal and records the reviewer.
      *
      * @param id         the proposal UUID

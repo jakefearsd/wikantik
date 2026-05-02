@@ -25,6 +25,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
+import com.wikantik.knowledge.judge.JudgeRunner;
 import com.wikantik.knowledge.SummaryExtractor;
 import com.wikantik.knowledge.TagExtractor;
 import com.wikantik.knowledge.TitleDeriver;
@@ -137,7 +138,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                 ( svc, req, resp, seg ) -> handlePostEdge( svc, req, resp ),
                 ( svc, req, resp, seg ) -> handleDeleteEdge( svc, resp, seg[ 1 ] ) ) );
         m.put( "proposals", new Resource(
-                ( svc, req, resp, seg ) -> handleGetProposals( svc, req, resp ),
+                ( svc, req, resp, seg ) -> handleGetProposals( svc, req, resp, seg ),
                 this::handlePostProposal,
                 null ) );
         m.put( "embeddings", new Resource(
@@ -154,6 +155,8 @@ public class AdminKnowledgeResource extends RestServletBase {
                 ( svc, req, resp, seg ) -> handleGetBackfillStatus( resp ),
                 ( svc, req, resp, seg ) -> handlePostBackfillFrontmatter( resp ),
                 null ) );
+        m.put( "judge", Resource.post(
+                ( svc, req, resp, seg ) -> handlePostJudge( req, resp, seg ) ) );
         m.put( "clear-all", Resource.post(
                 ( svc, req, resp, seg ) -> handleClearAll( svc, resp ) ) );
         m.put( "sync-hub-memberships", Resource.post(
@@ -304,12 +307,43 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     private void handleGetProposals( final KnowledgeGraphService service,
                                      final HttpServletRequest request,
-                                     final HttpServletResponse response ) throws IOException {
+                                     final HttpServletResponse response,
+                                     final String[] segments ) throws IOException {
+        // GET /admin/knowledge-graph/proposals/{id}/reviews
+        if ( segments.length >= 3 && "reviews".equals( segments[2] ) ) {
+            final UUID proposalId = parseUuid( segments[1], response );
+            if ( proposalId == null ) return;
+            sendJson( response, Map.of( "reviews", service.listReviews( proposalId ).stream()
+                .map( r -> {
+                    final Map< String, Object > m = new LinkedHashMap<>();
+                    m.put( "id", r.id().toString() );
+                    m.put( "reviewer_kind", r.reviewerKind() );
+                    m.put( "reviewer_id", r.reviewerId() );
+                    m.put( "verdict", r.verdict() );
+                    m.put( "confidence", r.confidence() );
+                    m.put( "rationale", r.rationale() != null ? r.rationale() : "" );
+                    m.put( "created", r.created().toString() );
+                    return m;
+                } ).toList() ) );
+            return;
+        }
+
         final String status = request.getParameter( "status" );
         final String sourcePage = request.getParameter( "source_page" );
+        final String tier = request.getParameter( "tier" );
+        final String machineStatus = request.getParameter( "machine_status" );
+        final boolean includeMachineRejected = Boolean.parseBoolean(
+            request.getParameter( "include_machine_rejected" ) );
         final int limit = parseIntParam( request, "limit", 50 );
         final int offset = parseIntParam( request, "offset", 0 );
-        final List< KgProposal > proposals = service.listProposals( status, sourcePage, limit, offset );
+
+        final List< KgProposal > proposals;
+        if ( tier != null || machineStatus != null || includeMachineRejected ) {
+            proposals = service.listProposals( status, tier, machineStatus,
+                includeMachineRejected, sourcePage, limit, offset );
+        } else {
+            proposals = service.listProposals( status, sourcePage, limit, offset );
+        }
         sendJson( response, Map.of( "proposals", proposals.stream()
                 .map( this::proposalToMap ).toList() ) );
     }
@@ -368,8 +402,24 @@ public class AdminKnowledgeResource extends RestServletBase {
                 }
                 sendJson( response, proposalToMap( rejected ) );
             }
+            case "judge" -> {
+                try {
+                    final JudgeVerdict v = service.judgeNow( proposalId, reviewedBy );
+                    final Map< String, Object > result = new LinkedHashMap<>();
+                    result.put( "verdict", v.verdict() );
+                    result.put( "confidence", v.confidence() );
+                    result.put( "rationale", v.rationale() );
+                    result.put( "model", v.model() );
+                    sendJson( response, result );
+                } catch ( final IllegalStateException e ) {
+                    LOG.warn( "judgeNow refused for proposal {}: {}", proposalId, e.getMessage() );
+                    sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, e.getMessage() );
+                } catch ( final IllegalArgumentException e ) {
+                    sendNotFound( response, e.getMessage() );
+                }
+            }
             default -> sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "Unknown action: " + action + ". Use 'approve' or 'reject'." );
+                    "Unknown action: " + action + ". Use 'approve', 'reject', or 'judge'." );
         }
     }
 
@@ -1008,6 +1058,26 @@ public class AdminKnowledgeResource extends RestServletBase {
         } finally {
             backfillRunning = false;
         }
+    }
+
+    private void handlePostJudge( final HttpServletRequest request,
+                                  final HttpServletResponse response,
+                                  final String[] segments ) throws IOException {
+        if ( segments.length < 2 || !"run".equals( segments[1] ) ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Expected: /judge/run" );
+            return;
+        }
+        final JudgeRunner runner = getEngine().getManager( JudgeRunner.class );
+        if ( runner == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "judge runner not configured" );
+            return;
+        }
+        final Thread t = new Thread( runner::runOnceQuietly, "kg-judge-adhoc" );
+        t.setDaemon( true );
+        t.start();
+        response.setStatus( HttpServletResponse.SC_ACCEPTED );
+        sendJson( response, Map.of( "status", "started" ) );
     }
 
     private void handlePostSyncHubMemberships( final HttpServletResponse response ) throws IOException {

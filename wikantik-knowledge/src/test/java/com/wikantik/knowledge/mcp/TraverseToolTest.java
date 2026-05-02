@@ -65,7 +65,8 @@ class TraverseToolTest {
         final KgEdge edge = new KgEdge( UUID.randomUUID(), aId, bId, "coMention",
             Provenance.AI_REVIEWED, Map.of( "sharedChunks", 4 ),
             Instant.now(), Instant.now(), "human", null );
-        when( svc.traverseByCoMention( "Alpha", 2, 1 ) )
+        when( svc.traverseByCoMention( eq( "Alpha" ), eq( 2 ), eq( 1 ),
+                any( com.wikantik.api.knowledge.Tier.class ) ) )
             .thenReturn( new TraversalResult( List.of( a, b ), List.of( edge ) ) );
 
         final McpSchema.CallToolResult result =
@@ -80,26 +81,28 @@ class TraverseToolTest {
     @Test
     void execute_passesMaxDepthAndMinSharedChunksDefaults() {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
-        when( svc.traverseByCoMention( any(), anyInt(), anyInt() ) )
+        when( svc.traverseByCoMention( any(), anyInt(), anyInt(), any( com.wikantik.api.knowledge.Tier.class ) ) )
             .thenReturn( new TraversalResult( List.of(), List.of() ) );
         new TraverseTool( svc ).execute( Map.of( "start_node", "Alpha" ) );
-        verify( svc ).traverseByCoMention( "Alpha", 2, 1 );
+        verify( svc ).traverseByCoMention( eq( "Alpha" ), eq( 2 ), eq( 1 ),
+            any( com.wikantik.api.knowledge.Tier.class ) );
     }
 
     @Test
     void execute_honorsExplicitMaxDepthAndMinSharedChunks() {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
-        when( svc.traverseByCoMention( any(), anyInt(), anyInt() ) )
+        when( svc.traverseByCoMention( any(), anyInt(), anyInt(), any( com.wikantik.api.knowledge.Tier.class ) ) )
             .thenReturn( new TraversalResult( List.of(), List.of() ) );
         new TraverseTool( svc ).execute( Map.of(
             "start_node", "Alpha", "max_depth", 4, "min_shared_chunks", 3 ) );
-        verify( svc ).traverseByCoMention( "Alpha", 4, 3 );
+        verify( svc ).traverseByCoMention( eq( "Alpha" ), eq( 4 ), eq( 3 ),
+            any( com.wikantik.api.knowledge.Tier.class ) );
     }
 
     @Test
     void execute_returnsErrorOnServiceFailure() {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
-        when( svc.traverseByCoMention( any(), anyInt(), anyInt() ) )
+        when( svc.traverseByCoMention( any(), anyInt(), anyInt(), any( com.wikantik.api.knowledge.Tier.class ) ) )
             .thenThrow( new RuntimeException( "DB offline" ) );
         final McpSchema.CallToolResult result =
             new TraverseTool( svc ).execute( Map.of( "start_node", "Alpha" ) );

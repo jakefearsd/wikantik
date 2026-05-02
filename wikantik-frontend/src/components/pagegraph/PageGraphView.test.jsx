@@ -30,35 +30,35 @@ vi.mock('./GraphCanvas.jsx', () => ({
 }));
 
 import { api } from '../../api/client';
-import GraphView from './GraphView.jsx';
+import PageGraphView from './PageGraphView.jsx';
 
-describe('GraphView', () => {
+describe('PageGraphView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('shows loading then canvas on success', async () => {
     api.knowledge.getGraphSnapshot.mockResolvedValue(MOCK_SNAPSHOT);
-    render(<MemoryRouter initialEntries={['/graph']}><GraphView /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/graph']}><PageGraphView /></MemoryRouter>);
     expect(screen.getByText(/loading/i)).toBeTruthy();
     await waitFor(() => expect(screen.getByTestId('graph-canvas')).toBeTruthy());
   });
 
   it('shows 401 error for unauthorized', async () => {
     api.knowledge.getGraphSnapshot.mockRejectedValue(Object.assign(new Error('Unauthorized'), { status: 401 }));
-    render(<MemoryRouter initialEntries={['/graph']}><GraphView /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/graph']}><PageGraphView /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText('Sign in to view the knowledge graph.')).toBeTruthy());
   });
 
   it('shows server error for 5xx', async () => {
     api.knowledge.getGraphSnapshot.mockRejectedValue(Object.assign(new Error('Server error'), { status: 500 }));
-    render(<MemoryRouter initialEntries={['/graph']}><GraphView /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/graph']}><PageGraphView /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText(/unavailable/i)).toBeTruthy());
   });
 
   it('shows empty state for zero nodes', async () => {
     api.knowledge.getGraphSnapshot.mockResolvedValue({ ...MOCK_SNAPSHOT, nodeCount: 0, nodes: [], edges: [] });
-    render(<MemoryRouter initialEntries={['/graph']}><GraphView /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/graph']}><PageGraphView /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText(/empty/i)).toBeTruthy());
   });
 
@@ -67,12 +67,12 @@ describe('GraphView', () => {
       ...MOCK_SNAPSHOT,
       nodes: [{ id: 'x', name: null, role: 'restricted', restricted: true, degreeIn: 0, degreeOut: 0 }],
     });
-    render(<MemoryRouter initialEntries={['/graph']}><GraphView /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/graph']}><PageGraphView /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText(/don't have permission/i)).toBeTruthy());
   });
 });
 
-d2('GraphView with FilterPanel', () => {
+d2('PageGraphView with FilterPanel', () => {
   const snap = {
     generatedAt: new Date().toISOString(), nodeCount: 2, edgeCount: 1,
     hubDegreeThreshold: 10,
@@ -88,7 +88,7 @@ d2('GraphView with FilterPanel', () => {
   i2('renders FilterPanel and writes preset param to URL on preset click', async () => {
     api.knowledge.getGraphSnapshot.mockResolvedValue(snap);
     const replace = v2.spyOn(window.history, 'replaceState');
-    render(<MemoryRouter initialEntries={['/graph']}><GraphView /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/graph']}><PageGraphView /></MemoryRouter>);
     await waitFor(() => expect(screen.getByRole('button', { name: /backbone/i })).toBeInTheDocument());
     f2.click(screen.getByRole('button', { name: /backbone/i }));
     await waitFor(() => {

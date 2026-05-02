@@ -16,7 +16,7 @@ import GraphLoadingFallback from './GraphLoadingFallback.jsx';
 import { setEdgeTypeHidden, setShowOrphansStubs } from './filter-state.js';
 import './graph.css';
 
-export default function GraphView() {
+export default function PageGraphView() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const focusParam = useRef(searchParams.get('focus'));

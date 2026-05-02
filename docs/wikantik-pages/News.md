@@ -4,6 +4,45 @@ A log of recent development activity on the JSPWiki project.
 
 ---
 
+## May 2026
+
+**2026-05-01** — docs(news): backfill 2026-04-30 entries for spine + MCP repair work
+
+**2026-05-01** — docs(wiki): normalize ReformationEraInBerlin frontmatter
+
+**2026-05-01** — content: warn on classpath system pages unreachable via PageManager
+
+**2026-05-01** — extraction: add ProposalUpserter with JSONB support-merge upsert
+
+**2026-05-01** — extraction: add ProposalConsolidator with display-name vote + signature dedup
+
+**2026-05-01** — extraction: add PageExtractionResponseParser with banned-name + cap + grounding
+
+**2026-05-01** — extraction: add PageExtractionPromptBuilder with frozen system prompt
+
+**2026-05-01** — extraction: add EvidenceGroundingVerifier (substring + len + NFC check)
+
+**2026-05-01** — api: add PageExtractor + ProposalJudge interfaces with JudgeContext
+
+**2026-05-01** — api: add Page + ExtractedEntity/Relation + PageExtractionResult
+
+**2026-05-01** — api(NodeSignature): preserve identifier punctuation; trim after collapse
+
+**2026-05-01** — api: add ConsolidatedProposal + SupportEvidence + sealed Verdict
+
+**2026-05-01** — api: add NodeSignature + EdgeSignature with NFC + predicate-synonym normalization
+
+**2026-05-01** — db(V021): add kg_node_embeddings cache table
+
+**2026-05-01** — db(V020): add kg_proposals signature column + partial unique index
+
+**2026-05-01** — docs(plans): add KG extraction redesign implementation plan
+
+**2026-05-01** — docs(specs): add KG extraction redesign spec
+
+
+---
+
 ## April 2026
 
 **2026-04-30** — content: backfill canonical_id on 57 articles missing it
@@ -2397,6 +2436,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-11-07** — JSPWIKI-1183 potential fix for the rss generator test failure when running in parallel
 
 **2025-11-07** — JSPWIKI-1217 should resolve the maven parallel build failure on the ci server.
-
-**2025-11-01** — JSPWIKI-1216 removes references to the WikiWizard template/editor types. adds a test to ensure that there are no missing I18N strings among all the i18n properties files, none were found
 

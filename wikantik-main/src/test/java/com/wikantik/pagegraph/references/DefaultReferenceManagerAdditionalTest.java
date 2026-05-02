@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.references;
+package com.wikantik.pagegraph.references;
 
 import com.wikantik.MockEngineBuilder;
 import com.wikantik.api.core.Engine;

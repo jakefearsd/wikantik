@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
  * Lightweight utility for extracting Markdown-style links from raw wiki page text
  * without invoking the full rendering pipeline.
  *
- * <p>Used by the {@link com.wikantik.references.DefaultReferenceManager} for fast
+ * <p>Used by the {@link com.wikantik.pagegraph.references.DefaultReferenceManager} for fast
  * link extraction during reference graph updates, and by MCP audit/verification
  * tools for structural analysis.
  *

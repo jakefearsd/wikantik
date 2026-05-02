@@ -1,15 +1,19 @@
 ---
-cluster: immigration
-canonical_id: 01KQ0P44ZAMENTDJX5RS4PYHZF
-title: Work Authorization And Ead
 type: article
 tags:
 - ead
 - statu
 - author
+title: Work Authorization And Ead
+canonical_id: 01KQ0P44ZAMENTDJX5RS4PYHZF
 summary: For experts researching novel techniques or systemic vulnerabilities, the
   EAD represents a critical node in the U.S.
 auto-generated: true
+is_associated_with:
+- Form I-766
+cluster: immigration
+is_obtained/renewed_via:
+- Form I-765
 ---
 # The Employment Authorization Document (EAD)
 

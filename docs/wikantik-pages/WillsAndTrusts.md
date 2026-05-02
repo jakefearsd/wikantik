@@ -1,10 +1,13 @@
 ---
-canonical_id: 01KQ0P44Z6M6T85S1EQZA3JE3E
-title: Wills And Trusts
-type: article
-cluster: personal-finance
 status: active
-date: '2026-04-26'
+type: article
+canonical_id: 01KQ0P44Z6M6T85S1EQZA3JE3E
+related:
+- PersonalFinanceGuide
+- LifeInsuranceTypes
+- EstatePlanningForRetirees
+- CharitableGivingInRetirement
+- FinancialResilience
 summary: The four documents every adult needs, the cases where a trust adds value
   vs. the cases where it is just an upsell, and the practical workflow for keeping
   estate plans current as life changes.
@@ -14,14 +17,13 @@ tags:
 - trusts
 - personal-finance
 - beneficiaries
-related:
-- PersonalFinanceGuide
-- LifeInsuranceTypes
-- EstatePlanningForRetirees
-- CharitableGivingInRetirement
-- FinancialResilience
 hubs:
 - PersonalFinanceHub
+title: Wills And Trusts
+date: '2026-04-26'
+cluster: personal-finance
+operates_differently_than:
+- Will
 ---
 # Wills and Trusts
 

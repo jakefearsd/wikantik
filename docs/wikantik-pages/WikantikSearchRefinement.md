@@ -1,8 +1,10 @@
 ---
-canonical_id: 01KQ0P44YYYXZBBJ5Q22N8Q0VD
+related:
+- WikantikDevelopment
+- LocalRAG
+- RagImplementationPatterns
+- LlmEvaluationMetrics
 title: Wikantik Search Refinement
-cluster: wikantik-development
-type: article
 tags:
 - search
 - retrieval
@@ -10,12 +12,13 @@ tags:
 - testing
 - development
 - tooling
-summary: How to iterate on the retrieval evaluation query set, run the standalone search-eval tool against a running wiki, and interpret the report.
-related:
-- WikantikDevelopment
-- LocalRAG
-- RagImplementationPatterns
-- LlmEvaluationMetrics
+summary: How to iterate on the retrieval evaluation query set, run the standalone
+  search-eval tool against a running wiki, and interpret the report.
+canonical_id: 01KQ0P44YYYXZBBJ5Q22N8Q0VD
+type: article
+cluster: wikantik-development
+uses_query_set:
+- eval/retrieval-queries.csv
 ---
 
 # Wikantik Search Refinement

@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.references;
+package com.wikantik.pagegraph.references;
 
 import org.apache.commons.lang3.time.StopWatch;
 import org.apache.logging.log4j.LogManager;
@@ -102,7 +102,7 @@ import java.util.stream.Collectors;
  *  The owning class must take responsibility of filling in any pre-existing information, probably by loading each and every WikiPage
  *  and calling this class to update the references when created.
  *
- *  @since 1.6.1 (as of 2.11.0, moved to com.wikantik.references)
+ *  @since 1.6.1 (as of 2.11.0, moved to com.wikantik.pagegraph.references)
  */
 
 // FIXME: The way that we save attributes is now a major booboo, and must be

@@ -1316,6 +1316,17 @@ public class JdbcKnowledgeRepository {
         return queryCount( "SELECT COUNT(*) FROM kg_proposals WHERE status = 'pending'" );
     }
 
+    /**
+     * Returns the count of pending proposals that have not yet been evaluated by the machine judge
+     * (i.e. {@code machine_status IS NULL}).
+     *
+     * @return pending-unjudged proposal count
+     */
+    public long countPendingUnjudgedProposals() {
+        return queryCount( "SELECT COUNT(*) FROM kg_proposals "
+            + "WHERE status = 'pending' AND machine_status IS NULL" );
+    }
+
     // ---- Private helpers ----
 
     private KgNode mapNode( final ResultSet rs ) throws SQLException {

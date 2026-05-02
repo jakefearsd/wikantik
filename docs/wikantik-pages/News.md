@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-02** — chore(docs): backfill News.md + ignore reports/ + RESUME.md
+
 **2026-05-02** — fix(kg-it): correct snapshot URL to /api/knowledge/graph
 
 **2026-05-02** — chore(kg-mcp): update SearchKnowledgeToolTest stubs for 4-arg searchKnowledge

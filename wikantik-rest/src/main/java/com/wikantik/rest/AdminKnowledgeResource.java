@@ -155,8 +155,10 @@ public class AdminKnowledgeResource extends RestServletBase {
                 ( svc, req, resp, seg ) -> handleGetBackfillStatus( resp ),
                 ( svc, req, resp, seg ) -> handlePostBackfillFrontmatter( resp ),
                 null ) );
-        m.put( "judge", Resource.post(
-                ( svc, req, resp, seg ) -> handlePostJudge( req, resp, seg ) ) );
+        m.put( "judge", new Resource(
+                ( svc, req, resp, seg ) -> handleGetJudge( req, resp, seg ),
+                ( svc, req, resp, seg ) -> handlePostJudge( req, resp, seg ),
+                null ) );
         m.put( "clear-all", Resource.post(
                 ( svc, req, resp, seg ) -> handleClearAll( svc, resp ) ) );
         m.put( "sync-hub-memberships", Resource.post(
@@ -1058,6 +1060,39 @@ public class AdminKnowledgeResource extends RestServletBase {
         } finally {
             backfillRunning = false;
         }
+    }
+
+    private void handleGetJudge( final HttpServletRequest request,
+                                 final HttpServletResponse response,
+                                 final String[] segments ) throws IOException {
+        if ( segments.length < 2 || !"status".equals( segments[1] ) ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Expected: /judge/status" );
+            return;
+        }
+        final com.wikantik.knowledge.judge.JudgeRunner runner =
+            getEngine().getManager( com.wikantik.knowledge.judge.JudgeRunner.class );
+        final KnowledgeGraphService svc = getEngine().getManager( KnowledgeGraphService.class );
+        final long depth = svc == null ? 0L : svc.countPendingUnjudgedProposals();
+        if ( runner == null ) {
+            sendJson( response, Map.of( "configured", false, "in_flight", false, "queue_depth", depth ) );
+            return;
+        }
+        final com.wikantik.knowledge.judge.JudgeRunner.Status s = runner.status( depth );
+        final Map< String, Object > body = new LinkedHashMap<>();
+        body.put( "configured", true );
+        body.put( "in_flight", s.inFlight() );
+        body.put( "last_run_submitted", s.lastRunSubmitted() );
+        body.put( "last_run_completed", s.lastRunCompleted() );
+        // Use empty strings (not null) for "not applicable" timestamp / error fields.
+        // Default Gson omits null map values, which makes the keys disappear from
+        // the response body and breaks clients that probe for their presence.
+        body.put( "last_run_started_at",
+            s.lastRunStartedAt() != null ? s.lastRunStartedAt().toString() : "" );
+        body.put( "last_run_finished_at",
+            s.lastRunFinishedAt() != null ? s.lastRunFinishedAt().toString() : "" );
+        body.put( "last_run_error", s.lastRunError() != null ? s.lastRunError() : "" );
+        body.put( "queue_depth", s.queueDepth() );
+        sendJson( response, body );
     }
 
     private void handlePostJudge( final HttpServletRequest request,

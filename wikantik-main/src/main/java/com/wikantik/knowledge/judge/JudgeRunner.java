@@ -26,12 +26,15 @@ import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Periodically picks up pending proposals whose machine_status is null and
@@ -54,6 +57,45 @@ public class JudgeRunner implements AutoCloseable {
 
     private ScheduledExecutorService scheduler;
     private boolean started;
+
+    // --- Runtime progress state ---
+    private final AtomicBoolean inFlight           = new AtomicBoolean();
+    private final AtomicInteger lastRunSubmitted   = new AtomicInteger();
+    private final AtomicInteger lastRunCompleted   = new AtomicInteger();
+    private volatile Instant    lastRunStartedAt;
+    private volatile Instant    lastRunFinishedAt;
+    private volatile String     lastRunError;   // null on success
+
+    /**
+     * Immutable snapshot of the runner's current status. {@code queueDepth} is
+     * supplied by the caller so the runner does not need a second repo handle.
+     */
+    public record Status(
+        boolean inFlight,
+        int lastRunSubmitted,
+        int lastRunCompleted,
+        Instant lastRunStartedAt,
+        Instant lastRunFinishedAt,
+        String lastRunError,
+        int queueDepth
+    ) {}
+
+    /**
+     * Returns a consistent snapshot of the runner's current runtime status.
+     *
+     * @param queueDepth the caller-supplied count of pending-unjudged proposals
+     */
+    public Status status( final long queueDepth ) {
+        return new Status(
+            inFlight.get(),
+            lastRunSubmitted.get(),
+            lastRunCompleted.get(),
+            lastRunStartedAt,
+            lastRunFinishedAt,
+            lastRunError,
+            Math.toIntExact( Math.min( Integer.MAX_VALUE, queueDepth ) )
+        );
+    }
 
     public JudgeRunner( final JdbcKnowledgeRepository repo,
                          final KgProposalJudgeService judge,
@@ -94,6 +136,23 @@ public class JudgeRunner implements AutoCloseable {
 
     /** Synchronous one-pass; returns the count of proposals submitted for judging. */
     public int runOnce() {
+        inFlight.set( true );
+        lastRunStartedAt = Instant.now();
+        lastRunSubmitted.set( 0 );
+        lastRunCompleted.set( 0 );
+        lastRunError = null;
+        try {
+            return runOnceInternal();
+        } catch ( final RuntimeException e ) {
+            lastRunError = e.getClass().getSimpleName() + ": " + e.getMessage();
+            throw e;
+        } finally {
+            inFlight.set( false );
+            lastRunFinishedAt = Instant.now();
+        }
+    }
+
+    private int runOnceInternal() {
         final List< KgProposal > batch = repo.getProposalsForJudging( config.batchSize() );
         if ( batch.isEmpty() ) return 0;
 
@@ -109,6 +168,7 @@ public class JudgeRunner implements AutoCloseable {
                 pool.submit( () -> processOne( proposal ) );
                 submitted++;
             }
+            lastRunSubmitted.set( submitted );
             pool.shutdown();
             // Allow each worker up to 2 * timeoutSeconds to finish; total bound = batchSize * (2*timeout).
             final long awaitSec = Math.max( 30L, (long) batch.size() * config.timeoutSeconds() * 2L );
@@ -150,6 +210,7 @@ public class JudgeRunner implements AutoCloseable {
                     repo.insertRejection( src, tgt, rel, v.model(), v.rationale() );
                 }
             }
+            lastRunCompleted.incrementAndGet();
         } catch ( final RuntimeException e ) {
             LOG.warn( "judge processing failed for proposal {}: {}", proposal.id(), e.getMessage(), e );
         }

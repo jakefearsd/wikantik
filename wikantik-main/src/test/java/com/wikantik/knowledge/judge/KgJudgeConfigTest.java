@@ -27,6 +27,8 @@ class KgJudgeConfigTest {
     @Test
     void fromProperties_falls_back_to_extractor_settings_when_unset() {
         final Properties p = new Properties();
+        // Legacy ".endpoint" key — honored for any deployment that adopted it from
+        // an early draft of the docs.
         p.setProperty( "wikantik.knowledge.extractor.ollama.endpoint", "http://extractor:11434" );
         p.setProperty( "wikantik.knowledge.extractor.ollama.model", "gemma4-assist:latest" );
 
@@ -34,6 +36,34 @@ class KgJudgeConfigTest {
 
         assertEquals( "http://extractor:11434", cfg.endpoint() );
         assertEquals( "gemma4-assist:latest", cfg.model() );
+    }
+
+    @Test
+    void fromProperties_falls_back_to_canonical_extractor_base_url_key() {
+        // The real extractor reads "wikantik.knowledge.extractor.ollama.base_url"
+        // (see EntityExtractorConfig). Judge fallback must accept that key too.
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.knowledge.extractor.ollama.base_url",
+            "http://inference.example.com:11434" );
+        p.setProperty( "wikantik.knowledge.extractor.ollama.model", "gemma4-assist:latest" );
+
+        final KgJudgeConfig cfg = KgJudgeConfig.fromProperties( p );
+
+        assertEquals( "http://inference.example.com:11434", cfg.endpoint() );
+        assertEquals( "gemma4-assist:latest", cfg.model() );
+    }
+
+    @Test
+    void fromProperties_canonical_base_url_wins_when_both_legacy_and_canonical_set() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.knowledge.extractor.ollama.base_url", "http://canonical:11434" );
+        p.setProperty( "wikantik.knowledge.extractor.ollama.endpoint", "http://legacy:11434" );
+        p.setProperty( "wikantik.knowledge.extractor.ollama.model", "gemma4-assist:latest" );
+
+        final KgJudgeConfig cfg = KgJudgeConfig.fromProperties( p );
+
+        assertEquals( "http://canonical:11434", cfg.endpoint(),
+            "canonical base_url should take precedence over legacy endpoint" );
     }
 
     @Test

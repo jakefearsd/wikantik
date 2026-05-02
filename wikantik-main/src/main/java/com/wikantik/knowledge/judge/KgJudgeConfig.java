@@ -33,7 +33,13 @@ public record KgJudgeConfig(
     int maxAttempts
 ) {
     public static KgJudgeConfig fromProperties( final Properties p ) {
-        final String extractorEndpoint = p.getProperty( "wikantik.knowledge.extractor.ollama.endpoint" );
+        // Fall back to the extractor's canonical property names (matches what
+        // EntityExtractorConfig reads via "ollama.base_url" / "ollama.model").
+        // The legacy ".endpoint" key is honoured too in case any deployment
+        // adopted that name from an early draft of the docs.
+        final String extractorEndpoint = firstNonBlank(
+            p.getProperty( "wikantik.knowledge.extractor.ollama.base_url" ),
+            p.getProperty( "wikantik.knowledge.extractor.ollama.endpoint" ) );
         final String extractorModel    = p.getProperty( "wikantik.knowledge.extractor.ollama.model" );
 
         return new KgJudgeConfig(
@@ -47,6 +53,13 @@ public record KgJudgeConfig(
             getInt( p,    "wikantik.kg.judge.timeout_seconds",   30 ),
             getInt( p,    "wikantik.kg.judge.max_attempts",      3 )
         );
+    }
+
+    private static String firstNonBlank( final String... values ) {
+        for ( final String v : values ) {
+            if ( v != null && !v.isBlank() ) return v.trim();
+        }
+        return null;
     }
 
     private static String getString( final Properties p, final String k, final String def ) {

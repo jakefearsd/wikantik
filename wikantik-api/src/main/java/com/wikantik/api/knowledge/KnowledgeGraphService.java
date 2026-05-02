@@ -140,4 +140,12 @@ public interface KnowledgeGraphService {
     // --- Synchronous judge trigger (impl in T15) ---
 
     JudgeVerdict judgeNow( java.util.UUID proposalId, String triggeredBy );
+
+    // --- Judge runner status ---
+
+    /**
+     * Returns the number of pending proposals that have not yet been evaluated
+     * by the machine judge (machine_status IS NULL).
+     */
+    long countPendingUnjudgedProposals();
 }

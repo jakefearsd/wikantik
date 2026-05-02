@@ -647,4 +647,11 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         LOG.info( "judgeNow proposal={} verdict={} triggeredBy={}", proposalId, v.verdict(), triggeredBy );
         return v;
     }
+
+    // --- Judge runner status ---
+
+    @Override
+    public long countPendingUnjudgedProposals() {
+        return repo.countPendingUnjudgedProposals();
+    }
 }

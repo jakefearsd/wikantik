@@ -36,6 +36,8 @@ export default function ProposalReviewQueue() {
   const [filter, setFilter] = useState('all');
   const [reviewsCache, setReviewsCache] = useState({});
   const [judgeRunning, setJudgeRunning] = useState(false);
+  const [judgeStatus, setJudgeStatus] = useState(null);
+  const [polling, setPolling] = useState(false);
 
   const loadProposals = useCallback(async () => {
     setLoading(true);
@@ -52,7 +54,27 @@ export default function ProposalReviewQueue() {
     }
   }, []);
 
-  useEffect(() => { loadProposals(); }, [loadProposals]);
+  const fetchJudgeStatus = useCallback(async () => {
+    try {
+      const s = await api.knowledge.judgeStatus();
+      setJudgeStatus(s);
+      return s;
+    } catch (_) { return null; }
+  }, []);
+
+  useEffect(() => { loadProposals(); fetchJudgeStatus(); }, [loadProposals, fetchJudgeStatus]);
+
+  useEffect(() => {
+    if (!polling) return;
+    const id = setInterval(async () => {
+      const s = await fetchJudgeStatus();
+      if (s && !s.in_flight && (s.last_run_completed > 0 || s.last_run_error)) {
+        setPolling(false);
+        await loadProposals();
+      }
+    }, 2000);
+    return () => clearInterval(id);
+  }, [polling, fetchJudgeStatus, loadProposals]);
 
   const handleApprove = async (id) => {
     await api.knowledge.approveProposal(id);
@@ -72,8 +94,12 @@ export default function ProposalReviewQueue() {
 
   const handleRunRunner = async () => {
     setJudgeRunning(true);
-    try { await api.knowledge.runJudge(); }
-    finally { setTimeout(() => { setJudgeRunning(false); loadProposals(); }, 1500); }
+    try {
+      await api.knowledge.runJudge();
+      setPolling(true);
+    } finally {
+      setJudgeRunning(false);
+    }
   };
 
   const fetchReviews = async (id) => {
@@ -99,6 +125,20 @@ export default function ProposalReviewQueue() {
 
   return (
     <div className="admin-proposals">
+      {judgeStatus && (
+        <div style={{ marginBottom: '8px', fontSize: '0.9em', color: '#444' }}>
+          Queue: <strong>{judgeStatus.queue_depth}</strong> pending unjudged
+          {judgeStatus.in_flight && (
+            <> · Running ({judgeStatus.last_run_completed}/{judgeStatus.last_run_submitted})</>
+          )}
+          {!judgeStatus.in_flight && judgeStatus.last_run_finished_at && (
+            <> · Last run: {judgeStatus.last_run_completed}/{judgeStatus.last_run_submitted} at {new Date(judgeStatus.last_run_finished_at).toLocaleTimeString()}</>
+          )}
+          {judgeStatus.last_run_error && (
+            <> · <span style={{ color: '#b13a3a' }}>Error: {judgeStatus.last_run_error}</span></>
+          )}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
         <h3 style={{ margin: 0 }}>Pending Proposals ({visible.length}/{proposals.length})</h3>
         <label>

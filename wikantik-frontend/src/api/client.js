@@ -549,6 +549,9 @@ export const api = {
     runJudge: () =>
       request('/admin/knowledge-graph/judge/run', { method: 'POST' }),
 
+    judgeStatus: () =>
+      request('/admin/knowledge-graph/judge/status'),
+
     listProposalReviews: (id) =>
       request(`/admin/knowledge-graph/proposals/${id}/reviews`),
 

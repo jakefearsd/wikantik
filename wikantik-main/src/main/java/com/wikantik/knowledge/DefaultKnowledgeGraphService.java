@@ -527,7 +527,8 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                     node.provenance(), node.sourcePage(), deg[0], deg[1], false,
                     propString( node, "cluster" ),
                     propStringList( node, "tags" ),
-                    propString( node, "status" ) ) );
+                    propString( node, "status" ),
+                    node.tier() ) );
         }
 
         final List< SnapshotEdge > edges = allEdges.stream()
@@ -567,7 +568,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                 redacted.add( new SnapshotNode(
                         node.id(), null, null, "restricted", null, null,
                         node.degreeIn(), node.degreeOut(), true,
-                        null, List.of(), null ) );
+                        null, List.of(), null, null ) );
             } else {
                 redacted.add( node );
             }

@@ -15,7 +15,8 @@ public record SnapshotNode(
     boolean restricted,
     String cluster,
     List< String > tags,
-    String status
+    String status,
+    String tier
 ) {
     public SnapshotNode {
         tags = tags == null ? List.of() : List.copyOf( tags );

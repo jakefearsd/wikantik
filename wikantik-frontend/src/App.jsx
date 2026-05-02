@@ -10,7 +10,7 @@ export default function App() {
   const { user } = useAuth();
   const location = useLocation();
   const isEditorRoute = location.pathname.startsWith('/edit/');
-  const isGraphRoute = location.pathname === '/graph';
+  const isGraphRoute = location.pathname === '/page-graph';
 
   // Close mobile sidebar when user successfully authenticates
   useEffect(() => {

@@ -494,6 +494,13 @@ export const api = {
     },
   },
 
+  // Page Graph (wikilinks between pages — distinct from the Knowledge Graph
+  // entity-and-relation projection below). Powers the /page-graph viewer.
+  pageGraph: {
+    getSnapshot: ({ signal } = {}) =>
+      request('/api/page-graph/snapshot', { signal }),
+  },
+
   // Knowledge Graph Administration
   knowledge: {
     getGraphSnapshot: ({ signal } = {}) =>

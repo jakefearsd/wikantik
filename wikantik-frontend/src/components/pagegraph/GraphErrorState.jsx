@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 
 const VARIANTS = {
-  empty:          { message: 'The knowledge graph is empty.', action: 'refresh' },
-  'empty-for-you': { message: "You don't have permission to view any pages in the knowledge graph.", action: null },
-  unauthorized:   { message: 'Sign in to view the knowledge graph.', action: 'login' },
-  forbidden:      { message: "You don't have permission to view the knowledge graph.", action: null },
-  server:         { message: 'The graph service is unavailable right now.', action: 'retry' },
-  malformed:      { message: 'Graph snapshot was invalid. Check server logs.', action: 'retry' },
+  empty:          { message: 'The page graph is empty.', action: 'refresh' },
+  'empty-for-you': { message: "You don't have permission to view any pages in the page graph.", action: null },
+  unauthorized:   { message: 'Sign in to view the page graph.', action: 'login' },
+  forbidden:      { message: "You don't have permission to view the page graph.", action: null },
+  server:         { message: 'The page graph service is unavailable right now.', action: 'retry' },
+  malformed:      { message: 'Page graph snapshot was invalid. Check server logs.', action: 'retry' },
 };
 
 export default function GraphErrorState({ variant, onRetry }) {
@@ -22,7 +22,7 @@ export default function GraphErrorState({ variant, onRetry }) {
         <button className="error-action" onClick={onRetry}>Try again</button>
       )}
       {config.action === 'login' && (
-        <Link to="/login?return=/graph" className="error-action" style={{ textDecoration: 'none' }}>
+        <Link to="/login?return=/page-graph" className="error-action" style={{ textDecoration: 'none' }}>
           Sign in
         </Link>
       )}

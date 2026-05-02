@@ -10,7 +10,7 @@ export default function GraphLoadingFallback() {
 
   return (
     <div className="graph-loading">
-      <p>Loading knowledge graph...</p>
+      <p>Loading page graph...</p>
       {slow && <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary, #64748b)' }}>
         Still working — large graphs can take a few seconds.
       </p>}

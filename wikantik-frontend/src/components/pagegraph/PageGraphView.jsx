@@ -39,7 +39,7 @@ export default function PageGraphView() {
     setFetchState('loading');
     setErrorVariant(null);
     try {
-      const data = await api.knowledge.getGraphSnapshot();
+      const data = await api.pageGraph.getSnapshot();
       setSnapshot(data);
       if (data.nodeCount === 0) {
         setFetchState('error'); setErrorVariant('empty');
@@ -128,7 +128,7 @@ export default function PageGraphView() {
     const prevSelectedName = selectedNode?.name;
     setFetchState('loading'); setErrorVariant(null);
     try {
-      const data = await api.knowledge.getGraphSnapshot();
+      const data = await api.pageGraph.getSnapshot();
       setSnapshot(data);
       if (data.nodeCount === 0) { setFetchState('error'); setErrorVariant('empty'); return; }
       if (data.nodes.every(n => n.restricted)) { setFetchState('error'); setErrorVariant('empty-for-you'); return; }

@@ -28,7 +28,6 @@ import com.wikantik.api.structure.ClusterSummary;
 import com.wikantik.api.structure.IndexHealth;
 import com.wikantik.api.structure.PageDescriptor;
 import com.wikantik.api.structure.PageType;
-import com.wikantik.api.structure.Relation;
 import com.wikantik.api.structure.Sitemap;
 import com.wikantik.api.structure.StructuralConflict;
 import com.wikantik.api.structure.StructuralFilter;
@@ -41,11 +40,9 @@ import org.apache.logging.log4j.Logger;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -64,7 +61,6 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
 
     private final PageManager pageManager;
     private final PageCanonicalIdsDao dao;
-    private final PageRelationsDao relationsDao;
     private final PageVerificationDao verificationDao;
     private final ConfidenceComputer confidenceComputer;
     private final StructuralIndexMetrics metrics;
@@ -79,40 +75,29 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
     /** Full-fidelity ctor — used by the production WikiEngine bootstrap. */
     public DefaultStructuralIndexService( final PageManager pageManager,
                                           final PageCanonicalIdsDao dao,
-                                          final PageRelationsDao relationsDao,
                                           final PageVerificationDao verificationDao,
                                           final ConfidenceComputer confidenceComputer,
                                           final StructuralIndexMetrics metrics ) {
         this.pageManager        = pageManager;
         this.dao                = dao;
-        this.relationsDao       = relationsDao;
         this.verificationDao    = verificationDao;
         this.confidenceComputer = confidenceComputer == null
                 ? new ConfidenceComputer( name -> false ) : confidenceComputer;
         this.metrics            = metrics == null ? new StructuralIndexMetrics() : metrics;
     }
 
-    /** Pre-A1 production ctor — kept for rollout safety; verification stays absent. */
-    public DefaultStructuralIndexService( final PageManager pageManager,
-                                          final PageCanonicalIdsDao dao,
-                                          final PageRelationsDao relationsDao,
-                                          final StructuralIndexMetrics metrics ) {
-        this( pageManager, dao, relationsDao, null, null, metrics );
-    }
-
-    /** Three-arg ctor without explicit metrics — used by Phase-1 production path until WikiEngine wires Phase 2 in. */
+    /** Three-arg ctor without explicit metrics. */
     public DefaultStructuralIndexService( final PageManager pageManager,
                                           final PageCanonicalIdsDao dao,
                                           final StructuralIndexMetrics metrics ) {
-        this( pageManager, dao, /* relationsDao */ null, /* verificationDao */ null,
-                /* confidenceComputer */ null, metrics );
+        this( pageManager, dao, /* verificationDao */ null, /* confidenceComputer */ null, metrics );
     }
 
-    /** Convenience constructor for tests — no relations DAO, no verification, no-op metrics. */
+    /** Convenience constructor for tests — no verification, no-op metrics. */
     public DefaultStructuralIndexService( final PageManager pageManager,
                                           final PageCanonicalIdsDao dao ) {
-        this( pageManager, dao, /* relationsDao */ null, /* verificationDao */ null,
-                /* confidenceComputer */ null, new StructuralIndexMetrics() );
+        this( pageManager, dao, /* verificationDao */ null, /* confidenceComputer */ null,
+                new StructuralIndexMetrics() );
     }
 
     @Override
@@ -131,10 +116,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             return;
         }
 
-        // Pass 1: parse pages, record canonical_ids, defer relations until we know which targets resolve.
-        record PendingRelations( String sourceId, Object rawField, boolean authored, String slug ) {}
-        final List< PendingRelations > pendingRelations = new ArrayList<>();
-        final Set< String > knownAuthoredIds = new HashSet<>();
+        // Parse pages, record canonical_ids.
         final List< StructuralConflict > foundConflicts = new ArrayList<>();
         int missing = 0;
         int indexed = 0;
@@ -154,8 +136,6 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                             p.getName(), null, StructuralConflict.Kind.MISSING_CANONICAL_ID,
                             "page indexed under synthesised id " + canonicalId
                               + " — add canonical_id to frontmatter to make this stable" ) );
-                } else {
-                    knownAuthoredIds.add( canonicalId );
                 }
 
                 final PageType type = PageType.fromFrontmatter( fm.get( "type" ) );
@@ -182,46 +162,9 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                     persistVerification( canonicalId, fm );
                 }
 
-                final Object relationsField = fm.get( "relations" );
-                if ( relationsField != null ) {
-                    pendingRelations.add( new PendingRelations( canonicalId, relationsField, authored, p.getName() ) );
-                }
-
                 indexed++;
             } catch ( final Exception e ) {
                 LOG.warn( "rebuild(): failed to index page {}: {}", p.getName(), e.getMessage() );
-            }
-        }
-
-        // Pass 2: validate + persist relations now that we know every authored canonical_id.
-        int relationsIndexed = 0;
-        int relationIssues = 0;
-        for ( final PendingRelations pr : pendingRelations ) {
-            final var result = FrontmatterRelationValidator.validate(
-                    pr.sourceId(), pr.rawField(), knownAuthoredIds::contains );
-            if ( result.hasIssues() ) {
-                relationIssues += result.issues().size();
-                for ( final var issue : result.issues() ) {
-                    LOG.warn( "relations issue (source={}): {} — {}",
-                              pr.sourceId(), issue.kind(), issue.detail() );
-                    foundConflicts.add( new StructuralConflict(
-                            pr.slug(), pr.sourceId(),
-                            StructuralConflict.Kind.RELATION_ISSUE,
-                            issue.kind() + ": " + issue.detail() ) );
-                }
-            }
-            for ( final var rel : result.valid() ) {
-                builder.addRelation( rel );
-                relationsIndexed++;
-            }
-            // Persist only when source canonical_id was authored — synthesised IDs aren't in the DB.
-            if ( pr.authored() && relationsDao != null ) {
-                try {
-                    relationsDao.replaceFor( pr.sourceId(), result.valid() );
-                } catch ( final RuntimeException dbx ) {
-                    LOG.warn( "relations replaceFor({}) failed — in-memory projection still serves: {}",
-                              pr.sourceId(), dbx.getMessage() );
-                }
             }
         }
 
@@ -235,9 +178,8 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 start, finish, durationMs, 0L );
         metrics.update( snapshot(), health );
         metrics.recordRebuildMillis( durationMs );
-        LOG.info( "Structural index rebuilt: {} pages indexed ({} without canonical_id), "
-                + "{} relations indexed ({} issues), in {} ms",
-                  indexed, missing, relationsIndexed, relationIssues, durationMs );
+        LOG.info( "Structural index rebuilt: {} pages indexed ({} without canonical_id), in {} ms",
+                  indexed, missing, durationMs );
     }
 
     @Override
@@ -355,29 +297,6 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         }
 
         final StructuralProjection proj = current.get();
-        final String oldCanonicalIdForSlug = proj.resolveCanonicalIdFromSlug( slug ).orElse( null );
-
-        final Set< String > knownAuthoredIds = new HashSet<>();
-        for ( final PageDescriptor d : proj.allPages() ) {
-            knownAuthoredIds.add( d.canonicalId() );
-        }
-        if ( authored ) {
-            knownAuthoredIds.add( canonicalId );
-        }
-
-        final Object relationsField = fm.get( "relations" );
-        final FrontmatterRelationValidator.Result relResult = relationsField == null
-                ? new FrontmatterRelationValidator.Result( List.of(), List.of() )
-                : FrontmatterRelationValidator.validate( canonicalId, relationsField,
-                                                         knownAuthoredIds::contains );
-
-        if ( authored && relationsDao != null ) {
-            try {
-                relationsDao.replaceFor( canonicalId, relResult.valid() );
-            } catch ( final RuntimeException dbx ) {
-                LOG.warn( "relations replaceFor({}) failed: {}", canonicalId, dbx.getMessage() );
-            }
-        }
 
         final StructuralProjectionBuilder builder = new StructuralProjectionBuilder();
         for ( final PageDescriptor existing : proj.allPages() ) {
@@ -386,15 +305,6 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
             builder.addPage( existing );
         }
         builder.addPage( next );
-
-        for ( final Relation rel : proj.allRelations() ) {
-            if ( oldCanonicalIdForSlug != null && rel.sourceId().equals( oldCanonicalIdForSlug ) ) continue;
-            if ( rel.sourceId().equals( canonicalId ) ) continue;
-            builder.addRelation( rel );
-        }
-        for ( final Relation rel : relResult.valid() ) {
-            builder.addRelation( rel );
-        }
         current.set( builder.build() );
 
         final List< StructuralConflict > nextConflicts = new ArrayList<>( conflicts );
@@ -404,13 +314,6 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                     slug, null, StructuralConflict.Kind.MISSING_CANONICAL_ID,
                     "page indexed under synthesised id " + canonicalId
                       + " — add canonical_id to frontmatter to make this stable" ) );
-        }
-        for ( final var issue : relResult.issues() ) {
-            LOG.warn( "relations issue (source={}): {} — {}",
-                      canonicalId, issue.kind(), issue.detail() );
-            nextConflicts.add( new StructuralConflict(
-                    slug, canonicalId, StructuralConflict.Kind.RELATION_ISSUE,
-                    issue.kind() + ": " + issue.detail() ) );
         }
         this.conflicts = List.copyOf( nextConflicts );
         this.unclaimed = (int) nextConflicts.stream()
@@ -436,10 +339,7 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
     }
 
     /**
-     * Drop the descriptor for {@code slug} and any outgoing relations whose source is
-     * {@code canonicalId}. Incoming relations are left in place — they surface as
-     * broken-link signal (targetSlug == null), matching how a full rebuild behaves
-     * after a page is deleted.
+     * Drop the descriptor for {@code slug}.
      */
     private void applyIncrementalDelete( final String slug, final String canonicalId ) {
         try {
@@ -447,23 +347,12 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         } catch ( final RuntimeException dbx ) {
             LOG.warn( "dao.delete({}) failed: {}", canonicalId, dbx.getMessage() );
         }
-        if ( relationsDao != null ) {
-            try {
-                relationsDao.deleteBySource( canonicalId );
-            } catch ( final RuntimeException dbx ) {
-                LOG.warn( "relations deleteBySource({}) failed: {}", canonicalId, dbx.getMessage() );
-            }
-        }
 
         final StructuralProjection proj = current.get();
         final StructuralProjectionBuilder builder = new StructuralProjectionBuilder();
         for ( final PageDescriptor existing : proj.allPages() ) {
             if ( existing.canonicalId().equals( canonicalId ) ) continue;
             builder.addPage( existing );
-        }
-        for ( final Relation rel : proj.allRelations() ) {
-            if ( rel.sourceId().equals( canonicalId ) ) continue;
-            builder.addRelation( rel );
         }
         current.set( builder.build() );
 

@@ -61,7 +61,6 @@ import com.wikantik.knowledge.HubOverviewService;
 import com.wikantik.knowledge.structure.ConfidenceComputer;
 import com.wikantik.knowledge.structure.DefaultStructuralIndexService;
 import com.wikantik.knowledge.structure.PageCanonicalIdsDao;
-import com.wikantik.knowledge.structure.PageRelationsDao;
 import com.wikantik.knowledge.structure.PageVerificationDao;
 import com.wikantik.knowledge.structure.StructuralIndexEventListener;
 import com.wikantik.knowledge.structure.StructuralIndexMetrics;
@@ -634,7 +633,6 @@ public class WikiEngine implements Engine {
             // Page-save events trigger incremental rebuilds; bootstrap rebuild runs
             // in the background so Engine.start() does not block on a ~1000-page scan.
             final PageCanonicalIdsDao canonicalIdsDao = new PageCanonicalIdsDao( ds );
-            final PageRelationsDao pageRelationsDao = new PageRelationsDao( ds );
             final PageVerificationDao pageVerificationDao = new PageVerificationDao( ds );
             final TrustedAuthorsDao trustedAuthorsDao = new TrustedAuthorsDao( ds );
             final int staleDays = TextUtil.getIntegerProperty( props,
@@ -644,7 +642,7 @@ public class WikiEngine implements Engine {
             final StructuralIndexMetrics structuralMetrics = StructuralIndexMetrics.resolveAndBind();
             final DefaultStructuralIndexService structuralIndex =
                 new DefaultStructuralIndexService(
-                    getManager( PageManager.class ), canonicalIdsDao, pageRelationsDao,
+                    getManager( PageManager.class ), canonicalIdsDao,
                     pageVerificationDao, confidenceComputer, structuralMetrics );
             managers.put( PageVerificationDao.class, pageVerificationDao );
             managers.put( TrustedAuthorsDao.class, trustedAuthorsDao );

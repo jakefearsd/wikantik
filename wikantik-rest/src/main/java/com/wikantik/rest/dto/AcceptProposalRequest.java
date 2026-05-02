@@ -21,7 +21,7 @@ package com.wikantik.rest.dto;
 import java.util.List;
 
 /**
- * Request body for {@code POST /admin/knowledge/hub-discovery/proposals/{id}/accept}.
+ * Request body for {@code POST /admin/knowledge-graph/hub-discovery/proposals/{id}/accept}.
  *
  * <p>Deserialized by Gson. Fields are mutable to match Gson's reflection-based
  * deserialization convention. Consumer code should treat instances as effectively

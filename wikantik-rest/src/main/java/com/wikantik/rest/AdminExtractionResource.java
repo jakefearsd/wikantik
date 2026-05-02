@@ -36,15 +36,15 @@ import java.util.Properties;
 
 /**
  * Admin REST endpoint that triggers and monitors the full-corpus entity
- * extraction batch. Mapped to {@code /admin/knowledge/extract-mentions/*} and
+ * extraction batch. Mapped to {@code /admin/knowledge-graph/extract-mentions/*} and
  * protected by {@link AdminAuthFilter}.
  *
  * <ul>
- *   <li>{@code POST /admin/knowledge/extract-mentions?force=true|false} — starts
+ *   <li>{@code POST /admin/knowledge-graph/extract-mentions?force=true|false} — starts
  *       a batch run. Returns {@code 202 Accepted} with the current
  *       {@link BootstrapEntityExtractionIndexer.Status}, or {@code 409 Conflict}
  *       if a run is already in flight.</li>
- *   <li>{@code GET  /admin/knowledge/extract-mentions} — returns the current
+ *   <li>{@code GET  /admin/knowledge-graph/extract-mentions} — returns the current
  *       status (including {@code IDLE} / {@code COMPLETED} / {@code ERROR}).</li>
  * </ul>
  *

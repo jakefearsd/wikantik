@@ -88,7 +88,7 @@ class AdminKnowledgeResourceMockTest {
 
     @Test
     void doGet_returns400WhenPathInfoMissing() throws Exception {
-        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/admin/knowledge" );
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph" );
         Mockito.doReturn( null ).when( req ).getPathInfo();
         final JsonObject obj = call( req, "GET" );
         assertEquals( 400, obj.get( "status" ).getAsInt() );
@@ -439,7 +439,7 @@ class AdminKnowledgeResourceMockTest {
     // ---- helpers ----
 
     private HttpServletRequest request( final String pathInfo ) {
-        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/admin/knowledge" + pathInfo );
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph" + pathInfo );
         Mockito.doReturn( pathInfo ).when( req ).getPathInfo();
         return req;
     }

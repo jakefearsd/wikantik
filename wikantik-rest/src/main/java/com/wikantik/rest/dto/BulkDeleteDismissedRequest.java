@@ -22,7 +22,7 @@ import java.util.List;
 
 /**
  * Request body for
- * {@code POST /admin/knowledge/hub-discovery/proposals/dismissed/bulk-delete}.
+ * {@code POST /admin/knowledge-graph/hub-discovery/proposals/dismissed/bulk-delete}.
  *
  * <p>Deserialized by Gson. Fields are mutable to match Gson's reflection-based
  * deserialization convention. Consumer code should treat instances as effectively

@@ -378,7 +378,7 @@ class AdminKnowledgeResourceTest {
     }
 
     private HttpServletRequest createRequest( final String pathInfo ) {
-        final String path = "/admin/knowledge" + ( pathInfo != null ? pathInfo : "" );
+        final String path = "/admin/knowledge-graph" + ( pathInfo != null ? pathInfo : "" );
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( path );
         Mockito.doReturn( pathInfo ).when( request ).getPathInfo();
         return request;

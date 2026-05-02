@@ -18,7 +18,7 @@
  */
 package com.wikantik.rest.dto;
 
-/** JSON request body for {@code POST /admin/knowledge/hub-discovery/hubs/{name}/remove-member}. */
+/** JSON request body for {@code POST /admin/knowledge-graph/hub-discovery/hubs/{name}/remove-member}. */
 public class RemoveHubMemberRequest {
     public String member;
 }

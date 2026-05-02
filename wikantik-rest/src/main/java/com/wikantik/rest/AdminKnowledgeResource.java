@@ -60,20 +60,20 @@ import java.util.stream.Collectors;
  * When a dedicated {@code knowledge-admin} role is needed for non-admin domain experts,
  * add a {@code KnowledgeAdminFilter} that checks for either Admin or knowledge-admin role.
  * <p>
- * Mapped to {@code /admin/knowledge/*}. Protected by {@link AdminAuthFilter}.
+ * Mapped to {@code /admin/knowledge-graph/*}. Protected by {@link AdminAuthFilter}.
  * <ul>
- *   <li>{@code GET  /admin/knowledge/schema} — discover schema</li>
- *   <li>{@code GET  /admin/knowledge/nodes} — query nodes (?node_type=...&amp;limit=...&amp;offset=...)</li>
- *   <li>{@code GET  /admin/knowledge/nodes/{name}} — get node by name</li>
- *   <li>{@code GET  /admin/knowledge/edges/{nodeId}} — get edges for node (?direction=both)</li>
- *   <li>{@code GET  /admin/knowledge/proposals} — list proposals (?status=pending&amp;limit=50)</li>
- *   <li>{@code POST /admin/knowledge/proposals/{id}/approve} — approve a proposal</li>
- *   <li>{@code POST /admin/knowledge/proposals/{id}/reject} — reject a proposal (body: {reason})</li>
- *   <li>{@code POST /admin/knowledge/nodes} — upsert node (manual curation)</li>
- *   <li>{@code DELETE /admin/knowledge/nodes/{id}} — delete a node</li>
- *   <li>{@code POST /admin/knowledge/nodes/merge} — merge two nodes (body: {sourceId, targetId})</li>
- *   <li>{@code POST /admin/knowledge/edges} — upsert edge (manual curation)</li>
- *   <li>{@code DELETE /admin/knowledge/edges/{id}} — delete an edge</li>
+ *   <li>{@code GET  /admin/knowledge-graph/schema} — discover schema</li>
+ *   <li>{@code GET  /admin/knowledge-graph/nodes} — query nodes (?node_type=...&amp;limit=...&amp;offset=...)</li>
+ *   <li>{@code GET  /admin/knowledge-graph/nodes/{name}} — get node by name</li>
+ *   <li>{@code GET  /admin/knowledge-graph/edges/{nodeId}} — get edges for node (?direction=both)</li>
+ *   <li>{@code GET  /admin/knowledge-graph/proposals} — list proposals (?status=pending&amp;limit=50)</li>
+ *   <li>{@code POST /admin/knowledge-graph/proposals/{id}/approve} — approve a proposal</li>
+ *   <li>{@code POST /admin/knowledge-graph/proposals/{id}/reject} — reject a proposal (body: {reason})</li>
+ *   <li>{@code POST /admin/knowledge-graph/nodes} — upsert node (manual curation)</li>
+ *   <li>{@code DELETE /admin/knowledge-graph/nodes/{id}} — delete a node</li>
+ *   <li>{@code POST /admin/knowledge-graph/nodes/merge} — merge two nodes (body: {sourceId, targetId})</li>
+ *   <li>{@code POST /admin/knowledge-graph/edges} — upsert edge (manual curation)</li>
+ *   <li>{@code DELETE /admin/knowledge-graph/edges/{id}} — delete an edge</li>
  * </ul>
  */
 public class AdminKnowledgeResource extends RestServletBase {
@@ -243,12 +243,12 @@ public class AdminKnowledgeResource extends RestServletBase {
                                  final HttpServletResponse response,
                                  final String[] segments ) throws IOException {
         if ( segments.length >= 3 && "similar".equals( segments[2] ) ) {
-            // GET /admin/knowledge/nodes/{name}/similar?limit=10
+            // GET /admin/knowledge-graph/nodes/{name}/similar?limit=10
             handleGetSimilarNodes( request, response, segments[1] );
             return;
         }
         if ( segments.length >= 2 ) {
-            // GET /admin/knowledge/nodes/{name}
+            // GET /admin/knowledge-graph/nodes/{name}
             final String name = segments[1];
             final KgNode node = service.getNodeByName( name );
             if ( node == null ) {
@@ -261,7 +261,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                 sendJson( response, result );
             }
         } else {
-            // GET /admin/knowledge/nodes?node_type=...&name=...&limit=...&offset=...
+            // GET /admin/knowledge-graph/nodes?node_type=...&name=...&limit=...&offset=...
             final Map< String, Object > filters = new LinkedHashMap<>();
             if ( request.getParameter( "node_type" ) != null ) {
                 filters.put( "node_type", request.getParameter( "node_type" ) );
@@ -284,7 +284,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                                  final HttpServletResponse response,
                                  final String[] segments ) throws IOException {
         if ( segments.length < 2 ) {
-            // GET /admin/knowledge/edges — list all edges (paginated, with names)
+            // GET /admin/knowledge-graph/edges — list all edges (paginated, with names)
             final String relType = request.getParameter( "relationship_type" );
             final String search = request.getParameter( "search" );
             final int limit = parseIntParam( request, "limit", 50 );
@@ -320,7 +320,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                                      final HttpServletRequest request,
                                      final HttpServletResponse response,
                                      final String[] segments ) throws IOException {
-        // POST /admin/knowledge/proposals — create a new proposal
+        // POST /admin/knowledge-graph/proposals — create a new proposal
         if ( segments.length == 1 ) {
             final JsonObject body = parseJsonBody( request, response );
             if ( body == null ) return;
@@ -335,7 +335,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             sendJson( response, proposalToMap( proposal ) );
             return;
         }
-        // POST /admin/knowledge/proposals/{id}/approve or /reject
+        // POST /admin/knowledge-graph/proposals/{id}/approve or /reject
         if ( segments.length < 3 ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST,
                     "Expected: /proposals or /proposals/{id}/approve or /proposals/{id}/reject" );
@@ -378,7 +378,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                                  final HttpServletResponse response,
                                  final String[] segments ) throws IOException {
         if ( segments.length >= 2 && "merge".equals( segments[1] ) ) {
-            // POST /admin/knowledge/nodes/merge
+            // POST /admin/knowledge-graph/nodes/merge
             final JsonObject body = parseJsonBody( request, response );
             if ( body == null ) return;
             final UUID sourceId = UUID.fromString( body.get( "sourceId" ).getAsString() );
@@ -397,7 +397,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             sendJson( response, Map.of( "merged", true, "targetId", targetId.toString(),
                     "pages_updated", pagesUpdated ) );
         } else {
-            // POST /admin/knowledge/nodes — upsert
+            // POST /admin/knowledge-graph/nodes — upsert
             final JsonObject body = parseJsonBody( request, response );
             if ( body == null ) return;
             final String name = body.get( "name" ).getAsString();
@@ -717,7 +717,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                                       final String[] segments ) throws IOException {
         final NodeMentionSimilarity sim = getSimilarity();
         if ( segments.length >= 2 && "status".equals( segments[1] ) ) {
-            // GET /admin/knowledge/embeddings/status — reports the shared Ollama-backed
+            // GET /admin/knowledge-graph/embeddings/status — reports the shared Ollama-backed
             // mention-centroid index.
             final Map< String, Object > result = new LinkedHashMap<>();
             final boolean ready = sim != null && sim.isReady();
@@ -732,7 +732,7 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     private void handlePostEmbeddings( final HttpServletResponse response,
                                        final String[] segments ) throws IOException {
-        // No post actions remain on /admin/knowledge/embeddings — the chunk
+        // No post actions remain on /admin/knowledge-graph/embeddings — the chunk
         // embedding indexer runs continuously via AsyncEmbeddingIndexListener,
         // so there is nothing to manually retrigger here.
         sendNotFound( response, "Unknown embeddings sub-resource" );

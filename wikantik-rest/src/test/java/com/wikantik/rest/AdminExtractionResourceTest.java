@@ -102,7 +102,7 @@ class AdminExtractionResourceTest {
         installIndexer( indexer );
 
         final StringWriter sw = new StringWriter();
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge/extract-mentions" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph/extract-mentions" );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
         servlet.doGet( request, response );
@@ -139,7 +139,7 @@ class AdminExtractionResourceTest {
         installIndexer( indexer );
 
         final StringWriter sw = new StringWriter();
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge/extract-mentions" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph/extract-mentions" );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
         servlet.doDelete( request, response );
@@ -162,7 +162,7 @@ class AdminExtractionResourceTest {
         installIndexer( indexer );
 
         final StringWriter sw = new StringWriter();
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge/extract-mentions" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph/extract-mentions" );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
         servlet.doPost( request, response );
@@ -179,7 +179,7 @@ class AdminExtractionResourceTest {
         installIndexer( indexer );
 
         for ( final String value : new String[] { "true", "TRUE", "yes", "1", "  yes  " } ) {
-            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge/extract-mentions" );
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph/extract-mentions" );
             Mockito.doReturn( value ).when( request ).getParameter( "force" );
             final HttpServletResponse response = HttpMockFactory.createHttpResponse();
             Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
@@ -195,7 +195,7 @@ class AdminExtractionResourceTest {
         Mockito.when( indexer.status() ).thenReturn( runningStatus() );
         installIndexer( indexer );
 
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge/extract-mentions" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph/extract-mentions" );
         Mockito.doReturn( "maybe" ).when( request ).getParameter( "force" );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();
@@ -212,7 +212,7 @@ class AdminExtractionResourceTest {
         installIndexer( indexer );
 
         final StringWriter sw = new StringWriter();
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge/extract-mentions" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph/extract-mentions" );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
         servlet.doPost( request, response );
@@ -230,7 +230,7 @@ class AdminExtractionResourceTest {
         installIndexer( indexer );
 
         final StringWriter sw = new StringWriter();
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge/extract-mentions" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph/extract-mentions" );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
         servlet.doGet( request, response );
@@ -247,7 +247,7 @@ class AdminExtractionResourceTest {
         installIndexer( indexer );
 
         final StringWriter sw = new StringWriter();
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge/extract-mentions" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph/extract-mentions" );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
         servlet.doGet( request, response );
@@ -272,7 +272,7 @@ class AdminExtractionResourceTest {
         installIndexer( indexer );
 
         final StringWriter sw = new StringWriter();
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge/extract-mentions" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph/extract-mentions" );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
         servlet.doGet( request, response );
@@ -284,7 +284,7 @@ class AdminExtractionResourceTest {
     }
 
     private HttpServletResponse run( final String method, final String queryName, final String queryValue ) throws Exception {
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge/extract-mentions" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph/extract-mentions" );
         if ( queryName != null ) Mockito.doReturn( queryValue ).when( request ).getParameter( queryName );
         final HttpServletResponse response = HttpMockFactory.createHttpResponse();
         Mockito.doReturn( new PrintWriter( new StringWriter() ) ).when( response ).getWriter();

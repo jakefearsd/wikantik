@@ -976,7 +976,7 @@ public class WikiEngine implements Engine {
             wireBootstrapIndexer( props, ds, contentChunkRepo, mentionRepo, kgRepo,
                                   excludedPagesRepo, extractorCfg );
         } else {
-            LOG.info( "Bootstrap indexer not wired (backend={}); /admin/knowledge/extract-mentions "
+            LOG.info( "Bootstrap indexer not wired (backend={}); /admin/knowledge-graph/extract-mentions "
                     + "will return 503 until an Ollama-backed extractor is configured",
                 extractorCfg.backend() );
         }
@@ -1011,7 +1011,7 @@ public class WikiEngine implements Engine {
 
     /**
      * Wires the per-page entity-extraction indexer that backs the
-     * {@code POST /admin/knowledge/extract-mentions} REST trigger. The judge
+     * {@code POST /admin/knowledge-graph/extract-mentions} REST trigger. The judge
      * defaults to {@link com.wikantik.knowledge.extraction.NoOpProposalJudge}
      * (accept everything) so admin-triggered runs match the production
      * behaviour of the wikantik-extract-cli's default invocation. Operators

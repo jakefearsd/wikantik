@@ -74,13 +74,13 @@ public final class RestSeedHelper {
         writePage( name, content );
     }
 
-    /** POST /admin/knowledge/hub-discovery/run; returns the raw JSON body. */
+    /** POST /admin/knowledge-graph/hub-discovery/run; returns the raw JSON body. */
     public static String runDiscovery() throws Exception {
-        return post( "/admin/knowledge/hub-discovery/run", "" );
+        return post( "/admin/knowledge-graph/hub-discovery/run", "" );
     }
 
     /**
-     * GET /admin/knowledge/hub-discovery/proposals driven from the browser session
+     * GET /admin/knowledge-graph/hub-discovery/proposals driven from the browser session
      * so the UI-login cookie authorises the admin endpoint (basic auth is rejected
      * by {@code AdminAuthFilter}). Returns the raw JSON body.
      */
@@ -88,7 +88,7 @@ public final class RestSeedHelper {
         final String script = """
             const cb = arguments[arguments.length - 1];
             const base = window.__WIKANTIK_BASE__ || '';
-            fetch(base + '/admin/knowledge/hub-discovery/proposals?limit=50', {
+            fetch(base + '/admin/knowledge-graph/hub-discovery/proposals?limit=50', {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' },
                 credentials: 'same-origin'

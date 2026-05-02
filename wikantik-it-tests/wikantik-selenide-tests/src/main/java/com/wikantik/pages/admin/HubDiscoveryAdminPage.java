@@ -38,9 +38,9 @@ public class HubDiscoveryAdminPage implements Page {
     public HubDiscoveryAdminPage open() {
         // Use the full baseUrl so the context path prefix (e.g.
         // /wikantik-it-test-custom) isn't stripped when the IT suite runs
-        // against a non-root-context WAR. Bare paths like "/admin/knowledge"
+        // against a non-root-context WAR. Bare paths like "/admin/knowledge-graph"
         // resolve against the host root and 404.
-        Selenide.open( Page.baseUrl() + "/admin/knowledge" );
+        Selenide.open( Page.baseUrl() + "/admin/knowledge-graph" );
         // Activate the Hub Discovery tab. The React component renders the tab panel wrapper
         // with data-testid="hub-discovery-tab"; clicking the tab button with label "Hub Discovery"
         // switches the active tab.

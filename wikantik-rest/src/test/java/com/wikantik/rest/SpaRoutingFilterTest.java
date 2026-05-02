@@ -178,8 +178,8 @@ class SpaRoutingFilterTest {
 
     @Test
     void doesNotRedirectAdminKnowledgeGraphPath() throws Exception {
-        // /admin/knowledge-graph must NOT be caught by the /admin/knowledge redirect —
-        // the startsWith("/admin/knowledge/") guard must not match /admin/knowledge-graph
+        // /admin/knowledge-graph must NOT be caught by the /admin/knowledge-graph redirect —
+        // the startsWith("/admin/knowledge-graph/") guard must not match /admin/knowledge-graph
         final HttpServletRequest req = mockRequest( "/admin/knowledge-graph" );
 
         filter.doFilter( req, response, chain );

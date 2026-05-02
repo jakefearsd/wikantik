@@ -184,7 +184,7 @@ public class HubProposalService {
             LOG.warn( "Hub proposals ending early: no hubs with 2+ members found "
                 + "(hubsSeen={}, hubsWith<2Members={}, hubsWithNoEdges={}) — "
                 + "verify that hub pages have 'related: [...]' frontmatter and have been "
-                + "projected into the KG (try POST /admin/knowledge/project-all)",
+                + "projected into the KG (try POST /admin/knowledge-graph/project-all)",
                 allHubNames.size(), hubsWithTooFewMembers, hubsWithNoRelatedEdges );
         }
         return new HubMembership( allHubNames, hubMembers );

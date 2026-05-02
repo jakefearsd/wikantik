@@ -43,7 +43,7 @@ import java.util.Map;
 /**
  * Admin REST servlet for the hub-discovery workflow.
  *
- * <p>Mapped to {@code /admin/knowledge/hub-discovery/*}.
+ * <p>Mapped to {@code /admin/knowledge-graph/hub-discovery/*}.
  *
  * <ul>
  *   <li>{@code POST   /run} — trigger a discovery run</li>

@@ -174,7 +174,7 @@ class AdminAuthFilterTest {
         final HttpSession anonSession = Mockito.mock( HttpSession.class );
         Mockito.doReturn( "anon-html-test-" + System.nanoTime() ).when( anonSession ).getId();
 
-        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge" );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph" );
         Mockito.doReturn( "GET" ).when( request ).getMethod();
         Mockito.doReturn( "text/html,application/xhtml+xml" ).when( request ).getHeader( "Accept" );
         Mockito.doReturn( anonSession ).when( request ).getSession();

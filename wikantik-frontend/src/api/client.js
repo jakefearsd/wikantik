@@ -499,108 +499,108 @@ export const api = {
     getGraphSnapshot: ({ signal } = {}) =>
       request('/api/knowledge/graph', { signal }),
 
-    getSchema: () => request('/admin/knowledge/schema'),
+    getSchema: () => request('/admin/knowledge-graph/schema'),
 
     queryNodes: ({ node_type, name, status, limit = 50, offset = 0 } = {}) => {
       const params = new URLSearchParams({ limit, offset });
       if (node_type) params.set('node_type', node_type);
       if (name) params.set('name', name);
       if (status) params.set('status', status);
-      return request(`/admin/knowledge/nodes?${params}`);
+      return request(`/admin/knowledge-graph/nodes?${params}`);
     },
 
     getNode: (name) =>
-      request(`/admin/knowledge/nodes/${encodeURIComponent(name)}`),
+      request(`/admin/knowledge-graph/nodes/${encodeURIComponent(name)}`),
 
     getEdges: (nodeId, direction = 'both') =>
-      request(`/admin/knowledge/edges/${nodeId}?direction=${direction}`),
+      request(`/admin/knowledge-graph/edges/${nodeId}?direction=${direction}`),
 
     queryEdges: ({ relationship_type, search, limit = 50, offset = 0 } = {}) => {
       const params = new URLSearchParams({ limit, offset });
       if (relationship_type) params.set('relationship_type', relationship_type);
       if (search) params.set('search', search);
-      return request(`/admin/knowledge/edges?${params}`);
+      return request(`/admin/knowledge-graph/edges?${params}`);
     },
 
     listProposals: (status = 'pending', limit = 50) =>
-      request(`/admin/knowledge/proposals?status=${status}&limit=${limit}`),
+      request(`/admin/knowledge-graph/proposals?status=${status}&limit=${limit}`),
 
     approveProposal: (id) =>
-      request(`/admin/knowledge/proposals/${id}/approve`, { method: 'POST' }),
+      request(`/admin/knowledge-graph/proposals/${id}/approve`, { method: 'POST' }),
 
     rejectProposal: (id, reason) =>
-      request(`/admin/knowledge/proposals/${id}/reject`, {
+      request(`/admin/knowledge-graph/proposals/${id}/reject`, {
         method: 'POST',
         body: JSON.stringify({ reason }),
       }),
 
     upsertNode: (data) =>
-      request('/admin/knowledge/nodes', { method: 'POST', body: JSON.stringify(data) }),
+      request('/admin/knowledge-graph/nodes', { method: 'POST', body: JSON.stringify(data) }),
 
     deleteNode: (id) =>
-      request(`/admin/knowledge/nodes/${id}`, { method: 'DELETE' }),
+      request(`/admin/knowledge-graph/nodes/${id}`, { method: 'DELETE' }),
 
     mergeNodes: (sourceId, targetId) =>
-      request('/admin/knowledge/nodes/merge', {
+      request('/admin/knowledge-graph/nodes/merge', {
         method: 'POST',
         body: JSON.stringify({ sourceId, targetId }),
       }),
 
     upsertEdge: (data) =>
-      request('/admin/knowledge/edges', { method: 'POST', body: JSON.stringify(data) }),
+      request('/admin/knowledge-graph/edges', { method: 'POST', body: JSON.stringify(data) }),
 
     deleteEdge: (id) =>
-      request(`/admin/knowledge/edges/${id}`, { method: 'DELETE' }),
+      request(`/admin/knowledge-graph/edges/${id}`, { method: 'DELETE' }),
 
     projectAll: () =>
-      request('/admin/knowledge/project-all', { method: 'POST' }),
+      request('/admin/knowledge-graph/project-all', { method: 'POST' }),
 
     clearAll: () =>
-      request('/admin/knowledge/clear-all', { method: 'POST' }),
+      request('/admin/knowledge-graph/clear-all', { method: 'POST' }),
 
     // Embedding endpoints (unified mention-centroid index)
     getEmbeddingStatus: () =>
-      request('/admin/knowledge/embeddings/status'),
+      request('/admin/knowledge-graph/embeddings/status'),
 
     getSimilarNodes: (name, limit = 10) =>
-      request(`/admin/knowledge/nodes/${encodeURIComponent(name)}/similar?limit=${limit}`),
+      request(`/admin/knowledge-graph/nodes/${encodeURIComponent(name)}/similar?limit=${limit}`),
 
     getPagesWithoutFrontmatter: (limit = 100, offset = 0) =>
-      request(`/admin/knowledge/pages-without-frontmatter?limit=${limit}&offset=${offset}`),
+      request(`/admin/knowledge-graph/pages-without-frontmatter?limit=${limit}&offset=${offset}`),
 
     // Hub Proposals
     listHubProposals: (status = 'pending', hub = null, limit = 50, offset = 0) => {
       const params = new URLSearchParams({ status, limit, offset });
       if (hub) params.set('hub', hub);
-      return request(`/admin/knowledge/hub-proposals?${params}`);
+      return request(`/admin/knowledge-graph/hub-proposals?${params}`);
     },
 
     generateHubProposals: () =>
-      request('/admin/knowledge/hub-proposals/generate', { method: 'POST' }),
+      request('/admin/knowledge-graph/hub-proposals/generate', { method: 'POST' }),
 
     approveHubProposal: (id) =>
-      request(`/admin/knowledge/hub-proposals/${id}/approve`, { method: 'POST' }),
+      request(`/admin/knowledge-graph/hub-proposals/${id}/approve`, { method: 'POST' }),
 
     rejectHubProposal: (id, reason) =>
-      request(`/admin/knowledge/hub-proposals/${id}/reject`, {
+      request(`/admin/knowledge-graph/hub-proposals/${id}/reject`, {
         method: 'POST',
         body: JSON.stringify({ reason }),
       }),
 
     bulkApproveHubProposals: (ids) =>
-      request('/admin/knowledge/hub-proposals/bulk-approve', {
+      request('/admin/knowledge-graph/hub-proposals/bulk-approve', {
         method: 'POST',
         body: JSON.stringify({ ids }),
       }),
 
     bulkRejectHubProposals: (ids, reason) =>
-      request('/admin/knowledge/hub-proposals/bulk-reject', {
+      request('/admin/knowledge-graph/hub-proposals/bulk-reject', {
         method: 'POST',
         body: JSON.stringify({ ids, reason }),
       }),
 
     thresholdApproveHubProposals: (threshold) =>
-      request('/admin/knowledge/hub-proposals/threshold-approve', {
+      request('/admin/knowledge-graph/hub-proposals/threshold-approve', {
         method: 'POST',
         body: JSON.stringify({ threshold }),
       }),
@@ -608,67 +608,67 @@ export const api = {
     // Hub Discovery (cluster-based)
     listHubDiscoveryProposals: (limit = 50, offset = 0) => {
       const params = new URLSearchParams({ limit, offset });
-      return request(`/admin/knowledge/hub-discovery/proposals?${params}`);
+      return request(`/admin/knowledge-graph/hub-discovery/proposals?${params}`);
     },
 
     runHubDiscovery: () =>
-      request('/admin/knowledge/hub-discovery/run', { method: 'POST' }),
+      request('/admin/knowledge-graph/hub-discovery/run', { method: 'POST' }),
 
     acceptHubDiscoveryProposal: (id, name, members) =>
-      request(`/admin/knowledge/hub-discovery/proposals/${id}/accept`, {
+      request(`/admin/knowledge-graph/hub-discovery/proposals/${id}/accept`, {
         method: 'POST',
         body: JSON.stringify({ name, members }),
       }),
 
     dismissHubDiscoveryProposal: (id) =>
-      request(`/admin/knowledge/hub-discovery/proposals/${id}/dismiss`, { method: 'POST' }),
+      request(`/admin/knowledge-graph/hub-discovery/proposals/${id}/dismiss`, { method: 'POST' }),
 
     listDismissedHubDiscoveryProposals: (limit = 50, offset = 0) => {
       const params = new URLSearchParams({ limit, offset });
-      return request(`/admin/knowledge/hub-discovery/proposals/dismissed?${params}`);
+      return request(`/admin/knowledge-graph/hub-discovery/proposals/dismissed?${params}`);
     },
 
     deleteDismissedHubDiscoveryProposal: (id) =>
-      request(`/admin/knowledge/hub-discovery/proposals/dismissed/${id}`, { method: 'DELETE' }),
+      request(`/admin/knowledge-graph/hub-discovery/proposals/dismissed/${id}`, { method: 'DELETE' }),
 
     bulkDeleteDismissedHubDiscoveryProposals: (ids) =>
-      request('/admin/knowledge/hub-discovery/proposals/dismissed/bulk-delete', {
+      request('/admin/knowledge-graph/hub-discovery/proposals/dismissed/bulk-delete', {
         method: 'POST',
         body: JSON.stringify({ ids }),
       }),
 
     // Existing Hubs (read + remove-member)
     listExistingHubs: () =>
-      request('/admin/knowledge/hub-discovery/hubs'),
+      request('/admin/knowledge-graph/hub-discovery/hubs'),
 
     getHubDrilldown: (hubName) =>
-      request(`/admin/knowledge/hub-discovery/hubs/${encodeURIComponent(hubName)}`),
+      request(`/admin/knowledge-graph/hub-discovery/hubs/${encodeURIComponent(hubName)}`),
 
     removeHubMember: (hubName, member) =>
-      request(`/admin/knowledge/hub-discovery/hubs/${encodeURIComponent(hubName)}/remove-member`, {
+      request(`/admin/knowledge-graph/hub-discovery/hubs/${encodeURIComponent(hubName)}/remove-member`, {
         method: 'POST',
         body: JSON.stringify({ member }),
       }),
 
     backfillFrontmatter: () =>
-      request('/admin/knowledge/backfill-frontmatter', { method: 'POST' }),
+      request('/admin/knowledge-graph/backfill-frontmatter', { method: 'POST' }),
 
     getBackfillStatus: () =>
-      request('/admin/knowledge/backfill-frontmatter'),
+      request('/admin/knowledge-graph/backfill-frontmatter'),
 
     syncHubMemberships: () =>
-      request('/admin/knowledge/sync-hub-memberships', { method: 'POST' }),
+      request('/admin/knowledge-graph/sync-hub-memberships', { method: 'POST' }),
 
     // Entity extraction (LLM-based proposal regeneration)
     getExtractionStatus: () =>
-      request('/admin/knowledge/extract-mentions'),
+      request('/admin/knowledge-graph/extract-mentions'),
 
     startExtraction: (force = false) =>
-      request(`/admin/knowledge/extract-mentions${force ? '?force=true' : ''}`,
+      request(`/admin/knowledge-graph/extract-mentions${force ? '?force=true' : ''}`,
               { method: 'POST' }),
 
     cancelExtraction: () =>
-      request('/admin/knowledge/extract-mentions', { method: 'DELETE' }),
+      request('/admin/knowledge-graph/extract-mentions', { method: 'DELETE' }),
   },
 
   // Public page similarity

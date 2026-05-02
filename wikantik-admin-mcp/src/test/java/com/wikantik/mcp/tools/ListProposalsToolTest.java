@@ -57,9 +57,10 @@ class ListProposalsToolTest {
         when( svc.listProposals( eq( "pending" ), isNull(), eq( 50 ), eq( 0 ) ) )
             .thenReturn( List.of( new KgProposal(
                 id, "new-edge", "Alpha",
-                Map.of( "relationship", "relatedTo" ),
+                Map.< String, Object >of( "relationship", "relatedTo" ),
                 0.82, "co-occurrence in section 2",
-                "pending", null, created, reviewed ) ) );
+                "pending", null, created, reviewed,
+                null, null, null, null, null ) ) );
 
         final McpSchema.CallToolResult result =
             new ListProposalsTool( svc ).execute( Map.of( "status", "pending" ) );
@@ -101,7 +102,8 @@ class ListProposalsToolTest {
         when( svc.listProposals( any(), any(), anyInt(), anyInt() ) )
             .thenReturn( List.of( new KgProposal(
                 UUID.randomUUID(), "new-node", "Beta",
-                Map.of(), 0.5, "why", "approved", "alice", null, null ) ) );
+                Map.of(), 0.5, "why", "approved", "alice", null, null,
+                null, null, null, null, null ) ) );
 
         final McpSchema.CallToolResult result =
             new ListProposalsTool( svc ).execute( Map.of() );

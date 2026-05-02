@@ -71,7 +71,10 @@ public final class KnowledgeGraphServiceFactory {
         HubDiscoveryService hubDiscoveryService,
         HubOverviewService hubOverviewService,
         ChunkProjector chunkProjector,
-        ContentChunkRepository contentChunkRepo
+        ContentChunkRepository contentChunkRepo,
+        com.wikantik.knowledge.judge.KgMaterializationService kgMaterialization,
+        com.wikantik.api.knowledge.KgProposalJudgeService kgJudgeService,
+        com.wikantik.knowledge.judge.JudgeRunner kgJudgeRunner
     ) {}
 
     private KnowledgeGraphServiceFactory() {}
@@ -123,7 +126,31 @@ public final class KnowledgeGraphServiceFactory {
                                     final MeterRegistry meterRegistry ) {
         final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( dataSource );
         final MentionIndex mentionIndex = new MentionIndex( dataSource );
-        final DefaultKnowledgeGraphService kgService = new DefaultKnowledgeGraphService( repo, null, mentionIndex );
+
+        // KG staged validation: judge service, materialisation, runner.
+        final com.wikantik.knowledge.judge.KgJudgeConfig judgeCfg =
+            com.wikantik.knowledge.judge.KgJudgeConfig.fromProperties( props );
+        final com.wikantik.knowledge.judge.KgMaterializationService kgMat =
+            new com.wikantik.knowledge.judge.KgMaterializationService( repo );
+
+        com.wikantik.api.knowledge.KgProposalJudgeService kgJudge = null;
+        com.wikantik.knowledge.judge.JudgeRunner kgRunner = null;
+        if ( judgeCfg.enabled() && judgeCfg.endpoint() != null && !judgeCfg.endpoint().isBlank() ) {
+            final java.net.http.HttpClient http = java.net.http.HttpClient.newBuilder()
+                .connectTimeout( java.time.Duration.ofSeconds( judgeCfg.timeoutSeconds() ) )
+                .build();
+            kgJudge = new com.wikantik.knowledge.judge.DefaultKgProposalJudgeService( http, judgeCfg );
+            kgRunner = new com.wikantik.knowledge.judge.JudgeRunner( repo, kgJudge, kgMat, judgeCfg );
+            kgRunner.schedule();
+            LOG.info( "KG judge service enabled: model={} endpoint={} cron={}m",
+                judgeCfg.model(), judgeCfg.endpoint(), judgeCfg.cronIntervalMinutes() );
+        } else {
+            LOG.info( "KG judge service disabled (enabled={}, endpoint={})",
+                judgeCfg.enabled(), judgeCfg.endpoint() );
+        }
+
+        final DefaultKnowledgeGraphService kgService =
+            new DefaultKnowledgeGraphService( repo, null, mentionIndex, kgMat, kgJudge );
         final FrontmatterDefaultsFilter fmDefaults = new FrontmatterDefaultsFilter(
             name -> spr != null && spr.isSystemPage( name ), props );
 
@@ -204,6 +231,7 @@ public final class KnowledgeGraphServiceFactory {
         return new Services( kgService, fmDefaults, hubSync,
             similarity, mentionIndex, hubProposalRepo, hubProposalService,
             hubDiscoveryRepo, hubDiscoveryService, hubOverviewService,
-            chunkProjector, contentChunkRepo );
+            chunkProjector, contentChunkRepo,
+            kgMat, kgJudge, kgRunner );
     }
 }

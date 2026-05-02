@@ -70,7 +70,8 @@ class ProposeKnowledgeToolTest {
                 eq( 0.9 ), eq( "why" ) ) )
             .thenReturn( new KgProposal( id, "new-node", "Alpha",
                 Map.of( "name", "Widget" ), 0.9, "why",
-                "pending", null, created, null ) );
+                "pending", null, created, null,
+                null, null, null, null, null ) );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "proposal_type", "new-node" );
@@ -92,7 +93,8 @@ class ProposeKnowledgeToolTest {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
         when( svc.submitProposal( any(), any(), anyMap(), anyDouble(), any() ) )
             .thenReturn( new KgProposal( UUID.randomUUID(), "new-node", "P",
-                Map.of(), 0.0, "why", "pending", null, null, null ) );
+                Map.of(), 0.0, "why", "pending", null, null, null,
+                null, null, null, null, null ) );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "proposal_type", "new-node" );
@@ -136,7 +138,8 @@ class ProposeKnowledgeToolTest {
         when( svc.isRejected( any(), any(), any() ) ).thenReturn( false );
         when( svc.submitProposal( any(), any(), anyMap(), anyDouble(), any() ) )
             .thenReturn( new KgProposal( UUID.randomUUID(), "new-edge", "Alpha",
-                Map.of(), 0.5, "why", "pending", null, null, null ) );
+                Map.of(), 0.5, "why", "pending", null, null, null,
+                null, null, null, null, null ) );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "proposal_type", "new-edge" );

@@ -627,6 +627,13 @@ public class WikiEngine implements Engine {
             managers.put( HubOverviewService.class, svcs.hubOverviewService() );
             managers.put( com.wikantik.knowledge.chunking.ChunkProjector.class, svcs.chunkProjector() );
             managers.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class, svcs.contentChunkRepo() );
+            managers.put( com.wikantik.knowledge.judge.KgMaterializationService.class, svcs.kgMaterialization() );
+            if ( svcs.kgJudgeService() != null ) {
+                managers.put( com.wikantik.api.knowledge.KgProposalJudgeService.class, svcs.kgJudgeService() );
+            }
+            if ( svcs.kgJudgeRunner() != null ) {
+                managers.put( com.wikantik.knowledge.judge.JudgeRunner.class, svcs.kgJudgeRunner() );
+            }
 
             // Structural spine — observe-only Phase 1. Builds an in-memory projection
             // of wiki shape (clusters, tags, types, canonical_ids) over every page.

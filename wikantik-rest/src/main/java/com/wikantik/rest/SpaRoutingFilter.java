@@ -47,11 +47,14 @@ import java.nio.charset.StandardCharsets;
  * <p>Handles three concerns:
  * <ol>
  *   <li><b>Redirects</b> — {@code /}, {@code /wiki}, and {@code /wiki/} redirect
- *       to {@code /wiki/Main} so the wiki always has a concrete page.</li>
+ *       to {@code /wiki/Main} so the wiki always has a concrete page.
+ *       {@code /graph} redirects 301 to {@code /page-graph} (renamed SPA route).
+ *       {@code /admin/knowledge} and {@code /admin/knowledge/*} redirect 301 to
+ *       {@code /admin/knowledge-graph[/*]} (renamed SPA route).</li>
  *   <li><b>SPA forwarding</b> — known SPA prefixes ({@code /wiki/}, {@code /edit/},
- *       {@code /diff/}) and exact SPA routes ({@code /search}, {@code /preferences},
- *       {@code /reset-password}, {@code /admin/*} tab routes) are served the
- *       React app's {@code /index.html}. Admin API endpoints like
+ *       {@code /diff/}) and exact SPA routes ({@code /search}, {@code /page-graph},
+ *       {@code /preferences}, {@code /reset-password}, {@code /admin/*} tab routes)
+ *       are served the React app's {@code /index.html}. Admin API endpoints like
  *       {@code /admin/content/stats} pass through to their servlets.</li>
  *   <li><b>Static assets</b> — requests containing a file extension (other than
  *       {@code .html}) pass through to Tomcat's default servlet.</li>
@@ -84,7 +87,7 @@ public class SpaRoutingFilter implements Filter {
     private static final Logger LOG = LogManager.getLogger( SpaRoutingFilter.class );
 
     private static final String[] SPA_PREFIXES = { "/wiki/", "/edit/", "/diff/", "/admin/", "/blog/" };
-    private static final String[] SPA_EXACT = { "/search", "/graph", "/preferences", "/reset-password", "/blog" };
+    private static final String[] SPA_EXACT = { "/search", "/page-graph", "/preferences", "/reset-password", "/blog" };
 
     private volatile Engine engine;
     private ServletContext servletContext;
@@ -132,6 +135,24 @@ public class SpaRoutingFilter implements Filter {
         final String path = rawUri != null && rawUri.startsWith( contextPath )
             ? rawUri.substring( contextPath.length() )
             : rawUri;
+
+        // 301 redirects for renamed SPA routes.
+        if ( "/graph".equals( path ) ) {
+            final String qs = req.getQueryString();
+            final String target = contextPath + "/page-graph" + ( qs != null ? "?" + qs : "" );
+            resp.setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
+            resp.setHeader( "Location", target );
+            return;
+        }
+
+        if ( "/admin/knowledge".equals( path ) || path.startsWith( "/admin/knowledge/" ) ) {
+            final String suffix = path.substring( "/admin/knowledge".length() );
+            final String qs = req.getQueryString();
+            final String target = contextPath + "/admin/knowledge-graph" + suffix + ( qs != null ? "?" + qs : "" );
+            resp.setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
+            resp.setHeader( "Location", target );
+            return;
+        }
 
         // Redirect / and /wiki/ to /wiki/Main (server-side, independent of SPA)
         if ( "".equals( path ) || "/".equals( path ) || "/wiki/".equals( path ) || "/wiki".equals( path ) ) {

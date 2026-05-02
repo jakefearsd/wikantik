@@ -23,6 +23,7 @@ import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
 import com.wikantik.api.knowledge.KgProposalReview;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.PoolClosedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -211,6 +212,9 @@ public class JudgeRunner implements AutoCloseable {
                 }
             }
             lastRunCompleted.incrementAndGet();
+        } catch ( final PoolClosedException e ) {
+            LOG.debug( "judge worker exiting for proposal {} — data source closed during shutdown",
+                proposal.id() );
         } catch ( final RuntimeException e ) {
             LOG.warn( "judge processing failed for proposal {}: {}", proposal.id(), e.getMessage(), e );
         }

@@ -53,6 +53,17 @@ public class JdbcKnowledgeRepository {
         this.dataSource = dataSource;
     }
 
+    /**
+     * Returns {@code true} when {@code e} signals that the JDBC connection pool
+     * has been closed — typically during webapp shutdown.  Pool-closed errors are
+     * expected during container stop and should be logged at DEBUG rather than WARN.
+     */
+    private static boolean isPoolClosed( final SQLException e ) {
+        if ( e == null ) return false;
+        final String msg = e.getMessage();
+        return msg != null && msg.toLowerCase( java.util.Locale.ROOT ).contains( "data source is closed" );
+    }
+
     // ---- Node operations ----
 
     /**
@@ -942,6 +953,10 @@ public class JdbcKnowledgeRepository {
             ps.setObject( idx, proposalId );
             ps.executeUpdate();
         } catch ( final SQLException e ) {
+            if ( isPoolClosed( e ) ) {
+                LOG.debug( "applyMachineVerdict({}, {}) skipped — data source closed during shutdown", proposalId, verdict );
+                throw new PoolClosedException( "applyMachineVerdict aborted: pool closed", e );
+            }
             LOG.warn( "applyMachineVerdict({}, {}) failed: {}", proposalId, verdict,
                 e.getMessage(), e );
             throw new RuntimeException( "applyMachineVerdict failed: " + e.getMessage(), e );
@@ -964,6 +979,10 @@ public class JdbcKnowledgeRepository {
             ps.setObject( 4, proposalId );
             ps.executeUpdate();
         } catch ( final SQLException e ) {
+            if ( isPoolClosed( e ) ) {
+                LOG.debug( "applyHumanVerdict({}, {}) skipped — data source closed during shutdown", proposalId, verdict );
+                throw new PoolClosedException( "applyHumanVerdict aborted: pool closed", e );
+            }
             LOG.warn( "applyHumanVerdict({}, {}, {}) failed: {}", proposalId, verdict,
                 reviewedBy, e.getMessage(), e );
             throw new RuntimeException( "applyHumanVerdict failed: " + e.getMessage(), e );
@@ -987,6 +1006,10 @@ public class JdbcKnowledgeRepository {
             ps.setString( 6, rationale );
             ps.executeUpdate();
         } catch ( final SQLException e ) {
+            if ( isPoolClosed( e ) ) {
+                LOG.debug( "recordReview({}, {}) skipped — data source closed during shutdown", proposalId, reviewerKind );
+                throw new PoolClosedException( "recordReview aborted: pool closed", e );
+            }
             LOG.warn( "recordReview({}, {}, {}) failed: {}", proposalId, reviewerKind,
                 verdict, e.getMessage(), e );
             throw new RuntimeException( "recordReview failed: " + e.getMessage(), e );
@@ -1017,6 +1040,10 @@ public class JdbcKnowledgeRepository {
                 return out;
             }
         } catch ( final SQLException e ) {
+            if ( isPoolClosed( e ) ) {
+                LOG.debug( "listReviews({}) skipped — data source closed during shutdown", proposalId );
+                throw new PoolClosedException( "listReviews aborted: pool closed", e );
+            }
             LOG.warn( "listReviews({}) failed: {}", proposalId, e.getMessage(), e );
             throw new RuntimeException( "listReviews failed: " + e.getMessage(), e );
         }
@@ -1057,6 +1084,10 @@ public class JdbcKnowledgeRepository {
                 try { c.setAutoCommit( prevAutoCommit ); } catch ( final SQLException ignore ) { /* best effort */ }
             }
         } catch ( final SQLException e ) {
+            if ( isPoolClosed( e ) ) {
+                LOG.debug( "getProposalsForJudging({}) skipped — data source closed during shutdown", batch );
+                throw new PoolClosedException( "getProposalsForJudging aborted: pool closed", e );
+            }
             LOG.warn( "getProposalsForJudging({}) failed: {}", batch, e.getMessage(), e );
             throw new RuntimeException( "getProposalsForJudging failed: " + e.getMessage(), e );
         }

@@ -96,7 +96,8 @@ class SearchKnowledgeToolTest {
     void execute_returnsUnfilteredWhenMentionIndexAbsent() {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
         final KgNode a = node( "Alpha", UUID.randomUUID() );
-        when( svc.searchKnowledge( eq( "alph" ), any(), anyInt() ) )
+        when( svc.searchKnowledge( eq( "alph" ), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) )
             .thenReturn( List.of( a ) );
 
         final McpSchema.CallToolResult result =
@@ -110,7 +111,8 @@ class SearchKnowledgeToolTest {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
         final UUID aId = UUID.randomUUID();
         final UUID bId = UUID.randomUUID();
-        when( svc.searchKnowledge( any(), any(), anyInt() ) ).thenReturn(
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) ).thenReturn(
             List.of( node( "Alpha", aId ), node( "Beta", bId ) ) );
         final MentionIndex idx = mock( MentionIndex.class );
         when( idx.isMentioned( aId ) ).thenReturn( false );
@@ -126,28 +128,33 @@ class SearchKnowledgeToolTest {
     @Test
     void execute_passesLimitAndProvenanceFilter() {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
-        when( svc.searchKnowledge( any(), any(), anyInt() ) ).thenReturn( List.of() );
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) ).thenReturn( List.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "query", "q" );
         args.put( "provenance_filter", List.of( "ai-reviewed" ) );
         args.put( "limit", 7 );
         new SearchKnowledgeTool( svc ).execute( args );
-        verify( svc ).searchKnowledge( eq( "q" ), eq( Set.of( Provenance.AI_REVIEWED ) ), eq( 7 ) );
+        verify( svc ).searchKnowledge( eq( "q" ), eq( Set.of( Provenance.AI_REVIEWED ) ), eq( 7 ),
+            any( com.wikantik.api.knowledge.Tier.class ) );
     }
 
     @Test
     void execute_appliesDefaultLimitWhenAbsent() {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
-        when( svc.searchKnowledge( any(), any(), anyInt() ) ).thenReturn( List.of() );
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) ).thenReturn( List.of() );
         new SearchKnowledgeTool( svc ).execute( Map.of( "query", "q" ) );
-        verify( svc ).searchKnowledge( eq( "q" ), isNull(), eq( 20 ) );
+        verify( svc ).searchKnowledge( eq( "q" ), isNull(), eq( 20 ),
+            any( com.wikantik.api.knowledge.Tier.class ) );
     }
 
     @Test
     void execute_returnsErrorOnServiceFailure() {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
-        when( svc.searchKnowledge( any(), any(), anyInt() ) )
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) )
             .thenThrow( new RuntimeException( "DB offline" ) );
         final McpSchema.CallToolResult result = new SearchKnowledgeTool( svc )
             .execute( Map.of( "query", "q" ) );

@@ -12,9 +12,12 @@ public record KgEdge(
     Provenance provenance,
     Map< String, Object > properties,
     Instant created,
-    Instant modified
+    Instant modified,
+    String tier,
+    UUID provenanceProposalId
 ) {
     public KgEdge {
         properties = properties == null ? Map.of() : Map.copyOf( properties );
+        tier = tier == null ? "human" : tier;
     }
 }

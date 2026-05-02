@@ -11,12 +11,18 @@ public record KgProposal(
     Map< String, Object > proposedData,
     double confidence,
     String reasoning,
-    String status,
+    String status,             // human verdict: pending | approved | rejected
     String reviewedBy,
     Instant created,
-    Instant reviewedAt
+    Instant reviewedAt,
+    String tier,               // none | machine | human
+    String machineStatus,      // null | approved | rejected | abstain
+    Double machineConfidence,
+    Instant machineJudgedAt,
+    String machineModel
 ) {
     public KgProposal {
         proposedData = proposedData == null ? Map.of() : Map.copyOf( proposedData );
+        tier = tier == null ? "none" : tier;
     }
 }

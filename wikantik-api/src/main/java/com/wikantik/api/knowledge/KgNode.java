@@ -12,10 +12,13 @@ public record KgNode(
     Provenance provenance,
     Map< String, Object > properties,
     Instant created,
-    Instant modified
+    Instant modified,
+    String tier,
+    UUID provenanceProposalId
 ) {
     public KgNode {
         properties = properties == null ? Map.of() : Map.copyOf( properties );
+        tier = tier == null ? "human" : tier;
     }
 
     /** Returns true if this node is a stub (referenced but has no wiki page yet). */

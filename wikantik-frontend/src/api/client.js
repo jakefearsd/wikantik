@@ -503,8 +503,10 @@ export const api = {
 
   // Knowledge Graph Administration
   knowledge: {
-    getGraphSnapshot: ({ signal } = {}) =>
-      request('/api/knowledge/graph', { signal }),
+    getGraphSnapshot: ({ minTier, signal } = {}) => {
+      const qs = minTier ? `?min_tier=${encodeURIComponent(minTier)}` : '';
+      return request(`/api/knowledge/graph${qs}`, { signal });
+    },
 
     getSchema: () => request('/admin/knowledge-graph/schema'),
 

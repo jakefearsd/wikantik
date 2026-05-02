@@ -68,4 +68,41 @@ describe('KnowledgeGraphView', () => {
     render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText(/empty/i)).toBeTruthy());
   });
+
+  it('reads tier from URL on mount and fetches with that minTier', async () => {
+    api.knowledge.getGraphSnapshot.mockResolvedValue(MOCK_SNAPSHOT);
+    render(<MemoryRouter initialEntries={['/knowledge-graph?tier=human']}><KnowledgeGraphView /></MemoryRouter>);
+    await waitFor(() => expect(api.knowledge.getGraphSnapshot).toHaveBeenCalled());
+    const args = api.knowledge.getGraphSnapshot.mock.calls[0][0] || {};
+    expect(args.minTier).toBe('human');
+  });
+
+  it('changing tier dropdown re-fetches with new minTier and updates URL', async () => {
+    const { fireEvent } = await import('@testing-library/react');
+    api.knowledge.getGraphSnapshot.mockResolvedValue(MOCK_SNAPSHOT);
+    render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId('graph-canvas')).toBeTruthy());
+
+    const select = screen.getByLabelText(/tier/i);
+    fireEvent.change(select, { target: { value: 'human' } });
+
+    await waitFor(() => expect(api.knowledge.getGraphSnapshot).toHaveBeenCalledTimes(2));
+    const secondArgs = api.knowledge.getGraphSnapshot.mock.calls[1][0] || {};
+    expect(secondArgs.minTier).toBe('human');
+    expect(window.location.search).toContain('tier=human');
+  });
+
+  it('legend shows machine + human tier counts', async () => {
+    const snap = {
+      ...MOCK_SNAPSHOT,
+      nodes: [
+        { ...MOCK_SNAPSHOT.nodes[0], tier: 'machine' },
+        { ...MOCK_SNAPSHOT.nodes[1], tier: 'human' },
+      ],
+    };
+    api.knowledge.getGraphSnapshot.mockResolvedValue(snap);
+    render(<MemoryRouter initialEntries={['/knowledge-graph']}><KnowledgeGraphView /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByText(/1 machine/i)).toBeTruthy());
+    expect(screen.getByText(/1 human/i)).toBeTruthy();
+  });
 });

@@ -6,8 +6,8 @@ import { applyFilters } from '../pagegraph/filter-engine.js';
 import { paramsToFilterState, filterStateToParams } from '../pagegraph/filter-url.js';
 import FilterPanel from '../pagegraph/FilterPanel.jsx';
 import GraphCanvas from '../pagegraph/GraphCanvas.jsx';
-import GraphToolbar from '../pagegraph/GraphToolbar.jsx';
-import GraphLegend from '../pagegraph/GraphLegend.jsx';
+import KgGraphToolbar from './KgGraphToolbar.jsx';
+import KgGraphLegend from './KgGraphLegend.jsx';
 import GraphZoomSlider from '../pagegraph/GraphZoomSlider.jsx';
 import GraphDetailsDrawer from '../pagegraph/GraphDetailsDrawer.jsx';
 import GraphErrorBoundary from '../pagegraph/GraphErrorBoundary.jsx';
@@ -27,6 +27,10 @@ export default function KnowledgeGraphView() {
   const [selectedId, setSelectedId] = useState(null);
   const [filterState, setFilterState] = useState(() => paramsToFilterState(searchParams));
   const [layoutDone, setLayoutDone] = useState(false);
+  const [minTier, setMinTier] = useState(() => {
+    const t = searchParams.get('tier');
+    return (t === 'human' || t === 'machine') ? t : 'machine';
+  });
 
   useEffect(() => {
     const next = filterStateToParams(filterState, new URLSearchParams(window.location.search));
@@ -35,11 +39,11 @@ export default function KnowledgeGraphView() {
     window.history.replaceState(null, '', url);
   }, [filterState]);
 
-  const fetchSnapshot = useCallback(async () => {
+  const fetchSnapshot = useCallback(async (tier) => {
     setFetchState('loading');
     setErrorVariant(null);
     try {
-      const data = await api.knowledge.getGraphSnapshot();
+      const data = await api.knowledge.getGraphSnapshot(tier ? { minTier: tier } : undefined);
       setSnapshot(data);
       if (data.nodeCount === 0) {
         setFetchState('error'); setErrorVariant('empty');
@@ -56,7 +60,12 @@ export default function KnowledgeGraphView() {
     }
   }, []);
 
-  useEffect(() => { fetchSnapshot(); }, [fetchSnapshot]);
+  useEffect(() => {
+    // On first mount, omit the tier so the existing test ("calls getGraphSnapshot
+    // with no minTier on first mount") keeps passing when no tier is in the URL.
+    // Subsequent updates always pass it explicitly.
+    fetchSnapshot(searchParams.get('tier') || undefined);
+  }, [fetchSnapshot, searchParams]);
 
   const focusNodeId = useMemo(() => {
     if (!focusParam.current || !snapshot) return null;
@@ -83,6 +92,16 @@ export default function KnowledgeGraphView() {
     if (!snapshot?.generatedAt) return '';
     try { return new Date(snapshot.generatedAt).toLocaleTimeString(); }
     catch { return snapshot.generatedAt; }
+  }, [snapshot]);
+
+  const tierCounts = useMemo(() => {
+    if (!snapshot) return { machineCount: 0, humanCount: 0 };
+    let m = 0, h = 0;
+    for (const n of snapshot.nodes) {
+      if (n.tier === 'human') h++;
+      else if (n.tier === 'machine') m++;
+    }
+    return { machineCount: m, humanCount: h };
   }, [snapshot]);
 
   const selectedNode = useMemo(() => {
@@ -122,11 +141,26 @@ export default function KnowledgeGraphView() {
     setFilterState(prev => setShowOrphansStubs(prev, !prev.showOrphansStubs));
   }, []);
 
+  const handleTierChange = useCallback((tier) => {
+    setMinTier(tier);
+    const params = new URLSearchParams(window.location.search);
+    if (tier === 'machine') {
+      params.delete('tier'); // keep URL clean for the default
+    } else {
+      params.set('tier', tier);
+    }
+    const qs = params.toString();
+    const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    window.history.replaceState(null, '', url);
+    fetchSnapshot(tier);
+    setSelectedId(null); // node ID set may change between tiers
+  }, [fetchSnapshot]);
+
   const handleRefresh = useCallback(async () => {
     const prevSelectedName = selectedNode?.name;
     setFetchState('loading'); setErrorVariant(null);
     try {
-      const data = await api.knowledge.getGraphSnapshot();
+      const data = await api.knowledge.getGraphSnapshot({ minTier });
       setSnapshot(data);
       if (data.nodeCount === 0) { setFetchState('error'); setErrorVariant('empty'); return; }
       if (data.nodes.every(n => n.restricted)) { setFetchState('error'); setErrorVariant('empty-for-you'); return; }
@@ -141,7 +175,7 @@ export default function KnowledgeGraphView() {
       else if (err.status === 403) setErrorVariant('forbidden');
       else setErrorVariant('server');
     }
-  }, [selectedNode]);
+  }, [selectedNode, minTier]);
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') setSelectedId(null); };
@@ -162,7 +196,7 @@ export default function KnowledgeGraphView() {
           <a href="/wiki/PageGraphVsKnowledgeGraph">What is the Knowledge Graph?</a>
         </div>
         <FilterPanel state={filterState} snapshot={snapshot} onChange={setFilterState} />
-        <GraphToolbar
+        <KgGraphToolbar
           onFitToView={() => window.cy?.fit()}
           onRefresh={handleRefresh}
           onToggleAnomalies={handleToggleOrphans}
@@ -171,6 +205,8 @@ export default function KnowledgeGraphView() {
           hiddenEdgeTypes={filterState.hiddenEdgeTypes}
           onlyAnomalies={!filterState.showOrphansStubs}
           timestamp={timestamp}
+          minTier={minTier}
+          onTierChange={handleTierChange}
         />
         <GraphCanvas
           elements={elements}
@@ -194,9 +230,11 @@ export default function KnowledgeGraphView() {
         )}
         <div className="graph-bottom-right">
           <GraphZoomSlider layoutDone={layoutDone} />
-          <GraphLegend
+          <KgGraphLegend
             hubDegreeThreshold={snapshot?.hubDegreeThreshold || 10}
             timestamp={timestamp}
+            machineCount={tierCounts.machineCount}
+            humanCount={tierCounts.humanCount}
           />
         </div>
         {noVisibleNodes && (

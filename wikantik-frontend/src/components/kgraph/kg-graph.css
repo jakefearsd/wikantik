@@ -1,0 +1,5 @@
+.kg-prov-pill { display: inline-block; padding: 1px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+.kg-prov-human_authored { background: #16a085; color: white; }
+.kg-prov-ai_reviewed    { background: #3b82f6; color: white; }
+.kg-prov-ai_inferred    { background: #ddd;    color: #333;  }
+.kg-prov-unknown        { background: #eee;    color: #888;  }

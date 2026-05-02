@@ -16,6 +16,7 @@ import GraphLoadingFallback from '../pagegraph/GraphLoadingFallback.jsx';
 import { setEdgeTypeHidden, setShowOrphansStubs } from '../pagegraph/filter-state.js';
 import KgErrorState from './KgErrorState.jsx';
 import '../pagegraph/graph.css';
+import './kg-graph.css';
 
 export default function KnowledgeGraphView() {
   const [searchParams] = useSearchParams();

@@ -28,6 +28,18 @@ export default function KgGraphLegend({ hubDegreeThreshold, timestamp, machineCo
           ))}
         </div>
       )}
+      <div style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
+        <strong>Provenance:</strong>{' '}
+        <span style={{ marginRight: '8px' }}>
+          <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#16a085', marginRight: '3px', verticalAlign: 'middle' }} /> human
+        </span>
+        <span style={{ marginRight: '8px' }}>
+          <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#3b82f6', marginRight: '3px', verticalAlign: 'middle' }} /> AI-reviewed
+        </span>
+        <span>
+          <span style={{ display: 'inline-block', width: '10px', height: '10px', border: '1px dashed #888', marginRight: '3px', verticalAlign: 'middle' }} /> AI-inferred
+        </span>
+      </div>
       <GraphLegend hubDegreeThreshold={hubDegreeThreshold} timestamp={timestamp} />
     </div>
   );

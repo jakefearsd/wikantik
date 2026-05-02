@@ -11,7 +11,11 @@ export default function KgGraphDetailsDrawer({ selectedNode, incidentEdges, onCl
         <dt>Type</dt>
         <dd>{selectedNode.type || '—'}</dd>
         <dt>Provenance</dt>
-        <dd>{selectedNode.provenance || '—'}</dd>
+        <dd>
+          <span className={`kg-prov-pill kg-prov-${(selectedNode.provenance || 'unknown').toLowerCase()}`}>
+            {selectedNode.provenance || '—'}
+          </span>
+        </dd>
         <dt>Status</dt>
         <dd>{selectedNode.status || '—'}</dd>
         <dt>Tier</dt>

@@ -467,21 +467,24 @@ class AdminKnowledgeResourceMockTest {
 
     private static KgNode node( final UUID id, final String name ) {
         return new KgNode( id, name, "Concept", name + "Page",
-            Provenance.HUMAN_AUTHORED, Map.of(),
+            Provenance.HUMAN_AUTHORED, Map.<String, Object>of(),
             Instant.parse( "2026-04-24T09:00:00Z" ),
-            Instant.parse( "2026-04-24T10:00:00Z" ) );
+            Instant.parse( "2026-04-24T10:00:00Z" ),
+            "human", null );
     }
 
     private static KgEdge edge( final UUID id, final UUID src, final UUID tgt ) {
         return new KgEdge( id, src, tgt, "related",
-            Provenance.HUMAN_AUTHORED, Map.of(),
+            Provenance.HUMAN_AUTHORED, Map.<String, Object>of(),
             Instant.parse( "2026-04-24T09:00:00Z" ),
-            Instant.parse( "2026-04-24T10:00:00Z" ) );
+            Instant.parse( "2026-04-24T10:00:00Z" ),
+            "human", null );
     }
 
     private static KgProposal proposal( final UUID id, final String type, final String page, final String status ) {
-        return new KgProposal( id, type, page, Map.of(),
+        return new KgProposal( id, type, page, Map.<String, Object>of(),
             0.7, "why", status, null,
-            Instant.parse( "2026-04-24T09:00:00Z" ), null );
+            Instant.parse( "2026-04-24T09:00:00Z" ), null,
+            "none", null, null, null, null );
     }
 }

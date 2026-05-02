@@ -20,8 +20,8 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 import com.wikantik.api.core.Engine;
-import com.wikantik.api.structure.IndexHealth;
-import com.wikantik.api.structure.StructuralIndexService;
+import com.wikantik.api.pagegraph.IndexHealth;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;

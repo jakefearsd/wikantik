@@ -18,9 +18,9 @@
  */
 package com.wikantik.pagegraph.spine;
 
-import com.wikantik.api.structure.Audience;
-import com.wikantik.api.structure.Confidence;
-import com.wikantik.api.structure.Verification;
+import com.wikantik.api.pagegraph.Audience;
+import com.wikantik.api.pagegraph.Confidence;
+import com.wikantik.api.pagegraph.Verification;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -37,7 +37,7 @@ import java.util.Optional;
 /**
  * JDBC gateway for {@code page_verification}. Phase 1 of the Agent-Grade
  * Content design owns this; later phases consume it through
- * {@link com.wikantik.api.structure.PageDescriptor} and the {@code /for-agent}
+ * {@link com.wikantik.api.pagegraph.PageDescriptor} and the {@code /for-agent}
  * projection.
  */
 public class PageVerificationDao {

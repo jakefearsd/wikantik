@@ -25,7 +25,7 @@ import com.wikantik.api.filters.PageFilter;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.ParsedPage;
-import com.wikantik.api.structure.StructuralIndexService;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

@@ -23,17 +23,17 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.structure.ClusterDetails;
-import com.wikantik.api.structure.ClusterSummary;
-import com.wikantik.api.structure.IndexHealth;
-import com.wikantik.api.structure.PageDescriptor;
-import com.wikantik.api.structure.PageType;
-import com.wikantik.api.structure.Sitemap;
-import com.wikantik.api.structure.StructuralConflict;
-import com.wikantik.api.structure.StructuralFilter;
-import com.wikantik.api.structure.StructuralIndexService;
-import com.wikantik.api.structure.TagSummary;
-import com.wikantik.api.structure.Verification;
+import com.wikantik.api.pagegraph.ClusterDetails;
+import com.wikantik.api.pagegraph.ClusterSummary;
+import com.wikantik.api.pagegraph.IndexHealth;
+import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.PageType;
+import com.wikantik.api.pagegraph.Sitemap;
+import com.wikantik.api.pagegraph.StructuralConflict;
+import com.wikantik.api.pagegraph.StructuralFilter;
+import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.wikantik.api.pagegraph.TagSummary;
+import com.wikantik.api.pagegraph.Verification;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -381,11 +381,11 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
         try {
             final Instant verifiedAt = parseInstant( fm.get( "verified_at" ) );
             final String verifiedBy  = asString( fm.get( "verified_by" ) );
-            final var explicitOverride = com.wikantik.api.structure.Confidence
+            final var explicitOverride = com.wikantik.api.pagegraph.Confidence
                     .fromWire( fm.get( "confidence" ) );
-            final com.wikantik.api.structure.Audience audience =
-                    com.wikantik.api.structure.Audience.fromFrontmatter( fm.get( "audience" ) );
-            final com.wikantik.api.structure.Confidence confidence =
+            final com.wikantik.api.pagegraph.Audience audience =
+                    com.wikantik.api.pagegraph.Audience.fromFrontmatter( fm.get( "audience" ) );
+            final com.wikantik.api.pagegraph.Confidence confidence =
                     confidenceComputer.compute( verifiedAt, verifiedBy, explicitOverride, Instant.now() );
             verificationDao.upsert( canonicalId, new Verification( verifiedAt, verifiedBy, confidence, audience ) );
         } catch ( final RuntimeException ex ) {

@@ -18,8 +18,8 @@
  */
 package com.wikantik.pagegraph.spine;
 
-import com.wikantik.api.structure.PageDescriptor;
-import com.wikantik.api.structure.PageType;
+import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.PageType;
 
 import java.time.Instant;
 import java.util.ArrayList;

@@ -16,14 +16,22 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.api.structure;
+package com.wikantik.api.pagegraph;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 
-/** Compact summary of a cluster — its name, hub page (nullable), article count, and freshness. */
-public record ClusterSummary(
+/** Full details of a cluster: hub page, ordered article list, per-tag counts, freshness. */
+public record ClusterDetails(
         String name,
         PageDescriptor hubPage,
-        int articleCount,
+        List< PageDescriptor > articles,
+        Map< String, Integer > tagDistribution,
         Instant updatedAt
-) {}
+) {
+    public ClusterDetails {
+        articles        = articles        == null ? List.of() : List.copyOf( articles );
+        tagDistribution = tagDistribution == null ? Map.of()  : Map.copyOf( tagDistribution );
+    }
+}

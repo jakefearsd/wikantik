@@ -18,13 +18,13 @@
  */
 package com.wikantik.pagegraph.spine;
 
-import com.wikantik.api.structure.ClusterDetails;
-import com.wikantik.api.structure.ClusterSummary;
-import com.wikantik.api.structure.PageDescriptor;
-import com.wikantik.api.structure.PageType;
-import com.wikantik.api.structure.Sitemap;
-import com.wikantik.api.structure.StructuralFilter;
-import com.wikantik.api.structure.TagSummary;
+import com.wikantik.api.pagegraph.ClusterDetails;
+import com.wikantik.api.pagegraph.ClusterSummary;
+import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.PageType;
+import com.wikantik.api.pagegraph.Sitemap;
+import com.wikantik.api.pagegraph.StructuralFilter;
+import com.wikantik.api.pagegraph.TagSummary;
 
 import java.time.Instant;
 import java.util.ArrayList;

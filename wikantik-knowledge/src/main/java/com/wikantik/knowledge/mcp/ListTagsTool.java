@@ -18,8 +18,8 @@
  */
 package com.wikantik.knowledge.mcp;
 
-import com.wikantik.api.structure.StructuralIndexService;
-import com.wikantik.api.structure.TagSummary;
+import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.wikantik.api.pagegraph.TagSummary;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;

@@ -21,7 +21,7 @@ package com.wikantik.pagegraph.spine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.FilterException;
-import com.wikantik.api.structure.StructuralIndexService;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

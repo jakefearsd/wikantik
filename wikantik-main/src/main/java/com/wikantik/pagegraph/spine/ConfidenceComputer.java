@@ -18,7 +18,7 @@
  */
 package com.wikantik.pagegraph.spine;
 
-import com.wikantik.api.structure.Confidence;
+import com.wikantik.api.pagegraph.Confidence;
 
 import java.time.Duration;
 import java.time.Instant;

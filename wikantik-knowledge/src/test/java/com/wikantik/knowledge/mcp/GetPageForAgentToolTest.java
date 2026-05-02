@@ -20,8 +20,8 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
-import com.wikantik.api.structure.Audience;
-import com.wikantik.api.structure.Confidence;
+import com.wikantik.api.pagegraph.Audience;
+import com.wikantik.api.pagegraph.Confidence;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

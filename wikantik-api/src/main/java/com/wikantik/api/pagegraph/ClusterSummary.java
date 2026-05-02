@@ -16,18 +16,14 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.api.structure;
+package com.wikantik.api.pagegraph;
 
 import java.time.Instant;
-import java.util.List;
 
-/** Compact sitemap projection — every page with its canonical ID and slug, suitable as an agent prelude. */
-public record Sitemap(
-        List< PageDescriptor > pages,
-        int count,
-        Instant generatedAt
-) {
-    public Sitemap {
-        pages = pages == null ? List.of() : List.copyOf( pages );
-    }
-}
+/** Compact summary of a cluster — its name, hub page (nullable), article count, and freshness. */
+public record ClusterSummary(
+        String name,
+        PageDescriptor hubPage,
+        int articleCount,
+        Instant updatedAt
+) {}

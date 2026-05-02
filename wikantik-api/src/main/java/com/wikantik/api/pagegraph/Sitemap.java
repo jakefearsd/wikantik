@@ -16,17 +16,18 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.api.structure;
+package com.wikantik.api.pagegraph;
 
+import java.time.Instant;
 import java.util.List;
 
-/** Tag-dictionary entry: the tag name, how many pages carry it, and a sample of canonical IDs. */
-public record TagSummary(
-        String tag,
+/** Compact sitemap projection — every page with its canonical ID and slug, suitable as an agent prelude. */
+public record Sitemap(
+        List< PageDescriptor > pages,
         int count,
-        List< String > topPageIds
+        Instant generatedAt
 ) {
-    public TagSummary {
-        topPageIds = topPageIds == null ? List.of() : List.copyOf( topPageIds );
+    public Sitemap {
+        pages = pages == null ? List.of() : List.copyOf( pages );
     }
 }

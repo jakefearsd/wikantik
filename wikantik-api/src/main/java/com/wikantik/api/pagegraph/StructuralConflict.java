@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.api.structure;
+package com.wikantik.api.pagegraph;
 
 /**
  * A finding from the rebuild pass that an admin should see and resolve. Phase 4

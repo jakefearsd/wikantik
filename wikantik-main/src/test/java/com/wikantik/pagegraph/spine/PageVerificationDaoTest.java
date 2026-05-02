@@ -18,9 +18,9 @@
  */
 package com.wikantik.pagegraph.spine;
 
-import com.wikantik.api.structure.Audience;
-import com.wikantik.api.structure.Confidence;
-import com.wikantik.api.structure.Verification;
+import com.wikantik.api.pagegraph.Audience;
+import com.wikantik.api.pagegraph.Confidence;
+import com.wikantik.api.pagegraph.Verification;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

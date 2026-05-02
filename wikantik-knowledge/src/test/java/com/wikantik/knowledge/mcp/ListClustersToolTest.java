@@ -18,10 +18,10 @@
  */
 package com.wikantik.knowledge.mcp;
 
-import com.wikantik.api.structure.ClusterSummary;
-import com.wikantik.api.structure.PageDescriptor;
-import com.wikantik.api.structure.PageType;
-import com.wikantik.api.structure.StructuralIndexService;
+import com.wikantik.api.pagegraph.ClusterSummary;
+import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.PageType;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 

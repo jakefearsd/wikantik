@@ -22,9 +22,9 @@ import com.wikantik.api.kgpolicy.ClusterAction;
 import com.wikantik.api.kgpolicy.ClusterPolicy;
 import com.wikantik.api.kgpolicy.PolicyExplanation;
 import com.wikantik.api.managers.SystemPageRegistry;
-import com.wikantik.api.structure.PageDescriptor;
-import com.wikantik.api.structure.PageType;
-import com.wikantik.api.structure.StructuralIndexService;
+import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.PageType;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

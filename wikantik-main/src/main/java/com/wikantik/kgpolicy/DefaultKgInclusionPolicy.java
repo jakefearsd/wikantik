@@ -26,8 +26,8 @@ import com.wikantik.api.kgpolicy.KgInclusionPolicy;
 import com.wikantik.api.kgpolicy.PolicyAuditEntry;
 import com.wikantik.api.kgpolicy.PolicyExplanation;
 import com.wikantik.api.managers.SystemPageRegistry;
-import com.wikantik.api.structure.PageDescriptor;
-import com.wikantik.api.structure.StructuralIndexService;
+import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

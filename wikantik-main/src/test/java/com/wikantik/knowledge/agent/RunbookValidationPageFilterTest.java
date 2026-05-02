@@ -23,9 +23,9 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.FilterException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.structure.PageDescriptor;
-import com.wikantik.api.structure.PageType;
-import com.wikantik.api.structure.StructuralIndexService;
+import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.PageType;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

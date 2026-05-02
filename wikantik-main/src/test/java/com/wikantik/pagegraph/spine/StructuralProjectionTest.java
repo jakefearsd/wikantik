@@ -18,9 +18,9 @@
  */
 package com.wikantik.pagegraph.spine;
 
-import com.wikantik.api.structure.PageDescriptor;
-import com.wikantik.api.structure.PageType;
-import com.wikantik.api.structure.StructuralFilter;
+import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.PageType;
+import com.wikantik.api.pagegraph.StructuralFilter;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

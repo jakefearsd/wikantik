@@ -34,7 +34,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.api.structure.StructuralIndexService;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;

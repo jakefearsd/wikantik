@@ -66,7 +66,7 @@ import com.wikantik.pagegraph.spine.StructuralIndexEventListener;
 import com.wikantik.pagegraph.spine.StructuralIndexMetrics;
 import com.wikantik.pagegraph.spine.StructuralSpinePageFilter;
 import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
-import com.wikantik.api.structure.StructuralIndexService;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
 import com.wikantik.knowledge.KnowledgeGraphServiceFactory;
@@ -1131,7 +1131,7 @@ public class WikiEngine implements Engine {
      */
     private void wireRetrievalQualityRunner( final Properties props,
                                               final javax.sql.DataSource ds,
-                                              final com.wikantik.api.structure.StructuralIndexService structuralIndex ) {
+                                              final com.wikantik.api.pagegraph.StructuralIndexService structuralIndex ) {
         try {
             final com.wikantik.knowledge.eval.RetrievalQualityDao rqDao =
                 new com.wikantik.knowledge.eval.RetrievalQualityDao( ds );

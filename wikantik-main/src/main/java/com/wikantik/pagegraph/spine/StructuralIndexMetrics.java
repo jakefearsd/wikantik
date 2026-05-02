@@ -19,8 +19,8 @@
 package com.wikantik.pagegraph.spine;
 
 import com.wikantik.api.observability.MeterRegistryHolder;
-import com.wikantik.api.structure.IndexHealth;
-import com.wikantik.api.structure.StructuralIndexService.StructuralProjectionSnapshot;
+import com.wikantik.api.pagegraph.IndexHealth;
+import com.wikantik.api.pagegraph.StructuralIndexService.StructuralProjectionSnapshot;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;

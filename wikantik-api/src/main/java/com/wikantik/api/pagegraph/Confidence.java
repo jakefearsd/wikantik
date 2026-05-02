@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.api.structure;
+package com.wikantik.api.pagegraph;
 
 import java.util.Locale;
 import java.util.Optional;

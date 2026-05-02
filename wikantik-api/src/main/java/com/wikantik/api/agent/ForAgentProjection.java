@@ -18,8 +18,8 @@
  */
 package com.wikantik.api.agent;
 
-import com.wikantik.api.structure.Audience;
-import com.wikantik.api.structure.Confidence;
+import com.wikantik.api.pagegraph.Audience;
+import com.wikantik.api.pagegraph.Confidence;
 
 import java.time.Instant;
 import java.util.List;

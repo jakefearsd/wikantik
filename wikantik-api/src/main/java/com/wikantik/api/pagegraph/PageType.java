@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.api.structure;
+package com.wikantik.api.pagegraph;
 
 /**
  * Canonical page type as declared in frontmatter {@code type:}. {@link #UNKNOWN}

@@ -20,8 +20,8 @@ package com.wikantik.pagegraph.spine;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.structure.PageType;
-import com.wikantik.api.structure.StructuralFilter;
+import com.wikantik.api.pagegraph.PageType;
+import com.wikantik.api.pagegraph.StructuralFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -145,16 +145,16 @@ class DefaultStructuralIndexServiceTest {
 
         withVerification.rebuild();
 
-        final org.mockito.ArgumentCaptor< com.wikantik.api.structure.Verification > cap =
-                org.mockito.ArgumentCaptor.forClass( com.wikantik.api.structure.Verification.class );
+        final org.mockito.ArgumentCaptor< com.wikantik.api.pagegraph.Verification > cap =
+                org.mockito.ArgumentCaptor.forClass( com.wikantik.api.pagegraph.Verification.class );
         verify( verificationDao, times( 2 ) ).upsert( anyString(), cap.capture() );
 
         final var values = cap.getAllValues();
         assertTrue( values.stream().anyMatch(
-                v -> v.confidence() == com.wikantik.api.structure.Confidence.AUTHORITATIVE ),
+                v -> v.confidence() == com.wikantik.api.pagegraph.Confidence.AUTHORITATIVE ),
                 "alice is trusted → AUTHORITATIVE" );
         assertTrue( values.stream().anyMatch(
-                v -> v.confidence() == com.wikantik.api.structure.Confidence.PROVISIONAL ),
+                v -> v.confidence() == com.wikantik.api.pagegraph.Confidence.PROVISIONAL ),
                 "bob is not trusted → PROVISIONAL" );
     }
 
@@ -252,7 +252,7 @@ class DefaultStructuralIndexServiceTest {
         assertEquals( 1, conflicts.size() );
 
         final var missing = conflicts.stream()
-                .filter( c -> c.kind() == com.wikantik.api.structure.StructuralConflict.Kind.MISSING_CANONICAL_ID )
+                .filter( c -> c.kind() == com.wikantik.api.pagegraph.StructuralConflict.Kind.MISSING_CANONICAL_ID )
                 .findFirst().orElseThrow();
         assertEquals( "NoId", missing.slug() );
     }

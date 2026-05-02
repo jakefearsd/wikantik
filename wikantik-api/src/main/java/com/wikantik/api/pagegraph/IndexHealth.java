@@ -16,22 +16,19 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.api.structure;
+package com.wikantik.api.pagegraph;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 
-/** Full details of a cluster: hub page, ordered article list, per-tag counts, freshness. */
-public record ClusterDetails(
-        String name,
-        PageDescriptor hubPage,
-        List< PageDescriptor > articles,
-        Map< String, Integer > tagDistribution,
-        Instant updatedAt
+/** Snapshot of the structural index's liveness, lag, and last-rebuild metrics. */
+public record IndexHealth(
+        Status status,
+        int pages,
+        int unclaimedCanonicalIds,
+        Instant lastRebuildStartedAt,
+        Instant lastRebuildFinishedAt,
+        long lastRebuildDurationMillis,
+        long lagSeconds
 ) {
-    public ClusterDetails {
-        articles        = articles        == null ? List.of() : List.copyOf( articles );
-        tagDistribution = tagDistribution == null ? Map.of()  : Map.copyOf( tagDistribution );
-    }
+    public enum Status { UP, REBUILDING, DEGRADED, DOWN }
 }

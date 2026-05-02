@@ -42,7 +42,7 @@ class SearchKnowledgeToolTest {
         return new KgNode( id, name, "Concept", name + "Page",
             Provenance.HUMAN_AUTHORED, Map.of(),
             Instant.parse( "2026-04-24T08:00:00Z" ),
-            Instant.parse( "2026-04-24T08:00:00Z" ) );
+            Instant.parse( "2026-04-24T08:00:00Z" ), "human", null );
     }
 
     @Test

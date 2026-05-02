@@ -57,14 +57,14 @@ class TraverseToolTest {
         final KgNode a = new KgNode( aId, "Alpha", "Concept", "AlphaPage",
             Provenance.HUMAN_AUTHORED, Map.of(),
             Instant.parse( "2026-04-24T10:00:00Z" ),
-            Instant.parse( "2026-04-24T10:00:00Z" ) );
+            Instant.parse( "2026-04-24T10:00:00Z" ), "human", null );
         final KgNode b = new KgNode( bId, "Beta", "Concept", "BetaPage",
             Provenance.HUMAN_AUTHORED, Map.of(),
             Instant.parse( "2026-04-24T10:00:00Z" ),
-            Instant.parse( "2026-04-24T10:00:00Z" ) );
+            Instant.parse( "2026-04-24T10:00:00Z" ), "human", null );
         final KgEdge edge = new KgEdge( UUID.randomUUID(), aId, bId, "coMention",
             Provenance.AI_REVIEWED, Map.of( "sharedChunks", 4 ),
-            Instant.now(), Instant.now() );
+            Instant.now(), Instant.now(), "human", null );
         when( svc.traverseByCoMention( "Alpha", 2, 1 ) )
             .thenReturn( new TraversalResult( List.of( a, b ), List.of( edge ) ) );
 

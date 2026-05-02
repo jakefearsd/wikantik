@@ -54,11 +54,11 @@ class GetNodeToolTest {
         final UUID id = UUID.randomUUID();
         final KgNode node = new KgNode( id, "Alpha", "Concept", "AlphaPage",
             Provenance.HUMAN_AUTHORED, Map.of( "summary", "summary" ),
-            Instant.parse( "2026-04-24T09:00:00Z" ), Instant.parse( "2026-04-24T10:00:00Z" ) );
+            Instant.parse( "2026-04-24T09:00:00Z" ), Instant.parse( "2026-04-24T10:00:00Z" ), "human", null );
         when( svc.getNodeByName( "Alpha" ) ).thenReturn( node );
         when( svc.getEdgesForNode( id, "outbound" ) ).thenReturn( List.of(
             new KgEdge( UUID.randomUUID(), id, UUID.randomUUID(), "relatedTo",
-                Provenance.AI_REVIEWED, Map.of(), Instant.now(), Instant.now() ) ) );
+                Provenance.AI_REVIEWED, Map.of(), Instant.now(), Instant.now(), "human", null ) ) );
         when( svc.getEdgesForNode( id, "inbound" ) ).thenReturn( List.of() );
 
         final McpSchema.CallToolResult result =
@@ -76,7 +76,7 @@ class GetNodeToolTest {
         final UUID id = UUID.fromString( "11111111-2222-3333-4444-555555555555" );
         final KgNode node = new KgNode( id, "Alpha", "Concept", "AlphaPage",
             Provenance.HUMAN_AUTHORED, Map.of(),
-            Instant.parse( "2026-04-24T09:00:00Z" ), Instant.parse( "2026-04-24T09:00:00Z" ) );
+            Instant.parse( "2026-04-24T09:00:00Z" ), Instant.parse( "2026-04-24T09:00:00Z" ), "human", null );
         when( svc.getNodeByName( id.toString() ) ).thenReturn( null );
         when( svc.getNode( id ) ).thenReturn( node );
         when( svc.getEdgesForNode( eq( id ), anyString() ) ).thenReturn( List.of() );

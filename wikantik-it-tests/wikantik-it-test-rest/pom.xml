@@ -62,6 +62,8 @@
           <dependenciesToScan combine.self="override" />
           <includes>
             <include>**/RestApiIT.java</include>
+            <include>**/KgPolicyAdminIT.java</include>
+            <include>**/KgStagedValidationIT.java</include>
           </includes>
           <systemPropertyVariables>
             <it-wikantik.base.url>http://localhost:8080/${it-wikantik.context}</it-wikantik.base.url>

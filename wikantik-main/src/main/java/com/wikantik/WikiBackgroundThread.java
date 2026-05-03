@@ -133,15 +133,15 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
                     if( interrupted ) {
                         break;
                     }
+                } catch( final InterruptedException ie ) {
+                    // Treat an interrupt as a shutdown signal regardless of killMe state.
+                    // Continuing the loop after interrupt would tight-spin because the
+                    // next Thread.sleep() rethrows immediately on the still-set flag.
+                    Thread.currentThread().interrupt();
+                    LOG.debug( "Background thread {} interrupted; exiting run loop.", name );
+                    break;
                 } catch( final Throwable t ) {
-                    if ( t instanceof InterruptedException ) {
-                        // Interrupt is expected during shutdown; re-set the flag and exit.
-                        Thread.currentThread().interrupt();
-                        LOG.debug( "Background thread {} interrupted during shutdown sleep.", name );
-                    } else {
-                        LOG.error( "Background thread error: (stack trace follows)", t );
-                    }
-                    // Exit the loop — if killMe is true we're done; if not, check condition.
+                    LOG.error( "Background thread error: (stack trace follows)", t );
                     if ( killMe ) {
                         break;
                     }

@@ -760,11 +760,15 @@ public class VersioningFileProvider extends AbstractFileProvider {
             LOG.warn( "Failed to rename page file {} to {}", fromFile, toFile );
         }
 
-        // Move any old versions
+        // Move any old versions, but only if the source actually has a versions
+        // directory — pages with no prior history have nothing to move and we
+        // shouldn't log a spurious WARN for that case.
         final File fromOldDir = findOldPageDir( from );
-        final File toOldDir = findOldPageDir( to );
-        if( !fromOldDir.renameTo( toOldDir ) ) {
-            LOG.warn( "Failed to rename versions directory {} to {}", fromOldDir, toOldDir );
+        if( fromOldDir.isDirectory() ) {
+            final File toOldDir = findOldPageDir( to );
+            if( !fromOldDir.renameTo( toOldDir ) ) {
+                LOG.warn( "Failed to rename versions directory {} to {}", fromOldDir, toOldDir );
+            }
         }
 
         // Invalidate file extension cache for both old and new page names

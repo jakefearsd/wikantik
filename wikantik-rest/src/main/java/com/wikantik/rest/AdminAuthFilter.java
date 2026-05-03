@@ -117,7 +117,14 @@ public class AdminAuthFilter implements Filter {
         final AuthorizationManager authMgr = engine.getManager( AuthorizationManager.class );
 
         if ( !authMgr.checkPermission( session, adminPerm ) ) {
-            LOG.debug( "Admin access denied for {}", session.getLoginPrincipal().getName() );
+            // WARN so operators can correlate "I got logged out" reports with the
+            // exact request that produced the 403. Includes session ID + principal
+            // + path so a bouncing/changing JSESSIONID is visible at a glance.
+            LOG.warn( "Admin access denied: path={} sessionId={} principal={} authenticated={}",
+                req.getRequestURI(),
+                req.getSession( false ) != null ? req.getSession( false ).getId() : "(none)",
+                session.getLoginPrincipal() != null ? session.getLoginPrincipal().getName() : "(null)",
+                session.isAuthenticated() );
             resp.setStatus( HttpServletResponse.SC_FORBIDDEN );
             resp.setCharacterEncoding( "UTF-8" );
 

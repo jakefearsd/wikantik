@@ -134,6 +134,11 @@
     <plugin.eclipse-lifecycle-mapping.version>1.0.0</plugin.eclipse-lifecycle-mapping.version>
     <maven.compiler.source>${jdk.version}</maven.compiler.source> <!-- override values from parent pom -->
     <maven.compiler.target>${jdk.version}</maven.compiler.target>
+    <!-- Default `argLine` to empty so the late-binding `@{argLine}` placeholder
+         in surefire resolves cleanly when the JaCoCo agent isn't attached.
+         The `coverage` profile leaves this empty too — JaCoCo's prepare-agent
+         goal repopulates it at runtime. -->
+    <argLine></argLine>
   </properties>
 
   <scm>
@@ -659,10 +664,9 @@
         <groupId>net.nicoulaj.maven.plugins</groupId>
         <artifactId>checksum-maven-plugin</artifactId>
       </plugin>
-      <plugin>
-        <groupId>org.jacoco</groupId>
-        <artifactId>jacoco-maven-plugin</artifactId>
-      </plugin>
+      <!-- JaCoCo coverage instrumentation is opt-in via the `coverage` profile.
+           Default builds skip the agent attach + report so test forks run unencumbered.
+           Run `mvn install -Pcoverage` (or set `-Dcoverage=true`) to collect coverage. -->
       <plugin>
         <groupId>org.cyclonedx</groupId>
         <artifactId>cyclonedx-maven-plugin</artifactId>
@@ -1379,6 +1383,27 @@
                 </goals>
               </execution>
             </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile> <!-- collect JaCoCo coverage; opt-in to keep default builds fast -->
+      <id>coverage</id>
+
+      <activation>
+        <property>
+          <name>coverage</name>
+          <value>true</value>
+        </property>
+      </activation>
+
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.jacoco</groupId>
+            <artifactId>jacoco-maven-plugin</artifactId>
+            <!-- version + executions inherited from pluginManagement -->
           </plugin>
         </plugins>
       </build>

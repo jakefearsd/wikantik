@@ -27,6 +27,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.content.PageRenamer;
+import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.managers.PageManager;
 
@@ -161,6 +162,12 @@ public class RenamePageTool implements McpTool, AuthorConfigurable {
             result.put( "finalName", finalName );
             result.put( "linksUpdated", updateLinks );
             return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, result );
+        } catch ( final WikiException e ) {
+            // WikiException covers caller-driven failures: "No such page", "Page
+            // already exists", "Cannot rename to itself", etc. These are 4xx-class
+            // — return the message to the caller and log a single WARN line.
+            LOG.warn( "rename_page rejected {} -> {}: {}", oldName, newName, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );
         } catch ( final Exception e ) {
             LOG.error( "Failed to rename page {} to {}: {}", oldName, newName, e.getMessage(), e );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );

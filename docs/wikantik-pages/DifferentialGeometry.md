@@ -1,185 +1,85 @@
 ---
+cluster: mathematics
 canonical_id: 01KQ0P44PNH5Z7WQQMY43G947G
 title: Differential Geometry
 type: article
-cluster: mathematics
-status: active
-date: '2026-04-26'
-summary: Calculus on curved spaces — manifolds, tangent spaces, curvature, and the
-  geometric foundations underlying general relativity, modern physics, and manifold
-  learning in ML.
 tags:
+- mathematics
 - differential-geometry
 - manifolds
-- mathematics
+- riemannian-geometry
 - relativity
+summary: Study of curved spaces using calculus, covering manifolds, tangent spaces, metrics, and curvature.
+auto-generated: false
+status: active
+date: '2026-04-26'
 related:
 - AppliedMathSurvey
 - TopologyMathematics
 - CalculusRefreshForCS
 - ComplexAnalysis
-hubs:
-- MathematicsHub
 ---
+
 # Differential Geometry
 
-Differential geometry studies curved spaces — surfaces and higher-dimensional analogs — using calculus. The math is hard; the applications are profound. General relativity, gauge theory, manifold learning in ML — all use differential geometry.
+Differential geometry uses the tools of calculus and linear algebra to study the properties of curved spaces, known as manifolds. It provides the mathematical framework for general relativity, gauge theory, and various techniques in manifold learning and robotics.
 
-This page covers the conceptual foundations.
+## 1. Differentiable Manifolds
 
-## Manifolds
+A manifold $M$ is a topological space that is locally homeomorphic to Euclidean space $\mathbb{R}^n$. For calculus to be performed on $M$, it must be equipped with a **differentiable structure**.
 
-A manifold is a space that locally looks like flat (Euclidean) space, even if globally curved.
+### 1.1 Charts and Atlases
+A **chart** $(U, \phi)$ consists of an open set $U \subseteq M$ and a homeomorphism $\phi: U \to V \subseteq \mathbb{R}^n$. An **atlas** is a collection of charts that cover $M$. For the manifold to be $C^k$-differentiable, the transition maps between overlapping charts ($\phi_j \circ \phi_i^{-1}$) must be $C^k$-diffeomorphisms in $\mathbb{R}^n$.
 
-Examples:
-- A sphere: locally looks like a flat plane (the Earth's surface seems flat to us)
-- A torus (donut shape)
-- The configuration space of a robot arm (each joint is a circle; the whole space is a high-dimensional manifold)
+## 2. Tangent Spaces and Vector Fields
 
-A manifold has a dimension (locally how many directions you can move).
+At each point $p \in M$, there is an associated vector space $T_pM$ called the **tangent space**.
 
-### Charts and atlases
+### 2.1 Tangent Vectors
+A tangent vector $v \in T_pM$ can be defined as an equivalence class of curves $\gamma: (-\epsilon, \epsilon) \to M$ passing through $p$, or as a derivation on the algebra of smooth functions $C^\infty(M)$. In local coordinates $\{x^i\}$, a basis for $T_pM$ is given by the partial differential operators $\{\frac{\partial}{\partial x^i}\}$.
 
-A chart is a local coordinate system. An atlas is a collection of charts covering the whole manifold.
+### 2.2 Vector Fields
+A **vector field** $X$ is a smooth section of the tangent bundle $TM = \bigsqcup_{p \in M} T_pM$, assigning a tangent vector $X_p \in T_pM$ to every point $p$.
 
-Like Earth: each map is a chart; a globe atlas covers everything.
+## 3. Riemannian Metrics
 
-The math of manifolds requires consistency between overlapping charts.
+A **Riemannian metric** $g$ is a smooth assignment of an inner product $g_p: T_pM \times T_pM \to \mathbb{R}$ to each point $p$. This allows for the definition of geometric properties:
+*   **Length of a curve:** $L(\gamma) = \int_a^b \sqrt{g(\gamma'(t), \gamma'(t))} dt$.
+*   **Angle between vectors:** Defined via the inner product $g(v, w)$.
+*   **Volume:** Defined via the volume form derived from the determinant of $g_{ij}$.
 
-## Tangent spaces
+## 4. Connections and Curvature
 
-At each point of a manifold, the tangent space is the linear approximation. For a 2D surface in 3D, the tangent space at each point is a plane touching the surface there.
+To compare vectors at different points, a manifold requires a **connection** (or covariant derivative) $\nabla$.
 
-Tangent vectors generalize "directions of motion." Differential equations on manifolds are tangent-vector equations.
+### 4.1 Levi-Civita Connection
+On a Riemannian manifold, there exists a unique connection $\nabla$ that is symmetric (torsion-free) and compatible with the metric ($Xg(Y, Z) = g(\nabla_X Y, Z) + g(Y, \nabla_X Z)$).
 
-## Vector fields
+### 4.2 Parallel Transport and Geodesics
+A vector $v$ is **parallel transported** along a curve if $\nabla_{\dot{\gamma}} v = 0$. A curve $\gamma$ is a **geodesic** if it parallel transports its own tangent vector: $\nabla_{\dot{\gamma}} \dot{\gamma} = 0$. Geodesics are locally distance-minimizing paths.
 
-A vector field assigns a tangent vector to each point of the manifold.
+### 4.3 Curvature
+The **Riemann curvature tensor** $R$ measures the degree to which the second covariant derivatives fail to commute:
+$$R(X, Y)Z = \nabla_X \nabla_Y Z - \nabla_Y \nabla_X Z - \nabla_{[X, Y]} Z$$
+Sectional curvature, Ricci curvature, and Scalar curvature are various contractions and averages of this tensor.
 
-Examples:
-- Wind direction at each point of Earth's surface
-- Magnetic field
-- Gradient of a scalar function
+## 5. Differential Forms
 
-## Differential forms
+A differential $k$-form is a smooth section of the $k$-th exterior power of the cotangent bundle $\Lambda^k(T^*M)$.
+*   **Exterior Derivative ($d$):** Maps $k$-forms to $(k+1)$-forms, satisfying $d^2 = 0$.
+*   **Stokes' Theorem:** $\int_M d\omega = \int_{\partial M} \omega$, unifying the fundamental theorems of vector calculus.
 
-Generalizations of functions, vectors, and other geometric objects. Used in integration on manifolds.
+## 6. Lie Groups and Lie Algebras
 
-Differential forms unify vector calculus identities (gradient, divergence, curl) into a single framework via the exterior derivative.
+A **Lie group** $G$ is a manifold that also possesses a group structure such that the group operations (multiplication and inversion) are smooth. The **Lie algebra** $\mathfrak{g}$ is the tangent space at the identity $T_eG$, equipped with a Lie bracket $[X, Y]$ representing the infinitesimal group action.
 
-## Metrics and length
+## 7. Applications
 
-A Riemannian metric defines distances and angles on a manifold. Without a metric, you can talk about topology but not geometry.
+### 7.1 Physics
+*   **General Relativity:** Spacetime is modeled as a 4D Lorentzian manifold. Gravity is the curvature of this manifold, governed by the Einstein Field Equations: $G_{\mu\nu} + \Lambda g_{\mu\nu} = \kappa T_{\mu\nu}$.
+*   **Gauge Theory:** Forces are modeled as connections on fiber bundles over spacetime.
 
-The metric varies by point — the manifold can be curved.
-
-### Geodesics
-
-Generalizations of straight lines on curved manifolds. The shortest path between two points (locally) along the manifold.
-
-On a sphere, geodesics are great circles. Airline routes follow geodesics (approximately).
-
-### Curvature
-
-How much the manifold curves. Positive curvature (sphere), zero curvature (plane), negative curvature (saddle).
-
-Curvature is local — different points can have different curvature.
-
-## Connections
-
-A connection lets you compare vectors at different points. On a flat plane, this is trivial. On a curved manifold, it's not.
-
-The Levi-Civita connection is canonical for Riemannian manifolds.
-
-### Parallel transport
-
-Moving a vector along a path while keeping it "parallel" according to the connection. On a curved manifold, parallel transport around a closed loop returns a rotated version of the original — this rotation measures curvature.
-
-## Why physics uses this
-
-### General relativity
-
-Spacetime is a 4-dimensional manifold (3 space + 1 time) with a metric determined by mass-energy distribution.
-
-Gravity isn't a force — it's the curvature of spacetime. Objects follow geodesics.
-
-The Einstein field equations relate mass-energy to curvature.
-
-### Gauge theory
-
-Modern particle physics describes forces using fiber bundles (manifolds with extra structure). Connections on these bundles give the gauge fields.
-
-Quantum electrodynamics, the Standard Model — all gauge theories using differential geometry.
-
-## Applications in machine learning
-
-### Manifold learning
-
-The "manifold hypothesis": high-dimensional data lives on low-dimensional manifolds. PCA, t-SNE, UMAP, autoencoders — all manifold-learning techniques.
-
-For data on a curved manifold, Euclidean distance can be misleading; geodesic distance is more meaningful.
-
-### Optimization on manifolds
-
-Gradient descent on a sphere or other manifold requires Riemannian generalizations. Important for optimization problems with constraints expressible as manifolds.
-
-### Information geometry
-
-The space of probability distributions has a natural Riemannian structure. Used in some ML theory.
-
-### Geometric deep learning
-
-Neural networks operating on graphs, manifolds, point clouds. Generalizes convolutional networks to non-Euclidean data.
-
-## Specific concepts
-
-### Lie groups
-
-Manifolds that are also groups (with smooth multiplication). Examples: rotations in 3D, unitary matrices.
-
-Used in physics (symmetries) and robotics (configuration spaces).
-
-### Symplectic geometry
-
-The geometry of phase space (position + momentum). Used in classical and quantum mechanics.
-
-### Bundle theory
-
-Spaces with extra structure attached at each point. Used in physics (gauge theory) and topology.
-
-## What you'd actually need
-
-For most software engineers: nothing. The applications are specialized.
-
-For:
-- Robotics: yes (configuration spaces are manifolds)
-- Physics simulation: depending on what you're simulating
-- ML researcher in geometric deep learning: yes
-- Computer graphics (advanced): some
-
-For typical CS work, knowing it exists and what it can express is enough.
-
-## Common failure patterns
-
-- **Trying to learn it without prerequisite multivariable calculus.** Without comfort with derivatives, vectors, surfaces, the concepts are inaccessible.
-- **Overemphasis on formalism.** The geometric intuition (curving surfaces, tangent vectors, parallel transport) is what matters.
-- **Skipping the physics motivation.** Many concepts make more sense in context of relativity or mechanics.
-- **Treating it as pure abstract.** The applications are real and important.
-
-## Reasonable learning path
-
-For software engineers wanting to understand:
-1. Comfort with multivariable calculus (gradients, vector fields)
-2. Linear algebra (vector spaces, transformations)
-3. Manifold concept (curved surface; tangent space)
-4. Specific applications relevant to your work
-
-Books: do Carmo's "Differential Geometry of Curves and Surfaces" (intro), Lee's "Smooth Manifolds" (advanced).
-
-## Further Reading
-
-- [AppliedMathSurvey](AppliedMathSurvey) — Where differential geometry fits
-- [TopologyMathematics](TopologyMathematics) — Topology underneath
-- [CalculusRefreshForCS](CalculusRefreshForCS) — Calculus foundations
-- [ComplexAnalysis](ComplexAnalysis) — Complex manifolds
-- [Mathematics Hub](MathematicsHub) — Cluster index
+### 7.2 Machine Learning and Robotics
+*   **Manifold Learning:** Techniques like Isomap or t-SNE assume high-dimensional data is sampled from a lower-dimensional manifold.
+*   **Robotics:** Configuration spaces of robotic systems are typically manifolds (e.g., $SO(3)$ for 3D rotations or $SE(3)$ for rigid body motion).
+*   **Information Geometry:** The study of manifolds of probability distributions, where the Fisher information metric defines the Riemannian structure.

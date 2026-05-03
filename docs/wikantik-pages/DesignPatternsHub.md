@@ -28,6 +28,7 @@ The honest assessment of design patterns: most of the value is in the *vocabular
 
 - [BuilderPatternAndFluentApis](BuilderPatternAndFluentApis) — Constructor sprawl and the fluent-API solution
 - [FactoryPattern](FactoryPattern) — Factories, abstract factories, when each is right
+- [Dependency Injection Patterns](DependencyInjectionPatterns) — Decoupling components through inversion of control
 
 ## Behavioral
 

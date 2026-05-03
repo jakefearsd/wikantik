@@ -125,6 +125,7 @@ Content is organized into **topic clusters** — groups of interlinked articles 
 - **Geopolitics and Conflict** — How major international conflicts shaped global equity markets, from WWI through the Russia-Ukraine war
 - **Technology** — [Generative AI adoption guide](GenerativeAiAdoptionGuide), [Linux for Windows users](LinuxForWindowsUsers), prompt engineering, and local LLM deployment
 - **Immigration** — Complete spousal green card process including petition filing, adjustment of status, consular processing, and interview preparation
+- **Hobbies and Lifestyle** — [Garden Production](GardenProduction) and sustainable living; [American Coinage](AmericanCoinageInThe1900s) and numismatics; and [Van Life](SixMonthAmericanWestLoop) travel planning and photography.
 
 ## The Semantic Agentic Vision
 

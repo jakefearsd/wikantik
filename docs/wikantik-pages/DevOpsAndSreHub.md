@@ -45,6 +45,7 @@ This cluster covers the operational discipline of running software in production
 ## Service infrastructure
 
 - [ServiceMeshArchitecture](ServiceMeshArchitecture) — When the mesh is worth the complexity
+- [Container Security](ContainerSecurity) — Hardening the runtime and the image supply chain
 
 ## Adjacent clusters
 

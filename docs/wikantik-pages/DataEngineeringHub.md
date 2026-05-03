@@ -30,12 +30,15 @@ This cluster covers the engineering side of data — pipelines, modeling, transf
 
 ## Modeling
 
-- [DataModelingFundamentals](DataModelingFundamentals) — Star, snowflake, dimensional, the fact-and-dim mental model
-- [MasterDataManagement](MasterDataManagement) — MDM as the discipline; tools as the implementation
+- [Data Modeling Fundamentals](DataModelingFundamentals) — Star, snowflake, dimensional, the fact-and-dim mental model
+- [NoSQL Database Types](NoSqlDatabaseTypes) — When and why to move beyond relational
+- [Jsonb In Postgresql](JsonbInPostgresql) — Handling semi-structured data in a relational engine
+- [Master Data Management](MasterDataManagement) — MDM as the discipline; tools as the implementation
 
 ## Catalogs and metadata
 
-- [DataCatalogTools](DataCatalogTools) — DataHub, Amundsen, Atlan; what they actually do
+- [Data Catalog Tools](DataCatalogTools) — DataHub, Amundsen, Atlan; what they actually do
+- [Data Lake Architecture](DataLakeArchitecture) — Organizing massive unstructured datasets
 
 ## Adjacent clusters
 

@@ -58,6 +58,7 @@ Tools and practices for making agents production-ready.
 - [Agent Observability](AgentObservability) — Monitoring the internal state and external actions of running agents
 - [AI Evaluation and Benchmarks](AiEvaluationAndBenchmarks) — Measuring capability and regression across model and prompt changes
 - [AI Hallucination Mitigation](AiHallucinationMitigation) — Engineering safeguards to keep agents grounded in fact
+- [Federated Knowledge Graphs](FederatedKnowledgeGraphs) — Multi-source knowledge integration for complex agent reasoning
 - [AI Data Privacy and Compliance](AiDataPrivacyAndCompliance) — Handling sensitive data in agentic workflows
 
 ## Agent-Grade Content
@@ -70,3 +71,4 @@ Tools and practices for making agents production-ready.
 - [Generative AI Hub](GenerativeAIHub) — The underlying model technologies
 - [ML Hub](MLHub) — Foundational machine learning theory
 - [Software Engineering Practices Hub](SoftwareEngineeringPracticesHub) — Engineering discipline for complex systems
+ineering Practices Hub](SoftwareEngineeringPracticesHub) — Engineering discipline for complex systems

@@ -23,147 +23,71 @@ status: active
 type: article
 ---
 
-# Agent Memory
+# Agent Memory: State Management and Storage Substrates
 
-"Memory" in an LLM agent is a sloppy word. It collapses four very different engineering problems into one: the reasoning scratchpad, the tool-call history, the working facts the agent has extracted, and the long-term knowledge that spans sessions. Each needs a different storage substrate and a different eviction policy.
+Memory in an LLM agent is effectively a state management problem across four distinct channels: reasoning, tool history, working facts, and long-term knowledge. Each channel requires a specific storage substrate and eviction policy.
 
-When an agent forgets the user's goal, the cause is usually not "the context window is too small." It's that you treated all four channels as one.
+## The Four Memory Channels
 
-## The four channels
-
-| Channel | Lifetime | Storage | Example content |
+| Channel | Lifetime | Storage Substrate | Content |
 |---|---|---|---|
-| **Scratch reasoning** | One turn | Model context | "Let me think about whether to call A or B..." |
-| **Tool-call history** | Current loop | Model context + summarised older turns | "Step 3: searched docs, got 12 results; step 5: opened result #4" |
-| **Working memory** | Current loop (survives summarisation) | Structured slots in system prompt, or separate data store | `goal="cancel user 42's subscription"`, `user_id=42`, `plan=[...]` |
-| **Long-term memory** | Cross-session | Vector DB / SQL / KG | Past conversations with this user, persistent preferences |
+| **Scratch Reasoning** | Single turn | Model Context | Internal "Chain of Thought" or reasoning steps. |
+| **Tool History** | Current loop | Model Context (Summarized) | Sequence of tool calls, arguments, and results. |
+| **Working Memory** | Current task | System Prompt / Structured Data | Extracted facts (e.g., `user_id`, `plan_status`) that must survive summarization. |
+| **Long-Term Memory** | Cross-session | Vector DB / SQL / Graph | User preferences, past conversation summaries, persistent knowledge. |
 
-The single most common memory failure in the wild is working-memory corruption or loss — the agent has extracted a fact ("user is an admin") and then, several summarisations later, either forgets it or acts on a stale version. Prevent this first.
+---
 
-## Scratch reasoning: keep it cheap and short
+## 1. Scratch Reasoning: Context Management
 
-Chain-of-thought between tool calls helps the agent but costs tokens and gives you no lasting value. Truncation policy:
+Reasoning tokens (like Chain-of-Thought) help the model but increase token costs without providing lasting value.
 
-- Keep scratch from the **current** turn only.
-- Drop scratch from prior turns during summarisation. Nobody ever looked back and said "the reasoning in turn 5 was critical for understanding turn 20."
-- If you run a model that exposes explicit reasoning tokens (OpenAI `o1`, Anthropic extended thinking), drop those aggressively — they're designed to be short-lived.
+*   **Eviction Policy**: Keep only the **current** turn's reasoning.
+*   **Summarization**: Drop prior turns' reasoning during context compression. It is rarely needed for future turns.
+*   **Telemetry**: Log full reasoning to an external observer/telemetry store for debugging, rather than keeping it in the model's active context window.
 
-Exception: for debugging sessions, log full scratch to telemetry (separate from context), not to the context window itself. You want the history for post-mortem, not for the model.
+## 2. Tool History: Rolling Summarization
 
-## Tool-call history: summarise, don't truncate
+The standard policy of "drop the oldest messages" when context fills up is often a failure mode, as it can delete the user's original goal.
 
-The default behaviour of most frameworks is "drop the oldest messages when context fills up." This is the wrong policy. It silently deletes the user's original goal and keeps the agent's most recent wandering.
+**Policy: Summarization by Age with Pinned Goal**
+1.  **Pin the Goal**: Always keep the initial user instruction in the prompt.
+2.  **Rolling Summary**: When context reaches a threshold (e.g., 50%), summarize turns 1 through $N-5$ into a concise paragraph, preserving only current turns ($N-4$ to $N$) in full fidelity.
+3.  **Preserve Entities**: Ensure the summarization prompt instructs the model to retain IDs, names, and specific values exactly.
 
-Better policy — **summarisation by age**, with pinned goal:
+## 3. Working Memory: Fact Extraction
 
-```
-[SYSTEM_PROMPT, pinned tool defs]
-[USER: original goal]                       <-- pinned, never dropped
-[SUMMARY of turns 1-15]                      <-- rolling summary
-  "Searched X, found Y, opened Z, extracted fact A=42..."
-[FULL turns 16-20]                           <-- recent, full fidelity
-[CURRENT model scratch]
-```
+Working memory consists of facts the agent discovers that must drive future actions. These should be stored in structured "slots" rather than prose.
 
-The summary is itself generated by the model at summarisation time. Good summarisation prompts include "preserve numbers, IDs, named entities exactly" — lose the filler, keep the facts.
+*   **Pattern**: Use a JSON block in the system prompt for high-signal facts (e.g., `account_id`, `current_step`).
+*   **Update Mechanism**: The agent uses a dedicated `update_working_memory` tool when it discovers new facts.
+*   **Benefit**: This block survives all summarization and allows the orchestrator to monitor progress (or stall) programmatically.
 
-Write your own summarisation logic. Don't rely on the framework default, which will not preserve what matters to your task.
+## 4. Long-Term Memory: Storage Selection
 
-## Working memory: the load-bearing idea
+Selecting the right substrate for long-term memory is critical for retrieval quality.
 
-Working memory is **extracted facts the agent will rely on for the rest of this loop**. It belongs in structured slots, not prose.
+| Use Case | Substrate |
+|---|---|
+| **Semantic Recall** | Vector Database (Fuzzy match on past interactions) |
+| **User Preferences** | SQL Database (Typed columns for `timezone`, `persona`) |
+| **Exact Recall** | Transaction Log / Audit DB (e.g., "Was refund #123 issued?") |
+| **Relational Knowledge** | Knowledge Graph (Mapping entities and their relations) |
 
-Bad (will get lost in summarisation):
+### Forgetting and Retention
+Unbounded memory is an anti-pattern. Every channel needs a retention policy:
+*   **Privacy**: Implement a deletion path for GDPR/compliance (deleting specific user nodes/vectors).
+*   **TTL**: Apply Time-To-Live to facts that may become stale (e.g., `current_location`).
 
-```
-"... and the agent noted that the user ID appears to be 42 based on the email lookup..."
-```
+## Cross-Session Continuity
 
-Good (survives any context compression):
+A minimal continuity stack requires:
+1.  **User Context**: Injected into every turn.
+2.  **Session Summary**: The last $N$ turns of the previous session summarized and loaded at startup.
+3.  **Preference Injection**: Structured facts ("prefers JSON output") placed in the system prompt.
 
-```
-goal: cancel user's subscription and refund last payment
-user_id: 42
-account_state: active_paid
-plan:
-  - [done] lookup_user
-  - [in_progress] cancel_subscription
-  - [todo] issue_refund
-  - [todo] confirm_with_user
-```
-
-This is just a JSON block in the system prompt that every turn sees. Update it via a dedicated `update_working_memory` tool call that the agent uses when it discovers new facts or completes plan steps.
-
-Benefits:
-
-- Survives summarisation (you pin the block).
-- Machine-readable for orchestrator logic (escalate if `plan` stalls for 5 steps with no progress).
-- Resumable across checkpoints (serialise the block, restore it on resume).
-- Debuggable (you can tell from the block alone what the agent thinks is going on).
-
-This one pattern shortens most long-running loops by 30–50% because the agent stops re-deriving facts it already knew.
-
-## Long-term memory: the overused layer
-
-"Let's add a vector memory!" is the first instinct when an agent forgets something between sessions. It's also usually wrong — half the problems vector memory is reached for are better solved by structured storage or RAG.
-
-Vector memory is the right tool for:
-
-- Retrieving past conversations by semantic similarity ("have we talked about this before?").
-- Storing user preferences where the match is fuzzy ("user generally prefers concise responses").
-- Retrieving facts from unstructured past interactions.
-
-Vector memory is the **wrong** tool for:
-
-- Structured facts the user has explicitly stated (timezone, language, account ID). Use a SQL row.
-- Exact recall of prior operations ("did we issue a refund to user 42 last month?"). Use the transaction log.
-- Hierarchical knowledge that benefits from traversal. Use a knowledge graph — see [KnowledgeGraphCompletion]().
-
-A reasonable production long-term memory stack:
-
-```
-User preferences            -> SQL (typed columns)
-Conversation history        -> SQL + vector index on summaries
-Extracted knowledge         -> Knowledge graph or typed facts table
-Semantic recall fallback    -> Vector DB (rarely needed if above is in place)
-```
-
-## Forgetting, on purpose
-
-All four channels need eviction policies. Unbounded memory is a bug.
-
-- **Scratch**: drop at turn end.
-- **Tool history**: summarise when context exceeds a threshold (e.g. 50% of max tokens).
-- **Working memory**: the agent itself prunes completed plan steps after N turns. Add TTLs to facts where staleness matters.
-- **Long-term**: explicit retention policy per data class. Some facts are permanent (user ID). Some expire (last 30 days of conversation summaries).
-
-Regulatory pressure makes this more than an engineering concern. GDPR "right to be forgotten" applies to vector and graph memories too; design your deletion path day one, not after the first subject access request.
-
-## Cross-session continuity, concretely
-
-The minimal "the agent remembers me" experience needs three things:
-
-1. **User identity** available to every tool call.
-2. **A session summary** loaded at session start — the last 5–10 turns of the prior session, summarised to 200–400 tokens.
-3. **Preference recall** — explicit facts the user stated ("call me Jake", "prefer metric units") stored structured, injected into system prompt.
-
-That's it. Most implementations stop there and don't need more. When they do, add semantic retrieval over past conversation turns — but profile whether it actually improves outcomes before adding the operational overhead.
-
-## Measuring memory quality
-
-Without eval, you won't notice memory regressions until users do.
-
-- **Goal retention**: take a fixed set of long-horizon tasks (15+ steps), check whether the agent's final actions match the original goal. Drop > 5% = the goal is falling out of context.
-- **Fact persistence**: plant a fact early ("the ticket ID is INC-2291"), measure whether the agent cites it correctly in turn 12+.
-- **Cross-session recall**: resume a task day later, check whether prior context was reconstructed.
-
-These go in the same fixture suite as your other rollout tests — see [AgentTesting]().
-
-## Further reading
-
-- [AiMemoryAndPersistence]() — companion page on the storage-substrate side
-- [AgenticWorkflowDesign]() — system-level shape memory fits into
-- [AgentLoops]() — failure modes when memory is wrong
-- [ContextWindowManagement]() — the pure mechanics of token budgets
-- [ContextCompression]() — summarisation prompts and techniques
-- [VectorDatabases]() — the storage layer for semantic recall
+## Verification
+Memory quality should be measured via automated evals:
+*   **Goal Retention**: Does the final action match the initial instruction after 15+ turns?
+*   **Fact Persistence**: Can the agent recall a ticket ID provided 10 turns ago?
+*   **Recall Latency**: Monitor the time added by vector retrieval vs. the quality gain.

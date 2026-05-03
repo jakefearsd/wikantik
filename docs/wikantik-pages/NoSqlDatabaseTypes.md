@@ -23,194 +23,61 @@ related:
 hubs:
 - DatabasesHub
 ---
-# NoSQL Database Types
+# NoSQL Database Selection: Architectural Fit
 
-NoSQL is a category that grouped several different things sharing only "not relational." Each family has different strengths, different trade-offs, different cases where it earns its keep. Picking by buzzword ("we need NoSQL because we're scalable") almost always produces regret; picking by fit ("our access pattern is X; this DB optimises for that") is the working approach.
+Selecting a NoSQL database should be driven by specific access patterns rather than general scalability claims. In 2026, most technical requirements are met by Postgres, with specialized NoSQL families earning their place only when specific latency or throughput thresholds are breached.
 
-## The four families
+## I. NoSQL Families and Sweet Spots
 
-| Family | Examples | Sweet spot | Often regretted because |
+| Family | Implementation | Sweet Spot | Common Regrets |
 |---|---|---|---|
-| **Document** | MongoDB, Couchbase, Firestore | Schema-flexible content; nested data | Lacks transactional guarantees you needed; schema flexibility becomes schema chaos |
-| **Key-value** | Redis, DynamoDB, Memcached, etcd | Simple lookups at very high throughput | Too simple for queries you eventually need |
-| **Wide-column** | Cassandra, HBase, ScyllaDB, Bigtable | Time-series; very high write throughput; tunable consistency | Operational complexity outweighs benefit at small scale |
-| **Graph** | Neo4j, JanusGraph, TigerGraph | Relationship-heavy data; deep traversals | Most "we need a graph" cases work in Postgres |
+| **Document** | MongoDB, Firestore | Fluid schemas; deeply nested data. | Lack of ACID cross-document constraints; schema chaos. |
+| **Key-Value** | Redis, DynamoDB | Sub-ms latency; simple lookups. | Restricted query patterns; eventual consistency issues. |
+| **Wide-Column** | Cassandra, ScyllaDB | High write volume (>50k/sec); multi-DC. | Operational complexity; rigid partitioning. |
+| **Graph** | Neo4j, JanusGraph | Relationship traversals (5+ hops). | Most graph needs are met by relational FKs/CTE. |
 
-In 2026, **most teams should default to Postgres** and reach for NoSQL only when there's a specific reason. Postgres has absorbed many NoSQL features (JSONB for documents; pgvector; range types; ltree). The NoSQL family that still consistently wins is key-value (Redis), and it usually wins as a *cache*, not a primary store.
+---
 
-## Document databases
+## II. Document Databases
 
-The pitch: "store JSON-shaped data; query by any field; flexible schema."
+**Core Pitch**: Store JSON-shaped data with indexing on any field.
+*   **Postgres Alternative**: Before adopting MongoDB, evaluate **JSONB in Postgres**. It supports GIN indexing and most document query patterns while maintaining transactional integrity and relational joins.
+*   **Adoption Trigger**: Reach for a document store when the domain is fundamentally semi-structured (e.g., content management systems with hundreds of varying attributes) and you require horizontal sharding that exceeds Postgres's managed capacity.
 
-The reality: good for some things; less good than promised at others.
+## III. Key-Value and In-Memory
 
-### MongoDB
-
-Most popular. Dynamic schemas; rich query language (aggregations, joins, indexes); ACID transactions added in 2018.
-
-Strengths:
-- Schema-flexible — useful for varied content types.
-- Aggregation framework is genuinely powerful.
-- Geo and full-text built in.
-- Horizontal scaling via sharding.
-
-Weaknesses:
-- Schema flexibility is also a footgun — ad-hoc fields proliferate; consumers can't depend on shape.
-- Operational complexity at scale (replica sets, shards, write concerns).
-- The transaction story improved but is still less mature than Postgres.
-- Performance has surprised teams negatively at certain scales / access patterns.
-
-Use when: schema genuinely is fluid and useful (event stores, content management, varied object types). Don't use when: schema is stable and you'd be happier with Postgres + JSONB columns.
-
-### Postgres + JSONB as alternative
-
-For most "we need flexible document storage" cases:
-
-```sql
-CREATE TABLE events (
-    id BIGSERIAL PRIMARY KEY,
-    event_type TEXT NOT NULL,
-    payload JSONB NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX ON events USING GIN (payload);
-CREATE INDEX ON events ((payload->>'user_id'));
-```
-
-JSONB queries support most MongoDB query patterns. You also get joins, transactions, the SQL ecosystem, and don't run a second database. See [JsonbInPostgresql]().
-
-For most teams: prefer this over MongoDB unless you have specific MongoDB-shaped needs.
-
-## Key-value databases
-
-The simplest NoSQL: `set(key, value)`, `get(key)`. High throughput, sub-millisecond latency.
-
-### Redis (and Valkey)
-
-The dominant key-value store; in-memory; rich data types beyond plain key-value (lists, sets, sorted sets, hashes, streams, geo, bitmap, hyperloglog).
-
-Use cases (see [RedisPatterns]()):
-- Caching (the dominant use).
-- Session storage.
-- Rate limiting.
-- Leaderboards (sorted sets).
-- Pub/sub.
-- Job queues.
-- Real-time analytics.
-
-Caveat: not durable like Postgres. Default config can lose minutes of data on crash. Persistence options exist; tune carefully if Redis is your source of truth.
+### Redis / Valkey
+The dominant in-memory store. Used as a secondary layer for:
+*   **Caching**: Accelerating slow queries.
+*   **Rate Limiting**: Low-latency counters.
+*   **Sorted Sets**: Real-time leaderboards.
+*   **Streams**: High-throughput message queuing.
+*   *Caveat*: Persistence is not its primary strength. Do not use as the sole source of truth for critical transactional data without careful RDB/AOF tuning.
 
 ### DynamoDB
+Managed, serverless key-value store.
+*   **Trade-off**: Predictable latency and zero ops at the cost of vendor lock-in and rigid data modeling (Single-Table Design).
 
-AWS-managed key-value with secondary indexes. Pay per request. Hyper-scalable.
+---
 
-Strengths:
-- Fully managed; no operations.
-- Single-digit-millisecond latency at any scale.
-- Seamless scaling; auto-scaling; multi-region.
+## IV. Wide-Column: High-Throughput Writes
 
-Weaknesses:
-- Vendor lock-in.
-- Query patterns must be designed up front; not flexible.
-- Cost can spike unexpectedly.
-- Counts as a key-value store but tries to be more (single-table design with composite keys); the data modelling has a learning curve.
+Cassandra and ScyllaDB are designed for linear scalability and multi-datacenter replication.
+*   **Write Path**: Optimized via LSM trees and memtables.
+*   **Query Constraint**: Every query must align with a partition key. Ad-hoc filtering is computationally expensive or prohibited.
+*   **Adoption Trigger**: Sustained write volumes exceeding the capacity of single-node relational instances, or a requirement for multi-region active-active replication.
 
-Use when: AWS-only; predictable access patterns; simple-ish data; you'd rather pay than operate.
+---
 
-### Memcached
+## V. Specialized Stores
 
-Older; simpler; cache-only. Mostly superseded by Redis for new deployments. Persists in some legacy systems where it works.
+*   **Time-Series** (TimescaleDB, InfluxDB): Optimized for timestamped range queries and data retention policies.
+*   **Search** (Elasticsearch, Meilisearch): Full-text indexing, scoring, and faceting.
+*   **Vector** (pgvector, Qdrant): High-dimensional similarity search for RAG and embeddings.
 
-### etcd / Consul / ZooKeeper
+## VI. The Pragmatic Decision Framework
 
-Distributed key-value with consensus. Used for cluster metadata, service discovery, distributed locks, configuration. Not a general-purpose database; very specific use case.
-
-## Wide-column databases
-
-Data modelled as rows with sparse columns, often per-row column families. Storage and queries optimised for writes-then-rare-reads of related columns.
-
-### Cassandra (and ScyllaDB)
-
-The canonical wide-column. Distributed by default; tunable consistency; massive write throughput.
-
-Strengths:
-- Linear horizontal scalability.
-- Multi-datacenter replication first-class.
-- Tunable consistency (per-query R, W).
-- Write-optimised (LSM trees + memtables).
-
-Weaknesses:
-- Operations are real work — many knobs; many failure modes.
-- Query model is restrictive — every query needs a matching primary key / partition key.
-- Sparse-column model is unfamiliar; data modelling has a steep curve.
-- ScyllaDB is API-compatible but reimplemented in C++ for better performance.
-
-Use when: very high write volume (>100k/sec); time-series; wide-area replication; query patterns known up front. Don't use when: query patterns evolve frequently; ad-hoc queries common.
-
-### Bigtable / HBase
-
-Google Bigtable (managed) / HBase (open-source equivalent). Similar shape to Cassandra; tighter integration with the rest of Google's stack (Bigtable) or Hadoop (HBase).
-
-Use cases similar to Cassandra; less common in non-Google / non-Hadoop shops.
-
-## Graph databases
-
-Stores nodes and edges; queries traverse relationships. See [GraphDatabaseFundamentals](), [KnowledgeGraphVsRelationalDatabase]().
-
-For most "we have related data" cases, foreign keys in Postgres do the job. Graph databases are right when:
-- Traversals are deep (5+ hops).
-- Relationships are the primary thing being queried.
-- Graph algorithms (centrality, community detection) are needed.
-
-Otherwise, Postgres + a graph schema works.
-
-## Specialised: time-series, search, vector
-
-Adjacent to NoSQL but each its own category:
-
-- **Time-series**: InfluxDB, TimescaleDB (Postgres extension), QuestDB. Optimised for time-stamped writes, range queries.
-- **Search**: Elasticsearch, OpenSearch, Meilisearch. Optimised for full-text, scoring, faceted search.
-- **Vector**: Pinecone, Qdrant, Milvus, pgvector. Optimised for similarity search.
-
-Each is a NoSQL-flavoured database with a specific shape. Use when the shape fits.
-
-## When NoSQL is the right call
-
-Honest cases where Postgres-everywhere is wrong:
-
-- **Genuine high-write scale** (>50k writes/sec sustained on a single table). Cassandra, ScyllaDB.
-- **Single-digit-millisecond latency at unbounded scale.** DynamoDB managed.
-- **Real-time caching / counters / leaderboards.** Redis.
-- **Cluster coordination.** etcd / Consul.
-- **Search at scale.** Elasticsearch (or pgsearch / paradedb up to a point).
-- **Vector search at extreme scale.** Qdrant or specialised, beyond pgvector's comfort zone.
-
-These are real cases. They're not the majority of cases.
-
-## When NoSQL is the wrong call
-
-Common over-adoptions:
-
-- **"We chose MongoDB for flexibility."** Most schemas converge over time; flexibility becomes inconsistency. Postgres + JSONB gives you flexibility with the option of constraints.
-- **"We chose Cassandra for scalability."** Until you actually need Cassandra-scale, you're paying operational cost for benefits you don't use.
-- **"We chose DynamoDB to avoid operations."** Cost surprises are real; lock-in is real; the operations savings are smaller than the marketing suggests.
-- **"We chose Neo4j for our knowledge graph."** Most KGs work in Postgres until they don't.
-
-## A pragmatic decision
-
-For a new project:
-
-1. **Default to Postgres.** Includes JSONB, pgvector, full-text, range types.
-2. **Add Redis for caching / sessions / queues** when the workload calls for it.
-3. **Add a specialised database** when Postgres's limits become specific bottlenecks. Document which limits; benchmark before adopting.
-4. **Justify each new database** with a concrete reason that wouldn't be solved by tuning Postgres.
-
-Most production stacks in 2026 are Postgres + Redis + maybe one or two specialists. Architecture diagrams with five databases are usually mistakes.
-
-## Further reading
-
-- [DatabaseDesign]() — relational design starting point
-- [RedisPatterns]() — when key-value wins
-- [GraphDatabaseFundamentals]() — graph DBs in depth
-- [DatabaseSharding]() — horizontal scaling concerns
+1.  **Default to Postgres**: It handles documents (JSONB), vectors (pgvector), and full-text search adequately for most scales.
+2.  **Add Redis**: For caching, sessions, and real-time counters.
+3.  **Adopt Specialists**: Only when a specific bottleneck (write throughput, deep graph traversal, search complexity) is identified and measured.
+4.  **Justify Operational Overhead**: Every new database increases the surface area for failure, backup complexity, and engineering cognitive load.

@@ -65,16 +65,19 @@ public class CsrfProtectionFilter implements Filter {
             if( isRestApiEndpoint( httpRequest ) ) {
                 // REST endpoints use JSON and rely on Origin validation, not on the CSRF token.
                 if( !isOriginAllowed( httpRequest, allowedOrigins ) ) {
-                    LOG.error( "Rejected state-changing request from Origin '{}' for {}",
-                               httpRequest.getHeader( "Origin" ), describePath( httpRequest ) );
+                    // 4xx-class: caller-supplied Origin doesn't pass the whitelist.
+                    LOG.warn( "Rejected state-changing request from Origin '{}' for {}",
+                              httpRequest.getHeader( "Origin" ), describePath( httpRequest ) );
                     ( ( HttpServletResponse ) response ).sendError( HttpServletResponse.SC_FORBIDDEN, "Cross-origin request refused" );
                     return;
                 }
             } else {
                 final Session session = Wiki.session().find( engine, httpRequest );
                 if( !requestContainsValidCsrfToken( request, session ) ) {
-                    LOG.error( "Incorrect {} param with value '{}' received for {}",
-                               ANTICSRF_PARAM, request.getParameter( ANTICSRF_PARAM ), describePath( httpRequest ) );
+                    // 4xx-class: caller didn't present a valid CSRF token. Routine
+                    // for misconfigured clients probing the wrong path; not a server error.
+                    LOG.warn( "Incorrect {} param with value '{}' received for {}",
+                              ANTICSRF_PARAM, request.getParameter( ANTICSRF_PARAM ), describePath( httpRequest ) );
                     ( ( HttpServletResponse ) response ).sendRedirect( "/error/Forbidden.html" );
                     return;
                 }

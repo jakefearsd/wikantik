@@ -95,6 +95,17 @@ public class KgMaterializationService {
             Provenance.AI_INFERRED, Map.of(), tier, proposal.id() );
         final KgNode tgt = repo.upsertNodeWithProvenance( target, "concept", null,
             Provenance.AI_INFERRED, Map.of(), tier, proposal.id() );
+        // upsertNodeWithProvenance returns null when the post-INSERT read-back
+        // is filtered out by the KG inclusion policy (the row IS in kg_nodes,
+        // but its source-page cluster is excluded). Materialisation is a no-op
+        // in that case — leave the edge unwritten and surface the reason so
+        // operators can audit policy decisions instead of seeing a raw NPE.
+        if ( src == null || tgt == null ) {
+            LOG.warn( "materialize: skipping edge for proposal {} — node excluded by KG inclusion policy "
+                + "(source='{}' present={}; target='{}' present={})",
+                proposal.id(), source, src != null, target, tgt != null );
+            return;
+        }
         repo.upsertEdgeWithProvenance( src.id(), tgt.id(), rel,
             Provenance.AI_INFERRED, Map.of(), tier, proposal.id() );
     }

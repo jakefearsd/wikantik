@@ -38,7 +38,8 @@ import java.util.Map;
 /**
  * MCP tool: edit an existing wiki page with optimistic locking via
  * {@code expectedContentHash}. On hash mismatch, returns {updated:false,
- * error:"hash mismatch", currentHash} so the agent can re-fetch and retry.
+ * error:"hash mismatch", currentHash, latestContent, currentVersion} —
+ * everything the agent needs to rebase its edit without an extra round trip.
  */
 public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
 
@@ -102,7 +103,9 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
                         "pageName", "HybridRetrieval",
                         "updated", false,
                         "error", "hash mismatch",
-                        "currentHash", "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+                        "currentHash", "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+                        "currentVersion", 9,
+                        "latestContent", "---\ntitle: Hybrid Retrieval\n---\n\nUpdated body..."
                 )
         ) );
 
@@ -110,10 +113,11 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             .name( TOOL_NAME )
             .description( "Edit an existing page with optimistic locking. Returns " +
                 "{updated, newContentHash, newVersion} on success or " +
-                "{updated:false, error:'hash mismatch', currentHash} on drift so " +
-                "the agent can re-fetch and retry. System pages (CSS themes, menu " +
-                "fragments, help pages, anything shipped with the wiki) cannot be " +
-                "edited via MCP — those updates require admin UI / direct DB access." )
+                "{updated:false, error:'hash mismatch', currentHash, currentVersion, latestContent} " +
+                "on drift — the agent can rebase against latestContent immediately " +
+                "without a separate read_page round trip. System pages (CSS themes, " +
+                "menu fragments, help pages, anything shipped with the wiki) cannot " +
+                "be edited via MCP — those updates require admin UI / direct DB access." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties,
                 List.of( "pageName", "content", "expectedContentHash" ), null, null, null ) )
@@ -165,11 +169,21 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             final String currentHash = McpToolUtils.computeContentHash(
                 currentText == null ? "" : currentText );
             if ( !expectedHash.equals( currentHash ) ) {
+                // Background mutations (link-update sweeps, structural-spine
+                // enforcement, etc.) move the hash out from under an in-flight
+                // edit. Rather than force a re-read round trip, hand the agent
+                // the current page state in the same response so it can rebase
+                // immediately. Per McpServerCritique2026 #3.
                 final Map< String, Object > mismatch = new LinkedHashMap<>();
                 mismatch.put( "pageName", pageName );
                 mismatch.put( "updated", false );
                 mismatch.put( "error", "hash mismatch" );
                 mismatch.put( "currentHash", currentHash );
+                mismatch.put( "latestContent", currentText == null ? "" : currentText );
+                final Page existingForVersion = pageManager.getPage( pageName );
+                if ( existingForVersion != null ) {
+                    mismatch.put( "currentVersion", existingForVersion.getVersion() );
+                }
                 return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, mismatch );
             }
 

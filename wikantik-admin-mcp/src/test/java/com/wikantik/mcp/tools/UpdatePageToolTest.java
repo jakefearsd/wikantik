@@ -93,6 +93,12 @@ class UpdatePageToolTest {
         assertTrue( text.contains( "\"updated\":false" ) );
         assertTrue( text.contains( "hash mismatch" ) );
         assertTrue( text.contains( "\"currentHash\"" ) );
+        // McpServerCritique2026 #3: hash-mismatch responses must include the
+        // current page state so the agent can rebase without re-reading.
+        assertTrue( text.contains( "\"latestContent\"" ),
+            "hash-mismatch response should carry latestContent: " + text );
+        assertTrue( text.contains( "drift body" ),
+            "latestContent should be the actual current page text: " + text );
         verify( helper, never() ).saveText( anyString(), anyString(), any( SaveOptions.class ) );
     }
 

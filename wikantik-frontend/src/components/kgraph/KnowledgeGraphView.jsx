@@ -41,7 +41,7 @@ export default function KnowledgeGraphView() {
     window.history.replaceState(null, '', url);
   }, [filterState]);
 
-  const fetchSnapshot = useCallback(async (tier) => {
+  const fetchSnapshot = useCallback(async (tier, restoreSelectedName) => {
     setFetchState('loading');
     setErrorVariant(null);
     try {
@@ -53,6 +53,10 @@ export default function KnowledgeGraphView() {
         setFetchState('error'); setErrorVariant('empty-for-you');
       } else {
         setFetchState('ready');
+        if (restoreSelectedName) {
+          const match = data.nodes.find(n => n.name === restoreSelectedName);
+          setSelectedId(match ? match.id : null);
+        }
       }
     } catch (err) {
       setFetchState('error');
@@ -163,26 +167,9 @@ export default function KnowledgeGraphView() {
     setSelectedId(null); // node ID set may change between tiers
   }, [fetchSnapshot]);
 
-  const handleRefresh = useCallback(async () => {
-    const prevSelectedName = selectedNode?.name;
-    setFetchState('loading'); setErrorVariant(null);
-    try {
-      const data = await api.knowledge.getGraphSnapshot({ minTier });
-      setSnapshot(data);
-      if (data.nodeCount === 0) { setFetchState('error'); setErrorVariant('empty'); return; }
-      if (data.nodes.every(n => n.restricted)) { setFetchState('error'); setErrorVariant('empty-for-you'); return; }
-      setFetchState('ready');
-      if (prevSelectedName) {
-        const match = data.nodes.find(n => n.name === prevSelectedName);
-        setSelectedId(match ? match.id : null);
-      }
-    } catch (err) {
-      setFetchState('error');
-      if (err.status === 401) setErrorVariant('unauthorized');
-      else if (err.status === 403) setErrorVariant('forbidden');
-      else setErrorVariant('server');
-    }
-  }, [selectedNode, minTier]);
+  const handleRefresh = useCallback(
+    () => fetchSnapshot(minTier, selectedNode?.name),
+    [fetchSnapshot, selectedNode, minTier]);
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') setSelectedId(null); };

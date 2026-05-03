@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.util.WikiPageNameValidator;
+
 import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParseException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
@@ -133,7 +135,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             final String content = McpToolUtils.getString( arguments, "content" );
             final String expectedHash = McpToolUtils.getString( arguments, "expectedContentHash" );
             try {
-                com.wikantik.util.WikiPageNameValidator.requireValid( pageName, "pageName" );
+                WikiPageNameValidator.requireValid( pageName, "pageName" );
             } catch ( final IllegalArgumentException iae ) {
                 McpAudit.logWrite( TOOL_NAME, "rejected-invalid-name", String.valueOf( pageName ), defaultAuthor );
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, iae.getMessage() );

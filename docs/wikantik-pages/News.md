@@ -6,6 +6,58 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-03** — feat(mcp): include latestContent + currentVersion in update_page hash-mismatch response
+
+**2026-05-03** — security(mcp): strict page-name validator + YAML loader hardening
+
+**2026-05-03** — log(rename_page): WikiException is client-class — WARN without stack trace
+
+**2026-05-03** — log(search): demote query-parse failures from ERROR to WARN; drop stack trace
+
+**2026-05-03** — config(kg-judge): default endpoint/model to inference.jakefear.com / gemma4-assist:latest
+
+**2026-05-03** — fix(versioning): skip OLD/ rename when source has no version history
+
+**2026-05-03** — fix(shutdown): WikiBackgroundThread breaks out on interrupt; delete buggy shutdown test
+
+**2026-05-03** — build: make JaCoCo coverage opt-in via -Pcoverage profile
+
+**2026-05-03** — fix(shutdown): clean webapp shutdown — close runners, join background threads, clear ThreadLocals
+
+**2026-05-03** — docs(wikantik-pages): global de-slopping and graph connectivity improvements
+
+**2026-05-03** — fix(structural-index): handle slug/canonical_id mismatch gracefully + reconcile data
+
+**2026-05-03** — fix(kg-judge): extract leading JSON object from LLM responses with tool-call/prose tails
+
+**2026-05-03** — fix(kg-judge): also catch PoolClosedException at runner outer scope
+
+**2026-05-03** — docs(kg-view): implementation plan for the Knowledge Graph viewer
+
+**2026-05-03** — fix(kg-it): tolerate SPA basename + empty KG DB in viewer IT
+
+**2026-05-03** — test(kg-view): Selenide IT for /knowledge-graph route + tier dropdown
+
+**2026-05-03** — feat(kg-view): large-graph node-count warning (Phase 6)
+
+**2026-05-03** — feat(kg-view): tier badge gold border for human-validated nodes (Phase 5)
+
+**2026-05-02** — feat(kg-view): provenance and status styling (Phase 4)
+
+**2026-05-02** — feat(kg-view): node-type colour coding + KG drawer (Phase 3)
+
+**2026-05-02** — feat(kg-view): tier dropdown + URL sync + legend tier counts (Phase 2)
+
+**2026-05-02** — feat(kg-api): add tier to SnapshotNode + populate from KgNode
+
+**2026-05-02** — fix(kg-judge): downgrade pool-closed shutdown noise to DEBUG via PoolClosedException
+
+**2026-05-02** — chore(sidebar): drop redundant 'Page Graph vs Knowledge Graph' link
+
+**2026-05-02** — feat(kg-view): /knowledge-graph SPA route mirroring /page-graph (Phase 1)
+
+**2026-05-02** — feat(kg-judge): live progress + status endpoint; fix endpoint config fallback
+
 **2026-05-02** — chore(docs): backfill News.md + ignore reports/ + RESUME.md
 
 **2026-05-02** — fix(kg-it): correct snapshot URL to /api/knowledge/graph

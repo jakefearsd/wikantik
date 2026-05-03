@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.util.WikiPageNameValidator;
+
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
@@ -149,7 +151,7 @@ public class DeletePagesTool implements McpTool {
             entry.put( "pageName", pageName );
 
             try {
-                com.wikantik.util.WikiPageNameValidator.requireValid( pageName, "pageName" );
+                WikiPageNameValidator.requireValid( pageName, "pageName" );
             } catch ( final IllegalArgumentException iae ) {
                 entry.put( "deleted", false );
                 entry.put( "error", iae.getMessage() );

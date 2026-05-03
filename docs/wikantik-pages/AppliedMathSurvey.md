@@ -41,7 +41,7 @@ Where it shows up:
 - Optimization: finding extrema by setting derivatives to zero
 - Probability: continuous distributions integrate to 1
 
-For computer scientists, the most-needed parts: differentiation rules, multivariable calculus, basic ODE/PDE awareness. See [CalculusRefreshForCS](CalculusRefreshForCS).
+For computer scientists, the most-needed parts: differentiation rules, multivariable calculus, basic ODE/PDE awareness. See [DifferentialCalculus](DifferentialCalculus).
 
 ## Linear algebra
 
@@ -223,7 +223,7 @@ The "math you need" depends on the problems you tackle. The survey above provide
 
 ## Further Reading
 
-- [CalculusRefreshForCS](CalculusRefreshForCS) — Targeted calculus for software engineers
+- [DifferentialCalculus](DifferentialCalculus) — Targeted calculus for software engineers
 - [ProbabilityTheory](ProbabilityTheory) — Probability foundations
 - [ComplexAnalysis](ComplexAnalysis) — Complex-number calculus
 - [TopologyMathematics](TopologyMathematics) — Spatial properties

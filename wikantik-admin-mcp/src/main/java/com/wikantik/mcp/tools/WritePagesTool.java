@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.util.WikiPageNameValidator;
+
 import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParseException;
 import com.wikantik.api.managers.PageManager;
@@ -129,7 +131,7 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
             final Map< String, Object > entry = new LinkedHashMap<>();
             entry.put( "pageName", pageName );
             try {
-                com.wikantik.util.WikiPageNameValidator.requireValid( pageName, "pageName" );
+                WikiPageNameValidator.requireValid( pageName, "pageName" );
             } catch ( final IllegalArgumentException iae ) {
                 entry.put( "created", false );
                 entry.put( "error", iae.getMessage() );

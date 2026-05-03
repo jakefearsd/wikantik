@@ -18,6 +18,8 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.util.WikiPageNameValidator;
+
 
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
@@ -124,8 +126,8 @@ public class RenamePageTool implements McpTool, AuthorConfigurable {
         final boolean confirm = McpToolUtils.getBoolean( arguments, "confirm" );
 
         try {
-            com.wikantik.util.WikiPageNameValidator.requireValid( oldName, "oldName" );
-            com.wikantik.util.WikiPageNameValidator.requireValid( newName, "newName" );
+            WikiPageNameValidator.requireValid( oldName, "oldName" );
+            WikiPageNameValidator.requireValid( newName, "newName" );
         } catch ( final IllegalArgumentException iae ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, iae.getMessage() );
         }

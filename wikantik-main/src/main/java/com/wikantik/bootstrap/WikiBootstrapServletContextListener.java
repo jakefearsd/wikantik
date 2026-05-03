@@ -145,67 +145,58 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
     public void contextDestroyed( final ServletContextEvent sce ) {
         final Engine engine = lookupEngine( sce );
 
-        // 1. Signal runners to stop accepting new work (before firing SHUTDOWN).
-        JudgeRunner judgeRunner = null;
-        DefaultRetrievalQualityRunner rqRunner = null;
-        if ( engine != null ) {
-            try {
-                judgeRunner = engine.getManager( JudgeRunner.class );
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "contextDestroyed: failed to look up JudgeRunner: {}", e.getMessage(), e );
-            }
-            try {
-                final RetrievalQualityRunner rqr = engine.getManager( RetrievalQualityRunner.class );
-                if ( rqr instanceof DefaultRetrievalQualityRunner d ) {
-                    rqRunner = d;
-                }
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "contextDestroyed: failed to look up RetrievalQualityRunner: {}", e.getMessage(), e );
-            }
-        }
+        // 1. Resolve runner managers; engine == null means the engine never started.
+        final JudgeRunner judgeRunner = engine == null ? null
+            : runQuietly( "lookup JudgeRunner",
+                () -> engine.getManager( JudgeRunner.class ) );
+        final DefaultRetrievalQualityRunner rqRunner = engine == null ? null
+            : runQuietly( "lookup RetrievalQualityRunner",
+                () -> engine.getManager( RetrievalQualityRunner.class )
+                    instanceof DefaultRetrievalQualityRunner d ? d : null );
 
-        // 2. Close the judge and retrieval-quality schedulers before signalling
-        //    the background threads. This ensures their ScheduledExecutorService
-        //    is shut down (via shutdownNow) before we try to join the threads,
-        //    so the scheduler threads get a true interrupt signal rather than
-        //    simply being asked to stop after a 3-second wait.
-        if ( judgeRunner != null ) {
-            try {
-                judgeRunner.close();
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "contextDestroyed: JudgeRunner.close() failed: {}", e.getMessage(), e );
-            }
-        }
-        if ( rqRunner != null ) {
-            try {
-                rqRunner.close();
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "contextDestroyed: RetrievalQualityRunner.close() failed: {}", e.getMessage(), e );
-            }
-        }
+        // 2. Close the runner schedulers BEFORE firing SHUTDOWN — gives their
+        //    ScheduledExecutorServices a true interrupt rather than a 3 s wait.
+        if ( judgeRunner != null ) runQuietly( "JudgeRunner.close()", judgeRunner::close );
+        if ( rqRunner    != null ) runQuietly( "RetrievalQualityRunner.close()", rqRunner::close );
 
         // 3. Fire WikiEngineEvent.SHUTDOWN — marks WikiBackgroundThreads killMe=true,
-        //    shuts down the CachingManager, FilterManager, hybrid-index listeners, etc.
-        if ( engine != null ) {
-            try {
-                engine.shutdown();
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "contextDestroyed: engine.shutdown() raised an exception: {}", e.getMessage(), e );
-            }
-        }
+        //    shuts down CachingManager, FilterManager, hybrid-index listeners, etc.
+        if ( engine != null ) runQuietly( "engine.shutdown()", engine::shutdown );
 
         // 4. Interrupt known background threads and wait briefly for them to exit.
         interruptAndJoinKnownBackgroundThreads();
 
-        // 5. Clear the WikiSession guest-session ThreadLocal for this context thread.
-        try {
-            WikiSession.removeCurrentGuestSession();
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "contextDestroyed: WikiSession.removeCurrentGuestSession() failed: {}", e.getMessage(), e );
-        }
+        // 5. Clear the WikiSession guest-session ThreadLocal for the context thread.
+        runQuietly( "WikiSession.removeCurrentGuestSession()",
+            WikiSession::removeCurrentGuestSession );
 
         // 6. Shut down Log4j2 last (keeps logging available for all prior steps).
         LogManager.shutdown();
+    }
+
+    /**
+     * Runs a defensive shutdown step. Logs a WARN with stack trace on failure
+     * so one bad subsystem cannot block the rest of the shutdown sequence.
+     */
+    private static void runQuietly( final String step, final Runnable op ) {
+        try {
+            op.run();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "contextDestroyed: {} failed: {}", step, e.getMessage(), e );
+        }
+    }
+
+    /**
+     * Variant that returns a value; same recovery semantics. Returns {@code null}
+     * on failure so the caller decides whether the missing value matters.
+     */
+    private static < T > T runQuietly( final String step, final java.util.concurrent.Callable< T > op ) {
+        try {
+            return op.call();
+        } catch ( final Exception e ) {
+            LOG.warn( "contextDestroyed: {} failed: {}", step, e.getMessage(), e );
+            return null;
+        }
     }
 
     /**
@@ -220,12 +211,8 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
         if ( ctx == null ) {
             return null;
         }
-        try {
-            return ( Engine ) ctx.getAttribute( ATTR_WIKIENGINE );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "contextDestroyed: failed to look up WikiEngine from context: {}", e.getMessage(), e );
-            return null;
-        }
+        return runQuietly( "lookup WikiEngine from context",
+            () -> ( Engine ) ctx.getAttribute( ATTR_WIKIENGINE ) );
     }
 
     /** Join timeout per background thread (milliseconds). */

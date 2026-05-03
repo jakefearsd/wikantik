@@ -248,7 +248,7 @@ The medical-test example above; base rate dominates the result.
 ## Further Reading
 
 - [AppliedMathSurvey](AppliedMathSurvey) — Probability in context
-- [CalculusRefreshForCS](CalculusRefreshForCS) — Calculus underlies continuous distributions
+- [DifferentialCalculus](DifferentialCalculus) — Calculus underlies continuous distributions
 - [SetTheoryLogic](SetTheoryLogic) — Probability is over sets
 - [FuzzyLogic](FuzzyLogic) — Different framework for uncertainty
 - [Mathematics Hub](MathematicsHub) — Cluster index

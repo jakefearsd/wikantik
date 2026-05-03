@@ -1,23 +1,25 @@
 ---
-canonical_id: 01KZHC6PVR4SBQM9R0F3T7K8Z4
-title: SoftwareEngineeringPracticesHub
-type: hub
-cluster: software-engineering-practices
-status: active
-date: '2026-04-26'
 summary: Index of language-agnostic engineering practices — clean code, debugging,
   refactoring, technical writing, pair programming, and the disciplines that compound
   into long-term codebase health.
+date: '2026-04-26'
+cluster: software-engineering-practices
+related:
+- DesignPatternsHub
+- JavaHub
+- DevOpsAndSreHub
+canonical_id: 01KZHC6PVR4SBQM9R0F3T7K8Z4
+type: hub
+title: SoftwareEngineeringPracticesHub
 tags:
 - software-engineering
 - practices
 - hub
 - code-quality
 - engineering-discipline
-related:
-- DesignPatternsHub
-- JavaHub
-- DevOpsAndSreHub
+status: active
+hubs:
+- MathematicsHub
 ---
 # SoftwareEngineeringPractices Hub
 

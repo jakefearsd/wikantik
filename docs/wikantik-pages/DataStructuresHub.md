@@ -28,7 +28,7 @@ The tools for measuring and understanding computational efficiency.
 - [Data Structures](DataStructures) — Overarching survey of the field and the fundamental trade-offs between space and time
 - [Foundational Algorithms for Computer Scientists](FoundationalAlgorithmsForComputerScientists) — The essential toolkit of algorithms every practitioner should master
 - [Amortized Analysis](AmortizedAnalysis) — Analyzing the average performance of an operation over a worst-case sequence of events
-- [Calculus Refresh for CS](CalculusRefreshForCS) — The continuous math that underpins asymptotic analysis and Big-O
+- [Calculus Refresh for CS](DifferentialCalculus) — The continuous math that underpins asymptotic analysis and Big-O
 
 ## Basic Structures
 

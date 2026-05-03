@@ -186,6 +186,6 @@ Knowing it exists and what it can do is valuable; deep mastery is needed only in
 ## Further Reading
 
 - [AppliedMathSurvey](AppliedMathSurvey) — Where complex analysis fits
-- [CalculusRefreshForCS](CalculusRefreshForCS) — Real calculus foundations
+- [DifferentialCalculus](DifferentialCalculus) — Real calculus foundations
 - [TopologyMathematics](TopologyMathematics) — Topology of the complex plane
 - [Mathematics Hub](MathematicsHub) — Cluster index

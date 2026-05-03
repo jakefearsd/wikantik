@@ -1,21 +1,24 @@
 ---
-canonical_id: 01KQ2P44XMGA8E1E7GAT4AYV43
-title: Mathematics Hub
-type: hub
 cluster: mathematics
-status: active
-date: '2026-04-29'
-summary: Central index for the mathematics cluster — from foundational set theory and logic to advanced topics in algebra, analysis, topology, and probability.
+canonical_id: 01KQ2P44XMGA8E1E7GAT4AYV43
+type: hub
 tags:
-  - mathematics
-  - hub
-  - logic
-  - algebra
-  - calculus
-  - probability
+- mathematics
+- hub
+- logic
+- algebra
+- calculus
+- probability
+summary: Central index for the mathematics cluster — from foundational set theory
+  and logic to advanced topics in algebra, analysis, topology, and probability.
+date: '2026-04-29'
+status: active
+title: Mathematics Hub
 related:
-  - MLHub
-  - SoftwareEngineeringPracticesHub
+- MLHub
+- SoftwareEngineeringPracticesHub
+- DifferentialCalculus
+- LinearAlgebra
 ---
 
 # Mathematics Hub
@@ -49,7 +52,7 @@ The study of mathematical structures and the rules for manipulating symbols with
 The mathematics of change, limits, and continuous spaces.
 
 - [Applied Math Survey](AppliedMathSurvey) — A high-level map of the mathematical tools used in science and engineering
-- [Calculus Refresh for CS](CalculusRefreshForCS) — Targeted review of derivatives, gradients, and optimization for software engineers
+- [Differential Calculus](DifferentialCalculus) — Rigorous study of derivatives, Taylor series, and multivariable analysis
 - [Real Analysis](RealAnalysis) — The rigorous foundation of calculus and the properties of real numbers
 - [Complex Analysis](ComplexAnalysis) — Calculus extended to complex numbers; essential for signal processing
 - [Functional Analysis](FunctionalAnalysis) — Vector spaces with infinite dimensions and their operators

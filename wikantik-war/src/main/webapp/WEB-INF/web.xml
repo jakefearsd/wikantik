@@ -233,14 +233,27 @@
        <!--
          Harden the JSESSIONID cookie:
            * http-only    - never readable from JS, so an XSS cannot exfiltrate it.
-           * secure       - only sent over HTTPS. Modern browsers treat http://localhost
-                            as a secure context, so local dev keeps working.
            * tracking-mode COOKIE - no URL rewriting fallback (would leak session IDs
                             into logs and referrers).
+
+         The `Secure` attribute is deployment-topology-dependent (HTTPS vs not)
+         and intentionally NOT set here. Production deployments running behind
+         HTTPS should enable it via Tomcat's per-context CookieProcessor in
+         conf/Catalina/localhost/ROOT.xml or via the reverse proxy:
+
+           <CookieProcessor className="org.apache.tomcat.util.http.Rfc6265CookieProcessor"
+                            sameSiteCookies="strict"/>
+           <Valve className="org.apache.catalina.valves.RemoteIpValve"
+                  protocolHeader="X-Forwarded-Proto" />
+
+         Setting <secure>true</secure> in this descriptor caused intermittent
+         JSESSIONID drops on http://localhost dev — Chrome's "is localhost a
+         secure context for cookies?" check is not 100% reliable across
+         versions/extensions, and a single dropped cookie kicks the admin UI
+         to anonymous.
        -->
        <cookie-config>
            <http-only>true</http-only>
-           <secure>true</secure>
        </cookie-config>
        <tracking-mode>COOKIE</tracking-mode>
    </session-config>

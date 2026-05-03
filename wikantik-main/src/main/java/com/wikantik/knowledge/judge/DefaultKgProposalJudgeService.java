@@ -139,7 +139,7 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
             } else {
                 return abstain( "judge_unavailable: response missing message/response key" );
             }
-            final JsonObject verdictObj = JsonParser.parseString( inner ).getAsJsonObject();
+            final JsonObject verdictObj = JsonParser.parseString( extractJsonObject( inner ) ).getAsJsonObject();
             final String verdict = verdictObj.get( "verdict" ).getAsString();
             final double rawConf = verdictObj.has( "confidence" ) ? verdictObj.get( "confidence" ).getAsDouble() : 0.0;
             final double clamped = Math.max( 0.0, Math.min( 1.0, rawConf ) );
@@ -157,5 +157,59 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
 
     private static String stripTrailingSlash( final String s ) {
         return s != null && s.endsWith( "/" ) ? s.substring( 0, s.length() - 1 ) : s;
+    }
+
+    /**
+     * Extracts the first balanced top-level JSON object from {@code input}.
+     * <p>
+     * Handles three common LLM response shapes:
+     * <ul>
+     *   <li>Plain JSON — returned unchanged.</li>
+     *   <li>JSON with trailing prose / tool-call wrapper — leading object extracted.</li>
+     *   <li>JSON with leading prose — scans forward to the first '{', extracts the object.</li>
+     * </ul>
+     * If no balanced object is found (no '{', unbalanced braces) the original string
+     * is returned so the caller's JSON parser fails as before.
+     * <p>
+     * String literals are respected: '{' and '}' inside {@code "..."} do not affect
+     * the depth counter.
+     *
+     * @param input raw LLM content, may be {@code null}
+     * @return extracted JSON object substring, or {@code input} if extraction is not possible
+     */
+    static String extractJsonObject( final String input ) {
+        if ( input == null ) {
+            return null;
+        }
+        final int start = input.indexOf( '{' );
+        if ( start < 0 ) {
+            return input;
+        }
+        int depth = 0;
+        boolean inString = false;
+        boolean escape   = false;
+        for ( int i = start; i < input.length(); i++ ) {
+            final char c = input.charAt( i );
+            if ( inString ) {
+                if ( escape ) {
+                    escape = false;
+                } else if ( c == '\\' ) {
+                    escape = true;
+                } else if ( c == '"' ) {
+                    inString = false;
+                }
+            } else if ( c == '"' ) {
+                inString = true;
+            } else if ( c == '{' ) {
+                depth++;
+            } else if ( c == '}' ) {
+                depth--;
+                if ( depth == 0 ) {
+                    return input.substring( start, i + 1 );
+                }
+            }
+        }
+        // No balanced closing brace found — return original so the caller's parser fails.
+        return input;
     }
 }

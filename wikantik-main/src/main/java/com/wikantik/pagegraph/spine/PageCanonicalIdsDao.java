@@ -56,6 +56,33 @@ public class PageCanonicalIdsDao {
             try {
                 final Optional< Row > existing = findByCanonicalId( c, canonicalId );
                 if ( existing.isEmpty() ) {
+                    // Before inserting, check whether the slug is already claimed by a
+                    // different canonical_id.  This happens when the frontmatter canonical_id
+                    // was changed after the DB row was first written (data corruption /
+                    // stale row), or when two pages share the same slug.  Attempting the
+                    // INSERT would throw a unique-constraint violation with a noisy stacktrace;
+                    // instead we detect the conflict pre-emptively and warn cleanly.
+                    final Optional< Row > slugOwner = findBySlug( c, currentSlug );
+                    if ( slugOwner.isPresent() ) {
+                        final String ownerId = slugOwner.get().canonicalId();
+                        if ( ownerId.equals( canonicalId ) ) {
+                            // Already consistent — nothing to do (should be unreachable since
+                            // findByCanonicalId returned empty, but guard defensively).
+                            LOG.debug( "upsert({}, {}): slug already owned by same canonical_id — no-op",
+                                       canonicalId, currentSlug );
+                        } else {
+                            LOG.warn( "upsert({}, {}): slug '{}' is already claimed by canonical_id '{}'. "
+                                    + "Frontmatter and DB are out of sync — skipping DB write so the "
+                                    + "in-memory projection continues cleanly. "
+                                    + "To fix: run bin/db/one-shots/reconcile_page_canonical_ids.sh "
+                                    + "(or manually DELETE the stale row from page_canonical_ids "
+                                    + "WHERE canonical_id='{}' AND current_slug='{}').",
+                                      canonicalId, currentSlug, currentSlug,
+                                      ownerId, ownerId, currentSlug );
+                        }
+                        c.commit();
+                        return;
+                    }
                     try ( PreparedStatement ps = c.prepareStatement(
                             "INSERT INTO page_canonical_ids " +
                             "(canonical_id, current_slug, title, type, cluster) " +
@@ -69,8 +96,10 @@ public class PageCanonicalIdsDao {
                     }
                 } else {
                     final Row prev = existing.get();
-                    if ( !prev.currentSlug().equals( currentSlug )
-                            && !slugHistoryRowExists( c, canonicalId, prev.currentSlug() ) ) {
+                    if ( prev.currentSlug().equals( currentSlug ) ) {
+                        LOG.debug( "upsert({}, {}): canonical_id and slug unchanged — updating metadata only",
+                                   canonicalId, currentSlug );
+                    } else if ( !slugHistoryRowExists( c, canonicalId, prev.currentSlug() ) ) {
                         try ( PreparedStatement ps = c.prepareStatement(
                                 "INSERT INTO page_slug_history (canonical_id, previous_slug) " +
                                 "VALUES (?, ?)" ) ) {
@@ -101,6 +130,17 @@ public class PageCanonicalIdsDao {
         } catch ( final SQLException e ) {
             LOG.warn( "PageCanonicalIdsDao.upsert({}) failed: {}", canonicalId, e.getMessage(), e );
             throw new RuntimeException( "upsert failed", e );
+        }
+    }
+
+    private Optional< Row > findBySlug( final Connection c, final String slug ) throws SQLException {
+        try ( PreparedStatement ps = c.prepareStatement(
+                "SELECT canonical_id, current_slug, title, type, cluster, created_at, updated_at " +
+                "FROM page_canonical_ids WHERE current_slug = ?" ) ) {
+            ps.setString( 1, slug );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? Optional.of( readRow( rs ) ) : Optional.empty();
+            }
         }
     }
 

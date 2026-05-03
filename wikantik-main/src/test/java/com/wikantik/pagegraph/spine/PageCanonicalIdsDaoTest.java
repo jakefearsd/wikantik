@@ -18,6 +18,14 @@
  */
 package com.wikantik.pagegraph.spine;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.AppenderRef;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,8 +34,10 @@ import org.junit.jupiter.api.Test;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -123,5 +133,137 @@ class PageCanonicalIdsDaoTest {
 
         dao.delete( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" );
         assertTrue( dao.findByCanonicalId( "01H8G3Z1K6Q5W7P9X2V4R0T8MN" ).isEmpty() );
+    }
+
+    // -----------------------------------------------------------------------
+    // Defensive upsert: four explicit cases for slug/canonical_id handling
+    // -----------------------------------------------------------------------
+
+    // IDs below are exactly 26 characters (ULID alphabet, safe for CHAR(26) columns).
+    private static final String ID_NEW    = "01ABCDEFGHJKMNPQRSTVWXYZ01";
+    private static final String ID_STABLE = "01ABCDEFGHJKMNPQRSTVWXYZ02";
+    private static final String ID_RENAME = "01ABCDEFGHJKMNPQRSTVWXYZ03";
+    private static final String ID_STALE  = "01ABCDEFGHJKMNPQRSTVWXYZ04";
+    private static final String ID_FRESH  = "01ABCDEFGHJKMNPQRSTVWXYZ05";
+
+    /** Case 1: new canonical_id + new slug → INSERT succeeds. */
+    @Test
+    void upsert_new_canonicalId_new_slug_inserts() {
+        dao.upsert( ID_NEW, "BrandNewPage", "Brand New Page", "article", null );
+
+        final Optional< PageCanonicalIdsDao.Row > row = dao.findByCanonicalId( ID_NEW );
+        assertTrue( row.isPresent(), "Row should be present after insert" );
+        assertEquals( "BrandNewPage", row.get().currentSlug() );
+    }
+
+    /** Case 2: same canonical_id + same slug → no-op (no exception, DB unchanged). */
+    @Test
+    void upsert_same_canonicalId_same_slug_is_noop() {
+        dao.upsert( ID_STABLE, "StablePage", "Stable Page", "article", "cluster-a" );
+
+        // Second call — identical slug, updated title
+        assertDoesNotThrow( () ->
+                dao.upsert( ID_STABLE, "StablePage", "Stable Page Updated", "article", "cluster-a" ) );
+
+        // Should still be exactly one row and the slug unchanged
+        assertEquals( 1, dao.findAll().size() );
+        final PageCanonicalIdsDao.Row row = dao.findByCanonicalId( ID_STABLE ).orElseThrow();
+        assertEquals( "StablePage", row.currentSlug() );
+        // Title updated on repeated upsert (metadata update path)
+        assertEquals( "Stable Page Updated", row.title() );
+    }
+
+    /** Case 3: same canonical_id + different slug (rename) → UPDATE slug, record history. */
+    @Test
+    void upsert_same_canonicalId_new_slug_updates_and_records_history() {
+        dao.upsert( ID_RENAME, "OldSlug", "Old Title", "article", null );
+        dao.upsert( ID_RENAME, "NewSlug", "New Title", "article", null );
+
+        final PageCanonicalIdsDao.Row row = dao.findByCanonicalId( ID_RENAME ).orElseThrow();
+        assertEquals( "NewSlug", row.currentSlug(), "Slug should be updated to new value" );
+
+        final List< String > history = dao.slugHistory( ID_RENAME );
+        assertEquals( List.of( "OldSlug" ), history, "Old slug should appear in history" );
+
+        // Old slug no longer findable
+        assertTrue( dao.findBySlug( "OldSlug" ).isEmpty() );
+    }
+
+    /**
+     * Case 4: different canonical_id claiming an already-owned slug (data corruption /
+     * stale DB row) → WARN logged with both canonical_ids and script hint, no exception
+     * thrown, no stacktrace, DB row for new canonical_id NOT inserted.
+     */
+    @Test
+    void upsert_different_canonicalId_same_slug_warns_and_skips_without_exception() {
+        // Seed the slug under the "stale" (old) canonical_id
+        final String staleId = ID_STALE;
+        final String freshId = ID_FRESH;
+        final String slug    = "ConflictedPage";
+
+        dao.upsert( staleId, slug, "Conflicted Page", "article", null );
+
+        // Capture WARN log events from PageCanonicalIdsDao
+        final List< org.apache.logging.log4j.core.LogEvent > captured = new CopyOnWriteArrayList<>();
+        final LoggerContext ctx = (LoggerContext) LogManager.getContext( false );
+        final Configuration config = ctx.getConfiguration();
+
+        final AbstractAppender capturingAppender = new AbstractAppender(
+                "CapturingAppender-" + Thread.currentThread().getId(), null,
+                PatternLayout.createDefaultLayout(), true, null ) {
+            @Override
+            public void append( final org.apache.logging.log4j.core.LogEvent event ) {
+                captured.add( event.toImmutable() );
+            }
+        };
+        capturingAppender.start();
+        config.addAppender( capturingAppender );
+
+        final String loggerName = PageCanonicalIdsDao.class.getName();
+        LoggerConfig loggerConfig = config.getLoggerConfig( loggerName );
+        if ( !loggerConfig.getName().equals( loggerName ) ) {
+            // Logger not explicitly configured — add one
+            loggerConfig = LoggerConfig.createLogger( false, Level.WARN, loggerName,
+                    "true", new AppenderRef[0], null, config, null );
+            config.addLogger( loggerName, loggerConfig );
+        }
+        loggerConfig.addAppender( capturingAppender, Level.WARN, null );
+        ctx.updateLoggers();
+
+        try {
+            // Now try to upsert the fresh canonical_id for the same slug
+            assertDoesNotThrow( () -> dao.upsert( freshId, slug, "Conflicted Page", "article", null ),
+                    "Mismatch case must not throw an exception" );
+
+            // The fresh canonical_id must NOT have been inserted
+            assertTrue( dao.findByCanonicalId( freshId ).isEmpty(),
+                    "freshId must not be inserted when slug is already owned by a different canonical_id" );
+
+            // The stale row must still be present and unchanged
+            final Optional< PageCanonicalIdsDao.Row > staleRow = dao.findByCanonicalId( staleId );
+            assertTrue( staleRow.isPresent(), "Stale row should remain" );
+            assertEquals( slug, staleRow.get().currentSlug() );
+
+            // Exactly one WARN must have been logged and it must mention both canonical_ids
+            // and the reconciliation script — but no Throwable (no stacktrace).
+            final List< org.apache.logging.log4j.core.LogEvent > warns = captured.stream()
+                    .filter( e -> e.getLevel() == Level.WARN )
+                    .toList();
+            assertFalse( warns.isEmpty(), "At least one WARN should be logged" );
+
+            final org.apache.logging.log4j.core.LogEvent warnEvent = warns.get( 0 );
+            final String message = warnEvent.getMessage().getFormattedMessage();
+            assertTrue( message.contains( freshId ),  "WARN must mention freshId" );
+            assertTrue( message.contains( staleId ),  "WARN must mention staleId (slug owner)" );
+            assertTrue( message.contains( "reconcile_page_canonical_ids" ),
+                    "WARN must reference reconciliation script" );
+            assertNull( warnEvent.getThrown(),
+                    "WARN must not carry a Throwable (no stacktrace)" );
+
+        } finally {
+            loggerConfig.removeAppender( "CapturingAppender-" + Thread.currentThread().getId() );
+            ctx.updateLoggers();
+            capturingAppender.stop();
+        }
     }
 }

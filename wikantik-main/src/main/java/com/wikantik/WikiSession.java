@@ -477,6 +477,15 @@ public final class WikiSession implements Session {
     }
 
     /**
+     * Clears the thread-local guest session for the current thread. Called
+     * during webapp shutdown from the servlet context listener to prevent
+     * Tomcat from reporting a ThreadLocal leak for the container thread.
+     */
+    public static void removeCurrentGuestSession() {
+        guestSession.remove();
+    }
+
+    /**
      * <p>Static factory method that returns the Session object associated with the current HTTP request. This method looks up
      * the associated HttpSession in an internal WeakHashMap and attempts to retrieve the WikiSession. If not found, one is created.
      * This method is guaranteed to always return a Session, although the authentication status is unpredictable until the user

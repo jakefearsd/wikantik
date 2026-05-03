@@ -112,7 +112,7 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
             final String name = getName();
             LOG.info( "Starting up background thread: {}.", name);
             startupTask();
-            
+
             // Perform the background task; check every second for thread death
             while( !killMe ) {
                 // Perform the background task
@@ -134,14 +134,34 @@ public abstract class WikiBackgroundThread extends Thread implements WikiEventLi
                         break;
                     }
                 } catch( final Throwable t ) {
-                    LOG.error( "Background thread error: (stack trace follows)", t );
+                    if ( t instanceof InterruptedException ) {
+                        // Interrupt is expected during shutdown; re-set the flag and exit.
+                        Thread.currentThread().interrupt();
+                        LOG.debug( "Background thread {} interrupted during shutdown sleep.", name );
+                    } else {
+                        LOG.error( "Background thread error: (stack trace follows)", t );
+                    }
+                    // Exit the loop — if killMe is true we're done; if not, check condition.
+                    if ( killMe ) {
+                        break;
+                    }
                 }
             }
-            
+
             // Perform the shutdown task
             shutdownTask();
         } catch( final Throwable t ) {
-            LOG.error( "Background thread error: (stack trace follows)", t );
+            if ( killMe || Thread.currentThread().isInterrupted() ) {
+                // Interrupted during shutdown — expected, not an error.
+                LOG.debug( "Background thread {} exited with exception during shutdown (expected): {}",
+                    getName(), t.getMessage() );
+            } else {
+                LOG.error( "Background thread error: (stack trace follows)", t );
+            }
+        } finally {
+            // Remove the thread-local WikiSession guest session so Tomcat's leak
+            // detector does not report a ThreadLocal warning for this thread.
+            WikiSession.removeCurrentGuestSession();
         }
     }
     

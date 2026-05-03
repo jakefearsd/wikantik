@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,10 +31,16 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.ConfigurationSource;
 import org.apache.logging.log4j.core.config.properties.PropertiesConfigurationFactory;
+import com.wikantik.WikiSession;
+import com.wikantik.api.core.Engine;
+import com.wikantik.api.eval.RetrievalQualityRunner;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner;
+import com.wikantik.knowledge.judge.JudgeRunner;
 import com.wikantik.util.TextUtil;
 
 
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
 
@@ -106,8 +113,171 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
         }
     }
 
-    /** {@inheritDoc} */
+    /** Servlet-context attribute name under which the WikiEngine is stashed. */
+    static final String ATTR_WIKIENGINE = "com.wikantik.WikiEngine";
+
+    /**
+     * Shuts down all background subsystems cleanly so Tomcat does not report
+     * thread / ThreadLocal leaks after webapp undeploy.
+     *
+     * <p>Shutdown order:
+     * <ol>
+     *   <li>Mark stop on {@link JudgeRunner} and {@link DefaultRetrievalQualityRunner}
+     *       so no new work starts after this point.</li>
+     *   <li>Call {@code engine.shutdown()} — fires {@code WikiEngineEvent.SHUTDOWN},
+     *       which sets {@code killMe=true} on all {@code WikiBackgroundThread}
+     *       instances (LuceneUpdater, PageDirectoryWatcher, NewsPageGenerator,
+     *       WatchDogThread).</li>
+     *   <li>Interrupt all non-daemon threads whose names match the known set so
+     *       they wake up immediately instead of sleeping through their full interval.</li>
+     *   <li>Await thread termination with a short bound (3 s); force-interrupt
+     *       stragglers.</li>
+     *   <li>Close {@link JudgeRunner} (shuts down its ScheduledExecutorService).</li>
+     *   <li>Close {@link DefaultRetrievalQualityRunner}.</li>
+     *   <li>Clear the WikiSession guest-session ThreadLocal for the context thread.</li>
+     *   <li>Shut down Log4j2 last — keeps logging available for all earlier steps.</li>
+     * </ol>
+     *
+     * <p>Every step is guarded by a try/catch so one failure cannot prevent the
+     * others from running.
+     */
     @Override
     public void contextDestroyed( final ServletContextEvent sce ) {
+        final Engine engine = lookupEngine( sce );
+
+        // 1. Signal runners to stop accepting new work (before firing SHUTDOWN).
+        JudgeRunner judgeRunner = null;
+        DefaultRetrievalQualityRunner rqRunner = null;
+        if ( engine != null ) {
+            try {
+                judgeRunner = engine.getManager( JudgeRunner.class );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "contextDestroyed: failed to look up JudgeRunner: {}", e.getMessage(), e );
+            }
+            try {
+                final RetrievalQualityRunner rqr = engine.getManager( RetrievalQualityRunner.class );
+                if ( rqr instanceof DefaultRetrievalQualityRunner d ) {
+                    rqRunner = d;
+                }
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "contextDestroyed: failed to look up RetrievalQualityRunner: {}", e.getMessage(), e );
+            }
+        }
+
+        // 2. Close the judge and retrieval-quality schedulers before signalling
+        //    the background threads. This ensures their ScheduledExecutorService
+        //    is shut down (via shutdownNow) before we try to join the threads,
+        //    so the scheduler threads get a true interrupt signal rather than
+        //    simply being asked to stop after a 3-second wait.
+        if ( judgeRunner != null ) {
+            try {
+                judgeRunner.close();
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "contextDestroyed: JudgeRunner.close() failed: {}", e.getMessage(), e );
+            }
+        }
+        if ( rqRunner != null ) {
+            try {
+                rqRunner.close();
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "contextDestroyed: RetrievalQualityRunner.close() failed: {}", e.getMessage(), e );
+            }
+        }
+
+        // 3. Fire WikiEngineEvent.SHUTDOWN — marks WikiBackgroundThreads killMe=true,
+        //    shuts down the CachingManager, FilterManager, hybrid-index listeners, etc.
+        if ( engine != null ) {
+            try {
+                engine.shutdown();
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "contextDestroyed: engine.shutdown() raised an exception: {}", e.getMessage(), e );
+            }
+        }
+
+        // 4. Interrupt known background threads and wait briefly for them to exit.
+        interruptAndJoinKnownBackgroundThreads();
+
+        // 5. Clear the WikiSession guest-session ThreadLocal for this context thread.
+        try {
+            WikiSession.removeCurrentGuestSession();
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "contextDestroyed: WikiSession.removeCurrentGuestSession() failed: {}", e.getMessage(), e );
+        }
+
+        // 6. Shut down Log4j2 last (keeps logging available for all prior steps).
+        LogManager.shutdown();
     }
+
+    /**
+     * Returns the {@link Engine} stored in the servlet context, or {@code null}
+     * when the context is unavailable or no engine was ever started.
+     */
+    Engine lookupEngine( final ServletContextEvent sce ) {
+        if ( sce == null ) {
+            return null;
+        }
+        final ServletContext ctx = sce.getServletContext();
+        if ( ctx == null ) {
+            return null;
+        }
+        try {
+            return ( Engine ) ctx.getAttribute( ATTR_WIKIENGINE );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "contextDestroyed: failed to look up WikiEngine from context: {}", e.getMessage(), e );
+            return null;
+        }
+    }
+
+    /** Join timeout per background thread (milliseconds). */
+    private static final int THREAD_JOIN_TIMEOUT_MS = 3_000;
+
+    /**
+     * Interrupts all live background threads whose names match the known set of
+     * JSPWiki background threads (both daemon and non-daemon), then waits up to
+     * {@value #THREAD_JOIN_TIMEOUT_MS} ms per thread for it to exit.
+     *
+     * <p>This causes threads sleeping in {@code WikiBackgroundThread.run()} to
+     * wake up immediately rather than waiting out their full sleep interval.
+     * Force-interrupting is repeated after the join timeout for any thread that
+     * did not exit cleanly.
+     */
+    static void interruptAndJoinKnownBackgroundThreads() {
+        final java.util.List< Thread > targets = new java.util.ArrayList<>();
+        for ( final Thread t : Thread.getAllStackTraces().keySet() ) {
+            if ( isKnownBackgroundThread( t ) && t.isAlive() ) {
+                LOG.info( "contextDestroyed: interrupting background thread '{}' for fast shutdown",
+                    t.getName() );
+                t.interrupt();
+                targets.add( t );
+            }
+        }
+        for ( final Thread t : targets ) {
+            if ( t.isAlive() ) {
+                try {
+                    t.join( THREAD_JOIN_TIMEOUT_MS );
+                } catch ( final InterruptedException ie ) {
+                    Thread.currentThread().interrupt();
+                    LOG.warn( "contextDestroyed: interrupted while joining thread '{}'", t.getName() );
+                }
+                if ( t.isAlive() ) {
+                    LOG.warn( "contextDestroyed: thread '{}' still alive after {}ms — interrupting again",
+                        t.getName(), THREAD_JOIN_TIMEOUT_MS );
+                    t.interrupt();
+                }
+            }
+        }
+    }
+
+    private static boolean isKnownBackgroundThread( final Thread t ) {
+        final String name = t.getName();
+        return name != null && (
+            name.startsWith( "JSPWiki Lucene Indexer" )
+            || name.startsWith( "JSPWiki Page Directory Watcher" )
+            || name.startsWith( "JSPWiki News Page Generator" )
+            || name.startsWith( "WatchDog for '" )
+            || name.startsWith( "kg-judge-runner" )
+            || name.startsWith( "retrieval-quality-runner" )
+        );
+    }
+
 }

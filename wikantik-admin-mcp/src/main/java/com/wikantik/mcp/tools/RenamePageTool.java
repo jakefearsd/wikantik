@@ -123,6 +123,13 @@ public class RenamePageTool implements McpTool, AuthorConfigurable {
                 : true;
         final boolean confirm = McpToolUtils.getBoolean( arguments, "confirm" );
 
+        try {
+            com.wikantik.util.WikiPageNameValidator.requireValid( oldName, "oldName" );
+            com.wikantik.util.WikiPageNameValidator.requireValid( newName, "newName" );
+        } catch ( final IllegalArgumentException iae ) {
+            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, iae.getMessage() );
+        }
+
         if ( !confirm ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Rename not confirmed",

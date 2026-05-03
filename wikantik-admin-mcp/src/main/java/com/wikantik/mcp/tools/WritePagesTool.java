@@ -128,9 +128,12 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
 
             final Map< String, Object > entry = new LinkedHashMap<>();
             entry.put( "pageName", pageName );
-            if ( pageName == null || pageName.isBlank() ) {
+            try {
+                com.wikantik.util.WikiPageNameValidator.requireValid( pageName, "pageName" );
+            } catch ( final IllegalArgumentException iae ) {
                 entry.put( "created", false );
-                entry.put( "error", "pageName must not be blank" );
+                entry.put( "error", iae.getMessage() );
+                McpAudit.logWrite( TOOL_NAME, "rejected-invalid-name", String.valueOf( pageName ), defaultAuthor );
                 results.add( entry );
                 failedCount++;
                 continue;

@@ -128,9 +128,11 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             final String pageName = McpToolUtils.getString( arguments, "pageName" );
             final String content = McpToolUtils.getString( arguments, "content" );
             final String expectedHash = McpToolUtils.getString( arguments, "expectedContentHash" );
-            if ( pageName == null || pageName.isBlank() ) {
-                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                    "pageName must not be blank" );
+            try {
+                com.wikantik.util.WikiPageNameValidator.requireValid( pageName, "pageName" );
+            } catch ( final IllegalArgumentException iae ) {
+                McpAudit.logWrite( TOOL_NAME, "rejected-invalid-name", String.valueOf( pageName ), defaultAuthor );
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, iae.getMessage() );
             }
             if ( content == null ) {
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,

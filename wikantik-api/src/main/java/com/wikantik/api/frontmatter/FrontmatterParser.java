@@ -20,6 +20,7 @@ package com.wikantik.api.frontmatter;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.error.MarkedYAMLException;
 import org.yaml.snakeyaml.error.YAMLException;
@@ -45,6 +46,21 @@ public final class FrontmatterParser {
     private static final Pattern CLOSING = Pattern.compile( "\\r?\\n---\\r?\\n" );
 
     private FrontmatterParser() {
+    }
+
+    /** Hardened SnakeYAML loader options — bounds frontmatter input against
+     *  YAML-bomb / billion-laughs DoS. Applied to every parser instance. */
+    private static LoaderOptions hardenedLoaderOptions() {
+        final LoaderOptions opts = new LoaderOptions();
+        opts.setMaxAliasesForCollections( 50 );      // anchor/alias expansion fan-out cap
+        opts.setNestingDepthLimit( 50 );             // structure nesting cap
+        opts.setCodePointLimit( 1024 * 1024 );       // 1 MB per frontmatter block
+        opts.setAllowDuplicateKeys( false );         // duplicate keys are caller errors
+        return opts;
+    }
+
+    private static Yaml newHardenedYaml() {
+        return new Yaml( hardenedLoaderOptions() );
     }
 
     /**
@@ -105,7 +121,7 @@ public final class FrontmatterParser {
         }
 
         try {
-            final Yaml yaml = new Yaml();
+            final Yaml yaml = newHardenedYaml();
             final Object parsed = yaml.load( yamlBlock );
             if ( parsed instanceof Map ) {
                 return new ParsedPage( Map.copyOf( ( Map< String, Object > ) parsed ), body );
@@ -185,7 +201,7 @@ public final class FrontmatterParser {
         }
 
         try {
-            final Yaml yaml = new Yaml();
+            final Yaml yaml = newHardenedYaml();
             final Object parsed = yaml.load( yamlBlock );
             if ( parsed instanceof Map ) {
                 @SuppressWarnings( "unchecked" )

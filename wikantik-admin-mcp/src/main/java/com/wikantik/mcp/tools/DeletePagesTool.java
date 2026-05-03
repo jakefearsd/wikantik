@@ -148,9 +148,11 @@ public class DeletePagesTool implements McpTool {
             final Map< String, Object > entry = new LinkedHashMap<>();
             entry.put( "pageName", pageName );
 
-            if ( pageName == null || pageName.isBlank() ) {
+            try {
+                com.wikantik.util.WikiPageNameValidator.requireValid( pageName, "pageName" );
+            } catch ( final IllegalArgumentException iae ) {
                 entry.put( "deleted", false );
-                entry.put( "error", "blank pageName" );
+                entry.put( "error", iae.getMessage() );
                 results.add( entry );
                 failedCount++;
                 continue;

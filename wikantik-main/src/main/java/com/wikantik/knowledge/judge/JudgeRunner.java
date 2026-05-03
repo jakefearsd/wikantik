@@ -130,6 +130,9 @@ public class JudgeRunner implements AutoCloseable {
     /** Best-effort wrapper used by the scheduler so a single failure doesn't break the cadence. */
     public void runOnceQuietly() {
         try { runOnce(); }
+        catch ( final PoolClosedException e ) {
+            LOG.debug( "judge runner pass aborted — data source closed during shutdown" );
+        }
         catch ( final RuntimeException e ) {
             LOG.warn( "judge runner pass failed: {}", e.getMessage(), e );
         }
@@ -144,6 +147,9 @@ public class JudgeRunner implements AutoCloseable {
         lastRunError = null;
         try {
             return runOnceInternal();
+        } catch ( final PoolClosedException e ) {
+            // Graceful shutdown — do not surface as lastRunError.
+            throw e;
         } catch ( final RuntimeException e ) {
             lastRunError = e.getClass().getSimpleName() + ": " + e.getMessage();
             throw e;

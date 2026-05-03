@@ -32,15 +32,28 @@ public record KgJudgeConfig(
     int timeoutSeconds,
     int maxAttempts
 ) {
+    /** Hardcoded fallback Ollama endpoint, matching EmbeddingConfig.DEFAULT_BASE_URL
+     *  and EntityExtractorConfig's default. Used only when neither the judge nor
+     *  the extractor properties are set. */
+    public static final String DEFAULT_ENDPOINT = "http://inference.jakefear.com:11434";
+
+    /** Hardcoded fallback Ollama model, matching EntityExtractorConfig's default. */
+    public static final String DEFAULT_MODEL = "gemma4-assist:latest";
+
     public static KgJudgeConfig fromProperties( final Properties p ) {
         // Fall back to the extractor's canonical property names (matches what
         // EntityExtractorConfig reads via "ollama.base_url" / "ollama.model").
         // The legacy ".endpoint" key is honoured too in case any deployment
-        // adopted that name from an early draft of the docs.
+        // adopted that name from an early draft of the docs. If everything is
+        // unset, fall back to the inference.jakefear.com host the rest of the
+        // stack ships against.
         final String extractorEndpoint = firstNonBlank(
             p.getProperty( "wikantik.knowledge.extractor.ollama.base_url" ),
-            p.getProperty( "wikantik.knowledge.extractor.ollama.endpoint" ) );
-        final String extractorModel    = p.getProperty( "wikantik.knowledge.extractor.ollama.model" );
+            p.getProperty( "wikantik.knowledge.extractor.ollama.endpoint" ),
+            DEFAULT_ENDPOINT );
+        final String extractorModel    = firstNonBlank(
+            p.getProperty( "wikantik.knowledge.extractor.ollama.model" ),
+            DEFAULT_MODEL );
 
         return new KgJudgeConfig(
             getBool( p,   "wikantik.kg.judge.enabled",          true ),

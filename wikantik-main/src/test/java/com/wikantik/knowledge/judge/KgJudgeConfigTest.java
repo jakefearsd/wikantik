@@ -97,6 +97,21 @@ class KgJudgeConfigTest {
     }
 
     @Test
+    void fromProperties_falls_back_to_inference_jakefear_when_nothing_set() {
+        // No extractor or judge properties at all — should use the hardcoded
+        // defaults that match the rest of the stack (EmbeddingConfig,
+        // EntityExtractorConfig).
+        final Properties p = new Properties();
+
+        final KgJudgeConfig cfg = KgJudgeConfig.fromProperties( p );
+
+        assertEquals( KgJudgeConfig.DEFAULT_ENDPOINT, cfg.endpoint() );
+        assertEquals( KgJudgeConfig.DEFAULT_MODEL,    cfg.model() );
+        assertEquals( "http://inference.jakefear.com:11434", cfg.endpoint() );
+        assertEquals( "gemma4-assist:latest",                cfg.model() );
+    }
+
+    @Test
     void fromProperties_blank_string_treated_as_unset() {
         final Properties p = new Properties();
         p.setProperty( "wikantik.knowledge.extractor.ollama.endpoint", "http://x" );

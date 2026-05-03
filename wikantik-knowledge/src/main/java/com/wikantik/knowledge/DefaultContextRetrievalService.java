@@ -148,7 +148,14 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         try {
             bm25 = searchManager.findPages( query.query(), ctx );
         } catch ( final Exception e ) {
-            LOG.warn( "BM25 search failed: {}", e.getMessage(), e );
+            // ParseException-rooted failures are client-class (malformed query
+            // from the caller). Log without a stack trace to keep operator logs
+            // clean. Anything else is server-class — keep the trace.
+            if ( isQueryParseFailure( e ) ) {
+                LOG.warn( "BM25 search rejected malformed query: {}", e.getMessage() );
+            } else {
+                LOG.warn( "BM25 search failed: {}", e.getMessage(), e );
+            }
             return new RetrievalResult( query.query(), List.of(), 0 );
         }
         final List< SearchResult > ordered = applyHybridAndGraphRerank( query.query(), bm25 );
@@ -491,5 +498,13 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             .map( e -> new MetadataValue( e.getKey(), e.getValue() ) )
             .sorted( ( a, b ) -> Integer.compare( b.count(), a.count() ) )
             .toList();
+    }
+
+    /** True iff this exception (or any cause) is a Lucene query-parse failure. */
+    private static boolean isQueryParseFailure( final Throwable t ) {
+        for ( Throwable c = t; c != null; c = c.getCause() ) {
+            if ( c instanceof org.apache.lucene.queryparser.classic.ParseException ) return true;
+        }
+        return false;
     }
 }

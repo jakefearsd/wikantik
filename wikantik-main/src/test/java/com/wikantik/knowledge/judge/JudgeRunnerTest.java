@@ -71,7 +71,7 @@ class JudgeRunnerTest {
 
     private static KgJudgeConfig cfg( int maxAttempts, int concurrency ) {
         return new KgJudgeConfig( true, "x", "gemma4-assist:latest",
-            false, 5, 50, concurrency, 30, maxAttempts );
+            false, 5, 50, concurrency, 30, maxAttempts, "30m" );
     }
 
     @Test

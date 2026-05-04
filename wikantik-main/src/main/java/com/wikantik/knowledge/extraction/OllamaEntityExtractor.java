@@ -115,10 +115,14 @@ public class OllamaEntityExtractor implements EntityExtractor {
 
     private String callOllama( final ExtractionChunk chunk, final ExtractionContext context )
             throws IOException, InterruptedException {
+        // keep_alive holds the model resident on the Ollama side longer than
+        // the default 5m so successive chunks of a single page (and the next
+        // page's first chunk) don't pay the cold-load cost.
         final Map< String, Object > body = Map.of(
             "model", config.ollamaModel(),
             "stream", false,
             "format", "json",
+            "keep_alive", "30m",
             "messages", List.of(
                 Map.of( "role", "system", "content", ExtractionPromptBuilder.SYSTEM_PROMPT ),
                 Map.of( "role", "user", "content",

@@ -60,7 +60,7 @@ class JudgeRunnerPoolClosedTest {
 
         final KgMaterializationService materialization = Mockito.mock( KgMaterializationService.class );
         final KgJudgeConfig config = new KgJudgeConfig( true, "endpoint", "model",
-            true, 10, 5, 1, 30, 3 );
+            true, 10, 5, 1, 30, 3, "30m" );
 
         final JudgeRunner runner = new JudgeRunner( repo, judge, materialization, config );
 

@@ -78,10 +78,16 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
     @Override
     public JudgeVerdict judge( final KgProposal proposal ) {
         final String userPrompt = buildUserPrompt( proposal );
+        // keep_alive holds the model resident on the Ollama side longer than
+        // the cron interval — without this the model auto-unloads between
+        // batches (default 5m) and every batch's first request cold-loads,
+        // typically blowing past the request timeout. Setting it just longer
+        // than the cron interval keeps the model warm across batches.
         final Map< String, Object > body = Map.of(
             "model", config.model(),
             "stream", false,
             "format", "json",
+            "keep_alive", config.keepAlive(),
             "messages", List.of(
                 Map.of( "role", "system", "content", SYSTEM_PROMPT ),
                 Map.of( "role", "user",   "content", userPrompt )

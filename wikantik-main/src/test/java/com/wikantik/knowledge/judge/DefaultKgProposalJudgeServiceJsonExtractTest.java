@@ -131,7 +131,7 @@ class DefaultKgProposalJudgeServiceJsonExtractTest {
 
     private static KgJudgeConfig cfg() {
         return new KgJudgeConfig( true, "http://localhost:11434",
-            "gemma4-assist:latest", false, 5, 50, 2, 30, 3 );
+            "gemma4-assist:latest", false, 5, 50, 2, 30, 3, "30m" );
     }
 
     private static com.wikantik.api.knowledge.KgProposal sampleProposal() {

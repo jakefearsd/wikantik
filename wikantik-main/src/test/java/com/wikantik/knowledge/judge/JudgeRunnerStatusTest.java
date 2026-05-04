@@ -40,7 +40,7 @@ class JudgeRunnerStatusTest {
 
     private static KgJudgeConfig cfg() {
         return new KgJudgeConfig( true, "x", "test-model",
-            false, 5, 50, 1, 30, 3 );
+            false, 5, 50, 1, 30, 3, "30m" );
     }
 
     private static KgProposal proposal() {

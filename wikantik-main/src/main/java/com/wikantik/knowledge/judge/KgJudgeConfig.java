@@ -30,7 +30,8 @@ public record KgJudgeConfig(
     int batchSize,
     int concurrency,
     int timeoutSeconds,
-    int maxAttempts
+    int maxAttempts,
+    String keepAlive
 ) {
     /** Hardcoded fallback Ollama endpoint, matching EmbeddingConfig.DEFAULT_BASE_URL
      *  and EntityExtractorConfig's default. Used only when neither the judge nor
@@ -63,8 +64,15 @@ public record KgJudgeConfig(
             getInt( p,    "wikantik.kg.judge.cron.interval_min", 5 ),
             getInt( p,    "wikantik.kg.judge.batch_size",        50 ),
             getInt( p,    "wikantik.kg.judge.concurrency",       2 ),
-            getInt( p,    "wikantik.kg.judge.timeout_seconds",   30 ),
-            getInt( p,    "wikantik.kg.judge.max_attempts",      3 )
+            // 120s default: the prior 30s cap was below the typical first-call
+            // cold-load latency of gemma-class models on shared inference hosts.
+            // Aligns with wikantik.knowledge.extractor.timeout_ms=120000.
+            getInt( p,    "wikantik.kg.judge.timeout_seconds",   120 ),
+            getInt( p,    "wikantik.kg.judge.max_attempts",      3 ),
+            // keep_alive longer than the cron interval keeps the Ollama model
+            // resident across batches and avoids the unload-cliff that caused
+            // every cron pass to lose its first 1-2 proposals.
+            getString( p, "wikantik.kg.judge.keep_alive",         "30m" )
         );
     }
 

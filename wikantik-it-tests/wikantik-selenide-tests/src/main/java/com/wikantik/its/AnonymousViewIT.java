@@ -25,8 +25,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 
 
 /**
@@ -40,7 +38,6 @@ import org.junit.jupiter.api.condition.OS;
 public class AnonymousViewIT extends WithIntegrationTestSetup {
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void anonymousView() {
         final ViewWikiPage main = ViewWikiPage.open( "Main" );
         Assertions.assertEquals( "Wikantik: Main", main.title() );
@@ -52,7 +49,6 @@ public class AnonymousViewIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void anonymousViewImage() throws Exception {
         final File file = Page.download( Page.baseUrl() + "/images/wikantik_logo_s.png" );
         Assertions.assertTrue( file.exists() );

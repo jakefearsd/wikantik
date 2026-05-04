@@ -18,11 +18,11 @@
  */
 package com.wikantik.knowledge.embedding;
 
+import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.KgNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
-import org.postgresql.ds.PGSimpleDataSource;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -33,8 +33,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@EnabledIfSystemProperty(named = "wikantik.test.pg.url", matches = ".+",
-    disabledReason = "Requires Postgres + V022 schema. Set -Dwikantik.test.pg.url=jdbc:... -Dwikantik.test.pg.user=... -Dwikantik.test.pg.password=...")
+@Testcontainers( disabledWithoutDocker = true )
 class KgNodeEmbeddingRepositoryTest {
 
     private static final String MODEL_A = "qwen3-embedding:0.6b";
@@ -45,15 +44,15 @@ class KgNodeEmbeddingRepositoryTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        PGSimpleDataSource pg = new PGSimpleDataSource();
-        pg.setUrl(System.getProperty("wikantik.test.pg.url"));
-        pg.setUser(System.getProperty("wikantik.test.pg.user", "jspwiki"));
-        pg.setPassword(System.getProperty("wikantik.test.pg.password", ""));
-        ds = pg;
-        try (Connection c = ds.getConnection(); Statement st = c.createStatement()) {
-            st.execute("DELETE FROM kg_node_embeddings WHERE content_hash LIKE 'test-%'");
+        ds = PostgresTestContainer.createDataSource();
+        // Each test gets a clean kg_node_embeddings table; kg_nodes is also reset
+        // so anyExistingNodeId() can deterministically insert and find a fixture row.
+        try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
+            st.execute( "DELETE FROM kg_node_embeddings" );
+            st.execute( "DELETE FROM kg_edges" );
+            st.execute( "DELETE FROM kg_nodes" );
         }
-        repo = new KgNodeEmbeddingRepository(ds);
+        repo = new KgNodeEmbeddingRepository( ds );
     }
 
     @Test
@@ -136,12 +135,26 @@ class KgNodeEmbeddingRepositoryTest {
         }
     }
 
+    /**
+     * Inserts a fixture kg_nodes row (or reuses an existing one) and returns its id.
+     * Testcontainers starts empty so the test must seed its own node before
+     * exercising the embeddings table — kg_node_embeddings.node_id is a
+     * foreign key to kg_nodes.id.
+     */
     private UUID anyExistingNodeId() throws Exception {
-        try (Connection c = ds.getConnection();
-             Statement st = c.createStatement();
-             var rs = st.executeQuery("SELECT id FROM kg_nodes LIMIT 1")) {
-            assertTrue(rs.next(), "test requires at least one row in kg_nodes");
-            return UUID.fromString(rs.getString(1));
+        try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
+            try ( var rs = st.executeQuery( "SELECT id FROM kg_nodes LIMIT 1" ) ) {
+                if ( rs.next() ) return UUID.fromString( rs.getString( 1 ) );
+            }
+            final UUID id = UUID.randomUUID();
+            try ( var ps = c.prepareStatement(
+                    "INSERT INTO kg_nodes (id, name, node_type, source_page, provenance) " +
+                    "VALUES (?, ?, 'concept', 'TestPage', 'human-authored')" ) ) {
+                ps.setObject( 1, id );
+                ps.setString( 2, "fixture-" + id );
+                ps.executeUpdate();
+            }
+            return id;
         }
     }
 }

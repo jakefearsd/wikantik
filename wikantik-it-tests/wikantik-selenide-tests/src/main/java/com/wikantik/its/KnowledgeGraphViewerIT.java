@@ -27,14 +27,11 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 
 import java.time.Duration;
 
 import static com.codeborne.selenide.Condition.*;
 import static com.codeborne.selenide.Selenide.*;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Selenide ITs for the {@code /knowledge-graph} Knowledge Graph viewer route.
@@ -58,7 +55,6 @@ class KnowledgeGraphViewerIT extends WithIntegrationTestSetup {
      */
     @Test
     @Order( 1 )
-    @DisabledOnOs( OS.WINDOWS )
     void route_loads_without_error() {
         ViewWikiPage.open( "Main" )
                 .clickOnLogin()
@@ -76,7 +72,6 @@ class KnowledgeGraphViewerIT extends WithIntegrationTestSetup {
      */
     @Test
     @Order( 2 )
-    @DisabledOnOs( OS.WINDOWS )
     void sidebar_link_present() {
         open( Env.TESTS_BASE_URL + "/knowledge-graph" );
         $$( "a.sidebar-link" ).findBy( exactText( "Knowledge Graph" ) )
@@ -91,7 +86,6 @@ class KnowledgeGraphViewerIT extends WithIntegrationTestSetup {
      */
     @Test
     @Order( 3 )
-    @DisabledOnOs( OS.WINDOWS )
     void tier_dropdown_visible() {
         open( Env.TESTS_BASE_URL + "/knowledge-graph" );
         $( "select#kg-tier-select, [data-testid='graph-error-state']" )
@@ -99,17 +93,21 @@ class KnowledgeGraphViewerIT extends WithIntegrationTestSetup {
     }
 
     /**
-     * If the dropdown is absent (empty DB → empty state), skip the URL-change
-     * assertion via {@link org.junit.jupiter.api.Assumptions#assumeTrue}.
+     * Seeds a single KG node so the dropdown renders, then exercises the
+     * tier-select → URL-state binding. Empty-DB conditional skip removed
+     * 2026-05-04 — IT now seeds its own data instead of opting out.
      */
     @Test
     @Order( 4 )
-    @DisabledOnOs( OS.WINDOWS )
     void tier_dropdown_changes_url() {
+        // Seed before navigating: the SPA snapshot is fetched on mount.
+        // source_page must NOT be a system/hub page — those are in kg_excluded_pages
+        // by default and KgInclusionFilter would hide the freshly-inserted node.
+        RestSeedHelper.seedKgNode( "TierDropdownFixture", "concept", "TierDropdownFixturePage" );
+
         open( Env.TESTS_BASE_URL + "/knowledge-graph" );
         final var dropdown = $( "select#kg-tier-select" );
-        assumeTrue( dropdown.is( exist ),
-                "tier dropdown not rendered (empty DB) — skipping URL-change assertion" );
+        dropdown.shouldBe( visible, Duration.ofSeconds( 15 ) );
         dropdown.selectOptionByValue( "human" );
         // Allow a beat for the URL replaceState + re-fetch.
         Selenide.Wait()

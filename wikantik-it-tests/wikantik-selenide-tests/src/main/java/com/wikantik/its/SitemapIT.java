@@ -21,8 +21,6 @@ package com.wikantik.its;
 import com.wikantik.its.environment.Env;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -43,7 +41,6 @@ import java.util.stream.Collectors;
 public class SitemapIT extends WithIntegrationTestSetup {
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void sitemapReturnsValidXml() throws Exception {
         final String sitemap = fetchSitemap();
 
@@ -57,7 +54,6 @@ public class SitemapIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void sitemapIncludesImageNamespace() throws Exception {
         final String sitemap = fetchSitemap();
 
@@ -67,7 +63,6 @@ public class SitemapIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void sitemapContainsMainPage() throws Exception {
         final String sitemap = fetchSitemap();
 
@@ -77,7 +72,6 @@ public class SitemapIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void sitemapUrlsAreFullyQualified() throws Exception {
         final String sitemap = fetchSitemap();
 
@@ -95,7 +89,6 @@ public class SitemapIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void sitemapExcludesMenuPages() throws Exception {
         final String sitemap = fetchSitemap();
 
@@ -108,7 +101,6 @@ public class SitemapIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void sitemapContainsRequiredElements() throws Exception {
         final String sitemap = fetchSitemap();
 
@@ -122,7 +114,6 @@ public class SitemapIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void sitemapOmitsChangefreqAndPriority() throws Exception {
         final String sitemap = fetchSitemap();
 
@@ -135,7 +126,6 @@ public class SitemapIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void sitemapHasCorrectContentType() throws Exception {
         // Construct the sitemap URL
         String baseUrl = Env.TESTS_BASE_URL;

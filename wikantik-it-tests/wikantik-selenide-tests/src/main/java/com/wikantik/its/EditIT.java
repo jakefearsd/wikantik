@@ -24,8 +24,6 @@ import com.wikantik.pages.haddock.EditWikiPage;
 import com.wikantik.pages.haddock.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 
 import java.time.Duration;
 
@@ -35,7 +33,6 @@ import java.time.Duration;
 public class EditIT extends WithIntegrationTestSetup {
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void createPageAndTestEditPermissions() {
         final String pageName = "RandomPage" + System.currentTimeMillis();
 

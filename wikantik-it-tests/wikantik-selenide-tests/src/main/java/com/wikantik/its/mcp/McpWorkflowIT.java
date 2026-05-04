@@ -18,69 +18,19 @@
  */
 package com.wikantik.its.mcp;
 
-import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
- * Multi-tool workflow integration tests simulating real AI agent usage patterns.
+ * Multi-tool workflow integration tests simulating real AI agent usage patterns
+ * against {@code /wikantik-admin-mcp} (the write surface). Read-side workflows
+ * (search/get) are covered by the {@code /knowledge-mcp} tool unit tests in the
+ * {@code wikantik-knowledge} module.
  */
 public class McpWorkflowIT extends WithMcpTestSetup {
-
-    private static final Duration SEARCH_TIMEOUT = Duration.ofSeconds( 30 );
-    private static final Duration POLL_INTERVAL = Duration.ofSeconds( 2 );
-
-    @Test
-    @Disabled( "read_page moved to /knowledge-mcp get_page on 2026-04-24" )
-    public void writeReadRoundTrip() {
-        final String pageName = uniquePageName( "WFRoundTrip" );
-        final Map< String, Object > metadata = Map.of( "type", "note", "priority", "high" );
-        final String body = "Round trip body content";
-
-        mcp.importPage( pageName, body, metadata );
-        final Map< String, Object > readResult = mcp.readPage( pageName );
-
-        Assertions.assertEquals( true, readResult.get( "exists" ) );
-        final String readBody = McpTestClient.normalizeCrlf( ( String ) readResult.get( "content" ) );
-        Assertions.assertTrue( readBody.contains( body ) );
-
-        @SuppressWarnings( "unchecked" )
-        final Map< String, Object > readMeta = ( Map< String, Object > ) readResult.get( "metadata" );
-        Assertions.assertEquals( "note", readMeta.get( "type" ) );
-        Assertions.assertEquals( "high", readMeta.get( "priority" ) );
-    }
-
-    @Test
-    @Disabled( "search_pages + read_page moved to /knowledge-mcp retrieve_context / get_page on 2026-04-24" )
-    public void writeSearchReadWorkflow() {
-        final String keyword = "wfsearch" + UUID.randomUUID().toString().replace( "-", "" );
-        final String pageName = uniquePageName( "WFSearch" );
-        mcp.importPage( pageName, "Content containing " + keyword );
-
-        Awaitility.await()
-                .atMost( SEARCH_TIMEOUT )
-                .pollInterval( POLL_INTERVAL )
-                .untilAsserted( () -> {
-                    final Map< String, Object > searchResult = mcp.searchPages( keyword );
-                    @SuppressWarnings( "unchecked" )
-                    final List< Map< String, Object > > results =
-                            ( List< Map< String, Object > > ) searchResult.get( "results" );
-                    Assertions.assertFalse( results.isEmpty() );
-
-                    final String foundName = ( String ) results.get( 0 ).get( "pageName" );
-                    final Map< String, Object > readResult = mcp.readPage( foundName );
-                    Assertions.assertEquals( true, readResult.get( "exists" ) );
-                    final String content = McpTestClient.normalizeCrlf( ( String ) readResult.get( "content" ) );
-                    Assertions.assertTrue( content.contains( keyword ) );
-                } );
-    }
 
     @Test
     public void writeCreateLinkThenCheckBacklinks() {
@@ -95,90 +45,5 @@ public class McpWorkflowIT extends WithMcpTestSetup {
         final List< String > links = ( List< String > ) backlinks.get( "backlinks" );
         Assertions.assertTrue( links.contains( source ),
                 "Source page should appear as a backlink for target" );
-    }
-
-    @Test
-    @Disabled( "query_metadata replaced by list_metadata_values + list_pages on /knowledge-mcp on 2026-04-24" )
-    public void writeMultiplePagesWithMetadataThenQuery() {
-        final String suffix = String.valueOf( System.currentTimeMillis() );
-        final String typeValue = "wftype-" + suffix;
-
-        for ( int i = 0; i < 3; i++ ) {
-            final String pageName = uniquePageName( "WFQuery" + i );
-            mcp.importPage( pageName, "Query test page " + i, Map.of( "type", typeValue ) );
-        }
-
-        final Map< String, Object > queryResult = mcp.queryMetadataByType( typeValue );
-        @SuppressWarnings( "unchecked" )
-        final List< Map< String, Object > > pages = ( List< Map< String, Object > > ) queryResult.get( "pages" );
-        Assertions.assertEquals( 3, pages.size(), "Should find all 3 pages with matching type" );
-    }
-
-    @Test
-    @Disabled( "recent_changes removed + list_pages moved to /knowledge-mcp on 2026-04-24" )
-    public void writePageThenConfirmInRecentChangesAndListPages() {
-        final String pageName = uniquePageName( "WFConfirm" );
-        mcp.importPage( pageName, "Confirm in both tools" );
-
-        // Check recent changes
-        final Map< String, Object > recentResult = mcp.recentChanges();
-        @SuppressWarnings( "unchecked" )
-        final List< Map< String, Object > > changes = ( List< Map< String, Object > > ) recentResult.get( "changes" );
-        Assertions.assertTrue( changes.stream().anyMatch( c -> pageName.equals( c.get( "pageName" ) ) ),
-                "Should appear in recent changes" );
-
-        // Check list pages
-        final Map< String, Object > listResult = mcp.listPages( pageName );
-        @SuppressWarnings( "unchecked" )
-        final List< Map< String, Object > > listed = ( List< Map< String, Object > > ) listResult.get( "pages" );
-        Assertions.assertTrue( listed.stream().anyMatch( p -> pageName.equals( p.get( "name" ) ) ),
-                "Should appear in list pages" );
-    }
-
-    @Test
-    @Disabled( "read_page moved to /knowledge-mcp get_page on 2026-04-24 — versioned read needs the new tool" )
-    public void versionHistoryWorkflow() {
-        final String pageName = uniquePageName( "WFVersion" );
-        mcp.importPage( pageName, "Version 1 content" );
-        mcp.importPage( pageName, "Version 2 content" );
-
-        final Map< String, Object > v1 = mcp.readPage( pageName, 1 );
-        final Map< String, Object > v2 = mcp.readPage( pageName, 2 );
-
-        final String v1Body = McpTestClient.normalizeCrlf( ( String ) v1.get( "content" ) );
-        final String v2Body = McpTestClient.normalizeCrlf( ( String ) v2.get( "content" ) );
-
-        Assertions.assertTrue( v1Body.contains( "Version 1 content" ) );
-        Assertions.assertTrue( v2Body.contains( "Version 2 content" ) );
-        Assertions.assertFalse( v1Body.contains( "Version 2" ), "v1 should not contain v2 content" );
-    }
-
-    @Test
-    @Disabled( "read_page moved to /knowledge-mcp get_page on 2026-04-24" )
-    public void frontmatterRoundTripThroughCrlfNormalization() {
-        final String pageName = uniquePageName( "WFCrlf" );
-        final Map< String, Object > metadata = new LinkedHashMap<>();
-        metadata.put( "title", "Test Page" );
-        metadata.put( "type", "article" );
-        metadata.put( "tags", List.of( "java", "wiki", "test" ) );
-
-        final String body = "Line one\nLine two\nLine three";
-        mcp.importPage( pageName, body, metadata );
-
-        final Map< String, Object > readResult = mcp.readPage( pageName );
-        @SuppressWarnings( "unchecked" )
-        final Map< String, Object > readMeta = ( Map< String, Object > ) readResult.get( "metadata" );
-
-        Assertions.assertEquals( "Test Page", readMeta.get( "title" ) );
-        Assertions.assertEquals( "article", readMeta.get( "type" ) );
-
-        @SuppressWarnings( "unchecked" )
-        final List< String > tags = ( List< String > ) readMeta.get( "tags" );
-        Assertions.assertEquals( 3, tags.size() );
-        Assertions.assertTrue( tags.contains( "java" ) );
-
-        final String readBody = McpTestClient.normalizeCrlf( ( String ) readResult.get( "content" ) );
-        Assertions.assertTrue( readBody.contains( "Line one" ) );
-        Assertions.assertTrue( readBody.contains( "Line three" ) );
     }
 }

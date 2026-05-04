@@ -95,6 +95,8 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         }
         if ( "/run".equals( path ) ) {
             handleRun( request, response );
+        } else if ( "/proposals/seed".equals( path ) ) {
+            handleSeedProposal( request, response );
         } else if ( path.matches( "/proposals/\\d+/accept" ) ) {
             final int id = extractId( path );
             handleAccept( id, request, response );
@@ -123,6 +125,63 @@ public class AdminHubDiscoveryResource extends RestServletBase {
     }
 
     // ---- handlers ----
+
+    /**
+     * Test-only seam — directly inserts a synthetic hub-discovery proposal so
+     * IT tests can exercise the accept/dismiss/retention UI without needing
+     * the upstream chunker + extractor + embedder pipeline (which require a
+     * live Ollama backend the IT environment does not provide).
+     *
+     * <p>Gated behind the {@code wikantik.test.fixture-seam.enabled=true}
+     * system property — returns 403 in any other configuration. The system
+     * property is only ever set during the integration-test profile.</p>
+     *
+     * <p>Body: {@code {"suggested_name":"...","exemplar_page":"...",
+     * "members":["A","B"],"coherence":0.9}}.</p>
+     */
+    private void handleSeedProposal( final HttpServletRequest request,
+                                      final HttpServletResponse response ) throws IOException {
+        if ( !"true".equalsIgnoreCase( System.getProperty( "wikantik.test.fixture-seam.enabled" ) ) ) {
+            sendError( response, HttpServletResponse.SC_FORBIDDEN,
+                "fixture seam disabled — set -Dwikantik.test.fixture-seam.enabled=true on the JVM" );
+            return;
+        }
+        final HubDiscoveryRepository repo = getEngine().getManager( HubDiscoveryRepository.class );
+        if ( repo == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                "HubDiscoveryRepository is not available" );
+            return;
+        }
+        final com.google.gson.JsonObject body;
+        try ( final BufferedReader reader = request.getReader() ) {
+            body = com.google.gson.JsonParser.parseReader( reader ).getAsJsonObject();
+        } catch ( final RuntimeException e ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "invalid JSON: " + e.getMessage() );
+            return;
+        }
+        final String suggestedName = body.has( "suggested_name" )
+            ? body.get( "suggested_name" ).getAsString() : "TestHub";
+        final String exemplarPage = body.has( "exemplar_page" )
+            ? body.get( "exemplar_page" ).getAsString() : "TestExemplarPage";
+        final List< String > members = new ArrayList<>();
+        if ( body.has( "members" ) && body.get( "members" ).isJsonArray() ) {
+            body.getAsJsonArray( "members" ).forEach( e -> members.add( e.getAsString() ) );
+        }
+        if ( members.isEmpty() ) {
+            members.add( exemplarPage );
+        }
+        final double coherence = body.has( "coherence" )
+            ? body.get( "coherence" ).getAsDouble() : 0.85;
+
+        final int id = repo.insert( suggestedName, exemplarPage, members, coherence );
+        LOG.info( "Hub discovery: seeded synthetic proposal id={} (test fixture seam)", id );
+        sendJson( response, Map.of(
+            "id", id,
+            "suggested_name", suggestedName,
+            "exemplar_page", exemplarPage,
+            "members", members,
+            "coherence", coherence ) );
+    }
 
     private void handleRun( final HttpServletRequest request,
                              final HttpServletResponse response ) throws IOException {

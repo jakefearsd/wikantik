@@ -21,20 +21,18 @@ package com.wikantik.knowledge.extraction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
- * End-to-end test of the per-page extraction pipeline against a live PG: five
- * pages all extract IT_ENTITY, which the consolidator must collapse into one
- * pending {@code kg_proposals} row carrying {@code support_count = 5}.
- *
- * <p>See {@link PageExtractionPgTestBase} for the plan-deviation note.</p>
+ * End-to-end test of the per-page extraction pipeline against a Testcontainers
+ * pgvector instance: five pages all extract IT_ENTITY, which the consolidator
+ * must collapse into one pending {@code kg_proposals} row carrying
+ * {@code support_count = 5}.
  */
-@EnabledIfSystemProperty(named = "wikantik.test.pg.url", matches = ".+",
-    disabledReason = "Requires Postgres + V020 schema. Set -Dwikantik.test.pg.url=jdbc:... -Dwikantik.test.pg.user=... -Dwikantik.test.pg.password=...")
+@Testcontainers( disabledWithoutDocker = true )
 class PageExtractionEndToEndPgTest extends PageExtractionPgTestBase {
 
     @BeforeEach

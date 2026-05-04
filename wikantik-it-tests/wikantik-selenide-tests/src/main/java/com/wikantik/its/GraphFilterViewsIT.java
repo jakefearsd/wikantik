@@ -26,23 +26,14 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 
 import java.time.Duration;
 
 import static com.codeborne.selenide.Condition.*;
 import static com.codeborne.selenide.Selenide.*;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Selenide ITs for the {@code /page-graph} filter UI and URL synchronisation.
- *
- * <p>The IT modules may or may not have PostgreSQL. When the database is
- * absent the graph API returns 500 and the frontend shows an error state.
- * Each test guards itself with {@link org.junit.jupiter.api.Assumptions#assumeTrue}
- * so that, if {@code .graph-view} is not rendered, the test is skipped rather
- * than failed.
  *
  * <p>Test ordering: order 1 performs the login and opens {@code /page-graph};
  * subsequent tests reuse the authenticated browser session without
@@ -55,18 +46,10 @@ class GraphFilterViewsIT extends WithIntegrationTestSetup {
     // Helper
     // -----------------------------------------------------------------------
 
-    /**
-     * Opens {@code /page-graph}, waits up to 15 s for either the graph view or an
-     * error state to become visible, then calls
-     * {@code assumeTrue($(".graph-view").is(visible))} so that the calling
-     * test is skipped (not failed) when the database is absent.
-     */
-    private static void openGraphAndAssumeGraphViewVisible() {
+    /** Opens {@code /page-graph} and waits for the graph view to render. */
+    private static void openGraphView() {
         open( Env.TESTS_BASE_URL + "/page-graph" );
-        $( ".graph-view, .graph-error-state" )
-                .shouldBe( visible, Duration.ofSeconds( 15 ) );
-        assumeTrue( $( ".graph-view" ).is( visible ),
-                "graph-view not rendered — database likely absent; skipping test" );
+        $( ".graph-view" ).shouldBe( visible, Duration.ofSeconds( 15 ) );
     }
 
     // -----------------------------------------------------------------------
@@ -79,13 +62,12 @@ class GraphFilterViewsIT extends WithIntegrationTestSetup {
      */
     @Test
     @Order( 1 )
-    @DisabledOnOs( OS.WINDOWS )
     void backbonePresetAddsUrlParam() {
         ViewWikiPage.open( "Main" )
                 .clickOnLogin()
                 .performLogin( Env.LOGIN_JANNE_USERNAME, Env.LOGIN_JANNE_PASSWORD );
 
-        openGraphAndAssumeGraphViewVisible();
+        openGraphView();
 
         $( ".filter-preset-row" ).shouldBe( visible, Duration.ofSeconds( 15 ) );
         $$( ".filter-preset-pill" ).findBy( text( "Backbone" ) ).click();
@@ -101,9 +83,8 @@ class GraphFilterViewsIT extends WithIntegrationTestSetup {
      */
     @Test
     @Order( 2 )
-    @DisabledOnOs( OS.WINDOWS )
     void communitiesPresetShowsClusterLegend() {
-        openGraphAndAssumeGraphViewVisible();
+        openGraphView();
 
         $( ".filter-preset-row" ).shouldBe( visible, Duration.ofSeconds( 15 ) );
         $$( ".filter-preset-pill" ).findBy( text( "Communities" ) ).click();
@@ -118,13 +99,9 @@ class GraphFilterViewsIT extends WithIntegrationTestSetup {
      */
     @Test
     @Order( 3 )
-    @DisabledOnOs( OS.WINDOWS )
     void backboneHopStateRestoredFromUrl() {
         open( Env.TESTS_BASE_URL + "/page-graph?preset=backbone&hop=1" );
-        $( ".graph-view, .graph-error-state" )
-                .shouldBe( visible, Duration.ofSeconds( 15 ) );
-        assumeTrue( $( ".graph-view" ).is( visible ),
-                "graph-view not rendered — database likely absent; skipping test" );
+        $( ".graph-view" ).shouldBe( visible, Duration.ofSeconds( 15 ) );
 
         $( ".filter-preset-pill.active" )
                 .shouldBe( visible, Duration.ofSeconds( 15 ) )

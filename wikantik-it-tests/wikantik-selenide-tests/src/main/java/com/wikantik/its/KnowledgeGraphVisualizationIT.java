@@ -25,8 +25,6 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 
 import java.time.Duration;
 
@@ -52,7 +50,6 @@ class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
      */
     @Test
     @Order( 1 )
-    @DisabledOnOs( OS.WINDOWS )
     void graphView_sidebarLinkIncludesFocus() {
         ViewWikiPage.open( "Main" )
             .clickOnLogin()
@@ -64,7 +61,6 @@ class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
 
     @Test
     @Order( 2 )
-    @DisabledOnOs( OS.WINDOWS )
     void graphView_routeRendersReactComponent() {
         open( Env.TESTS_BASE_URL + "/page-graph" );
         $( ".graph-view, .graph-error-state, .graph-loading" )
@@ -73,7 +69,6 @@ class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
 
     @Test
     @Order( 3 )
-    @DisabledOnOs( OS.WINDOWS )
     void graphView_authenticatedSeesGraphOrServerError() {
         open( Env.TESTS_BASE_URL + "/page-graph" );
         $( ".graph-view, [data-testid='graph-error-state']" )
@@ -98,7 +93,6 @@ class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
      */
     @Test
     @Order( 10 )
-    @DisabledOnOs( OS.WINDOWS )
     void graphView_anonymousReachesPublicGraphEndpoint() {
         Selenide.closeWebDriver();
         open( Env.TESTS_BASE_URL + "/page-graph" );

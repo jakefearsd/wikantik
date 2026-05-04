@@ -22,8 +22,6 @@ import com.wikantik.pages.haddock.LoginPage;
 import com.wikantik.pages.haddock.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 
 
 /**
@@ -39,7 +37,6 @@ import org.junit.jupiter.api.condition.OS;
 public class LoginIT extends WithIntegrationTestSetup {
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void loginAndLogout() {
         ViewWikiPage main = ViewWikiPage.open( "Main" );
         Assertions.assertEquals( "Wikantik: Main", main.title() );
@@ -59,7 +56,6 @@ public class LoginIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void loginKO() {
         ViewWikiPage main = ViewWikiPage.open( "Main" );
         Assertions.assertEquals( "Wikantik: Main", main.title() );

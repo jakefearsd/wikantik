@@ -22,8 +22,6 @@ import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.junit5.ScreenShooterExtension;
 import com.wikantik.its.environment.Env;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith( ScreenShooterExtension.class )
@@ -42,7 +40,6 @@ public class WithIntegrationTestSetup {
      * starting state.
      */
     @BeforeAll
-    @DisabledOnOs(OS.WINDOWS)
     public static void setUp() {
         Env.setUp();
         Selenide.closeWebDriver();

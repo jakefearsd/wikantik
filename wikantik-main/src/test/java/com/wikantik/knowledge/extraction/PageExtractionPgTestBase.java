@@ -19,10 +19,10 @@
 package com.wikantik.knowledge.extraction;
 
 import com.sun.net.httpserver.HttpServer;
+import com.wikantik.PostgresTestContainer;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository;
-import org.postgresql.ds.PGSimpleDataSource;
 
 import javax.sql.DataSource;
 import java.io.OutputStream;
@@ -203,10 +203,6 @@ abstract class PageExtractionPgTestBase {
     }
 
     private static DataSource openLivePg() {
-        final PGSimpleDataSource pg = new PGSimpleDataSource();
-        pg.setUrl( System.getProperty( "wikantik.test.pg.url" ) );
-        pg.setUser( System.getProperty( "wikantik.test.pg.user", "jspwiki" ) );
-        pg.setPassword( System.getProperty( "wikantik.test.pg.password", "" ) );
-        return pg;
+        return PostgresTestContainer.createDataSource();
     }
 }

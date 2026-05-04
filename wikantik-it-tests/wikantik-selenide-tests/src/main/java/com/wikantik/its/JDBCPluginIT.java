@@ -24,8 +24,6 @@ import com.wikantik.pages.haddock.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 
 import static com.codeborne.selenide.Condition.exist;
 import static com.codeborne.selenide.Condition.text;
@@ -48,7 +46,6 @@ import static com.codeborne.selenide.Selenide.$$;
 public class JDBCPluginIT extends WithIntegrationTestSetup {
 
     @BeforeAll
-    @DisabledOnOs( OS.WINDOWS )
     static void loginAsAdmin() {
         // Parent @BeforeAll already called closeWebDriver(); the next Selenide.open()
         // spins up a fresh, anonymous browser for us to authenticate in.
@@ -63,7 +60,6 @@ public class JDBCPluginIT extends WithIntegrationTestSetup {
      * - Table contains expected product data
      */
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void testJDBCPluginRendersProductTable() {
         final ViewWikiPage page = ViewWikiPage.open( "JDBCPluginTest" );
 
@@ -101,7 +97,6 @@ public class JDBCPluginIT extends WithIntegrationTestSetup {
      * Verifies the custom class is applied to the wrapper div.
      */
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void testJDBCPluginCustomCssClass() {
         ViewWikiPage.open( "JDBCPluginTest" );
 
@@ -125,7 +120,6 @@ public class JDBCPluginIT extends WithIntegrationTestSetup {
      * Tests that the header parameter properly hides table headers.
      */
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void testJDBCPluginNoHeader() {
         ViewWikiPage.open( "JDBCPluginTest" );
 
@@ -157,7 +151,6 @@ public class JDBCPluginIT extends WithIntegrationTestSetup {
      * Tests that all three plugin invocations on the test page render properly.
      */
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void testMultipleJDBCPluginInvocations() {
         ViewWikiPage.open( "JDBCPluginTest" );
 
@@ -176,7 +169,6 @@ public class JDBCPluginIT extends WithIntegrationTestSetup {
      * This is a simpler verification that the plugin is working.
      */
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void testPageContainsProductData() {
         final ViewWikiPage page = ViewWikiPage.open( "JDBCPluginTest" );
 

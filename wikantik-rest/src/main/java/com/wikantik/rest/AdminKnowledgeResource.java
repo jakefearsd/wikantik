@@ -465,6 +465,15 @@ public class AdminKnowledgeResource extends RestServletBase {
                     ? GSON.fromJson( body.get( "properties" ), MAP_TYPE ) : Map.of();
             final KgNode node = service.upsertNode( name, nodeType, sourcePage,
                     Provenance.HUMAN_AUTHORED, properties );
+            if ( node == null ) {
+                // Insert succeeded but read-back returned null — typically because
+                // source_page is in kg_excluded_pages and KgInclusionFilter hides it.
+                LOG.warn( "upsertNode returned null for name='{}' source_page='{}' — " +
+                    "likely filtered by KG inclusion policy", name, sourcePage );
+                sendError( response, HttpServletResponse.SC_CONFLICT,
+                    "node not visible after insert (excluded source page or other policy filter)" );
+                return;
+            }
             sendJson( response, nodeToMap( node ) );
         }
     }

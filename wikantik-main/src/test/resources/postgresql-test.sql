@@ -123,6 +123,30 @@ CREATE TABLE IF NOT EXISTS kg_proposals (
 CREATE INDEX IF NOT EXISTS idx_kg_proposals_status ON kg_proposals(status);
 CREATE INDEX IF NOT EXISTS idx_kg_proposals_source_page ON kg_proposals(source_page);
 
+-- V020: signature + support tracking on kg_proposals
+ALTER TABLE kg_proposals
+  ADD COLUMN IF NOT EXISTS signature       VARCHAR(64),
+  ADD COLUMN IF NOT EXISTS support         JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS support_count   INT  DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS first_seen_at   TIMESTAMP DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS last_seen_at    TIMESTAMP DEFAULT NOW();
+CREATE UNIQUE INDEX IF NOT EXISTS kg_proposals_pending_signature_uq
+  ON kg_proposals (signature)
+  WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS kg_proposals_signature_idx ON kg_proposals (signature);
+
+-- V021/V022: kg_node_embeddings with model_code in PK
+CREATE TABLE IF NOT EXISTS kg_node_embeddings (
+    node_id      UUID         NOT NULL REFERENCES kg_nodes(id) ON DELETE CASCADE,
+    model_code   VARCHAR(64)  NOT NULL DEFAULT 'unknown',
+    content_hash VARCHAR(64)  NOT NULL,
+    embedding    vector(1024) NOT NULL,
+    embedded_at  TIMESTAMP    NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (node_id, model_code)
+);
+CREATE INDEX IF NOT EXISTS kg_node_embeddings_ivfflat_idx
+  ON kg_node_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 50);
+
 CREATE TABLE IF NOT EXISTS kg_rejections (
     id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     proposed_source       VARCHAR(255) NOT NULL,

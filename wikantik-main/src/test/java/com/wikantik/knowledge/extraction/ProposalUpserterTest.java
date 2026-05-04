@@ -18,13 +18,13 @@
  */
 package com.wikantik.knowledge.extraction;
 
+import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.ConsolidatedProposal;
 import com.wikantik.api.knowledge.SupportEvidence;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
-import org.postgresql.ds.PGSimpleDataSource;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -33,8 +33,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@EnabledIfSystemProperty(named = "wikantik.test.pg.url", matches = ".+",
-    disabledReason = "Requires Postgres + V020 schema. Set -Dwikantik.test.pg.url=jdbc:... -Dwikantik.test.pg.user=... -Dwikantik.test.pg.password=...")
+@Testcontainers( disabledWithoutDocker = true )
 class ProposalUpserterTest {
 
     private DataSource ds;
@@ -42,15 +41,11 @@ class ProposalUpserterTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        PGSimpleDataSource pg = new PGSimpleDataSource();
-        pg.setUrl(System.getProperty("wikantik.test.pg.url"));
-        pg.setUser(System.getProperty("wikantik.test.pg.user", "jspwiki"));
-        pg.setPassword(System.getProperty("wikantik.test.pg.password", ""));
-        ds = pg;
-        try (Connection c = ds.getConnection(); Statement st = c.createStatement()) {
-            st.execute("DELETE FROM kg_proposals WHERE signature LIKE 'sig-test-%'");
+        ds = PostgresTestContainer.createDataSource();
+        try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
+            st.execute( "DELETE FROM kg_proposals" );
         }
-        upserter = new ProposalUpserter(new JdbcKnowledgeRepository(ds));
+        upserter = new ProposalUpserter( new JdbcKnowledgeRepository( ds ) );
     }
 
     @Test

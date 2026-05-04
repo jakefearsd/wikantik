@@ -21,8 +21,6 @@ package com.wikantik.util;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -86,7 +84,6 @@ public class FileUtilTest
      * ISO Latin 1 from a pipe.
      */
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     public void testReadContentsFromPipeOnLinux() throws Exception {
         String src = "abc\n123456\n\nfoobar.\n";
 
@@ -218,14 +215,12 @@ public class FileUtilTest
     // --- runSimpleCommand tests ---
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     public void testRunSimpleCommand() throws Exception {
         final String result = FileUtil.runSimpleCommand( "echo hello", "/tmp" );
         assertEquals( "hello\n", result );
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     public void testRunSimpleCommandMultipleWords() throws Exception {
         final String result = FileUtil.runSimpleCommand( "echo foo bar", "/tmp" );
         assertEquals( "foo bar\n", result );

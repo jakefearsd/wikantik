@@ -316,7 +316,12 @@
                     </user>
                   </users>
                   <properties>
-                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading</cargo.jvmargs>
+                    <!-- wikantik.test.fixture-seam.enabled unlocks the test-only
+                         hub-discovery proposal seed endpoint at
+                         /admin/knowledge-graph/hub-discovery/proposals/seed.
+                         Returns 403 unless this property is set (only set during
+                         the integration-tests profile, never in production). -->
+                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading -Dwikantik.test.fixture-seam.enabled=true</cargo.jvmargs>
                   </properties>
                 </configuration>
                 <container>

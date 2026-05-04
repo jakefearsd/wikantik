@@ -25,8 +25,6 @@ import com.wikantik.pages.admin.HubOverviewAdminPage;
 import com.wikantik.pages.haddock.ViewWikiPage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 
 /**
  * End-to-end test for the Existing Hubs panel inside the Hub Discovery admin tab.
@@ -51,7 +49,6 @@ public class HubOverviewAdminIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void existingHubsPanel_listAndDrilldownAndRemoveMember() throws Exception {
         // 1. Seed three article pages and one hub page that references them.
         //    HubSyncFilter creates the kg_edges automatically on save.

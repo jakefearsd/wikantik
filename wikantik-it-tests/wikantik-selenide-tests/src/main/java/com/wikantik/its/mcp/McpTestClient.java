@@ -115,14 +115,6 @@ public class McpTestClient implements AutoCloseable {
         return parseJsonResult( result );
     }
 
-    public Map< String, Object > readPage( final String pageName ) {
-        return callTool( "read_page", Map.of( "pageName", pageName ) );
-    }
-
-    public Map< String, Object > readPage( final String pageName, final int version ) {
-        return callTool( "read_page", Map.of( "pageName", pageName, "version", version ) );
-    }
-
     /**
      * Write a single page through the {@code write_pages} MCP tool. Returns the
      * per-page result entry (created boolean, error message on failure).
@@ -196,71 +188,8 @@ public class McpTestClient implements AutoCloseable {
         }
     }
 
-    public Map< String, Object > searchPages( final String query ) {
-        return callTool( "search_pages", Map.of( "query", query ) );
-    }
-
-    public Map< String, Object > searchPages( final String query, final int maxResults ) {
-        return callTool( "search_pages", Map.of( "query", query, "maxResults", maxResults ) );
-    }
-
-    public Map< String, Object > listPages() {
-        return callTool( "list_pages", Map.of() );
-    }
-
-    public Map< String, Object > listPages( final String prefix ) {
-        return callTool( "list_pages", Map.of( "prefix", prefix ) );
-    }
-
-    public Map< String, Object > listPages( final String prefix, final int limit ) {
-        final Map< String, Object > args = new LinkedHashMap<>();
-        if ( prefix != null ) {
-            args.put( "prefix", prefix );
-        }
-        args.put( "limit", limit );
-        return callTool( "list_pages", args );
-    }
-
     public Map< String, Object > getBacklinks( final String pageName ) {
         return callTool( "get_backlinks", Map.of( "pageName", pageName ) );
-    }
-
-    public Map< String, Object > recentChanges() {
-        return callTool( "recent_changes", Map.of() );
-    }
-
-    public Map< String, Object > recentChanges( final int limit ) {
-        return callTool( "recent_changes", Map.of( "limit", limit ) );
-    }
-
-    public Map< String, Object > recentChanges( final String since ) {
-        return callTool( "recent_changes", Map.of( "since", since ) );
-    }
-
-    public Map< String, Object > recentChanges( final String since, final int limit ) {
-        final Map< String, Object > args = new LinkedHashMap<>();
-        if ( since != null ) {
-            args.put( "since", since );
-        }
-        args.put( "limit", limit );
-        return callTool( "recent_changes", args );
-    }
-
-    public Map< String, Object > queryMetadata( final String field, final String value ) {
-        final Map< String, Object > args = new LinkedHashMap<>();
-        args.put( "field", field );
-        if ( value != null ) {
-            args.put( "value", value );
-        }
-        return callTool( "query_metadata", args );
-    }
-
-    public Map< String, Object > queryMetadataByType( final String type ) {
-        return callTool( "query_metadata", Map.of( "type", type ) );
-    }
-
-    public Map< String, Object > queryMetadataExpectingError( final Map< String, Object > args ) {
-        return callToolExpectingError( "query_metadata", args );
     }
 
     @Override

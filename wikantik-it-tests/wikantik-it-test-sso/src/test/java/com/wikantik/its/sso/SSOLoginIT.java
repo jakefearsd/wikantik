@@ -26,8 +26,6 @@ import com.wikantik.its.environment.Env;
 import com.wikantik.pages.haddock.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
@@ -72,7 +70,6 @@ public class SSOLoginIT extends WithIntegrationTestSetup {
         System.getProperty( "it-wikantik.mock-oauth.base-url", "http://localhost:8088" );
 
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void oidcLoginAutoProvisionsAndAuthenticates() {
         // Prime the Main page so the post-SSO redirect has a known landing
         // point and we can assert on the React UserBadge state.
@@ -129,7 +126,6 @@ public class SSOLoginIT extends WithIntegrationTestSetup {
      * catch-all error branch.
      */
     @Test
-    @DisabledOnOs(OS.WINDOWS)
     void callbackWithoutCodeRedirectsToLoginError() {
         Selenide.open( baseUrl() + "/sso/callback" );
         new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 10 ) )

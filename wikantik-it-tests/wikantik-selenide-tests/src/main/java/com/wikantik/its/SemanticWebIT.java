@@ -24,8 +24,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.wikantik.its.environment.Env;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -64,7 +62,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     // ---- Canonical URL ----
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void articleHasCanonicalUrl() throws Exception {
         final String html = fetchPage( "SemanticArticle" );
         final String canonical = extractLinkHref( html, "canonical" );
@@ -79,7 +76,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     // ---- Meta description ----
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void articleMetaDescriptionFromSummary() throws Exception {
         final String html = fetchPage( "SemanticArticle" );
         final String description = extractMetaContent( html, "name", "description" );
@@ -90,7 +86,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void plainPageMetaDescriptionFallback() throws Exception {
         final String html = fetchPage( "PlainPage" );
         final String description = extractMetaContent( html, "name", "description" );
@@ -103,7 +98,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     // ---- Meta keywords ----
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void articleMetaKeywordsFromTags() throws Exception {
         final String html = fetchPage( "SemanticArticle" );
         final String keywords = extractMetaContent( html, "name", "keywords" );
@@ -114,7 +108,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void plainPageHasNoMetaKeywords() throws Exception {
         final String html = fetchPage( "PlainPage" );
         final String keywords = extractMetaContent( html, "name", "keywords" );
@@ -127,7 +120,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     // ---- Open Graph tags ----
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void articleOpenGraphTags() throws Exception {
         final String html = fetchPage( "SemanticArticle" );
 
@@ -151,7 +143,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void articleHasPerTagOpenGraphTags() throws Exception {
         final String html = fetchPage( "SemanticArticle" );
         final List< String > articleTags = extractAllMetaContent( html, "property", "article:tag" );
@@ -166,7 +157,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     // ---- Twitter Card tags ----
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void articleTwitterCardTags() throws Exception {
         final String html = fetchPage( "SemanticArticle" );
 
@@ -182,7 +172,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     // ---- JSON-LD: Article ----
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void articleJsonLdStructuredData() throws Exception {
         final String html = fetchPage( "SemanticArticle" );
         final JsonObject ld = extractFirstJsonLd( html );
@@ -210,7 +199,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void articleJsonLdHasIsPartOf() throws Exception {
         final String html = fetchPage( "SemanticArticle" );
         final JsonObject ld = extractFirstJsonLd( html );
@@ -224,7 +212,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void articleJsonLdHasRelatedLinks() throws Exception {
         final String html = fetchPage( "SemanticArticle" );
         final JsonObject ld = extractFirstJsonLd( html );
@@ -243,7 +230,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     // ---- JSON-LD: Hub (CollectionPage) ----
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void hubJsonLdIsCollectionPage() throws Exception {
         final String html = fetchPage( "SemanticHub" );
         final JsonObject ld = extractFirstJsonLd( html );
@@ -254,7 +240,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void hubJsonLdHasHasPart() throws Exception {
         final String html = fetchPage( "SemanticHub" );
         final JsonObject ld = extractFirstJsonLd( html );
@@ -278,7 +263,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void hubJsonLdDoesNotHaveIsPartOf() throws Exception {
         final String html = fetchPage( "SemanticHub" );
         final JsonObject ld = extractFirstJsonLd( html );
@@ -291,7 +275,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     // ---- BreadcrumbList ----
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void articleHasBreadcrumbList() throws Exception {
         final String html = fetchPage( "SemanticArticle" );
         final JsonObject breadcrumb = extractJsonLdByType( html, "BreadcrumbList" );
@@ -310,7 +293,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void hubDoesNotHaveBreadcrumbList() throws Exception {
         final String html = fetchPage( "SemanticHub" );
         final JsonObject breadcrumb = extractJsonLdByType( html, "BreadcrumbList" );
@@ -319,7 +301,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void plainPageDoesNotHaveBreadcrumbList() throws Exception {
         final String html = fetchPage( "PlainPage" );
         final JsonObject breadcrumb = extractJsonLdByType( html, "BreadcrumbList" );
@@ -330,7 +311,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     // ---- Plain page (no frontmatter) JSON-LD ----
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void plainPageJsonLdIsArticle() throws Exception {
         final String html = fetchPage( "PlainPage" );
         final JsonObject ld = extractFirstJsonLd( html );
@@ -347,7 +327,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     // ---- Atom feed ----
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void atomFeedReturnValidXml() throws Exception {
         final String feed = fetchUrl( "/feed.xml" );
 
@@ -357,7 +336,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void atomFeedHasCorrectContentType() throws Exception {
         final HttpURLConnection conn = openConnection( "/feed.xml" );
         try {
@@ -371,7 +349,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void atomFeedClusterFilter() throws Exception {
         final String filtered = fetchUrl( "/feed.xml?cluster=test-cluster" );
 
@@ -383,7 +360,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void articlePageHasAtomFeedAutodiscovery() throws Exception {
         final String html = fetchPage( "SemanticArticle" );
 
@@ -395,7 +371,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void clusteredArticleHasClusterFeedAutodiscovery() throws Exception {
         final String html = fetchPage( "SemanticArticle" );
 
@@ -407,7 +382,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     // ---- News Sitemap ----
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void sitemapIncludesNewsNamespace() throws Exception {
         final String sitemap = fetchUrl( "/sitemap.xml" );
         assertTrue( sitemap.contains( "xmlns:news=\"http://www.google.com/schemas/sitemap-news/0.9\"" ),
@@ -415,7 +389,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void sitemapIncludesNewsEntryForTaggedPage() throws Exception {
         final String sitemap = fetchUrl( "/sitemap.xml" );
 
@@ -440,7 +413,6 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     // ---- Cross-cutting: page without frontmatter should still render ----
 
     @Test
-    @DisabledOnOs( OS.WINDOWS )
     void plainPageRendersWithoutFrontmatter() throws Exception {
         final String html = fetchPage( "PlainPage" );
         assertTrue( html.contains( "Plain Page" ),

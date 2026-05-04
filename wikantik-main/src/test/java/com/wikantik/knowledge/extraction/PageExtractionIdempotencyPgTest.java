@@ -21,7 +21,7 @@ package com.wikantik.knowledge.extraction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Instant;
 
@@ -34,11 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * insert a new pending row, must keep {@code support_count = 5}
  * (DISTINCT ON dedup by source_page), and must move {@code last_seen_at}
  * forward to prove the merge fired.
- *
- * <p>See {@link PageExtractionPgTestBase} for the plan-deviation note.</p>
  */
-@EnabledIfSystemProperty(named = "wikantik.test.pg.url", matches = ".+",
-    disabledReason = "Requires Postgres + V020 schema. Set -Dwikantik.test.pg.url=jdbc:... -Dwikantik.test.pg.user=... -Dwikantik.test.pg.password=...")
+@Testcontainers( disabledWithoutDocker = true )
 class PageExtractionIdempotencyPgTest extends PageExtractionPgTestBase {
 
     @BeforeEach

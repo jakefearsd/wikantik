@@ -19,7 +19,6 @@
 package com.wikantik.api;
 
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 
@@ -52,16 +51,8 @@ public class ReleaseTest {
     }
 
     @Test
-    @Disabled
     public void testNewer6() {
-        final String rel;
-        if( Release.MINORREVISION != 0 ) {
-            rel = Release.VERSION + "." + Release.REVISION + "." + ( Release.MINORREVISION - 1 ) + "-cvs";
-        } else {
-            rel = Release.VERSION + "." + ( Release.REVISION - 1 ) + ".9999" + "-cvs";
-        }
-
-        Assertions.assertTrue( Release.isNewerOrEqual( rel ) );
+        Assertions.assertTrue( Release.isNewerOrEqual( olderThanCurrent() ) );
     }
 
     @Test
@@ -103,16 +94,8 @@ public class ReleaseTest {
     }
 
     @Test
-    @Disabled
     public void testOlder6() {
-        final String rel;
-        if( Release.MINORREVISION != 0 ) {
-            rel = Release.VERSION + "." + Release.REVISION + "." + ( Release.MINORREVISION - 1 ) + "-cvs";
-        } else {
-            rel = Release.VERSION + "." + ( Release.REVISION - 1 ) + ".9999" + "-cvs";
-        }
-
-        Assertions.assertFalse( Release.isOlderOrEqual( rel ) );
+        Assertions.assertFalse( Release.isOlderOrEqual( olderThanCurrent() ) );
     }
 
     @Test
@@ -131,6 +114,19 @@ public class ReleaseTest {
     public void testOlder9() {
         final String rel = "";
         Assertions.assertTrue( Release.isOlderOrEqual( rel ) );
+    }
+
+    private static String olderThanCurrent() {
+        if ( Release.MINORREVISION != 0 ) {
+            return Release.VERSION + "." + Release.REVISION + "." + ( Release.MINORREVISION - 1 ) + "-cvs";
+        }
+        if ( Release.REVISION != 0 ) {
+            return Release.VERSION + "." + ( Release.REVISION - 1 ) + ".9999-cvs";
+        }
+        if ( Release.VERSION != 0 ) {
+            return ( Release.VERSION - 1 ) + ".9999.9999-cvs";
+        }
+        throw new IllegalStateException( "current release is 0.0.0 — no older release exists" );
     }
 
 }

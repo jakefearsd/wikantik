@@ -173,7 +173,7 @@ Historically, KE required:
 
 With advanced LLMs, the process is often condensed into a single, powerful prompt:
 
-> **Prompt Example (Conceptual):** "Analyze the following text. Identify all named entities, and for every pair of entities, extract the relationship that connects them, formatted strictly as a JSON array of triples: [{\"subject\": \"E1\", \"relation\": \"R\", \"object\": \"E2\"}]."
+> **Prompt Example (Conceptual):** "Analyze the following text. Identify all named entities, and for every pair of entities, extract the relationship that connects them, formatted strictly as a JSON array of triples: `[{"subject": "E1", "relation": "R", "object": "E2"}]`."
 
 ### 2. Strengths and Weaknesses of LLM-Based KE
 

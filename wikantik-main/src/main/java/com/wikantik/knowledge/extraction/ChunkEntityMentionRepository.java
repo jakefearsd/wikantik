@@ -92,6 +92,18 @@ public class ChunkEntityMentionRepository {
                 conn.setAutoCommit( prev );
             }
         } catch( final SQLException e ) {
+            // 23503 = foreign_key_violation. The chunk_entity_mentions FK on
+            // chunk_id has ON DELETE CASCADE; if the chunk row was deleted
+            // (e.g. ChunkProjector re-chunked the page while the async
+            // extractor was still resolving mentions for the prior chunk
+            // ids), the insert races against a row that no longer exists.
+            // The "lost" mention is for stale chunks that the cascade would
+            // have wiped anyway, so treat as a benign race rather than an error.
+            if( "23503".equals( e.getSQLState() ) ) {
+                LOG.info( "chunk_entity_mentions upsert skipped {} stale row(s): {}",
+                          rows.size(), e.getMessage() );
+                return 0;
+            }
             LOG.warn( "Failed to upsert {} mention rows: {}", rows.size(), e.getMessage(), e );
             throw new RuntimeException( "chunk_entity_mentions upsert failed", e );
         }

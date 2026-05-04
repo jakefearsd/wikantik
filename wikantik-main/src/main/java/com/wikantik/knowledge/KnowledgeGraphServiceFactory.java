@@ -74,7 +74,8 @@ public final class KnowledgeGraphServiceFactory {
         ContentChunkRepository contentChunkRepo,
         com.wikantik.knowledge.judge.KgMaterializationService kgMaterialization,
         com.wikantik.api.knowledge.KgProposalJudgeService kgJudgeService,
-        com.wikantik.knowledge.judge.JudgeRunner kgJudgeRunner
+        com.wikantik.knowledge.judge.JudgeRunner kgJudgeRunner,
+        com.wikantik.knowledge.judge.KgJudgeTimeoutRepository kgJudgeTimeoutRepository
     ) {}
 
     private KnowledgeGraphServiceFactory() {}
@@ -133,13 +134,19 @@ public final class KnowledgeGraphServiceFactory {
         final com.wikantik.knowledge.judge.KgMaterializationService kgMat =
             new com.wikantik.knowledge.judge.KgMaterializationService( repo );
 
+        // Timeout-tracking repo always constructed (cheap, no connections held);
+        // surfaces chronic-timeout proposals to the admin UI even when the
+        // judge cron is disabled.
+        final com.wikantik.knowledge.judge.KgJudgeTimeoutRepository judgeTimeoutRepo =
+            new com.wikantik.knowledge.judge.JdbcKgJudgeTimeoutRepository( dataSource );
+
         com.wikantik.api.knowledge.KgProposalJudgeService kgJudge = null;
         com.wikantik.knowledge.judge.JudgeRunner kgRunner = null;
         if ( judgeCfg.enabled() && judgeCfg.endpoint() != null && !judgeCfg.endpoint().isBlank() ) {
             final java.net.http.HttpClient http = java.net.http.HttpClient.newBuilder()
                 .connectTimeout( java.time.Duration.ofSeconds( judgeCfg.timeoutSeconds() ) )
                 .build();
-            kgJudge = new com.wikantik.knowledge.judge.DefaultKgProposalJudgeService( http, judgeCfg );
+            kgJudge = new com.wikantik.knowledge.judge.DefaultKgProposalJudgeService( http, judgeCfg, judgeTimeoutRepo );
             kgRunner = new com.wikantik.knowledge.judge.JudgeRunner( repo, kgJudge, kgMat, judgeCfg );
             kgRunner.schedule();
             LOG.info( "KG judge service enabled: model={} endpoint={} cron={}m",
@@ -232,6 +239,6 @@ public final class KnowledgeGraphServiceFactory {
             similarity, mentionIndex, hubProposalRepo, hubProposalService,
             hubDiscoveryRepo, hubDiscoveryService, hubOverviewService,
             chunkProjector, contentChunkRepo,
-            kgMat, kgJudge, kgRunner );
+            kgMat, kgJudge, kgRunner, judgeTimeoutRepo );
     }
 }

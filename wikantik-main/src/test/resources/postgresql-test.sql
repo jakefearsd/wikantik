@@ -405,3 +405,23 @@ CREATE INDEX IF NOT EXISTS kg_nodes_provenance_idx  ON kg_nodes (provenance_prop
 CREATE INDEX IF NOT EXISTS kg_edges_provenance_idx  ON kg_edges (provenance_proposal_id);
 
 UPDATE kg_proposals SET tier = 'human' WHERE status = 'approved' AND tier = 'none';
+
+-- V025: kg_judge_timeouts
+CREATE TABLE IF NOT EXISTS kg_judge_timeouts (
+    proposal_id          UUID         PRIMARY KEY,
+    content_sha256       VARCHAR(64)  NOT NULL,
+    source_page          TEXT,
+    proposal_type        VARCHAR(64),
+    model_name           VARCHAR(128),
+    content_bytes        INTEGER,
+    timeout_count        INTEGER      NOT NULL DEFAULT 1,
+    last_error_excerpt   TEXT,
+    base_timeout_seconds INTEGER      NOT NULL,
+    first_seen           TIMESTAMP    NOT NULL DEFAULT NOW(),
+    last_seen            TIMESTAMP    NOT NULL DEFAULT NOW(),
+    CONSTRAINT kg_judge_timeouts_count_check CHECK (timeout_count >= 1)
+);
+CREATE INDEX IF NOT EXISTS kg_judge_timeouts_count_idx
+    ON kg_judge_timeouts (timeout_count DESC, last_seen DESC);
+CREATE INDEX IF NOT EXISTS kg_judge_timeouts_content_sha_idx
+    ON kg_judge_timeouts (content_sha256);

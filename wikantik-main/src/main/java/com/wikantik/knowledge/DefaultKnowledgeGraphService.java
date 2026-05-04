@@ -407,6 +407,11 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     }
 
     @Override
+    public KgProposal getProposal( final UUID proposalId ) {
+        return repo.getProposal( proposalId );
+    }
+
+    @Override
     public List< KgProposal > listProposals( final String status, final String tier,
                                              final String machineStatus,
                                              final boolean includeMachineRejected,

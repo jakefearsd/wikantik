@@ -25,6 +25,7 @@ import com.google.gson.JsonParser;
 import com.wikantik.api.knowledge.JudgeVerdict;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
+import io.micrometer.core.instrument.Metrics;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -33,20 +34,35 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Calls an Ollama-hosted LLM with the judge system prompt. Returns a strict
  * verdict; on any HTTP/parse/timeout failure, returns an abstain verdict with
  * the failure reason in the rationale (caller decides whether to retry).
+ *
+ * <p>If a {@link KgJudgeTimeoutRepository} is supplied, per-proposal read-timeouts
+ * are tracked: each timeout upserts a row keyed by proposal-id with an incremented
+ * counter, and any non-timeout HTTP completion clears the row. Subsequent calls
+ * for a proposal with prior timeouts use a longer effective timeout —
+ * {@code base * min(1 + timeoutCount, 3)} — to give chronically slow content a
+ * fairer shot before falling back to admin review.</p>
  */
 public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
 
     private static final Logger LOG = LogManager.getLogger( DefaultKgProposalJudgeService.class );
     private static final Gson GSON = new Gson();
+
+    /** Cap on the timeout multiplier applied to base. count=2 already saturates. */
+    public static final int MAX_TIMEOUT_MULTIPLIER = 3;
 
     static final String SYSTEM_PROMPT = """
         You are a knowledge-graph fact judge. You are given an extracted relationship
@@ -68,11 +84,19 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
 
     private final HttpClient httpClient;
     private final KgJudgeConfig config;
+    private final KgJudgeTimeoutRepository timeoutRepo;
 
     public DefaultKgProposalJudgeService( final HttpClient httpClient,
                                            final KgJudgeConfig config ) {
-        this.httpClient = Objects.requireNonNull( httpClient, "httpClient" );
-        this.config     = Objects.requireNonNull( config, "config" );
+        this( httpClient, config, null );
+    }
+
+    public DefaultKgProposalJudgeService( final HttpClient httpClient,
+                                           final KgJudgeConfig config,
+                                           final KgJudgeTimeoutRepository timeoutRepo ) {
+        this.httpClient   = Objects.requireNonNull( httpClient, "httpClient" );
+        this.config       = Objects.requireNonNull( config, "config" );
+        this.timeoutRepo  = timeoutRepo; // optional
     }
 
     @Override
@@ -94,20 +118,39 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
             )
         );
 
+        final int baseTimeout      = config.timeoutSeconds();
+        final int multiplier       = computeMultiplier( proposal );
+        final int effectiveTimeout = baseTimeout * multiplier;
+        if ( multiplier > 1 ) {
+            LOG.info( "judge applying {}x timeout ({}s) for proposal {} due to prior timeouts",
+                multiplier, effectiveTimeout, proposal.id() );
+            Metrics.counter( "wikantik.kg_judge.timeout_multiplier_applied",
+                "multiplier", multiplier + "x" ).increment();
+        }
+
         final String url = stripTrailingSlash( config.endpoint() ) + "/api/chat";
         final HttpRequest req = HttpRequest.newBuilder( URI.create( url ) )
-            .timeout( Duration.ofSeconds( config.timeoutSeconds() ) )
+            .timeout( Duration.ofSeconds( effectiveTimeout ) )
             .header( "Content-Type", "application/json" )
             .POST( HttpRequest.BodyPublishers.ofString( GSON.toJson( body ) ) )
             .build();
 
         try {
             final HttpResponse< String > resp = httpClient.send( req, HttpResponse.BodyHandlers.ofString() );
+            // The LLM responded — root cause of any prior timeout has cleared
+            // for this proposal. Drop the tracking row regardless of status.
+            clearTrackedTimeout( proposal.id() );
             if ( resp.statusCode() / 100 != 2 ) {
                 LOG.warn( "judge HTTP {} for proposal {}", resp.statusCode(), proposal.id() );
                 return abstain( "judge_unavailable: http " + resp.statusCode() );
             }
             return parseResponse( resp.body() );
+        } catch ( final HttpTimeoutException e ) {
+            recordTrackedTimeout( proposal, userPrompt, e.getMessage(), baseTimeout );
+            LOG.warn( "judge timeout for proposal {} (effective={}s, base={}s): {}",
+                proposal.id(), effectiveTimeout, baseTimeout, e.getMessage() );
+            Metrics.counter( "wikantik.kg_judge.timeouts" ).increment();
+            return abstain( "judge_unavailable: timeout after " + effectiveTimeout + "s" );
         } catch ( final InterruptedException e ) {
             Thread.currentThread().interrupt();
             LOG.warn( "judge interrupted for proposal {}: {}", proposal.id(), e.getMessage() );
@@ -115,6 +158,61 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
         } catch ( final IOException e ) {
             LOG.warn( "judge HTTP failure for proposal {}: {}", proposal.id(), e.getMessage() );
             return abstain( "judge_unavailable: " + e.getMessage() );
+        }
+    }
+
+    private int computeMultiplier( final KgProposal proposal ) {
+        if ( timeoutRepo == null ) return 1;
+        try {
+            final Optional< KgJudgeTimeoutRepository.TimeoutRow > row = timeoutRepo.find( proposal.id() );
+            if ( row.isEmpty() ) return 1;
+            return Math.min( 1 + row.get().timeoutCount(), MAX_TIMEOUT_MULTIPLIER );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "judge timeout multiplier lookup failed for {}: {}", proposal.id(), e.getMessage() );
+            return 1;
+        }
+    }
+
+    private void recordTrackedTimeout( final KgProposal p,
+                                        final String userPrompt,
+                                        final String errorMessage,
+                                        final int baseTimeoutSeconds ) {
+        if ( timeoutRepo == null ) return;
+        try {
+            final byte[] bytes = userPrompt.getBytes( StandardCharsets.UTF_8 );
+            timeoutRepo.recordTimeout(
+                p.id(),
+                sha256Hex( bytes ),
+                p.sourcePage(),
+                p.proposalType(),
+                config.model(),
+                bytes.length,
+                errorMessage,
+                baseTimeoutSeconds );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "judge timeout record failed for {}: {}", p.id(), e.getMessage() );
+        }
+    }
+
+    private void clearTrackedTimeout( final java.util.UUID proposalId ) {
+        if ( timeoutRepo == null ) return;
+        try {
+            timeoutRepo.clear( proposalId );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "judge timeout clear failed for {}: {}", proposalId, e.getMessage() );
+        }
+    }
+
+    private static String sha256Hex( final byte[] bytes ) {
+        try {
+            final MessageDigest md = MessageDigest.getInstance( "SHA-256" );
+            final byte[] digest = md.digest( bytes );
+            final StringBuilder sb = new StringBuilder( 64 );
+            for ( final byte b : digest ) sb.append( String.format( "%02x", b ) );
+            return sb.toString();
+        } catch ( final NoSuchAlgorithmException e ) {
+            // SHA-256 is mandatory in every Java SE implementation.
+            throw new IllegalStateException( "SHA-256 unavailable", e );
         }
     }
 

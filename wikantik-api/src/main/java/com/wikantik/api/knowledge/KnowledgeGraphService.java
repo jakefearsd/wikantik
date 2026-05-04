@@ -90,6 +90,9 @@ public interface KnowledgeGraphService {
 
     List< KgProposal > listProposals( String status, String sourcePage, int limit, int offset );
 
+    /** Fetches a single proposal by id, or {@code null} if not found. */
+    KgProposal getProposal( UUID proposalId );
+
     /** Extended filter overload — supports tier, machine_status, and include_machine_rejected. */
     List< KgProposal > listProposals( String status, String tier, String machineStatus,
                                       boolean includeMachineRejected, String sourcePage,

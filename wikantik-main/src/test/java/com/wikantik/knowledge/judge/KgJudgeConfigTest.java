@@ -91,7 +91,7 @@ class KgJudgeConfigTest {
         assertTrue( cfg.cronEnabled() );
         assertEquals( 5, cfg.cronIntervalMinutes() );
         assertEquals( 50, cfg.batchSize() );
-        assertEquals( 2, cfg.concurrency() );
+        assertEquals( 1, cfg.concurrency() );
         assertEquals( 120, cfg.timeoutSeconds() );
         assertEquals( 3, cfg.maxAttempts() );
         assertEquals( "30m", cfg.keepAlive() );

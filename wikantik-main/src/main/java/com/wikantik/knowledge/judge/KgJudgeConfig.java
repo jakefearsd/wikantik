@@ -63,7 +63,10 @@ public record KgJudgeConfig(
             getBool( p,   "wikantik.kg.judge.cron.enabled",     true ),
             getInt( p,    "wikantik.kg.judge.cron.interval_min", 5 ),
             getInt( p,    "wikantik.kg.judge.batch_size",        50 ),
-            getInt( p,    "wikantik.kg.judge.concurrency",       2 ),
+            // Default 1: empirically, parallel judge calls don't improve
+            // throughput on a single-GPU Ollama backend (the model serializes
+            // anyway) and contention appears to contribute to read-timeouts.
+            getInt( p,    "wikantik.kg.judge.concurrency",       1 ),
             // 120s default: the prior 30s cap was below the typical first-call
             // cold-load latency of gemma-class models on shared inference hosts.
             // Aligns with wikantik.knowledge.extractor.timeout_ms=120000.

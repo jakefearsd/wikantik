@@ -634,6 +634,10 @@ public class WikiEngine implements Engine {
             if ( svcs.kgJudgeRunner() != null ) {
                 managers.put( com.wikantik.knowledge.judge.JudgeRunner.class, svcs.kgJudgeRunner() );
             }
+            if ( svcs.kgJudgeTimeoutRepository() != null ) {
+                managers.put( com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class,
+                    svcs.kgJudgeTimeoutRepository() );
+            }
 
             // Structural spine — observe-only Phase 1. Builds an in-memory projection
             // of wiki shape (clusters, tags, types, canonical_ids) over every page.

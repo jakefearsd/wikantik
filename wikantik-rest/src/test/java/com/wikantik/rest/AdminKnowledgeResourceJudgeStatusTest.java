@@ -75,7 +75,7 @@ class AdminKnowledgeResourceJudgeStatusTest {
         final JdbcKnowledgeRepository repo = Mockito.mock( JdbcKnowledgeRepository.class );
         Mockito.when( repo.getProposalsForJudging( Mockito.anyInt() ) ).thenReturn( List.of() );
         final KgJudgeConfig cfg = new KgJudgeConfig( true, "x", "test-model",
-            false, 5, 50, 1, 30, 3 );
+            false, 5, 50, 1, 30, 3, "30m" );
         return new JudgeRunner( repo, Mockito.mock( com.wikantik.api.knowledge.KgProposalJudgeService.class ),
             new KgMaterializationService( repo ), cfg );
     }

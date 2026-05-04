@@ -32,6 +32,22 @@ public record JudgeVerdict(
     public static final String REJECTED = "rejected";
     public static final String ABSTAIN  = "abstain";
 
+    /** Prefix applied by judge implementations to rationales that signal a
+     *  transient infrastructure failure (HTTP timeout, connection refused,
+     *  malformed response, etc.) rather than a real model abstention. The
+     *  runner uses this to retry on the next cron pass without polluting
+     *  the proposal's review history or counting against max_attempts. */
+    public static final String RATIONALE_UNAVAILABLE_PREFIX = "judge_unavailable:";
+
+    /** True when this verdict represents a transient infrastructure failure
+     *  rather than a real model output. Such verdicts must NOT be persisted
+     *  as machine reviews — let the next cron pass retry. */
+    public boolean isTransientUnavailable() {
+        return ABSTAIN.equals( verdict )
+            && rationale != null
+            && rationale.startsWith( RATIONALE_UNAVAILABLE_PREFIX );
+    }
+
     public JudgeVerdict {
         if ( verdict == null
                 || !( APPROVED.equals( verdict ) || REJECTED.equals( verdict ) || ABSTAIN.equals( verdict ) ) ) {

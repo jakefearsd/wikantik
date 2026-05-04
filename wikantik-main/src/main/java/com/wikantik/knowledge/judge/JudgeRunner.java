@@ -202,6 +202,18 @@ public class JudgeRunner implements AutoCloseable {
     private void processOne( final KgProposal proposal ) {
         try {
             final JudgeVerdict v = judge.judge( proposal );
+            if ( v.isTransientUnavailable() ) {
+                // Infrastructure failure (Ollama timeout, connection refused,
+                // malformed response). The service already logged a WARN with
+                // the cause. Don't persist a review or stamp machine_status —
+                // leave the proposal at machine_status=NULL so the next cron
+                // pass naturally retries it on a (hopefully) warm model. This
+                // prevents transient failures from polluting review history or
+                // counting against the max_attempts cap.
+                LOG.debug( "judge transient-unavailable for proposal {} — leaving for retry: {}",
+                    proposal.id(), v.rationale() );
+                return;
+            }
             repo.applyMachineVerdict( proposal.id(), v.verdict(), v.confidence(), v.model() );
             repo.recordReview( proposal.id(), KgProposalReview.REVIEWER_MACHINE, v.model(),
                 v.verdict(), v.confidence(), v.rationale() );

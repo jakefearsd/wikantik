@@ -62,6 +62,11 @@ You can read the [site blogs here]( ../blog/) and learn about the [Wikantik Know
 
 - [Spousal Green Card Guide](SpousalGreenCardGuide) — The complete process for marriage-based US immigration: petition filing, adjustment of status vs. consular processing, financial requirements, interview preparation, and removing conditions
 
+### Wikantik Platform
+
+- [Wikantik Platform Hub](WikantikPlatformHub) — The definitive guide to the Wikantik platform: architecture, hybrid search, knowledge graph, and history.
+- [Wikantik Development](WikantikDevelopment) — Hub page for platform development — architecture decisions, feature implementations, and engineering history
+
 ## About This Wiki
 
 Powered by [Wikantik](About). Articles are written as AI-assisted research — drafted with Claude, reviewed and edited by a human, and published via the [MCP API](https://modelcontextprotocol.io/). Content is organized using YAML frontmatter metadata for programmatic discovery and cross-referencing.

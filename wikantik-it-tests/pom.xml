@@ -132,7 +132,7 @@
                   <dependency>${project.groupId}:wikantik-selenide-tests</dependency>
                 </dependenciesToScan>
                 <systemPropertyVariables>
-                  <it-wikantik.base.url>http://localhost:8080/${it-wikantik.context}</it-wikantik.base.url>
+                  <it-wikantik.base.url>http://localhost:${it.wikantik.servlet.port}/${it-wikantik.context}</it-wikantik.base.url>
                   <it-wikantik.config.browser-size>1366x768</it-wikantik.config.browser-size>
                   <it-wikantik.config.download-folder>./target/downloads</it-wikantik.config.download-folder>
                   <it-wikantik.config.headless>false</it-wikantik.config.headless>

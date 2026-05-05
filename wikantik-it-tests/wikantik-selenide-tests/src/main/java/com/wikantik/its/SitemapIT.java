@@ -83,9 +83,13 @@ public class SitemapIT extends WithIntegrationTestSetup {
         Assertions.assertFalse( sitemap.contains( "<loc>/wiki/" ),
             "Sitemap URLs should not be relative paths" );
 
-        // Verify URLs contain the expected host
-        Assertions.assertTrue( sitemap.contains( "localhost:8080" ),
-            "Sitemap URLs should contain the host and port" );
+        // Verify URLs are anchored at the same host:port the test base URL points at.
+        // Derived from Env.TESTS_BASE_URL (driven by it-wikantik.base.url) so changing
+        // the Cargo IT port doesn't desync this assertion.
+        final java.net.URI base = java.net.URI.create( Env.TESTS_BASE_URL );
+        final String hostPort = base.getHost() + ":" + base.getPort();
+        Assertions.assertTrue( sitemap.contains( hostPort ),
+            "Sitemap URLs should be anchored at " + hostPort + " (the configured IT base URL)" );
     }
 
     @Test

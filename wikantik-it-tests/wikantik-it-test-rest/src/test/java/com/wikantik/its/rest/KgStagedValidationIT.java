@@ -73,7 +73,7 @@ public class KgStagedValidationIT {
     @BeforeAll
     static void setUp() {
         baseUrl = System.getProperty( "it-wikantik.base.url",
-            "http://localhost:8080/wikantik-it-test-rest" );
+            "http://localhost:18080/wikantik-it-test-rest" );
         client = HttpClient.newBuilder()
                 .followRedirects( HttpClient.Redirect.NORMAL )
                 .cookieHandler( secureCookieOverHttp() )

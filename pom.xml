@@ -74,6 +74,12 @@
     <jdom2.version>2.0.6.1</jdom2.version>
     <jrcs-diff.version>0.4.2</jrcs-diff.version>
     <archunit.version>1.4.1</archunit.version>
+
+    <!-- Cargo-launched IT Tomcat HTTP port. Default 18080 instead of 8080
+         so a developer's local dev Tomcat (deploy-local.sh) on the
+         standard 8080 doesn't block IT runs. Override with
+         -Dit.wikantik.servlet.port=NNNN if 18080 is also in use. -->
+    <it.wikantik.servlet.port>18080</it.wikantik.servlet.port>
     <junit.version>6.0.0</junit.version>
     <log4j2.version>2.25.4</log4j2.version>
     <lucene.version>10.4.0</lucene.version>
@@ -1010,7 +1016,7 @@
               <type>standalone</type>
               <home>${project.build.directory}/tomcat11x</home>
               <properties>
-                <cargo.servlet.port>8080</cargo.servlet.port>
+                <cargo.servlet.port>${it.wikantik.servlet.port}</cargo.servlet.port>
                 <cargo.jvmargs>-Xms256m -Xmx3072m -Xdebug -Xnoagent -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005 -XX:+DisableExplicitGC -Xverify:none -Djava.awt.headless=true</cargo.jvmargs>
               </properties>
             </configuration>

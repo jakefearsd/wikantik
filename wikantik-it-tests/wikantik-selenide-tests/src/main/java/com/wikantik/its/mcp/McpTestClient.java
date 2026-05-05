@@ -57,8 +57,8 @@ public class McpTestClient implements AutoCloseable {
 
     public static McpTestClient create() {
         // Use trailing slash so that the relative endpoint resolves correctly under the
-        // context path (e.g. http://host:8080/context/ + "wikantik-admin-mcp" =
-        // http://host:8080/context/wikantik-admin-mcp). The SDK defaults endpoint to
+        // context path (e.g. http://host:port/context/ + "wikantik-admin-mcp" =
+        // http://host:port/context/wikantik-admin-mcp). The SDK defaults endpoint to
         // "/mcp" (absolute path) which would both lose the context path and miss the
         // renamed admin-MCP servlet.
         final String baseUrl = Env.TESTS_BASE_URL.endsWith( "/" ) ? Env.TESTS_BASE_URL : Env.TESTS_BASE_URL + "/";

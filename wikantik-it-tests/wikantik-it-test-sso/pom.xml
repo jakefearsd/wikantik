@@ -73,7 +73,7 @@
             <include>**/SSOLoginIT.java</include>
           </includes>
           <systemPropertyVariables>
-            <it-wikantik.base.url>http://localhost:8080/${it-wikantik.context}</it-wikantik.base.url>
+            <it-wikantik.base.url>http://localhost:${it.wikantik.servlet.port}/${it-wikantik.context}</it-wikantik.base.url>
             <it-wikantik.mock-oauth.base-url>http://localhost:${it-wikantik.mock-oauth.port}</it-wikantik.mock-oauth.base-url>
           </systemPropertyVariables>
         </configuration>

@@ -420,7 +420,7 @@ public class AdminContentResource extends RestServletBase {
                 "page query parameter is required" );
             return;
         }
-        final ContentChunkRepository repo = getEngine().getManager( ContentChunkRepository.class );
+        final ContentChunkRepository repo = getSubsystems().knowledge().contentChunkRepository();
         if ( repo == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "chunk repository not available" );
@@ -459,7 +459,7 @@ public class AdminContentResource extends RestServletBase {
      * chunks whose estimated token count exceeds the chunker's max target.
      */
     private void handleChunkOutliers( final HttpServletResponse response ) throws IOException {
-        final ContentChunkRepository repo = getEngine().getManager( ContentChunkRepository.class );
+        final ContentChunkRepository repo = getSubsystems().knowledge().contentChunkRepository();
         if ( repo == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "chunk repository not available" );

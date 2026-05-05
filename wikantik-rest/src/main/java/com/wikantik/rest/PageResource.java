@@ -598,7 +598,7 @@ public class PageResource extends RestServletBase {
     private void handleGetSimilarPages( final HttpServletRequest request,
                                         final HttpServletResponse response,
                                         final String pageName ) throws IOException {
-        final NodeMentionSimilarity similarity = getEngine().getManager( NodeMentionSimilarity.class );
+        final NodeMentionSimilarity similarity = getSubsystems().knowledge().nodeMentionSimilarity();
         if ( similarity == null || !similarity.isReady() ) {
             sendJson( response, Map.of( "similar", List.of() ) );
             return;

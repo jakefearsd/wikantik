@@ -65,7 +65,7 @@ public class KnowledgeGraphResource extends RestServletBase {
 
         try {
             final KnowledgeGraphService svc =
-                    engine.getManager( KnowledgeGraphService.class );
+                    getSubsystems().knowledge().kgService();
             final GraphSnapshot snapshot = svc.snapshotGraph( session, minTier );
             sendJson( response, snapshot );
         } catch ( final Exception e ) {

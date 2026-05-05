@@ -405,9 +405,13 @@ public class WikiEngine implements Engine {
         // Phase 1 of the wikantik-main subsystem decomposition: stash the
         // typed subsystem services on the ServletContext so servlets can
         // reach them without going through getManager(Class). Subsequent
-        // phases append fields to the WikiSubsystems record. May be a no-op
-        // when running outside a servlet container (servletContext == null).
-        if ( servletContext != null ) {
+        // phases append fields to the WikiSubsystems record. Skipped when
+        // running outside a servlet container OR when the Knowledge
+        // subsystem didn't initialise (no datasource — e.g. unit-test
+        // engines built via TestEngine.setManager). In those cases
+        // RestServletBase falls back to a synthetic bundle reading the
+        // legacy manager registry.
+        if ( servletContext != null && knowledgeSubsystem != null ) {
             final WikiSubsystems subsystems = new WikiSubsystems( knowledgeSubsystem );
             servletContext.setAttribute( WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE, subsystems );
         }

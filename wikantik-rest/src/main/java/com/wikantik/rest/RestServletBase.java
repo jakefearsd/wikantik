@@ -109,19 +109,65 @@ public abstract class RestServletBase extends HttpServlet {
 
     /**
      * Returns the {@link com.wikantik.WikiSubsystems} bundle stashed on the
-     * {@link jakarta.servlet.ServletContext} at engine boot, or {@code null}
-     * when running outside a servlet container or before the engine has
-     * finished initialising.
+     * {@link jakarta.servlet.ServletContext} at engine boot.
      *
      * <p>Phase 1 of the wikantik-main subsystem decomposition. Servlets
-     * should obtain subsystem-owned services via this accessor instead of
+     * obtain subsystem-owned services via this accessor instead of
      * calling {@code getEngine().getManager(...)}.</p>
+     *
+     * <p><b>Fallback for legacy tests:</b> when the servlet context does
+     * not have the bundle attribute (typically because a test harness
+     * built the engine via {@code TestEngine.setManager(...)} rather than
+     * a full {@code WikiEngine.initialize()} cycle), this method
+     * synthesises a {@link com.wikantik.WikiSubsystems} from the engine's
+     * legacy registry so callers can use the new lookup pattern uniformly.
+     * The synthetic bundle's {@code knowledge()} services-record is
+     * sparsely populated — fields the test did not register are
+     * {@code null}, which mirrors the legacy {@code getManager()} behavior
+     * and keeps existing test assertions valid.</p>
+     *
+     * <p>The synthetic bridge will be removed in Phase 9 alongside the
+     * legacy {@code managers} registry. Returns {@code null} only when no
+     * engine is available at all (e.g. during early servlet
+     * initialization).</p>
      */
     protected com.wikantik.WikiSubsystems getSubsystems() {
-        final jakarta.servlet.ServletContext ctx = getServletContext();
-        if ( ctx == null ) return null;
-        return ( com.wikantik.WikiSubsystems )
-            ctx.getAttribute( com.wikantik.WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE );
+        // GenericServlet.getServletContext() throws IllegalStateException when
+        // the servlet hasn't been init()ed (some unit tests construct the
+        // servlet and call setEngine(...) directly without going through init).
+        // Treat that as "no ServletContext" and fall through to the legacy
+        // bridge below.
+        jakarta.servlet.ServletContext ctx = null;
+        try {
+            ctx = getServletContext();
+        } catch ( final IllegalStateException e ) {
+            // intentionally swallowed — see comment above
+        }
+        if ( ctx != null ) {
+            final com.wikantik.WikiSubsystems direct = ( com.wikantik.WikiSubsystems )
+                ctx.getAttribute( com.wikantik.WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE );
+            if ( direct != null ) return direct;
+        }
+        // Fallback path — build a sparse bundle from getEngine().getManager(...).
+        // Tolerates both real WikiEngine instances and plain Engine mocks
+        // (some unit tests use Mockito.mock(Engine.class) rather than
+        // TestEngine; both expose getManager(Class)).
+        final com.wikantik.api.core.Engine engine = getEngine();
+        if ( engine == null ) {
+            return null;
+        }
+        // Prefer the engine's own typed accessor when it has one (i.e. a
+        // real WikiEngine that went through initialize() and the subsystem
+        // services exist).
+        if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
+            final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services kgServices =
+                wikiEngine.getKnowledgeSubsystem();
+            if ( kgServices != null ) {
+                return new com.wikantik.WikiSubsystems( kgServices );
+            }
+        }
+        return new com.wikantik.WikiSubsystems(
+            com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine ) );
     }
 
     /**

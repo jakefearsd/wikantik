@@ -91,7 +91,7 @@ public class AdminKnowledgeResource extends RestServletBase {
     }
 
     private KnowledgeGraphService getKnowledgeService( final HttpServletResponse response ) throws IOException {
-        final KnowledgeGraphService service = getEngine().getManager( KnowledgeGraphService.class );
+        final KnowledgeGraphService service = getSubsystems().knowledge().kgService();
         if ( service == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                     "Knowledge graph is not configured" );
@@ -738,7 +738,7 @@ public class AdminKnowledgeResource extends RestServletBase {
     // --- Embedding handlers ---
 
     private NodeMentionSimilarity getSimilarity() {
-        return getEngine().getManager( NodeMentionSimilarity.class );
+        return getSubsystems().knowledge().nodeMentionSimilarity();
     }
 
     private void handleGetPagesWithoutFrontmatter( final HttpServletRequest request,
@@ -836,7 +836,7 @@ public class AdminKnowledgeResource extends RestServletBase {
     // --- Hub Proposals ---
 
     private HubProposalRepository getHubProposalRepo( final HttpServletResponse response ) throws IOException {
-        final HubProposalRepository repo = getEngine().getManager( HubProposalRepository.class );
+        final HubProposalRepository repo = getSubsystems().knowledge().hubProposalRepository();
         if ( repo == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "Hub proposals not configured" );
@@ -887,7 +887,7 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     private void handleHubProposalsGenerate( final HttpServletResponse response ) throws IOException {
         LOG.info( "Hub proposals: generate endpoint invoked" );
-        final NodeMentionSimilarity sim = getEngine().getManager( NodeMentionSimilarity.class );
+        final NodeMentionSimilarity sim = getSubsystems().knowledge().nodeMentionSimilarity();
         if ( sim == null ) {
             LOG.warn( "Hub proposals generate rejected: NodeMentionSimilarity not registered "
                 + "(knowledge graph initialization likely failed — see earlier WARN)" );
@@ -901,7 +901,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                 "Chunk embedding index must be populated before generating proposals" );
             return;
         }
-        final HubProposalService service = getEngine().getManager( HubProposalService.class );
+        final HubProposalService service = getSubsystems().knowledge().hubProposalService();
         if ( service == null ) {
             LOG.warn( "Hub proposals generate rejected: HubProposalService not registered "
                 + "(knowledge graph initialization likely failed — see earlier WARN)" );
@@ -1085,8 +1085,8 @@ public class AdminKnowledgeResource extends RestServletBase {
             return;
         }
         final com.wikantik.knowledge.judge.JudgeRunner runner =
-            getEngine().getManager( com.wikantik.knowledge.judge.JudgeRunner.class );
-        final KnowledgeGraphService svc = getEngine().getManager( KnowledgeGraphService.class );
+            getSubsystems().knowledge().judgeRunner();
+        final KnowledgeGraphService svc = getSubsystems().knowledge().kgService();
         final long depth = svc == null ? 0L : svc.countPendingUnjudgedProposals();
         if ( runner == null ) {
             sendJson( response, Map.of( "configured", false, "in_flight", false, "queue_depth", depth ) );
@@ -1117,7 +1117,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Expected: /judge/run" );
             return;
         }
-        final JudgeRunner runner = getEngine().getManager( JudgeRunner.class );
+        final JudgeRunner runner = getSubsystems().knowledge().judgeRunner();
         if ( runner == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "judge runner not configured" );
@@ -1142,7 +1142,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                                          final HttpServletRequest request,
                                          final HttpServletResponse response ) throws IOException {
         final com.wikantik.knowledge.judge.KgJudgeTimeoutRepository repo =
-            getEngine().getManager( com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class );
+            getSubsystems().knowledge().judgeTimeoutRepository();
         if ( repo == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "judge timeout tracking is not configured" );
@@ -1210,7 +1210,7 @@ public class AdminKnowledgeResource extends RestServletBase {
     private void handleDeleteJudgeTimeout( final HttpServletResponse response,
                                            final String[] segments ) throws IOException {
         final com.wikantik.knowledge.judge.KgJudgeTimeoutRepository repo =
-            getEngine().getManager( com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class );
+            getSubsystems().knowledge().judgeTimeoutRepository();
         if ( repo == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "judge timeout tracking is not configured" );

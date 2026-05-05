@@ -146,7 +146,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
                 "fixture seam disabled — set -Dwikantik.test.fixture-seam.enabled=true on the JVM" );
             return;
         }
-        final HubDiscoveryRepository repo = getEngine().getManager( HubDiscoveryRepository.class );
+        final HubDiscoveryRepository repo = getSubsystems().knowledge().hubDiscoveryRepository();
         if ( repo == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "HubDiscoveryRepository is not available" );
@@ -185,7 +185,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
 
     private void handleRun( final HttpServletRequest request,
                              final HttpServletResponse response ) throws IOException {
-        final HubDiscoveryService svc = getEngine().getManager( HubDiscoveryService.class );
+        final HubDiscoveryService svc = getSubsystems().knowledge().hubDiscoveryService();
         if ( svc == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "HubDiscoveryService is not available" );
@@ -207,7 +207,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
 
     private void handleListProposals( final HttpServletRequest request,
                                        final HttpServletResponse response ) throws IOException {
-        final HubDiscoveryRepository repo = getEngine().getManager( HubDiscoveryRepository.class );
+        final HubDiscoveryRepository repo = getSubsystems().knowledge().hubDiscoveryRepository();
         if ( repo == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "HubDiscoveryRepository is not available" );
@@ -248,7 +248,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
     private void handleAccept( final int id,
                                 final HttpServletRequest request,
                                 final HttpServletResponse response ) throws IOException {
-        final HubDiscoveryService svc = getEngine().getManager( HubDiscoveryService.class );
+        final HubDiscoveryService svc = getSubsystems().knowledge().hubDiscoveryService();
         if ( svc == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "HubDiscoveryService is not available" );
@@ -300,7 +300,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
     private void handleDismiss( final int id,
                                  final HttpServletRequest request,
                                  final HttpServletResponse response ) throws IOException {
-        final HubDiscoveryService svc = getEngine().getManager( HubDiscoveryService.class );
+        final HubDiscoveryService svc = getSubsystems().knowledge().hubDiscoveryService();
         if ( svc == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "HubDiscoveryService is not available" );
@@ -319,7 +319,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
 
     private void handleListDismissed( final HttpServletRequest request,
                                        final HttpServletResponse response ) throws IOException {
-        final HubDiscoveryRepository repo = getEngine().getManager( HubDiscoveryRepository.class );
+        final HubDiscoveryRepository repo = getSubsystems().knowledge().hubDiscoveryRepository();
         if ( repo == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "HubDiscoveryRepository is not available" );
@@ -361,7 +361,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
 
     private void handleDeleteDismissed( final int id, final HttpServletResponse response )
             throws IOException {
-        final HubDiscoveryRepository repo = getEngine().getManager( HubDiscoveryRepository.class );
+        final HubDiscoveryRepository repo = getSubsystems().knowledge().hubDiscoveryRepository();
         if ( repo == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "HubDiscoveryRepository is not available" );
@@ -378,7 +378,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
 
     private void handleBulkDeleteDismissed( final HttpServletRequest request,
                                              final HttpServletResponse response ) throws IOException {
-        final HubDiscoveryRepository repo = getEngine().getManager( HubDiscoveryRepository.class );
+        final HubDiscoveryRepository repo = getSubsystems().knowledge().hubDiscoveryRepository();
         if ( repo == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "HubDiscoveryRepository is not available" );
@@ -411,7 +411,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
     private void handleListHubs( final HttpServletRequest request,
                                   final HttpServletResponse response ) throws IOException {
         final com.wikantik.knowledge.HubOverviewService svc =
-            getEngine().getManager( com.wikantik.knowledge.HubOverviewService.class );
+            getSubsystems().knowledge().hubOverviewService();
         if ( svc == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "HubOverviewService is not available" );
@@ -454,7 +454,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         final String hubName = java.net.URLDecoder.decode( encoded, java.nio.charset.StandardCharsets.UTF_8 );
 
         final com.wikantik.knowledge.HubOverviewService svc =
-            getEngine().getManager( com.wikantik.knowledge.HubOverviewService.class );
+            getSubsystems().knowledge().hubOverviewService();
         if ( svc == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "HubOverviewService is not available" );
@@ -515,7 +515,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         final String hubName = java.net.URLDecoder.decode( encoded, java.nio.charset.StandardCharsets.UTF_8 );
 
         final com.wikantik.knowledge.HubOverviewService svc =
-            getEngine().getManager( com.wikantik.knowledge.HubOverviewService.class );
+            getSubsystems().knowledge().hubOverviewService();
         if ( svc == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "HubOverviewService is not available" );

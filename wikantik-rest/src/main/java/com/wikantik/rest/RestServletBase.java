@@ -108,6 +108,23 @@ public abstract class RestServletBase extends HttpServlet {
     }
 
     /**
+     * Returns the {@link com.wikantik.WikiSubsystems} bundle stashed on the
+     * {@link jakarta.servlet.ServletContext} at engine boot, or {@code null}
+     * when running outside a servlet container or before the engine has
+     * finished initialising.
+     *
+     * <p>Phase 1 of the wikantik-main subsystem decomposition. Servlets
+     * should obtain subsystem-owned services via this accessor instead of
+     * calling {@code getEngine().getManager(...)}.</p>
+     */
+    protected com.wikantik.WikiSubsystems getSubsystems() {
+        final jakarta.servlet.ServletContext ctx = getServletContext();
+        if ( ctx == null ) return null;
+        return ( com.wikantik.WikiSubsystems )
+            ctx.getAttribute( com.wikantik.WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE );
+    }
+
+    /**
      * Returns whether cross-origin requests are allowed for this servlet.
      * Subclasses (e.g. admin servlets) can override this to return {@code false},
      * which suppresses CORS headers and enforces same-origin policy.

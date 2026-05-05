@@ -138,6 +138,12 @@ public class WikiEngine implements Engine {
     /** Store the ServletContext that we're in.  This may be null if WikiEngine is not running inside a servlet container (i.e. when testing). */
     private ServletContext   servletContext;
 
+    /** Knowledge subsystem services produced by {@code KnowledgeSubsystemFactory}.
+     *  Phase 1 of the wikantik-main decomposition (2026-05-05); legacy
+     *  {@code managers.put(...)} entries for KG-flavored services delegate to
+     *  the fields of this record. */
+    private com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services knowledgeSubsystem;
+
     /** Stores the template path.  This is relative to "templates". */
     private String           templateDir;
 
@@ -396,6 +402,16 @@ public class WikiEngine implements Engine {
         final Map< String, String > extraComponents = ClassUtil.getExtraClassMappings();
         initExtraComponents( extraComponents );
 
+        // Phase 1 of the wikantik-main subsystem decomposition: stash the
+        // typed subsystem services on the ServletContext so servlets can
+        // reach them without going through getManager(Class). Subsequent
+        // phases append fields to the WikiSubsystems record. May be a no-op
+        // when running outside a servlet container (servletContext == null).
+        if ( servletContext != null ) {
+            final WikiSubsystems subsystems = new WikiSubsystems( knowledgeSubsystem );
+            servletContext.setAttribute( WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE, subsystems );
+        }
+
         fireEvent( WikiEngineEvent.INITIALIZED ); // initialization complete
 
         LOG.info( "WikiEngine configured." );
@@ -603,40 +619,48 @@ public class WikiEngine implements Engine {
                         + "is on the classpath and that onInit has run." );
             }
 
-            final KnowledgeGraphServiceFactory.Services svcs = KnowledgeGraphServiceFactory.create(
-                ds, props,
-                getManager( SystemPageRegistry.class ),
-                getManager( PageManager.class ),
-                new PageSaveHelper( this ),
-                luceneMlt,
-                meterRegistry );
+            final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps kgDeps =
+                new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps(
+                    ds, props,
+                    getManager( SystemPageRegistry.class ),
+                    getManager( PageManager.class ),
+                    new PageSaveHelper( this ),
+                    luceneMlt,
+                    meterRegistry );
+            final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services svcs =
+                com.wikantik.knowledge.subsystem.KnowledgeSubsystemFactory.create( kgDeps );
+            this.knowledgeSubsystem = svcs;
 
             // Inject engine reference for graph visualization ACL checks.
             if ( svcs.kgService() instanceof DefaultKnowledgeGraphService dkgs ) {
                 dkgs.setEngine( this );
             }
 
-            // Register services with the engine's manager map.
+            // Bridge: legacy WikiEngine#getManager(Class) callers continue to
+            // resolve KG services through the manager map. Each entry below is
+            // populated from the KnowledgeSubsystem.Services record above and
+            // will be deleted as its last consumer migrates to
+            // WikiSubsystems#knowledge() during the rest of Phase 1.
             managers.put( KnowledgeGraphService.class, svcs.kgService() );
             managers.put( NodeMentionSimilarity.class, svcs.nodeMentionSimilarity() );
             managers.put( com.wikantik.knowledge.MentionIndex.class, svcs.mentionIndex() );
-            managers.put( HubProposalRepository.class, svcs.hubProposalRepo() );
+            managers.put( HubProposalRepository.class, svcs.hubProposalRepository() );
             managers.put( HubProposalService.class, svcs.hubProposalService() );
-            managers.put( HubDiscoveryRepository.class, svcs.hubDiscoveryRepo() );
+            managers.put( HubDiscoveryRepository.class, svcs.hubDiscoveryRepository() );
             managers.put( HubDiscoveryService.class, svcs.hubDiscoveryService() );
             managers.put( HubOverviewService.class, svcs.hubOverviewService() );
             managers.put( com.wikantik.knowledge.chunking.ChunkProjector.class, svcs.chunkProjector() );
-            managers.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class, svcs.contentChunkRepo() );
+            managers.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class, svcs.contentChunkRepository() );
             managers.put( com.wikantik.knowledge.judge.KgMaterializationService.class, svcs.kgMaterialization() );
-            if ( svcs.kgJudgeService() != null ) {
-                managers.put( com.wikantik.api.knowledge.KgProposalJudgeService.class, svcs.kgJudgeService() );
+            if ( svcs.judgeService() != null ) {
+                managers.put( com.wikantik.api.knowledge.KgProposalJudgeService.class, svcs.judgeService() );
             }
-            if ( svcs.kgJudgeRunner() != null ) {
-                managers.put( com.wikantik.knowledge.judge.JudgeRunner.class, svcs.kgJudgeRunner() );
+            if ( svcs.judgeRunner() != null ) {
+                managers.put( com.wikantik.knowledge.judge.JudgeRunner.class, svcs.judgeRunner() );
             }
-            if ( svcs.kgJudgeTimeoutRepository() != null ) {
+            if ( svcs.judgeTimeoutRepository() != null ) {
                 managers.put( com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class,
-                    svcs.kgJudgeTimeoutRepository() );
+                    svcs.judgeTimeoutRepository() );
             }
 
             // Structural spine — observe-only Phase 1. Builds an in-memory projection
@@ -755,7 +779,7 @@ public class WikiEngine implements Engine {
                             getManager( PageManager.class ),
                             getManager( SystemPageRegistry.class ),
                             queue,
-                            svcs.contentChunkRepo(),
+                            svcs.contentChunkRepository(),
                             rebuildChunker,
                             () -> TextUtil.getBooleanProperty( props, "wikantik.rebuild.enabled", true ),
                             TextUtil.getIntegerProperty( props, "wikantik.rebuild.lucene_drain_poll_ms", 2000 ),
@@ -764,7 +788,7 @@ public class WikiEngine implements Engine {
                             getManager( PageManager.class ),
                             getManager( SystemPageRegistry.class ),
                             queue,
-                            svcs.contentChunkRepo(),
+                            svcs.contentChunkRepository(),
                             rebuildChunker,
                             () -> TextUtil.getBooleanProperty( props, "wikantik.rebuild.enabled", true ),
                             TextUtil.getIntegerProperty( props, "wikantik.rebuild.lucene_drain_poll_ms", 2000 ) );
@@ -775,7 +799,7 @@ public class WikiEngine implements Engine {
             }
 
             wireHybridRetrieval( props, ds, svcs.chunkProjector(), rebuildService );
-            wireEntityExtraction( props, ds, svcs.chunkProjector(), svcs.contentChunkRepo() );
+            wireEntityExtraction( props, ds, svcs.chunkProjector(), svcs.contentChunkRepository() );
             wireGraphRerank( props, ds );
             wireRetrievalQualityRunner( props, ds, structuralIndex );
 
@@ -1296,6 +1320,19 @@ public class WikiEngine implements Engine {
     @Override
     public ServletContext getServletContext() {
         return servletContext;
+    }
+
+    /**
+     * Returns the Knowledge subsystem's services bundle, or {@code null} if
+     * the subsystem failed to initialize or the engine ran without a
+     * knowledge graph datasource.
+     *
+     * <p>Phase 1 of the wikantik-main subsystem decomposition. New code
+     * should obtain Knowledge services this way; legacy code uses
+     * {@link #getManager(Class)} until migrated.</p>
+     */
+    public com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services getKnowledgeSubsystem() {
+        return knowledgeSubsystem;
     }
 
     /** {@inheritDoc} */

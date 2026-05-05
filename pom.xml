@@ -73,6 +73,7 @@
     <javax-mail.version>1.6.2</javax-mail.version>
     <jdom2.version>2.0.6.1</jdom2.version>
     <jrcs-diff.version>0.4.2</jrcs-diff.version>
+    <archunit.version>1.4.1</archunit.version>
     <junit.version>6.0.0</junit.version>
     <log4j2.version>2.25.4</log4j2.version>
     <lucene.version>10.4.0</lucene.version>
@@ -575,6 +576,13 @@
       </dependency>
 
       <!-- test dependencies -->
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5</artifactId>
+        <version>${archunit.version}</version>
+        <scope>test</scope>
+      </dependency>
+
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>testcontainers</artifactId>

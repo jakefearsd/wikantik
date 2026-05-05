@@ -1,0 +1,13 @@
+{
+  "baseline_2026_05_05": {
+    "captured_at": "2026-05-05T05:46:15Z",
+    "loc_main": 76212,
+    "registered_managers": 42,
+    "get_manager_callers_repo_wide": 1069,
+    "get_manager_callers_in_main": 200,
+    "god_classes_over_800": 9,
+    "god_class_top10": [{"path":"com/wikantik/knowledge/JdbcKnowledgeRepository.java","loc":1561},{"path":"com/wikantik/WikiEngine.java","loc":1470},{"path":"com/wikantik/search/LuceneSearchProvider.java","loc":1248},{"path":"com/wikantik/pagegraph/references/DefaultReferenceManager.java","loc":1002},{"path":"com/wikantik/filters/SpamFilter.java","loc":1002},{"path":"com/wikantik/providers/AbstractFileProvider.java","loc":925},{"path":"com/wikantik/WikiContext.java","loc":818},{"path":"com/wikantik/pages/DefaultPageManager.java","loc":815},{"path":"com/wikantik/auth/SecurityVerifier.java","loc":801},{"path":"com/wikantik/providers/VersioningFileProvider.java","loc":783}],
+    "test_engine_references_in_production": 0,
+    "archunit_frozen_violations": 40
+  }
+}

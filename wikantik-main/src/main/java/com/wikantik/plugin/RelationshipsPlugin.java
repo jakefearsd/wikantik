@@ -50,8 +50,11 @@ public class RelationshipsPlugin implements Plugin {
     @Override
     public String execute( final Context context, final Map< String, String > params )
             throws PluginException {
-        final KnowledgeGraphService service = context.getEngine()
-                .getManager( KnowledgeGraphService.class );
+        // Phase 1 of the wikantik-main subsystem decomposition: KG service
+        // comes from the typed KnowledgeSubsystem.Services bundle. The bridge
+        // resolves to the same instance the engine's manager registry holds.
+        final KnowledgeGraphService service = com.wikantik.knowledge.subsystem
+            .KnowledgeSubsystemBridge.fromLegacyEngine( context.getEngine() ).kgService();
         if( service == null ) {
             return "";
         }

@@ -146,9 +146,13 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
         final Engine engine = lookupEngine( sce );
 
         // 1. Resolve runner managers; engine == null means the engine never started.
+        // Phase 1 of the wikantik-main subsystem decomposition: JudgeRunner
+        // comes from the typed KnowledgeSubsystem.Services bundle. The bridge
+        // resolves to the engine's manager registry under the hood.
         final JudgeRunner judgeRunner = engine == null ? null
             : runQuietly( "lookup JudgeRunner",
-                () -> engine.getManager( JudgeRunner.class ) );
+                () -> com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge
+                    .fromLegacyEngine( engine ).judgeRunner() );
         final DefaultRetrievalQualityRunner rqRunner = engine == null ? null
             : runQuietly( "lookup RetrievalQualityRunner",
                 () -> engine.getManager( RetrievalQualityRunner.class )

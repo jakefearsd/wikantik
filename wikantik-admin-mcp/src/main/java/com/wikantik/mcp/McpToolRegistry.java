@@ -105,7 +105,8 @@ public class McpToolRegistry {
         ) );
 
         // --- Knowledge proposal tools (only if KnowledgeGraphService is available) ---
-        final KnowledgeGraphService kgService = engine.getManager( KnowledgeGraphService.class );
+        final KnowledgeGraphService kgService = com.wikantik.knowledge.subsystem
+            .KnowledgeSubsystemBridge.fromLegacyEngine( engine ).kgService();
         if ( kgService != null ) {
             readOnlyList.add( new ListProposalsTool( kgService ) );
             authorConfigurableList.add( new ProposeKnowledgeTool( kgService ) );

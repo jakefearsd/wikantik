@@ -83,7 +83,11 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             return;
         }
 
-        final KnowledgeGraphService kgService = engine.getManager( KnowledgeGraphService.class );
+        // Phase 1 of the wikantik-main subsystem decomposition: KG-flavored
+        // services come from the typed KnowledgeSubsystem.Services bundle.
+        final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services kg =
+            com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine );
+        final KnowledgeGraphService kgService = kg.kgService();
         final ContextRetrievalService ctxService = engine.getManager( ContextRetrievalService.class );
         final StructuralIndexService structuralIndex = engine.getManager( StructuralIndexService.class );
         final ForAgentProjectionService forAgent = engine.getManager( ForAgentProjectionService.class );
@@ -133,7 +137,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 tools.add( new GetNodeTool( kgService ) );
                 tools.add( new TraverseTool( kgService ) );
                 tools.add( new SearchKnowledgeTool( kgService, mentionIndex ) );
-                final NodeMentionSimilarity similarity = engine.getManager( NodeMentionSimilarity.class );
+                final NodeMentionSimilarity similarity = kg.nodeMentionSimilarity();
                 if ( similarity != null ) {
                     tools.add( new FindSimilarTool( similarity ) );
                 }

@@ -640,32 +640,14 @@ public class WikiEngine implements Engine {
                 dkgs.setEngine( this );
             }
 
-            // Bridge: legacy WikiEngine#getManager(Class) callers continue to
-            // resolve KG services through the manager map. Each entry below is
-            // populated from the KnowledgeSubsystem.Services record above and
-            // will be deleted as its last consumer migrates to
-            // WikiSubsystems#knowledge() during the rest of Phase 1.
-            managers.put( KnowledgeGraphService.class, svcs.kgService() );
-            managers.put( NodeMentionSimilarity.class, svcs.nodeMentionSimilarity() );
-            managers.put( com.wikantik.knowledge.MentionIndex.class, svcs.mentionIndex() );
-            managers.put( HubProposalRepository.class, svcs.hubProposalRepository() );
-            managers.put( HubProposalService.class, svcs.hubProposalService() );
-            managers.put( HubDiscoveryRepository.class, svcs.hubDiscoveryRepository() );
-            managers.put( HubDiscoveryService.class, svcs.hubDiscoveryService() );
-            managers.put( HubOverviewService.class, svcs.hubOverviewService() );
-            managers.put( com.wikantik.knowledge.chunking.ChunkProjector.class, svcs.chunkProjector() );
-            managers.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class, svcs.contentChunkRepository() );
-            managers.put( com.wikantik.knowledge.judge.KgMaterializationService.class, svcs.kgMaterialization() );
-            if ( svcs.judgeService() != null ) {
-                managers.put( com.wikantik.api.knowledge.KgProposalJudgeService.class, svcs.judgeService() );
-            }
-            if ( svcs.judgeRunner() != null ) {
-                managers.put( com.wikantik.knowledge.judge.JudgeRunner.class, svcs.judgeRunner() );
-            }
-            if ( svcs.judgeTimeoutRepository() != null ) {
-                managers.put( com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class,
-                    svcs.judgeTimeoutRepository() );
-            }
+            // Phase 1 of the wikantik-main subsystem decomposition: the
+            // KG-flavored managers.put(...) bridge entries that lived here
+            // were deleted in Checkpoint 7 once the last legacy consumer
+            // migrated to KnowledgeSubsystem.Services (via WikiSubsystems
+            // on the ServletContext for servlets, or
+            // KnowledgeSubsystemBridge.fromLegacyEngine for non-servlet
+            // callers in other modules). The KnowledgeSubsystem.Services
+            // bundle is the sole source of these services going forward.
 
             // Structural spine — observe-only Phase 1. Builds an in-memory projection
             // of wiki shape (clusters, tags, types, canonical_ids) over every page.

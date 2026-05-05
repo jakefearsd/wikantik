@@ -57,11 +57,24 @@ public final class KnowledgeSubsystemBridge {
     private KnowledgeSubsystemBridge() {}
 
     /**
-     * Builds a sparse {@link KnowledgeSubsystem.Services} from the engine's
-     * legacy manager registry. The returned record is non-null but its
-     * fields may be {@code null} where no manager is registered.
+     * Returns the engine's Knowledge subsystem services. Prefers the
+     * engine's typed {@code WikiEngine.getKnowledgeSubsystem()} accessor
+     * (the production path: services produced by
+     * {@link com.wikantik.WikiEngine#initialize}); falls back to a sparse
+     * record built from {@code engine.getManager(...)} lookups when the
+     * typed accessor is unavailable (e.g. mocked {@code Engine} in unit
+     * tests, or a {@code TestEngine} that registered services via
+     * {@code setManager(...)} without going through full initialization).
+     *
+     * <p>The returned record is always non-null but its fields may be
+     * {@code null} where no manager is registered (test fixtures only
+     * register the services they need).</p>
      */
     public static KnowledgeSubsystem.Services fromLegacyEngine( final Engine engine ) {
+        if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
+            final KnowledgeSubsystem.Services typed = wikiEngine.getKnowledgeSubsystem();
+            if ( typed != null ) return typed;
+        }
         return new KnowledgeSubsystem.Services(
             engine.getManager( KnowledgeGraphService.class ),
             engine.getManager( KgProposalJudgeService.class ),

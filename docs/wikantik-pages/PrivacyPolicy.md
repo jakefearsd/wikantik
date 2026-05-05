@@ -1,18 +1,17 @@
 ---
-cluster: wikantik-development
+type: article
 canonical_id: 01KQ0P44TRZS26YNJNHK32EFF1
-summary: SITE NAME ("we," "us," or "our") operates URL (the "Service"). This Privacy
-  Policy explains how we collect, use, disclose, and protect your personal information
-  when you use our Service.
+cluster: wikantik-development
+summary: This Privacy Policy explains how [Site Name] collects, uses, discloses, and
+  protects your personal information when you use our Service.
 tags:
 - uncategorized
-type: article
 ---
 # Privacy Policy
 
-**Last Updated:** [DATE]()
+**Last Updated:** May 3, 2026
 
-[SITE NAME]() ("we," "us," or "our") operates [URL](URL) (the "Service"). This Privacy Policy explains how we collect, use, disclose, and protect your personal information when you use our Service.
+**[Site Name]** ("we," "us," or "our") operates **[Site URL]** (the "Service"). This Privacy Policy explains how we collect, use, disclose, and protect your personal information when you use our Service.
 
 By using the Service, you consent to the practices described in this policy. If you do not agree, please do not use our Service.
 
@@ -58,7 +57,7 @@ We do **not** sell your personal information.
 We may share your information with:
 - **Service Providers:** Hosting, analytics, and email services that help us operate the Service
 - **Legal Requirements:** When required by law, court order, or government request
-- **Safety:** To protect the rights, safety, or property of [SITE NAME](), our users, or the public
+- **Safety:** To protect the rights, safety, or property of **[Site Name]**, our users, or the public
 - **Business Transfers:** In connection with a merger, acquisition, or sale of assets
 
 Your public profile and content contributions are visible to other users and may be indexed by search engines.
@@ -101,7 +100,7 @@ Depending on your location, you may have the following rights:
 - **Objection:** Object to certain processing activities
 - **Withdraw Consent:** Withdraw consent at any time where processing is based on consent
 
-To exercise these rights, contact us at [EMAIL ADDRESS](). We will respond within 30 days (or as required by applicable law).
+To exercise these rights, contact us at **[Email Address]**. We will respond within 30 days (or as required by applicable law).
 
 **EU/EEA Residents:** You have the right to lodge a complaint with your local data protection authority.
 
@@ -127,11 +126,11 @@ We may update this Privacy Policy from time to time. We will notify you of mater
 
 For questions, concerns, or to exercise your rights:
 
-**Email:** [EMAIL ADDRESS]()
-**Address:** [MAILING ADDRESS]()
+**Email:** **[Email Address]**
+**Address:** **[Mailing Address]**
 
-For EU residents, our data protection contact is: [DPO EMAIL OR CONTACT]()
+For EU residents, our data protection contact is: **[DPO Contact Info]**
 
 ---
 
-- This document is provided as a template and should be reviewed by legal counsel before use to ensure compliance with applicable laws in your jurisdiction.*
+*This document is provided as a template and should be reviewed by legal counsel before use to ensure compliance with applicable laws in your jurisdiction.*

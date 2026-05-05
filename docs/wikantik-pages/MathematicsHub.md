@@ -1,6 +1,16 @@
 ---
+date: '2026-04-29'
+summary: Central index for the mathematics cluster — from foundational set theory
+  and logic to advanced topics in algebra, analysis, topology, and probability.
 cluster: mathematics
+related:
+- MLHub
+- SoftwareEngineeringPracticesHub
+- DifferentialCalculus
+- LinearAlgebra
+- AppliedMathSurvey
 canonical_id: 01KQ2P44XMGA8E1E7GAT4AYV43
+title: Mathematics Hub
 type: hub
 tags:
 - mathematics
@@ -9,16 +19,10 @@ tags:
 - algebra
 - calculus
 - probability
-summary: Central index for the mathematics cluster — from foundational set theory
-  and logic to advanced topics in algebra, analysis, topology, and probability.
-date: '2026-04-29'
+hubs:
+- DataStructuresHub
+- PhilosophyHub
 status: active
-title: Mathematics Hub
-related:
-- MLHub
-- SoftwareEngineeringPracticesHub
-- DifferentialCalculus
-- LinearAlgebra
 ---
 
 # Mathematics Hub
@@ -52,6 +56,7 @@ The study of mathematical structures and the rules for manipulating symbols with
 The mathematics of change, limits, and continuous spaces.
 
 - [Applied Math Survey](AppliedMathSurvey) — A high-level map of the mathematical tools used in science and engineering
+- [Calculus Refresh for CS](CalculusRefreshForCS) — Targeted calculus for software engineers and ML practitioners
 - [Differential Calculus](DifferentialCalculus) — Rigorous study of derivatives, Taylor series, and multivariable analysis
 - [Real Analysis](RealAnalysis) — The rigorous foundation of calculus and the properties of real numbers
 - [Complex Analysis](ComplexAnalysis) — Calculus extended to complex numbers; essential for signal processing
@@ -73,12 +78,17 @@ Reasoning about uncertainty and analyzing data.
 - [Bayesian Reasoning](BayesianReasoning) — Updating beliefs based on new evidence; the foundation of many AI techniques
 - [Markov Chain Fundamentals](MarkovChainFundamentals) — Stochastic processes that transition between states with the memoryless property
 
+## Information and Complexity
+
+- [Information Theory](InformationTheory) — Entropy, mutual information, and the limits of communication
+
 ## Discrete and Applied Mathematics
 
 Topics with direct applications in algorithms, optimization, and system design.
 
 - [Combinatorics Refresher](CombinatoricsRefresher) — Counting, permutations, and combinations
 - [Numerical Methods](NumericalMethods) — Solving continuous math problems using discrete computer arithmetic
+- [Optimization Algorithms](OptimizationAlgorithms) — Gradient descent, Adam, L-BFGS, and the engines of ML training
 - [Chaos and Dynamical Systems](ChaosDynamical) — Systems that evolve over time and the emergence of chaotic behavior
 - [Game Theory Fundamentals](GameTheoryFundamentals) — Strategic decision-making in competitive environments
 - [Discrete Match Refresher](DiscreteMatchRefresher) — Mathematical matching problems and their algorithmic solutions

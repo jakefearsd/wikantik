@@ -126,3 +126,13 @@ sections:
       - id: 01KQ0P44WTZC4RJ3S7PJM1VRXR
         title: "Spousal Green Card Guide"
         summary: "The complete process for marriage-based US immigration: petition filing, adjustment of status vs. consular processing, financial requirements, interview preparation, and removing conditions"
+
+  - label: "Wikantik Platform"
+    cluster: wikantik-platform
+    pages:
+      - id: 01KQTCA4WNJWEPHWKVP4KYJ22Y
+        title: "Wikantik Platform Hub"
+        summary: "The definitive guide to the Wikantik platform: architecture, hybrid search, knowledge graph, and history."
+      - id: 01KQ0P44YWV8Q0JMN1H2H5EGDX
+        title: "Wikantik Development"
+        summary: "Hub page for platform development — architecture decisions, feature implementations, and engineering history"

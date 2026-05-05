@@ -1,21 +1,24 @@
 ---
-canonical_id: 01KZHC6PVX4SBQM9R0F3T7K8ZA
-title: DataEngineeringHub
-type: hub
-cluster: data-engineering
-status: active
 date: '2026-04-26'
 summary: Index of pages on data engineering — pipelines, modeling, ETL/ELT, transformation
   layers, catalogs, and the patterns that make analytics infrastructure sustainable.
+cluster: data-engineering
+related:
+- CloudPlatformsHub
+- DevOpsAndSreHub
+canonical_id: 01KZHC6PVX4SBQM9R0F3T7K8ZA
+title: DataEngineeringHub
+type: hub
 tags:
 - data-engineering
 - pipelines
 - ETL
 - hub
 - analytics
-related:
-- CloudPlatformsHub
-- DevOpsAndSreHub
+hubs:
+- GenerativeAIHub
+- WealthviewHub
+status: active
 ---
 # DataEngineering Hub
 
@@ -27,6 +30,10 @@ This cluster covers the engineering side of data — pipelines, modeling, transf
 - [EtlVsElt](EtlVsElt) — When transform belongs early vs. late
 - [MapReduceParadigm](MapReduceParadigm) — The paradigm that defined the batch era
 - [DbtAndAnalyticsEngineering](DbtAndAnalyticsEngineering) — dbt as transformation tool, the analytics-engineering role
+
+## Vertical-Specific Pipelines
+
+- [Fintech Data Ingestion Blueprint](FintechDataIngestionBlueprint) — Ingesting, normalizing, and storing third-party financial data
 
 ## Modeling
 

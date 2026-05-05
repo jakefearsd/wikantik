@@ -1,12 +1,25 @@
 ---
-canonical_id: 01KQ0P44YKQTTF1M0KS2X7DB0Z
+date: 2026-03-18T00:00:00Z
 type: hub
+related:
+- WarehouseManagementSystems
+- WarehouseRobotics
+- AutomatedStorageAndRetrieval
+- ConveyorAndSortingTechnology
+- WarehouseAiAndMl
+- WarehouseAutomationLimitations
+- OperationsResearchHub
 cluster: warehouse-automation
-tags: [warehouse, automation, robotics, logistics, supply-chain]
-date: 2026-03-18
+tags:
+- warehouse
+- automation
+- robotics
+- logistics
+- supply-chain
+canonical_id: 01KQ0P44YKQTTF1M0KS2X7DB0Z
+summary: Hub for warehouse automation — the software, robotics, and systems that drive
+  modern fulfilment operations, and their known limitations
 status: active
-summary: Hub for warehouse automation — the software, robotics, and systems that drive modern fulfilment operations, and their known limitations
-related: [WarehouseManagementSystems, WarehouseRobotics, AutomatedStorageAndRetrieval, ConveyorAndSortingTechnology, WarehouseAiAndMl, WarehouseAutomationLimitations, OperationsResearchHub]
 ---
 # Warehouse Automation
 
@@ -14,27 +27,36 @@ Warehouse automation covers the hardware, software, and systems that perform or 
 
 Modern automation stacks layer multiple technologies: a **software layer** that coordinates decisions, a **mechanical layer** that moves goods, and an **intelligence layer** (AI/ML) that continuously optimises throughput and resource allocation.
 
-## Why Automate?
+## Strategic Logistics and Planning
 
-- **Labour scarcity** — e-commerce growth outpaces available warehouse labour in most developed markets.
-- **Speed expectations** — same-day and next-day delivery windows compress pick-to-ship cycle times.
-- **Accuracy** — automated systems routinely achieve order accuracy above 99.9%, versus ~99% for manual picking.
-- **Unit economics** — cost-per-pick falls as throughput scales; capital expenditure is amortised over years.
-- **Safety** — removing humans from high-traffic forklift zones and repetitive strain tasks reduces workplace injuries.
+- [Warehouse Layout Design](WarehouseLayoutDesign) — Optimizing floor space for material flow
+- [Warehouse Slotting Optimization](WarehouseSlottingOptimization) — Placing items based on pick frequency (ABC analysis)
+- [Inventory Management Strategies](InventoryManagementStrategies) — FIFO, LIFO, and just-in-time (JIT) replenishment
+- [Last-Mile Delivery Optimization](LastMileDeliveryOptimization) — Routing and delivery strategies for the final leg of fulfillment
+- [Cold Chain Logistics](ColdChainLogistics) — Managing temperature-sensitive goods through the supply chain
+- [Reverse Logistics and Returns](ReverseLogisticsAndReturns) — Efficiently processing and restocking returned items
 
-## Technology Layers
+## Operational Efficiency
 
-### Software
-- [Warehouse Management Systems](WarehouseManagementSystems) — inventory visibility, order orchestration, and labour management
-- [Warehouse AI and Machine Learning](WarehouseAiAndMl) — demand forecasting, slotting optimisation, computer vision
+- [Warehouse Management Systems](WarehouseManagementSystems) — Inventory visibility, order orchestration, and labour management
+- [Warehouse Labor Management](WarehouseLaborManagement) — Workforce optimization and productivity tracking
+- [Warehouse Safety and Ergonomics](WarehouseSafetyAndErgonomics) — Protecting the human workforce in an automated environment
+- [Lean Manufacturing Principles](LeanManufacturingPrinciples) — Eliminating waste in the fulfillment process
+- [Six Sigma Methodology](SixSigmaMethodology) — Reducing variance and error rates in logistics
 
-### Robotics and Mechanical Systems
+## Technology and Robotics
+
 - [Warehouse Robotics](WarehouseRobotics) — autonomous mobile robots (AMRs), AGVs, robotic arms, and cobots
 - [Automated Storage and Retrieval Systems](AutomatedStorageAndRetrieval) — AS/RS, vertical carousels, shuttle systems
 - [Conveyor and Sorting Technology](ConveyorAndSortingTechnology) — belts, cross-belt sorters, pop-up diverters
+- [Pick and Pack Automation](Pick and Pack Automation) — Automated packing lines and robotic picking
+- [Micro-Fulfillment Centers](MicroFulfillmentCenters) — Automated fulfillment in urban, small-footprint locations
+- [Warehouse Automation ROI](WarehouseAutomationReturnOnInvestment) — Calculating the financial payback of robotics
 
-### Constraints
+## Constraints and Intelligence
+
 - [Warehouse Automation Limitations](WarehouseAutomationLimitations) — cost, flexibility, edge cases, workforce impact
+- [Warehouse AI and Machine Learning](WarehouseAiAndMl) — demand forecasting, slotting optimisation, computer vision
 
 ## Maturity Landscape
 

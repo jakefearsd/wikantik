@@ -1,22 +1,24 @@
 ---
-canonical_id: 01KZHC6PVW4SBQM9R0F3T7K8Z9
-title: DesignPatternsHub
-type: hub
-cluster: design-patterns
-status: active
-date: '2026-04-26'
 summary: Index of pages on software design patterns — when each pattern actually applies,
   the language for naming common solutions, and the cases where the pattern is more
   about communication than novelty.
+date: '2026-04-26'
+cluster: design-patterns
+related:
+- SoftwareEngineeringPracticesHub
+- JavaHub
+canonical_id: 01KZHC6PVW4SBQM9R0F3T7K8Z9
+type: hub
+title: DesignPatternsHub
 tags:
 - design-patterns
 - software-design
 - hub
 - patterns
 - architecture
-related:
+status: active
+hubs:
 - SoftwareEngineeringPracticesHub
-- JavaHub
 ---
 # DesignPatterns Hub
 

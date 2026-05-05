@@ -1,15 +1,8 @@
 ---
-canonical_id: 01KQ0P44YNBCX03E93WPSJ4QM5
 summary: Warehouse Management Systems — the software layer that controls inventory,
   orders, labour, and equipment across a distribution centre
 date: 2026-03-18T00:00:00Z
-tags:
-- warehouse
-- wms
-- software
-- erp
-- inventory
-- logistics
+cluster: warehouse-automation
 related:
 - WarehouseAutomationHub
 - WarehouseRobotics
@@ -18,10 +11,19 @@ related:
 - AutomatedStorageAndRetrieval
 - WarehouseAutomationLimitations
 - OperationsResearchHub
-type: article
-cluster: warehouse-automation
-status: active
+canonical_id: 01KQ0P44YNBCX03E93WPSJ4QM5
 part-of:
+- WarehouseAutomationHub
+type: article
+tags:
+- warehouse
+- wms
+- software
+- erp
+- inventory
+- logistics
+status: active
+hubs:
 - WarehouseAutomationHub
 ---
 # Warehouse Management Systems (WMS)

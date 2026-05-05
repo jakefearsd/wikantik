@@ -6,6 +6,26 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-04** — fix(test): re-enable ReleaseTest.testNewer6/testOlder6 at version 1.0.0
+
+**2026-05-04** — refactor(kg-judge): self-healing on transient unavailability — no DB writes, no recovery script
+
+**2026-05-04** — fix(test): add keep_alive arg to AdminKnowledgeResourceJudgeStatusTest
+
+**2026-05-04** — chore(db-oneshot): script to reset judge timeout-abstains
+
+**2026-05-04** — fix(kg-judge,extractor): set Ollama keep_alive=30m + raise judge timeout 30s -> 120s
+
+**2026-05-03** — fix(web): drop hardcoded Secure flag on JSESSIONID cookie
+
+**2026-05-03** — build: remove project.build.outputTimestamp pin
+
+**2026-05-03** — log(admin-auth): WARN with session/principal context when 403 fires
+
+**2026-05-03** — fix(kg-materialize): null-guard policy-excluded nodes; demote CSRF rejections to WARN
+
+**2026-05-03** — refactor: collapse defensive-try duplication, dedupe KG fetch path, fix FQN imports
+
 **2026-05-03** — feat(mcp): include latestContent + currentVersion in update_page hash-mismatch response
 
 **2026-05-03** — security(mcp): strict page-name validator + YAML loader hardening

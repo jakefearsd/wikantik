@@ -1,23 +1,25 @@
 ---
-canonical_id: 01KZHC6PVQ4SBQM9R0F3T7K8Z3
-title: JavaHub
-type: hub
-cluster: java
-status: active
-date: '2026-04-26'
 summary: Index of pages on the modern Java platform — language features through Java
   21+, the standard library, the build and test tooling, and the patterns that make
   long-running Java codebases sustainable.
+date: '2026-04-26'
+cluster: java
+related:
+- SoftwareEngineeringPracticesHub
+- DesignPatternsHub
+- WebServicesAndApisHub
+canonical_id: 01KZHC6PVQ4SBQM9R0F3T7K8Z3
+type: hub
+title: JavaHub
 tags:
 - java
 - hub
 - jvm
 - language
 - standard-library
-related:
+status: active
+hubs:
 - SoftwareEngineeringPracticesHub
-- DesignPatternsHub
-- WebServicesAndApisHub
 ---
 # Java Hub
 

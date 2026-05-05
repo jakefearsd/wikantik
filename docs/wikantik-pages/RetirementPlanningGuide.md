@@ -1,5 +1,7 @@
 ---
-canonical_id: 01KQ0P44VPKV01K0CMG0RNZ71A
+date: 2026-03-21T02:00:00Z
+summary: Strategic decision frameworks for retirement planning — income, taxes, healthcare,
+  and how each choice constrains the others
 cluster: retirement-planning
 related:
 - SocialSecurityClaimingStrategy
@@ -13,15 +15,16 @@ related:
 - MonteCarloRetirementPlanning
 - GuardrailsSpendingStrategy
 - IndexFundInvestingForEarlyRetirement
+canonical_id: 01KQ0P44VPKV01K0CMG0RNZ71A
+type: hub
 tags:
 - retirement
 - financial-planning
 - decumulation
 - tax-strategy
-date: 2026-03-21T02:00:00Z
-summary: Strategic decision frameworks for retirement planning — income, taxes, healthcare, and how each choice constrains the others
 status: active
-type: hub
+hubs:
+- PersonalFinanceHub
 ---
 
 

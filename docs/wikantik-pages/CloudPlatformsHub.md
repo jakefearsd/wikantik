@@ -1,23 +1,27 @@
 ---
-canonical_id: 01KQEKBKX2QVEW6716V6Y8N5QT
-title: CloudPlatformsHub
-type: hub
-cluster: cloud-platforms
-status: active
 date: '2026-04-26'
 summary: Index of pages on cloud platform topics — AWS specifics, multi-cloud strategy,
   cloud-native patterns, the services that matter, and the operational disciplines
   that keep cloud spend and reliability under control.
+cluster: cloud-platforms
+related:
+- DevOpsAndSreHub
+- DistributedSystemsHub
+- WebServicesAndApisHub
+canonical_id: 01KQEKBKX2QVEW6716V6Y8N5QT
+title: CloudPlatformsHub
+type: hub
 tags:
 - cloud
 - aws
 - platform
 - hub
 - infrastructure
-related:
+hubs:
+- NetworkingHub
 - DevOpsAndSreHub
-- DistributedSystemsHub
-- WebServicesAndApisHub
+- DataEngineeringHub
+status: active
 ---
 # CloudPlatforms Hub
 

@@ -1,21 +1,23 @@
 ---
-canonical_id: 01KQEKGD9BVAXF6X4HZYKF2513
-title: Data Structures Hub
 type: hub
-cluster: data-structures
+tags:
+- data-structures
+- algorithms
+- computer-science
+- efficiency
+- hub
+summary: Central index for the data structures and algorithms cluster — covering basic
+  primitives, complex hierarchical structures, graph algorithms, and the formal analysis
+  of computational efficiency.
 status: active
 date: '2026-04-29'
-summary: Central index for the data structures and algorithms cluster — covering basic primitives, complex hierarchical structures, graph algorithms, and the formal analysis of computational efficiency.
-tags:
-  - data-structures
-  - algorithms
-  - computer-science
-  - efficiency
-  - hub
+title: Data Structures Hub
 related:
-  - SoftwareEngineeringPracticesHub
-  - MathematicsHub
-  - DistributedSystemsHub
+- SoftwareEngineeringPracticesHub
+- MathematicsHub
+- DistributedSystemsHub
+canonical_id: 01KQEKGD9BVAXF6X4HZYKF2513
+cluster: data-structures
 ---
 # Data Structures Hub
 
@@ -60,6 +62,8 @@ Handling complex relational data and unstructured text.
 
 - [CRDT Data Structures](CrdtDataStructures) — Conflict-free Replicated Data Types for distributed systems and collaborative editing
 - [Topological Data Analysis](TopologicalDataAnalysis) — Using topology to understand the "shape" of high-dimensional data
+- [HNSW](HNSW) — Hierarchical Navigable Small World graphs for high-dimensional vector search
+- [Vector Indexing Internals](VectorIndexingInternals) — Comparing HNSW and IVF-PQ for ANN retrieval
 
 ## Adjacent Hubs
 

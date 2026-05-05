@@ -1,15 +1,8 @@
 ---
-canonical_id: 01KQ0P44YJZ6JZKFTNWNC5F825
 summary: AI and machine learning in warehousing — demand forecasting, slotting optimisation,
   computer vision picking, and autonomous decision-making
 date: 2026-03-18T00:00:00Z
-tags:
-- warehouse
-- ai
-- machine-learning
-- computer-vision
-- optimization
-- logistics
+cluster: warehouse-automation
 related:
 - WarehouseAutomationHub
 - WarehouseManagementSystems
@@ -18,10 +11,19 @@ related:
 - ArtificialIntelligence
 - MachineLearning
 - OperationsResearchHub
-type: article
-cluster: warehouse-automation
-status: active
+canonical_id: 01KQ0P44YJZ6JZKFTNWNC5F825
 part-of:
+- WarehouseAutomationHub
+type: article
+tags:
+- warehouse
+- ai
+- machine-learning
+- computer-vision
+- optimization
+- logistics
+status: active
+hubs:
 - WarehouseAutomationHub
 ---
 # Warehouse AI and Machine Learning

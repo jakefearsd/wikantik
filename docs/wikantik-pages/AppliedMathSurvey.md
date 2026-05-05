@@ -1,19 +1,18 @@
 ---
-canonical_id: 01KQ0P44KZWNJPTF8W2F7NTRFR
-title: Applied Math Survey
-type: article
-cluster: mathematics
-status: active
-date: '2026-04-26'
-summary: Map of applied mathematics — calculus, linear algebra, probability, optimization,
-  numerical methods, discrete math, differential equations — and where each shows
-  up in computing, science, and engineering.
 tags:
 - mathematics
 - applied-math
 - calculus
 - linear-algebra
 - optimization
+cluster: mathematics
+title: Applied Math Survey
+date: '2026-04-26'
+hubs:
+- MathematicsHub
+type: article
+status: active
+canonical_id: 01KQ0P44KZWNJPTF8W2F7NTRFR
 related:
 - CalculusRefreshForCS
 - ProbabilityTheory
@@ -21,8 +20,10 @@ related:
 - ComplexAnalysis
 - TopologyMathematics
 - DifferentialGeometry
-hubs:
-- MathematicsHub
+- OptimizationAlgorithms
+summary: Map of applied mathematics — calculus, linear algebra, probability, optimization,
+  numerical methods, discrete math, differential equations — and where each shows
+  up in computing, science, and engineering.
 ---
 # Applied Math Survey
 
@@ -41,7 +42,7 @@ Where it shows up:
 - Optimization: finding extrema by setting derivatives to zero
 - Probability: continuous distributions integrate to 1
 
-For computer scientists, the most-needed parts: differentiation rules, multivariable calculus, basic ODE/PDE awareness. See [DifferentialCalculus](DifferentialCalculus).
+For computer scientists, the most-needed parts are covered in [[CalculusRefreshForCS]] (Jacobians, Hessians, asymptotic proof). For a deeper dive, see [[DifferentialCalculus]].
 
 ## Linear algebra
 
@@ -56,7 +57,7 @@ Where it shows up:
 
 The most-needed parts: matrix multiplication, eigendecomposition, SVD, basic geometry of vector spaces.
 
-For ML practitioners, linear algebra is foundational. Most ML algorithms are linear algebra operations under the hood.
+For ML practitioners, [[LinearAlgebra]] is foundational. Most ML algorithms are linear algebra operations under the hood.
 
 ## Probability and statistics
 
@@ -71,7 +72,7 @@ Where it shows up:
 
 Probability is the math of uncertainty. Underrated in practical importance.
 
-See [ProbabilityTheory](ProbabilityTheory).
+See [[ProbabilityTheory]].
 
 ## Discrete mathematics
 
@@ -96,7 +97,7 @@ Where it shows up:
 - Engineering: design optimization
 - Economics: utility maximization
 
-For computational problems with "find the best X", optimization frameworks apply.
+For a deep dive into the engines of ML training (SGD, Adam, L-BFGS), see [[OptimizationAlgorithms]]. For linear constraints, see [[LinearProgrammingFoundations]].
 
 ## Numerical methods
 
@@ -108,7 +109,7 @@ Where it shows up:
 - Computer graphics: ray tracing, physical simulation
 - Engineering: finite element analysis
 
-The math is exact; the computer's representation isn't. Numerical methods bridge the gap.
+The math is exact; the computer's representation isn't. [[NumericalMethods]] bridges the gap.
 
 ## Differential equations
 
@@ -132,7 +133,7 @@ Where it shows up:
 - Physics: quantum mechanics, fluid dynamics
 - Engineering: electrical circuits
 
-See [ComplexAnalysis](ComplexAnalysis).
+See [[ComplexAnalysis]].
 
 ## Topology
 
@@ -143,7 +144,7 @@ Where it shows up:
 - Computer science: data analysis (topological data analysis)
 - Network analysis: connectivity properties
 
-See [TopologyMathematics](TopologyMathematics).
+See [[TopologyMathematics]].
 
 ## Differential geometry
 
@@ -154,7 +155,7 @@ Where it shows up:
 - Computer graphics: surface modeling
 - Machine learning: manifold learning, optimization on manifolds
 
-See [DifferentialGeometry](DifferentialGeometry).
+See [[DifferentialGeometry]].
 
 ## Dynamical systems and chaos
 
@@ -166,7 +167,7 @@ Where it shows up:
 - Cryptography (chaotic systems for randomness)
 - Economics (market dynamics)
 
-See [ChaosDynamical](ChaosDynamical).
+See [[ChaosDynamical]].
 
 ## Information theory
 
@@ -177,6 +178,8 @@ Where it shows up:
 - Cryptography
 - Machine learning (cross-entropy loss; mutual information)
 - Communications
+
+See [[InformationTheory]] for the formal quantification of uncertainty.
 
 ## Graph theory
 
@@ -194,8 +197,8 @@ For software engineers entering ML or scientific computing:
 
 1. Linear algebra (essential)
 2. Probability (essential)
-3. Calculus refresh (foundational)
-4. Optimization basics (where it applies)
+3. Calculus refresh (foundational) - See [[CalculusRefreshForCS]]
+4. Optimization basics (where it applies) - See [[OptimizationAlgorithms]]
 5. Discrete math if you didn't take it (essential for theory)
 
 For data scientists:
@@ -223,10 +226,8 @@ The "math you need" depends on the problems you tackle. The survey above provide
 
 ## Further Reading
 
-- [DifferentialCalculus](DifferentialCalculus) — Targeted calculus for software engineers
-- [ProbabilityTheory](ProbabilityTheory) — Probability foundations
-- [ComplexAnalysis](ComplexAnalysis) — Complex-number calculus
-- [TopologyMathematics](TopologyMathematics) — Spatial properties
-- [DifferentialGeometry](DifferentialGeometry) — Curved spaces
-- [ChaosDynamical](ChaosDynamical) — Time evolution
-- [Mathematics Hub](MathematicsHub) — Cluster index
+- [DifferentialCalculus](DifferentialCalculus) — Rigorous multivariable analysis.
+- [Calculus Refresh for CS](CalculusRefreshForCS) — Practical calculus for engineers.
+- [Optimization Algorithms](OptimizationAlgorithms) — The engines of machine learning.
+- [Information Theory](InformationTheory) — Foundations of communication.
+- [Mathematics Hub](MathematicsHub) — Cluster index.

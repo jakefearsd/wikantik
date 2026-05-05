@@ -1,14 +1,16 @@
 ---
+summary: Machine Learning Fundamentals and Neural Networks Welcome.
 cluster: machine-learning
+auto-generated: true
 canonical_id: 01KQ0P44S50Z07V4E8K8XA6Q43
-title: Machine Learning
 type: article
+title: Machine Learning
 tags:
 - mathbf
 - learn
 - model
-summary: Machine Learning Fundamentals and Neural Networks Welcome.
-auto-generated: true
+hubs:
+- PhilosophyHub
 ---
 # Machine Learning Fundamentals and Neural Networks
 

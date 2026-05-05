@@ -1,8 +1,8 @@
 ---
+date: '2026-04-29'
 summary: Central index for the machine learning cluster — covering foundational theory,
   neural architectures, training techniques, specialized domains like NLP and CV,
   and production MLOps.
-date: '2026-04-29'
 cluster: machine-learning
 aliases:
 - MachineLearningHub
@@ -11,17 +11,19 @@ related:
 - JavaHub
 - DataEngineeringHub
 canonical_id: 01KQ3P44XMGA8E1E7GAT4AYV43
-title: ML Hub
 type: hub
+title: ML Hub
+status: active
 tags:
 - machine-learning
 - ml
 - deep-learning
 - ai
 - hub
-status: active
 hubs:
 - MathematicsHub
+- GenerativeAIHub
+- AgenticAiHub
 ---
 
 # Machine Learning Hub

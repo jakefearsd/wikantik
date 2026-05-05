@@ -10,9 +10,8 @@ related:
 - LowCostIndexFundInvesting
 - WillsAndTrusts
 canonical_id: 01KZHC6PVN4SBQM9R0F3T7K8Y2
-title: PersonalFinanceHub
 type: hub
-status: active
+title: PersonalFinanceHub
 tags:
 - personal-finance
 - hub
@@ -22,6 +21,9 @@ tags:
 - estate
 - credit
 - housing
+status: active
+hubs:
+- WealthviewHub
 ---
 # PersonalFinance Hub
 
@@ -39,6 +41,12 @@ The pages most people need first, in roughly the order they become relevant.
 - [NetWorthTracking](NetWorthTracking) — What to measure, how often, and what the number actually tells you
 - [FirstJobFinancialChecklist](FirstJobFinancialChecklist) — The ordered list of money decisions in your first salaried year
 - [FinancialResilience](FinancialResilience) — Building a household balance sheet that survives a bad year
+
+## WealthTech Implementation (Project wealthview)
+
+Technical blueprints for building personal finance software.
+
+- [Fintech Data Ingestion Blueprint](FintechDataIngestionBlueprint) — Technical spec for account sync and transaction normalization
 
 ## Insurance
 

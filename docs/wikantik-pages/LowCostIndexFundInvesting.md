@@ -1,5 +1,4 @@
 ---
-canonical_id: 01KQ0P44S4DQQ8WSQWKXG457QA
 date: 2026-03-15T01:00:00Z
 summary: Why low-cost index funds consistently outperform actively managed funds,
   how to select them, and how to build a simple, effective portfolio.
@@ -8,9 +7,9 @@ related:
 - IndexFundPortfolioConstruction
 - ExpenseRatioDeepDive
 - IntroductionToIndexFundsAndETFs
+canonical_id: 01KQ0P44S4DQQ8WSQWKXG457QA
 title: Low-Cost Index Fund Investing
 type: article
-status: published
 tags:
 - investing
 - index-funds
@@ -19,6 +18,8 @@ tags:
 - expense-ratios
 hubs:
 - LowCostIndexFundInvestingHub
+- PersonalFinanceHub
+status: published
 ---
 
 

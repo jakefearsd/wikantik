@@ -1,21 +1,25 @@
 ---
-canonical_id: 01KQEKGDAZH3G3X2J4VFM9MP88
-title: Generative AI Hub
-type: hub
-cluster: generative-ai
-status: active
+summary: Central index for the generative AI cluster — covering Large Language Models
+  (LLMs), diffusion models, retrieval-augmented generation (RAG), prompt engineering,
+  and the practical adoption of generative technologies.
 date: '2026-04-29'
-summary: Central index for the generative AI cluster — covering Large Language Models (LLMs), diffusion models, retrieval-augmented generation (RAG), prompt engineering, and the practical adoption of generative technologies.
-tags:
-  - generative-ai
-  - llm
-  - rag
-  - ai-adoption
-  - hub
+cluster: generative-ai
 related:
-  - AgenticAiHub
-  - MLHub
-  - DataEngineeringHub
+- AgenticAiHub
+- MLHub
+- DataEngineeringHub
+canonical_id: 01KQEKGDAZH3G3X2J4VFM9MP88
+type: hub
+title: Generative AI Hub
+tags:
+- generative-ai
+- llm
+- rag
+- ai-adoption
+- hub
+status: active
+hubs:
+- AgenticAiHub
 ---
 # Generative AI Hub
 
@@ -29,6 +33,7 @@ The core technologies driving the generative revolution.
 - [Natural Language Processing](NaturalLanguageProcessing) — The evolution from statistical NLP to modern Large Language Models (LLMs)
 - [Transformer Architecture](TransformerArchitecture) — The self-attention mechanism that serves as the universal substrate for generative AI
 - [LLMs Since 2020](LlmsSinceTwentyTwenty) — A historical and technical overview of the rapid scaling in model capability
+- [Multimodal Embeddings](MultimodalEmbeddings) — Shared vector spaces across vision and language
 - [Open Source LLMs](OpenSourceLLMs) — The rise of high-capability, open-weights models like Llama, Mistral, and Qwen
 - [Open Source LLM Ecosystem](OpenSourceLlmEcosystem) — The tools, runtimes, and communities supporting open model deployment
 
@@ -39,7 +44,10 @@ Grounding generative models in private or up-to-date knowledge.
 - [RAG Implementation Patterns](RagImplementationPatterns) — Practical architectures for Retrieval-Augmented Generation
 - [Embeddings in GenAI](EmbeddingsInGenAI) — Representing meaning as vectors for search and retrieval
 - [Embeddings and Vector Databases](EmbeddingsVectorDB) — Infrastructure for storing and querying high-dimensional vector data
+- [Vector Indexing Internals](VectorIndexingInternals) — Deep dive into HNSW and IVF-PQ algorithms
+- [HNSW](HNSW) — Hierarchical Navigable Small World graphs in depth
 - [GraphRAG](GraphRAG) — Combining vector search with knowledge graphs for deeper relational retrieval
+- [Advanced Search Term Engineering](AdvancedSearchTermEngineering) — Multi-stage query optimization for state-of-the-art retrieval
 - [LocalRAG](LocalRAG) — Privacy-focused, on-device retrieval architectures
 - [Prompt Caching](PromptCaching) — Reducing latency and cost by reusing model states across similar queries
 - [Context Window Management](ContextWindowManagement) — Strategies for maximizing the effective use of finite model attention

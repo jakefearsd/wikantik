@@ -1,22 +1,26 @@
 ---
-canonical_id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
-title: Operations Research Hub
-type: hub
-cluster: operations-research
-status: active
+summary: Central index for the operations research cluster — covering optimization,
+  mathematical programming, supply chain logistics, queueing theory, and decision
+  science.
 date: '2026-04-29'
-summary: Central index for the operations research cluster — covering optimization, mathematical programming, supply chain logistics, queueing theory, and decision science.
-tags:
-  - operations-research
-  - optimization
-  - linear-programming
-  - logistics
-  - supply-chain
-  - hub
+cluster: operations-research
 related:
-  - MathematicsHub
-  - MLHub
-  - DataEngineeringHub
+- MathematicsHub
+- MLHub
+- DataEngineeringHub
+canonical_id: 01KQEKGDDVHTHY07CQ3YKSQ5PA
+type: hub
+title: Operations Research Hub
+tags:
+- operations-research
+- optimization
+- linear-programming
+- logistics
+- supply-chain
+- hub
+status: active
+hubs:
+- WarehouseAutomationHub
 ---
 # Operations Research Hub
 

@@ -1,23 +1,23 @@
 ---
-canonical_id: 01KZHC6PVY4SBQM9R0F3T7K8ZB
-title: NetworkingHub
 type: hub
-cluster: networking
-status: active
-date: '2026-04-26'
-summary: Index of pages on networking concepts — TCP/IP, DNS, HTTP/2-3, CORS, load
-  balancing, and the practical knowledge needed to design and troubleshoot networked
-  systems.
 tags:
 - networking
 - protocol
 - hub
 - tcp-ip
 - http
+summary: Index of pages on networking concepts — TCP/IP, DNS, HTTP/2-3, CORS, load
+  balancing, and the practical knowledge needed to design and troubleshoot networked
+  systems.
+status: active
+date: '2026-04-26'
+title: NetworkingHub
 related:
 - WebServicesAndApisHub
 - CloudPlatformsHub
 - DevOpsAndSreHub
+canonical_id: 01KZHC6PVY4SBQM9R0F3T7K8ZB
+cluster: networking
 ---
 # Networking Hub
 
@@ -34,6 +34,7 @@ This cluster covers the networking layer of distributed systems — protocols, r
 - [CorsDeepDive](CorsDeepDive) — The CORS preflight, headers, common configuration errors
 - [LoadBalancingStrategies](LoadBalancingStrategies) — Round-robin, least-conn, sticky sessions, when each fits
 - [ReverseProxyPatterns](ReverseProxyPatterns) — Nginx, Envoy, what they do beyond load balancing
+- [API Gateway Patterns](ApiGatewayPatterns) — Routing, AuthN, and Aggregation at the network edge
 
 ## Operations
 

@@ -18,6 +18,7 @@
  */
 package com.wikantik;
 
+import com.wikantik.auth.subsystem.AuthSubsystem;
 import com.wikantik.core.subsystem.CoreSubsystem;
 import com.wikantik.knowledge.subsystem.KnowledgeSubsystem;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
@@ -45,6 +46,7 @@ import jakarta.servlet.ServletContext;
 public record WikiSubsystems(
     CoreSubsystem.Services core,
     PersistenceSubsystem.Services persistence,
+    AuthSubsystem.Services auth,
     KnowledgeSubsystem.Services knowledge
 ) {
 

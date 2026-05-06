@@ -155,6 +155,12 @@ public class WikiEngine implements Engine {
      *  when the engine boots without a configured datasource (unit-test paths). */
     private com.wikantik.persistence.subsystem.PersistenceSubsystem.Services persistenceSubsystem;
 
+    /** Auth subsystem services produced by {@code AuthSubsystemFactory}.
+     *  Phase 4 of the wikantik-main decomposition (2026-05-06); typed surface
+     *  over the four core auth managers, the web-container authorizer, the
+     *  API-key service, and (Ckpt 3) the SecurityVerifier-derived helpers. */
+    private com.wikantik.auth.subsystem.AuthSubsystem.Services authSubsystem;
+
     /** Stores the template path.  This is relative to "templates". */
     private String           templateDir;
 
@@ -404,6 +410,14 @@ public class WikiEngine implements Engine {
 
             // Phase 9: Knowledge graph (optional — requires datasource configuration)
             initKnowledgeGraph( props );
+
+            // Phase 4 of the wikantik-main subsystem decomposition: build
+            // the Auth subsystem after the four auth managers + Persistence
+            // are ready. AuthSubsystem.Deps tolerates a null persistence
+            // (engines without a datasource still need typed auth access).
+            this.authSubsystem = com.wikantik.auth.subsystem.AuthSubsystemFactory.create(
+                new com.wikantik.auth.subsystem.AuthSubsystem.Deps(
+                    coreSubsystem, persistenceSubsystem, servletContext, this ) );
         } catch( final RuntimeException e ) {
             // RuntimeExceptions may occur here, even if they shouldn't.
             LOG.fatal( "Failed to start managers.", e );
@@ -437,7 +451,7 @@ public class WikiEngine implements Engine {
         // legacy manager registry.
         if ( servletContext != null && coreSubsystem != null && knowledgeSubsystem != null ) {
             final WikiSubsystems subsystems = new WikiSubsystems(
-                coreSubsystem, persistenceSubsystem, knowledgeSubsystem );
+                coreSubsystem, persistenceSubsystem, authSubsystem, knowledgeSubsystem );
             servletContext.setAttribute( WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE, subsystems );
         }
 
@@ -1400,6 +1414,18 @@ public class WikiEngine implements Engine {
      */
     public com.wikantik.persistence.subsystem.PersistenceSubsystem.Services getPersistenceSubsystem() {
         return persistenceSubsystem;
+    }
+
+    /**
+     * Returns the Auth subsystem's services bundle, or {@code null} when
+     * the engine has not yet completed initialization.
+     *
+     * <p>Phase 4 of the wikantik-main subsystem decomposition. New code
+     * should obtain the auth managers, web-container authorizer, and
+     * API-key service through this accessor.</p>
+     */
+    public com.wikantik.auth.subsystem.AuthSubsystem.Services getAuthSubsystem() {
+        return authSubsystem;
     }
 
     /** {@inheritDoc} */

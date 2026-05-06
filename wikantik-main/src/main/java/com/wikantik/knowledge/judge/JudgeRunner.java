@@ -22,7 +22,6 @@ import com.wikantik.api.knowledge.JudgeVerdict;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
 import com.wikantik.api.knowledge.KgProposalReview;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
 import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.PoolClosedException;
@@ -111,15 +110,6 @@ public class JudgeRunner implements AutoCloseable {
         this.judge           = Objects.requireNonNull( judge, "judge" );
         this.materialization = Objects.requireNonNull( materialization, "materialization" );
         this.config          = Objects.requireNonNull( config, "config" );
-    }
-
-    /** @deprecated Use the narrow-repo constructor; kept for test/integration compatibility. */
-    @Deprecated
-    public JudgeRunner( final JdbcKnowledgeRepository repo,
-                         final KgProposalJudgeService judge,
-                         final KgMaterializationService materialization,
-                         final KgJudgeConfig config ) {
-        this( repo.proposals(), repo.rejections(), judge, materialization, config );
     }
 
     public synchronized void schedule() {

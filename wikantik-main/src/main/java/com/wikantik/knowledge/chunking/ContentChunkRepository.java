@@ -41,7 +41,7 @@ import java.util.UUID;
  * (deletes, updates, inserts all run inside one transaction with
  * {@code autoCommit = false}).</p>
  *
- * <p>Matches the conventions of {@link com.wikantik.knowledge.JdbcKnowledgeRepository}:
+ * <p>Matches the conventions of the narrow KG repositories (e.g. {@link com.wikantik.knowledge.KgNodeRepository}):
  * plain JDBC via {@link DataSource}, {@link PreparedStatement}, error logging
  * at {@code warn} level followed by a wrapping {@link RuntimeException}.</p>
  *

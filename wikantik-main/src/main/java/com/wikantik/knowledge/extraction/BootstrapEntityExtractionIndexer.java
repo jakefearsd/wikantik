@@ -27,7 +27,6 @@ import com.wikantik.api.knowledge.PageExtractionResult;
 import com.wikantik.api.knowledge.PageExtractor;
 import com.wikantik.api.knowledge.ProposalJudge;
 import com.wikantik.api.knowledge.Verdict;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository;
@@ -270,56 +269,6 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         this.dictionaryTopK = Math.max( 0, dictionaryTopK );
         this.maxEntitiesPerPage = maxEntitiesPerPage;
         this.maxRelationsPerPage = maxRelationsPerPage;
-    }
-
-    // ---- Bridge constructors for test compatibility (accepts facade, delegates to narrow repo) ----
-
-    /** @deprecated Use the {@link KgNodeRepository}-based constructor; kept for test compatibility. */
-    @Deprecated
-    public BootstrapEntityExtractionIndexer( final PageExtractor pageExtractor,
-                                             final ProposalJudge judge,
-                                             final ProposalConsolidator consolidator,
-                                             final ProposalUpserter upserter,
-                                             final KgNodeEmbeddingService embeddingService,
-                                             final KgNodeEmbeddingRepository embeddingRepo,
-                                             final ContentChunkRepository chunkRepo,
-                                             final ChunkEntityMentionRepository mentionRepo,
-                                             final JdbcKnowledgeRepository kgRepo,
-                                             final MentionAttributor mentionAttributor,
-                                             final PageEmbeddingProvider pageEmbeddings,
-                                             final KgExcludedPagesRepository excludedPages,
-                                             final int concurrency,
-                                             final int dictionaryTopK,
-                                             final int maxEntitiesPerPage,
-                                             final int maxRelationsPerPage ) {
-        this( pageExtractor, judge, consolidator, upserter, embeddingService, embeddingRepo,
-              chunkRepo, mentionRepo, kgRepo.nodes(), mentionAttributor, pageEmbeddings, excludedPages,
-              concurrency, dictionaryTopK, maxEntitiesPerPage, maxRelationsPerPage );
-    }
-
-    /** @deprecated Use the {@link KgNodeRepository}-based constructor; kept for test compatibility. */
-    @Deprecated
-    public BootstrapEntityExtractionIndexer( final PageExtractor pageExtractor,
-                                             final ProposalJudge judge,
-                                             final ProposalConsolidator consolidator,
-                                             final ProposalUpserter upserter,
-                                             final KgNodeEmbeddingService embeddingService,
-                                             final KgNodeEmbeddingRepository embeddingRepo,
-                                             final ContentChunkRepository chunkRepo,
-                                             final ChunkEntityMentionRepository mentionRepo,
-                                             final JdbcKnowledgeRepository kgRepo,
-                                             final MentionAttributor mentionAttributor,
-                                             final PageEmbeddingProvider pageEmbeddings,
-                                             final KgExcludedPagesRepository excludedPages,
-                                             final ExecutorService executor,
-                                             final ExecutorService workerPool,
-                                             final int concurrency,
-                                             final int dictionaryTopK,
-                                             final int maxEntitiesPerPage,
-                                             final int maxRelationsPerPage ) {
-        this( pageExtractor, judge, consolidator, upserter, embeddingService, embeddingRepo,
-              chunkRepo, mentionRepo, kgRepo.nodes(), mentionAttributor, pageEmbeddings, excludedPages,
-              executor, workerPool, concurrency, dictionaryTopK, maxEntitiesPerPage, maxRelationsPerPage );
     }
 
     private static ExecutorService defaultExecutor() {

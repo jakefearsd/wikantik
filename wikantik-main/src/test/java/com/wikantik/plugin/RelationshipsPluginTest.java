@@ -25,7 +25,10 @@ import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -49,8 +52,12 @@ class RelationshipsPluginTest {
         dataSource = PostgresTestContainer.createDataSource();
 
         engine = TestEngine.build( with( "wikantik.cache.enable", "false" ) );
-        final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( dataSource );
-        service = new DefaultKnowledgeGraphService( repo );
+        service = new DefaultKnowledgeGraphService(
+            new KgNodeRepository( dataSource ),
+            new KgEdgeRepository( dataSource ),
+            new KgProposalRepository( dataSource ),
+            new KgRejectionRepository( dataSource ),
+            dataSource );
         engine.setManager( KnowledgeGraphService.class, service );
     }
 

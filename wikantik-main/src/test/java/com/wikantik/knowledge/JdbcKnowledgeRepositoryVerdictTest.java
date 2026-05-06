@@ -35,12 +35,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class JdbcKnowledgeRepositoryVerdictTest {
 
     private DataSource ds;
-    private JdbcKnowledgeRepository repo;
+    private KgProposalRepository repo;
 
     @BeforeEach
     void setUp() throws Exception {
         ds = PostgresTestContainer.createDataSource();
-        repo = new JdbcKnowledgeRepository( ds );
+        repo = new KgProposalRepository( ds );
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( "DELETE FROM kg_proposal_reviews" );
             c.createStatement().execute( "DELETE FROM kg_proposals" );
@@ -124,22 +124,23 @@ class JdbcKnowledgeRepositoryVerdictTest {
     }
 
     @Test
-    void clearAll_truncates_kg_proposal_reviews() {
+    void fkSafeDelete_clears_proposal_reviews_before_proposals() {
         final KgProposal p = repo.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "A", "target", "F", "relationship", "r" ), 0.7, "" );
         repo.recordReview( p.id(), "machine", "gemma", "approved", 0.8, "ok" );
 
-        repo.clearAll();
-
-        // Must not throw FK violation; reviews must be gone.
+        // FK-safe delete order: reviews first, then proposals.
         try ( Connection c = ds.getConnection() ) {
+            c.createStatement().execute( "DELETE FROM kg_proposal_reviews" );
+            c.createStatement().execute( "DELETE FROM kg_proposals" );
+
             try ( var rs = c.createStatement().executeQuery(
                     "SELECT COUNT(*) FROM kg_proposal_reviews" ) ) {
                 rs.next();
                 assertEquals( 0, rs.getInt( 1 ) );
             }
         } catch ( Exception e ) {
-            fail( "clearAll caused exception: " + e.getMessage() );
+            fail( "FK-safe delete caused exception: " + e.getMessage() );
         }
     }
 }

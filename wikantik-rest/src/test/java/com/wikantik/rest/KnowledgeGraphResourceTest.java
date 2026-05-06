@@ -15,7 +15,10 @@ import com.wikantik.auth.SessionMonitor;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.event.WikiSecurityEvent;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -54,8 +57,12 @@ class KnowledgeGraphResourceTest {
         final Properties props = TestEngine.getTestProperties();
         engine = new TestEngine( props );
 
-        final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( dataSource );
-        final DefaultKnowledgeGraphService service = new DefaultKnowledgeGraphService( repo, engine );
+        final DefaultKnowledgeGraphService service = new DefaultKnowledgeGraphService(
+            new KgNodeRepository( dataSource ),
+            new KgEdgeRepository( dataSource ),
+            new KgProposalRepository( dataSource ),
+            new KgRejectionRepository( dataSource ),
+            dataSource, engine );
         engine.setManager( KnowledgeGraphService.class, service );
 
         servlet = new KnowledgeGraphResource();

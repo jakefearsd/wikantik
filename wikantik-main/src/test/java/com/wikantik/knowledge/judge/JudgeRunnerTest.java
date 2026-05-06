@@ -23,7 +23,10 @@ import com.wikantik.api.knowledge.JudgeVerdict;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
 import com.wikantik.api.knowledge.Tier;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,14 +44,20 @@ import static org.mockito.Mockito.*;
 class JudgeRunnerTest {
 
     private DataSource ds;
-    private JdbcKnowledgeRepository repo;
+    private KgNodeRepository kgNodes;
+    private KgEdgeRepository kgEdges;
+    private KgProposalRepository kgProposals;
+    private KgRejectionRepository kgRejections;
     private KgMaterializationService mat;
 
     @BeforeEach
     void setUp() throws Exception {
         ds = PostgresTestContainer.createDataSource();
-        repo = new JdbcKnowledgeRepository( ds );
-        mat = new KgMaterializationService( repo );
+        kgNodes      = new KgNodeRepository( ds );
+        kgEdges      = new KgEdgeRepository( ds );
+        kgProposals  = new KgProposalRepository( ds );
+        kgRejections = new KgRejectionRepository( ds );
+        mat = new KgMaterializationService( kgNodes, kgEdges, kgProposals, kgRejections );
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( "DELETE FROM kg_proposal_reviews" );
             c.createStatement().execute( "DELETE FROM kg_edges" );
@@ -80,18 +89,18 @@ class JudgeRunnerTest {
         when( judge.judge( any() ) ).thenReturn(
             new JudgeVerdict( "approved", 0.9, "ok", "gemma4-assist:latest" ) );
 
-        final KgProposal p = repo.insertProposal( "new-edge", "Page",
+        final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "X", "target", "Y", "relationship", "rel" ),
             0.7, "" );
 
-        final JudgeRunner runner = new JudgeRunner( repo, judge, mat, cfg( 3, 1 ) );
+        final JudgeRunner runner = new JudgeRunner( kgProposals, kgRejections, judge, mat, cfg( 3, 1 ) );
         final int submitted = runner.runOnce();
         assertEquals( 1, submitted );
 
-        assertEquals( "approved", repo.getProposal( p.id() ).machineStatus() );
-        assertEquals( "machine", repo.getProposal( p.id() ).tier() );
-        assertFalse( repo.listReviews( p.id() ).isEmpty() );
-        assertTrue( repo.getAllEdges( Tier.MACHINE ).stream()
+        assertEquals( "approved", kgProposals.getProposal( p.id() ).machineStatus() );
+        assertEquals( "machine", kgProposals.getProposal( p.id() ).tier() );
+        assertFalse( kgProposals.listReviews( p.id() ).isEmpty() );
+        assertTrue( kgEdges.getAllEdges( Tier.MACHINE ).stream()
             .anyMatch( e -> p.id().equals( e.provenanceProposalId() ) ),
             "approved proposal must be materialised" );
     }
@@ -102,13 +111,13 @@ class JudgeRunnerTest {
         when( judge.judge( any() ) ).thenReturn(
             new JudgeVerdict( "rejected", 0.95, "no support", "gemma4-assist:latest" ) );
 
-        repo.insertProposal( "new-edge", "Page",
+        kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "Q", "target", "R", "relationship", "bad_rel" ),
             0.7, "" );
 
-        new JudgeRunner( repo, judge, mat, cfg( 3, 1 ) ).runOnce();
+        new JudgeRunner( kgProposals, kgRejections, judge, mat, cfg( 3, 1 ) ).runOnce();
 
-        assertTrue( repo.isRejected( "Q", "R", "bad_rel" ),
+        assertTrue( kgRejections.isRejected( "Q", "R", "bad_rel" ),
             "hard reject must write kg_rejections" );
     }
 
@@ -118,14 +127,14 @@ class JudgeRunnerTest {
         when( judge.judge( any() ) ).thenReturn(
             new JudgeVerdict( "abstain", 0.0, "judge_unavailable: x", "gemma4-assist:latest" ) );
 
-        final KgProposal p = repo.insertProposal( "new-edge", "Page",
+        final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "X", "target", "Z", "relationship", "rel" ),
             0.7, "" );
         for ( int i = 0; i < 3; i++ ) {
-            repo.recordReview( p.id(), "machine", "gemma", "abstain", 0.0, "boom" );
+            kgProposals.recordReview( p.id(), "machine", "gemma", "abstain", 0.0, "boom" );
         }
 
-        new JudgeRunner( repo, judge, mat, cfg( 3, 1 ) ).runOnce();
+        new JudgeRunner( kgProposals, kgRejections, judge, mat, cfg( 3, 1 ) ).runOnce();
 
         verify( judge, never() ).judge( any() );
     }
@@ -133,7 +142,7 @@ class JudgeRunnerTest {
     @Test
     void runOnce_returns_zero_when_queue_is_empty() {
         final KgProposalJudgeService judge = mock( KgProposalJudgeService.class );
-        final JudgeRunner runner = new JudgeRunner( repo, judge, mat, cfg( 3, 1 ) );
+        final JudgeRunner runner = new JudgeRunner( kgProposals, kgRejections, judge, mat, cfg( 3, 1 ) );
         assertEquals( 0, runner.runOnce() );
         verifyNoInteractions( judge );
     }

@@ -19,7 +19,6 @@
 package com.wikantik.knowledge.extraction;
 
 import com.wikantik.api.knowledge.ConsolidatedProposal;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
 
 /**
@@ -33,12 +32,6 @@ public final class ProposalUpserter {
 
     public ProposalUpserter( final KgProposalRepository proposals ) {
         this.proposals = proposals;
-    }
-
-    /** @deprecated Use {@link #ProposalUpserter(KgProposalRepository)}; kept for test compatibility. */
-    @Deprecated
-    public ProposalUpserter( final JdbcKnowledgeRepository repo ) {
-        this( repo.proposals() );
     }
 
     public Result upsert( final ConsolidatedProposal cp ) {

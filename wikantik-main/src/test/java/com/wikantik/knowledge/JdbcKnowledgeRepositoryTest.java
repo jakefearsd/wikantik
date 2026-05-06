@@ -33,7 +33,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class JdbcKnowledgeRepositoryTest {
 
     private static DataSource dataSource;
-    private JdbcKnowledgeRepository repo;
+    private KgNodeRepository nodes;
+    private KgEdgeRepository edgeRepo;
+    private KgProposalRepository proposals;
+    private KgRejectionRepository rejections;
 
     @BeforeAll
     static void initDataSource() {
@@ -48,14 +51,17 @@ class JdbcKnowledgeRepositoryTest {
             conn.createStatement().execute( "DELETE FROM kg_rejections" );
             conn.createStatement().execute( "DELETE FROM kg_nodes" );
         }
-        repo = new JdbcKnowledgeRepository( dataSource );
+        nodes      = new KgNodeRepository( dataSource );
+        edgeRepo   = new KgEdgeRepository( dataSource );
+        proposals  = new KgProposalRepository( dataSource );
+        rejections = new KgRejectionRepository( dataSource );
     }
 
     // --- Node tests ---
 
     @Test
     void upsertNode_createsNewNode() {
-        final KgNode node = repo.upsertNode( "Order", "domain-model", "Order.md",
+        final KgNode node = nodes.upsertNode( "Order", "domain-model", "Order.md",
                 Provenance.HUMAN_AUTHORED, Map.of( "domain", "billing" ) );
         assertNotNull( node.id() );
         assertEquals( "Order", node.name() );
@@ -67,42 +73,42 @@ class JdbcKnowledgeRepositoryTest {
 
     @Test
     void upsertNode_updatesExistingNode() {
-        repo.upsertNode( "Order", "domain-model", "Order.md",
+        nodes.upsertNode( "Order", "domain-model", "Order.md",
                 Provenance.HUMAN_AUTHORED, Map.of( "domain", "billing" ) );
-        final KgNode updated = repo.upsertNode( "Order", "domain-model", "Order.md",
+        final KgNode updated = nodes.upsertNode( "Order", "domain-model", "Order.md",
                 Provenance.HUMAN_AUTHORED, Map.of( "domain", "shipping" ) );
         assertEquals( "shipping", updated.properties().get( "domain" ) );
     }
 
     @Test
     void getNodeByName_returnsNode() {
-        repo.upsertNode( "Order", "domain-model", "Order.md",
+        nodes.upsertNode( "Order", "domain-model", "Order.md",
                 Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode found = repo.getNodeByName( "Order" );
+        final KgNode found = nodes.getNodeByName( "Order" );
         assertNotNull( found );
         assertEquals( "Order", found.name() );
     }
 
     @Test
     void getNodeByName_returnsNullForMissing() {
-        assertNull( repo.getNodeByName( "NonExistent" ) );
+        assertNull( nodes.getNodeByName( "NonExistent" ) );
     }
 
     @Test
     void deleteNode_removesNode() {
-        final KgNode node = repo.upsertNode( "ToDelete", "test", null,
+        final KgNode node = nodes.upsertNode( "ToDelete", "test", null,
                 Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.deleteNode( node.id() );
-        assertNull( repo.getNodeByName( "ToDelete" ) );
+        nodes.deleteNode( node.id() );
+        assertNull( nodes.getNodeByName( "ToDelete" ) );
     }
 
     // --- Edge tests ---
 
     @Test
     void upsertEdge_createsEdge() {
-        final KgNode a = repo.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode b = repo.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgEdge edge = repo.upsertEdge( a.id(), b.id(), "depends-on",
+        final KgNode a = nodes.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = nodes.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgEdge edge = edgeRepo.upsertEdge( a.id(), b.id(), "depends-on",
                 Provenance.HUMAN_AUTHORED, Map.of() );
         assertNotNull( edge );
         assertEquals( "depends-on", edge.relationshipType() );
@@ -112,35 +118,35 @@ class JdbcKnowledgeRepositoryTest {
 
     @Test
     void getEdgesForNode_outbound() {
-        final KgNode a = repo.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode b = repo.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode c = repo.upsertNode( "C", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( a.id(), b.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( a.id(), c.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        final List< KgEdge > edges = repo.getEdgesForNode( a.id(), "outbound" );
-        assertEquals( 2, edges.size() );
+        final KgNode a = nodes.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = nodes.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode c = nodes.upsertNode( "C", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( a.id(), b.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( a.id(), c.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        final List< KgEdge > found = edgeRepo.getEdgesForNode( a.id(), "outbound" );
+        assertEquals( 2, found.size() );
     }
 
     @Test
     void diffAndRemoveStaleEdges_removesOldEdges() {
-        final KgNode a = repo.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode b = repo.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode c = repo.upsertNode( "C", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( a.id(), b.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( a.id(), c.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.diffAndRemoveStaleEdges( a.id(), Set.of( Map.entry( "B", "depends-on" ) ) );
-        final List< KgEdge > remaining = repo.getEdgesForNode( a.id(), "outbound" );
+        final KgNode a = nodes.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = nodes.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode c = nodes.upsertNode( "C", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( a.id(), b.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( a.id(), c.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.diffAndRemoveStaleEdges( a.id(), Set.of( Map.entry( "B", "depends-on" ) ) );
+        final List< KgEdge > remaining = edgeRepo.getEdgesForNode( a.id(), "outbound" );
         assertEquals( 1, remaining.size() );
         assertEquals( "depends-on", remaining.get( 0 ).relationshipType() );
     }
 
     @Test
     void diffAndRemoveStaleEdges_preservesAiInferredEdges() {
-        final KgNode a = repo.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode b = repo.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( a.id(), b.id(), "inferred-rel", Provenance.AI_INFERRED, Map.of() );
-        repo.diffAndRemoveStaleEdges( a.id(), Set.of() );
-        final List< KgEdge > remaining = repo.getEdgesForNode( a.id(), "outbound" );
+        final KgNode a = nodes.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = nodes.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( a.id(), b.id(), "inferred-rel", Provenance.AI_INFERRED, Map.of() );
+        edgeRepo.diffAndRemoveStaleEdges( a.id(), Set.of() );
+        final List< KgEdge > remaining = edgeRepo.getEdgesForNode( a.id(), "outbound" );
         assertEquals( 1, remaining.size() );
     }
 
@@ -148,7 +154,7 @@ class JdbcKnowledgeRepositoryTest {
 
     @Test
     void insertProposal_createsPendingProposal() {
-        final KgProposal proposal = repo.insertProposal( "new-edge", "Order.md",
+        final KgProposal proposal = proposals.insertProposal( "new-edge", "Order.md",
                 Map.of( "source", "Order", "target", "Customer", "relationship", "depends-on" ),
                 0.85, "Line 47 mentions 'the order references the customer'" );
         assertNotNull( proposal );
@@ -158,10 +164,10 @@ class JdbcKnowledgeRepositoryTest {
 
     @Test
     void updateProposalStatus_approvesProposal() {
-        final KgProposal proposal = repo.insertProposal( "new-edge", "Order.md",
+        final KgProposal proposal = proposals.insertProposal( "new-edge", "Order.md",
                 Map.of(), 0.9, "test" );
-        repo.updateProposalStatus( proposal.id(), "approved", "admin" );
-        final KgProposal updated = repo.getProposal( proposal.id() );
+        proposals.updateProposalStatus( proposal.id(), "approved", "admin" );
+        final KgProposal updated = proposals.getProposal( proposal.id() );
         assertEquals( "approved", updated.status() );
         assertEquals( "admin", updated.reviewedBy() );
         assertNotNull( updated.reviewedAt() );
@@ -169,19 +175,19 @@ class JdbcKnowledgeRepositoryTest {
 
     @Test
     void isRejected_returnsTrueForRejectedRelationship() {
-        repo.insertRejection( "Order", "Inventory", "depends-on", "admin", "Not a real dependency" );
-        assertTrue( repo.isRejected( "Order", "Inventory", "depends-on" ) );
-        assertFalse( repo.isRejected( "Order", "Customer", "depends-on" ) );
+        rejections.insertRejection( "Order", "Inventory", "depends-on", "admin", "Not a real dependency" );
+        assertTrue( rejections.isRejected( "Order", "Inventory", "depends-on" ) );
+        assertFalse( rejections.isRejected( "Order", "Customer", "depends-on" ) );
     }
 
     // --- getNodeNames tests ---
 
     @Test
     void getNodeNames_resolvesUuidsToNames() {
-        final KgNode a = repo.upsertNode( "Alpha", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode b = repo.upsertNode( "Beta", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode c = repo.upsertNode( "Gamma", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final Map< UUID, String > names = repo.getNodeNames( List.of( a.id(), b.id(), c.id() ) );
+        final KgNode a = nodes.upsertNode( "Alpha", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = nodes.upsertNode( "Beta", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode c = nodes.upsertNode( "Gamma", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final Map< UUID, String > names = nodes.getNodeNames( List.of( a.id(), b.id(), c.id() ) );
         assertEquals( 3, names.size() );
         assertEquals( "Alpha", names.get( a.id() ) );
         assertEquals( "Beta", names.get( b.id() ) );
@@ -190,7 +196,7 @@ class JdbcKnowledgeRepositoryTest {
 
     @Test
     void getNodeNames_handlesEmptySet() {
-        final Map< UUID, String > names = repo.getNodeNames( List.of() );
+        final Map< UUID, String > names = nodes.getNodeNames( List.of() );
         assertTrue( names.isEmpty() );
     }
 
@@ -198,30 +204,30 @@ class JdbcKnowledgeRepositoryTest {
 
     @Test
     void queryNodes_filtersByStatus() {
-        repo.upsertNode( "DeployedFeature", "article", "DeployedFeature.md",
+        nodes.upsertNode( "DeployedFeature", "article", "DeployedFeature.md",
                 Provenance.HUMAN_AUTHORED, Map.of( "status", "deployed" ) );
-        repo.upsertNode( "DesignedFeature", "article", "DesignedFeature.md",
+        nodes.upsertNode( "DesignedFeature", "article", "DesignedFeature.md",
                 Provenance.HUMAN_AUTHORED, Map.of( "status", "designed" ) );
-        repo.upsertNode( "ActiveFeature", "article", "ActiveFeature.md",
+        nodes.upsertNode( "ActiveFeature", "article", "ActiveFeature.md",
                 Provenance.HUMAN_AUTHORED, Map.of( "status", "active" ) );
 
         final Map< String, Object > filters = Map.of( "status", "deployed" );
-        final List< KgNode > results = repo.queryNodes( filters, null, 50, 0 );
+        final List< KgNode > results = nodes.queryNodes( filters, null, 50, 0 );
         assertEquals( 1, results.size() );
         assertEquals( "DeployedFeature", results.get( 0 ).name() );
     }
 
     @Test
     void queryNodes_statusFilterCombinesWithTypeFilter() {
-        repo.upsertNode( "A", "article", null,
+        nodes.upsertNode( "A", "article", null,
                 Provenance.HUMAN_AUTHORED, Map.of( "status", "deployed" ) );
-        repo.upsertNode( "B", "hub", null,
+        nodes.upsertNode( "B", "hub", null,
                 Provenance.HUMAN_AUTHORED, Map.of( "status", "deployed" ) );
-        repo.upsertNode( "C", "article", null,
+        nodes.upsertNode( "C", "article", null,
                 Provenance.HUMAN_AUTHORED, Map.of( "status", "designed" ) );
 
         final Map< String, Object > filters = Map.of( "status", "deployed", "node_type", "article" );
-        final List< KgNode > results = repo.queryNodes( filters, null, 50, 0 );
+        final List< KgNode > results = nodes.queryNodes( filters, null, 50, 0 );
         assertEquals( 1, results.size() );
         assertEquals( "A", results.get( 0 ).name() );
     }
@@ -230,49 +236,49 @@ class JdbcKnowledgeRepositoryTest {
 
     @Test
     void queryEdgesWithNames_returnsEdgesWithNodeNames() {
-        final KgNode a = repo.upsertNode( "Customer", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode b = repo.upsertNode( "Order", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( a.id(), b.id(), "has-many", Provenance.HUMAN_AUTHORED, Map.of() );
-        final List< Map< String, Object > > edges = repo.queryEdgesWithNames( null, null, 50, 0 );
-        assertEquals( 1, edges.size() );
-        assertEquals( "Customer", edges.get( 0 ).get( "source_name" ) );
-        assertEquals( "Order", edges.get( 0 ).get( "target_name" ) );
-        assertEquals( "has-many", edges.get( 0 ).get( "relationship_type" ) );
+        final KgNode a = nodes.upsertNode( "Customer", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = nodes.upsertNode( "Order", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( a.id(), b.id(), "has-many", Provenance.HUMAN_AUTHORED, Map.of() );
+        final List< Map< String, Object > > found = edgeRepo.queryEdgesWithNames( null, null, 50, 0 );
+        assertEquals( 1, found.size() );
+        assertEquals( "Customer", found.get( 0 ).get( "source_name" ) );
+        assertEquals( "Order", found.get( 0 ).get( "target_name" ) );
+        assertEquals( "has-many", found.get( 0 ).get( "relationship_type" ) );
     }
 
     @Test
     void queryEdgesWithNames_filtersByRelationshipType() {
-        final KgNode a = repo.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode b = repo.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( a.id(), b.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( a.id(), b.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        final List< Map< String, Object > > filtered = repo.queryEdgesWithNames( "depends-on", null, 50, 0 );
+        final KgNode a = nodes.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = nodes.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( a.id(), b.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( a.id(), b.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        final List< Map< String, Object > > filtered = edgeRepo.queryEdgesWithNames( "depends-on", null, 50, 0 );
         assertEquals( 1, filtered.size() );
         assertEquals( "depends-on", filtered.get( 0 ).get( "relationship_type" ) );
     }
 
     @Test
     void queryEdgesWithNames_searchesByNodeName() {
-        final KgNode a = repo.upsertNode( "Customer", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode b = repo.upsertNode( "Order", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode c = repo.upsertNode( "Inventory", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( a.id(), b.id(), "has-many", Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( b.id(), c.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
-        final List< Map< String, Object > > results = repo.queryEdgesWithNames( null, "cust", 50, 0 );
+        final KgNode a = nodes.upsertNode( "Customer", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = nodes.upsertNode( "Order", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode c = nodes.upsertNode( "Inventory", "domain", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( a.id(), b.id(), "has-many", Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( b.id(), c.id(), "depends-on", Provenance.HUMAN_AUTHORED, Map.of() );
+        final List< Map< String, Object > > results = edgeRepo.queryEdgesWithNames( null, "cust", 50, 0 );
         assertEquals( 1, results.size() );
         assertEquals( "Customer", results.get( 0 ).get( "source_name" ) );
     }
 
     @Test
     void queryEdgesWithNames_paginates() {
-        final KgNode a = repo.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode b = repo.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode c = repo.upsertNode( "C", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( a.id(), b.id(), "r1", Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( a.id(), c.id(), "r2", Provenance.HUMAN_AUTHORED, Map.of() );
-        repo.upsertEdge( b.id(), c.id(), "r3", Provenance.HUMAN_AUTHORED, Map.of() );
-        final List< Map< String, Object > > page1 = repo.queryEdgesWithNames( null, null, 2, 0 );
-        final List< Map< String, Object > > page2 = repo.queryEdgesWithNames( null, null, 2, 2 );
+        final KgNode a = nodes.upsertNode( "A", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = nodes.upsertNode( "B", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode c = nodes.upsertNode( "C", "test", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( a.id(), b.id(), "r1", Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( a.id(), c.id(), "r2", Provenance.HUMAN_AUTHORED, Map.of() );
+        edgeRepo.upsertEdge( b.id(), c.id(), "r3", Provenance.HUMAN_AUTHORED, Map.of() );
+        final List< Map< String, Object > > page1 = edgeRepo.queryEdgesWithNames( null, null, 2, 0 );
+        final List< Map< String, Object > > page2 = edgeRepo.queryEdgesWithNames( null, null, 2, 2 );
         assertEquals( 2, page1.size() );
         assertEquals( 1, page2.size() );
     }

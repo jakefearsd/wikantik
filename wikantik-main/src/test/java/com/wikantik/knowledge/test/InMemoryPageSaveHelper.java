@@ -21,13 +21,14 @@ package com.wikantik.knowledge.test;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.knowledge.Provenance;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
 
 import java.util.*;
 
 /**
  * Test fake that stores the written markdown in an {@link InMemoryPageManager} and
- * projects frontmatter directly into {@link JdbcKnowledgeRepository}, mirroring
+ * projects frontmatter directly into the narrow KG repositories, mirroring
  * production's save-time behaviour (without the retired GraphProjector projection).
  * Lets accept-path tests verify both the written page and the resulting
  * kg_nodes/kg_edges rows without spinning up a full engine.
@@ -35,12 +36,15 @@ import java.util.*;
 public class InMemoryPageSaveHelper {
 
     private final InMemoryPageManager pages;
-    private final JdbcKnowledgeRepository kgRepo;
+    private final KgNodeRepository kgNodes;
+    private final KgEdgeRepository kgEdges;
 
     public InMemoryPageSaveHelper( final InMemoryPageManager pages,
-                                    final JdbcKnowledgeRepository kgRepo ) {
-        this.pages = pages;
-        this.kgRepo = kgRepo;
+                                    final KgNodeRepository kgNodes,
+                                    final KgEdgeRepository kgEdges ) {
+        this.pages   = pages;
+        this.kgNodes = kgNodes;
+        this.kgEdges = kgEdges;
     }
 
     public void saveText( final String pageName, final String text ) {
@@ -53,14 +57,14 @@ public class InMemoryPageSaveHelper {
         for ( final var e : fm.entrySet() ) {
             if ( !( e.getValue() instanceof List ) ) props.put( e.getKey(), e.getValue() );
         }
-        final var node = kgRepo.upsertNode( pageName, type, pageName, Provenance.HUMAN_AUTHORED, props );
+        final var node = kgNodes.upsertNode( pageName, type, pageName, Provenance.HUMAN_AUTHORED, props );
         final Object related = fm.get( "related" );
         if ( related instanceof List< ? > list ) {
             for ( final Object raw : list ) {
                 final String target = String.valueOf( raw );
-                final var targetNode = kgRepo.upsertNode( target, "article", target,
+                final var targetNode = kgNodes.upsertNode( target, "article", target,
                     Provenance.HUMAN_AUTHORED, Map.of() );
-                kgRepo.upsertEdge( node.id(), targetNode.id(), "related",
+                kgEdges.upsertEdge( node.id(), targetNode.id(), "related",
                     Provenance.HUMAN_AUTHORED, Map.of() );
             }
         }

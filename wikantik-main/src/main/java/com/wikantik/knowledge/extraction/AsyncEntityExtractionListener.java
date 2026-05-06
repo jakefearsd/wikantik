@@ -26,7 +26,6 @@ import com.wikantik.api.knowledge.ExtractionResult;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.ProposedEdge;
 import com.wikantik.api.knowledge.ProposedNode;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
 import com.wikantik.knowledge.KgRejectionRepository;
@@ -196,49 +195,6 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
             .description( "End-to-end extraction latency for one page save batch" )
             .tag( "extractor", code )
             .register( meterRegistry );
-    }
-
-    // ---- Bridge constructors for test compatibility ----
-
-    /** @deprecated Use the narrow-repo constructor; kept for test compatibility. */
-    @Deprecated
-    public AsyncEntityExtractionListener( final EntityExtractor extractor,
-                                          final EntityExtractorConfig config,
-                                          final ContentChunkRepository chunkRepository,
-                                          final ChunkEntityMentionRepository mentionRepository,
-                                          final JdbcKnowledgeRepository knowledgeRepository,
-                                          final MeterRegistry meterRegistry ) {
-        this( extractor, config, chunkRepository, mentionRepository,
-              knowledgeRepository.nodes(), knowledgeRepository.proposals(), knowledgeRepository.rejections(),
-              meterRegistry, defaultExecutor(), true, null );
-    }
-
-    /** @deprecated Use the narrow-repo constructor; kept for test compatibility. */
-    @Deprecated
-    public AsyncEntityExtractionListener( final EntityExtractor extractor,
-                                          final EntityExtractorConfig config,
-                                          final ContentChunkRepository chunkRepository,
-                                          final ChunkEntityMentionRepository mentionRepository,
-                                          final JdbcKnowledgeRepository knowledgeRepository,
-                                          final MeterRegistry meterRegistry,
-                                          final ExecutorService executor ) {
-        this( extractor, config, chunkRepository, mentionRepository,
-              knowledgeRepository.nodes(), knowledgeRepository.proposals(), knowledgeRepository.rejections(),
-              meterRegistry, executor, false, null );
-    }
-
-    /** @deprecated Use the narrow-repo constructor; kept for test compatibility. */
-    @Deprecated
-    public AsyncEntityExtractionListener( final EntityExtractor extractor,
-                                          final EntityExtractorConfig config,
-                                          final ContentChunkRepository chunkRepository,
-                                          final ChunkEntityMentionRepository mentionRepository,
-                                          final JdbcKnowledgeRepository knowledgeRepository,
-                                          final MeterRegistry meterRegistry,
-                                          final KgExcludedPagesRepository excludedPages ) {
-        this( extractor, config, chunkRepository, mentionRepository,
-              knowledgeRepository.nodes(), knowledgeRepository.proposals(), knowledgeRepository.rejections(),
-              meterRegistry, defaultExecutor(), true, excludedPages );
     }
 
     private static ExecutorService defaultExecutor() {

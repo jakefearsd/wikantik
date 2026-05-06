@@ -33,7 +33,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
- * Verifies that JdbcKnowledgeRepository translates "Data source is closed"
+ * Verifies that KgProposalRepository translates "Data source is closed"
  * SQLExceptions into PoolClosedException (not plain RuntimeException) so that
  * callers can distinguish graceful-shutdown noise from real errors.
  *
@@ -50,7 +50,7 @@ class JdbcKnowledgeRepositoryPoolClosedTest {
 
     @Test
     void applyMachineVerdict_throwsPoolClosedException_whenDataSourceIsClosed() throws Exception {
-        final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( mockClosedDataSource() );
+        final KgProposalRepository repo = new KgProposalRepository( mockClosedDataSource() );
         final UUID id = UUID.randomUUID();
 
         final RuntimeException ex = assertThrows( RuntimeException.class,
@@ -62,7 +62,7 @@ class JdbcKnowledgeRepositoryPoolClosedTest {
 
     @Test
     void recordReview_throwsPoolClosedException_whenDataSourceIsClosed() throws Exception {
-        final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( mockClosedDataSource() );
+        final KgProposalRepository repo = new KgProposalRepository( mockClosedDataSource() );
         final UUID id = UUID.randomUUID();
 
         final RuntimeException ex = assertThrows( RuntimeException.class,
@@ -74,7 +74,7 @@ class JdbcKnowledgeRepositoryPoolClosedTest {
 
     @Test
     void listReviews_throwsPoolClosedException_whenDataSourceIsClosed() throws Exception {
-        final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( mockClosedDataSource() );
+        final KgProposalRepository repo = new KgProposalRepository( mockClosedDataSource() );
         final UUID id = UUID.randomUUID();
 
         final RuntimeException ex = assertThrows( RuntimeException.class,
@@ -86,7 +86,7 @@ class JdbcKnowledgeRepositoryPoolClosedTest {
 
     @Test
     void getProposalsForJudging_throwsPoolClosedException_whenDataSourceIsClosed() throws Exception {
-        final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( mockClosedDataSource() );
+        final KgProposalRepository repo = new KgProposalRepository( mockClosedDataSource() );
 
         final RuntimeException ex = assertThrows( RuntimeException.class,
             () -> repo.getProposalsForJudging( 10 ) );

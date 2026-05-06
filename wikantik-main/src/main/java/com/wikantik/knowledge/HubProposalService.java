@@ -85,11 +85,6 @@ public class HubProposalService {
         public Builder kgEdges( final KgEdgeRepository kgEdges ) {
             this.kgEdges = kgEdges; return this;
         }
-        /** @deprecated Use {@link #kgNodes} + {@link #kgEdges}; kept for test compatibility. */
-        @Deprecated
-        public Builder kgRepo( final JdbcKnowledgeRepository repo ) {
-            this.kgNodes = repo.nodes(); this.kgEdges = repo.edges(); return this;
-        }
         public Builder proposalRepo( final HubProposalRepository proposalRepo ) {
             this.proposalRepo = proposalRepo; return this;
         }

@@ -20,6 +20,8 @@ package com.wikantik.knowledge;
 
 import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.Provenance;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,7 +42,8 @@ class HubDiscoveryServiceTest {
     private static final String MODEL = "test-model";
 
     private static DataSource dataSource;
-    private JdbcKnowledgeRepository kgRepo;
+    private KgNodeRepository kgNodes;
+    private KgEdgeRepository kgEdges;
     private HubDiscoveryRepository discoveryRepo;
     private NodeMentionSimilarity similarity;
 
@@ -63,7 +66,8 @@ class HubDiscoveryServiceTest {
             conn.createStatement().execute( "DELETE FROM kg_rejections" );
             conn.createStatement().execute( "DELETE FROM kg_nodes" );
         }
-        kgRepo = new JdbcKnowledgeRepository( dataSource );
+        kgNodes      = new KgNodeRepository( dataSource );
+        kgEdges      = new KgEdgeRepository( dataSource );
         discoveryRepo = new HubDiscoveryRepository( dataSource );
         similarity = new NodeMentionSimilarity( dataSource, MODEL );
     }
@@ -93,26 +97,26 @@ class HubDiscoveryServiceTest {
     @Test
     void generateClusterProposals_findsClusterOfNonMembers() {
         // Existing TechHub with 2 members (Java, Python).
-        final var techHub = kgRepo.upsertNode( "TechHub", "hub", "TechHub",
+        final var techHub = kgNodes.upsertNode( "TechHub", "hub", "TechHub",
             Provenance.HUMAN_AUTHORED, Map.of( "type", "hub" ) );
         for ( final String name : TECH_MEMBERS.keySet() ) {
-            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+            kgNodes.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
         }
-        kgRepo.upsertEdge( techHub.id(),
-            kgRepo.upsertNode( "Java", "article", "Java", Provenance.HUMAN_AUTHORED, Map.of() ).id(),
+        kgEdges.upsertEdge( techHub.id(),
+            kgNodes.upsertNode( "Java", "article", "Java", Provenance.HUMAN_AUTHORED, Map.of() ).id(),
             "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertEdge( techHub.id(),
-            kgRepo.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() ).id(),
+        kgEdges.upsertEdge( techHub.id(),
+            kgNodes.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() ).id(),
             "related", Provenance.HUMAN_AUTHORED, Map.of() );
 
         // Non-members: 3 cooking, 3 sports, and one outlier.
         for ( final String name : COOKING.keySet() ) {
-            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+            kgNodes.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
         }
         for ( final String name : SPORTS.keySet() ) {
-            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+            kgNodes.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
         }
-        kgRepo.upsertNode( "Miscellaneous", "article", "Miscellaneous",
+        kgNodes.upsertNode( "Miscellaneous", "article", "Miscellaneous",
             Provenance.HUMAN_AUTHORED, Map.of() );
 
         MentionFixtures.seedAllByName( dataSource, MODEL, COOKING );
@@ -121,7 +125,8 @@ class HubDiscoveryServiceTest {
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Miscellaneous", OUTLIER_VEC );
 
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .discoveryRepo( discoveryRepo )
             .similarity( similarity )
             .minClusterSize( 3 )
@@ -151,12 +156,13 @@ class HubDiscoveryServiceTest {
 
     @Test
     void generateClusterProposals_emptyCorpus_noProposals() {
-        kgRepo.upsertNode( "Nothing", "article", "Nothing", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgNodes.upsertNode( "Nothing", "article", "Nothing", Provenance.HUMAN_AUTHORED, Map.of() );
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Nothing",
             new float[]{ 0f, 0f, 0f, 0f, 0f, 0f, 0f, 1f } );
 
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .discoveryRepo( discoveryRepo )
             .similarity( similarity )
             .minClusterSize( 3 )
@@ -172,14 +178,15 @@ class HubDiscoveryServiceTest {
     void generateClusterProposals_tinyCorpus_noProposals() {
         // Three article pages — below the default minCandidatePool=6.
         for ( final String name : new String[]{ "A", "B", "C" } ) {
-            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+            kgNodes.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
         }
         MentionFixtures.seedMentionByName( dataSource, MODEL, "A", new float[]{ 1f, 0f, 0f, 0f, 0f, 0f, 0f, 0f } );
         MentionFixtures.seedMentionByName( dataSource, MODEL, "B", new float[]{ 0f, 1f, 0f, 0f, 0f, 0f, 0f, 0f } );
         MentionFixtures.seedMentionByName( dataSource, MODEL, "C", new float[]{ 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f } );
 
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .discoveryRepo( discoveryRepo )
             .similarity( similarity )
             .minClusterSize( 3 )
@@ -195,13 +202,14 @@ class HubDiscoveryServiceTest {
     void generateClusterProposals_exemplarIsClosestToCentroid() {
         for ( final String name : new String[]{ "Baking", "Roasting", "Grilling",
                                                  "Soccer", "Basketball", "Tennis" } ) {
-            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+            kgNodes.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
         }
         MentionFixtures.seedAllByName( dataSource, MODEL, COOKING );
         MentionFixtures.seedAllByName( dataSource, MODEL, SPORTS );
 
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .discoveryRepo( discoveryRepo )
             .similarity( similarity )
             .minClusterSize( 3 )
@@ -223,7 +231,7 @@ class HubDiscoveryServiceTest {
     void acceptProposal_createsStubPageAndEdges() throws Exception {
         final String[] members = { "Java", "Kotlin", "Scala" };
         for ( final String name : members ) {
-            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+            kgNodes.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
         }
 
         final com.wikantik.knowledge.test.InMemoryPageManager pages =
@@ -232,9 +240,10 @@ class HubDiscoveryServiceTest {
             pages.putText( name, "# " + name );
         }
         final com.wikantik.knowledge.test.InMemoryPageSaveHelper helper =
-            new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+            new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgNodes, kgEdges );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .discoveryRepo( discoveryRepo )
             .similarity( similarity )
             .minClusterSize( 3 )
@@ -261,7 +270,7 @@ class HubDiscoveryServiceTest {
         assertTrue( written.contains( "- [Java](Java)" ) );
 
         assertNull( discoveryRepo.findById( id ), "Proposal row must be deleted on accept" );
-        final var hubNode = kgRepo.queryNodes( Map.of( "name", "JavaHub" ), null, 1, 0 );
+        final var hubNode = kgNodes.queryNodes( Map.of( "name", "JavaHub" ), null, 1, 0 );
         assertEquals( 1, hubNode.size() );
         assertEquals( "hub", hubNode.get( 0 ).nodeType() );
     }
@@ -271,9 +280,10 @@ class HubDiscoveryServiceTest {
         final com.wikantik.knowledge.test.InMemoryPageManager pages =
             new com.wikantik.knowledge.test.InMemoryPageManager();
         pages.putText( "JavaHub", "existing content" );
-        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgNodes, kgEdges );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .discoveryRepo( discoveryRepo )
             .similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
@@ -284,7 +294,7 @@ class HubDiscoveryServiceTest {
         final int id = discoveryRepo.insert( "JavaHub", "Java",
             List.of( "Java", "Kotlin", "Scala" ), 0.9 );
         for ( final String m : List.of( "Java", "Kotlin", "Scala" ) ) {
-            kgRepo.upsertNode( m, "article", m, Provenance.HUMAN_AUTHORED, Map.of() );
+            kgNodes.upsertNode( m, "article", m, Provenance.HUMAN_AUTHORED, Map.of() );
         }
 
         assertThrows( HubNameCollisionException.class, () ->
@@ -297,9 +307,10 @@ class HubDiscoveryServiceTest {
     @Test
     void acceptProposal_memberNotInProposal_throwsIllegalArgument() {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
-        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgNodes, kgEdges );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .discoveryRepo( discoveryRepo )
             .similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
@@ -321,16 +332,17 @@ class HubDiscoveryServiceTest {
     void acceptProposal_missingMemberPagesDropped() throws Exception {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
         for ( final String m : List.of( "Java", "Kotlin" ) ) {
-            kgRepo.upsertNode( m, "article", m, Provenance.HUMAN_AUTHORED, Map.of() );
+            kgNodes.upsertNode( m, "article", m, Provenance.HUMAN_AUTHORED, Map.of() );
         }
-        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgNodes, kgEdges );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .discoveryRepo( discoveryRepo )
             .similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
             .pageWriter( helper::saveText )
-            .pageExists( name -> kgRepo.queryNodes( Map.of( "name", name ), null, 1, 0 ).size() > 0 )
+            .pageExists( name -> kgNodes.queryNodes( Map.of( "name", name ), null, 1, 0 ).size() > 0 )
             .build();
 
         final int id = discoveryRepo.insert( "JavaHub", "Java",
@@ -345,9 +357,10 @@ class HubDiscoveryServiceTest {
     @Test
     void acceptProposal_allMembersMissing_throws() {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
-        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgNodes, kgEdges );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).similarity( similarity )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges ).discoveryRepo( discoveryRepo ).similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
             .pageWriter( helper::saveText )
             .pageExists( name -> false )
@@ -364,9 +377,10 @@ class HubDiscoveryServiceTest {
     @Test
     void dismissProposal_marksRowDismissedInsteadOfDeleting() {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
-        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgNodes, kgEdges );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).similarity( similarity )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges ).discoveryRepo( discoveryRepo ).similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
             .pageWriter( helper::saveText )
             .pageExists( name -> false )
@@ -388,9 +402,10 @@ class HubDiscoveryServiceTest {
     @Test
     void dismissProposal_twice_throwsOnSecondCall() {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
-        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgNodes, kgEdges );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).similarity( similarity )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges ).discoveryRepo( discoveryRepo ).similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
             .pageWriter( helper::saveText )
             .pageExists( name -> false )
@@ -412,14 +427,15 @@ class HubDiscoveryServiceTest {
 
         for ( final String name : new String[]{ "Baking", "Roasting", "Grilling",
                                                  "Soccer", "Basketball", "Tennis", "Miscellaneous" } ) {
-            kgRepo.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
+            kgNodes.upsertNode( name, "article", name, Provenance.HUMAN_AUTHORED, Map.of() );
         }
         MentionFixtures.seedAllByName( dataSource, MODEL, COOKING );
         MentionFixtures.seedAllByName( dataSource, MODEL, SPORTS );
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Miscellaneous", OUTLIER_VEC );
 
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .discoveryRepo( discoveryRepo )
             .similarity( similarity )
             .minClusterSize( 3 )
@@ -441,9 +457,10 @@ class HubDiscoveryServiceTest {
     @Test
     void dismissProposal_missingId_throws() {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
-        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgNodes, kgEdges );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).similarity( similarity )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges ).discoveryRepo( discoveryRepo ).similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
             .pageWriter( helper::saveText )
             .pageExists( name -> false )
@@ -456,9 +473,10 @@ class HubDiscoveryServiceTest {
     @Test
     void acceptProposal_missingId_throws() {
         final var pages = new com.wikantik.knowledge.test.InMemoryPageManager();
-        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgRepo );
+        final var helper = new com.wikantik.knowledge.test.InMemoryPageSaveHelper( pages, kgNodes, kgEdges );
         final HubDiscoveryService service = HubDiscoveryService.builder()
-            .kgRepo( kgRepo ).discoveryRepo( discoveryRepo ).similarity( similarity )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges ).discoveryRepo( discoveryRepo ).similarity( similarity )
             .minClusterSize( 3 ).minPts( 3 ).minCandidatePool( 3 )
             .pageWriter( helper::saveText )
             .pageExists( name -> false )

@@ -111,42 +111,6 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         this.judgeService = judgeService;
     }
 
-    // --- Bridge constructors for test compatibility (use narrow repos internally) ---
-
-    /** @deprecated Use the narrow-repo constructor; kept for test/integration compatibility. */
-    @Deprecated
-    public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo ) {
-        this( repo.nodes(), repo.edges(), repo.proposals(), repo.rejections(), repo.dataSource(),
-              null, null, null, null );
-    }
-
-    /** @deprecated Use the narrow-repo constructor; kept for test/integration compatibility. */
-    @Deprecated
-    public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo, final Engine engine ) {
-        this( repo.nodes(), repo.edges(), repo.proposals(), repo.rejections(), repo.dataSource(),
-              engine, null, null, null );
-    }
-
-    /** @deprecated Use the narrow-repo constructor; kept for test/integration compatibility. */
-    @Deprecated
-    public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo,
-                                          final Engine engine,
-                                          final MentionIndex mentionIndex ) {
-        this( repo.nodes(), repo.edges(), repo.proposals(), repo.rejections(), repo.dataSource(),
-              engine, mentionIndex, null, null );
-    }
-
-    /** @deprecated Use the narrow-repo constructor; kept for test/integration compatibility. */
-    @Deprecated
-    public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo,
-                                          final Engine engine,
-                                          final MentionIndex mentionIndex,
-                                          final com.wikantik.knowledge.judge.KgMaterializationService materialization,
-                                          final com.wikantik.api.knowledge.KgProposalJudgeService judgeService ) {
-        this( repo.nodes(), repo.edges(), repo.proposals(), repo.rejections(), repo.dataSource(),
-              engine, mentionIndex, materialization, judgeService );
-    }
-
     public void setEngine( final Engine engine ) {
         this.engine = engine;
     }

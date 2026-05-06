@@ -34,7 +34,7 @@ import java.util.*;
 /**
  * JDBC repository for {@code kg_edges} table operations.
  *
- * <p>Extracted from {@link JdbcKnowledgeRepository} in Phase 3 Checkpoint 3 of the
+ * <p>Extracted from the former JdbcKnowledgeRepository facade in Phase 3 Checkpoint 3 of the
  * wikantik-main subsystem decomposition. SQL strings are verbatim copies; no behaviour
  * change is introduced.</p>
  *

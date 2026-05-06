@@ -39,12 +39,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class JdbcKnowledgeRepositorySearchTierTest {
 
     private DataSource ds;
-    private JdbcKnowledgeRepository repo;
+    private KgNodeRepository repo;
 
     @BeforeEach
     void setUp() throws Exception {
         ds = PostgresTestContainer.createDataSource();
-        repo = new JdbcKnowledgeRepository( ds );
+        repo = new KgNodeRepository( ds );
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( "DELETE FROM kg_edges" );
             c.createStatement().execute( "DELETE FROM kg_nodes" );

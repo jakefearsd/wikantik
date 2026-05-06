@@ -20,7 +20,8 @@ package com.wikantik.knowledge.extraction;
 
 import com.sun.net.httpserver.HttpServer;
 import com.wikantik.PostgresTestContainer;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository;
 
@@ -110,7 +111,8 @@ abstract class PageExtractionPgTestBase {
         final OllamaPageExtractor extractor = new OllamaPageExtractor(
             HttpClient.newHttpClient(), fakeOllamaBaseUrl, "ollama-test:latest", 60_000L,
             new PageExtractionResponseParser( new EvidenceGroundingVerifier(), 12, 8 ) );
-        final JdbcKnowledgeRepository kgRepo = new JdbcKnowledgeRepository( ds );
+        final KgNodeRepository kgNodes         = new KgNodeRepository( ds );
+        final KgProposalRepository kgProposals = new KgProposalRepository( ds );
         // Filter to just the IT pages so the indexer doesn't walk the whole
         // live corpus (928 pages on the dev machine) — the indexer takes
         // listDistinctPageNames at face value, so wrapping the repo is the
@@ -128,9 +130,9 @@ abstract class PageExtractionPgTestBase {
         final KgNodeEmbeddingRepository embRepo = new KgNodeEmbeddingRepository( ds );
         return new BootstrapEntityExtractionIndexer(
             extractor, new NoOpProposalJudge(), new ProposalConsolidator(),
-            new ProposalUpserter( kgRepo ),
+            new ProposalUpserter( kgProposals ),
             /*embeddingService*/ null, embRepo,
-            chunkRepo, mentionRepo, kgRepo, new MentionAttributor(),
+            chunkRepo, mentionRepo, kgNodes, new MentionAttributor(),
             PageEmbeddingProvider.EMPTY, /*excludedPages*/ null,
             /*concurrency*/ 1, /*dictionaryTopK*/ 0,
             /*maxEntitiesPerPage*/ 12, /*maxRelationsPerPage*/ 8 );

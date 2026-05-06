@@ -27,7 +27,9 @@ import com.wikantik.api.knowledge.ExtractionResult;
 import com.wikantik.api.knowledge.ProposedEdge;
 import com.wikantik.api.knowledge.ProposedNode;
 import com.wikantik.api.knowledge.Provenance;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeAll;
@@ -63,7 +65,9 @@ class AsyncEntityExtractionListenerIT {
 
     private static DataSource dataSource;
 
-    private JdbcKnowledgeRepository kgRepo;
+    private KgNodeRepository kgNodes;
+    private KgProposalRepository kgProposals;
+    private KgRejectionRepository kgRejections;
     private ContentChunkRepository chunkRepo;
     private ChunkEntityMentionRepository mentionRepo;
     private EntityExtractorConfig config;
@@ -81,7 +85,9 @@ class AsyncEntityExtractionListenerIT {
                + "kg_rejections, kg_proposals, kg_edges, kg_nodes CASCADE" ) ) {
             ps.executeUpdate();
         }
-        kgRepo = new JdbcKnowledgeRepository( dataSource );
+        kgNodes      = new KgNodeRepository( dataSource );
+        kgProposals  = new KgProposalRepository( dataSource );
+        kgRejections = new KgRejectionRepository( dataSource );
         chunkRepo = new ContentChunkRepository( dataSource );
         mentionRepo = new ChunkEntityMentionRepository( dataSource );
 
@@ -94,7 +100,7 @@ class AsyncEntityExtractionListenerIT {
 
     @Test
     void writesMentionsForKnownNodesAndFilesProposalsForUnknowns() throws Exception {
-        final UUID napoleonId = kgRepo.upsertNode(
+        final UUID napoleonId = kgNodes.upsertNode(
             "Napoleon", "Person", "History", Provenance.HUMAN_AUTHORED, Map.of() ).id();
         final UUID chunkId = seedChunk( "HistoryPage", 0, "chunk text" );
 
@@ -124,8 +130,8 @@ class AsyncEntityExtractionListenerIT {
 
     @Test
     void honoursRejectionListForEdgeProposals() throws Exception {
-        kgRepo.upsertNode( "Napoleon", "Person", "History", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.insertRejection( "Napoleon", "Waterloo", "fought_at", "admin", "not-relevant" );
+        kgNodes.upsertNode( "Napoleon", "Person", "History", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgRejections.insertRejection( "Napoleon", "Waterloo", "fought_at", "admin", "not-relevant" );
 
         final UUID chunkId = seedChunk( "HistoryPage", 0, "text" );
         final CapturingExtractor extractor = new CapturingExtractor( r -> new ExtractionResult(
@@ -192,7 +198,7 @@ class AsyncEntityExtractionListenerIT {
                                                                  final EntityExtractorConfig cfg ) {
         // Listener-owned executor: close() drains it before the test inspects tables.
         return new AsyncEntityExtractionListener(
-            extractor, cfg, chunkRepo, mentionRepo, kgRepo, new SimpleMeterRegistry() );
+            extractor, cfg, chunkRepo, mentionRepo, kgNodes, kgProposals, kgRejections, new SimpleMeterRegistry() );
     }
 
     private UUID seedChunk( final String page, final int index, final String text ) throws Exception {

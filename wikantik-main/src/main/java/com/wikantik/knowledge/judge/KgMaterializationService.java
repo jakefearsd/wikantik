@@ -57,12 +57,6 @@ public class KgMaterializationService {
         this.rejections = Objects.requireNonNull( rejections, "rejections" );
     }
 
-    /** @deprecated Use the narrow-repo constructor; kept for test/integration compatibility. */
-    @Deprecated
-    public KgMaterializationService( final com.wikantik.knowledge.JdbcKnowledgeRepository repo ) {
-        this( repo.nodes(), repo.edges(), repo.proposals(), repo.rejections() );
-    }
-
     /** Materialise the proposal at tier='machine'. Currently handles proposalType='new-edge'. */
     public void materializeMachine( final KgProposal proposal ) {
         materialize( proposal, "machine" );

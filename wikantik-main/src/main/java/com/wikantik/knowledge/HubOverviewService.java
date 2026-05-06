@@ -694,11 +694,6 @@ public class HubOverviewService {
 
         public Builder kgNodes( final KgNodeRepository v ) { this.kgNodes = v; return this; }
         public Builder kgEdges( final KgEdgeRepository v ) { this.kgEdges = v; return this; }
-        /** @deprecated Use {@link #kgNodes} + {@link #kgEdges}; kept for test compatibility. */
-        @Deprecated
-        public Builder kgRepo( final JdbcKnowledgeRepository repo ) {
-            this.kgNodes = repo.nodes(); this.kgEdges = repo.edges(); return this;
-        }
         public Builder similarity( final NodeMentionSimilarity v ) { this.similarity = v; return this; }
         public Builder pageManager( final PageManager v ) { this.pageManager = v; return this; }
         public Builder pageWriter( final HubDiscoveryService.PageWriter v ) { this.pageWriter = v; return this; }

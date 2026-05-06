@@ -39,12 +39,14 @@ import static org.junit.jupiter.api.Assertions.*;
 class JdbcKnowledgeRepositoryTierReadsTest {
 
     private DataSource ds;
-    private JdbcKnowledgeRepository repo;
+    private KgNodeRepository nodes;
+    private KgEdgeRepository edgeRepo;
 
     @BeforeEach
     void setUp() throws Exception {
         ds = PostgresTestContainer.createDataSource();
-        repo = new JdbcKnowledgeRepository( ds );
+        nodes    = new KgNodeRepository( ds );
+        edgeRepo = new KgEdgeRepository( ds );
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( "DELETE FROM kg_edges" );
             c.createStatement().execute( "DELETE FROM kg_nodes" );
@@ -70,19 +72,19 @@ class JdbcKnowledgeRepositoryTierReadsTest {
                 "VALUES ('Machine', 'concept', null, 'human-authored', '{}'::jsonb, 'machine', NOW())" );
         }
 
-        final List< KgNode > humanOnly = repo.getAllNodes( Tier.HUMAN );
+        final List< KgNode > humanOnly = nodes.getAllNodes( Tier.HUMAN );
         assertTrue( humanOnly.stream().anyMatch( n -> n.name().equals( "Human" ) ) );
         assertFalse( humanOnly.stream().anyMatch( n -> n.name().equals( "Machine" ) ) );
 
-        final List< KgNode > both = repo.getAllNodes( Tier.MACHINE );
+        final List< KgNode > both = nodes.getAllNodes( Tier.MACHINE );
         assertTrue( both.stream().anyMatch( n -> n.name().equals( "Human" ) ) );
         assertTrue( both.stream().anyMatch( n -> n.name().equals( "Machine" ) ) );
     }
 
     @Test
     void getAllEdges_filters_by_tier() throws Exception {
-        final KgNode a = repo.upsertNode( "A", "concept", null, Provenance.HUMAN_AUTHORED, Map.of() );
-        final KgNode b = repo.upsertNode( "B", "concept", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode a = nodes.upsertNode( "A", "concept", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode b = nodes.upsertNode( "B", "concept", null, Provenance.HUMAN_AUTHORED, Map.of() );
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( String.format(
                 "INSERT INTO kg_edges (source_id, target_id, relationship_type, provenance, properties, tier, modified) " +
@@ -94,11 +96,11 @@ class JdbcKnowledgeRepositoryTierReadsTest {
                 a.id(), b.id() ) );
         }
 
-        final List< KgEdge > humanOnly = repo.getAllEdges( Tier.HUMAN );
+        final List< KgEdge > humanOnly = edgeRepo.getAllEdges( Tier.HUMAN );
         assertTrue( humanOnly.stream().anyMatch( e -> e.relationshipType().equals( "human-rel" ) ) );
         assertFalse( humanOnly.stream().anyMatch( e -> e.relationshipType().equals( "machine-rel" ) ) );
 
-        final List< KgEdge > both = repo.getAllEdges( Tier.MACHINE );
+        final List< KgEdge > both = edgeRepo.getAllEdges( Tier.MACHINE );
         assertTrue( both.stream().anyMatch( e -> e.relationshipType().equals( "human-rel" ) ) );
         assertTrue( both.stream().anyMatch( e -> e.relationshipType().equals( "machine-rel" ) ) );
     }

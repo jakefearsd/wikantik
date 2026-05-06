@@ -20,7 +20,7 @@ package com.wikantik.kgpolicy;
 
 import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.Provenance;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class KgInclusionFilterIntegrationTest {
 
     private static DataSource dataSource;
-    private JdbcKnowledgeRepository repo;
+    private KgNodeRepository repo;
 
     @BeforeAll
     static void initDataSource() {
@@ -61,7 +61,7 @@ class KgInclusionFilterIntegrationTest {
             conn.createStatement().execute( "DELETE FROM kg_rejections" );
             conn.createStatement().execute( "DELETE FROM kg_nodes" );
         }
-        repo = new JdbcKnowledgeRepository( dataSource );
+        repo = new KgNodeRepository( dataSource );
     }
 
     /**

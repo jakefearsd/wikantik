@@ -485,11 +485,6 @@ public class HubDiscoveryService {
         public Builder kgEdges( final KgEdgeRepository kgEdges ) {
             this.kgEdges = kgEdges; return this;
         }
-        /** @deprecated Use {@link #kgNodes} + {@link #kgEdges}; kept for test compatibility. */
-        @Deprecated
-        public Builder kgRepo( final JdbcKnowledgeRepository repo ) {
-            this.kgNodes = repo.nodes(); this.kgEdges = repo.edges(); return this;
-        }
         public Builder discoveryRepo( final HubDiscoveryRepository discoveryRepo ) {
             this.discoveryRepo = discoveryRepo; return this;
         }

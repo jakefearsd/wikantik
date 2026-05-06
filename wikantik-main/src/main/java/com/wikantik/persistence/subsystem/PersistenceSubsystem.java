@@ -21,7 +21,6 @@ package com.wikantik.persistence.subsystem;
 import com.wikantik.core.subsystem.WikiProperties;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubProposalRepository;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.KgEdgeRepository;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
@@ -50,11 +49,10 @@ import javax.sql.DataSource;
  * retrieval quality) consume narrow repository references off
  * {@link Services} instead of building their own.</p>
  *
- * <p>Phase 3 Checkpoint 1 keeps {@link JdbcKnowledgeRepository} as a single
- * field; Checkpoint 3 decomposes it into the four narrow repositories
- * ({@code KgNodeRepository}, {@code KgEdgeRepository},
- * {@code KgProposalRepository}, {@code KgRejectionRepository}) and Checkpoint
- * 5 deletes the facade.</p>
+ * <p>Phase 3 Checkpoint 5 deleted the {@code JdbcKnowledgeRepository} facade;
+ * the four narrow repositories ({@code KgNodeRepository}, {@code KgEdgeRepository},
+ * {@code KgProposalRepository}, {@code KgRejectionRepository}) are the only
+ * KG persistence handles.</p>
  */
 public final class PersistenceSubsystem {
 
@@ -80,14 +78,11 @@ public final class PersistenceSubsystem {
      * call.
      */
     public record Services(
-        // Knowledge graph, decomposed (Phase 3 Ckpt 3):
+        // Knowledge graph (Phase 3 Ckpt 5: facade deleted, narrow repos only):
         KgNodeRepository kgNodes,
         KgEdgeRepository kgEdges,
         KgProposalRepository kgProposals,
         KgRejectionRepository kgRejections,
-
-        // Facade (Ckpt 5 will delete this field once consumers migrate to narrow repos):
-        JdbcKnowledgeRepository kgRepository,
 
         // Knowledge-supporting repositories:
         HubProposalRepository hubProposals,

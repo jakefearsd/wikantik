@@ -33,7 +33,7 @@ import java.util.UUID;
  * The hub services read mentions via SQL, so the fixtures must land in
  * {@code kg_content_chunks}, {@code content_chunk_embeddings}, and
  * {@code chunk_entity_mentions}. All rows are linked by the node's existing
- * {@code kg_nodes.id}; callers pre-insert nodes via {@code JdbcKnowledgeRepository}.
+ * {@code kg_nodes.id}; callers pre-insert nodes via {@code KgNodeRepository}.
  */
 final class MentionFixtures {
 

@@ -48,9 +48,11 @@ class DefaultKnowledgeGraphServiceTraverseByCoMentionTest {
     @BeforeEach
     void setUp() {
         service = new DefaultKnowledgeGraphService(
-            new JdbcKnowledgeRepository( dataSource ),
-            null,
-            new MentionIndex( dataSource ) );
+            new KgNodeRepository( dataSource ),
+            new KgEdgeRepository( dataSource ),
+            new KgProposalRepository( dataSource ),
+            new KgRejectionRepository( dataSource ),
+            dataSource, null, new MentionIndex( dataSource ) );
     }
 
     @AfterEach
@@ -102,7 +104,11 @@ class DefaultKnowledgeGraphServiceTraverseByCoMentionTest {
     @Test
     void traverseByCoMention_returnsEmptyWithoutMentionIndex() {
         final DefaultKnowledgeGraphService noIdx = new DefaultKnowledgeGraphService(
-            new JdbcKnowledgeRepository( dataSource ), null, null );
+            new KgNodeRepository( dataSource ),
+            new KgEdgeRepository( dataSource ),
+            new KgProposalRepository( dataSource ),
+            new KgRejectionRepository( dataSource ),
+            dataSource, null, null );
         assertTrue( noIdx.traverseByCoMention( "whatever", 1, 1 ).nodes().isEmpty() );
     }
 }

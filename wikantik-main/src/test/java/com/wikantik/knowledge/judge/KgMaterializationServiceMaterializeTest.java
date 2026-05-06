@@ -23,7 +23,10 @@ import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.Tier;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,14 +43,20 @@ import static org.junit.jupiter.api.Assertions.*;
 class KgMaterializationServiceMaterializeTest {
 
     private DataSource ds;
-    private JdbcKnowledgeRepository repo;
+    private KgNodeRepository kgNodes;
+    private KgEdgeRepository kgEdges;
+    private KgProposalRepository kgProposals;
+    private KgRejectionRepository kgRejections;
     private KgMaterializationService svc;
 
     @BeforeEach
     void setUp() throws Exception {
         ds = PostgresTestContainer.createDataSource();
-        repo = new JdbcKnowledgeRepository( ds );
-        svc = new KgMaterializationService( repo );
+        kgNodes      = new KgNodeRepository( ds );
+        kgEdges      = new KgEdgeRepository( ds );
+        kgProposals  = new KgProposalRepository( ds );
+        kgRejections = new KgRejectionRepository( ds );
+        svc = new KgMaterializationService( kgNodes, kgEdges, kgProposals, kgRejections );
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( "DELETE FROM kg_proposal_reviews" );
             c.createStatement().execute( "DELETE FROM kg_edges" );
@@ -68,17 +77,17 @@ class KgMaterializationServiceMaterializeTest {
 
     @Test
     void materializeMachine_new_edge_inserts_two_nodes_and_one_edge_at_machine_tier() {
-        final KgProposal p = repo.insertProposal( "new-edge", "Page",
+        final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "Alpha", "target", "Beta", "relationship", "depends_on" ),
             0.8, "extractor reasoning" );
 
         svc.materializeMachine( p );
 
-        final List< KgNode > all = repo.getAllNodes( Tier.MACHINE );
+        final List< KgNode > all = kgNodes.getAllNodes( Tier.MACHINE );
         assertTrue( all.stream().anyMatch( n -> n.name().equals( "Alpha" ) && "machine".equals( n.tier() ) ) );
         assertTrue( all.stream().anyMatch( n -> n.name().equals( "Beta" ) && "machine".equals( n.tier() ) ) );
 
-        final List< KgEdge > edges = repo.getAllEdges( Tier.MACHINE );
+        final List< KgEdge > edges = kgEdges.getAllEdges( Tier.MACHINE );
         assertTrue( edges.stream().anyMatch( e -> "depends_on".equals( e.relationshipType() )
             && p.id().equals( e.provenanceProposalId() )
             && "machine".equals( e.tier() ) ) );
@@ -86,14 +95,14 @@ class KgMaterializationServiceMaterializeTest {
 
     @Test
     void materializeMachine_is_idempotent() {
-        final KgProposal p = repo.insertProposal( "new-edge", "Page",
+        final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "Gamma", "target", "Delta", "relationship", "uses" ),
             0.8, "" );
 
         svc.materializeMachine( p );
         svc.materializeMachine( p );
 
-        final List< KgEdge > edges = repo.getAllEdges( Tier.MACHINE );
+        final List< KgEdge > edges = kgEdges.getAllEdges( Tier.MACHINE );
         final long count = edges.stream()
             .filter( e -> "uses".equals( e.relationshipType() )
                 && p.id().equals( e.provenanceProposalId() ) ).count();
@@ -102,21 +111,21 @@ class KgMaterializationServiceMaterializeTest {
 
     @Test
     void materializeMachine_skips_when_required_fields_missing() {
-        final KgProposal p = repo.insertProposal( "new-edge", "Page",
+        final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "Only" ), 0.8, "" );
 
         svc.materializeMachine( p ); // should NOT throw, just no-op
 
-        assertEquals( 0, repo.getAllNodes( Tier.MACHINE ).size() );
+        assertEquals( 0, kgNodes.getAllNodes( Tier.MACHINE ).size() );
     }
 
     @Test
     void materializeMachine_skips_unsupported_proposal_type() {
-        final KgProposal p = repo.insertProposal( "new-node", "Page",
+        final KgProposal p = kgProposals.insertProposal( "new-node", "Page",
             Map.<String, Object>of( "name", "Solo" ), 0.8, "" );
 
         svc.materializeMachine( p );
 
-        assertEquals( 0, repo.getAllNodes( Tier.MACHINE ).size() );
+        assertEquals( 0, kgNodes.getAllNodes( Tier.MACHINE ).size() );
     }
 }

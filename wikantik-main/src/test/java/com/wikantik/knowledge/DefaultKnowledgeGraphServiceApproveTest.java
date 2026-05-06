@@ -37,16 +37,23 @@ import static org.junit.jupiter.api.Assertions.*;
 class DefaultKnowledgeGraphServiceApproveTest {
 
     private DataSource ds;
-    private JdbcKnowledgeRepository repo;
+    private KgNodeRepository kgNodes;
+    private KgEdgeRepository kgEdges;
+    private KgProposalRepository kgProposals;
+    private KgRejectionRepository kgRejections;
     private KgMaterializationService mat;
     private DefaultKnowledgeGraphService svc;
 
     @BeforeEach
     void setUp() throws Exception {
         ds = PostgresTestContainer.createDataSource();
-        repo = new JdbcKnowledgeRepository( ds );
-        mat = new KgMaterializationService( repo );
-        svc = new DefaultKnowledgeGraphService( repo, null, null, mat, null );
+        kgNodes      = new KgNodeRepository( ds );
+        kgEdges      = new KgEdgeRepository( ds );
+        kgProposals  = new KgProposalRepository( ds );
+        kgRejections = new KgRejectionRepository( ds );
+        mat = new KgMaterializationService( kgNodes, kgEdges, kgProposals, kgRejections );
+        svc = new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections,
+                                                ds, null, null, mat, null );
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( "DELETE FROM kg_proposal_reviews" );
             c.createStatement().execute( "DELETE FROM kg_edges" );
@@ -69,19 +76,19 @@ class DefaultKnowledgeGraphServiceApproveTest {
 
     @Test
     void approveProposal_records_audit_and_promotes_to_human() {
-        final KgProposal p = repo.insertProposal( "new-edge", "Page",
+        final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "U", "target", "V", "relationship", "owns" ),
             0.7, "" );
 
         svc.approveProposal( p.id(), "alice" );
 
-        final KgProposal updated = repo.getProposal( p.id() );
+        final KgProposal updated = kgProposals.getProposal( p.id() );
         assertEquals( "approved", updated.status() );
         assertEquals( "human", updated.tier() );
         assertEquals( "alice", updated.reviewedBy() );
-        assertTrue( repo.listReviews( p.id() ).stream()
+        assertTrue( kgProposals.listReviews( p.id() ).stream()
             .anyMatch( r -> "human".equals( r.reviewerKind() ) && "approved".equals( r.verdict() ) ) );
-        assertTrue( repo.getAllEdges( Tier.HUMAN ).stream()
+        assertTrue( kgEdges.getAllEdges( Tier.HUMAN ).stream()
             .anyMatch( e -> "owns".equals( e.relationshipType() )
                 && p.id().equals( e.provenanceProposalId() ) ),
             "human approval must materialise at human tier" );
@@ -89,37 +96,38 @@ class DefaultKnowledgeGraphServiceApproveTest {
 
     @Test
     void rejectProposal_retracts_materialised_rows_and_writes_kg_rejections() {
-        final KgProposal p = repo.insertProposal( "new-edge", "Page",
+        final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "Q", "target", "R", "relationship", "delete_me" ),
             0.7, "" );
         mat.materializeMachine( p );
 
         svc.rejectProposal( p.id(), "alice", "wrong" );
 
-        final KgProposal updated = repo.getProposal( p.id() );
+        final KgProposal updated = kgProposals.getProposal( p.id() );
         assertEquals( "rejected", updated.status() );
-        assertFalse( repo.getAllEdges( Tier.MACHINE ).stream()
+        assertFalse( kgEdges.getAllEdges( Tier.MACHINE ).stream()
             .anyMatch( e -> p.id().equals( e.provenanceProposalId() ) ),
             "rejection must retract machine-tier materialisation" );
-        assertTrue( repo.isRejected( "Q", "R", "delete_me" ),
+        assertTrue( kgRejections.isRejected( "Q", "R", "delete_me" ),
             "kg_rejections must record the negative-knowledge entry" );
-        assertTrue( repo.listReviews( p.id() ).stream()
+        assertTrue( kgProposals.listReviews( p.id() ).stream()
             .anyMatch( r -> "human".equals( r.reviewerKind() ) && "rejected".equals( r.verdict() ) ) );
     }
 
     @Test
     void approveProposal_works_when_materialization_null_does_not_throw() {
         // Service constructed without materialization — should still flip status + audit, just no kg_* writes.
-        final var svcDegraded = new DefaultKnowledgeGraphService( repo );
-        final KgProposal p = repo.insertProposal( "new-edge", "Page",
+        final var svcDegraded = new DefaultKnowledgeGraphService(
+            kgNodes, kgEdges, kgProposals, kgRejections, ds );
+        final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "S1", "target", "S2", "relationship", "rel" ),
             0.7, "" );
 
         svcDegraded.approveProposal( p.id(), "bob" );
 
-        final KgProposal updated = repo.getProposal( p.id() );
+        final KgProposal updated = kgProposals.getProposal( p.id() );
         assertEquals( "approved", updated.status() );
         assertEquals( "human", updated.tier() );
-        assertTrue( repo.getAllEdges( Tier.HUMAN ).isEmpty(), "no materialisation when service has no mat" );
+        assertTrue( kgEdges.getAllEdges( Tier.HUMAN ).isEmpty(), "no materialisation when service has no mat" );
     }
 }

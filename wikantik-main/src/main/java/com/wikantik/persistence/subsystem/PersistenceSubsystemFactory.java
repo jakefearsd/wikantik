@@ -20,7 +20,6 @@ package com.wikantik.persistence.subsystem;
 
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubProposalRepository;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.KgEdgeRepository;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
@@ -68,7 +67,6 @@ public final class PersistenceSubsystemFactory {
             kgEdges,
             kgProposals,
             kgRejections,
-            new JdbcKnowledgeRepository( ds, kgNodes, kgEdges, kgProposals, kgRejections ),
             new HubProposalRepository( ds ),
             new HubDiscoveryRepository( ds ),
             new ContentChunkRepository( ds ),

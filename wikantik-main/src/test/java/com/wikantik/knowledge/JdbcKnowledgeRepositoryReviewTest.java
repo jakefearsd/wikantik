@@ -37,12 +37,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class JdbcKnowledgeRepositoryReviewTest {
 
     private DataSource ds;
-    private JdbcKnowledgeRepository repo;
+    private KgProposalRepository repo;
 
     @BeforeEach
     void setUp() throws Exception {
         ds = PostgresTestContainer.createDataSource();
-        repo = new JdbcKnowledgeRepository( ds );
+        repo = new KgProposalRepository( ds );
         try ( Connection c = ds.getConnection() ) {
             // Order matters: child tables first (FK).
             c.createStatement().execute( "DELETE FROM kg_proposal_reviews" );

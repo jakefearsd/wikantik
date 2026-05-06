@@ -21,7 +21,7 @@ package com.wikantik.knowledge.extraction;
 import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.ConsolidatedProposal;
 import com.wikantik.api.knowledge.SupportEvidence;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -45,7 +45,7 @@ class ProposalUpserterTest {
         try ( Connection c = ds.getConnection(); Statement st = c.createStatement() ) {
             st.execute( "DELETE FROM kg_proposals" );
         }
-        upserter = new ProposalUpserter( new JdbcKnowledgeRepository( ds ) );
+        upserter = new ProposalUpserter( new KgProposalRepository( ds ) );
     }
 
     @Test

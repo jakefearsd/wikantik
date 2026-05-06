@@ -20,7 +20,6 @@ package com.wikantik.knowledge.extraction;
 
 import com.wikantik.api.knowledge.EntityExtractor;
 import com.wikantik.api.knowledge.ExtractionResult;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
 import com.wikantik.knowledge.KgRejectionRepository;
@@ -58,10 +57,6 @@ class AsyncEntityExtractionListenerPrefilterTest {
         final KgNodeRepository nodeRepo = Mockito.mock( KgNodeRepository.class );
         final KgProposalRepository proposalRepo = Mockito.mock( KgProposalRepository.class );
         final KgRejectionRepository rejectionRepo = Mockito.mock( KgRejectionRepository.class );
-        final JdbcKnowledgeRepository kgRepo = Mockito.mock( JdbcKnowledgeRepository.class );
-        when( kgRepo.nodes() ).thenReturn( nodeRepo );
-        when( kgRepo.proposals() ).thenReturn( proposalRepo );
-        when( kgRepo.rejections() ).thenReturn( rejectionRepo );
         // Existing-nodes lookup goes through queryNodes(Map, String, int, int).
         when( nodeRepo.queryNodes( anyMap(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
 
@@ -88,7 +83,8 @@ class AsyncEntityExtractionListenerPrefilterTest {
 
         final ExecutorService inline = Executors.newSingleThreadExecutor();
         try( AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                 extractor, cfg, chunkRepo, mentionRepo, kgRepo,
+                 extractor, cfg, chunkRepo, mentionRepo,
+                 nodeRepo, proposalRepo, rejectionRepo,
                  new SimpleMeterRegistry(), inline ) ) {
 
             final AsyncEntityExtractionListener.RunResult res =

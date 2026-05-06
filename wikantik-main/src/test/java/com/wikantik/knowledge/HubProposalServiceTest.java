@@ -20,6 +20,8 @@ package com.wikantik.knowledge;
 
 import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.Provenance;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -36,7 +38,8 @@ class HubProposalServiceTest {
     private static final String MODEL = "test-model";
 
     private static DataSource dataSource;
-    private JdbcKnowledgeRepository kgRepo;
+    private KgNodeRepository kgNodes;
+    private KgEdgeRepository kgEdges;
     private HubProposalRepository proposalRepo;
     private NodeMentionSimilarity similarity;
     private HubProposalService service;
@@ -59,7 +62,8 @@ class HubProposalServiceTest {
             conn.createStatement().execute( "DELETE FROM kg_rejections" );
             conn.createStatement().execute( "DELETE FROM kg_nodes" );
         }
-        kgRepo = new JdbcKnowledgeRepository( dataSource );
+        kgNodes      = new KgNodeRepository( dataSource );
+        kgEdges      = new KgEdgeRepository( dataSource );
         proposalRepo = new HubProposalRepository( dataSource );
         similarity = new NodeMentionSimilarity( dataSource, MODEL );
     }
@@ -75,17 +79,17 @@ class HubProposalServiceTest {
     @Test
     void generateProposals_createsProposalsAboveThreshold() {
         // Hub + 3 member articles, wired via upsertEdge (manual admin/API path).
-        final var techHub = kgRepo.upsertNode( "TechHub", "hub", "TechHub",
+        final var techHub = kgNodes.upsertNode( "TechHub", "hub", "TechHub",
             Provenance.HUMAN_AUTHORED, Map.of( "type", "hub" ) );
-        final var java    = kgRepo.upsertNode( "Java",    "article", "Java",    Provenance.HUMAN_AUTHORED, Map.of() );
-        final var python  = kgRepo.upsertNode( "Python",  "article", "Python",  Provenance.HUMAN_AUTHORED, Map.of() );
-        final var kotlin  = kgRepo.upsertNode( "Kotlin",  "article", "Kotlin",  Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertNode( "Rust",    "article", "Rust",    Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertNode( "Cooking", "article", "Cooking", Provenance.HUMAN_AUTHORED, Map.of() );
+        final var java    = kgNodes.upsertNode( "Java",    "article", "Java",    Provenance.HUMAN_AUTHORED, Map.of() );
+        final var python  = kgNodes.upsertNode( "Python",  "article", "Python",  Provenance.HUMAN_AUTHORED, Map.of() );
+        final var kotlin  = kgNodes.upsertNode( "Kotlin",  "article", "Kotlin",  Provenance.HUMAN_AUTHORED, Map.of() );
+        kgNodes.upsertNode( "Rust",    "article", "Rust",    Provenance.HUMAN_AUTHORED, Map.of() );
+        kgNodes.upsertNode( "Cooking", "article", "Cooking", Provenance.HUMAN_AUTHORED, Map.of() );
 
-        kgRepo.upsertEdge( techHub.id(), java.id(),   "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertEdge( techHub.id(), python.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertEdge( techHub.id(), kotlin.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( techHub.id(), java.id(),   "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( techHub.id(), python.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( techHub.id(), kotlin.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
 
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Java",    JAVA );
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Python",  PYTHON );
@@ -98,7 +102,8 @@ class HubProposalServiceTest {
         // threshold of 49 so Rust passes but Cooking (low similarity) is still eligible
         // to be below the threshold — we verify "at least one proposal generated".
         service = HubProposalService.builder()
-            .kgRepo( kgRepo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .proposalRepo( proposalRepo )
             .similarity( similarity )
             .reviewPercentile( 49 )
@@ -116,14 +121,14 @@ class HubProposalServiceTest {
 
     @Test
     void generateProposals_skipsRejectedPairs() {
-        final var techHub = kgRepo.upsertNode( "TechHub", "hub", "TechHub",
+        final var techHub = kgNodes.upsertNode( "TechHub", "hub", "TechHub",
             Provenance.HUMAN_AUTHORED, Map.of( "type", "hub" ) );
-        final var java   = kgRepo.upsertNode( "Java",   "article", "Java",   Provenance.HUMAN_AUTHORED, Map.of() );
-        final var python = kgRepo.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertNode( "Kotlin", "article", "Kotlin", Provenance.HUMAN_AUTHORED, Map.of() );
+        final var java   = kgNodes.upsertNode( "Java",   "article", "Java",   Provenance.HUMAN_AUTHORED, Map.of() );
+        final var python = kgNodes.upsertNode( "Python", "article", "Python", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgNodes.upsertNode( "Kotlin", "article", "Kotlin", Provenance.HUMAN_AUTHORED, Map.of() );
 
-        kgRepo.upsertEdge( techHub.id(), java.id(),   "related", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertEdge( techHub.id(), python.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( techHub.id(), java.id(),   "related", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( techHub.id(), python.id(), "related", Provenance.HUMAN_AUTHORED, Map.of() );
 
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Java",    JAVA );
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Python",  PYTHON );
@@ -136,7 +141,8 @@ class HubProposalServiceTest {
         proposalRepo.updateStatus( pending.get( 0 ).id(), "rejected", "admin", "Not relevant" );
 
         service = HubProposalService.builder()
-            .kgRepo( kgRepo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .proposalRepo( proposalRepo )
             .similarity( similarity )
             .reviewPercentile( 0 )

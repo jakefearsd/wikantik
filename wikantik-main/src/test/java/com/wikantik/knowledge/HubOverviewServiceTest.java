@@ -21,6 +21,8 @@ package com.wikantik.knowledge;
 import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +49,8 @@ class HubOverviewServiceTest {
     private static final String MODEL = "test-model";
 
     private static DataSource dataSource;
-    private JdbcKnowledgeRepository kgRepo;
+    private KgNodeRepository kgNodes;
+    private KgEdgeRepository kgEdges;
     private NodeMentionSimilarity similarity;
     private Map< String, String > pageStore;
     private PageManager pageManager;
@@ -68,7 +71,8 @@ class HubOverviewServiceTest {
             conn.createStatement().execute( "DELETE FROM kg_edges" );
             conn.createStatement().execute( "DELETE FROM kg_nodes" );
         }
-        kgRepo = new JdbcKnowledgeRepository( dataSource );
+        kgNodes = new KgNodeRepository( dataSource );
+        kgEdges = new KgEdgeRepository( dataSource );
         similarity = new NodeMentionSimilarity( dataSource, MODEL );
 
         pageStore = new HashMap<>();
@@ -86,7 +90,8 @@ class HubOverviewServiceTest {
 
     private HubOverviewService.Builder serviceBuilder() {
         return HubOverviewService.builder()
-            .kgRepo( kgRepo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .pageManager( pageManager )
             .pageWriter( pageWriter )
             .nearMissThreshold( 0.50 )
@@ -181,21 +186,21 @@ class HubOverviewServiceTest {
         seedHub( "CookingHub", List.of( "Baking", "Roasting" ) );
         pageStore.put( "CookingHub", "stub" );
 
-        final var newsletter = kgRepo.upsertNode( "Newsletter", "article", "Newsletter",
+        final var newsletter = kgNodes.upsertNode( "Newsletter", "article", "Newsletter",
             Provenance.HUMAN_AUTHORED, Map.of() );
-        final var foodBlog = kgRepo.upsertNode( "FoodBlog", "article", "FoodBlog",
+        final var foodBlog = kgNodes.upsertNode( "FoodBlog", "article", "FoodBlog",
             Provenance.HUMAN_AUTHORED, Map.of() );
-        final var bakingNode = kgRepo.upsertNode( "Baking", "article", "Baking",
+        final var bakingNode = kgNodes.upsertNode( "Baking", "article", "Baking",
             Provenance.HUMAN_AUTHORED, Map.of() );
-        final var roastingNode = kgRepo.upsertNode( "Roasting", "article", "Roasting",
+        final var roastingNode = kgNodes.upsertNode( "Roasting", "article", "Roasting",
             Provenance.HUMAN_AUTHORED, Map.of() );
-        final var hubNode = kgRepo.upsertNode( "CookingHub", "hub", "CookingHub",
+        final var hubNode = kgNodes.upsertNode( "CookingHub", "hub", "CookingHub",
             Provenance.HUMAN_AUTHORED, Map.of( "type", "hub" ) );
 
-        kgRepo.upsertEdge( newsletter.id(),   bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertEdge( foodBlog.id(),     bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertEdge( roastingNode.id(), bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertEdge( hubNode.id(),      bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( newsletter.id(),   bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( foodBlog.id(),     bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( roastingNode.id(), bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgEdges.upsertEdge( hubNode.id(),      bakingNode.id(), "links_to", Provenance.HUMAN_AUTHORED, Map.of() );
 
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Baking",   BAKING );
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Roasting", ROASTING );
@@ -211,8 +216,8 @@ class HubOverviewServiceTest {
     @Test
     void listHubOverviews_nearMissCount_thresholdInclusive() {
         seedHub( "CookingHub", List.of( "Baking", "Roasting" ) );
-        kgRepo.upsertNode( "Pasta",  "article", "Pasta",  Provenance.HUMAN_AUTHORED, Map.of() );
-        kgRepo.upsertNode( "Soccer", "article", "Soccer", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgNodes.upsertNode( "Pasta",  "article", "Pasta",  Provenance.HUMAN_AUTHORED, Map.of() );
+        kgNodes.upsertNode( "Soccer", "article", "Soccer", Provenance.HUMAN_AUTHORED, Map.of() );
         pageStore.put( "CookingHub", "stub" );
 
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Baking",   BAKING );
@@ -245,7 +250,7 @@ class HubOverviewServiceTest {
         pageStore.put( "Tomatoes", "..." );
         pageStore.put( "Lettuce",  "..." );
 
-        kgRepo.upsertNode( "Pasta", "article", "Pasta", Provenance.HUMAN_AUTHORED, Map.of() );
+        kgNodes.upsertNode( "Pasta", "article", "Pasta", Provenance.HUMAN_AUTHORED, Map.of() );
         pageStore.put( "Pasta", "..." );
 
         MentionFixtures.seedMentionByName( dataSource, MODEL, "Baking",    BAKING );
@@ -408,7 +413,7 @@ class HubOverviewServiceTest {
 
     @Test
     void removeMember_pageNotHubType_throwsIllegalArgument() throws Exception {
-        kgRepo.upsertNode( "RegularPage", "article", "RegularPage",
+        kgNodes.upsertNode( "RegularPage", "article", "RegularPage",
             Provenance.HUMAN_AUTHORED, Map.of() );
         pageStore.put( "RegularPage",
             "---\ntitle: RegularPage\ntype: article\nrelated:\n- Other\n- More\n---\n# body\n" );
@@ -452,12 +457,12 @@ class HubOverviewServiceTest {
     // ---- helpers ----
 
     private void seedHub( final String hubName, final List< String > members ) {
-        final var hubNode = kgRepo.upsertNode( hubName, "hub", hubName,
+        final var hubNode = kgNodes.upsertNode( hubName, "hub", hubName,
             Provenance.HUMAN_AUTHORED, Map.of( "type", "hub" ) );
         for ( final String m : members ) {
-            final var memberNode = kgRepo.upsertNode( m, "article", m,
+            final var memberNode = kgNodes.upsertNode( m, "article", m,
                 Provenance.HUMAN_AUTHORED, Map.of() );
-            kgRepo.upsertEdge( hubNode.id(), memberNode.id(), "related",
+            kgEdges.upsertEdge( hubNode.id(), memberNode.id(), "related",
                 Provenance.HUMAN_AUTHORED, Map.of() );
         }
     }

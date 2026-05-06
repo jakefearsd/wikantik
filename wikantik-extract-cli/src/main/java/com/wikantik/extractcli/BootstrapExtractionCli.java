@@ -24,7 +24,8 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
 import com.wikantik.api.knowledge.PageExtractor;
 import com.wikantik.api.knowledge.ProposalJudge;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository;
 import com.wikantik.knowledge.embedding.KgNodeEmbeddingService;
@@ -146,7 +147,8 @@ public final class BootstrapExtractionCli {
         final OllamaPageExtractor extractor = new OllamaPageExtractor(
             http, a.ollamaUrl, a.ollamaModel, a.timeoutMs, parser );
 
-        final JdbcKnowledgeRepository kgRepo = new JdbcKnowledgeRepository( ds );
+        final KgNodeRepository kgNodes         = new KgNodeRepository( ds );
+        final KgProposalRepository kgProposals = new KgProposalRepository( ds );
         final KgNodeEmbeddingRepository embRepo = new KgNodeEmbeddingRepository( ds );
         final KgNodeEmbeddingService embService = buildEmbeddingService( a, http, embRepo );
 
@@ -160,12 +162,12 @@ public final class BootstrapExtractionCli {
 
         final ChunkEntityMentionRepository mentionRepo = new ChunkEntityMentionRepository( ds );
         final ProposalConsolidator consolidator = new ProposalConsolidator();
-        final ProposalUpserter upserter = new ProposalUpserter( kgRepo );
+        final ProposalUpserter upserter = new ProposalUpserter( kgProposals );
 
         final BootstrapEntityExtractionIndexer indexer = new BootstrapEntityExtractionIndexer(
             extractor, judge, consolidator, upserter,
             embService, embRepo,
-            chunkRepo, mentionRepo, kgRepo, new MentionAttributor(),
+            chunkRepo, mentionRepo, kgNodes, new MentionAttributor(),
             PageEmbeddingProvider.EMPTY, /*excludedPages*/ null,
             a.concurrency, a.dictionaryTopK, a.maxEntitiesPerPage, a.maxRelationsPerPage );
 

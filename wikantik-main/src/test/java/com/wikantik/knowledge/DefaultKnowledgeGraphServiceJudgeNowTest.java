@@ -42,14 +42,20 @@ import static org.mockito.Mockito.*;
 class DefaultKnowledgeGraphServiceJudgeNowTest {
 
     private DataSource ds;
-    private JdbcKnowledgeRepository repo;
+    private KgNodeRepository kgNodes;
+    private KgEdgeRepository kgEdges;
+    private KgProposalRepository kgProposals;
+    private KgRejectionRepository kgRejections;
     private KgMaterializationService mat;
 
     @BeforeEach
     void setUp() throws Exception {
         ds = PostgresTestContainer.createDataSource();
-        repo = new JdbcKnowledgeRepository( ds );
-        mat = new KgMaterializationService( repo );
+        kgNodes      = new KgNodeRepository( ds );
+        kgEdges      = new KgEdgeRepository( ds );
+        kgProposals  = new KgProposalRepository( ds );
+        kgRejections = new KgRejectionRepository( ds );
+        mat = new KgMaterializationService( kgNodes, kgEdges, kgProposals, kgRejections );
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( "DELETE FROM kg_proposal_reviews" );
             c.createStatement().execute( "DELETE FROM kg_edges" );
@@ -75,18 +81,18 @@ class DefaultKnowledgeGraphServiceJudgeNowTest {
         final KgProposalJudgeService judge = mock( KgProposalJudgeService.class );
         when( judge.judge( any() ) ).thenReturn(
             new JudgeVerdict( "approved", 0.9, "ok", "gemma4-assist:latest" ) );
-        final var svc = new DefaultKnowledgeGraphService( repo, null, null, mat, judge );
+        final var svc = new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections, ds, null, null, mat, judge );
 
-        final KgProposal p = repo.insertProposal( "new-edge", "Page",
+        final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "S", "target", "T", "relationship", "now" ),
             0.7, "" );
 
         final JudgeVerdict v = svc.judgeNow( p.id(), "alice" );
 
         assertEquals( "approved", v.verdict() );
-        assertEquals( "machine", repo.getProposal( p.id() ).tier() );
-        assertFalse( repo.listReviews( p.id() ).isEmpty() );
-        assertTrue( repo.getAllEdges( Tier.MACHINE ).stream()
+        assertEquals( "machine", kgProposals.getProposal( p.id() ).tier() );
+        assertFalse( kgProposals.listReviews( p.id() ).isEmpty() );
+        assertTrue( kgEdges.getAllEdges( Tier.MACHINE ).stream()
             .anyMatch( e -> p.id().equals( e.provenanceProposalId() ) ),
             "approved verdict must materialise" );
     }
@@ -96,19 +102,19 @@ class DefaultKnowledgeGraphServiceJudgeNowTest {
         final KgProposalJudgeService judge = mock( KgProposalJudgeService.class );
         when( judge.judge( any() ) ).thenReturn(
             new JudgeVerdict( "rejected", 0.95, "no support", "gemma4-assist:latest" ) );
-        final var svc = new DefaultKnowledgeGraphService( repo, null, null, mat, judge );
+        final var svc = new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections, ds, null, null, mat, judge );
 
-        final KgProposal p = repo.insertProposal( "new-edge", "Page",
+        final KgProposal p = kgProposals.insertProposal( "new-edge", "Page",
             Map.<String, Object>of( "source", "Q", "target", "R", "relationship", "bad" ), 0.7, "" );
 
         svc.judgeNow( p.id(), "alice" );
 
-        assertTrue( repo.isRejected( "Q", "R", "bad" ) );
+        assertTrue( kgRejections.isRejected( "Q", "R", "bad" ) );
     }
 
     @Test
     void judgeNow_throws_when_judge_service_not_configured() {
-        final var svc = new DefaultKnowledgeGraphService( repo, null, null, mat, null );
+        final var svc = new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections, ds, null, null, mat, null );
         assertThrows( IllegalStateException.class,
             () -> svc.judgeNow( UUID.randomUUID(), "alice" ) );
     }
@@ -116,7 +122,7 @@ class DefaultKnowledgeGraphServiceJudgeNowTest {
     @Test
     void judgeNow_throws_when_proposal_not_found() {
         final KgProposalJudgeService judge = mock( KgProposalJudgeService.class );
-        final var svc = new DefaultKnowledgeGraphService( repo, null, null, mat, judge );
+        final var svc = new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections, ds, null, null, mat, judge );
         assertThrows( IllegalArgumentException.class,
             () -> svc.judgeNow( UUID.randomUUID(), "alice" ) );
     }

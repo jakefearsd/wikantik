@@ -21,7 +21,6 @@ package com.wikantik.knowledge.extraction;
 import com.wikantik.api.kgpolicy.ExclusionReason;
 import com.wikantik.api.knowledge.EntityExtractor;
 import com.wikantik.api.knowledge.ExtractionResult;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
 import com.wikantik.knowledge.KgRejectionRepository;
@@ -66,10 +65,6 @@ class AsyncEntityExtractionListenerSkipTest {
         final KgNodeRepository nodeRepo = Mockito.mock( KgNodeRepository.class );
         final KgProposalRepository proposalRepo = Mockito.mock( KgProposalRepository.class );
         final KgRejectionRepository rejectionRepo = Mockito.mock( KgRejectionRepository.class );
-        final JdbcKnowledgeRepository kgRepo = Mockito.mock( JdbcKnowledgeRepository.class );
-        when( kgRepo.nodes() ).thenReturn( nodeRepo );
-        when( kgRepo.proposals() ).thenReturn( proposalRepo );
-        when( kgRepo.rejections() ).thenReturn( rejectionRepo );
         when( nodeRepo.queryNodes( anyMap(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
 
         final KgExcludedPagesRepository excluded = Mockito.mock( KgExcludedPagesRepository.class );
@@ -95,7 +90,8 @@ class AsyncEntityExtractionListenerSkipTest {
         final ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
             final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-                extractor, config, chunkRepo, mentionRepo, kgRepo,
+                extractor, config, chunkRepo, mentionRepo,
+                nodeRepo, proposalRepo, rejectionRepo,
                 new SimpleMeterRegistry(), excluded );
 
             final AsyncEntityExtractionListener.RunResult result =
@@ -125,10 +121,6 @@ class AsyncEntityExtractionListenerSkipTest {
         final KgNodeRepository nodeRepo = Mockito.mock( KgNodeRepository.class );
         final KgProposalRepository proposalRepo = Mockito.mock( KgProposalRepository.class );
         final KgRejectionRepository rejectionRepo = Mockito.mock( KgRejectionRepository.class );
-        final JdbcKnowledgeRepository kgRepo = Mockito.mock( JdbcKnowledgeRepository.class );
-        when( kgRepo.nodes() ).thenReturn( nodeRepo );
-        when( kgRepo.proposals() ).thenReturn( proposalRepo );
-        when( kgRepo.rejections() ).thenReturn( rejectionRepo );
         when( nodeRepo.queryNodes( anyMap(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
 
         final UUID chunk1 = UUID.randomUUID();
@@ -145,7 +137,9 @@ class AsyncEntityExtractionListenerSkipTest {
             propertiesFor( "ollama" ) );
 
         final AsyncEntityExtractionListener listener = new AsyncEntityExtractionListener(
-            extractor, config, chunkRepo, mentionRepo, kgRepo, new SimpleMeterRegistry() );
+            extractor, config, chunkRepo, mentionRepo,
+            nodeRepo, proposalRepo, rejectionRepo,
+            new SimpleMeterRegistry() );
 
         listener.runExtractionSync( List.of( chunk1, chunk2 ) );
 

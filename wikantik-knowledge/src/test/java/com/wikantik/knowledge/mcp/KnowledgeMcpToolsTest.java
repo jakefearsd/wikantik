@@ -22,7 +22,10 @@ import com.google.gson.Gson;
 import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.MentionIndex;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.*;
@@ -50,7 +53,11 @@ class KnowledgeMcpToolsTest {
     @BeforeEach
     void setUp() {
         service = new DefaultKnowledgeGraphService(
-            new JdbcKnowledgeRepository( dataSource ),
+            new KgNodeRepository( dataSource ),
+            new KgEdgeRepository( dataSource ),
+            new KgProposalRepository( dataSource ),
+            new KgRejectionRepository( dataSource ),
+            dataSource,
             null,
             new MentionIndex( dataSource ) );
     }

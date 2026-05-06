@@ -680,6 +680,7 @@ public class WikiEngine implements Engine {
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps kgDeps =
                 new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps(
                     ds,
+                    persistenceSubsystem,
                     coreSubsystem,
                     getManager( PageManager.class ),
                     new PageSaveHelper( this ),
@@ -706,9 +707,9 @@ public class WikiEngine implements Engine {
             // of wiki shape (clusters, tags, types, canonical_ids) over every page.
             // Page-save events trigger incremental rebuilds; bootstrap rebuild runs
             // in the background so Engine.start() does not block on a ~1000-page scan.
-            final PageCanonicalIdsDao canonicalIdsDao = new PageCanonicalIdsDao( ds );
-            final PageVerificationDao pageVerificationDao = new PageVerificationDao( ds );
-            final TrustedAuthorsDao trustedAuthorsDao = new TrustedAuthorsDao( ds );
+            final PageCanonicalIdsDao canonicalIdsDao = persistenceSubsystem.pageCanonicalIds();
+            final PageVerificationDao pageVerificationDao = persistenceSubsystem.pageVerification();
+            final TrustedAuthorsDao trustedAuthorsDao = persistenceSubsystem.trustedAuthors();
             final int staleDays = TextUtil.getIntegerProperty( props,
                 "wikantik.verification.stale_days", ConfidenceComputer.DEFAULT_STALE_DAYS );
             final ConfidenceComputer confidenceComputer =
@@ -754,8 +755,8 @@ public class WikiEngine implements Engine {
             final boolean kgPolicyEnabled = TextUtil.getBooleanProperty(
                 props, "wikantik.kg_policy.enabled", true );
             if ( kgPolicyEnabled ) {
-                final var policyRepo   = new com.wikantik.kgpolicy.KgClusterPolicyRepository( ds );
-                final var excludedRepo = new com.wikantik.kgpolicy.KgExcludedPagesRepository( ds );
+                final var policyRepo   = persistenceSubsystem.kgClusterPolicy();
+                final var excludedRepo = persistenceSubsystem.kgExcludedPages();
                 final var overrides    = new com.wikantik.kgpolicy.StructuralIndexFrontmatterOverrideReader(
                         structuralIndex );
                 final var policy       = new com.wikantik.kgpolicy.DefaultKgInclusionPolicy(

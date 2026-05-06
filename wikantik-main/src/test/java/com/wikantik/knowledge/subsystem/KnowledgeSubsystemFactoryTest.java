@@ -28,6 +28,9 @@ import com.wikantik.blog.BlogManager;
 import com.wikantik.content.RecentArticlesManager;
 import com.wikantik.core.subsystem.CoreSubsystem;
 import com.wikantik.core.subsystem.CoreSubsystemFactory;
+import com.wikantik.core.subsystem.DefaultWikiProperties;
+import com.wikantik.persistence.subsystem.PersistenceSubsystem;
+import com.wikantik.persistence.subsystem.PersistenceSubsystemFactory;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,6 +79,11 @@ class KnowledgeSubsystemFactoryTest {
             mock( RecentArticlesManager.class ), mock( BlogManager.class ) ) );
     }
 
+    private PersistenceSubsystem.Services persistence() {
+        return PersistenceSubsystemFactory.create( new PersistenceSubsystem.Deps(
+            dataSource, new DefaultWikiProperties( new Properties() ) ) );
+    }
+
     @BeforeEach
     void setUp() throws Exception {
         dataSource = PostgresTestContainer.createDataSource();
@@ -98,7 +106,7 @@ class KnowledgeSubsystemFactoryTest {
         // to DEFAULT_ENDPOINT). The judge service + runner are wired here;
         // the runner is closed after the test to avoid a leaked scheduler.
         final KnowledgeSubsystem.Deps deps = new KnowledgeSubsystem.Deps(
-            dataSource, core( new Properties() ),
+            dataSource, persistence(), core( new Properties() ),
             pageManager, pageSaveHelper,
             /*luceneMlt=*/ null );
 
@@ -131,7 +139,7 @@ class KnowledgeSubsystemFactoryTest {
         props.setProperty( "wikantik.kg.judge.enabled", "false" );
 
         final KnowledgeSubsystem.Deps deps = new KnowledgeSubsystem.Deps(
-            dataSource, core( props ), pageManager, pageSaveHelper,
+            dataSource, persistence(), core( props ), pageManager, pageSaveHelper,
             /*luceneMlt=*/ null );
 
         final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create( deps );
@@ -148,7 +156,7 @@ class KnowledgeSubsystemFactoryTest {
     @Test
     void create_kgServiceRoundTripsThroughTheSubsystem() {
         final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create(
-            new KnowledgeSubsystem.Deps( dataSource, core( new Properties() ),
+            new KnowledgeSubsystem.Deps( dataSource, persistence(), core( new Properties() ),
                 pageManager, pageSaveHelper,
                 /*luceneMlt=*/ null ) );
 

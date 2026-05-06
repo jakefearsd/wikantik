@@ -78,16 +78,20 @@ public final class KnowledgeSubsystemFactory {
 
     /** Builds the Knowledge subsystem from its declared dependencies. */
     public static KnowledgeSubsystem.Services create( final KnowledgeSubsystem.Deps deps ) {
-        final var dataSource = deps.dataSource();
-        final var core       = deps.core();
-        final var props      = core.properties().asProperties();
-        final var spr        = core.systemPageRegistry();
-        final var pageMgr    = deps.pageManager();
-        final var saveHelper = deps.pageSaveHelper();
-        final var luceneMlt  = deps.luceneMlt();
-        final var meterReg   = core.meterRegistry();
+        final var dataSource  = deps.dataSource();
+        final var persistence = deps.persistence();
+        final var core        = deps.core();
+        final var props       = core.properties().asProperties();
+        final var spr         = core.systemPageRegistry();
+        final var pageMgr     = deps.pageManager();
+        final var saveHelper  = deps.pageSaveHelper();
+        final var luceneMlt   = deps.luceneMlt();
+        final var meterReg    = core.meterRegistry();
 
-        final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( dataSource );
+        final JdbcKnowledgeRepository repo = persistence.kgRepository();
+        // MentionIndex isn't a repository — it's a service that keeps a
+        // DataSource for lazy-loaded mention reads. Stays on dataSource
+        // until the chunking pipeline gets its own typed accessor.
         final MentionIndex mentionIndex = new MentionIndex( dataSource );
 
         // KG staged validation: judge service, materialisation, runner.
@@ -97,8 +101,7 @@ public final class KnowledgeSubsystemFactory {
         // Timeout-tracking repo always constructed (cheap, no connections held);
         // surfaces chronic-timeout proposals to the admin UI even when the
         // judge cron is disabled.
-        final KgJudgeTimeoutRepository judgeTimeoutRepo =
-            new JdbcKgJudgeTimeoutRepository( dataSource );
+        final KgJudgeTimeoutRepository judgeTimeoutRepo = persistence.judgeTimeouts();
 
         KgProposalJudgeService kgJudge = null;
         JudgeRunner kgRunner = null;
@@ -147,7 +150,7 @@ public final class KnowledgeSubsystemFactory {
         final String modelCode = EmbeddingConfig.fromProperties( props ).model().code();
         final NodeMentionSimilarity similarity = new NodeMentionSimilarity( dataSource, modelCode );
 
-        final HubProposalRepository hubProposalRepo = new HubProposalRepository( dataSource );
+        final HubProposalRepository hubProposalRepo = persistence.hubProposals();
         final HubProposalService hubProposalService = HubProposalService.builder()
             .kgRepo( repo )
             .proposalRepo( hubProposalRepo )
@@ -155,7 +158,7 @@ public final class KnowledgeSubsystemFactory {
             .reviewPercentileFromProperties( props )
             .build();
 
-        final HubDiscoveryRepository hubDiscoveryRepo = new HubDiscoveryRepository( dataSource );
+        final HubDiscoveryRepository hubDiscoveryRepo = persistence.hubDiscovery();
         final HubDiscoveryService hubDiscoveryService = HubDiscoveryService.builder()
             .kgRepo( repo )
             .discoveryRepo( hubDiscoveryRepo )
@@ -185,7 +188,7 @@ public final class KnowledgeSubsystemFactory {
             .propsFrom( props )
             .build();
 
-        final ContentChunkRepository contentChunkRepo = new ContentChunkRepository( dataSource );
+        final ContentChunkRepository contentChunkRepo = persistence.contentChunks();
         final ContentChunker chunker = new ContentChunker( new ContentChunker.Config(
             TextUtil.getIntegerProperty( props, "wikantik.chunker.max_tokens", 512 ),
             TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 150 ) ) );

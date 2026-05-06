@@ -23,6 +23,7 @@ import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.core.subsystem.CoreSubsystem;
+import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 import com.wikantik.knowledge.FrontmatterDefaultsFilter;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
@@ -87,6 +88,7 @@ public final class KnowledgeSubsystem {
      */
     public record Deps(
         DataSource dataSource,
+        PersistenceSubsystem.Services persistence,
         CoreSubsystem.Services core,
         PageManager pageManager,
         PageSaveHelper pageSaveHelper,

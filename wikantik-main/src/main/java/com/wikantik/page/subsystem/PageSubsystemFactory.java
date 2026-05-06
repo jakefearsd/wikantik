@@ -19,13 +19,23 @@
 package com.wikantik.page.subsystem;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.exceptions.NoRequiredPropertyException;
+import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.cache.CachingManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.content.PageRenamer;
+import com.wikantik.util.ClassUtil;
+import com.wikantik.util.TextUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
+import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Properties;
 
 /**
  * Builds {@link PageSubsystem.Services} from {@link PageSubsystem.Deps}.
@@ -41,7 +51,59 @@ import java.util.Objects;
  */
 public final class PageSubsystemFactory {
 
+    private static final Logger LOG = LogManager.getLogger( PageSubsystemFactory.class );
+
+    /** Property name for the configured page provider implementation. Mirrors
+     *  {@code com.wikantik.pages.DefaultPageManager.PROP_PAGEPROVIDER} so the
+     *  factory can build the chain without the manager being instantiated. */
+    private static final String PROP_PAGEPROVIDER = "wikantik.pageProvider";
+
     private PageSubsystemFactory() {}
+
+    /**
+     * Builds the {@link PageProvider} chain — caching wrapper (if enabled)
+     * around the configured base provider (typically
+     * {@code VersioningFileProvider}). Lifted from {@code DefaultPageManager}'s
+     * constructor in Phase 5 Checkpoint 2 so the chain is owned by the
+     * subsystem boundary rather than the manager impl.
+     *
+     * <p>Behaviour matches the original construction: read
+     * {@code CachingManager.CACHE_PAGES} to decide whether to wrap with
+     * {@code CachingProvider}; otherwise instantiate the class named by
+     * {@code wikantik.pageProvider}. The returned provider has been
+     * {@code initialize(engine, props)}-ed and is ready to use.</p>
+     */
+    public static PageProvider buildProvider( final Engine engine, final Properties props ) throws WikiException {
+        Objects.requireNonNull( engine, "engine" );
+        Objects.requireNonNull( props, "props" );
+
+        final boolean useCache = engine.getManager( CachingManager.class ).enabled( CachingManager.CACHE_PAGES );
+        final String classname = useCache
+            ? "com.wikantik.providers.CachingProvider"
+            : TextUtil.getRequiredProperty( props, PROP_PAGEPROVIDER );
+
+        try {
+            LOG.debug( "Page provider class: '{}'", classname );
+            final PageProvider provider = ClassUtil.buildInstance( "com.wikantik.providers", classname );
+            LOG.debug( "Initializing page provider class {}", provider );
+            provider.initialize( engine, props );
+            return provider;
+        } catch ( final ReflectiveOperationException e ) {
+            // LOG.error justified: misconfigured wikantik.pageProvider class blocks engine startup; operators need a stack trace to diagnose.
+            LOG.error( "Unable to instantiate provider class '{}' ({})", classname, e.getMessage(), e );
+            throw new WikiException( "Illegal provider class. (" + e.getMessage() + ")", e );
+        } catch ( final NoRequiredPropertyException e ) {
+            // LOG.error justified: required wiki property missing means engine cannot boot.
+            LOG.error( "Provider did not find a property it was looking for: {}", e.getMessage(), e );
+            throw e;
+        } catch ( final IOException e ) {
+            // LOG.error justified: provider IO failure during boot is a fatal startup condition.
+            LOG.error( "An I/O exception occurred while creating page provider {}: {}", classname, e.getMessage(), e );
+            throw new WikiException( "Unable to start page provider: " + e.getMessage(), e );
+        } catch ( final NoSuchElementException e ) {
+            throw e;
+        }
+    }
 
     public static PageSubsystem.Services create( final PageSubsystem.Deps deps ) {
         Objects.requireNonNull( deps, "deps" );

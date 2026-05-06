@@ -29,7 +29,6 @@ import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
-import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.providers.PageProvider;
@@ -41,7 +40,6 @@ import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.user.UserProfile;
-import com.wikantik.cache.CachingManager;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
@@ -51,10 +49,8 @@ import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.search.SearchManager;
 import com.wikantik.ui.CommandResolver;
-import com.wikantik.util.ClassUtil;
 import com.wikantik.util.TextUtil;
 
-import java.io.IOException;
 import java.security.Permission;
 import java.security.Principal;
 import java.util.ArrayList;
@@ -99,56 +95,28 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
      * @throws WikiException If anything goes wrong, you get this.
      */
     public DefaultPageManager(final Engine newEngine, final Properties props) throws NoSuchElementException, WikiException {
-        this( newEngine, props, newEngine.getManager( CommandResolver.class ) );
+        this( newEngine, props,
+              com.wikantik.page.subsystem.PageSubsystemFactory.buildProvider( newEngine, props ) );
     }
 
     /**
-     * Constructor that accepts pre-resolved managers for testability.
-     * <p>
-     * Only Phase 1 managers (those initialized before PageManager in WikiEngine) can be injected here.
-     * Phase 2+ managers (AttachmentManager, FilterManager, SearchManager, ReferenceManager, AclManager)
-     * are not available at PageManager construction time due to initialization ordering and are
-     * accessed lazily via {@code engine.getManager()}.
+     * Production constructor used by the engine boot path. Phase 5 Ckpt 2
+     * lifted the {@link PageProvider} chain construction into
+     * {@link com.wikantik.page.subsystem.PageSubsystemFactory#buildProvider};
+     * this constructor receives the pre-built chain and just wires the
+     * page-manager state around it.
      *
-     * @param newEngine       Engine instance
-     * @param props           Properties to use for initialization
-     * @param commandResolver Phase 1 CommandResolver
-     * @throws NoSuchElementException {@value #PROP_PAGEPROVIDER} property not found on Engine properties
-     * @throws WikiException If anything goes wrong, you get this.
+     * @param newEngine     Engine instance
+     * @param props         Properties to use for initialization
+     * @param pageProvider  Pre-built {@link PageProvider} chain (already initialized)
      */
-    DefaultPageManager(final Engine newEngine, final Properties props,
-                       final CommandResolver commandResolver) throws NoSuchElementException, WikiException {
+    public DefaultPageManager(final Engine newEngine, final Properties props,
+                              final PageProvider pageProvider) throws NoSuchElementException {
         this.engine = newEngine;
-        this.commandResolver = commandResolver;
-        final String classname;
-        final boolean useCache = engine.getManager( CachingManager.class ).enabled( CachingManager.CACHE_PAGES );
-        expiryTime = TextUtil.parseIntParameter( props.getProperty( PROP_LOCKEXPIRY ), 60 );
-
-        //  If user wants to use a cache, then we'll use the CachingProvider.
-        if( useCache ) {
-            classname = "com.wikantik.providers.CachingProvider";
-        } else {
-            classname = TextUtil.getRequiredProperty( props, PROP_PAGEPROVIDER );
-        }
-
+        this.commandResolver = newEngine.getManager( CommandResolver.class );
+        this.provider = pageProvider;
+        this.expiryTime = TextUtil.parseIntParameter( props.getProperty( PROP_LOCKEXPIRY ), 60 );
         pageSorter.initialize( props );
-
-        try {
-            LOG.debug( "Page provider class: '{}'", classname );
-            provider = ClassUtil.buildInstance( "com.wikantik.providers", classname );
-            LOG.debug( "Initializing page provider class {}", provider );
-            provider.initialize( engine, props );
-        } catch( final ReflectiveOperationException e ) {
-            LOG.error( "Unable to instantiate provider class '{}' ({})", classname, e.getMessage(), e );
-            throw new WikiException( "Illegal provider class. (" + e.getMessage() + ")", e );
-        } catch( final NoRequiredPropertyException e ) {
-            LOG.error("Provider did not found a property it was looking for: {}", e.getMessage(), e);
-            throw e;  // Same exception works.
-        } catch( final IOException e ) {
-            LOG.error("An I/O exception occurred while trying to create a new page provider: {}", classname, e);
-            throw new WikiException("Unable to start page provider: " + e.getMessage(), e);
-        }
-
     }
 
     /**

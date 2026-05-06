@@ -144,6 +144,12 @@ public class WikiEngine implements Engine {
      *  the fields of this record. */
     private com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services knowledgeSubsystem;
 
+    /** Core subsystem services produced by {@code CoreSubsystemFactory}.
+     *  Phase 2 of the wikantik-main decomposition (2026-05-06); foundation
+     *  every other subsystem depends on (typed properties, event bus,
+     *  metrics registry, leaf managers). */
+    private com.wikantik.core.subsystem.CoreSubsystem.Services coreSubsystem;
+
     /** Stores the template path.  This is relative to "templates". */
     private String           templateDir;
 
@@ -378,6 +384,19 @@ public class WikiEngine implements Engine {
             getManager( FilterManager.class ).addPageFilter( getManager( ReferenceManager.class ), -1001 );
             getManager( FilterManager.class ).addPageFilter( getManager( SearchManager.class ), -1002 );
 
+            // Phase 2 of the wikantik-main subsystem decomposition: build
+            // the Core subsystem after its leaf managers are constructed.
+            // Knowledge (built next, in initKnowledgeGraph) will consume
+            // Core via WikiSubsystems in a subsequent checkpoint.
+            this.coreSubsystem = com.wikantik.core.subsystem.CoreSubsystemFactory.create(
+                new com.wikantik.core.subsystem.CoreSubsystem.Deps(
+                    props,
+                    servletContext,
+                    com.wikantik.api.observability.MeterRegistryHolder.get(),
+                    getManager( SystemPageRegistry.class ),
+                    getManager( RecentArticlesManager.class ),
+                    getManager( BlogManager.class ) ) );
+
             // Phase 9: Knowledge graph (optional — requires datasource configuration)
             initKnowledgeGraph( props );
         } catch( final RuntimeException e ) {
@@ -411,8 +430,8 @@ public class WikiEngine implements Engine {
         // engines built via TestEngine.setManager). In those cases
         // RestServletBase falls back to a synthetic bundle reading the
         // legacy manager registry.
-        if ( servletContext != null && knowledgeSubsystem != null ) {
-            final WikiSubsystems subsystems = new WikiSubsystems( knowledgeSubsystem );
+        if ( servletContext != null && coreSubsystem != null && knowledgeSubsystem != null ) {
+            final WikiSubsystems subsystems = new WikiSubsystems( coreSubsystem, knowledgeSubsystem );
             servletContext.setAttribute( WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE, subsystems );
         }
 
@@ -1319,6 +1338,19 @@ public class WikiEngine implements Engine {
      */
     public com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services getKnowledgeSubsystem() {
         return knowledgeSubsystem;
+    }
+
+    /**
+     * Returns the Core subsystem's services bundle, or {@code null} when the
+     * engine has not yet completed initialization.
+     *
+     * <p>Phase 2 of the wikantik-main subsystem decomposition. New code
+     * should obtain typed properties, the event bus, the metrics registry,
+     * and the leaf managers (SystemPageRegistry, RecentArticlesManager,
+     * BlogManager) through this accessor.</p>
+     */
+    public com.wikantik.core.subsystem.CoreSubsystem.Services getCoreSubsystem() {
+        return coreSubsystem;
     }
 
     /** {@inheritDoc} */

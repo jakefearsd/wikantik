@@ -159,14 +159,17 @@ public abstract class RestServletBase extends HttpServlet {
         // Prefer the engine's own typed accessor when it has one (i.e. a
         // real WikiEngine that went through initialize() and the subsystem
         // services exist).
+        final com.wikantik.core.subsystem.CoreSubsystem.Services coreServices =
+            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine );
         if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services kgServices =
                 wikiEngine.getKnowledgeSubsystem();
             if ( kgServices != null ) {
-                return new com.wikantik.WikiSubsystems( kgServices );
+                return new com.wikantik.WikiSubsystems( coreServices, kgServices );
             }
         }
         return new com.wikantik.WikiSubsystems(
+            coreServices,
             com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine ) );
     }
 

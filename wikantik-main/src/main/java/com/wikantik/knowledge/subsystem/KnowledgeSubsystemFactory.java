@@ -79,12 +79,13 @@ public final class KnowledgeSubsystemFactory {
     /** Builds the Knowledge subsystem from its declared dependencies. */
     public static KnowledgeSubsystem.Services create( final KnowledgeSubsystem.Deps deps ) {
         final var dataSource = deps.dataSource();
-        final var props      = deps.properties();
-        final var spr        = deps.systemPageRegistry();
+        final var core       = deps.core();
+        final var props      = core.properties().asProperties();
+        final var spr        = core.systemPageRegistry();
         final var pageMgr    = deps.pageManager();
         final var saveHelper = deps.pageSaveHelper();
         final var luceneMlt  = deps.luceneMlt();
-        final var meterReg   = deps.meterRegistry();
+        final var meterReg   = core.meterRegistry();
 
         final JdbcKnowledgeRepository repo = new JdbcKnowledgeRepository( dataSource );
         final MentionIndex mentionIndex = new MentionIndex( dataSource );

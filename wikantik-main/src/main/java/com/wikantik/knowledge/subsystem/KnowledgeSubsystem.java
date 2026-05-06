@@ -21,8 +21,8 @@ package com.wikantik.knowledge.subsystem;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
+import com.wikantik.core.subsystem.CoreSubsystem;
 import com.wikantik.knowledge.FrontmatterDefaultsFilter;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
@@ -37,10 +37,7 @@ import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.judge.JudgeRunner;
 import com.wikantik.knowledge.judge.KgJudgeTimeoutRepository;
 import com.wikantik.knowledge.judge.KgMaterializationService;
-import io.micrometer.core.instrument.MeterRegistry;
-
 import javax.sql.DataSource;
-import java.util.Properties;
 
 /**
  * Namespace for the Knowledge Graph subsystem's input and output contracts.
@@ -73,33 +70,27 @@ public final class KnowledgeSubsystem {
     /**
      * What the Knowledge subsystem requires from upstream.
      *
-     * <p>{@code dataSource} and {@code properties} are infrastructure today;
-     * after Phase 3 they will come from {@code PersistenceSubsystem.Services}
-     * and {@code CoreSubsystem.Services} respectively.</p>
+     * <p>{@code core} sources typed properties, the metrics registry, and
+     * the {@code SystemPageRegistry} leaf manager — first cross-subsystem
+     * edge in the wikantik-main DAG (established 2026-05-06).
+     * {@code dataSource} is infrastructure today; after Phase 3 it will
+     * come from {@code PersistenceSubsystem.Services}.</p>
      *
-     * <p>{@code systemPageRegistry}, {@code pageManager}, {@code pageSaveHelper}
-     * come from the page-services layer; after Phase 5 they will come from
+     * <p>{@code pageManager} and {@code pageSaveHelper} come from the
+     * page-services layer; after Phase 5 they will come from
      * {@code PageSubsystem.Services}.</p>
      *
      * <p>{@code luceneMlt} is an optional Lucene MoreLikeThis seam consumed
      * by {@link HubOverviewService}; after Phase 7 it will come from
      * {@code SearchSubsystem.Services}. May be {@code null} when Lucene is
      * unavailable, in which case the service falls back to an empty MLT list.</p>
-     *
-     * <p>{@code meterRegistry} is the shared Micrometer registry used by
-     * {@link ChunkProjector} so chunker metrics flow to the Prometheus scrape
-     * endpoint; after Phase 2 it will come from {@code CoreSubsystem.Services}.
-     * May be {@code null}, in which case the projector falls back to an
-     * in-process {@code SimpleMeterRegistry}.</p>
      */
     public record Deps(
         DataSource dataSource,
-        Properties properties,
-        SystemPageRegistry systemPageRegistry,
+        CoreSubsystem.Services core,
         PageManager pageManager,
         PageSaveHelper pageSaveHelper,
-        HubOverviewService.LuceneMlt luceneMlt,
-        MeterRegistry meterRegistry
+        HubOverviewService.LuceneMlt luceneMlt
     ) {}
 
     /**

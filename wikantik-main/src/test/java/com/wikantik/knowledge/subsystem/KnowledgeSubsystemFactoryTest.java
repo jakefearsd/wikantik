@@ -24,6 +24,10 @@ import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
+import com.wikantik.blog.BlogManager;
+import com.wikantik.content.RecentArticlesManager;
+import com.wikantik.core.subsystem.CoreSubsystem;
+import com.wikantik.core.subsystem.CoreSubsystemFactory;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,6 +70,12 @@ class KnowledgeSubsystemFactoryTest {
     private PageManager pageManager;
     private PageSaveHelper pageSaveHelper;
 
+    private CoreSubsystem.Services core( final Properties props ) {
+        return CoreSubsystemFactory.create( new CoreSubsystem.Deps(
+            props, null, meterRegistry, systemPageRegistry,
+            mock( RecentArticlesManager.class ), mock( BlogManager.class ) ) );
+    }
+
     @BeforeEach
     void setUp() throws Exception {
         dataSource = PostgresTestContainer.createDataSource();
@@ -88,10 +98,9 @@ class KnowledgeSubsystemFactoryTest {
         // to DEFAULT_ENDPOINT). The judge service + runner are wired here;
         // the runner is closed after the test to avoid a leaked scheduler.
         final KnowledgeSubsystem.Deps deps = new KnowledgeSubsystem.Deps(
-            dataSource, new Properties(),
-            systemPageRegistry, pageManager, pageSaveHelper,
-            /*luceneMlt=*/ null,
-            meterRegistry );
+            dataSource, core( new Properties() ),
+            pageManager, pageSaveHelper,
+            /*luceneMlt=*/ null );
 
         final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create( deps );
         try {
@@ -122,8 +131,8 @@ class KnowledgeSubsystemFactoryTest {
         props.setProperty( "wikantik.kg.judge.enabled", "false" );
 
         final KnowledgeSubsystem.Deps deps = new KnowledgeSubsystem.Deps(
-            dataSource, props, systemPageRegistry, pageManager, pageSaveHelper,
-            /*luceneMlt=*/ null, meterRegistry );
+            dataSource, core( props ), pageManager, pageSaveHelper,
+            /*luceneMlt=*/ null );
 
         final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create( deps );
 
@@ -139,9 +148,9 @@ class KnowledgeSubsystemFactoryTest {
     @Test
     void create_kgServiceRoundTripsThroughTheSubsystem() {
         final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create(
-            new KnowledgeSubsystem.Deps( dataSource, new Properties(),
-                systemPageRegistry, pageManager, pageSaveHelper,
-                /*luceneMlt=*/ null, meterRegistry ) );
+            new KnowledgeSubsystem.Deps( dataSource, core( new Properties() ),
+                pageManager, pageSaveHelper,
+                /*luceneMlt=*/ null ) );
 
         // Upsert a node via the public service interface...
         final KgNode created = services.kgService().upsertNode(

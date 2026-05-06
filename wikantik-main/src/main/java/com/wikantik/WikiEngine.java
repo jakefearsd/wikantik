@@ -69,7 +69,6 @@ import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
-import com.wikantik.knowledge.KnowledgeGraphServiceFactory;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.ui.CommandResolver;
@@ -644,12 +643,11 @@ public class WikiEngine implements Engine {
 
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps kgDeps =
                 new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps(
-                    ds, props,
-                    getManager( SystemPageRegistry.class ),
+                    ds,
+                    coreSubsystem,
                     getManager( PageManager.class ),
                     new PageSaveHelper( this ),
-                    luceneMlt,
-                    meterRegistry );
+                    luceneMlt );
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services svcs =
                 com.wikantik.knowledge.subsystem.KnowledgeSubsystemFactory.create( kgDeps );
             this.knowledgeSubsystem = svcs;

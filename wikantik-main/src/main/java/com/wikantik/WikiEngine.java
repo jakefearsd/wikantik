@@ -161,6 +161,12 @@ public class WikiEngine implements Engine {
      *  API-key service, and (Ckpt 3) the SecurityVerifier-derived helpers. */
     private com.wikantik.auth.subsystem.AuthSubsystem.Services authSubsystem;
 
+    /** Page subsystem services produced by {@code PageSubsystemFactory}.
+     *  Phase 5 of the wikantik-main decomposition (2026-05-06); typed
+     *  surface over PageManager / AttachmentManager / PageRenamer /
+     *  PageSaveHelper / PageProvider. */
+    private com.wikantik.page.subsystem.PageSubsystem.Services pageSubsystem;
+
     /** Stores the template path.  This is relative to "templates". */
     private String           templateDir;
 
@@ -418,6 +424,15 @@ public class WikiEngine implements Engine {
             this.authSubsystem = com.wikantik.auth.subsystem.AuthSubsystemFactory.create(
                 new com.wikantik.auth.subsystem.AuthSubsystem.Deps(
                     coreSubsystem, persistenceSubsystem, servletContext, this ) );
+
+            // Phase 5 of the wikantik-main subsystem decomposition: build
+            // the Page subsystem after Auth. Locates PageManager /
+            // AttachmentManager / PageRenamer on the engine's legacy
+            // registry; Ckpt 2 lifts the page-provider chain construction
+            // into the factory and Ckpt 3 lifts manager construction.
+            this.pageSubsystem = com.wikantik.page.subsystem.PageSubsystemFactory.create(
+                new com.wikantik.page.subsystem.PageSubsystem.Deps(
+                    coreSubsystem, persistenceSubsystem, authSubsystem, this ) );
         } catch( final RuntimeException e ) {
             // RuntimeExceptions may occur here, even if they shouldn't.
             LOG.fatal( "Failed to start managers.", e );
@@ -451,7 +466,7 @@ public class WikiEngine implements Engine {
         // legacy manager registry.
         if ( servletContext != null && coreSubsystem != null && knowledgeSubsystem != null ) {
             final WikiSubsystems subsystems = new WikiSubsystems(
-                coreSubsystem, persistenceSubsystem, authSubsystem, knowledgeSubsystem );
+                coreSubsystem, persistenceSubsystem, authSubsystem, pageSubsystem, knowledgeSubsystem );
             servletContext.setAttribute( WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE, subsystems );
         }
 
@@ -577,6 +592,10 @@ public class WikiEngine implements Engine {
         if ( clazz == AuthenticationManager.class || clazz == AuthorizationManager.class
                 || clazz == UserManager.class || clazz == GroupManager.class ) {
             this.authSubsystem = null;
+        }
+        if ( clazz == PageManager.class || clazz == AttachmentManager.class
+                || clazz == PageRenamer.class ) {
+            this.pageSubsystem = null;
         }
     }
 
@@ -1433,6 +1452,21 @@ public class WikiEngine implements Engine {
      */
     public com.wikantik.auth.subsystem.AuthSubsystem.Services getAuthSubsystem() {
         return authSubsystem;
+    }
+
+    /**
+     * Returns the Page subsystem's services bundle, or {@code null} when
+     * the engine has not yet completed initialization.
+     *
+     * <p>Phase 5 of the wikantik-main subsystem decomposition. New code
+     * should obtain {@link com.wikantik.api.managers.PageManager},
+     * {@link com.wikantik.api.managers.AttachmentManager},
+     * {@link com.wikantik.content.PageRenamer}, the page-save helper, and
+     * the underlying {@link com.wikantik.api.providers.PageProvider} chain
+     * through this accessor.</p>
+     */
+    public com.wikantik.page.subsystem.PageSubsystem.Services getPageSubsystem() {
+        return pageSubsystem;
     }
 
     /** {@inheritDoc} */

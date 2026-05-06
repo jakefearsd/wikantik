@@ -102,5 +102,27 @@
     ],
     "test_engine_references_in_production": 2,
     "archunit_frozen_violations": 40
+  },
+  "phase_2_close": {
+    "captured_at": "2026-05-06T06:31:40Z",
+    "loc_main": 77049,
+    "registered_managers": 28,
+    "get_manager_callers_repo_wide": 1037,
+    "get_manager_callers_in_main": 209,
+    "god_classes_over_800": 9,
+    "god_class_top10": [
+      {"path": "com/wikantik/knowledge/JdbcKnowledgeRepository.java", "loc": 1561},
+      {"path": "com/wikantik/WikiEngine.java", "loc": 1544},
+      {"path": "com/wikantik/search/LuceneSearchProvider.java", "loc": 1249},
+      {"path": "com/wikantik/pagegraph/references/DefaultReferenceManager.java", "loc": 1002},
+      {"path": "com/wikantik/filters/SpamFilter.java", "loc": 1002},
+      {"path": "com/wikantik/providers/AbstractFileProvider.java", "loc": 925},
+      {"path": "com/wikantik/WikiContext.java", "loc": 819},
+      {"path": "com/wikantik/pages/DefaultPageManager.java", "loc": 816},
+      {"path": "com/wikantik/auth/SecurityVerifier.java", "loc": 802},
+      {"path": "com/wikantik/providers/VersioningFileProvider.java", "loc": 783}
+    ],
+    "test_engine_references_in_production": 4,
+    "archunit_frozen_violations": 37
   }
 }

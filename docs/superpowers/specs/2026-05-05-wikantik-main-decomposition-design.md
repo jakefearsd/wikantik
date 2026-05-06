@@ -258,7 +258,7 @@ Each phase is a candidate for a focused implementation plan. Estimated effort as
 
 **Done when:** zero `engine.getManager(KgXxx.class)` callers; `KnowledgeSubsystem` testable in isolation; no regression in `mvn clean install -Pintegration-tests -fae`.
 
-### Phase 2 — CoreSubsystem extraction (≈ 3 days)
+### Phase 2 — CoreSubsystem extraction (≈ 3 days)  *(complete 2026-05-06)*
 
 **Goal:** stop reaching for properties and the event bus through `WikiEngine`.
 
@@ -267,7 +267,31 @@ Each phase is a candidate for a focused implementation plan. Estimated effort as
 - Migrate the smallest leaves first (`SystemPageRegistry`, `RecentArticlesManager`, `BlogManager`).
 - Leave the heavyweight subsystems alone for now.
 
-**Done when:** `CoreSubsystem.Services` exists; the rest of the codebase has zero direct `Properties` field access — every reader goes through `WikiProperties`; ArchUnit prevents regression.
+**Outcome:** `CoreSubsystem.Services` ships with `WikiProperties` /
+`WikiEventBus` / `MeterRegistry` plus the three leaf managers.
+Production wiring stashes the `(core, knowledge)` bundle on the
+`ServletContext` at boot. 22 leaf-manager `getManager` callsites + 40
+of 41 `engine.getWikiProperties()` callsites + 10 of the most-used
+`WikiEventManager.fireEvent` callers migrated. `KnowledgeSubsystem.Deps`
+now declares `CoreSubsystem.Services core` directly — first
+cross-subsystem edge in the decomposition DAG.
+
+**Deferred to a follow-up:** removing the leaf managers from the legacy
+`managers` registry. `RecentArticlesManager.initialize` reads
+`SystemPageRegistry` via the bridge during boot, which currently
+relies on the registry being populated. Restructuring init ordering
+is a Phase 5 (PageSubsystem) concern. The `WikiEngine.getManager`
+fallback now consults `coreSubsystem` so callers transparently keep
+working as the registry shrinks. One `getWikiProperties` callsite in
+`wikantik-http`'s `CsrfProtectionFilter` stays direct — `wikantik-http`
+sits below `wikantik-main` in the module hierarchy and can't reach
+`CoreSubsystemBridge` without a new module dependency.
+
+**Metrics (`bin/metrics/decomposition-progress.json`):**
+- `get_manager_callers_repo_wide` 1055 → 1037 (-18)
+- `get_manager_callers_in_main` 216 → 209 (-7)
+- `archunit_frozen_violations` 40 → 37 (-3)
+- `registered_managers` unchanged at 28 (deferred above)
 
 ### Phase 3 — PersistenceSubsystem extraction (≈ 4 days)
 

@@ -1,7 +1,7 @@
 # Phase 2: CoreSubsystem extraction — implementation plan
 
 **Spec:** [docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md](../specs/2026-05-05-wikantik-main-decomposition-design.md)
-**Status:** ready
+**Status:** complete (2026-05-06)
 **Estimated effort:** 4–5 days
 **Goal:** stop reaching for cross-cutting infrastructure (properties, event bus, leaf managers) through `WikiEngine`. Establish `CoreSubsystem` — the foundation every other subsystem depends on. After Phase 2, `WikiProperties` is the single-source-of-truth for configuration reads, and the small leaf managers are typed services on the same bundle.
 

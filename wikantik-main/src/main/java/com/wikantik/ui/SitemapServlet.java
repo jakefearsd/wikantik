@@ -47,6 +47,7 @@ import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
@@ -126,7 +127,7 @@ public class SitemapServlet extends HttpServlet {
     public void init( final ServletConfig config ) throws ServletException {
         super.init( config );
         engine = Wiki.engine().find( config );
-        systemPageRegistry = engine.getManager( SystemPageRegistry.class );
+        systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
 
         // Check for configured sitemap base URL
         final Properties props = engine.getWikiProperties();

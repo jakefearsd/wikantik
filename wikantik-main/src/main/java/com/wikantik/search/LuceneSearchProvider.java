@@ -66,6 +66,7 @@ import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.Session;
 import com.wikantik.auth.AuthorizationManager;
@@ -266,7 +267,7 @@ public class LuceneSearchProvider implements SearchProvider {
         this.engine = engine;
         this.pageManager = engine.getManager( PageManager.class );
         this.attachmentManager = engine.getManager( AttachmentManager.class );
-        this.systemPageRegistry = engine.getManager( SystemPageRegistry.class );
+        this.systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
         // AuthorizationManager and AclManager are initialized after SearchManager
         // in the engine startup sequence, so we resolve them lazily on first use.
         searchExecutor = Executors.newCachedThreadPool();

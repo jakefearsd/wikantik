@@ -30,6 +30,7 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.attachment.Attachment;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.preferences.Preferences;
@@ -110,7 +111,7 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
         super.initialize( context, params );
         changes = filterWikiPageCollection( changes );
 
-        final SystemPageRegistry systemPageRegistry = engine.getManager( SystemPageRegistry.class );
+        final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
         if ( systemPageRegistry != null ) {
             changes = changes.stream()
                     .filter( p -> !systemPageRegistry.isSystemPage( p.getName() ) )

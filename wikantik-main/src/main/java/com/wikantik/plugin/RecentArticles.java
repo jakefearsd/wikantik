@@ -26,6 +26,7 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.content.ArticleSummary;
 import com.wikantik.content.RecentArticlesManager;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.content.RecentArticlesQuery;
 import com.wikantik.util.TextUtil;
 
@@ -96,7 +97,7 @@ public class RecentArticles implements Plugin {
     public String execute( final Context context, final Map<String, String> params ) throws PluginException {
         final Engine engine = context.getEngine();
 
-        final RecentArticlesManager manager = engine.getManager( RecentArticlesManager.class );
+        final RecentArticlesManager manager = CoreSubsystemBridge.fromLegacyEngine( engine ).recentArticlesManager();
         if ( manager == null ) {
             LOG.error( "RecentArticlesManager not available" );
             return "<p class=\"error\">RecentArticles plugin: Service not available.</p>";

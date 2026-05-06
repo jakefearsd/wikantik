@@ -226,7 +226,7 @@ public class BlogResource extends RestServletBase {
      */
     private void handleListBlogs( final HttpServletResponse response ) throws IOException {
         try {
-            final BlogManager blogManager = getEngine().getManager( BlogManager.class );
+            final BlogManager blogManager = getSubsystems().core().blogManager();
             final List< BlogInfo > blogs = blogManager.listBlogs();
 
             final List< Map< String, Object > > result = new ArrayList<>();
@@ -253,7 +253,7 @@ public class BlogResource extends RestServletBase {
     private void handleGetBlog( final HttpServletRequest request, final HttpServletResponse response,
                                 final String username ) throws IOException {
         try {
-            final BlogManager blogManager = getEngine().getManager( BlogManager.class );
+            final BlogManager blogManager = getSubsystems().core().blogManager();
             final BlogInfo blogInfo = blogManager.getBlogInfo( username );
 
             if ( blogInfo == null ) {
@@ -303,7 +303,7 @@ public class BlogResource extends RestServletBase {
         }
 
         try {
-            final BlogManager blogManager = getEngine().getManager( BlogManager.class );
+            final BlogManager blogManager = getSubsystems().core().blogManager();
             final Page blogPage = blogManager.createBlog( session );
 
             final String username = session.getLoginPrincipal().getName().toLowerCase( Locale.ROOT );
@@ -336,7 +336,7 @@ public class BlogResource extends RestServletBase {
         }
 
         try {
-            final BlogManager blogManager = getEngine().getManager( BlogManager.class );
+            final BlogManager blogManager = getSubsystems().core().blogManager();
 
             if ( !blogManager.blogExists( username ) ) {
                 sendNotFound( response, "Blog not found for user: " + username );
@@ -365,7 +365,7 @@ public class BlogResource extends RestServletBase {
     private void handleListEntries( final HttpServletResponse response, final String username ) throws IOException {
         try {
             final Engine engine = getEngine();
-            final BlogManager blogManager = engine.getManager( BlogManager.class );
+            final BlogManager blogManager = getSubsystems().core().blogManager();
 
             if ( !blogManager.blogExists( username ) ) {
                 sendNotFound( response, "Blog not found for user: " + username );
@@ -416,7 +416,7 @@ public class BlogResource extends RestServletBase {
     private void handleGetEntry( final HttpServletRequest request, final HttpServletResponse response,
                                   final String username, final String entryName ) throws IOException {
         final Engine engine = getEngine();
-        final BlogManager blogManager = engine.getManager( BlogManager.class );
+        final BlogManager blogManager = getSubsystems().core().blogManager();
 
         if ( !blogManager.blogExists( username ) ) {
             sendNotFound( response, "Blog not found for user: " + username );
@@ -488,7 +488,7 @@ public class BlogResource extends RestServletBase {
             ? body.get( "content" ).getAsString() : null;
 
         try {
-            final BlogManager blogManager = getEngine().getManager( BlogManager.class );
+            final BlogManager blogManager = getSubsystems().core().blogManager();
             final Page entryPage = blogManager.createEntry( session, topic, content );
 
             final String entrySlug = entryPage.getName().substring( entryPage.getName().lastIndexOf( '/' ) + 1 );

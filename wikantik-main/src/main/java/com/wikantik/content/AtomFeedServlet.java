@@ -33,6 +33,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.util.BaseUrlResolver;
 import com.wikantik.util.TextUtil;
 
@@ -100,7 +101,7 @@ public class AtomFeedServlet extends HttpServlet {
             .includeExcerpt( false );
 
         final Context context = Wiki.context().create( engine, req, WikiContext.VIEW );
-        final RecentArticlesManager manager = engine.getManager( RecentArticlesManager.class );
+        final RecentArticlesManager manager = CoreSubsystemBridge.fromLegacyEngine( engine ).recentArticlesManager();
         if ( manager == null ) {
             resp.sendError( HttpServletResponse.SC_SERVICE_UNAVAILABLE, "RecentArticlesManager not available" );
             return;

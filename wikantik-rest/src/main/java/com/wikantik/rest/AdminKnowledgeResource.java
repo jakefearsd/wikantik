@@ -748,7 +748,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "PageManager not available" );
             return;
         }
-        final SystemPageRegistry spr = getEngine().getManager( SystemPageRegistry.class );
+        final SystemPageRegistry spr = getSubsystems().core().systemPageRegistry();
         final int limit = parseIntParam( request, "limit", 100 );
         final int offset = parseIntParam( request, "offset", 0 );
         try {
@@ -1034,7 +1034,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         backfillErrors.set( 0 );
         try {
             final PageManager pm = getEngine().getManager( PageManager.class );
-            final SystemPageRegistry spr = getEngine().getManager( SystemPageRegistry.class );
+            final SystemPageRegistry spr = getSubsystems().core().systemPageRegistry();
             final var allPages = pm.getAllPages();
             backfillTotal = allPages.size();
 

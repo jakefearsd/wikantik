@@ -29,6 +29,7 @@ import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.blog.BlogManager;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.util.TextUtil;
 
@@ -78,7 +79,7 @@ public class LatestArticle implements Plugin {
     @Override
     public String execute( final Context context, final Map< String, String > params ) throws PluginException {
         final Engine engine = context.getEngine();
-        final BlogManager blogManager = engine.getManager( BlogManager.class );
+        final BlogManager blogManager = CoreSubsystemBridge.fromLegacyEngine( engine ).blogManager();
         final PageManager pageManager = engine.getManager( PageManager.class );
 
         if ( blogManager == null ) {

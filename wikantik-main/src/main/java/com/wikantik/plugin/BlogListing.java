@@ -26,6 +26,7 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.blog.BlogInfo;
 import com.wikantik.blog.BlogManager;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.util.TextUtil;
 
 import java.util.List;
@@ -67,7 +68,7 @@ public class BlogListing implements Plugin {
     @Override
     public String execute( final Context context, final Map< String, String > params ) throws PluginException {
         final Engine engine = context.getEngine();
-        final BlogManager blogManager = engine.getManager( BlogManager.class );
+        final BlogManager blogManager = CoreSubsystemBridge.fromLegacyEngine( engine ).blogManager();
 
         if ( blogManager == null ) {
             LOG.warn( "BlogManager not available" );

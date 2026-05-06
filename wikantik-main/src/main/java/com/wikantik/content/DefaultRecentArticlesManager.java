@@ -27,6 +27,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.attachment.Attachment;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.util.TextUtil;
 
@@ -135,7 +136,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
         this.engine = newEngine;
         this.pageManager = newEngine.getManager( PageManager.class );
         this.renderingManager = newEngine.getManager( RenderingManager.class );
-        this.systemPageRegistry = newEngine.getManager( SystemPageRegistry.class );
+        this.systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( newEngine ).systemPageRegistry();
         cacheTTL = TextUtil.getIntegerProperty( props, PROP_CACHE_TTL, DEFAULT_CACHE_TTL );
         defaultCount = TextUtil.getIntegerProperty( props, PROP_DEFAULT_COUNT, RecentArticlesQuery.DEFAULT_COUNT );
         defaultExcerptLength = TextUtil.getIntegerProperty( props, PROP_DEFAULT_EXCERPT_LENGTH, RecentArticlesQuery.DEFAULT_EXCERPT_LENGTH );

@@ -32,6 +32,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.mcp.completions.WikiCompletions;
 import com.wikantik.mcp.prompts.WikiPrompts;
 import com.wikantik.mcp.resources.WikiEventSubscriptionBridge;
@@ -111,7 +112,7 @@ public class McpServerInitializer implements ServletContextListener {
             final PageManager pageManager = engine.getManager( PageManager.class );
             final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
             final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
-            final SystemPageRegistry systemPageRegistry = engine.getManager( SystemPageRegistry.class );
+            final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
 
             final WikiResources wikiResources = new WikiResources(
                     pageManager, referenceManager, attachmentManager, systemPageRegistry );

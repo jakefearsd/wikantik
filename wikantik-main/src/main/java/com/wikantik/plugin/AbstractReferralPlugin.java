@@ -28,6 +28,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSorter;
 import com.wikantik.parser.MarkupParser;
@@ -225,7 +226,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
      *  @return A filtered collection.
      */
     protected List< String > filterCollection( final Collection< String > c ) {
-        final SystemPageRegistry spr = engine.getManager( SystemPageRegistry.class );
+        final SystemPageRegistry spr = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
         final var result = new ArrayList< String >();
         for( final String pageName : c ) {
             // Filter system/template pages (LeftMenu, CSS themes, etc.) unless explicitly requested

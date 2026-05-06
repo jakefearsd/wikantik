@@ -33,6 +33,7 @@ import com.wikantik.WikiContext;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -145,7 +146,7 @@ public class RecentArticlesServlet extends HttpServlet {
             final RecentArticlesQuery query = parseQuery( request );
             final Context context = createContext( request );
 
-            final RecentArticlesManager manager = engine.getManager( RecentArticlesManager.class );
+            final RecentArticlesManager manager = CoreSubsystemBridge.fromLegacyEngine( engine ).recentArticlesManager();
             if ( manager == null ) {
                 sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                            "RecentArticlesManager not available" );

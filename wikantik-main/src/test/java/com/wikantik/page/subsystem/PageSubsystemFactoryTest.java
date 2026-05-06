@@ -67,6 +67,9 @@ final class PageSubsystemFactoryTest {
         assertSame( renamer, services.pageRenamer() );
         assertSame( provider, services.pageProvider() );
         assertNotNull( services.pageSaveHelper(), "pageSaveHelper" );
+        // pageRepository/pageLifecycle/pageLockService are null when pages is a mock
+        // (not a DefaultPageManager) — that is expected and acceptable in this test
+
     }
 
     @Test

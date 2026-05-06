@@ -21,20 +21,16 @@ package com.wikantik.pages;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.wikantik.WikiBackgroundThread;
-import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.AclEntry;
-import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.providers.PageProvider;
-import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.api.managers.AttachmentManager;
+import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.pages.PageSorter;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
@@ -44,10 +40,12 @@ import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.event.WikiSecurityEvent;
-import com.wikantik.providers.RepositoryModifiedException;
-import com.wikantik.api.managers.ReferenceManager;
-import com.wikantik.filters.FilterManager;
-import com.wikantik.search.SearchManager;
+import com.wikantik.page.subsystem.lifecycle.DefaultPageLifecycle;
+import com.wikantik.page.subsystem.lifecycle.DefaultPageLockService;
+import com.wikantik.page.subsystem.lifecycle.DefaultPageRepository;
+import com.wikantik.page.subsystem.lifecycle.PageLifecycle;
+import com.wikantik.page.subsystem.lifecycle.PageLockService;
+import com.wikantik.page.subsystem.lifecycle.PageRepository;
 import com.wikantik.ui.CommandResolver;
 import com.wikantik.util.TextUtil;
 
@@ -55,36 +53,37 @@ import java.security.Permission;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
-import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
- * Manages the WikiPages. This class functions as an unified interface towards the page providers. It handles initialization
- * and management of the providers, and provides utility methods for accessing the contents.
+ * Manages the WikiPages. This class functions as a thin façade that delegates to three
+ * internal helpers: {@link PageRepository} (storage access), {@link PageLifecycle}
+ * (save orchestration), and {@link PageLockService} (lock state).
+ *
+ * <p>Phase 5 Checkpoint 3 of the wikantik-main subsystem decomposition extracted
+ * all implementation logic into those helpers; this class retains only wiring,
+ * the {@code actionPerformed} ACL-update listener, and {@link #changeAcl}.</p>
  *
  * @since 2.0
  */
 public class DefaultPageManager implements com.wikantik.api.managers.PageManager {
 
     private static final Logger LOG = LogManager.getLogger( DefaultPageManager.class );
-    private final PageProvider provider;
-    private final Engine engine;
-    private final int expiryTime;
-    protected final ConcurrentHashMap< String, com.wikantik.api.pages.PageLock > pageLocks = new ConcurrentHashMap<>();
-    private final PageSorter pageSorter = new PageSorter();
-    private LockReaper reaper;
 
-    // Injected Phase 1 manager — available at PageManager construction time
-    private final CommandResolver commandResolver;
+    private final Engine         engine;
+    private final PageRepository repository;
+    private final PageLifecycle  lifecycle;
+    private final PageLockService lockService;
+
+    // pageSorter is initialized here so the test-seam ctor can skip props parsing
+    // and the production ctor can call pageSorter.initialize(props) before building helpers.
+    private final PageSorter pageSorter = new PageSorter();
 
     /**
      * Creates a new PageManager, resolving managers from the engine.
@@ -94,7 +93,7 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
      * @throws NoSuchElementException {@value #PROP_PAGEPROVIDER} property not found on Engine properties
      * @throws WikiException If anything goes wrong, you get this.
      */
-    public DefaultPageManager(final Engine newEngine, final Properties props) throws NoSuchElementException, WikiException {
+    public DefaultPageManager( final Engine newEngine, final Properties props ) throws NoSuchElementException, WikiException {
         this( newEngine, props,
               com.wikantik.page.subsystem.PageSubsystemFactory.buildProvider( newEngine, props ) );
     }
@@ -110,620 +109,144 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
      * @param props         Properties to use for initialization
      * @param pageProvider  Pre-built {@link PageProvider} chain (already initialized)
      */
-    public DefaultPageManager(final Engine newEngine, final Properties props,
-                              final PageProvider pageProvider) throws NoSuchElementException {
+    public DefaultPageManager( final Engine newEngine, final Properties props,
+                               final PageProvider pageProvider ) throws NoSuchElementException {
         this.engine = newEngine;
-        this.commandResolver = newEngine.getManager( CommandResolver.class );
-        this.provider = pageProvider;
-        this.expiryTime = TextUtil.parseIntParameter( props.getProperty( PROP_LOCKEXPIRY ), 60 );
+        final CommandResolver commandResolver = newEngine.getManager( CommandResolver.class );
+        final int expiryTime = TextUtil.parseIntParameter( props.getProperty( PROP_LOCKEXPIRY ), 60 );
         pageSorter.initialize( props );
+
+        this.repository  = new DefaultPageRepository( newEngine, commandResolver, pageProvider, pageSorter, this );
+        this.lifecycle   = new DefaultPageLifecycle( newEngine, repository );
+        this.lockService = new DefaultPageLockService( newEngine, expiryTime, this );
     }
 
     /**
      * Package-private test-only constructor that bypasses provider initialization entirely.
      * Accepts a pre-built PageProvider so tests can use mocks without hitting the filesystem.
      *
-     * @param newEngine       Engine instance (may be a mock)
-     * @param commandResolver Phase 1 CommandResolver (may be a mock)
-     * @param pageProvider    Pre-built PageProvider (may be a mock)
+     * @param newEngine         Engine instance (may be a mock)
+     * @param commandResolver   Phase 1 CommandResolver (may be a mock)
+     * @param pageProvider      Pre-built PageProvider (may be a mock)
      * @param lockExpiryMinutes Lock expiry time in minutes
      */
-    DefaultPageManager(final Engine newEngine,
-                       final CommandResolver commandResolver,
-                       final PageProvider pageProvider,
-                       final int lockExpiryMinutes) {
-        this.engine = newEngine;
-        this.commandResolver = commandResolver;
-        this.provider = pageProvider;
-        this.expiryTime = lockExpiryMinutes;
+    DefaultPageManager( final Engine newEngine,
+                        final CommandResolver commandResolver,
+                        final PageProvider pageProvider,
+                        final int lockExpiryMinutes ) {
+        this.engine      = newEngine;
+        this.repository  = new DefaultPageRepository( newEngine, commandResolver, pageProvider, pageSorter, this );
+        this.lifecycle   = new DefaultPageLifecycle( newEngine, repository );
+        this.lockService = new DefaultPageLockService( newEngine, lockExpiryMinutes, this );
     }
 
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getProvider()
-     */
-    @Override
-    public PageProvider getProvider() {
-        return provider;
-    }
+    // -------------------------------------------------------------------------
+    // Package-private accessors for PageSubsystemFactory (Ckpt 3 wiring)
+    // -------------------------------------------------------------------------
 
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getAllPages()
-     */
-    @Override
-    public Collection< Page > getAllPages() throws ProviderException {
-        return provider.getAllPages();
-    }
+    /** Returns the internal {@link PageRepository}. */
+    public PageRepository getRepository() { return repository; }
 
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getPageText(java.lang.String, int)
-     */
-    @Override
-    public String getPageText( final String pageName, final int version ) throws ProviderException {
-        if (pageName == null || pageName.isEmpty()) {
-            throw new ProviderException( "Illegal page name" );
-        }
-        String text;
+    /** Returns the internal {@link PageLifecycle}. */
+    public PageLifecycle getLifecycle() { return lifecycle; }
 
-        try {
-            text = provider.getPageText( pageName, version );
-        } catch ( final RepositoryModifiedException e ) {
-            //  This only occurs with the latest version.
-            LOG.info( "Repository has been modified externally while fetching page {}", pageName );
+    /** Returns the internal {@link PageLockService}. */
+    public PageLockService getLockService() { return lockService; }
 
-            //  Empty the references and yay, it shall be recalculated
-            final Page reindexedPage = provider.getPageInfo( pageName, version );
+    // -------------------------------------------------------------------------
+    // Engine accessor (kept for subclass use and internal ACL listener)
+    // -------------------------------------------------------------------------
 
-            getReferenceManager().updateReferences( reindexedPage );
-            fireEvent( WikiPageEvent.PAGE_REINDEX, reindexedPage.getName() );
-            text = provider.getPageText( pageName, version );
-        }
-
-        return text;
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getPureText(String, int)
-     */
-    @Override
-    public String getPureText( final String page, final int version ) {
-        String result = null;
-        try {
-            result = getPageText( page, version );
-        } catch( final ProviderException e ) {
-            LOG.error( "ProviderException getPureText for page {} [version {}]", page, version, e );
-        } finally {
-            if( result == null ) {
-                result = "";
-            }
-        }
-        return result;
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getText(String, int)
-     */
-    @Override
-    public String getText( final String page, final int version ) {
-        final String result = getPureText( page, version );
-        return TextUtil.replaceEntities( result );
-    }
-
-    @Override
-    public void saveText( final Context context, final String text ) throws WikiException {
-        // Check if page data actually changed; bail if not
-        final Page page = context.getPage();
-        final String oldText = getPureText( page );
-        final String proposedText = TextUtil.normalizePostData( text );
-        if ( oldText != null && oldText.equals( proposedText ) ) {
-            return;
-        }
-
-        // Check if creation of empty pages is allowed; bail if not
-        final boolean allowEmpty = TextUtil.getBooleanProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(),
-                                                                Engine.PROP_ALLOW_CREATION_OF_EMPTY_PAGES,
-                                                         false );
-        if ( !allowEmpty && !wikiPageExists( page ) && text.isBlank() ) {
-            return;
-        }
-
-        // Set the page author
-        final Page page2 = context.getPage();
-        if ( page2.getAuthor() == null && context.getCurrentUser() != null ) {
-            page2.setAuthor( context.getCurrentUser().getName() );
-        }
-
-        // Run pre-save filters
-        final String saveText = getFilterManager().doPreSaveFiltering( context, proposedText );
-
-        // Save the page text
-        putPageText( page, saveText );
-
-        // Refresh the context for post-save filtering
-        getPage( page.getName() );
-        getFilterManager().doPostSaveFiltering( context, saveText );
-
-        // Reindex the saved page
-        page.setVersion( com.wikantik.api.providers.PageProvider.LATEST_VERSION );
-        getSearchManager().reindexPage( page );
-    }
-
-    /**
-     * Returns the Engine to which this PageManager belongs to.
-     *
-     * @return The Engine object.
-     */
     protected Engine getEngine() {
         return engine;
     }
 
-    // --- Lazy accessors for managers initialized AFTER PageManager (Phase 2+) ---
-    // These cannot be constructor-injected because WikiEngine creates them after PageManager.
+    // -------------------------------------------------------------------------
+    // PageManager façade — one-liner delegates
+    // -------------------------------------------------------------------------
 
-    /** Phase 2 — initialized immediately after PageManager in WikiEngine. */
-    private AttachmentManager getAttachmentManager() {
-        return engine.getManager( AttachmentManager.class );
-    }
+    @Override public PageProvider getProvider()                                                  { return repository.getProvider(); }
+    @Override public Collection<Page> getAllPages() throws ProviderException                     { return repository.getAllPages(); }
+    @Override public String getPageText( final String n, final int v ) throws ProviderException  { return repository.getPageText( n, v ); }
+    @Override public String getPureText( final String p, final int v )                           { return repository.getPureText( p, v ); }
+    @Override public String getText( final String p, final int v )                               { return repository.getText( p, v ); }
+    @Override public void putPageText( final Page p, final String c ) throws ProviderException   { repository.putPageText( p, c ); }
+    @Override public Page getPage( final String p )                                              { return repository.getPage( p ); }
+    @Override public Page getPage( final String p, final int v )                                 { return repository.getPage( p, v ); }
+    @Override public Page getPageInfo( final String n, final int v ) throws ProviderException    { return repository.getPageInfo( n, v ); }
+    @Override public <T extends Page> List<T> getVersionHistory( final String n )                { return repository.getVersionHistory( n ); }
+    @Override public String getCurrentProvider()                                                 { return repository.getCurrentProvider(); }
+    @Override public String getProviderDescription()                                             { return repository.getProviderDescription(); }
+    @Override public int getTotalPageCount()                                                     { return repository.getTotalPageCount(); }
+    @Override public Set<Page> getRecentChanges()                                               { return repository.getRecentChanges(); }
+    @Override public Set<Page> getRecentChanges( final Date since )                             { return repository.getRecentChanges( since ); }
+    @Override public boolean pageExists( final String n ) throws ProviderException               { return repository.pageExists( n ); }
+    @Override public boolean pageExists( final String n, final int v ) throws ProviderException  { return repository.pageExists( n, v ); }
+    @Override public boolean wikiPageExists( final String p )                                    { return repository.wikiPageExists( p ); }
+    @Override public boolean wikiPageExists( final String p, final int v ) throws ProviderException { return repository.wikiPageExists( p, v ); }
+    @Override public void deleteVersion( final Page p ) throws ProviderException                 { repository.deleteVersion( p ); }
+    @Override public void deletePage( final String n ) throws ProviderException                  { repository.deletePage( n ); }
+    @Override public void deletePage( final Page p ) throws ProviderException                    { repository.deletePage( p ); }
+    @Override public PageSorter getPageSorter()                                                  { return repository.getPageSorter(); }
 
-    /** Phase 3 — initialized after all storage providers. */
-    private SearchManager getSearchManager() {
-        return engine.getManager( SearchManager.class );
-    }
+    @Override public void saveText( final Context c, final String t ) throws WikiException       { lifecycle.saveText( c, t ); }
 
-    /** Phase 4 — initialized after utility/security managers. */
-    private FilterManager getFilterManager() {
-        return engine.getManager( FilterManager.class );
-    }
+    @Override public PageLock lockPage( final Page p, final String u )                           { return lockService.lockPage( p, u ); }
+    @Override public void unlockPage( final PageLock l )                                         { lockService.unlockPage( l ); }
+    @Override public PageLock getCurrentLock( final Page p )                                     { return lockService.getCurrentLock( p ); }
+    @Override public List<PageLock> getActiveLocks()                                             { return lockService.getActiveLocks(); }
 
-    /** Phase 4 — initialized after utility/security managers. */
-    private AclManager getAclManager() {
-        return engine.getManager( AclManager.class );
-    }
+    // -------------------------------------------------------------------------
+    // Event helper (retained for subclass / listener registration on *this*)
+    // -------------------------------------------------------------------------
 
-    /** Phase 8 — initialized last, after RenderingManager. */
-    private ReferenceManager getReferenceManager() {
-        return engine.getManager( ReferenceManager.class );
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#putPageText(com.wikantik.api.core.Page, java.lang.String)
-     */
-    @Override
-    public void putPageText( final Page page, final String content ) throws ProviderException {
-        if (page == null || page.getName() == null || page.getName().isEmpty()) {
-            throw new ProviderException("Illegal page name");
-        }
-
-        provider.putPageText(page, content);
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#lockPage(com.wikantik.api.core.Page, java.lang.String)
-     */
-    @Override
-    public com.wikantik.api.pages.PageLock lockPage( final Page page, final String user ) {
-        if( reaper == null ) {
-            //  Start the lock reaper lazily.  We don't want to start it in the constructor, because starting threads in constructors
-            //  is a bad idea when it comes to inheritance.  Besides, laziness is a virtue.
-            reaper = new LockReaper( engine );
-            reaper.start();
-        }
-
-        fireEvent( WikiPageEvent.PAGE_LOCK, page.getName() );
-        final Date lockTime = new Date();
-        final com.wikantik.api.pages.PageLock newLock = new com.wikantik.api.pages.PageLock( page, user, lockTime, new Date( lockTime.getTime() + expiryTime * 60 * 1000L ) );
-        final com.wikantik.api.pages.PageLock existing = pageLocks.putIfAbsent( page.getName(), newLock );
-
-        if( existing == null ) {
-            LOG.debug( "Locked page {} for {}", page.getName(), user );
-            return newLock;
-        } else {
-            LOG.debug( "Page {} already locked by {}", page.getName(), existing.getLocker() );
-            return null;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#unlockPage(com.wikantik.api.pages.PageLock)
-     */
-    @Override
-    public void unlockPage( final com.wikantik.api.pages.PageLock lock ) {
-        if (lock == null) {
-            return;
-        }
-
-        pageLocks.remove( lock.getPage() );
-        LOG.debug( "Unlocked page {}", lock.getPage() );
-
-        fireEvent( WikiPageEvent.PAGE_UNLOCK, lock.getPage() );
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getCurrentLock(com.wikantik.api.core.Page)
-     */
-    @Override
-    public com.wikantik.api.pages.PageLock getCurrentLock( final Page page ) {
-        return pageLocks.get( page.getName() );
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getActiveLocks()
-     */
-    @Override
-    public List< com.wikantik.api.pages.PageLock > getActiveLocks() {
-        return  new ArrayList<>( pageLocks.values() );
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getPage(java.lang.String)
-     */
-    @Override
-    public Page getPage( final String pagereq ) {
-        return getPage( pagereq, PageProvider.LATEST_VERSION );
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getPage(java.lang.String, int)
-     */
-    @Override
-    public Page getPage( final String pagereq, final int version ) {
-        try {
-            Page p = getPageInfo( pagereq, version );
-            if( p == null ) {
-                p = getAttachmentManager().getAttachmentInfo( null, pagereq );
-            }
-
-            return p;
-        } catch( final ProviderException e ) {
-            LOG.warn( "Unable to fetch page info for {} [version {}]: {}", pagereq, version, e.getMessage() );
-            return null;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getPageInfo(java.lang.String, int)
-     */
-    @Override
-    public Page getPageInfo( final String pageName, final int version) throws ProviderException {
-        if( pageName == null || pageName.isEmpty() ) {
-            throw new ProviderException( "Illegal page name '" + pageName + "'" );
-        }
-
-        Page page;
-
-        try {
-            page = provider.getPageInfo( pageName, version );
-        } catch( final RepositoryModifiedException e ) {
-            //  This only occurs with the latest version.
-            LOG.info( "Repository has been modified externally while fetching info for {}", pageName );
-            page = provider.getPageInfo( pageName, version );
-            if( page != null ) {
-                getReferenceManager().updateReferences( page );
-            } else {
-                getReferenceManager().pageRemoved( Wiki.contents().page( engine, pageName ) );
-            }
-        }
-
-        return page;
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getVersionHistory(java.lang.String)
-     */
-    @Override @SuppressWarnings( "unchecked" )
-    public < T extends Page > List< T > getVersionHistory( final String pageName ) {
-        List< T > c = null;
-
-        try {
-            if( pageExists( pageName ) ) {
-                c = ( List< T > )provider.getVersionHistory( pageName );
-            }
-
-            if( c == null ) {
-                c = ( List< T > )getAttachmentManager().getVersionHistory( pageName );
-            }
-        } catch( final ProviderException e ) {
-            LOG.error( "ProviderException requesting version history for {}", pageName, e );
-        }
-
-        return c;
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getCurrentProvider()
-     */
-    @Override 
-    public String getCurrentProvider() {
-        return getProvider().getClass().getName();
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @see com.wikantik.api.managers.PageManager#getProviderDescription()
-     */
-    @Override 
-    public String getProviderDescription() {
-        return provider.getProviderInfo();
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getTotalPageCount()
-     */
-    @Override
-    public int getTotalPageCount() {
-        try {
-            return provider.getAllPages().size();
-        } catch( final ProviderException e ) {
-            LOG.error( "Unable to count pages: ", e );
-            return -1;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getRecentChanges()
-     */
-    @Override
-    public Set< Page > getRecentChanges() {
-        return getRecentChanges( new Date( 0L ) );
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getRecentChanges(Date)
-     */
-    @Override
-    public Set< Page > getRecentChanges( final Date since ) {
-        try {
-            final var sortedPages = new TreeSet<>( new PageTimeComparator() );
-            sortedPages.addAll( provider.getAllChangedSince( since ) );
-            sortedPages.addAll( getAttachmentManager().getAllAttachmentsSince( since ) );
-
-            return sortedPages;
-        } catch( final ProviderException e ) {
-            LOG.error( "Unable to fetch recent changes: ", e );
-            return Collections.emptySet();
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#pageExists(java.lang.String)
-     */
-    @Override
-    public boolean pageExists( final String pageName ) throws ProviderException {
-        if (pageName == null || pageName.isEmpty()) {
-            throw new ProviderException("Illegal page name: '" + pageName + "'");
-        }
-
-        return provider.pageExists(pageName);
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#pageExists(java.lang.String, int)
-     */
-    @Override
-    public boolean pageExists( final String pageName, final int version ) throws ProviderException {
-        if( pageName == null || pageName.isEmpty() ) {
-            throw new ProviderException( "Illegal page name: '" + pageName + "'" );
-        }
-
-        if( version == WikiProvider.LATEST_VERSION ) {
-            return pageExists( pageName );
-        }
-
-        return provider.pageExists( pageName, version );
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#wikiPageExists(java.lang.String)
-     */
-    @Override
-    public boolean wikiPageExists( final String page ) {
-        if( commandResolver.getSpecialPageReference( page ) != null ) {
-            return true;
-        }
-
-        Attachment att = null;
-        try {
-            if( engine.getFinalPageName( page ) != null ) {
-                return true;
-            }
-
-            att = getAttachmentManager().getAttachmentInfo( null, page );
-        } catch( final ProviderException e ) {
-            LOG.debug( "pageExists() failed to find attachments", e );
-        }
-
-        return att != null;
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#wikiPageExists(java.lang.String, int)
-     */
-    @Override
-    public boolean wikiPageExists( final String page, final int version ) throws ProviderException {
-        if( commandResolver.getSpecialPageReference( page ) != null ) {
-            return true;
-        }
-
-        boolean isThere = false;
-        final String finalName = engine.getFinalPageName( page );
-        if( finalName != null ) {
-            isThere = pageExists( finalName, version );
-        }
-
-        if( !isThere ) {
-            //  Go check if such an attachment exists.
-            try {
-                isThere = getAttachmentManager().getAttachmentInfo( null, page, version ) != null;
-            } catch( final ProviderException e ) {
-                LOG.debug( "wikiPageExists() failed to find attachments", e );
-            }
-        }
-
-        return isThere;
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#deleteVersion(com.wikantik.api.core.Page)
-     */
-    @Override
-    public void deleteVersion( final Page page ) throws ProviderException {
-        if( page instanceof Attachment att ) {
-            getAttachmentManager().deleteVersion( att );
-        } else {
-            provider.deleteVersion( page.getName(), page.getVersion() );
-            // FIXME: If this was the latest, reindex Lucene, update RefMgr
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#deletePage(java.lang.String)
-     */
-    @Override
-    public void deletePage( final String pageName ) throws ProviderException {
-        final Page pageToDelete = getPage( pageName );
-        if( pageToDelete != null ) {
-            if( pageToDelete instanceof Attachment att ) {
-                getAttachmentManager().deleteAttachment( att );
-            } else {
-                final Collection< String > refTo = new ArrayList<>( getReferenceManager().findRefersTo( pageName ) );
-
-                if( getAttachmentManager().hasAttachments( pageToDelete ) ) {
-                    final List< Attachment > attachments = getAttachmentManager().listAttachments( pageToDelete );
-                    for( final Attachment attachment : attachments ) {
-                        refTo.remove( attachment.getName() );
-
-                        getAttachmentManager().deleteAttachment( attachment );
-                    }
-                }
-                deletePage( pageToDelete );
-                fireEvent( WikiPageEvent.PAGE_DELETED, pageName );
-            }
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#deletePage(com.wikantik.api.core.Page)
-     */
-    @Override
-    public void deletePage( final Page page ) throws ProviderException {
-        fireEvent( WikiPageEvent.PAGE_DELETE_REQUEST, page.getName() );
-        provider.deletePage( page.getName() );
-        fireEvent( WikiPageEvent.PAGE_DELETED, page.getName() );
-    }
-
-    /**
-     * This is a simple reaper thread that runs roughly every minute
-     * or so (it's not really that important, as long as it runs),
-     * and removes all locks that have expired.
-     */
-    private class LockReaper extends WikiBackgroundThread {
-        /**
-         * Create a LockReaper for a given engine.
-         *
-         * @param newEngine Engine to own this thread.
-         */
-        public LockReaper( final Engine newEngine) {
-            super( engine, 60 );
-            setName( "JSPWiki Lock Reaper" );
-        }
-
-        @Override
-        public void backgroundTask() {
-            final Collection< com.wikantik.api.pages.PageLock > entries = pageLocks.values();
-            for( final Iterator<com.wikantik.api.pages.PageLock> i = entries.iterator(); i.hasNext(); ) {
-                final com.wikantik.api.pages.PageLock p = i.next();
-
-                if ( p.isExpired() ) {
-                    i.remove();
-
-                    LOG.debug( "Reaped lock: {} by {}, acquired {}, and expired {}",
-                               p.getPage(), p.getLocker(), p.getAcquisitionTime(), p.getExpiryTime() );
-                }
-            }
-        }
-    }
-
-    // events processing .......................................................
-
-    /**
-     * Fires a WikiPageEvent of the provided type and page name
-     * to all registered listeners.
-     *
-     * @param type     the event type to be fired
-     * @param pagename the wiki page name as a String
-     * @see com.wikantik.event.WikiPageEvent
-     */
     protected final void fireEvent( final int type, final String pagename ) {
-        if( WikiEventManager.isListening( this ) ) {
-            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).eventBus().fireEvent( this, new WikiPageEvent( engine, type, pagename ) );
+        if ( WikiEventManager.isListening( this ) ) {
+            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine )
+                .eventBus().fireEvent( this, new WikiPageEvent( engine, type, pagename ) );
         }
     }
 
+    // -------------------------------------------------------------------------
+    // actionPerformed — ACL rename listener
+    // -------------------------------------------------------------------------
+
     /**
-     * Listens for {@link com.wikantik.event.WikiSecurityEvent#PROFILE_NAME_CHANGED}
-     * events. If a user profile's name changes, each page ACL is inspected. If an entry contains
-     * a name that has changed, it is replaced with the new one. No events are emitted
-     * as a consequence of this method, because the page contents are still the same; it is
-     * only the representations of the names within the ACL that are changing.
-     *
-     * @param event The event
+     * Listens for {@link WikiSecurityEvent#PROFILE_NAME_CHANGED} events. If a user
+     * profile's name changes, each page ACL is inspected. If an entry contains a name
+     * that has changed, it is replaced with the new one.
      */
     @Override
     public void actionPerformed( final WikiEvent event ) {
-        if( !( event instanceof WikiSecurityEvent se ) ) {
+        if ( !( event instanceof WikiSecurityEvent se ) ) {
             return;
         }
 
-        if( se.getType() == WikiSecurityEvent.PROFILE_NAME_CHANGED ) {
+        if ( se.getType() == WikiSecurityEvent.PROFILE_NAME_CHANGED ) {
             final UserProfile[] profiles = (UserProfile[]) se.getTarget();
             final Principal[] oldPrincipals = { new WikiPrincipal( profiles[ 0 ].getLoginName() ),
-                                                                new WikiPrincipal( profiles[ 0 ].getFullname()),
-                                                                new WikiPrincipal( profiles[ 0 ].getWikiName() ) };
+                                                new WikiPrincipal( profiles[ 0 ].getFullname() ),
+                                                new WikiPrincipal( profiles[ 0 ].getWikiName() ) };
             final Principal newPrincipal = new WikiPrincipal( profiles[ 1 ].getFullname() );
 
             // Examine each page ACL
             try {
                 int pagesChanged = 0;
-                final Collection< Page > pages = getAllPages();
-                for( final Page page : pages ) {
+                final Collection<Page> pages = getAllPages();
+                for ( final Page page : pages ) {
                     final boolean aclChanged = changeAcl( page, oldPrincipals, newPrincipal );
-                    if( aclChanged ) {
+                    if ( aclChanged ) {
                         // If the Acl needed changing, change it now
                         try {
-                            getAclManager().setPermissions( page, page.getAcl() );
-                        } catch( final WikiSecurityException e ) {
-                            LOG.error("Could not change page ACL for page {}: {}", page.getName(), e.getMessage(), e);
+                            engine.getManager( AclManager.class ).setPermissions( page, page.getAcl() );
+                        } catch ( final WikiSecurityException e ) {
+                            LOG.error( "Could not change page ACL for page {}: {}", page.getName(), e.getMessage(), e );
                         }
                         pagesChanged++;
                     }
                 }
                 LOG.info( "Profile name change for '{}' caused {} page ACLs to change also.", newPrincipal, pagesChanged );
-            } catch( final ProviderException e ) {
+            } catch ( final ProviderException e ) {
                 // Oooo! This is really bad...
                 LOG.error( "Could not change user name in Page ACLs because of Provider error:{}", e.getMessage(), e );
             }
@@ -731,29 +254,29 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
     }
 
     /**
-     * For a single wiki page, replaces all Acl entries matching a supplied array of Principals with a new Principal.
+     * For a single wiki page, replaces all Acl entries matching a supplied array of Principals
+     * with a new Principal.
      *
-     * @param page the wiki page whose Acl is to be modified
-     * @param oldPrincipals an array of Principals to replace; all AclEntry objects whose {@link AclEntry#getPrincipal()} method returns
-     *                      one of these Principals will be replaced
-     * @param newPrincipal the Principal that should receive the old Principals' permissions
-     * @return <code>true</code> if the Acl was actually changed; <code>false</code> otherwise
+     * @param page          the wiki page whose Acl is to be modified
+     * @param oldPrincipals an array of Principals to replace
+     * @param newPrincipal  the Principal that should receive the old Principals' permissions
+     * @return {@code true} if the Acl was actually changed; {@code false} otherwise
      */
     protected boolean changeAcl( final Page page, final Principal[] oldPrincipals, final Principal newPrincipal ) {
         final Acl acl = page.getAcl();
         boolean pageChanged = false;
-        if( acl != null ) {
-            final Enumeration< AclEntry > entries = acl.aclEntries();
-            final Collection< AclEntry > entriesToAdd = new ArrayList<>();
-            final Collection< AclEntry > entriesToRemove = new ArrayList<>();
-            while( entries.hasMoreElements() ) {
+        if ( acl != null ) {
+            final Enumeration<AclEntry> entries = acl.aclEntries();
+            final Collection<AclEntry> entriesToAdd    = new ArrayList<>();
+            final Collection<AclEntry> entriesToRemove = new ArrayList<>();
+            while ( entries.hasMoreElements() ) {
                 final AclEntry entry = entries.nextElement();
-                if( ArrayUtils.contains( oldPrincipals, entry.getPrincipal() ) ) {
+                if ( ArrayUtils.contains( oldPrincipals, entry.getPrincipal() ) ) {
                     // Create new entry
                     final AclEntry newEntry = Wiki.acls().entry();
                     newEntry.setPrincipal( newPrincipal );
-                    final Enumeration< Permission > permissions = entry.permissions();
-                    while( permissions.hasMoreElements() ) {
+                    final Enumeration<Permission> permissions = entry.permissions();
+                    while ( permissions.hasMoreElements() ) {
                         final Permission permission = permissions.nextElement();
                         newEntry.addPermission( permission );
                     }
@@ -762,23 +285,13 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
                     entriesToAdd.add( newEntry );
                 }
             }
-            for( final AclEntry entry : entriesToRemove ) {
+            for ( final AclEntry entry : entriesToRemove ) {
                 acl.removeEntry( entry );
             }
-            for( final AclEntry entry : entriesToAdd ) {
+            for ( final AclEntry entry : entriesToAdd ) {
                 acl.addEntry( entry );
             }
         }
         return pageChanged;
     }
-
-    /**
-     * {@inheritDoc}
-     * @see com.wikantik.api.managers.PageManager#getPageSorter()
-     */
-    @Override
-    public PageSorter getPageSorter() {
-        return pageSorter;
-    }
-
 }

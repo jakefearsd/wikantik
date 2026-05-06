@@ -26,6 +26,9 @@ import com.wikantik.api.providers.PageProvider;
 import com.wikantik.auth.subsystem.AuthSubsystem;
 import com.wikantik.content.PageRenamer;
 import com.wikantik.core.subsystem.CoreSubsystem;
+import com.wikantik.page.subsystem.lifecycle.PageLifecycle;
+import com.wikantik.page.subsystem.lifecycle.PageLockService;
+import com.wikantik.page.subsystem.lifecycle.PageRepository;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 
 /**
@@ -80,6 +83,9 @@ public final class PageSubsystem {
         AttachmentManager attachments,
         PageRenamer       pageRenamer,
         PageSaveHelper    pageSaveHelper,
-        PageProvider      pageProvider
+        PageProvider      pageProvider,
+        PageRepository    pageRepository,
+        PageLifecycle     pageLifecycle,
+        PageLockService   pageLockService
     ) {}
 }

@@ -24,6 +24,10 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.content.PageRenamer;
+import com.wikantik.page.subsystem.lifecycle.PageLifecycle;
+import com.wikantik.page.subsystem.lifecycle.PageLockService;
+import com.wikantik.page.subsystem.lifecycle.PageRepository;
+import com.wikantik.pages.DefaultPageManager;
 
 /**
  * Adapter that synthesises a sparse {@link PageSubsystem.Services} record
@@ -55,6 +59,16 @@ public final class PageSubsystemBridge {
         final PageSaveHelper    saveHelper  = new PageSaveHelper( engine );
         final PageProvider      provider    = pages != null ? pages.getProvider() : null;
 
-        return new PageSubsystem.Services( pages, attachments, renamer, saveHelper, provider );
+        PageRepository  pageRepository  = null;
+        PageLifecycle   pageLifecycle   = null;
+        PageLockService pageLockService = null;
+        if ( pages instanceof DefaultPageManager dpm ) {
+            pageRepository  = dpm.getRepository();
+            pageLifecycle   = dpm.getLifecycle();
+            pageLockService = dpm.getLockService();
+        }
+
+        return new PageSubsystem.Services( pages, attachments, renamer, saveHelper, provider,
+                                           pageRepository, pageLifecycle, pageLockService );
     }
 }

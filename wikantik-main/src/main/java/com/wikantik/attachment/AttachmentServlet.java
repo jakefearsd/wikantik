@@ -39,6 +39,7 @@ import org.apache.commons.fileupload2.jakarta.servlet6.JakartaServletFileUpload;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.managers.AttachmentManager;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
@@ -139,7 +140,7 @@ public class AttachmentServlet extends HttpServlet {
         attachmentManager = engine.getManager( AttachmentManager.class );
         authorizationManager = engine.getManager( AuthorizationManager.class );
         progressManager = engine.getManager( ProgressManager.class );
-        final Properties props = engine.getWikiProperties();
+        final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
         final String tmpDir = engine.getWorkDir() + File.separator + "attach-tmp";
         final String allowed = TextUtil.getStringProperty( props, AttachmentManager.PROP_ALLOWEDEXTENSIONS, null );
         maxSize = TextUtil.getIntegerProperty( props, AttachmentManager.PROP_MAXSIZE, Integer.MAX_VALUE );

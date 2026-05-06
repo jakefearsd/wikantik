@@ -21,6 +21,7 @@ package com.wikantik.providers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Attachment;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
@@ -112,7 +113,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
         storageDir = TextUtil.getCanonicalFilePathProperty( properties, PROP_STORAGEDIR,
                                                        System.getProperty("user.home") + File.separator + "wikantik-files");
 
-        final String patternString = engine.getWikiProperties().getProperty( PROP_DISABLECACHE );
+        final String patternString = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( PROP_DISABLECACHE );
         if ( patternString != null ) {
             disableCache = Pattern.compile(patternString);
         }

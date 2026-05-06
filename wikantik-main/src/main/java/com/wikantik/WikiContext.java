@@ -21,6 +21,7 @@ package com.wikantik;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Command;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Engine;
@@ -461,7 +462,7 @@ public class WikiContext implements Context, Command {
             return TextUtil.isPositive( bool );
         }
 
-        return TextUtil.getBooleanProperty( getEngine().getWikiProperties(), key, defValue );
+        return TextUtil.getBooleanProperty( CoreSubsystemBridge.fromLegacyEngine( getEngine() ).properties().asProperties(), key, defValue );
     }
 
     /**

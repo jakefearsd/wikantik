@@ -22,6 +22,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Context;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
@@ -107,14 +108,14 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         String dbInstantiationError = null;
         Throwable cause = null;
         try {
-            final Properties props = engine.getWikiProperties();
+            final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
             dbClassName = props.getProperty( PROP_GROUPDATABASE );
             if( dbClassName == null ) {
                 dbClassName = XMLGroupDatabase.class.getName();
             }
             LOG.info( "Attempting to load group database class {}", dbClassName );
             groupDatabase = ClassUtil.buildInstance( "com.wikantik.auth.authorize", dbClassName );
-            groupDatabase.initialize( engine, engine.getWikiProperties() );
+            groupDatabase.initialize( engine, CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties() );
             LOG.info( "Group database initialized." );
         } catch( final ReflectiveOperationException e ) {
             LOG.error( "UserDatabase {} cannot be instantiated", dbClassName, e );

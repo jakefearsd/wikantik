@@ -19,6 +19,7 @@
 package com.wikantik.tools;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.observability.MeterRegistryHolder;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.apikeys.ApiKeyService;
@@ -68,7 +69,7 @@ public class ToolsServerInitializer implements ServletContextListener {
                     config.rateLimitGlobal(), config.rateLimitPerClient() );
 
             final ApiKeyService apiKeyService = engine != null
-                    ? ApiKeyServiceHolder.get( engine.getWikiProperties() )
+                    ? ApiKeyServiceHolder.get( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties() )
                     : null;
             if ( apiKeyService != null ) {
                 LOG.info( "Tool server: DB-backed API keys enabled — bearer tokens resolve to principals." );

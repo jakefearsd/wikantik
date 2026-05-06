@@ -23,6 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.InternalWikiException;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Context;
 import com.wikantik.i18n.InternationalizationManager;
 
@@ -104,7 +105,7 @@ public class Preferences extends HashMap< String,String > {
 
         // see if default locale is set server side
         if( loc == null ) {
-            final String locale = context.getEngine().getWikiProperties().getProperty( "wikantik.preferences.default-locale" );
+            final String locale = CoreSubsystemBridge.fromLegacyEngine( context.getEngine() ).properties().asProperties().getProperty( "wikantik.preferences.default-locale" );
             try {
                 loc = LocaleUtils.toLocale( locale );
             } catch( final IllegalArgumentException iae ) {

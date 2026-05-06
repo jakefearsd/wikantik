@@ -76,7 +76,7 @@ public class KnowledgeGraphResource extends RestServletBase {
     }
 
     private Tier defaultMinTier( final Engine engine ) {
-        final String defaultStr = engine.getWikiProperties()
+        final String defaultStr = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties()
             .getProperty( "wikantik.kg.read.default_min_tier", "machine" );
         try {
             return Tier.fromWire( defaultStr );

@@ -116,7 +116,7 @@ public class AdminExtractionResource extends RestServletBase {
     }
 
     private String extractorBackend() {
-        final Properties props = getEngine().getWikiProperties();
+        final Properties props = getSubsystems().core().properties().asProperties();
         final String v = props == null ? null : props.getProperty( "wikantik.knowledge.extractor.backend" );
         return ( v == null || v.isBlank() ) ? "disabled" : v.trim().toLowerCase( Locale.ROOT );
     }

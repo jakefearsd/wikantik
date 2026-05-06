@@ -277,7 +277,7 @@ public class AuthResource extends RestServletBase {
 
                 // Validate new password strength
                 final List< String > passwordErrors =
-                        PasswordValidator.validate( newPassword, engine.getWikiProperties() );
+                        PasswordValidator.validate( newPassword, com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties() );
                 if ( !passwordErrors.isEmpty() ) {
                     sendError( response, HttpServletResponse.SC_BAD_REQUEST,
                             passwordErrors.stream()
@@ -411,7 +411,7 @@ public class AuthResource extends RestServletBase {
                     + "New password: " + randomPassword + "\n\n"
                     + "Please change your password after logging in.";
 
-            MailUtil.sendMessage( engine.getWikiProperties(), profile.getEmail(), subject, mailBody );
+            MailUtil.sendMessage( com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), profile.getEmail(), subject, mailBody );
 
             // Email succeeded, now save the new password
             profile.setPassword( randomPassword );

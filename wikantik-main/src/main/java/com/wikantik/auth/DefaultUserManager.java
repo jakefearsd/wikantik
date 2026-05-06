@@ -22,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Context;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
@@ -122,11 +123,11 @@ public class DefaultUserManager implements UserManager {
         String dbClassName = UNKNOWN_CLASS;
 
         try {
-            dbClassName = TextUtil.getRequiredProperty( engine.getWikiProperties(), PROP_DATABASE );
+            dbClassName = TextUtil.getRequiredProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), PROP_DATABASE );
 
             LOG.info( "Attempting to load user database class {}", dbClassName );
             database = ClassUtil.buildInstance( USERDATABASE_PACKAGE, dbClassName );
-            database.initialize( engine, engine.getWikiProperties() );
+            database.initialize( engine, CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties() );
             LOG.info( "UserDatabase initialized." );
         } catch( final NoSuchElementException | NoRequiredPropertyException e ) {
             LOG.error( "You have not set the '{}'. You need to do this if you want to enable user management by JSPWiki.", PROP_DATABASE, e );
@@ -277,7 +278,7 @@ public class DefaultUserManager implements UserManager {
                                                  profile.getFullname(),
                                                  profile.getEmail(),
                                                  absoluteLoginUrl );
-                MailUtil.sendMessage( engine.getWikiProperties(), to, subject, content );
+                MailUtil.sendMessage( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), to, subject, content );
             } catch ( final AddressException e ) {
                 LOG.debug( e.getMessage(), e );
             } catch ( final MessagingException me ) {
@@ -286,7 +287,7 @@ public class DefaultUserManager implements UserManager {
         }
 
         // Send admin notification email if configured
-        final String adminEmail = engine.getWikiProperties().getProperty( "wikantik.admin.notification.email" );
+        final String adminEmail = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( "wikantik.admin.notification.email" );
         if ( adminEmail != null && !adminEmail.isBlank() ) {
             final Locale loc = context.getWikiSession().getLocale();
             try {
@@ -299,7 +300,7 @@ public class DefaultUserManager implements UserManager {
                         profile.getLoginName(),
                         profile.getFullname(),
                         profile.getEmail() );
-                MailUtil.sendMessage( engine.getWikiProperties(), adminEmail, adminSubject, adminContent );
+                MailUtil.sendMessage( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), adminEmail, adminSubject, adminContent );
             } catch ( final AddressException e ) {
                 LOG.debug( e.getMessage(), e );
             } catch ( final MessagingException me ) {
@@ -392,12 +393,12 @@ public class DefaultUserManager implements UserManager {
             session.addMessage( SESSION_MESSAGES, rb.getString( "security.error.blankpassword" ) );
         } else {
             // Password strength validation (NIST 800-63B)
-            final List<String> passwordErrors = PasswordValidator.validate( password, engine.getWikiProperties() );
+            final List<String> passwordErrors = PasswordValidator.validate( password, CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties() );
             for ( final String key : passwordErrors ) {
                 if ( key.contains( "{0}" ) || PasswordValidator.KEY_TOO_SHORT.equals( key ) || PasswordValidator.KEY_TOO_LONG.equals( key ) ) {
                     final int limit = PasswordValidator.KEY_TOO_SHORT.equals( key )
-                            ? TextUtil.getIntegerProperty( engine.getWikiProperties(), PasswordValidator.PROP_MIN_LENGTH, PasswordValidator.DEFAULT_MIN_LENGTH )
-                            : TextUtil.getIntegerProperty( engine.getWikiProperties(), PasswordValidator.PROP_MAX_LENGTH, PasswordValidator.DEFAULT_MAX_LENGTH );
+                            ? TextUtil.getIntegerProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), PasswordValidator.PROP_MIN_LENGTH, PasswordValidator.DEFAULT_MIN_LENGTH )
+                            : TextUtil.getIntegerProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), PasswordValidator.PROP_MAX_LENGTH, PasswordValidator.DEFAULT_MAX_LENGTH );
                     session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( key ), limit ) );
                 } else {
                     session.addMessage( SESSION_MESSAGES, rb.getString( key ) );

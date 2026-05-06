@@ -25,6 +25,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Context;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
@@ -228,7 +229,7 @@ public class JDBCPlugin implements Plugin {
         }
 
         final Engine engine = context.getEngine();
-        final Properties props = engine.getWikiProperties();
+        final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
 
         // Parse parameters - all local variables for thread safety
         final String source = params.get( PARAM_SOURCE );

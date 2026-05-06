@@ -21,6 +21,7 @@ package com.wikantik.auth.login;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.util.FileUtil;
 import com.wikantik.util.HttpUtil;
@@ -176,7 +177,7 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
         //  Scrub away old files
         final long now = System.currentTimeMillis();
         if( now > ( lastScrubTime + SCRUB_PERIOD ) ) {
-            scrub( TextUtil.getIntegerProperty( engine.getWikiProperties(), PROP_LOGIN_EXPIRY_DAYS, DEFAULT_EXPIRY_DAYS ), cookieDir );
+            scrub( TextUtil.getIntegerProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), PROP_LOGIN_EXPIRY_DAYS, DEFAULT_EXPIRY_DAYS ), cookieDir );
             lastScrubTime = now;
         }
 
@@ -217,7 +218,7 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
      */
     public static void setLoginCookie( final Engine engine, final HttpServletResponse response, final String username ) {
         final UUID uid = UUID.randomUUID();
-        final int days = TextUtil.getIntegerProperty( engine.getWikiProperties(), PROP_LOGIN_EXPIRY_DAYS, DEFAULT_EXPIRY_DAYS );
+        final int days = TextUtil.getIntegerProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), PROP_LOGIN_EXPIRY_DAYS, DEFAULT_EXPIRY_DAYS );
         final Cookie userId = getLoginCookie( uid.toString() );
         userId.setMaxAge( days * 24 * 60 * 60 );
         response.addCookie( userId );

@@ -21,6 +21,7 @@ package com.wikantik.content;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Attachment;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
@@ -189,7 +190,7 @@ public class DefaultPageRenamer implements PageRenamer {
             final String sourceText = engine.getManager( PageManager.class ).getPureText( referrerPage );
             String newText = replaceReferrerString(sourceText, fromPage.getName(), toPage.getName() );
 
-            camelCase = TextUtil.getBooleanProperty( engine.getWikiProperties(), MarkupParser.PROP_CAMELCASELINKS, camelCase );
+            camelCase = TextUtil.getBooleanProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), MarkupParser.PROP_CAMELCASELINKS, camelCase );
             if( camelCase ) {
                 newText = replaceCCReferrerString(newText, fromPage.getName(), toPage.getName() );
             }

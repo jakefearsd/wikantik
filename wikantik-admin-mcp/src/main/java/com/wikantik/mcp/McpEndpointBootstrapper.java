@@ -19,6 +19,7 @@
 package com.wikantik.mcp;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
@@ -90,7 +91,7 @@ public final class McpEndpointBootstrapper {
         LOG.info( "{}: rate limiting — global={}/s, perClient={}/s",
                 logTag, config.rateLimitGlobal(), config.rateLimitPerClient() );
 
-        final ApiKeyService apiKeyService = ApiKeyServiceHolder.get( engine.getWikiProperties() );
+        final ApiKeyService apiKeyService = ApiKeyServiceHolder.get( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties() );
         if ( apiKeyService != null ) {
             LOG.info( "{}: DB-backed API keys enabled — bearer tokens resolve to principals.", logTag );
         } else {

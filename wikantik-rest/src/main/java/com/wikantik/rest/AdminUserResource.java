@@ -179,7 +179,7 @@ public class AdminUserResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "password is required" );
             return;
         }
-        final List<String> passwordErrors = PasswordValidator.validate( password, getEngine().getWikiProperties() );
+        final List<String> passwordErrors = PasswordValidator.validate( password, getSubsystems().core().properties().asProperties() );
         if ( !passwordErrors.isEmpty() ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST,
                     passwordErrors.stream().map( PasswordValidator::describeError ).collect( java.util.stream.Collectors.joining( "; " ) ) );
@@ -240,7 +240,7 @@ public class AdminUserResource extends RestServletBase {
                 profile.setBio( bio );
             }
             if ( password != null && !password.isBlank() ) {
-                final List<String> passwordErrors = PasswordValidator.validate( password, getEngine().getWikiProperties() );
+                final List<String> passwordErrors = PasswordValidator.validate( password, getSubsystems().core().properties().asProperties() );
                 if ( !passwordErrors.isEmpty() ) {
                     sendError( response, HttpServletResponse.SC_BAD_REQUEST,
                             passwordErrors.stream().map( PasswordValidator::describeError ).collect( java.util.stream.Collectors.joining( "; " ) ) );

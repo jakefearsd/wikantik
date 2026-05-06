@@ -130,7 +130,7 @@ public class SitemapServlet extends HttpServlet {
         systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
 
         // Check for configured sitemap base URL
-        final Properties props = engine.getWikiProperties();
+        final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
         configuredBaseUrl = TextUtil.getStringProperty( props, PROP_SITEMAP_BASE_URL, null );
 
         if ( configuredBaseUrl != null && !configuredBaseUrl.isBlank() ) {

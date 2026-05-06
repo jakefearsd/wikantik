@@ -79,7 +79,7 @@ public class AtomFeedServlet extends HttpServlet {
         super.init( config );
         engine = Wiki.engine().find( config );
 
-        final Properties props = engine.getWikiProperties();
+        final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
         configuredBaseUrl = TextUtil.getStringProperty( props, PROP_FEED_BASE_URL, null );
 
         LOG.info( "AtomFeedServlet initialized" );

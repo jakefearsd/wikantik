@@ -20,6 +20,7 @@ package com.wikantik.auth;
 
 import org.apache.commons.lang3.ArrayUtils;
 import com.wikantik.api.core.Engine;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.auth.authorize.Group;
@@ -559,7 +560,7 @@ public final class SecurityVerifier {
      */
     void verifyJaas() {
         // Verify that the specified JAAS moduie corresponds to a class we can load successfully.
-        final String jaasClass = engine.getWikiProperties().getProperty( AuthenticationManager.PROP_LOGIN_MODULE );
+        final String jaasClass = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( AuthenticationManager.PROP_LOGIN_MODULE );
         if( jaasClass == null || jaasClass.isEmpty() ) {
             session.addMessage( ERROR_JAAS, "The value of the '" + AuthenticationManager.PROP_LOGIN_MODULE
                     + "' property was null or blank. This is a fatal error. This value should be set to a valid LoginModule implementation "

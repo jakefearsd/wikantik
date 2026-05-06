@@ -64,7 +64,7 @@ public class AdminApiKeysResource extends RestServletBase {
     }
 
     private ApiKeyService service() {
-        return ApiKeyServiceHolder.get( getEngine().getWikiProperties() );
+        return ApiKeyServiceHolder.get( getSubsystems().core().properties().asProperties() );
     }
 
     @Override

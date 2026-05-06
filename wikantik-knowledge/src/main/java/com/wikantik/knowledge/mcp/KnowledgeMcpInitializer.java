@@ -29,6 +29,7 @@ import jakarta.servlet.ServletContextListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.Release;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextRetrievalService;
@@ -204,7 +205,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
      */
     private static MentionIndex resolveMentionIndex( final Engine engine ) {
         try {
-            final String jndiName = engine.getWikiProperties().getProperty(
+            final String jndiName = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty(
                 AbstractJDBCDatabase.PROP_DATASOURCE,
                 AbstractJDBCDatabase.DEFAULT_DATASOURCE );
             final javax.naming.Context initCtx = new javax.naming.InitialContext();

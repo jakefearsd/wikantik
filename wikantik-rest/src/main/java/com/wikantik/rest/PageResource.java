@@ -366,7 +366,7 @@ public class PageResource extends RestServletBase {
         if ( engine == null ) {
             return DEFAULT_MAX_PAGE_BYTES;
         }
-        final String raw = engine.getWikiProperties().getProperty( PROP_MAX_PAGE_BYTES );
+        final String raw = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( PROP_MAX_PAGE_BYTES );
         if ( raw == null || raw.isBlank() ) {
             return DEFAULT_MAX_PAGE_BYTES;
         }
@@ -384,7 +384,7 @@ public class PageResource extends RestServletBase {
             return false;
         }
         return Boolean.parseBoolean(
-                engine.getWikiProperties().getProperty( PROP_REQUIRE_EXPECTED_VERSION, "false" ).trim() );
+                com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( PROP_REQUIRE_EXPECTED_VERSION, "false" ).trim() );
     }
 
     @Override

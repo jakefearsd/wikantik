@@ -21,6 +21,7 @@ package com.wikantik.variables;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.Release;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
@@ -214,7 +215,7 @@ public class DefaultVariableManager implements VariableManager {
         //    Uses the original name for property lookup (preserves original casing behavior).
         chain.add( ( lowerName, originalName, context ) -> {
             if( originalName.startsWith( "wikantik." ) ) {
-                final Properties wikiProps = context.getEngine().getWikiProperties();
+                final Properties wikiProps = CoreSubsystemBridge.fromLegacyEngine( context.getEngine() ).properties().asProperties();
                 final String propertyValue = wikiProps.getProperty( originalName );
                 if( propertyValue != null ) {
                     return propertyValue;

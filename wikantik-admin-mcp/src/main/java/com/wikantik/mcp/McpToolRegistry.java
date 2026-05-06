@@ -76,7 +76,7 @@ public class McpToolRegistry {
         final VerifyPagesTool verifyPages = new VerifyPagesTool( pageManager, referenceManager );
         final PreviewStructuredDataTool previewStructuredData = new PreviewStructuredDataTool(
                 pageManager, engine.getApplicationName(), engine.getBaseURL() );
-        final String indexNowApiKey = engine.getWikiProperties().getProperty( "wikantik.indexnow.apiKey" );
+        final String indexNowApiKey = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( "wikantik.indexnow.apiKey" );
         final PingSearchEnginesTool pingSearchEngines = new PingSearchEnginesTool(
                 engine.getBaseURL(), indexNowApiKey, java.net.http.HttpClient.newHttpClient() );
 

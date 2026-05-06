@@ -22,6 +22,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.WikiBackgroundThread;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.AclEntry;
 import com.wikantik.api.core.Attachment;
@@ -255,7 +256,7 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
         }
 
         // Check if creation of empty pages is allowed; bail if not
-        final boolean allowEmpty = TextUtil.getBooleanProperty( engine.getWikiProperties(),
+        final boolean allowEmpty = TextUtil.getBooleanProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(),
                                                                 Engine.PROP_ALLOW_CREATION_OF_EMPTY_PAGES,
                                                          false );
         if ( !allowEmpty && !wikiPageExists( page ) && text.isBlank() ) {

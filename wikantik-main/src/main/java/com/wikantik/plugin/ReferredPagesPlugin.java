@@ -27,6 +27,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.util.TextUtil;
 
@@ -156,7 +157,7 @@ public class ReferredPagesPlugin implements Plugin {
      */
     private void getReferredPages( final Context context, final String pagename, final int currentDepth, final StringBuilder result ) {
         if ( currentDepth >= this.depth || pagename == null
-                || !engine.getManager( PageManager.class ).wikiPageExists( pagename ) ) {
+                || !PageSubsystemBridge.fromLegacyEngine( engine ).pages().wikiPageExists( pagename ) ) {
             return;
         }
         final ReferenceManager mgr = engine.getManager( ReferenceManager.class );
@@ -171,7 +172,7 @@ public class ReferredPagesPlugin implements Plugin {
 
         final ArrayList< String > allLinks = new ArrayList<>( links );
         if ( formatSort ) {
-            context.getEngine().getManager( PageManager.class ).getPageSorter().sort( allLinks );
+            PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().getPageSorter().sort( allLinks );
         }
 
         boolean isUL = false;
@@ -200,7 +201,7 @@ public class ReferredPagesPlugin implements Plugin {
 
     /** Returns whether the link points at a page that exists and survives the include/exclude filters. */
     private boolean isRenderable( final String link ) {
-        return engine.getManager( PageManager.class ).wikiPageExists( link )
+        return PageSubsystemBridge.fromLegacyEngine( engine ).pages().wikiPageExists( link )
                 && !excludePattern.matcher( link ).matches()
                 && includePattern.matcher( link ).matches();
     }

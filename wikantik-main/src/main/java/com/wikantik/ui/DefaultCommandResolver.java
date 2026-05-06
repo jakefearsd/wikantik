@@ -29,6 +29,7 @@ import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.GroupPrincipal;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.url.URLConstructor;
 import com.wikantik.util.TextUtil;
@@ -303,7 +304,7 @@ public class DefaultCommandResolver implements CommandResolver {
             }
         }
 
-        Page wikipage = engine.getManager( PageManager.class ).getPage( page, version );
+        Page wikipage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( page, version );
         if ( wikipage == null ) {
             page = MarkupParser.cleanLink( page );
             wikipage = Wiki.contents().page( engine, page );
@@ -321,7 +322,7 @@ public class DefaultCommandResolver implements CommandResolver {
      */
     protected boolean simplePageExists( final String page ) throws ProviderException {
         return specialPages.containsKey( page )
-                || engine.getManager( PageManager.class ).pageExists( page );
+                || PageSubsystemBridge.fromLegacyEngine( engine ).pages().pageExists( page );
     }
 
 }

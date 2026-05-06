@@ -33,6 +33,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.util.BaseUrlResolver;
 import com.wikantik.util.TextUtil;
@@ -108,7 +109,7 @@ public class AtomFeedServlet extends HttpServlet {
         }
 
         final List< ArticleSummary > articles = manager.getRecentArticles( context, query );
-        final PageManager pageManager = engine.getManager( PageManager.class );
+        final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         final String baseUrl = BaseUrlResolver.resolve( engine, req, configuredBaseUrl );
 
         final SimpleDateFormat atomDate = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT );

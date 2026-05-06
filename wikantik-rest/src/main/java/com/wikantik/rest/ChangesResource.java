@@ -91,7 +91,7 @@ public class ChangesResource extends RestServletBase {
             }
 
             final Engine engine = getEngine();
-            final PageManager pm = engine.getManager( PageManager.class );
+            final PageManager pm = getSubsystems().page().pages();
 
             final Set< Page > pages = ( since != null )
                     ? pm.getRecentChanges( since )

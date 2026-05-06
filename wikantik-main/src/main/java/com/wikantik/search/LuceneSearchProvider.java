@@ -74,6 +74,7 @@ import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.util.ClassUtil;
 import com.wikantik.util.FileUtil;
 import com.wikantik.util.TextUtil;
@@ -266,7 +267,7 @@ public class LuceneSearchProvider implements SearchProvider {
     @Override
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, IOException {
         this.engine = engine;
-        this.pageManager = engine.getManager( PageManager.class );
+        this.pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         this.attachmentManager = engine.getManager( AttachmentManager.class );
         this.systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
         // AuthorizationManager and AclManager are initialized after SearchManager

@@ -31,6 +31,7 @@ import com.wikantik.api.providers.PageProvider;
 import com.wikantik.blog.BlogManager;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.util.TextUtil;
 
 import java.util.List;
@@ -84,7 +85,7 @@ public class ArticleListing implements Plugin {
     public String execute( final Context context, final Map< String, String > params ) throws PluginException {
         final Engine engine = context.getEngine();
         final BlogManager blogManager = CoreSubsystemBridge.fromLegacyEngine( engine ).blogManager();
-        final PageManager pageManager = engine.getManager( PageManager.class );
+        final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
 
         if ( blogManager == null ) {
             LOG.warn( "BlogManager not available" );

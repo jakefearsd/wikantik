@@ -21,6 +21,7 @@ package com.wikantik.rest;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.ui.SemanticHeadRenderer;
 import com.wikantik.util.BaseUrlResolver;
@@ -285,7 +286,7 @@ public class SpaRoutingFilter implements Filter {
         }
         final PageManager pm;
         try {
-            pm = eng.getManager( PageManager.class );
+            pm = PageSubsystemBridge.fromLegacyEngine( eng ).pages();
         } catch ( final RuntimeException ex ) {
             LOG.warn( "SpaRoutingFilter: PageManager lookup failed for '{}': {}",
                     pageName, ex.getMessage() );

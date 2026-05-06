@@ -381,7 +381,7 @@ public abstract class RestServletBase extends HttpServlet {
     protected Page requirePage( final HttpServletRequest request,
                                  final HttpServletResponse response,
                                  final String pageName ) throws IOException {
-        final Page page = getEngine().getManager( PageManager.class ).getPage( pageName );
+        final Page page = getSubsystems().page().pages().getPage( pageName );
         if ( page == null ) {
             sendNotFound( response, "Page not found: " + pageName );
             return null;

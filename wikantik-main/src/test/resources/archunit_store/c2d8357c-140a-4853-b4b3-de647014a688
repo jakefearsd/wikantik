@@ -34,4 +34,3 @@ Method <com.wikantik.WikiEngine.initialize(java.util.Properties)> calls method <
 Method <com.wikantik.WikiEngine.shutdown()> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1463)
 Method <com.wikantik.WikiEngine.shutdown()> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1464)
 Method <com.wikantik.WikiEngine.wireEntityExtraction(java.util.Properties, javax.sql.DataSource, com.wikantik.knowledge.chunking.ChunkProjector, com.wikantik.knowledge.chunking.ContentChunkRepository)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1032)
-Method <com.wikantik.frontmatter.FrontmatterPreloader.preloadMetadata(com.wikantik.WikiContext)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (FrontmatterPreloader.java:78)

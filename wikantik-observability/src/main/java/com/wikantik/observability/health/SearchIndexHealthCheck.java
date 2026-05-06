@@ -21,6 +21,7 @@ package com.wikantik.observability.health;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -56,7 +57,7 @@ public class SearchIndexHealthCheck implements HealthCheck {
             // PageManager is the registered manager that provides storage/search access; the
             // PageProvider it wraps is not registered in the engine manager map, so we resolve
             // the manager and use it to verify the underlying storage subsystem is reachable.
-            final PageManager pageManager = engine.getManager( PageManager.class );
+            final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
             if ( pageManager == null ) {
                 // Fallback: legacy callers may register PageProvider directly
                 final PageProvider provider = engine.getManager( PageProvider.class );

@@ -270,7 +270,7 @@ public class BlogResource extends RestServletBase {
             // Return body and metadata separately (consistent with entry endpoint)
             final Page blogPage = blogManager.getBlog( username );
             if ( blogPage != null ) {
-                final PageManager pm = getEngine().getManager( PageManager.class );
+                final PageManager pm = getSubsystems().page().pages();
                 final String rawText = pm.getPureText( blogPage.getName(), PageProvider.LATEST_VERSION );
                 final ParsedPage parsed = FrontmatterParser.parse( rawText );
                 result.put( "content", parsed.body() );
@@ -372,7 +372,7 @@ public class BlogResource extends RestServletBase {
                 return;
             }
 
-            final PageManager pm = engine.getManager( PageManager.class );
+            final PageManager pm = getSubsystems().page().pages();
             final List< Page > entries = blogManager.listEntries( username );
 
             final List< Map< String, Object > > result = new ArrayList<>();
@@ -424,7 +424,7 @@ public class BlogResource extends RestServletBase {
         }
 
         final String pageName = BlogManager.blogPagePath( username, entryName );
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
         final Page page = pm.getPage( pageName );
 
         if ( page == null ) {
@@ -520,7 +520,7 @@ public class BlogResource extends RestServletBase {
 
         final String pageName = BlogManager.blogPagePath( username, BlogManager.BLOG_HOME_PAGE );
         final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
         final Page page = pm.getPage( pageName );
 
         if ( page == null ) {
@@ -567,7 +567,7 @@ public class BlogResource extends RestServletBase {
 
         final String pageName = BlogManager.blogPagePath( username, entryName );
         final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
         final Page page = pm.getPage( pageName );
 
         if ( page == null ) {
@@ -618,7 +618,7 @@ public class BlogResource extends RestServletBase {
 
         final String pageName = BlogManager.blogPagePath( username, entryName );
         final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
         final Page page = pm.getPage( pageName );
 
         if ( page == null ) {

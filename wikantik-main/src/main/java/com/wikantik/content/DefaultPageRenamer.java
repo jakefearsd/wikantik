@@ -31,6 +31,7 @@ import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageRenameEvent;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.search.SearchManager;
@@ -92,11 +93,11 @@ public class DefaultPageRenamer implements PageRenamer {
         
         //  Preconditions: "from" page must exist, and "to" page must not yet exist.
         final Engine engine = context.getEngine();
-        final Page fromPage = engine.getManager( PageManager.class ).getPage( renameFrom );
+        final Page fromPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( renameFrom );
         if( fromPage == null ) {
             throw new WikiException("No such page "+renameFrom);
         }
-        Page toPage = engine.getManager( PageManager.class ).getPage( renameToClean );
+        Page toPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( renameToClean );
         if( toPage != null ) {
             throw new WikiException( "Page already exists " + renameToClean );
         }
@@ -107,23 +108,23 @@ public class DefaultPageRenamer implements PageRenamer {
         //  Remove references to attachments under old name
         final List< Attachment > attachmentsOldName = engine.getManager( AttachmentManager.class ).listAttachments( fromPage );
         for( final Attachment att: attachmentsOldName ) {
-            final Page fromAttPage = engine.getManager( PageManager.class ).getPage( att.getName() );
+            final Page fromAttPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( att.getName() );
             engine.getManager( ReferenceManager.class ).pageRemoved( fromAttPage );
         }
 
-        engine.getManager( PageManager.class ).getProvider().movePage( renameFrom, renameToClean );
+        PageSubsystemBridge.fromLegacyEngine( engine ).pages().getProvider().movePage( renameFrom, renameToClean );
         if( engine.getManager( AttachmentManager.class ).attachmentsEnabled() ) {
             engine.getManager( AttachmentManager.class ).getCurrentProvider().moveAttachmentsForPage( renameFrom, renameToClean );
         }
         
         //  Add a comment to the page notifying what changed.  This adds a new revision to the repo with no actual change.
-        toPage = engine.getManager( PageManager.class ).getPage( renameToClean );
+        toPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( renameToClean );
         if( toPage == null ) {
             throw new ProviderException( "Rename seems to have failed for some strange reason - please check logs!" );
         }
         toPage.setAttribute( Page.CHANGENOTE, fromPage.getName() + " ==> " + toPage.getName() );
         toPage.setAuthor( context.getCurrentUser().getName() );
-        engine.getManager( PageManager.class ).putPageText( toPage, engine.getManager( PageManager.class ).getPureText( toPage ) );
+        PageSubsystemBridge.fromLegacyEngine( engine ).pages().putPageText( toPage, PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( toPage ) );
 
         //  Update the references
         engine.getManager( ReferenceManager.class ).pageRemoved( fromPage );
@@ -139,7 +140,7 @@ public class DefaultPageRenamer implements PageRenamer {
         
         final Collection< Attachment > attachmentsNewName = engine.getManager( AttachmentManager.class ).listAttachments( toPage );
         for( final Attachment att:attachmentsNewName ) {
-            final Page toAttPage = engine.getManager( PageManager.class ).getPage( att.getName() );
+            final Page toAttPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( att.getName() );
             // add reference to attachment under new page name
             engine.getManager( ReferenceManager.class ).updateReferences( toAttPage );
             engine.getManager( SearchManager.class ).reindexPage( att );
@@ -185,9 +186,9 @@ public class DefaultPageRenamer implements PageRenamer {
                 pageName = toPage.getName();
             }
             
-            final Page referrerPage = engine.getManager( PageManager.class ).getPage( pageName );
+            final Page referrerPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
 
-            final String sourceText = engine.getManager( PageManager.class ).getPureText( referrerPage );
+            final String sourceText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( referrerPage );
             String newText = replaceReferrerString(sourceText, fromPage.getName(), toPage.getName() );
 
             camelCase = TextUtil.getBooleanProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), MarkupParser.PROP_CAMELCASELINKS, camelCase );
@@ -200,7 +201,7 @@ public class DefaultPageRenamer implements PageRenamer {
                 referrerPage.setAuthor( context.getCurrentUser().getName() );
 
                 try {
-                    engine.getManager( PageManager.class ).putPageText( referrerPage, newText );
+                    PageSubsystemBridge.fromLegacyEngine( engine ).pages().putPageText( referrerPage, newText );
                     engine.getManager( ReferenceManager.class ).updateReferences( referrerPage );
                 } catch( final ProviderException e ) {
                     //  We fail with an error, but we will try to continue to rename other referrers as well.

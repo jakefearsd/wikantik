@@ -25,6 +25,7 @@ import java.sql.SQLException;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.permissions.PermissionFactory;
@@ -606,7 +607,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             return base;
         }
         final AuthorizationManager authMgr = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
-        final PageManager pageMgr = engine.getManager( PageManager.class );
+        final PageManager pageMgr = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
 
         final List< SnapshotNode > redacted = new ArrayList<>( base.nodes().size() );
         for ( final SnapshotNode node : base.nodes() ) {

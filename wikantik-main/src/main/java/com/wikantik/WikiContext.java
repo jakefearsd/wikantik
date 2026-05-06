@@ -36,6 +36,7 @@ import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.ui.CommandResolver;
 import com.wikantik.ui.GenericCommand;
 import com.wikantik.util.TextUtil;
@@ -214,7 +215,7 @@ public class WikiContext implements Context, Command {
 
         // If page not supplied, default to front page to avoid NPEs
         if( this.page == null ) {
-            this.page = ( WikiPage )engine.getManager( PageManager.class ).getPage( engine.getFrontPage() );
+            this.page = ( WikiPage )PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( engine.getFrontPage() );
 
             // Front page does not exist?
             if( this.page == null ) {

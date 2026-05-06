@@ -41,6 +41,7 @@ import com.wikantik.filters.SpamFilter;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.ui.InputValidator;
 import com.wikantik.util.ClassUtil;
@@ -110,7 +111,7 @@ public class DefaultUserManager implements UserManager {
 
         // Attach the PageManager as a listener
         // TODO: it would be better if we did this in PageManager directly
-        addWikiEventListener( engine.getManager( PageManager.class ) );
+        addWikiEventListener( PageSubsystemBridge.fromLegacyEngine( engine ).pages() );
     }
 
     /** {@inheritDoc} */

@@ -94,7 +94,7 @@ public class PageResource extends RestServletBase {
         LOG.debug( "GET page: {}", pageName );
 
         final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
 
         // Version-specific retrieval
         final String versionParam = request.getParameter( "version" );
@@ -399,7 +399,7 @@ public class PageResource extends RestServletBase {
 
         try {
             final Engine engine = getEngine();
-            final PageManager pm = engine.getManager( PageManager.class );
+            final PageManager pm = getSubsystems().page().pages();
             pm.deletePage( pageName );
 
             final Map< String, Object > result = new LinkedHashMap<>();
@@ -450,7 +450,7 @@ public class PageResource extends RestServletBase {
         LOG.debug( "PATCH page: {}", pageName );
 
         final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
         final Page page = requirePage( request, response, pageName );
         if ( page == null ) return;
 
@@ -559,7 +559,7 @@ public class PageResource extends RestServletBase {
         final boolean changeReferrers = !body.has( "changeReferrers" ) || body.get( "changeReferrers" ).getAsBoolean();
 
         final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
 
         // Source page must exist
         final Page page = requirePage( request, response, pageName );

@@ -97,7 +97,7 @@ public class CommentResource extends RestServletBase {
         LOG.debug( "GET comments: {}", pageName );
 
         final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
 
         final Page page = pm.getPage( pageName );
         if ( page == null ) {
@@ -126,7 +126,7 @@ public class CommentResource extends RestServletBase {
         LOG.debug( "POST comment: {}", pageName );
 
         final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
         final Page page = requirePage( request, response, pageName );
         if ( page == null ) return;
 

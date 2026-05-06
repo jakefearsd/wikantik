@@ -35,6 +35,7 @@ import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.parser.MarkdownLinkScanner;
@@ -213,7 +214,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
      */
     public DefaultReferenceManager( final Engine newEngine ) {
         this( newEngine,
-              newEngine.getManager( PageManager.class ),
+              PageSubsystemBridge.fromLegacyEngine( newEngine ).pages(),
               newEngine.getManager( AttachmentManager.class ) );
     }
 

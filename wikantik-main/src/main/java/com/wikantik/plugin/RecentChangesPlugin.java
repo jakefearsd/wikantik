@@ -33,6 +33,7 @@ import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.preferences.Preferences.TimeFormat;
 import com.wikantik.render.RenderingManager;
@@ -107,7 +108,7 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
 
         LOG.debug("Calculating recent changes from {}", sincedate.getTime());
 
-        Collection< Page > changes = engine.getManager( PageManager.class ).getRecentChanges( sincedate.getTime() );
+        Collection< Page > changes = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getRecentChanges( sincedate.getTime() );
         super.initialize( context, params );
         changes = filterWikiPageCollection( changes );
 
@@ -189,7 +190,7 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
                     authorinfo.setAttribute( XHTML.ATTR_class, "author" );
 
                     if( author != null ) {
-                        if( engine.getManager( PageManager.class ).wikiPageExists( author ) ) {
+                        if( PageSubsystemBridge.fromLegacyEngine( engine ).pages().wikiPageExists( author ) ) {
                             authorinfo.addContent( XhtmlUtil.link( context.getURL( WikiContext.VIEW, author ), author ) );
                         } else {
                             authorinfo.addContent( author );

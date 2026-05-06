@@ -26,6 +26,7 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.util.BaseUrlResolver;
 
 import jakarta.servlet.Filter;
@@ -134,7 +135,7 @@ public class WikiPageFormatFilter implements Filter {
         }
         final PageManager pm;
         try {
-            pm = eng.getManager( PageManager.class );
+            pm = PageSubsystemBridge.fromLegacyEngine( eng ).pages();
         } catch ( final RuntimeException ex ) {
             LOG.warn( "WikiPageFormatFilter: PageManager lookup failed for '{}': {}",
                     pageName, ex.getMessage() );

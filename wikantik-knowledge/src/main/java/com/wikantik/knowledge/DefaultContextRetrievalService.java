@@ -36,6 +36,7 @@ import com.wikantik.api.knowledge.RetrievedChunk;
 import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
@@ -122,7 +123,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
      * pages there is nothing to retrieve.
      */
     public static DefaultContextRetrievalService fromEngine( final Engine engine ) {
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         if ( pm == null ) return null;
         final SearchManager sm = engine.getManager( SearchManager.class );
         if ( sm == null ) return null;

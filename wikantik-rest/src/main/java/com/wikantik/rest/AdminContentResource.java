@@ -141,7 +141,7 @@ public class AdminContentResource extends RestServletBase {
 
     private void handleStats( final HttpServletResponse response ) throws IOException {
         final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
         final ReferenceManager rm = engine.getManager( ReferenceManager.class );
         final CachingManager cm = engine.getManager( CachingManager.class );
 
@@ -231,7 +231,7 @@ public class AdminContentResource extends RestServletBase {
             return;
         }
 
-        final PageManager pm = getEngine().getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
         final List< String > deleted = new ArrayList<>();
         final List< Map< String, String > > failed = new ArrayList<>();
 
@@ -274,8 +274,7 @@ public class AdminContentResource extends RestServletBase {
         }
 
         try {
-            final Engine engine = getEngine();
-            final PageManager pm = engine.getManager( PageManager.class );
+            final PageManager pm = getSubsystems().page().pages();
             final List< ? extends Page > history = pm.getVersionHistory( pageName );
 
             if ( history == null || history.isEmpty() ) {
@@ -315,7 +314,7 @@ public class AdminContentResource extends RestServletBase {
         try {
             final Engine engine = getEngine();
             final SearchManager sm = engine.getManager( SearchManager.class );
-            final PageManager pm = engine.getManager( PageManager.class );
+            final PageManager pm = getSubsystems().page().pages();
 
             // Reindex all pages by queuing each one
             final Collection< ? extends Page > allPages = pm.getAllPages();

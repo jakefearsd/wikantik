@@ -29,6 +29,7 @@ import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.util.ClassUtil;
 import com.wikantik.util.TextUtil;
 
@@ -57,7 +58,7 @@ public class DefaultSearchManager implements PageFilter, SearchManager {
      */
     public DefaultSearchManager( final Engine engine, final Properties properties ) throws FilterException {
         initialize( engine, properties );
-        WikiEventManager.addWikiEventListener( engine.getManager( PageManager.class ), this );
+        WikiEventManager.addWikiEventListener( PageSubsystemBridge.fromLegacyEngine( engine ).pages(), this );
     }
 
 
@@ -100,13 +101,13 @@ public class DefaultSearchManager implements PageFilter, SearchManager {
         if( event instanceof WikiPageEvent pageEvent ) {
             final String pageName = pageEvent.getPageName();
             if( event.getType() == WikiPageEvent.PAGE_DELETE_REQUEST ) {
-                final Page deletedPage = engine.getManager( PageManager.class ).getPage( pageName );
+                final Page deletedPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
                 if( deletedPage != null ) {
                     pageRemoved( deletedPage );
                 }
             }
             if( event.getType() == WikiPageEvent.PAGE_REINDEX ) {
-                final Page reindexedPage = engine.getManager( PageManager.class ).getPage( pageName );
+                final Page reindexedPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
                 if( reindexedPage != null ) {
                     reindexPage( reindexedPage );
                 }

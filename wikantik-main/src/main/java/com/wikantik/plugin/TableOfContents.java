@@ -28,6 +28,7 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.Heading;
 import com.wikantik.parser.HeadingListener;
 import com.wikantik.parser.MarkupParser;
@@ -208,7 +209,7 @@ public class TableOfContents implements Plugin, HeadingListener {
         }
 
         try {
-            String wikiText = engine.getManager( PageManager.class ).getPureText( page );
+            String wikiText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );
             final boolean runFilters = "true".equals( engine.getManager( VariableManager.class ).getValue( context, VariableManager.VAR_RUNFILTERS, "true" ) );
 
             if( runFilters ) {

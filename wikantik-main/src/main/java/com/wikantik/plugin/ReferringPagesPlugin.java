@@ -26,6 +26,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.util.TextUtil;
@@ -79,7 +80,7 @@ public class ReferringPagesPlugin extends AbstractReferralPlugin {
             pageName = context.getPage().getName();
         }
 
-        final Page page = context.getEngine().getManager( PageManager.class ).getPage( pageName );
+        final Page page = PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().getPage( pageName );
         if( page != null ) {
             Collection< String > links  = refmgr.findReferrers( page.getName() );
             String wikitext;

@@ -22,6 +22,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.permissions.PermissionFilter;
 
@@ -67,7 +68,7 @@ class GetPageTool {
      * @return ordered map ready for JSON serialization, or {@code null} when the page is missing
      */
     Map< String, Object > execute( final String pageName, final int maxChars, final HttpServletRequest request ) {
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         final Page page;
         try {
             page = pm.getPage( pageName );

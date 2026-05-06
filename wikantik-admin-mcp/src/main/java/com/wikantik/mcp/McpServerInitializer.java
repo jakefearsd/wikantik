@@ -40,6 +40,7 @@ import com.wikantik.mcp.resources.WikiResources;
 import com.wikantik.mcp.tools.AuthorConfigurable;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.filters.FilterManager;
 
@@ -109,7 +110,7 @@ public class McpServerInitializer implements ServletContextListener {
             final McpConfig config = new McpConfig();
             final McpToolRegistry toolRegistry = new McpToolRegistry( engine );
 
-            final PageManager pageManager = engine.getManager( PageManager.class );
+            final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
             final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
             final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
             final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();

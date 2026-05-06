@@ -34,6 +34,7 @@ import com.wikantik.auth.UserManager;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.providers.AbstractFileProvider;
 import com.wikantik.render.RenderingManager;
 
@@ -87,7 +88,7 @@ public class DefaultBlogManager implements BlogManager {
     @Override
     public void initialize( final Engine newEngine, final Properties props ) throws WikiException {
         this.engine = newEngine;
-        this.pageManager = newEngine.getManager( PageManager.class );
+        this.pageManager = PageSubsystemBridge.fromLegacyEngine( newEngine ).pages();
         this.userManager = AuthSubsystemBridge.fromLegacyEngine( newEngine ).users();
         this.pageDir = props.getProperty( AbstractFileProvider.PROP_PAGEDIR );
 

@@ -26,6 +26,7 @@ import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.diff.DifferenceManager;
 import com.wikantik.mcp.tools.*;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.managers.ReferenceManager;
 
@@ -58,7 +59,7 @@ public class McpToolRegistry {
      * @param engine the wiki engine used to obtain managers and configuration
      */
     public McpToolRegistry( final Engine engine ) {
-        final PageManager pageManager = engine.getManager( PageManager.class );
+        final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
         final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
         final DifferenceManager differenceManager = engine.getManager( DifferenceManager.class );

@@ -61,8 +61,7 @@ public class RecentChangesResource extends RestServletBase {
         limit = Math.min( limit, MAX_LIMIT );
         limit = Math.max( limit, 1 );
 
-        final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
 
         final Set< Page > recentChanges = pm.getRecentChanges();
 

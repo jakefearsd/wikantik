@@ -80,7 +80,7 @@ public class DiffResource extends RestServletBase {
         LOG.debug( "GET diff: {} from={} to={}", pageName, fromVersion, toVersion );
 
         final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
 
         final Page page = pm.getPage( pageName );
         if ( page == null ) {

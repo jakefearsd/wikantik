@@ -26,6 +26,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.attachment.Attachment;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.render.RenderingManager;
@@ -134,7 +135,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
     @Override
     public void initialize( final Engine newEngine, final Properties props ) {
         this.engine = newEngine;
-        this.pageManager = newEngine.getManager( PageManager.class );
+        this.pageManager = PageSubsystemBridge.fromLegacyEngine( newEngine ).pages();
         this.renderingManager = newEngine.getManager( RenderingManager.class );
         this.systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( newEngine ).systemPageRegistry();
         cacheTTL = TextUtil.getIntegerProperty( props, PROP_CACHE_TTL, DEFAULT_CACHE_TTL );

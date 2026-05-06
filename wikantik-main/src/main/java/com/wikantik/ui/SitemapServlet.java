@@ -52,6 +52,7 @@ import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.providers.CachingProvider;
 import com.wikantik.providers.PageProviderDecorator;
 import com.wikantik.url.URLConstructor;
@@ -153,7 +154,7 @@ public class SitemapServlet extends HttpServlet {
         // operation where the filesystem is the source of truth. The cache layer can
         // return stale or empty results after TTL expiration, which would cause
         // search engines to see an incomplete sitemap.
-        final PageManager pageManager = engine.getManager( PageManager.class );
+        final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         final PageProvider filesystemProvider = getFilesystemProvider( pageManager );
         final Collection<Page> allPages;
         try {

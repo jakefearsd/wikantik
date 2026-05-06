@@ -832,9 +832,9 @@ class DefaultReferenceManagerCITest {
         // This exercises the delegating constructor path
         final DefaultReferenceManager delegated = new DefaultReferenceManager( testEngine );
 
-        // Verify managers were fetched from engine
-        verify( testEngine ).getManager( PageManager.class );
-        verify( testEngine ).getManager( AttachmentManager.class );
+        // Verify managers were fetched from engine (PageSubsystemBridge may also call getManager internally)
+        verify( testEngine, atLeastOnce() ).getManager( PageManager.class );
+        verify( testEngine, atLeastOnce() ).getManager( AttachmentManager.class );
 
         assertNotNull( delegated );
     }

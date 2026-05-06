@@ -25,6 +25,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import java.util.Locale;
 
 import java.text.SimpleDateFormat;
@@ -75,7 +76,7 @@ public final class FrontmatterPreloader {
             return;
         }
 
-        final PageManager pageManager = context.getEngine().getManager( PageManager.class );
+        final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages();
         if ( pageManager == null ) {
             return;
         }

@@ -43,6 +43,7 @@ import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiSecurityEvent;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.util.ClassUtil;
 import org.freshcookies.security.policy.LocalPolicy;
@@ -503,7 +504,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
     private PageManager pageManager() {
         if ( pageManager == null ) {
-            pageManager = engine.getManager( PageManager.class );
+            pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         }
         return pageManager;
     }

@@ -123,7 +123,7 @@ public class AttachmentResource extends RestServletBase {
         LOG.debug( "GET attachments list: {}", pageName );
 
         final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
         final Page page = pm.getPage( pageName );
 
         if ( page == null ) {

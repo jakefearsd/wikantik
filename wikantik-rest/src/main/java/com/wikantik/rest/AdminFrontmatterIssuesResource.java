@@ -67,7 +67,7 @@ public class AdminFrontmatterIssuesResource extends RestServletBase {
 
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
-        final PageManager pm = engine().getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
         if ( pm == null ) {
             resp.setStatus( 503 );
             resp.setContentType( "application/json; charset=UTF-8" );

@@ -26,6 +26,7 @@ import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.util.HttpUtil;
@@ -174,7 +175,7 @@ public class IfPlugin implements Plugin {
         include |= checkIP(context, ip);
 
         if( page != null ) {
-            final String content = context.getEngine().getManager( PageManager.class ).getPureText(page, WikiProvider.LATEST_VERSION).trim();
+            final String content = PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().getPureText(page, WikiProvider.LATEST_VERSION).trim();
             include |= checkContains(content,contains);
             include |= checkIs(content,is);
             include |= checkExists(context,page,exists);
@@ -192,7 +193,7 @@ public class IfPlugin implements Plugin {
 
     private static boolean checkExists( final Context context, final String page, final String exists ) {
         return exists != null
-                && !context.getEngine().getManager( PageManager.class ).wikiPageExists( page ) ^ TextUtil.isPositive( exists );
+                && !PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().wikiPageExists( page ) ^ TextUtil.isPositive( exists );
     }
 
     private static boolean checkVarExists( final String varContent, final String exists ) {

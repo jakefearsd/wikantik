@@ -30,6 +30,7 @@ import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.pages.PageSorter;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
@@ -256,7 +257,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
                 //  if we want to show the last modified date of the most recently change page, we keep a "high watermark" here:
                 final Page page;
                 if( lastModified ) {
-                    page = engine.getManager( PageManager.class ).getPage( pageName );
+                    page = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
                     if( page != null ) {
                         final Date lastModPage = page.getLastModified();
                         LOG.debug( "lastModified Date of page {} : {}", pageName, dateLastModified );
@@ -464,7 +465,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
         final String order = params.get( PARAM_SORTORDER );
         if( order == null || order.isEmpty() ) {
             // Use the configured comparator
-            sorter = context.getEngine().getManager( PageManager.class ).getPageSorter();
+            sorter = PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().getPageSorter();
         } else if( PARAM_SORTORDER_JAVA.equalsIgnoreCase( order ) ) {
             // use Java "natural" ordering
             sorter = new PageSorter( JavaNaturalComparator.DEFAULT_JAVA_COMPARATOR );
@@ -481,7 +482,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
                 sorter = new PageSorter( new CollatorComparator( collator ) );
             } catch( final ParseException pe ) {
                 LOG.info( "Failed to parse requested collator - using default ordering", pe );
-                sorter = context.getEngine().getManager( PageManager.class ).getPageSorter();
+                sorter = PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().getPageSorter();
             }
         }
     }

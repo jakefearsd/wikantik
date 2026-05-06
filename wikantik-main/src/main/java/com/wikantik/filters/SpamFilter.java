@@ -35,6 +35,7 @@ import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.util.FileUtil;
 import com.wikantik.util.HttpUtil;
 import com.wikantik.util.TextUtil;
@@ -260,7 +261,7 @@ public class SpamFilter implements PageFilter {
      */
     @Override
     public void initialize( final Engine engine, final Properties properties ) {
-        this.pageManager = engine.getManager( PageManager.class );
+        this.pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         this.attachmentManager = engine.getManager( AttachmentManager.class );
         forbiddenWordsPage = properties.getProperty( PROP_WORDLIST, forbiddenWordsPage );
         forbiddenIPsPage = properties.getProperty( PROP_IPLIST, forbiddenIPsPage);

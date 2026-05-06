@@ -91,8 +91,7 @@ public class PageListResource extends RestServletBase {
             return;
         }
 
-        final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
 
         final Collection< Page > allPages;
         try {

@@ -25,6 +25,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.util.ClassUtil;
 
@@ -49,7 +50,7 @@ public class DefaultDifferenceManager implements DifferenceManager {
      * @param props  A set of properties.
      */
     public DefaultDifferenceManager( final Engine engine, final Properties props ) {
-        this( engine.getManager( PageManager.class ), props, engine );
+        this( PageSubsystemBridge.fromLegacyEngine( engine ).pages(), props, engine );
     }
 
     /**

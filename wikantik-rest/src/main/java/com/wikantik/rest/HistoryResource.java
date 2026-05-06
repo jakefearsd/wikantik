@@ -59,8 +59,7 @@ public class HistoryResource extends RestServletBase {
 
         LOG.debug( "GET history: {}", pageName );
 
-        final Engine engine = getEngine();
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
 
         // Check if the page exists
         final Page page = pm.getPage( pageName );

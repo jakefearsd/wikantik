@@ -551,7 +551,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         if ( target == null || relationship == null ) return;
 
         try {
-            final PageManager pm = getEngine().getManager( PageManager.class );
+            final PageManager pm = getSubsystems().page().pages();
             final String pageName = proposal.sourcePage().replace( ".md", "" );
             final String pageText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
             if ( pageText == null ) {
@@ -598,7 +598,7 @@ public class AdminKnowledgeResource extends RestServletBase {
     private int renameFrontmatterReferences( final KnowledgeGraphService service,
                                              final String oldName, final String newName,
                                              final UUID oldNodeId ) {
-        final PageManager pm = getEngine().getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
         final List< KgEdge > inbound = service.getEdgesForNode( oldNodeId, "inbound" );
 
         // Collect unique source pages to update (multiple edges may come from the same page)
@@ -743,7 +743,7 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     private void handleGetPagesWithoutFrontmatter( final HttpServletRequest request,
                                                    final HttpServletResponse response ) throws IOException {
-        final PageManager pm = getEngine().getManager( PageManager.class );
+        final PageManager pm = getSubsystems().page().pages();
         if ( pm == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "PageManager not available" );
             return;
@@ -1033,7 +1033,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         backfillProcessed.set( 0 );
         backfillErrors.set( 0 );
         try {
-            final PageManager pm = getEngine().getManager( PageManager.class );
+            final PageManager pm = getSubsystems().page().pages();
             final SystemPageRegistry spr = getSubsystems().core().systemPageRegistry();
             final var allPages = pm.getAllPages();
             backfillTotal = allPages.size();
@@ -1224,7 +1224,7 @@ public class AdminKnowledgeResource extends RestServletBase {
 
     private void handlePostSyncHubMemberships( final HttpServletResponse response ) throws IOException {
         try {
-            final PageManager pm = getEngine().getManager( PageManager.class );
+            final PageManager pm = getSubsystems().page().pages();
             final PageSaveHelper saveHelper = new PageSaveHelper( getEngine() );
             int synced = 0;
             for ( final Page page : pm.getAllPages() ) {

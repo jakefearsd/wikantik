@@ -28,6 +28,7 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.ReferenceManager;
 import org.jdom2.Element;
 import org.jdom2.Namespace;
@@ -76,7 +77,7 @@ public class IndexPlugin extends AbstractReferralPlugin implements Plugin {
         masterDiv.addContent(indexDiv);
         try {
             final List<String> pages = listPages(context,include,exclude);
-            context.getEngine().getManager( PageManager.class ).getPageSorter().sort(pages);
+            PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages().getPageSorter().sort(pages);
             char initialChar = ' ';
             Element currentDiv = new Element("div",xmlns_XHTML);            
             for( final String name : pages ) {

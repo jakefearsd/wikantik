@@ -22,6 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 
 import java.io.File;
 import java.io.IOException;
@@ -91,7 +92,7 @@ public class DefaultSystemPageRegistry implements com.wikantik.api.managers.Syst
             return;
         }
         try {
-            final PageManager pageManager = engine.getManager( PageManager.class );
+            final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
             if ( pageManager == null ) {
                 return;
             }

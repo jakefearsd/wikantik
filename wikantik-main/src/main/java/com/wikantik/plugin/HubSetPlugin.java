@@ -24,6 +24,7 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.util.TextUtil;
 
 import java.util.List;
@@ -59,7 +60,7 @@ public class HubSetPlugin extends AbstractReferralPlugin {
         final int max = TextUtil.parseIntParameter( params.get( PARAM_MAX ), ALL_ITEMS );
         final String detail = params.getOrDefault( PARAM_DETAIL, "links" );
 
-        final PageManager pm = context.getEngine().getManager( PageManager.class );
+        final PageManager pm = PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).pages();
         final Page hubPage = pm.getPage( hubName );
         if ( hubPage == null ) {
             return "<div class=\"error\">Hub '" + escapeHtml( hubName ) + "' does not exist.</div>";

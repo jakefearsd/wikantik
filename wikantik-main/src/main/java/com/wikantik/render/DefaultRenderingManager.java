@@ -40,6 +40,7 @@ import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
 import com.wikantik.api.managers.ReferenceManager;
@@ -150,7 +151,7 @@ public class DefaultRenderingManager implements RenderingManager {
         this.engine = engine;
         this.cachingManager = engine.getManager( CachingManager.class );
         this.filterManager = engine.getManager( FilterManager.class );
-        this.pageManager = engine.getManager( PageManager.class );
+        this.pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         this.attachmentManager = engine.getManager( AttachmentManager.class );
         this.variableManager = engine.getManager( VariableManager.class );
 

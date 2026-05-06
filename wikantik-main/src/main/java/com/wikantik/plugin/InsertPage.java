@@ -29,6 +29,7 @@ import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.util.HttpUtil;
@@ -131,7 +132,7 @@ public class InsertPage implements Plugin {
 
     private static Page resolvePage( final Engine engine, final String includedPage ) throws ProviderException {
         final String pageName = engine.getFinalPageName( includedPage );
-        return engine.getManager( PageManager.class ).getPage(
+        return PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage(
             Objects.requireNonNullElse( pageName, includedPage ) );
     }
 
@@ -190,7 +191,7 @@ public class InsertPage implements Plugin {
         final Context includedContext = context.clone();
         includedContext.setPage( page );
 
-        String pageData = engine.getManager( PageManager.class ).getPureText( page );
+        String pageData = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );
         if ( section != -1 ) {
             try {
                 pageData = TextUtil.getSection( pageData, section );

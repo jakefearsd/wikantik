@@ -31,6 +31,7 @@ import com.wikantik.api.providers.AttachmentProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.search.SearchManager;
@@ -160,13 +161,13 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
                 return null;
             }
 
-            currentPage = engine.getManager( PageManager.class ).getPage( parentPage );
+            currentPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( parentPage );
 
             // Go check for legacy name
             // FIXME: This should be resolved using CommandResolver, not this adhoc way.  This also assumes that the
             //        legacy charset is a subset of the full allowed set.
             if( currentPage == null ) {
-                currentPage = engine.getManager( PageManager.class ).getPage( MarkupParser.wikifyLink( parentPage ) );
+                currentPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( MarkupParser.wikifyLink( parentPage ) );
             }
         }
 
@@ -192,7 +193,7 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
         }
 
         final List< Attachment > atts = new ArrayList<>( provider.listAttachments( wikipage ) );
-        atts.sort( Comparator.comparing( Attachment::getName, engine.getManager( PageManager.class ).getPageSorter() ) );
+        atts.sort( Comparator.comparing( Attachment::getName, PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPageSorter() ) );
 
         return atts;
     }
@@ -252,7 +253,7 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
         }
 
         // Checks if the actual, real page exists without any modifications or aliases. We cannot store an attachment to a non-existent page.
-        if( !engine.getManager( PageManager.class ).pageExists( att.getParentName() ) ) {
+        if( !PageSubsystemBridge.fromLegacyEngine( engine ).pages().pageExists( att.getParentName() ) ) {
             // the caller should catch the exception and use the exception text as an i18n key
             throw new ProviderException( "attach.parent.not.exist" );
         }

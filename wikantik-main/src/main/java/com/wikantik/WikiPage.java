@@ -25,6 +25,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.auth.acl.AclImpl;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 
 import java.util.Date;
 import java.util.Enumeration;
@@ -321,7 +322,7 @@ public class WikiPage implements Page {
             return 0; // the same object
         }
 
-        int res = engine.getManager( PageManager.class ).getPageSorter().compare( this.getName(), page.getName() );
+        int res = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPageSorter().compare( this.getName(), page.getName() );
         if( res == 0 ) {
             res = this.getVersion() - page.getVersion();
         }

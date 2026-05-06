@@ -24,6 +24,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 
 import java.security.Permission;
 import java.util.ArrayList;
@@ -66,7 +67,7 @@ public class PermissionFilter {
      * grants still apply.
      */
     public boolean canAccess( final Session session, final String pageName, final String action ) {
-        final Page page = engine.getManager( PageManager.class ).getPage( pageName );
+        final Page page = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( pageName );
         final Permission perm = ( page != null )
                 ? PermissionFactory.getPagePermission( page, action )
                 : new PagePermission( engine.getApplicationName() + ":" + pageName, action );

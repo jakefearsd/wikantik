@@ -34,6 +34,7 @@ import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.util.comparators.PrincipalComparator;
 
 import java.security.Permission;
@@ -139,7 +140,7 @@ public class DefaultAclManager implements AclManager {
         if( acl == null ) {
             //  If null, try the parent.
             if( page instanceof Attachment att ) {
-                final Page parent = engine.getManager( PageManager.class ).getPage( att.getParentName() );
+                final Page parent = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( att.getParentName() );
                 acl = getPermissions(parent);
             } else {
                 //  Extract ACLs directly from page text using regex - much faster than full page render
@@ -162,7 +163,7 @@ public class DefaultAclManager implements AclManager {
         Acl acl = Wiki.acls().acl();
 
         try {
-            final String pageText = engine.getManager( PageManager.class ).getPureText( page );
+            final String pageText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );
             if( pageText == null || pageText.isEmpty() ) {
                 return acl;
             }
@@ -186,7 +187,7 @@ public class DefaultAclManager implements AclManager {
     /** {@inheritDoc} */
     @Override
     public void setPermissions( final Page page, final Acl acl ) throws WikiSecurityException {
-        final PageManager pageManager = engine.getManager( PageManager.class );
+        final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
 
         // Forcibly expire any page locks
         final PageLock lock = pageManager.getCurrentLock( page );
@@ -195,7 +196,7 @@ public class DefaultAclManager implements AclManager {
         }
 
         // Remove all of the existing ACLs.
-        final String pageText = engine.getManager( PageManager.class ).getPureText( page );
+        final String pageText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );
         final Matcher matcher = DefaultAclManager.ACL_PATTERN.matcher( pageText );
         final String cleansedText = matcher.replaceAll("" );
         final String newText = DefaultAclManager.printAcl( page.getAcl() ) + cleansedText;

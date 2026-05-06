@@ -31,6 +31,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.markdown.nodes.WikantikLink;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.LinkParsingOperations;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.util.TextUtil;
@@ -119,8 +120,8 @@ public class WikantikLinkNodePostProcessor extends NodePostProcessor {
         }
 
         // Check if this is an attachment on the current page
-        final String attachment = context.getEngine()
-                .getManager( AttachmentManager.class )
+        final String attachment = PageSubsystemBridge.fromLegacyEngine( context.getEngine() )
+                .attachments()
                 .getAttachmentInfoName( context, url );
 
         if( attachment != null ) {

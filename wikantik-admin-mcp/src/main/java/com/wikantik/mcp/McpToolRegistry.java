@@ -63,7 +63,7 @@ public class McpToolRegistry {
         final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
         final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
         final DifferenceManager differenceManager = engine.getManager( DifferenceManager.class );
-        final PageRenamer pageRenamer = engine.getManager( PageRenamer.class );
+        final PageRenamer pageRenamer = PageSubsystemBridge.fromLegacyEngine( engine ).pageRenamer();
         final PageSaveHelper pageSaveHelper = new PageSaveHelper( engine );
 
         // --- Read-only tools (no author resolution needed) ---

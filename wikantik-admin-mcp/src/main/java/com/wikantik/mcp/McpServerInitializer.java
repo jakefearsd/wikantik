@@ -112,7 +112,7 @@ public class McpServerInitializer implements ServletContextListener {
 
             final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
             final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
-            final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
+            final AttachmentManager attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
             final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
 
             final WikiResources wikiResources = new WikiResources(

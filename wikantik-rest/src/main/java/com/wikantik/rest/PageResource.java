@@ -572,7 +572,7 @@ public class PageResource extends RestServletBase {
         }
 
         try {
-            final PageRenamer renamer = engine.getManager( PageRenamer.class );
+            final PageRenamer renamer = getSubsystems().page().pageRenamer();
             final Context context = Wiki.context().create( engine, request, page );
             final String finalName = renamer.renamePage( context, pageName, newName, changeReferrers );
 

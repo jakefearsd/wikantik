@@ -152,7 +152,7 @@ public class DefaultRenderingManager implements RenderingManager {
         this.cachingManager = engine.getManager( CachingManager.class );
         this.filterManager = engine.getManager( FilterManager.class );
         this.pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
-        this.attachmentManager = engine.getManager( AttachmentManager.class );
+        this.attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
         this.variableManager = engine.getManager( VariableManager.class );
 
         markupParserClass = properties.getProperty( PROP_PARSER, DEFAULT_PARSER );

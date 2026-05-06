@@ -268,7 +268,7 @@ public class LuceneSearchProvider implements SearchProvider {
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, IOException {
         this.engine = engine;
         this.pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
-        this.attachmentManager = engine.getManager( AttachmentManager.class );
+        this.attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
         this.systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
         // AuthorizationManager and AclManager are initialized after SearchManager
         // in the engine startup sequence, so we resolve them lazily on first use.

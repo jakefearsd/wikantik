@@ -132,7 +132,7 @@ public class AttachmentResource extends RestServletBase {
         }
 
         try {
-            final AttachmentManager am = engine.getManager( AttachmentManager.class );
+            final AttachmentManager am = getSubsystems().page().attachments();
             final List< Attachment > attachments = am.listAttachments( page );
 
             final List< Map< String, Object > > attList = attachments.stream()
@@ -169,7 +169,7 @@ public class AttachmentResource extends RestServletBase {
         LOG.debug( "GET attachment download: {}/{}", pageName, fileName );
 
         final Engine engine = getEngine();
-        final AttachmentManager am = engine.getManager( AttachmentManager.class );
+        final AttachmentManager am = getSubsystems().page().attachments();
 
         try {
             final Attachment att = am.getAttachmentInfo( pageName + "/" + fileName );
@@ -255,7 +255,7 @@ public class AttachmentResource extends RestServletBase {
             }
 
             final Engine engine = getEngine();
-            final AttachmentManager am = engine.getManager( AttachmentManager.class );
+            final AttachmentManager am = getSubsystems().page().attachments();
 
             final Attachment att = Wiki.contents().attachment( engine, pageName, fileName );
             try ( InputStream in = filePart.getInputStream() ) {
@@ -327,7 +327,7 @@ public class AttachmentResource extends RestServletBase {
             }
 
             final Engine engine = getEngine();
-            final AttachmentManager am = engine.getManager( AttachmentManager.class );
+            final AttachmentManager am = getSubsystems().page().attachments();
 
             final Attachment oldAtt = am.getAttachmentInfo( pageName + "/" + oldName );
             if ( oldAtt == null ) {
@@ -385,7 +385,7 @@ public class AttachmentResource extends RestServletBase {
 
         try {
             final Engine engine = getEngine();
-            final AttachmentManager am = engine.getManager( AttachmentManager.class );
+            final AttachmentManager am = getSubsystems().page().attachments();
 
             final Attachment att = am.getAttachmentInfo( pageName + "/" + fileName );
             if ( att == null ) {

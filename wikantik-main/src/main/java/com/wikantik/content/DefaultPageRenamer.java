@@ -106,15 +106,15 @@ public class DefaultPageRenamer implements PageRenamer {
 
         //  Do the actual rename by changing from the frompage to the topage, including all the attachments
         //  Remove references to attachments under old name
-        final List< Attachment > attachmentsOldName = engine.getManager( AttachmentManager.class ).listAttachments( fromPage );
+        final List< Attachment > attachmentsOldName = PageSubsystemBridge.fromLegacyEngine( engine ).attachments().listAttachments( fromPage );
         for( final Attachment att: attachmentsOldName ) {
             final Page fromAttPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( att.getName() );
             engine.getManager( ReferenceManager.class ).pageRemoved( fromAttPage );
         }
 
         PageSubsystemBridge.fromLegacyEngine( engine ).pages().getProvider().movePage( renameFrom, renameToClean );
-        if( engine.getManager( AttachmentManager.class ).attachmentsEnabled() ) {
-            engine.getManager( AttachmentManager.class ).getCurrentProvider().moveAttachmentsForPage( renameFrom, renameToClean );
+        if( PageSubsystemBridge.fromLegacyEngine( engine ).attachments().attachmentsEnabled() ) {
+            PageSubsystemBridge.fromLegacyEngine( engine ).attachments().getCurrentProvider().moveAttachmentsForPage( renameFrom, renameToClean );
         }
         
         //  Add a comment to the page notifying what changed.  This adds a new revision to the repo with no actual change.
@@ -137,8 +137,8 @@ public class DefaultPageRenamer implements PageRenamer {
 
         //  re-index the page including its attachments
         engine.getManager( SearchManager.class ).reindexPage( toPage );
-        
-        final Collection< Attachment > attachmentsNewName = engine.getManager( AttachmentManager.class ).listAttachments( toPage );
+
+        final Collection< Attachment > attachmentsNewName = PageSubsystemBridge.fromLegacyEngine( engine ).attachments().listAttachments( toPage );
         for( final Attachment att:attachmentsNewName ) {
             final Page toAttPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( att.getName() );
             // add reference to attachment under new page name
@@ -216,7 +216,7 @@ public class DefaultPageRenamer implements PageRenamer {
         referrers.addAll( engine.getManager( ReferenceManager.class ).findReferrers( fromPage.getName() ) );
 
         try {
-            final List< Attachment > attachments = engine.getManager( AttachmentManager.class ).listAttachments( fromPage );
+            final List< Attachment > attachments = PageSubsystemBridge.fromLegacyEngine( engine ).attachments().listAttachments( fromPage );
             for( final Attachment att : attachments  ) {
                 referrers.addAll( engine.getManager( ReferenceManager.class ).findReferrers( att.getName() ) );
             }

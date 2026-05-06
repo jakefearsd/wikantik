@@ -26,6 +26,7 @@ import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.markdown.extensions.wikilinks.AbstractLinkState;
 import com.wikantik.markdown.nodes.WikantikLink;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
 
 import java.util.List;
@@ -59,7 +60,7 @@ public class LocalLinkNodePostProcessorState extends AbstractLinkState implement
         }
 
         final int hashMark = url.indexOf( '#' );
-        final String attachment = wikiContext().getEngine().getManager( AttachmentManager.class ).getAttachmentInfoName( wikiContext(), url );
+        final String attachment = PageSubsystemBridge.fromLegacyEngine( wikiContext().getEngine() ).attachments().getAttachmentInfoName( wikiContext(), url );
         if( attachment != null  ) {
             if( !linkOperations().isImageLink( url, isImageInlining(), inlineImagePatterns() ) ) {
                 final String attlink = wikiContext().getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), attachment );

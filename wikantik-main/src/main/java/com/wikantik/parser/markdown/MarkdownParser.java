@@ -28,6 +28,7 @@ import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.markdown.extensions.math.DisplayMathPreProcessor;
@@ -123,8 +124,8 @@ public class MarkdownParser extends MarkupParser {
             if( linkParsingOperations.isExternalLink( url ) ) {
                 callMutatorChain( externalLinkMutatorChain, url );
             } else if( !url.startsWith( "#" ) ) { // skip anchors/footnotes — not page references
-                final String attachment = context.getEngine()
-                        .getManager( AttachmentManager.class )
+                final String attachment = PageSubsystemBridge.fromLegacyEngine( context.getEngine() )
+                        .attachments()
                         .getAttachmentInfoName( context, url );
                 if( attachment != null ) {
                     callMutatorChain( attachmentLinkMutatorChain, attachment );

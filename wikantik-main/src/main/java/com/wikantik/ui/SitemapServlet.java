@@ -200,7 +200,7 @@ public class SitemapServlet extends HttpServlet {
 
         final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern( "yyyy-MM-dd", Locale.ROOT );
         final URLConstructor urlConstructor = engine.getManager( URLConstructor.class );
-        final AttachmentManager attachmentManager = engine.getManager( AttachmentManager.class );
+        final AttachmentManager attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
 
         // Build fully qualified base URL using shared 3-tier resolution
         final String baseUrl = BaseUrlResolver.resolve( engine, req, configuredBaseUrl );

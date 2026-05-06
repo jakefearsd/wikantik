@@ -26,6 +26,7 @@ import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.markdown.extensions.wikilinks.AbstractLinkState;
 import com.wikantik.markdown.nodes.WikantikLink;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
 
 import java.util.List;
@@ -55,7 +56,7 @@ public class LocalLinkAttributeProviderState extends AbstractLinkState implement
     @Override
     public void setAttributes( final MutableAttributes attributes, final WikantikLink link ) {
         final int hashMark = link.getUrl().toString().indexOf( '#' );
-        final String attachment = wikiContext().getEngine().getManager( AttachmentManager.class ).getAttachmentInfoName( wikiContext(), link.getWikiLink() );
+        final String attachment = PageSubsystemBridge.fromLegacyEngine( wikiContext().getEngine() ).attachments().getAttachmentInfoName( wikiContext(), link.getWikiLink() );
         if( attachment != null ) {
             if( !linkOperations().isImageLink( link.getUrl().toString(), isImageInlining(), inlineImagePatterns() ) ) {
                 attributes.replaceValue( "class", MarkupParser.CLASS_ATTACHMENT );

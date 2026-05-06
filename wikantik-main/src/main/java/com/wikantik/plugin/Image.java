@@ -25,6 +25,7 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.managers.AttachmentManager;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.util.TextUtil;
 
@@ -141,7 +142,7 @@ public class Image implements Plugin {
 
     private static String resolveAttachmentSrc( final Context context, final String src ) throws PluginException {
         try {
-            final AttachmentManager mgr = context.getEngine().getManager( AttachmentManager.class );
+            final AttachmentManager mgr = PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).attachments();
             final Attachment att = mgr.getAttachmentInfo( context, src );
             if( att != null ) {
                 return context.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), att.getName() );

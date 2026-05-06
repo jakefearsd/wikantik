@@ -410,7 +410,7 @@ public class DefaultVariableManager implements VariableManager {
         }
 
         private com.wikantik.api.managers.AttachmentManager attachmentManager() {
-            return attachmentManager != null ? attachmentManager : context.getEngine().getManager( AttachmentManager.class );
+            return attachmentManager != null ? attachmentManager : PageSubsystemBridge.fromLegacyEngine( context.getEngine() ).attachments();
         }
 
         private FilterManager filterManager() {

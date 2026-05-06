@@ -215,7 +215,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
     public DefaultReferenceManager( final Engine newEngine ) {
         this( newEngine,
               PageSubsystemBridge.fromLegacyEngine( newEngine ).pages(),
-              newEngine.getManager( AttachmentManager.class ) );
+              PageSubsystemBridge.fromLegacyEngine( newEngine ).attachments() );
     }
 
     /**

@@ -262,7 +262,7 @@ public class SpamFilter implements PageFilter {
     @Override
     public void initialize( final Engine engine, final Properties properties ) {
         this.pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
-        this.attachmentManager = engine.getManager( AttachmentManager.class );
+        this.attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
         forbiddenWordsPage = properties.getProperty( PROP_WORDLIST, forbiddenWordsPage );
         forbiddenIPsPage = properties.getProperty( PROP_IPLIST, forbiddenIPsPage);
         pageNameMaxLength = properties.getProperty( PROP_MAX_PAGENAME_LENGTH, pageNameMaxLength);

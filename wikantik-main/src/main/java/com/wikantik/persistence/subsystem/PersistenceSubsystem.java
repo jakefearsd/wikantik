@@ -22,6 +22,10 @@ import com.wikantik.core.subsystem.WikiProperties;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository;
 import com.wikantik.knowledge.eval.RetrievalQualityDao;
@@ -76,7 +80,13 @@ public final class PersistenceSubsystem {
      * call.
      */
     public record Services(
-        // Knowledge graph (Phase 3 Ckpt 1 — single repository; decomposed in Ckpt 3):
+        // Knowledge graph, decomposed (Phase 3 Ckpt 3):
+        KgNodeRepository kgNodes,
+        KgEdgeRepository kgEdges,
+        KgProposalRepository kgProposals,
+        KgRejectionRepository kgRejections,
+
+        // Facade (Ckpt 5 will delete this field once consumers migrate to narrow repos):
         JdbcKnowledgeRepository kgRepository,
 
         // Knowledge-supporting repositories:

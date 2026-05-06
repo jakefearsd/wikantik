@@ -18,23 +18,23 @@
  */
 package com.wikantik.knowledge;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.wikantik.api.knowledge.*;
-import com.wikantik.kgpolicy.KgInclusionFilter;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import com.wikantik.knowledge.extraction.ProposalUpserter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.lang.reflect.Type;
 import java.sql.*;
-import java.time.Instant;
 import java.util.*;
 
 /**
- * JDBC-based data access layer for the knowledge graph tables.
- * Uses PostgreSQL with JSONB columns for property storage.
+ * Thin facade over the four narrow KG repositories.
+ *
+ * <p>Phase 3 Checkpoint 3 of the wikantik-main subsystem decomposition converts this
+ * god-class into a delegation layer. All method bodies are single-line calls into
+ * {@link KgNodeRepository}, {@link KgEdgeRepository}, {@link KgProposalRepository},
+ * or {@link KgRejectionRepository}. Checkpoint 5 will delete this class once all
+ * consumers have migrated to the narrow repos.</p>
  *
  * <p>Uses plain JDBC with {@link DataSource} for connection management.
  * JSON properties are serialized/deserialized with Gson.</p>
@@ -44,1500 +44,257 @@ import java.util.*;
 public class JdbcKnowledgeRepository {
 
     private static final Logger LOG = LogManager.getLogger( JdbcKnowledgeRepository.class );
-    private static final Gson GSON = new Gson();
-    private static final Type MAP_TYPE = new TypeToken< Map< String, Object > >() {}.getType();
 
     private final DataSource dataSource;
+    private final KgNodeRepository nodes;
+    private final KgEdgeRepository edges;
+    private final KgProposalRepository proposals;
+    private final KgRejectionRepository rejections;
 
+    /**
+     * Single-arg constructor used by {@code wikantik-extract-cli} and any other
+     * caller that builds this class directly from a DataSource.
+     */
     public JdbcKnowledgeRepository( final DataSource dataSource ) {
+        this( dataSource,
+              new KgNodeRepository( dataSource ),
+              new KgEdgeRepository( dataSource ),
+              new KgProposalRepository( dataSource ),
+              new KgRejectionRepository( dataSource ) );
+    }
+
+    /**
+     * Full-arg constructor used by {@link com.wikantik.persistence.subsystem.PersistenceSubsystemFactory}
+     * so the factory can share the same narrow-repo instances between this facade and
+     * {@link com.wikantik.persistence.subsystem.PersistenceSubsystem.Services}.
+     */
+    public JdbcKnowledgeRepository( final DataSource dataSource,
+                                     final KgNodeRepository nodes,
+                                     final KgEdgeRepository edges,
+                                     final KgProposalRepository proposals,
+                                     final KgRejectionRepository rejections ) {
         this.dataSource = dataSource;
+        this.nodes      = nodes;
+        this.edges      = edges;
+        this.proposals  = proposals;
+        this.rejections = rejections;
     }
 
-    /**
-     * Returns {@code true} when {@code e} signals that the JDBC connection pool
-     * has been closed — typically during webapp shutdown.  Pool-closed errors are
-     * expected during container stop and should be logged at DEBUG rather than WARN.
-     */
-    private static boolean isPoolClosed( final SQLException e ) {
-        if ( e == null ) return false;
-        final String msg = e.getMessage();
-        return msg != null && msg.toLowerCase( java.util.Locale.ROOT ).contains( "data source is closed" );
-    }
+    // ---- Node operations (delegated to KgNodeRepository) ----
 
-    // ---- Node operations ----
-
-    /**
-     * Creates or updates a knowledge graph node using INSERT ... ON CONFLICT.
-     *
-     * @param name       the unique node name
-     * @param nodeType   the node type (e.g. "domain-model", "concept")
-     * @param sourcePage the source wiki page, or null for stubs
-     * @param provenance the provenance of the node
-     * @param properties additional properties as a map
-     * @return the upserted node
-     */
     public KgNode upsertNode( final String name, final String nodeType, final String sourcePage,
                               final Provenance provenance, final Map< String, Object > properties ) {
-        final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
-        final String sql = "INSERT INTO kg_nodes ( name, node_type, source_page, provenance, properties, tier, provenance_proposal_id, modified ) "
-                + "VALUES ( ?, ?, ?, ?, ?::jsonb, 'human', NULL, CURRENT_TIMESTAMP ) "
-                + "ON CONFLICT ( name ) DO UPDATE SET node_type = EXCLUDED.node_type, "
-                + "source_page = COALESCE(EXCLUDED.source_page, kg_nodes.source_page), provenance = EXCLUDED.provenance, "
-                + "properties = EXCLUDED.properties, modified = CURRENT_TIMESTAMP";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, name );
-            ps.setString( 2, nodeType );
-            ps.setString( 3, sourcePage );
-            ps.setString( 4, provenance.value() );
-            ps.setString( 5, propsJson );
-            ps.executeUpdate();
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to upsert node '{}': {}", name, e.getMessage(), e );
-            throw new RuntimeException( "Failed to upsert node: " + e.getMessage(), e );
-        }
-        return getNodeByName( name );
+        return nodes.upsertNode( name, nodeType, sourcePage, provenance, properties );
     }
 
-    /**
-     * Retrieves a node by its UUID.
-     *
-     * @param id the node UUID
-     * @return the node, or null if not found
-     */
     public KgNode getNode( final UUID id ) {
-        final String sql = "SELECT n.* FROM kg_nodes n"
-                + KgInclusionFilter.NODE_FILTER_JOIN
-                + "WHERE n.id = ?"
-                + " AND" + KgInclusionFilter.NODE_FILTER_WHERE;
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, id );
-            try( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? mapNode( rs ) : null;
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to get node by id '{}': {}", id, e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
+        return nodes.getNode( id );
     }
 
-    /**
-     * Retrieves a node by its unique name.
-     *
-     * @param name the node name
-     * @return the node, or null if not found
-     */
     public KgNode getNodeByName( final String name ) {
-        final String sql = "SELECT n.* FROM kg_nodes n"
-                + KgInclusionFilter.NODE_FILTER_JOIN
-                + "WHERE n.name = ?"
-                + " AND" + KgInclusionFilter.NODE_FILTER_WHERE;
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, name );
-            try( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? mapNode( rs ) : null;
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to get node by name '{}': {}", name, e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
+        return nodes.getNodeByName( name );
     }
 
-    /**
-     * Deletes a node by its UUID. Cascade deletes remove associated edges.
-     *
-     * @param id the node UUID
-     */
     public void deleteNode( final UUID id ) {
-        final String sql = "DELETE FROM kg_nodes WHERE id = ?";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, id );
-            ps.executeUpdate();
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to delete node '{}': {}", id, e.getMessage(), e );
-            throw new RuntimeException( "Failed to delete node: " + e.getMessage(), e );
-        }
+        nodes.deleteNode( id );
     }
 
-    /**
-     * Queries nodes with optional filters.
-     *
-     * @param filters          map of field names to filter values; supports "node_type", "source_page", "name" (LIKE), "status" (JSON property match)
-     * @param provenanceFilter set of acceptable provenance values, or empty for all
-     * @param limit            maximum number of results
-     * @param offset           number of results to skip
-     * @return list of matching nodes
-     */
-    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
-            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public List< KgNode > queryNodes( final Map< String, Object > filters,
                                       final Set< Provenance > provenanceFilter,
                                       final int limit, final int offset ) {
-        final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
-                .append( KgInclusionFilter.NODE_FILTER_JOIN )
-                .append( "WHERE" ).append( KgInclusionFilter.NODE_FILTER_WHERE );
-        final List< Object > params = new ArrayList<>();
-
-        if( filters != null ) {
-            if( filters.containsKey( "node_type" ) ) {
-                sql.append( " AND n.node_type = ?" );
-                params.add( filters.get( "node_type" ) );
-            }
-            if( filters.containsKey( "source_page" ) ) {
-                sql.append( " AND n.source_page = ?" );
-                params.add( filters.get( "source_page" ) );
-            }
-            if( filters.containsKey( "name" ) ) {
-                sql.append( " AND LOWER( n.name ) LIKE ?" );
-                params.add( "%" + filters.get( "name" ).toString().toLowerCase( Locale.ROOT ) + "%" );
-            }
-            if( filters.containsKey( "status" ) ) {
-                sql.append( " AND n.properties->>'status' = ?" );
-                params.add( filters.get( "status" ) );
-            }
-        }
-
-        if( provenanceFilter != null && !provenanceFilter.isEmpty() ) {
-            sql.append( " AND n.provenance IN (" );
-            final StringJoiner sj = new StringJoiner( ", " );
-            for( final Provenance p : provenanceFilter ) {
-                sj.add( "?" );
-                params.add( p.value() );
-            }
-            sql.append( sj );
-            sql.append(')');
-        }
-
-        sql.append( " ORDER BY n.name LIMIT ? OFFSET ?" );
-        params.add( limit );
-        params.add( offset );
-
-        final List< KgNode > results = new ArrayList<>();
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for( int i = 0; i < params.size(); i++ ) {
-                ps.setObject( i + 1, params.get( i ) );
-            }
-            try( ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    results.add( mapNode( rs ) );
-                }
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to query nodes: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-        return results;
+        return nodes.queryNodes( filters, provenanceFilter, limit, offset );
     }
 
-    /**
-     * Searches nodes by name or property content using case-insensitive LIKE.
-     *
-     * @param query            the search query
-     * @param provenanceFilter set of acceptable provenance values, or empty for all
-     * @param limit            maximum number of results
-     * @return list of matching nodes
-     */
-    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
-            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public List< KgNode > searchNodes( final String query, final Set< Provenance > provenanceFilter,
                                        final int limit ) {
-        final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
-                .append( KgInclusionFilter.NODE_FILTER_JOIN )
-                .append( "WHERE" ).append( KgInclusionFilter.NODE_FILTER_WHERE )
-                .append( " AND ( LOWER( n.name ) LIKE ? OR LOWER( n.properties::text ) LIKE ? )" );
-        final List< Object > params = new ArrayList<>();
-        final String pattern = "%" + query.toLowerCase( Locale.ROOT ) + "%";
-        params.add( pattern );
-        params.add( pattern );
-
-        if( provenanceFilter != null && !provenanceFilter.isEmpty() ) {
-            sql.append( " AND n.provenance IN (" );
-            final StringJoiner sj = new StringJoiner( ", " );
-            for( final Provenance p : provenanceFilter ) {
-                sj.add( "?" );
-                params.add( p.value() );
-            }
-            sql.append( sj );
-            sql.append(')');
-        }
-
-        sql.append( " ORDER BY n.name LIMIT ?" );
-        params.add( limit );
-
-        final List< KgNode > results = new ArrayList<>();
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for( int i = 0; i < params.size(); i++ ) {
-                ps.setObject( i + 1, params.get( i ) );
-            }
-            try( ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    results.add( mapNode( rs ) );
-                }
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to search nodes: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-        return results;
+        return nodes.searchNodes( query, provenanceFilter, limit );
     }
 
-    /**
-     * Search for nodes by name or properties, filtered by tier.
-     *
-     * @param query            search string (case-insensitive)
-     * @param provenanceFilter optional set of provenances to include; null/empty = no provenance filter
-     * @param limit            maximum number of results
-     * @param minTier          minimum tier level to include (includes tier and all superior tiers)
-     * @return list of matching nodes
-     */
-    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
-            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public List< KgNode > searchNodes( final String query, final Set< Provenance > provenanceFilter,
                                        final int limit, final Tier minTier ) {
-        final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
-                .append( KgInclusionFilter.NODE_FILTER_JOIN )
-                .append( "WHERE" ).append( KgInclusionFilter.NODE_FILTER_WHERE )
-                .append( " AND ( LOWER( n.name ) LIKE ? OR LOWER( n.properties::text ) LIKE ? )" )
-                .append( " AND n.tier = ANY( ? )" );
-        final List< Object > params = new ArrayList<>();
-        final String pattern = "%" + query.toLowerCase( Locale.ROOT ) + "%";
-        params.add( pattern );
-        params.add( pattern );
-        params.add( minTier ); // sentinel — replaced by setArray below
-
-        if( provenanceFilter != null && !provenanceFilter.isEmpty() ) {
-            sql.append( " AND n.provenance IN (" );
-            final StringJoiner sj = new StringJoiner( ", " );
-            for( final Provenance p : provenanceFilter ) {
-                sj.add( "?" );
-                params.add( p.value() );
-            }
-            sql.append( sj );
-            sql.append(')');
-        }
-
-        sql.append( " ORDER BY n.name LIMIT ?" );
-        params.add( limit );
-
-        final List< KgNode > results = new ArrayList<>();
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for( int i = 0; i < params.size(); i++ ) {
-                final Object v = params.get( i );
-                if ( v instanceof Tier t ) {
-                    ps.setArray( i + 1, conn.createArrayOf( "varchar", t.includedTiers().toArray() ) );
-                } else {
-                    ps.setObject( i + 1, v );
-                }
-            }
-            try( ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    results.add( mapNode( rs ) );
-                }
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to search nodes (tier={}): {}", minTier.wireName(), e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-        return results;
+        return nodes.searchNodes( query, provenanceFilter, limit, minTier );
     }
 
-    // ---- Edge operations ----
-
-    /**
-     * Creates or updates an edge between two nodes using INSERT ... ON CONFLICT.
-     *
-     * @param sourceId         the source node UUID
-     * @param targetId         the target node UUID
-     * @param relationshipType the relationship type
-     * @param provenance       the provenance of the edge
-     * @param properties       additional properties as a map
-     * @return the upserted edge
-     */
-    public KgEdge upsertEdge( final UUID sourceId, final UUID targetId, final String relationshipType,
-                              final Provenance provenance, final Map< String, Object > properties ) {
-        final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
-        final String sql = "INSERT INTO kg_edges ( source_id, target_id, relationship_type, provenance, properties, tier, provenance_proposal_id, modified ) "
-                + "VALUES ( ?, ?, ?, ?, ?::jsonb, 'human', NULL, CURRENT_TIMESTAMP ) "
-                + "ON CONFLICT ( source_id, target_id, relationship_type ) DO UPDATE SET "
-                + "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, "
-                + "modified = CURRENT_TIMESTAMP";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, sourceId );
-            ps.setObject( 2, targetId );
-            ps.setString( 3, relationshipType );
-            ps.setString( 4, provenance.value() );
-            ps.setString( 5, propsJson );
-            ps.executeUpdate();
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to upsert edge {}->{} [{}]: {}", sourceId, targetId, relationshipType, e.getMessage(), e );
-            throw new RuntimeException( "Failed to upsert edge: " + e.getMessage(), e );
-        }
-
-        // Re-query to return the upserted edge
-        final String selectSql = "SELECT * FROM kg_edges WHERE source_id = ? AND target_id = ? AND relationship_type = ?";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( selectSql ) ) {
-            ps.setObject( 1, sourceId );
-            ps.setObject( 2, targetId );
-            ps.setString( 3, relationshipType );
-            try( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? mapEdge( rs ) : null;
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to read back upserted edge: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
+    public List< KgNode > getAllNodes() {
+        return nodes.getAllNodes();
     }
 
-    /**
-     * Upsert a node with explicit tier and provenance proposal ID tracking.
-     * Used by materialisation to record machine-tier rows from approved proposals.
-     *
-     * @param name                the unique node name
-     * @param nodeType            the node type (e.g. "concept")
-     * @param sourcePage          the source wiki page, or null
-     * @param provenance          the provenance of the node
-     * @param properties          additional properties as a map
-     * @param tier                the tier ('machine' or 'human')
-     * @param provenanceProposalId the proposal UUID that caused this upsert, or null
-     * @return the upserted node
-     */
+    public List< KgNode > getAllNodes( final Tier minTier ) {
+        return nodes.getAllNodes( minTier );
+    }
+
     public KgNode upsertNodeWithProvenance( final String name, final String nodeType,
                                             final String sourcePage, final Provenance provenance,
                                             final Map< String, Object > properties,
                                             final String tier, final UUID provenanceProposalId ) {
-        final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
-        final String sql = "INSERT INTO kg_nodes ( name, node_type, source_page, provenance, properties, " +
-            "tier, provenance_proposal_id, modified ) " +
-            "VALUES ( ?, ?, ?, ?, ?::jsonb, ?, ?, CURRENT_TIMESTAMP ) " +
-            "ON CONFLICT ( name ) DO UPDATE SET node_type = EXCLUDED.node_type, " +
-            "source_page = COALESCE(EXCLUDED.source_page, kg_nodes.source_page), " +
-            "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, " +
-            "modified = CURRENT_TIMESTAMP";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, name );
-            ps.setString( 2, nodeType );
-            ps.setString( 3, sourcePage );
-            ps.setString( 4, provenance.value() );
-            ps.setString( 5, propsJson );
-            ps.setString( 6, tier );
-            if ( provenanceProposalId == null ) ps.setNull( 7, java.sql.Types.OTHER );
-            else ps.setObject( 7, provenanceProposalId );
-            ps.executeUpdate();
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to upsertNodeWithProvenance '{}': {}", name, e.getMessage(), e );
-            throw new RuntimeException( "Failed to upsertNodeWithProvenance: " + e.getMessage(), e );
-        }
-        return getNodeByName( name );
+        return nodes.upsertNodeWithProvenance( name, nodeType, sourcePage, provenance,
+                                               properties, tier, provenanceProposalId );
     }
 
-    /**
-     * Upsert an edge with explicit tier and provenance proposal ID tracking.
-     * Used by materialisation to record machine-tier rows from approved proposals.
-     *
-     * @param sourceId            the source node UUID
-     * @param targetId            the target node UUID
-     * @param relationshipType     the relationship type
-     * @param provenance          the provenance of the edge
-     * @param properties          additional properties as a map
-     * @param tier                the tier ('machine' or 'human')
-     * @param provenanceProposalId the proposal UUID that caused this upsert, or null
-     */
+    public int deleteNodesByProvenance( final UUID proposalId ) {
+        return nodes.deleteNodesByProvenance( proposalId );
+    }
+
+    public List< String > getDistinctNodeTypes() {
+        return nodes.getDistinctNodeTypes();
+    }
+
+    public long countNodes() {
+        return nodes.countNodes();
+    }
+
+    public Map< UUID, String > getNodeNames( final Collection< UUID > ids ) {
+        return nodes.getNodeNames( ids );
+    }
+
+    // ---- Edge operations (delegated to KgEdgeRepository) ----
+
+    public KgEdge upsertEdge( final UUID sourceId, final UUID targetId, final String relationshipType,
+                              final Provenance provenance, final Map< String, Object > properties ) {
+        return edges.upsertEdge( sourceId, targetId, relationshipType, provenance, properties );
+    }
+
     public void upsertEdgeWithProvenance( final UUID sourceId, final UUID targetId,
                                           final String relationshipType, final Provenance provenance,
                                           final Map< String, Object > properties,
                                           final String tier, final UUID provenanceProposalId ) {
-        final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
-        final String sql = "INSERT INTO kg_edges ( source_id, target_id, relationship_type, provenance, " +
-            "properties, tier, provenance_proposal_id, modified ) " +
-            "VALUES ( ?, ?, ?, ?, ?::jsonb, ?, ?, CURRENT_TIMESTAMP ) " +
-            "ON CONFLICT ( source_id, target_id, relationship_type ) DO UPDATE SET " +
-            "provenance = EXCLUDED.provenance, properties = EXCLUDED.properties, " +
-            "modified = CURRENT_TIMESTAMP";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, sourceId );
-            ps.setObject( 2, targetId );
-            ps.setString( 3, relationshipType );
-            ps.setString( 4, provenance.value() );
-            ps.setString( 5, propsJson );
-            ps.setString( 6, tier );
-            if ( provenanceProposalId == null ) ps.setNull( 7, java.sql.Types.OTHER );
-            else ps.setObject( 7, provenanceProposalId );
-            ps.executeUpdate();
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to upsertEdgeWithProvenance ({},{},{}): {}",
-                sourceId, targetId, relationshipType, e.getMessage(), e );
-            throw new RuntimeException( "Failed to upsertEdgeWithProvenance: " + e.getMessage(), e );
-        }
+        edges.upsertEdgeWithProvenance( sourceId, targetId, relationshipType, provenance,
+                                        properties, tier, provenanceProposalId );
     }
 
-    /**
-     * Updates the tier of all kg_nodes and kg_edges rows with a given provenance_proposal_id.
-     *
-     * @param proposalId the proposal UUID
-     * @param newTier    the new tier ('machine' or 'human')
-     * @return the total count of updated rows (nodes + edges)
-     */
-    public int updateTierByProvenance( final UUID proposalId, final String newTier ) {
-        int rows = 0;
-        try ( Connection c = dataSource.getConnection() ) {
-            try ( PreparedStatement ps = c.prepareStatement(
-                    "UPDATE kg_nodes SET tier = ? WHERE provenance_proposal_id = ?" ) ) {
-                ps.setString( 1, newTier );
-                ps.setObject( 2, proposalId );
-                rows += ps.executeUpdate();
-            }
-            try ( PreparedStatement ps = c.prepareStatement(
-                    "UPDATE kg_edges SET tier = ? WHERE provenance_proposal_id = ?" ) ) {
-                ps.setString( 1, newTier );
-                ps.setObject( 2, proposalId );
-                rows += ps.executeUpdate();
-            }
-        } catch ( final SQLException e ) {
-            LOG.warn( "updateTierByProvenance({}, {}) failed: {}", proposalId, newTier,
-                e.getMessage(), e );
-            throw new RuntimeException( "updateTierByProvenance failed: " + e.getMessage(), e );
-        }
-        return rows;
-    }
-
-    /**
-     * Deletes all kg_nodes rows with a given provenance_proposal_id.
-     *
-     * @param proposalId the proposal UUID
-     * @return the count of deleted rows
-     */
-    public int deleteNodesByProvenance( final UUID proposalId ) {
-        return executeDelete( "DELETE FROM kg_nodes WHERE provenance_proposal_id = ?", proposalId );
-    }
-
-    /**
-     * Deletes all kg_edges rows with a given provenance_proposal_id.
-     *
-     * @param proposalId the proposal UUID
-     * @return the count of deleted rows
-     */
-    public int deleteEdgesByProvenance( final UUID proposalId ) {
-        return executeDelete( "DELETE FROM kg_edges WHERE provenance_proposal_id = ?", proposalId );
-    }
-
-    /**
-     * Deletes a rejection by triple (source, target, relationship).
-     *
-     * @param source       the proposed source node name
-     * @param target       the proposed target node name
-     * @param relationship the proposed relationship type
-     * @return the count of deleted rows
-     */
-    public int deleteRejection( final String source, final String target, final String relationship ) {
-        final String sql = "DELETE FROM kg_rejections WHERE proposed_source = ? " +
-            "AND proposed_target = ? AND proposed_relationship = ?";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setString( 1, source );
-            ps.setString( 2, target );
-            ps.setString( 3, relationship );
-            return ps.executeUpdate();
-        } catch ( final SQLException e ) {
-            LOG.warn( "deleteRejection({}, {}, {}) failed: {}", source, target, relationship,
-                e.getMessage(), e );
-            throw new RuntimeException( "deleteRejection failed: " + e.getMessage(), e );
-        }
-    }
-
-    private int executeDelete( final String sql, final UUID id ) {
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setObject( 1, id );
-            return ps.executeUpdate();
-        } catch ( final SQLException e ) {
-            LOG.warn( "deleteByProvenance({}) failed: {}", id, e.getMessage(), e );
-            throw new RuntimeException( "deleteByProvenance failed: " + e.getMessage(), e );
-        }
-    }
-
-    /**
-     * Deletes an edge by its UUID.
-     *
-     * @param id the edge UUID
-     */
     public void deleteEdge( final UUID id ) {
-        final String sql = "DELETE FROM kg_edges WHERE id = ?";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, id );
-            ps.executeUpdate();
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to delete edge '{}': {}", id, e.getMessage(), e );
-            throw new RuntimeException( "Failed to delete edge: " + e.getMessage(), e );
-        }
+        edges.deleteEdge( id );
     }
 
-    /**
-     * Returns all nodes in the knowledge graph, ordered by id for determinism.
-     *
-     * @return list of all nodes
-     */
-    public List< KgNode > getAllNodes() {
-        final String sql = "SELECT n.* FROM kg_nodes n"
-                + KgInclusionFilter.NODE_FILTER_JOIN
-                + "WHERE" + KgInclusionFilter.NODE_FILTER_WHERE
-                + "ORDER BY n.id";
-        final List< KgNode > results = new ArrayList<>();
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql );
-             ResultSet rs = ps.executeQuery() ) {
-            while( rs.next() ) {
-                results.add( mapNode( rs ) );
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to get all nodes: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-        return results;
+    public int deleteEdgesByProvenance( final UUID proposalId ) {
+        return edges.deleteEdgesByProvenance( proposalId );
     }
 
-    /**
-     * Returns all edges in the knowledge graph, ordered by id for determinism.
-     *
-     * @return list of all edges
-     */
     public List< KgEdge > getAllEdges() {
-        final String sql = "SELECT e.* FROM kg_edges e"
-                + KgInclusionFilter.EDGE_FILTER_JOIN
-                + "WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE
-                + "ORDER BY e.id";
-        final List< KgEdge > results = new ArrayList<>();
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql );
-             ResultSet rs = ps.executeQuery() ) {
-            while( rs.next() ) {
-                results.add( mapEdge( rs ) );
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to get all edges: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-        return results;
+        return edges.getAllEdges();
     }
 
-    /**
-     * Returns nodes whose {@code tier} column is in the set implied by {@code minTier}.
-     * {@link Tier#HUMAN} returns only human-vetted rows; {@link Tier#MACHINE} returns
-     * both machine and human rows.
-     *
-     * @param minTier the minimum trust tier to include
-     * @return list of matching nodes
-     */
-    public List< KgNode > getAllNodes( final Tier minTier ) {
-        final String sql = "SELECT * FROM kg_nodes WHERE tier = ANY( ? )";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setArray( 1, conn.createArrayOf( "varchar", minTier.includedTiers().toArray() ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                final List< KgNode > out = new ArrayList<>();
-                while ( rs.next() ) out.add( mapNode( rs ) );
-                return out;
-            }
-        } catch ( final SQLException e ) {
-            LOG.warn( "getAllNodes({}) failed: {}", minTier.wireName(), e.getMessage(), e );
-            throw new RuntimeException( "getAllNodes failed: " + e.getMessage(), e );
-        }
-    }
-
-    /**
-     * Returns edges whose {@code tier} column is in the set implied by {@code minTier}.
-     * {@link Tier#HUMAN} returns only human-vetted rows; {@link Tier#MACHINE} returns
-     * both machine and human rows.
-     *
-     * @param minTier the minimum trust tier to include
-     * @return list of matching edges
-     */
     public List< KgEdge > getAllEdges( final Tier minTier ) {
-        final String sql = "SELECT * FROM kg_edges WHERE tier = ANY( ? )";
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setArray( 1, conn.createArrayOf( "varchar", minTier.includedTiers().toArray() ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                final List< KgEdge > out = new ArrayList<>();
-                while ( rs.next() ) out.add( mapEdge( rs ) );
-                return out;
-            }
-        } catch ( final SQLException e ) {
-            LOG.warn( "getAllEdges({}) failed: {}", minTier.wireName(), e.getMessage(), e );
-            throw new RuntimeException( "getAllEdges failed: " + e.getMessage(), e );
-        }
+        return edges.getAllEdges( minTier );
     }
 
-    /**
-     * Returns edges for a node in the given direction.
-     *
-     * @param nodeId    the node UUID
-     * @param direction "outbound", "inbound", or "both"
-     * @return list of matching edges
-     */
     public List< KgEdge > getEdgesForNode( final UUID nodeId, final String direction ) {
-        final String filterJoin = KgInclusionFilter.EDGE_FILTER_JOIN;
-        final String filterWhere = KgInclusionFilter.EDGE_FILTER_WHERE;
-        final String sql = switch( direction ) {
-            case "outbound" ->
-                "SELECT e.* FROM kg_edges e" + filterJoin
-                + "WHERE e.source_id = ? AND" + filterWhere;
-            case "inbound" ->
-                "SELECT e.* FROM kg_edges e" + filterJoin
-                + "WHERE e.target_id = ? AND" + filterWhere;
-            case "both" ->
-                "SELECT e.* FROM kg_edges e" + filterJoin
-                + "WHERE ( e.source_id = ? OR e.target_id = ? ) AND" + filterWhere;
-            default -> throw new IllegalArgumentException( "Invalid direction: " + direction );
-        };
-
-        final List< KgEdge > results = new ArrayList<>();
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, nodeId );
-            if( "both".equals( direction ) ) {
-                ps.setObject( 2, nodeId );
-            }
-            try( ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    results.add( mapEdge( rs ) );
-                }
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to get edges for node '{}': {}", nodeId, e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-        return results;
+        return edges.getEdgesForNode( nodeId, direction );
     }
 
-    /**
-     * Removes human-authored outbound edges from sourceId whose (targetName, relationshipType) pair
-     * is NOT in the given set of current edges. Never touches ai-inferred or ai-reviewed edges.
-     *
-     * @param sourceId     the source node UUID
-     * @param currentEdges set of (targetName, relationshipType) pairs that should be preserved
-     */
     public void diffAndRemoveStaleEdges( final UUID sourceId,
                                          final Set< Map.Entry< String, String > > currentEdges ) {
-        // Get all outbound edges with their target node names
-        final String sql = "SELECT e.*, n.name AS target_name "
-                         + "FROM kg_edges e JOIN kg_nodes n ON e.target_id = n.id "
-                         + "WHERE e.source_id = ?";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, sourceId );
-            final List< UUID > toDelete = new ArrayList<>();
-            try( ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    final String provValue = rs.getString( "provenance" );
-                    final Provenance prov = Provenance.fromValue( provValue );
-                    // Only remove human-authored edges
-                    if( prov != Provenance.HUMAN_AUTHORED ) {
-                        continue;
-                    }
-                    final String targetName = rs.getString( "target_name" );
-                    final String relType = rs.getString( "relationship_type" );
-                    if( !currentEdges.contains( Map.entry( targetName, relType ) ) ) {
-                        toDelete.add( rs.getObject( "id", UUID.class ) );
-                    }
-                }
-            }
-            for( final UUID edgeId : toDelete ) {
-                deleteEdge( edgeId );
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to diff and remove stale edges for node '{}': {}", sourceId, e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
+        edges.diffAndRemoveStaleEdges( sourceId, currentEdges );
     }
 
-    // ---- Proposal operations ----
+    public List< Map< String, Object > > queryEdgesWithNames( final String relationshipType,
+                                                               final String searchName,
+                                                               final int limit, final int offset ) {
+        return edges.queryEdgesWithNames( relationshipType, searchName, limit, offset );
+    }
 
-    /**
-     * Inserts a new proposal with 'pending' status.
-     *
-     * @param proposalType the proposal type (e.g. "new-edge", "new-node")
-     * @param sourcePage   the source wiki page
-     * @param proposedData the proposed data as a map
-     * @param confidence   the confidence score (0.0 to 1.0)
-     * @param reasoning    human-readable reasoning
-     * @return the created proposal
-     */
+    public List< String > getDistinctRelationshipTypes() {
+        return edges.getDistinctRelationshipTypes();
+    }
+
+    public long countEdges() {
+        return edges.countEdges();
+    }
+
+    // ---- Proposal operations (delegated to KgProposalRepository) ----
+
     public KgProposal insertProposal( final String proposalType, final String sourcePage,
                                       final Map< String, Object > proposedData,
                                       final double confidence, final String reasoning ) {
-        final String sql = "INSERT INTO kg_proposals ( proposal_type, source_page, proposed_data, confidence, reasoning ) "
-                + "VALUES ( ?, ?, ?::jsonb, ?, ? )";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql, Statement.RETURN_GENERATED_KEYS ) ) {
-            ps.setString( 1, proposalType );
-            ps.setString( 2, sourcePage );
-            ps.setString( 3, GSON.toJson( proposedData != null ? proposedData : Map.of() ) );
-            ps.setDouble( 4, confidence );
-            ps.setString( 5, reasoning );
-            ps.executeUpdate();
-            try( ResultSet keys = ps.getGeneratedKeys() ) {
-                if( keys.next() ) {
-                    final UUID id = keys.getObject( 1, UUID.class );
-                    return getProposal( id );
-                }
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to insert proposal: {}", e.getMessage(), e );
-            throw new RuntimeException( "Failed to insert proposal: " + e.getMessage(), e );
-        }
-        return null;
+        return proposals.insertProposal( proposalType, sourcePage, proposedData, confidence, reasoning );
     }
 
-    /**
-     * Retrieves a proposal by its UUID.
-     *
-     * @param id the proposal UUID
-     * @return the proposal, or null if not found
-     */
     public KgProposal getProposal( final UUID id ) {
-        final String sql = "SELECT * FROM kg_proposals WHERE id = ?";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setObject( 1, id );
-            try( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? mapProposal( rs ) : null;
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to get proposal '{}': {}", id, e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
+        return proposals.getProposal( id );
     }
 
-    /**
-     * Lists proposals with optional filters.
-     *
-     * @param status     optional status filter (e.g. "pending", "approved", "rejected")
-     * @param sourcePage optional source page filter
-     * @param limit      maximum number of results
-     * @param offset     number of results to skip
-     * @return list of matching proposals
-     */
     public List< KgProposal > listProposals( final String status, final String sourcePage,
                                              final int limit, final int offset ) {
-        final StringBuilder sql = new StringBuilder( "SELECT * FROM kg_proposals WHERE 1=1" );
-        final List< Object > params = new ArrayList<>();
-
-        if( status != null ) {
-            sql.append( " AND status = ?" );
-            params.add( status );
-        }
-        if( sourcePage != null ) {
-            sql.append( " AND source_page = ?" );
-            params.add( sourcePage );
-        }
-
-        sql.append( " ORDER BY created DESC LIMIT ? OFFSET ?" );
-        params.add( limit );
-        params.add( offset );
-
-        final List< KgProposal > results = new ArrayList<>();
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for( int i = 0; i < params.size(); i++ ) {
-                ps.setObject( i + 1, params.get( i ) );
-            }
-            try( ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    results.add( mapProposal( rs ) );
-                }
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to list proposals: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-        return results;
+        return proposals.listProposals( status, sourcePage, limit, offset );
     }
 
-    /**
-     * Extended proposal listing with tier, machine_status and machine-rejected suppression filters.
-     */
     public List< KgProposal > listProposalsFiltered( final String status, final String tier,
                                                       final String machineStatus,
                                                       final boolean includeMachineRejected,
                                                       final String sourcePage,
                                                       final int limit, final int offset ) {
-        final StringBuilder sql = new StringBuilder( "SELECT * FROM kg_proposals WHERE 1=1" );
-        final List< Object > params = new ArrayList<>();
-
-        if ( status != null ) { sql.append( " AND status = ?" ); params.add( status ); }
-        if ( tier != null ) { sql.append( " AND tier = ?" ); params.add( tier ); }
-        if ( machineStatus != null ) {
-            sql.append( " AND machine_status = ?" ); params.add( machineStatus );
-        }
-        if ( !includeMachineRejected ) {
-            sql.append( " AND ( machine_status IS NULL OR machine_status <> 'rejected' )" );
-        }
-        if ( sourcePage != null ) { sql.append( " AND source_page = ?" ); params.add( sourcePage ); }
-        sql.append( " ORDER BY created DESC LIMIT ? OFFSET ?" );
-        params.add( limit );
-        params.add( offset );
-
-        final List< KgProposal > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) results.add( mapProposal( rs ) );
-            }
-        } catch ( final SQLException e ) {
-            LOG.warn( "listProposalsFiltered failed: {}", e.getMessage(), e );
-            throw new RuntimeException( "listProposalsFiltered failed: " + e.getMessage(), e );
-        }
-        return results;
+        return proposals.listProposalsFiltered( status, tier, machineStatus, includeMachineRejected,
+                                                sourcePage, limit, offset );
     }
 
-    /**
-     * Updates the status of a proposal and records the reviewer.
-     *
-     * @param id         the proposal UUID
-     * @param status     the new status
-     * @param reviewedBy the reviewer identity
-     */
     public void updateProposalStatus( final UUID id, final String status, final String reviewedBy ) {
-        final String sql = "UPDATE kg_proposals SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, status );
-            ps.setString( 2, reviewedBy );
-            ps.setObject( 3, id );
-            ps.executeUpdate();
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to update proposal status '{}': {}", id, e.getMessage(), e );
-            throw new RuntimeException( "Failed to update proposal status: " + e.getMessage(), e );
-        }
+        proposals.updateProposalStatus( id, status, reviewedBy );
     }
 
     public void applyMachineVerdict( final UUID proposalId, final String verdict,
                                       final double confidence, final String model ) {
-        final String newTier;
-        final String newStatus;
-        if ( "approved".equals( verdict ) ) {
-            newTier = "machine"; newStatus = null;
-        } else if ( "rejected".equals( verdict ) ) {
-            newTier = "none"; newStatus = "rejected";
-        } else if ( "abstain".equals( verdict ) ) {
-            newTier = "none"; newStatus = null;
-        } else {
-            throw new IllegalArgumentException( "verdict must be approved|rejected|abstain, got: " + verdict );
-        }
-
-        final String sql = "UPDATE kg_proposals SET " +
-            "machine_status = ?, machine_confidence = ?, machine_judged_at = NOW(), " +
-            "machine_model = ?, tier = ?" +
-            ( newStatus != null ? ", status = ?" : "" ) +
-            " WHERE id = ?";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            int idx = 1;
-            ps.setString( idx++, verdict );
-            ps.setDouble( idx++, confidence );
-            ps.setString( idx++, model );
-            ps.setString( idx++, newTier );
-            if ( newStatus != null ) ps.setString( idx++, newStatus );
-            ps.setObject( idx, proposalId );
-            ps.executeUpdate();
-        } catch ( final SQLException e ) {
-            if ( isPoolClosed( e ) ) {
-                LOG.debug( "applyMachineVerdict({}, {}) skipped — data source closed during shutdown", proposalId, verdict );
-                throw new PoolClosedException( "applyMachineVerdict aborted: pool closed", e );
-            }
-            LOG.warn( "applyMachineVerdict({}, {}) failed: {}", proposalId, verdict,
-                e.getMessage(), e );
-            throw new RuntimeException( "applyMachineVerdict failed: " + e.getMessage(), e );
-        }
+        proposals.applyMachineVerdict( proposalId, verdict, confidence, model );
     }
 
     public void applyHumanVerdict( final UUID proposalId, final String verdict,
                                     final String reviewedBy ) {
-        if ( !( "approved".equals( verdict ) || "rejected".equals( verdict ) ) ) {
-            throw new IllegalArgumentException( "human verdict must be approved|rejected, got: " + verdict );
-        }
-        final String newTier = "approved".equals( verdict ) ? "human" : "none";
-        final String sql = "UPDATE kg_proposals SET " +
-            "status = ?, reviewed_by = ?, reviewed_at = NOW(), tier = ? WHERE id = ?";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setString( 1, verdict );
-            ps.setString( 2, reviewedBy );
-            ps.setString( 3, newTier );
-            ps.setObject( 4, proposalId );
-            ps.executeUpdate();
-        } catch ( final SQLException e ) {
-            if ( isPoolClosed( e ) ) {
-                LOG.debug( "applyHumanVerdict({}, {}) skipped — data source closed during shutdown", proposalId, verdict );
-                throw new PoolClosedException( "applyHumanVerdict aborted: pool closed", e );
-            }
-            LOG.warn( "applyHumanVerdict({}, {}, {}) failed: {}", proposalId, verdict,
-                reviewedBy, e.getMessage(), e );
-            throw new RuntimeException( "applyHumanVerdict failed: " + e.getMessage(), e );
-        }
+        proposals.applyHumanVerdict( proposalId, verdict, reviewedBy );
     }
 
     public void recordReview( final UUID proposalId, final String reviewerKind,
                               final String reviewerId, final String verdict,
                               final Double confidence, final String rationale ) {
-        final String sql = "INSERT INTO kg_proposal_reviews " +
-            "(proposal_id, reviewer_kind, reviewer_id, verdict, confidence, rationale) " +
-            "VALUES (?, ?, ?, ?, ?, ?)";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setObject( 1, proposalId );
-            ps.setString( 2, reviewerKind );
-            ps.setString( 3, reviewerId );
-            ps.setString( 4, verdict );
-            if ( confidence == null ) ps.setNull( 5, java.sql.Types.DOUBLE );
-            else ps.setDouble( 5, confidence );
-            ps.setString( 6, rationale );
-            ps.executeUpdate();
-        } catch ( final SQLException e ) {
-            if ( isPoolClosed( e ) ) {
-                LOG.debug( "recordReview({}, {}) skipped — data source closed during shutdown", proposalId, reviewerKind );
-                throw new PoolClosedException( "recordReview aborted: pool closed", e );
-            }
-            LOG.warn( "recordReview({}, {}, {}) failed: {}", proposalId, reviewerKind,
-                verdict, e.getMessage(), e );
-            throw new RuntimeException( "recordReview failed: " + e.getMessage(), e );
-        }
+        proposals.recordReview( proposalId, reviewerKind, reviewerId, verdict, confidence, rationale );
     }
 
     public List< KgProposalReview > listReviews( final UUID proposalId ) {
-        final String sql = "SELECT * FROM kg_proposal_reviews WHERE proposal_id = ? " +
-            "ORDER BY created DESC, id DESC";
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setObject( 1, proposalId );
-            try ( ResultSet rs = ps.executeQuery() ) {
-                final List< KgProposalReview > out = new ArrayList<>();
-                while ( rs.next() ) {
-                    final Double conf = rs.getObject( "confidence", Double.class );
-                    out.add( new KgProposalReview(
-                        rs.getObject( "id", UUID.class ),
-                        rs.getObject( "proposal_id", UUID.class ),
-                        rs.getString( "reviewer_kind" ),
-                        rs.getString( "reviewer_id" ),
-                        rs.getString( "verdict" ),
-                        conf,
-                        rs.getString( "rationale" ),
-                        rs.getTimestamp( "created" ).toInstant()
-                    ) );
-                }
-                return out;
-            }
-        } catch ( final SQLException e ) {
-            if ( isPoolClosed( e ) ) {
-                LOG.debug( "listReviews({}) skipped — data source closed during shutdown", proposalId );
-                throw new PoolClosedException( "listReviews aborted: pool closed", e );
-            }
-            LOG.warn( "listReviews({}) failed: {}", proposalId, e.getMessage(), e );
-            throw new RuntimeException( "listReviews failed: " + e.getMessage(), e );
-        }
+        return proposals.listReviews( proposalId );
     }
 
-    /**
-     * Picks up to {@code batch} pending proposals whose machine_status is NULL.
-     * Uses FOR UPDATE SKIP LOCKED so multiple judge runners don't double-pick.
-     *
-     * <p>Note on transaction scope: this method opens a connection, runs the
-     * locking SELECT, copies rows into Java, and commits — releasing the locks.
-     * Callers are then free to process rows with their own transactions, and a
-     * subsequent runner pass can re-pick the same row only if its
-     * machine_status is still NULL (i.e. nothing actually judged it). This is
-     * safe for the single-instance deployment; once the runner UPDATEs
-     * machine_status, the WHERE clause excludes the row.</p>
-     */
     public List< KgProposal > getProposalsForJudging( final int batch ) {
-        final String sql = "SELECT * FROM kg_proposals " +
-            "WHERE status = 'pending' AND machine_status IS NULL " +
-            "ORDER BY created ASC " +
-            "LIMIT ? FOR UPDATE SKIP LOCKED";
-        try ( Connection c = dataSource.getConnection() ) {
-            final boolean prevAutoCommit = c.getAutoCommit();
-            c.setAutoCommit( false );
-            try ( PreparedStatement ps = c.prepareStatement( sql ) ) {
-                ps.setInt( 1, batch );
-                try ( ResultSet rs = ps.executeQuery() ) {
-                    final List< KgProposal > out = new ArrayList<>();
-                    while ( rs.next() ) out.add( mapProposal( rs ) );
-                    c.commit();
-                    return out;
-                }
-            } catch ( final SQLException e ) {
-                try { c.rollback(); } catch ( final SQLException ignore ) { /* best effort */ }
-                throw e;
-            } finally {
-                try { c.setAutoCommit( prevAutoCommit ); } catch ( final SQLException ignore ) { /* best effort */ }
-            }
-        } catch ( final SQLException e ) {
-            if ( isPoolClosed( e ) ) {
-                LOG.debug( "getProposalsForJudging({}) skipped — data source closed during shutdown", batch );
-                throw new PoolClosedException( "getProposalsForJudging aborted: pool closed", e );
-            }
-            LOG.warn( "getProposalsForJudging({}) failed: {}", batch, e.getMessage(), e );
-            throw new RuntimeException( "getProposalsForJudging failed: " + e.getMessage(), e );
-        }
+        return proposals.getProposalsForJudging( batch );
     }
 
-    // ---- Rejection operations ----
+    public int updateTierByProvenance( final UUID proposalId, final String newTier ) {
+        return proposals.updateTierByProvenance( proposalId, newTier );
+    }
 
-    /**
-     * Inserts a rejection record to prevent re-proposals. Uses INSERT ... ON CONFLICT
-     * to update existing rejections.
-     *
-     * @param proposedSource       the proposed source node name
-     * @param proposedTarget       the proposed target node name
-     * @param proposedRelationship the proposed relationship type
-     * @param rejectedBy           the reviewer identity
-     * @param reason               the rejection reason
-     */
+    public long countPendingProposals() {
+        return proposals.countPendingProposals();
+    }
+
+    public long countPendingUnjudgedProposals() {
+        return proposals.countPendingUnjudgedProposals();
+    }
+
+    public ProposalUpserter.Result upsertConsolidatedProposal( final ConsolidatedProposal cp ) {
+        return proposals.upsertConsolidatedProposal( cp );
+    }
+
+    // ---- Rejection operations (delegated to KgRejectionRepository) ----
+
     public void insertRejection( final String proposedSource, final String proposedTarget,
                                  final String proposedRelationship,
                                  final String rejectedBy, final String reason ) {
-        final String sql = "INSERT INTO kg_rejections ( proposed_source, proposed_target, proposed_relationship, rejected_by, reason ) "
-                + "VALUES ( ?, ?, ?, ?, ? ) "
-                + "ON CONFLICT ( proposed_source, proposed_target, proposed_relationship ) DO UPDATE SET "
-                + "rejected_by = EXCLUDED.rejected_by, reason = EXCLUDED.reason";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, proposedSource );
-            ps.setString( 2, proposedTarget );
-            ps.setString( 3, proposedRelationship );
-            ps.setString( 4, rejectedBy );
-            ps.setString( 5, reason );
-            ps.executeUpdate();
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to insert rejection: {}", e.getMessage(), e );
-            throw new RuntimeException( "Failed to insert rejection: " + e.getMessage(), e );
-        }
+        rejections.insertRejection( proposedSource, proposedTarget, proposedRelationship,
+                                    rejectedBy, reason );
     }
 
-    /**
-     * Checks whether a proposed relationship has been rejected.
-     *
-     * @param sourceName       the source node name
-     * @param targetName       the target node name
-     * @param relationshipType the relationship type
-     * @return true if the relationship has been rejected
-     */
     public boolean isRejected( final String sourceName, final String targetName,
                                final String relationshipType ) {
-        final String sql = "SELECT COUNT(*) FROM kg_rejections "
-                         + "WHERE proposed_source = ? AND proposed_target = ? AND proposed_relationship = ?";
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, sourceName );
-            ps.setString( 2, targetName );
-            ps.setString( 3, relationshipType );
-            try( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() && rs.getInt( 1 ) > 0;
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to check rejection: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
+        return rejections.isRejected( sourceName, targetName, relationshipType );
     }
 
-    /**
-     * Lists rejections with optional filters.
-     *
-     * @param sourceName       optional source name filter
-     * @param targetName       optional target name filter
-     * @param relationshipType optional relationship type filter
-     * @return list of matching rejections
-     */
     public List< KgRejection > listRejections( final String sourceName, final String targetName,
                                                final String relationshipType ) {
-        final StringBuilder sql = new StringBuilder( "SELECT * FROM kg_rejections WHERE 1=1" );
-        final List< Object > params = new ArrayList<>();
-
-        if( sourceName != null ) {
-            sql.append( " AND proposed_source = ?" );
-            params.add( sourceName );
-        }
-        if( targetName != null ) {
-            sql.append( " AND proposed_target = ?" );
-            params.add( targetName );
-        }
-        if( relationshipType != null ) {
-            sql.append( " AND proposed_relationship = ?" );
-            params.add( relationshipType );
-        }
-
-        sql.append( " ORDER BY created DESC" );
-
-        final List< KgRejection > results = new ArrayList<>();
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for( int i = 0; i < params.size(); i++ ) {
-                ps.setObject( i + 1, params.get( i ) );
-            }
-            try( ResultSet rs = ps.executeQuery() ) {
-                while( rs.next() ) {
-                    results.add( mapRejection( rs ) );
-                }
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to list rejections: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-        return results;
+        return rejections.listRejections( sourceName, targetName, relationshipType );
     }
 
-    // ---- Bulk name resolution ----
-
-    /**
-     * Resolves a collection of node UUIDs to their names in a single query.
-     *
-     * @param ids the UUIDs to resolve
-     * @return map of UUID to node name
-     */
-    public Map< UUID, String > getNodeNames( final Collection< UUID > ids ) {
-        if ( ids == null || ids.isEmpty() ) {
-            return Map.of();
-        }
-        final String placeholders = String.join( ", ", Collections.nCopies( ids.size(), "?" ) );
-        final String sql = "SELECT n.id, n.name FROM kg_nodes n"
-                + KgInclusionFilter.NODE_FILTER_JOIN
-                + "WHERE n.id IN ( " + placeholders + " )"
-                + " AND" + KgInclusionFilter.NODE_FILTER_WHERE;
-        final Map< UUID, String > result = new HashMap<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            int idx = 1;
-            for ( final UUID id : ids ) {
-                ps.setObject( idx++, id );
-            }
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    result.put( rs.getObject( "id", UUID.class ), rs.getString( "name" ) );
-                }
-            }
-        } catch ( final SQLException e ) {
-            LOG.warn( "Failed to resolve node names: {}", e.getMessage(), e );
-        }
-        return result;
+    public int deleteRejection( final String source, final String target, final String relationship ) {
+        return rejections.deleteRejection( source, target, relationship );
     }
 
-    /**
-     * Queries edges with JOINed source and target node names. Supports optional
-     * filtering by relationship type and name search, with pagination.
-     *
-     * @param relationshipType optional filter
-     * @param searchName       optional search term (matches source or target name, case-insensitive)
-     * @param limit            max results
-     * @param offset           pagination offset
-     * @return list of edge maps including source_name and target_name
-     */
-    public List< Map< String, Object > > queryEdgesWithNames( final String relationshipType,
-                                                               final String searchName,
-                                                               final int limit, final int offset ) {
-        final StringBuilder sql = new StringBuilder(
-                "SELECT e.*, sn.name AS source_name, tn.name AS target_name "
-              + "FROM kg_edges e "
-              + "JOIN kg_nodes sn ON e.source_id = sn.id "
-              + "JOIN kg_nodes tn ON e.target_id = tn.id"
-              + KgInclusionFilter.EDGE_FILTER_JOIN
-              + "WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE );
-        final List< Object > params = new ArrayList<>();
-
-        if ( relationshipType != null && !relationshipType.isBlank() ) {
-            sql.append( " AND e.relationship_type = ?" );
-            params.add( relationshipType );
-        }
-        if ( searchName != null && !searchName.isBlank() ) {
-            sql.append( " AND ( LOWER( sn.name ) LIKE ? OR LOWER( tn.name ) LIKE ? )" );
-            final String pattern = "%" + searchName.toLowerCase( Locale.ROOT ) + "%";
-            params.add( pattern );
-            params.add( pattern );
-        }
-        sql.append( " ORDER BY sn.name, e.relationship_type LIMIT ? OFFSET ?" );
-        params.add( limit );
-        params.add( offset );
-
-        final List< Map< String, Object > > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
-            for ( int i = 0; i < params.size(); i++ ) {
-                ps.setObject( i + 1, params.get( i ) );
-            }
-            try ( ResultSet rs = ps.executeQuery() ) {
-                while ( rs.next() ) {
-                    final Map< String, Object > map = new LinkedHashMap<>();
-                    map.put( "id", rs.getObject( "id", UUID.class ).toString() );
-                    map.put( "source_id", rs.getObject( "source_id", UUID.class ).toString() );
-                    map.put( "target_id", rs.getObject( "target_id", UUID.class ).toString() );
-                    map.put( "source_name", rs.getString( "source_name" ) );
-                    map.put( "target_name", rs.getString( "target_name" ) );
-                    map.put( "relationship_type", rs.getString( "relationship_type" ) );
-                    map.put( "provenance", rs.getString( "provenance" ) );
-                    map.put( "properties", parseJson( rs.getString( "properties" ) ) );
-                    final Timestamp created = rs.getTimestamp( "created" );
-                    map.put( "created", created != null ? created.toInstant().toString() : null );
-                    final Timestamp modified = rs.getTimestamp( "modified" );
-                    map.put( "modified", modified != null ? modified.toInstant().toString() : null );
-                    results.add( map );
-                }
-            }
-        } catch ( final SQLException e ) {
-            LOG.warn( "Failed to query edges with names: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-        return results;
-    }
-
-    // ---- Aggregate queries ----
-
-    /**
-     * Returns all distinct node types in the graph.
-     *
-     * @return set of distinct node type strings
-     */
-    public List< String > getDistinctNodeTypes() {
-        return queryDistinct( "SELECT DISTINCT node_type FROM kg_nodes WHERE node_type IS NOT NULL ORDER BY node_type" );
-    }
-
-    /**
-     * Returns all distinct relationship types in the graph.
-     *
-     * @return set of distinct relationship type strings
-     */
-    public List< String > getDistinctRelationshipTypes() {
-        return queryDistinct( "SELECT DISTINCT relationship_type FROM kg_edges ORDER BY relationship_type" );
-    }
-
-    /**
-     * Counts the total number of nodes.
-     *
-     * @return node count
-     */
-    public long countNodes() {
-        return queryCount( "SELECT COUNT(*) FROM kg_nodes" );
-    }
-
-    /**
-     * Counts the total number of edges.
-     *
-     * @return edge count
-     */
-    public long countEdges() {
-        return queryCount( "SELECT COUNT(*) FROM kg_edges" );
-    }
-
-    /**
-     * Counts the number of pending proposals.
-     *
-     * @return pending proposal count
-     */
-    public long countPendingProposals() {
-        return queryCount( "SELECT COUNT(*) FROM kg_proposals WHERE status = 'pending'" );
-    }
-
-    /**
-     * Returns the count of pending proposals that have not yet been evaluated by the machine judge
-     * (i.e. {@code machine_status IS NULL}).
-     *
-     * @return pending-unjudged proposal count
-     */
-    public long countPendingUnjudgedProposals() {
-        return queryCount( "SELECT COUNT(*) FROM kg_proposals "
-            + "WHERE status = 'pending' AND machine_status IS NULL" );
-    }
-
-    // ---- Private helpers ----
-
-    private KgNode mapNode( final ResultSet rs ) throws SQLException {
-        return new KgNode(
-            rs.getObject( "id", UUID.class ),
-            rs.getString( "name" ),
-            rs.getString( "node_type" ),
-            rs.getString( "source_page" ),
-            Provenance.fromValue( rs.getString( "provenance" ) ),
-            parseJson( rs.getString( "properties" ) ),
-            toInstant( rs.getTimestamp( "created" ) ),
-            toInstant( rs.getTimestamp( "modified" ) ),
-            rs.getString( "tier" ),
-            rs.getObject( "provenance_proposal_id", UUID.class )
-        );
-    }
-
-    private KgEdge mapEdge( final ResultSet rs ) throws SQLException {
-        return new KgEdge(
-            rs.getObject( "id", UUID.class ),
-            rs.getObject( "source_id", UUID.class ),
-            rs.getObject( "target_id", UUID.class ),
-            rs.getString( "relationship_type" ),
-            Provenance.fromValue( rs.getString( "provenance" ) ),
-            parseJson( rs.getString( "properties" ) ),
-            toInstant( rs.getTimestamp( "created" ) ),
-            toInstant( rs.getTimestamp( "modified" ) ),
-            rs.getString( "tier" ),
-            rs.getObject( "provenance_proposal_id", UUID.class )
-        );
-    }
-
-    private KgProposal mapProposal( final ResultSet rs ) throws SQLException {
-        return new KgProposal(
-            rs.getObject( "id", UUID.class ),
-            rs.getString( "proposal_type" ),
-            rs.getString( "source_page" ),
-            parseJson( rs.getString( "proposed_data" ) ),
-            rs.getDouble( "confidence" ),
-            rs.getString( "reasoning" ),
-            rs.getString( "status" ),
-            rs.getString( "reviewed_by" ),
-            toInstant( rs.getTimestamp( "created" ) ),
-            toInstant( rs.getTimestamp( "reviewed_at" ) ),
-            rs.getString( "tier" ),
-            rs.getString( "machine_status" ),
-            rs.getObject( "machine_confidence", Double.class ),
-            toInstant( rs.getTimestamp( "machine_judged_at" ) ),
-            rs.getString( "machine_model" )
-        );
-    }
-
-    private KgRejection mapRejection( final ResultSet rs ) throws SQLException {
-        return new KgRejection(
-            rs.getObject( "id", UUID.class ),
-            rs.getString( "proposed_source" ),
-            rs.getString( "proposed_target" ),
-            rs.getString( "proposed_relationship" ),
-            rs.getString( "rejected_by" ),
-            rs.getString( "reason" ),
-            toInstant( rs.getTimestamp( "created" ) )
-        );
-    }
-
-    private Map< String, Object > parseJson( final String json ) {
-        if( json == null || json.isBlank() ) {
-            return Map.of();
-        }
-        final Map< String, Object > result = GSON.fromJson( json, MAP_TYPE );
-        return result != null ? result : Map.of();
-    }
-
-    private Instant toInstant( final Timestamp ts ) {
-        return ts != null ? ts.toInstant() : null;
-    }
-
-    private List< String > queryDistinct( final String sql ) {
-        final List< String > results = new ArrayList<>();
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql );
-             ResultSet rs = ps.executeQuery() ) {
-            while( rs.next() ) {
-                results.add( rs.getString( 1 ) );
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to execute distinct query: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-        return results;
-    }
-
-    private long queryCount( final String sql ) {
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql );
-             ResultSet rs = ps.executeQuery() ) {
-            return rs.next() ? rs.getLong( 1 ) : 0;
-        } catch( final SQLException e ) {
-            LOG.warn( "Failed to execute count query: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-    }
-
-    /**
-     * Upserts a {@link ConsolidatedProposal} into {@code kg_proposals}, merging
-     * support evidence by source page on collision. The unique partial index on
-     * {@code (signature) WHERE status='pending'} drives the conflict target;
-     * approved/rejected history is allowed to repeat.
-     *
-     * <p>Idempotency: re-running extraction against the same source page does
-     * not double the support entry — {@code DISTINCT ON (sourcePage)} keeps the
-     * highest-confidence quote per page.</p>
-     *
-     * @param cp the consolidated proposal to upsert (node or edge)
-     * @return inserted/merged flag plus the resulting support_count
-     */
-    public com.wikantik.knowledge.extraction.ProposalUpserter.Result upsertConsolidatedProposal( final ConsolidatedProposal cp ) {
-        final String proposedJson = GSON.toJson( buildProposedData( cp ) );
-        final String supportJson  = GSON.toJson( cp.support() );
-        final String sql = """
-            WITH merged AS (
-                SELECT (
-                    SELECT jsonb_agg(s ORDER BY (s->>'sourcePage'))
-                    FROM (
-                        SELECT DISTINCT ON (s->>'sourcePage') s
-                        FROM jsonb_array_elements(
-                            COALESCE(kp.support, '[]'::jsonb) || ?::jsonb
-                        ) s
-                        ORDER BY (s->>'sourcePage'), (s->>'confidence')::numeric DESC
-                    ) deduped
-                ) AS support_merged
-                FROM kg_proposals kp
-                WHERE kp.signature = ? AND kp.status = 'pending'
-            )
-            INSERT INTO kg_proposals
-                (proposal_type, source_page, proposed_data, confidence, reasoning,
-                 signature, support, support_count, first_seen_at, last_seen_at)
-            VALUES (?, ?, ?::jsonb, ?, ?, ?, ?::jsonb,
-                    jsonb_array_length(?::jsonb), NOW(), NOW())
-            ON CONFLICT (signature) WHERE status = 'pending' DO UPDATE
-            SET support       = COALESCE((SELECT support_merged FROM merged), kg_proposals.support),
-                support_count = jsonb_array_length(COALESCE((SELECT support_merged FROM merged), kg_proposals.support)),
-                confidence    = GREATEST(kg_proposals.confidence, EXCLUDED.confidence),
-                last_seen_at  = NOW()
-            RETURNING (xmax = 0) AS inserted, support_count
-            """;
-        try( Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement( sql ) ) {
-            ps.setString( 1, supportJson );
-            ps.setString( 2, cp.signature() );
-            ps.setString( 3, cp.kind() == ConsolidatedProposal.Kind.NEW_NODE ? "new-node" : "new-edge" );
-            ps.setString( 4, cp.support().isEmpty() ? null : cp.support().get( 0 ).sourcePage() );
-            ps.setString( 5, proposedJson );
-            ps.setDouble( 6, cp.aggregateConfidence() );
-            ps.setString( 7, "consolidated by " + cp.support().size() + " support(s)" );
-            ps.setString( 8, cp.signature() );
-            ps.setString( 9, supportJson );
-            // Phase 2 wrote a hardcoded 1 here, so a first-run insert with
-            // multi-page support always reported support_count=1; the new
-            // per-page indexer feeds a multi-element array on the very first
-            // upsert, so we now compute the count from the array length.
-            ps.setString( 10, supportJson );
-            try( ResultSet rs = ps.executeQuery() ) {
-                if( rs.next() ) {
-                    return new com.wikantik.knowledge.extraction.ProposalUpserter.Result( rs.getBoolean( 1 ), rs.getInt( 2 ) );
-                }
-                throw new IllegalStateException( "upsert returned no rows for signature " + cp.signature() );
-            }
-        } catch( final SQLException e ) {
-            LOG.warn( "upsertConsolidatedProposal failed for signature {}: {}", cp.signature(), e.getMessage() );
-            throw new RuntimeException( "upsert failed: " + e.getMessage(), e );
-        }
-    }
-
-    private static Map< String, Object > buildProposedData( final ConsolidatedProposal cp ) {
-        if( cp.kind() == ConsolidatedProposal.Kind.NEW_NODE ) {
-            return Map.of( "name", cp.displayName(), "nodeType", cp.type() );
-        }
-        return Map.of( "source", cp.source(), "target", cp.target(),
-                       "relationship", cp.predicate() );
-    }
+    // ---- Teardown (kept here for IT teardown path; Ckpt 5 will migrate this) ----
 
     /**
      * Deletes all knowledge graph data: edges, proposals, rejections, and nodes.
@@ -1547,13 +304,13 @@ public class JdbcKnowledgeRepository {
         final String[] tables = {
             "kg_proposal_reviews", "kg_edges", "kg_proposals", "kg_rejections", "kg_nodes"
         };
-        try( Connection conn = dataSource.getConnection();
-             var stmt = conn.createStatement() ) {
-            for( final String table : tables ) {
+        try ( Connection conn = dataSource.getConnection();
+              var stmt = conn.createStatement() ) {
+            for ( final String table : tables ) {
                 stmt.execute( "DELETE FROM " + table );
             }
             LOG.info( "Cleared all knowledge graph data ({} tables)", tables.length );
-        } catch( final SQLException e ) {
+        } catch ( final SQLException e ) {
             LOG.warn( "Failed to clear knowledge graph data: {}", e.getMessage(), e );
             throw new RuntimeException( e );
         }

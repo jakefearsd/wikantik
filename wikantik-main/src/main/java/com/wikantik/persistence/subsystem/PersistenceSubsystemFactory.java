@@ -21,6 +21,10 @@ package com.wikantik.persistence.subsystem;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository;
 import com.wikantik.knowledge.eval.RetrievalQualityDao;
@@ -54,8 +58,17 @@ public final class PersistenceSubsystemFactory {
         final DataSource ds = Objects.requireNonNull( deps.dataSource(), "dataSource" );
         Objects.requireNonNull( deps.properties(), "properties" );
 
+        final KgNodeRepository kgNodes         = new KgNodeRepository( ds );
+        final KgEdgeRepository kgEdges         = new KgEdgeRepository( ds );
+        final KgProposalRepository kgProposals = new KgProposalRepository( ds );
+        final KgRejectionRepository kgRejections = new KgRejectionRepository( ds );
+
         return new PersistenceSubsystem.Services(
-            new JdbcKnowledgeRepository( ds ),
+            kgNodes,
+            kgEdges,
+            kgProposals,
+            kgRejections,
+            new JdbcKnowledgeRepository( ds, kgNodes, kgEdges, kgProposals, kgRejections ),
             new HubProposalRepository( ds ),
             new HubDiscoveryRepository( ds ),
             new ContentChunkRepository( ds ),

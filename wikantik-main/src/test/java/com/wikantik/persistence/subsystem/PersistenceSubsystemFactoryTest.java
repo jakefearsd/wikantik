@@ -49,6 +49,10 @@ final class PersistenceSubsystemFactoryTest {
                 dataSource,
                 new DefaultWikiProperties( new Properties() ) ) );
 
+        assertNotNull( services.kgNodes(),              "kgNodes" );
+        assertNotNull( services.kgEdges(),              "kgEdges" );
+        assertNotNull( services.kgProposals(),          "kgProposals" );
+        assertNotNull( services.kgRejections(),         "kgRejections" );
         assertNotNull( services.kgRepository(),         "kgRepository" );
         assertNotNull( services.hubProposals(),         "hubProposals" );
         assertNotNull( services.hubDiscovery(),         "hubDiscovery" );

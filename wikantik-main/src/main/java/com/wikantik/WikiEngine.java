@@ -509,10 +509,31 @@ public class WikiEngine implements Engine {
         }
 
         // 2. Fallback to legacy manual map
-        return ( T )managers.entrySet().stream()
+        final T fromMap = ( T )managers.entrySet().stream()
                                        .filter( e -> manager.isAssignableFrom( e.getKey() ) )
                                        .map( Map.Entry::getValue )
                                        .findFirst().orElse( null );
+        if ( fromMap != null ) return fromMap;
+
+        // 3. Fall through to typed subsystem services. Phase 2 of the
+        //    wikantik-main decomposition removed SystemPageRegistry,
+        //    RecentArticlesManager, and BlogManager from the legacy
+        //    managers map; this bridge keeps getManager(X.class) returning
+        //    them transparently for code (and tests) that still ask the
+        //    old way. New code should reach the typed accessor directly:
+        //    getCoreSubsystem().xxx().
+        if ( coreSubsystem != null ) {
+            if ( manager.isInstance( coreSubsystem.systemPageRegistry() ) ) {
+                return ( T ) coreSubsystem.systemPageRegistry();
+            }
+            if ( manager.isInstance( coreSubsystem.recentArticlesManager() ) ) {
+                return ( T ) coreSubsystem.recentArticlesManager();
+            }
+            if ( manager.isInstance( coreSubsystem.blogManager() ) ) {
+                return ( T ) coreSubsystem.blogManager();
+            }
+        }
+        return null;
     }
 
     /** {@inheritDoc} */
@@ -723,7 +744,7 @@ public class WikiEngine implements Engine {
                 final var overrides    = new com.wikantik.kgpolicy.StructuralIndexFrontmatterOverrideReader(
                         structuralIndex );
                 final var policy       = new com.wikantik.kgpolicy.DefaultKgInclusionPolicy(
-                        getManager( SystemPageRegistry.class ),
+                        coreSubsystem.systemPageRegistry(),
                         structuralIndex,
                         policyRepo,
                         overrides );
@@ -742,7 +763,7 @@ public class WikiEngine implements Engine {
                 LOG.info( "KG inclusion policy wired (default-exclude active)" );
 
                 new com.wikantik.kgpolicy.SystemPageBackfillTask(
-                        getManager( com.wikantik.api.managers.SystemPageRegistry.class ), excludedRepo ).run();
+                        coreSubsystem.systemPageRegistry(), excludedRepo ).run();
             } else {
                 LOG.info( "KG inclusion policy DISABLED via wikantik.kg_policy.enabled=false" );
             }
@@ -780,7 +801,7 @@ public class WikiEngine implements Engine {
                     meterRegistry != null
                         ? new com.wikantik.admin.ContentIndexRebuildService(
                             getManager( PageManager.class ),
-                            getManager( SystemPageRegistry.class ),
+                            coreSubsystem.systemPageRegistry(),
                             queue,
                             svcs.contentChunkRepository(),
                             rebuildChunker,
@@ -789,7 +810,7 @@ public class WikiEngine implements Engine {
                             meterRegistry )
                         : new com.wikantik.admin.ContentIndexRebuildService(
                             getManager( PageManager.class ),
-                            getManager( SystemPageRegistry.class ),
+                            coreSubsystem.systemPageRegistry(),
                             queue,
                             svcs.contentChunkRepository(),
                             rebuildChunker,
@@ -818,7 +839,7 @@ public class WikiEngine implements Engine {
             filterManager.addPageFilter(
                 new StructuralSpinePageFilter( structuralIndex,
                     name -> {
-                        final SystemPageRegistry sys = getManager( SystemPageRegistry.class );
+                        final SystemPageRegistry sys = coreSubsystem.systemPageRegistry();
                         return sys != null && sys.isSystemPage( name );
                     },
                     props ),

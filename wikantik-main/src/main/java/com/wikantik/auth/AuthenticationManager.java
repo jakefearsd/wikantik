@@ -216,7 +216,7 @@ public interface AuthenticationManager extends Initializable {
      */
     default void fireEvent( final int type, final Principal principal, final Object target ) {
         if ( WikiEventManager.isListening( this ) ) {
-            WikiEventManager.fireEvent( this, new WikiSecurityEvent( this, type, principal, target ) );
+            new com.wikantik.core.subsystem.DefaultWikiEventBus().fireEvent( this, new WikiSecurityEvent( this, type, principal, target ) );
         }
     }
 

@@ -331,7 +331,7 @@ public class DefaultFilterManager extends BaseModuleManager implements FilterMan
      */
     public void fireEvent( final int type, final Context context ) {
         if( WikiEventManager.isListening(this ) && WikiPageEvent.isValidType( type ) )  {
-            WikiEventManager.fireEvent(this, new WikiPageEvent( engine, type, context.getPage().getName() ) );
+            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).eventBus().fireEvent(this, new WikiPageEvent( engine, type, context.getPage().getName() ) );
         }
     }
 

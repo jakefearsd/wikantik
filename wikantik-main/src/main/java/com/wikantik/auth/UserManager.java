@@ -168,7 +168,7 @@ public interface UserManager extends Initializable {
      */
     default void fireEvent( final int type, final Session session, final Object profile ) {
         if( WikiEventManager.isListening( this ) ) {
-            WikiEventManager.fireEvent( this, new WikiSecurityEvent( session, type, profile ) );
+            new com.wikantik.core.subsystem.DefaultWikiEventBus().fireEvent( this, new WikiSecurityEvent( session, type, profile ) );
         }
     }
 

@@ -232,7 +232,7 @@ public interface GroupManager extends Initializable, Authorizer, WikiEventListen
      */
     default void fireEvent( final int type, final Object target ) {
         if( WikiEventManager.isListening( this ) ) {
-            WikiEventManager.fireEvent( this, new WikiSecurityEvent( this, type, target ) );
+            new com.wikantik.core.subsystem.DefaultWikiEventBus().fireEvent( this, new WikiSecurityEvent( this, type, target ) );
         }
     }
 

@@ -290,7 +290,7 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
 
         final FilterManager filterManager = engine.getManager( FilterManager.class );
         if( filterManager != null && WikiEventManager.isListening( filterManager ) ) {
-            WikiEventManager.fireEvent( filterManager,
+            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).eventBus().fireEvent( filterManager,
                     new WikiPageEvent( engine, WikiPageEvent.POST_SAVE_BEGIN, pageName ) );
         }
     }

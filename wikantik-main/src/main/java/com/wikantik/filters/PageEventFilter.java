@@ -136,7 +136,7 @@ public class PageEventFilter implements PageFilter {
     protected final void fireEvent( final int type, final Context context ) {
         if( WikiEventManager.isListening(this ) && WikiPageEvent.isValidType( type ) ) {
             final WikiPageEvent event = new WikiPageEvent( context.getEngine(), type, context.getPage().getName() );
-            WikiEventManager.fireEvent(this, event );
+            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( context.getEngine() ).eventBus().fireEvent(this, event );
         }
     }
 

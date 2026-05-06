@@ -161,7 +161,7 @@ public class DefaultPageRenamer implements PageRenamer {
     @Override
     public void firePageRenameEvent( final String oldName, final String newName ) {
         if( WikiEventManager.isListening(this) ) {
-            WikiEventManager.fireEvent(this, new WikiPageRenameEvent(this, oldName, newName ) );
+            new com.wikantik.core.subsystem.DefaultWikiEventBus().fireEvent(this, new WikiPageRenameEvent(this, oldName, newName ) );
         }
     }
 

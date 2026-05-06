@@ -224,7 +224,7 @@ public class SessionMonitor implements HttpSessionListener {
      */
     protected final void fireEvent( final int type, final Principal principal, final Session session ) {
         if( WikiEventManager.isListening( this ) ) {
-            WikiEventManager.fireEvent( this, new WikiSecurityEvent( this, type, principal, session ) );
+            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).eventBus().fireEvent( this, new WikiSecurityEvent( this, type, principal, session ) );
         }
     }
 

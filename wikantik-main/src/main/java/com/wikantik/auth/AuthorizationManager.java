@@ -264,7 +264,7 @@ public interface AuthorizationManager extends Initializable {
      */
     default void fireEvent( final int type, final Principal user, final Object permission ) {
         if( WikiEventManager.isListening( this ) ) {
-            WikiEventManager.fireEvent( this, new WikiSecurityEvent( this, type, user, permission ) );
+            new com.wikantik.core.subsystem.DefaultWikiEventBus().fireEvent( this, new WikiSecurityEvent( this, type, user, permission ) );
         }
     }
 

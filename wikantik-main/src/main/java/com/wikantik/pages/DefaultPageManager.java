@@ -712,7 +712,7 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
      */
     protected final void fireEvent( final int type, final String pagename ) {
         if( WikiEventManager.isListening( this ) ) {
-            WikiEventManager.fireEvent( this, new WikiPageEvent( engine, type, pagename ) );
+            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).eventBus().fireEvent( this, new WikiPageEvent( engine, type, pagename ) );
         }
     }
 

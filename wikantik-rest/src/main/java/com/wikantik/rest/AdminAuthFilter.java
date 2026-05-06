@@ -23,6 +23,7 @@ import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.AllPermission;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -114,7 +115,7 @@ public class AdminAuthFilter implements Filter {
 
         final Session session = Wiki.session().find( engine, req );
         final AllPermission adminPerm = new AllPermission( engine.getApplicationName() );
-        final AuthorizationManager authMgr = engine.getManager( AuthorizationManager.class );
+        final AuthorizationManager authMgr = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
 
         if ( !authMgr.checkPermission( session, adminPerm ) ) {
             // WARN so operators can correlate "I got logged out" reports with the

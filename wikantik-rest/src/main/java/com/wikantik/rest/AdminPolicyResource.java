@@ -87,7 +87,7 @@ public class AdminPolicyResource extends RestServletBase {
      * if the engine is using file-based policy.
      */
     private DatabasePolicy getDatabasePolicy() {
-        final AuthorizationManager authMgr = getEngine().getManager( AuthorizationManager.class );
+        final AuthorizationManager authMgr = getSubsystems().auth().authorization();
         if ( authMgr instanceof DefaultAuthorizationManager dam ) {
             return dam.getDatabasePolicy();
         }

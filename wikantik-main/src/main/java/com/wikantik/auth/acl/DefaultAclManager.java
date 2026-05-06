@@ -28,6 +28,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorizationManager;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.permissions.PermissionFactory;
@@ -80,7 +81,7 @@ public class DefaultAclManager implements AclManager {
     /** {@inheritDoc} */
     @Override
     public void initialize( final Engine engine, final Properties props ) {
-        auth = engine.getManager( AuthorizationManager.class );
+        auth = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
         this.engine = engine;
     }
 

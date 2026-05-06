@@ -27,6 +27,7 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PermissionFactory;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.render.RenderingManager;
@@ -135,7 +136,7 @@ public class InsertPage implements Plugin {
     }
 
     private static boolean hasViewPermission( final Engine engine, final Context context, final Page page ) {
-        final AuthorizationManager mgr = engine.getManager( AuthorizationManager.class );
+        final AuthorizationManager mgr = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
         return mgr.checkPermission( context.getWikiSession(), PermissionFactory.getPagePermission( page, "view" ) );
     }
 

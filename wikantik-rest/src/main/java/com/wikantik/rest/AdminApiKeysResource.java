@@ -187,7 +187,7 @@ public class AdminApiKeysResource extends RestServletBase {
      * used by {@code GetPageTool.canView}.</p>
      */
     boolean principalExists( final String login ) {
-        final UserManager userManager = getEngine().getManager( UserManager.class );
+        final UserManager userManager = getSubsystems().auth().users();
         if ( userManager == null ) {
             return false;
         }

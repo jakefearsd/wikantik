@@ -19,6 +19,7 @@
 package com.wikantik.auth.permissions;
 
 import com.wikantik.auth.AuthorizationManager;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
@@ -69,7 +70,7 @@ public class PermissionFilter {
         final Permission perm = ( page != null )
                 ? PermissionFactory.getPagePermission( page, action )
                 : new PagePermission( engine.getApplicationName() + ":" + pageName, action );
-        return engine.getManager( AuthorizationManager.class ).checkPermission( session, perm );
+        return AuthSubsystemBridge.fromLegacyEngine( engine ).authorization().checkPermission( session, perm );
     }
 
     /**

@@ -70,7 +70,7 @@ public class AdminUserResource extends RestServletBase {
     }
 
     private UserDatabase getUserDatabase() {
-        return getEngine().getManager( UserManager.class ).getUserDatabase();
+        return getSubsystems().auth().users().getUserDatabase();
     }
 
     @Override

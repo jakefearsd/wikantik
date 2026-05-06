@@ -24,6 +24,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 
@@ -66,7 +67,7 @@ public class SSOAutoProvisionService {
             return;
         }
 
-        final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
+        final UserDatabase userDb = AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase();
         if( userDb == null ) {
             LOG.warn( "UserDatabase is not available; cannot auto-provision SSO user: {}", loginName );
             return;

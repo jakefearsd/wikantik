@@ -32,6 +32,7 @@ import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.permissions.PermissionFactory;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -231,7 +232,7 @@ public class DefaultPageGraphService implements PageGraphService {
         }
         final AuthorizationManager authMgr;
         try {
-            authMgr = engine.getManager( AuthorizationManager.class );
+            authMgr = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
         } catch ( final RuntimeException e ) {
             LOG.warn( "Page Graph: AuthorizationManager unavailable; skipping ACL redaction: {}",
                     e.getMessage() );

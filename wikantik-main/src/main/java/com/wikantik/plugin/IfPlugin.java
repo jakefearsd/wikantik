@@ -26,6 +26,7 @@ import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.render.RenderingManager;
 import com.wikantik.util.HttpUtil;
 import com.wikantik.util.TextUtil;
@@ -215,9 +216,9 @@ public class IfPlugin implements Plugin {
                 invert = true;
             }
 
-            final Principal groupPrincipal = context.getEngine().getManager( AuthorizationManager.class ).resolvePrincipal( gname );
+            final Principal groupPrincipal = AuthSubsystemBridge.fromLegacyEngine( context.getEngine() ).authorization().resolvePrincipal( gname );
 
-            include |= context.getEngine().getManager( AuthorizationManager.class ).isUserInRole( context.getWikiSession(), groupPrincipal ) ^ invert;
+            include |= AuthSubsystemBridge.fromLegacyEngine( context.getEngine() ).authorization().isUserInRole( context.getWikiSession(), groupPrincipal ) ^ invert;
         }
         return include;
     }

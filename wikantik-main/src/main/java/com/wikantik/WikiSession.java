@@ -28,6 +28,7 @@ import com.wikantik.auth.GroupPrincipal;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.SessionMonitor;
 import com.wikantik.auth.UserManager;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
@@ -397,7 +398,7 @@ public final class WikiSession implements Session {
         subject.getPrincipals().removeAll( subject.getPrincipals(GroupPrincipal.class) );
 
         // Get the GroupManager and test for each Group
-        final GroupManager manager = groupManager != null ? groupManager : engine.getManager( GroupManager.class );
+        final GroupManager manager = groupManager != null ? groupManager : AuthSubsystemBridge.fromLegacyEngine( engine ).groups();
         for( final Principal group : manager.getRoles() ) {
             if ( manager.isUserInRole( this, group ) ) {
                 subject.getPrincipals().add( group );
@@ -420,7 +421,7 @@ public final class WikiSession implements Session {
         }
 
         // Look up the user and go get the new Principals
-        final UserManager um = userManager != null ? userManager : engine.getManager( UserManager.class );
+        final UserManager um = userManager != null ? userManager : AuthSubsystemBridge.fromLegacyEngine( engine ).users();
         final UserDatabase database = um.getUserDatabase();
         if( database == null ) {
             throw new IllegalStateException( "User database cannot be null." );
@@ -525,9 +526,9 @@ public final class WikiSession implements Session {
      */
     public static Session guestSession( final Engine engine ) {
         // Resolve managers once here and store them on the session for later use.
-        final GroupManager groupMgr = engine.getManager( GroupManager.class );
-        final AuthenticationManager authMgr = engine.getManager( AuthenticationManager.class );
-        final UserManager userMgr = engine.getManager( UserManager.class );
+        final GroupManager groupMgr = AuthSubsystemBridge.fromLegacyEngine( engine ).groups();
+        final AuthenticationManager authMgr = AuthSubsystemBridge.fromLegacyEngine( engine ).authentication();
+        final UserManager userMgr = AuthSubsystemBridge.fromLegacyEngine( engine ).users();
 
         final WikiSession session = new WikiSession( groupMgr, userMgr, authMgr );
         session.engine = engine;

@@ -23,6 +23,7 @@ import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -124,7 +125,7 @@ public class BasicAuthFilter implements Filter {
             return;
         }
 
-        final AuthenticationManager authMgr = engine.getManager( AuthenticationManager.class );
+        final AuthenticationManager authMgr = AuthSubsystemBridge.fromLegacyEngine( engine ).authentication();
         final boolean ok;
         try {
             ok = authMgr.login( session, req, username, password );

@@ -31,6 +31,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.user.UserDatabase;
@@ -698,7 +699,7 @@ public class WikiContext implements Context, Command {
         if ( GenericCommand.WIKI_INSTALL.equals( command ) ) {
             // See if admin users exists
             try {
-                final UserManager userMgr = engine.getManager( UserManager.class );
+                final UserManager userMgr = AuthSubsystemBridge.fromLegacyEngine( engine ).users();
                 final UserDatabase userDb = userMgr.getUserDatabase();
                 userDb.findByLoginName( "admin" );
             } catch ( final NoSuchPrincipalException e ) {
@@ -740,7 +741,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public boolean hasAdminPermissions() {
-        return engine.getManager( AuthorizationManager.class ).checkPermission( getWikiSession(), new AllPermission( engine.getApplicationName() ) );
+        return AuthSubsystemBridge.fromLegacyEngine( engine ).authorization().checkPermission( getWikiSession(), new AllPermission( engine.getApplicationName() ) );
     }
 
     /**

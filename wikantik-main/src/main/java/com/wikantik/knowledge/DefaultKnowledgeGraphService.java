@@ -28,6 +28,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.permissions.PermissionFactory;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -604,7 +605,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         if ( engine == null ) {
             return base;
         }
-        final AuthorizationManager authMgr = engine.getManager( AuthorizationManager.class );
+        final AuthorizationManager authMgr = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
         final PageManager pageMgr = engine.getManager( PageManager.class );
 
         final List< SnapshotNode > redacted = new ArrayList<>( base.nodes().size() );

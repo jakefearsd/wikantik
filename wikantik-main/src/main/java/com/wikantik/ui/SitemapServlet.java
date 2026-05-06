@@ -46,6 +46,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PagePermission;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
@@ -164,7 +165,7 @@ public class SitemapServlet extends HttpServlet {
         }
 
         // Filter pages: exclude menu pages and check permissions
-        final AuthorizationManager authManager = engine.getManager( AuthorizationManager.class );
+        final AuthorizationManager authManager = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
         final Context context = Wiki.context().create( engine, req, ContextEnum.PAGE_VIEW.getRequestContext() );
 
         final List<Page> publicPages = allPages.stream()

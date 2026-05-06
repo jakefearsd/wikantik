@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthenticationManager;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import org.pac4j.core.config.Config;
 import org.pac4j.core.engine.CallbackLogic;
 import org.pac4j.core.engine.DefaultCallbackLogic;
@@ -87,7 +88,7 @@ public class SSOCallbackServlet extends HttpServlet {
             // WikiSession principals now. WikiServletFilter is only mapped to
             // /attach/*, so without this explicit call the SSOLoginModule never
             // runs and the React UI keeps seeing an anonymous session.
-            engine.getManager( AuthenticationManager.class ).login( request );
+            AuthSubsystemBridge.fromLegacyEngine( engine ).authentication().login( request );
         } catch( final Exception e ) {
             // Most callback failures are bad/stale input (missing state, expired
             // session, user hit /sso/callback directly, replayed code) rather

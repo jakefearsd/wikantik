@@ -72,6 +72,7 @@ import com.wikantik.api.core.Session;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.permissions.PagePermission;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.util.ClassUtil;
 import com.wikantik.util.FileUtil;
@@ -827,7 +828,7 @@ public class LuceneSearchProvider implements SearchProvider {
             // AuthorizationManager and AclManager are initialized after SearchManager in the engine
             // startup sequence, so resolve them lazily from the engine on first use.
             if( authorizationManager == null ) {
-                authorizationManager = engine.getManager( AuthorizationManager.class );
+                authorizationManager = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
             }
             if( aclManager == null ) {
                 aclManager = engine.getManager( AclManager.class );

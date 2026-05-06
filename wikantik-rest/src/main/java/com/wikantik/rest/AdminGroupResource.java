@@ -64,7 +64,7 @@ public class AdminGroupResource extends RestServletBase {
     }
 
     private GroupManager getGroupManager() {
-        return getEngine().getManager( GroupManager.class );
+        return getSubsystems().auth().groups();
     }
 
     @Override

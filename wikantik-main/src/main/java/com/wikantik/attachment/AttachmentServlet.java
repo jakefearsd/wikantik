@@ -53,6 +53,7 @@ import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PermissionFactory;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.ui.progress.ProgressItem;
@@ -138,7 +139,7 @@ public class AttachmentServlet extends HttpServlet {
     public void init( final ServletConfig config ) throws ServletException {
         engine = Wiki.engine().find( config );
         attachmentManager = engine.getManager( AttachmentManager.class );
-        authorizationManager = engine.getManager( AuthorizationManager.class );
+        authorizationManager = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
         progressManager = engine.getManager( ProgressManager.class );
         final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
         final String tmpDir = engine.getWorkDir() + File.separator + "attach-tmp";

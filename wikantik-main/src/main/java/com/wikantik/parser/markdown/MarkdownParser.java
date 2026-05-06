@@ -27,6 +27,7 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.UserManager;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.markdown.extensions.math.DisplayMathPreProcessor;
@@ -60,8 +61,8 @@ public class MarkdownParser extends MarkupParser {
 
     public MarkdownParser( final Context context, final Reader in ) {
         super( context, in );
-        if( context.getEngine().getManager( UserManager.class ).getUserDatabase() == null ||
-            context.getEngine().getManager( AuthorizationManager.class ) == null ) {
+        if( AuthSubsystemBridge.fromLegacyEngine( context.getEngine() ).users().getUserDatabase() == null ||
+            AuthSubsystemBridge.fromLegacyEngine( context.getEngine() ).authorization() == null ) {
             disableAccessRules();
         }
         context.getPage().setHasMetadata();

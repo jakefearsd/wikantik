@@ -571,6 +571,13 @@ public class WikiEngine implements Engine {
     @Override
     public < T > void setManager( final Class< T > clazz, final T manager ) {
         managers.put( clazz, manager );
+        // If an auth-layer manager is swapped in (e.g. by a unit test installing a mock),
+        // invalidate the frozen authSubsystem snapshot so that AuthSubsystemBridge falls
+        // through to live getManager() lookups on the next call.
+        if ( clazz == AuthenticationManager.class || clazz == AuthorizationManager.class
+                || clazz == UserManager.class || clazz == GroupManager.class ) {
+            this.authSubsystem = null;
+        }
     }
 
     /** {@inheritDoc} */

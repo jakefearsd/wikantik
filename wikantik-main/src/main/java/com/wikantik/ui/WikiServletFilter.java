@@ -28,6 +28,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.SessionMonitor;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -118,7 +119,7 @@ public class WikiServletFilter implements Filter {
         if ( !isWrapped( request ) ) {
             // Prepare the Session
             try {
-                engine.getManager( AuthenticationManager.class ).login( httpRequest );
+                AuthSubsystemBridge.fromLegacyEngine( engine ).authentication().login( httpRequest );
                 final Session wikiSession = SessionMonitor.getInstance( engine ).find( httpRequest.getSession() );
                 httpRequest = new WikiRequestWrapper( engine, httpRequest );
                 LOG.debug( "Executed security filters for user={}, path={}",wikiSession.getLoginPrincipal().getName(), httpRequest.getRequestURI() );

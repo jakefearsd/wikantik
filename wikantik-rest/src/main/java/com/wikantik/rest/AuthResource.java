@@ -203,7 +203,7 @@ public class AuthResource extends RestServletBase {
 
         try {
             final String loginName = session.getLoginPrincipal().getName();
-            final UserDatabase db = engine.getManager( UserManager.class ).getUserDatabase();
+            final UserDatabase db = getSubsystems().auth().users().getUserDatabase();
             final UserProfile profile = db.findByLoginName( loginName );
             sendJson( response, profileToMap( profile ) );
         } catch ( final NoSuchPrincipalException e ) {
@@ -233,7 +233,7 @@ public class AuthResource extends RestServletBase {
 
         try {
             final String loginName = session.getLoginPrincipal().getName();
-            final UserDatabase db = engine.getManager( UserManager.class ).getUserDatabase();
+            final UserDatabase db = getSubsystems().auth().users().getUserDatabase();
             final UserProfile profile = db.findByLoginName( loginName );
 
             // Update fullName if provided
@@ -329,7 +329,7 @@ public class AuthResource extends RestServletBase {
         }
 
         final Engine engine = getEngine();
-        final AuthenticationManager authManager = engine.getManager( AuthenticationManager.class );
+        final AuthenticationManager authManager = getSubsystems().auth().authentication();
         final Session wikiSession = Wiki.session().find( engine, request );
 
         try {
@@ -397,7 +397,7 @@ public class AuthResource extends RestServletBase {
         RESET_ATTEMPTS.add( email.toLowerCase( Locale.ROOT ) );
 
         final Engine engine = getEngine();
-        final UserDatabase db = engine.getManager( UserManager.class ).getUserDatabase();
+        final UserDatabase db = getSubsystems().auth().users().getUserDatabase();
 
         try {
             final UserProfile profile = db.findByEmail( email );

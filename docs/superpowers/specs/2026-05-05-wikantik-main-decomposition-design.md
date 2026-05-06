@@ -323,16 +323,55 @@ persistence` as the second cross-subsystem dependency edge.
 construction behind a small CLI persistence factory (not worth a
 phase of its own; the CLI's boot is shallow and stable).
 
-### Phase 4 — AuthSubsystem extraction (≈ 4 days)
+### Phase 4 — AuthSubsystem extraction (≈ 4 days)  *(complete 2026-05-06)*
 
 **Goal:** wall off authentication and authorization behind a small public surface.
 
 - Move `DefaultAuthorizationManager`, `DefaultUserManager`, `DefaultGroupManager`, `WebContainerAuthorizer`, `ApiKeyServiceHolder` into `AuthSubsystem`.
-- Decompose `SecurityVerifier` (801 lines) — likely splits into "permission resolver" + "ACL evaluator" + "policy grant store reader".
+- Decompose `SecurityVerifier` (802 lines) — likely splits into "permission resolver" + "ACL evaluator" + "policy grant store reader".
 - Define the public `AuthServices` surface: `currentPrincipal()`, `mayPerform(principal, permission)`, and a small set of administrative ports.
 - Audit every caller: most `engine.getManager(AuthorizationManager.class)` sites are doing one of two things; collapse to that smaller API.
 
-**Done when:** `AuthSubsystem` is independently bootable; cross-subsystem callers use the `AuthServices` API; `SecurityVerifier` is decomposed or has a credible plan.
+**Outcome:** `AuthSubsystem.Services` exposes the four core auth managers
+(authentication, authorization, users, groups), the configured
+`Authorizer` (typically `WebContainerAuthorizer`), the API-key service,
+and a session-scoped `securityVerifier` slot. `SecurityVerifier` (802
+LOC) is decomposed into three narrow helpers under
+`com.wikantik.auth.subsystem.verify` — `PolicyVerifier` (450 LOC),
+`ContainerRoleVerifier` (163 LOC), `JaasVerifier` (88 LOC) — leaving a
+278-LOC facade that retains every public message-key constant for the
+admin JSPs. 34 production `getManager` callsites migrated (10 REST
+slice → `getSubsystems().auth().xxx()`; 24 non-servlet slice →
+`AuthSubsystemBridge.fromLegacyEngine(engine).xxx()`); auth-internal
+classes (`DefaultAuthenticationManager` / `Authorization` / `User` /
+`Group`, `SecurityVerifier`, `WikiCallbackHandler`) keep direct
+`getManager` lookups because they run during `initialize()` before the
+AuthSubsystem is built.
+
+`WikiEngine.setManager` invalidates the cached AuthSubsystem snapshot
+when one of the four auth managers is hot-swapped (test-fixture
+seam) so `AuthSubsystemBridge` falls through to a live lookup.
+
+**Metrics (`bin/metrics/decomposition-progress.json`):**
+- `god_classes_over_800` 8 → 7 (SecurityVerifier reduced to 278 LOC)
+- `get_manager_callers_repo_wide` 1037 → 1017 (-20)
+- `get_manager_callers_in_main` 209 → 195 (-14)
+- `archunit_frozen_violations` unchanged at 37 (the new bridge calls
+  go through `AuthSubsystemBridge.engine.getManager(...)` — accepted
+  bridge state, not a violation regression)
+
+**Deferred:**
+- Migrating `SecurityVerifier` callers to the narrow helpers directly
+  (Ckpt 4 in the original plan): production has zero callers of
+  `SecurityVerifier`, so there's nothing to migrate. Tests still
+  exercise the facade for regression coverage; new code that wants
+  one slice can instantiate the matching helper directly.
+- Migrating the auth-internal cross-references inside the four
+  manager impls — bootstrap-order dependent; revisits Phase 5/Phase 9.
+- Lifting `ApiKeyServiceHolder`'s static singleton — the typed
+  `Services.apiKeys()` accessor is now the preferred path; the
+  holder stays for the duration of the migration and gets removed
+  in a Phase 9 sweep.
 
 ### Phase 5 — PageSubsystem extraction + DefaultPageManager decomposition (≈ 7–10 days)
 

@@ -1,7 +1,7 @@
 # Phase 4: AuthSubsystem extraction — implementation plan
 
 **Spec:** [docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md](../specs/2026-05-05-wikantik-main-decomposition-design.md)
-**Status:** ready
+**Status:** complete (2026-05-06)
 **Estimated effort:** 4 days
 **Goal:** wall off authentication and authorization behind a small typed `AuthSubsystem.Services` surface. Move the four core managers (`DefaultAuthenticationManager`, `DefaultAuthorizationManager`, `DefaultUserManager`, `DefaultGroupManager`) plus the policy / api-key holders into a single subsystem package. Decompose `SecurityVerifier` (802 LOC) along its three real responsibilities.
 

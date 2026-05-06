@@ -149,6 +149,12 @@ public class WikiEngine implements Engine {
      *  metrics registry, leaf managers). */
     private com.wikantik.core.subsystem.CoreSubsystem.Services coreSubsystem;
 
+    /** Persistence subsystem services produced by {@code PersistenceSubsystemFactory}.
+     *  Phase 3 of the wikantik-main decomposition (2026-05-06); owns the
+     *  {@link javax.sql.DataSource} and every JDBC repository / DAO. {@code null}
+     *  when the engine boots without a configured datasource (unit-test paths). */
+    private com.wikantik.persistence.subsystem.PersistenceSubsystem.Services persistenceSubsystem;
+
     /** Stores the template path.  This is relative to "templates". */
     private String           templateDir;
 
@@ -430,7 +436,8 @@ public class WikiEngine implements Engine {
         // RestServletBase falls back to a synthetic bundle reading the
         // legacy manager registry.
         if ( servletContext != null && coreSubsystem != null && knowledgeSubsystem != null ) {
-            final WikiSubsystems subsystems = new WikiSubsystems( coreSubsystem, knowledgeSubsystem );
+            final WikiSubsystems subsystems = new WikiSubsystems(
+                coreSubsystem, persistenceSubsystem, knowledgeSubsystem );
             servletContext.setAttribute( WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE, subsystems );
         }
 
@@ -625,6 +632,14 @@ public class WikiEngine implements Engine {
             final javax.naming.Context initCtx = new javax.naming.InitialContext();
             final javax.naming.Context ctx = ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
             final javax.sql.DataSource ds = ( javax.sql.DataSource ) ctx.lookup( datasource );
+
+            // Phase 3 of the wikantik-main subsystem decomposition: build the
+            // Persistence subsystem before Knowledge so every JDBC repository
+            // is owned by Persistence. Knowledge consumes narrow refs off
+            // persistenceSubsystem.xxx() in subsequent checkpoints.
+            this.persistenceSubsystem = com.wikantik.persistence.subsystem.PersistenceSubsystemFactory.create(
+                new com.wikantik.persistence.subsystem.PersistenceSubsystem.Deps(
+                    ds, coreSubsystem.properties() ) );
 
             // Resolve the Lucene MoreLikeThis seam if SearchManager is using a Lucene
             // provider. Otherwise the factory falls back to a no-op MLT and the
@@ -1370,6 +1385,19 @@ public class WikiEngine implements Engine {
      */
     public com.wikantik.core.subsystem.CoreSubsystem.Services getCoreSubsystem() {
         return coreSubsystem;
+    }
+
+    /**
+     * Returns the Persistence subsystem's services bundle, or {@code null}
+     * when the engine booted without a configured datasource (unit-test
+     * paths).
+     *
+     * <p>Phase 3 of the wikantik-main subsystem decomposition. New code
+     * should obtain JDBC repositories / DAOs through this accessor; legacy
+     * code constructs them inline until migrated.</p>
+     */
+    public com.wikantik.persistence.subsystem.PersistenceSubsystem.Services getPersistenceSubsystem() {
+        return persistenceSubsystem;
     }
 
     /** {@inheritDoc} */

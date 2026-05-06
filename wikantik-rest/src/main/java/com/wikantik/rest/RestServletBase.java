@@ -161,15 +161,18 @@ public abstract class RestServletBase extends HttpServlet {
         // services exist).
         final com.wikantik.core.subsystem.CoreSubsystem.Services coreServices =
             com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine );
+        com.wikantik.persistence.subsystem.PersistenceSubsystem.Services persistenceServices = null;
         if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
+            persistenceServices = wikiEngine.getPersistenceSubsystem();
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services kgServices =
                 wikiEngine.getKnowledgeSubsystem();
             if ( kgServices != null ) {
-                return new com.wikantik.WikiSubsystems( coreServices, kgServices );
+                return new com.wikantik.WikiSubsystems( coreServices, persistenceServices, kgServices );
             }
         }
         return new com.wikantik.WikiSubsystems(
             coreServices,
+            persistenceServices,
             com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine ) );
     }
 

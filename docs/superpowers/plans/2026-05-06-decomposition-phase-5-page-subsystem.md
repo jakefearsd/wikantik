@@ -1,7 +1,7 @@
 # Phase 5: PageSubsystem extraction + DefaultPageManager decomposition — implementation plan
 
 **Spec:** [docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md](../specs/2026-05-05-wikantik-main-decomposition-design.md)
-**Status:** ready
+**Status:** complete (2026-05-07)
 **Estimated effort:** 7–10 days
 **Goal:** wall off page lifecycle (read / save / delete / lock / version / rename) and attachments behind a typed `PageSubsystem.Services` surface. Decompose `DefaultPageManager` (816 LOC) along its four real roles. Move every `engine.getManager(PageManager|AttachmentManager|PageRenamer.class)` consumer (~75 call sites across seven modules) onto the typed accessor.
 

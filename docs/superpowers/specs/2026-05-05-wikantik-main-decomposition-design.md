@@ -373,12 +373,12 @@ seam) so `AuthSubsystemBridge` falls through to a live lookup.
   holder stays for the duration of the migration and gets removed
   in a Phase 9 sweep.
 
-### Phase 5 — PageSubsystem extraction + DefaultPageManager decomposition (≈ 7–10 days)
+### Phase 5 — PageSubsystem extraction + DefaultPageManager decomposition (≈ 7–10 days)  *(complete 2026-05-07)*
 
 **Goal:** the heaviest subsystem. Done correctly, this unlocks fast tests across the codebase.
 
 - Extract `PageSubsystemFactory` and `PageSubsystem.Services`.
-- Decompose `DefaultPageManager` (815 lines). Likely splits:
+- Decompose `DefaultPageManager` (816 lines). Likely splits:
   - **Page repository** — read/save/delete/exists, version handling.
   - **Page lifecycle** — pre/post save event firing, lock management.
   - **Page metadata** — frontmatter, ACL extraction, cache invalidation hooks.
@@ -386,7 +386,45 @@ seam) so `AuthSubsystemBridge` falls through to a live lookup.
 - Decompose `DefaultReferenceManager` (1002 lines) — split index-rebuild from reference-query from cross-reference-scan.
 - Decompose `AbstractFileProvider` (925 lines) and `VersioningFileProvider` (783 lines) along the page-vs-version-history seam.
 
-**Done when:** zero `engine.getManager(PageManager.class)` callers; new tests against `PageSubsystem` services use direct mocks; the seven new smaller classes (replacing the four God-classes) are each <400 LOC.
+**Outcome:** `PageSubsystem.Services` exposes the four manager-level
+objects (`PageManager`, `AttachmentManager`, `PageRenamer`,
+`PageSaveHelper`) plus the underlying `PageProvider` chain plus the
+three decomposed helpers (`PageRepository`, `PageLifecycle`,
+`PageLockService`). `DefaultPageManager` (816 LOC) decomposed three
+ways: `DefaultPageRepository` (390 LOC), `DefaultPageLifecycle` (109
+LOC), `DefaultPageLockService` (164 LOC), and a 297-LOC facade.
+`PageSubsystemFactory.buildProvider` lifted the provider-chain
+construction out of the manager. ~115 production `getManager`
+callsites for `PageManager` / `AttachmentManager` / `PageRenamer`
+migrated across seven modules in two parallel-Sonnet passes
+(REST/MCP/tools/knowledge/observability vs wikantik-main interior)
+and one parallel-Haiku pass (Attachment + Renamer).
+`KnowledgeSubsystem.Deps` declares `PageSubsystem.Services page` —
+the third cross-subsystem edge in the decomposition DAG.
+
+**Deferred:** the four other God-classes named in the original goal
+(`DefaultReferenceManager`, `AbstractFileProvider`,
+`VersioningFileProvider`, and the broader page-graph references
+split). Those belong to the Page-Graph subsystem (a future phase),
+not the page lifecycle. Phase 5's scope is the page lifecycle that
+the rest of the codebase consumes through `PageSubsystem.Services`;
+the link-graph derivation is conceptually distinct and stays for now.
+
+**Metrics (`bin/metrics/decomposition-progress.json`):**
+- `god_classes_over_800` 7 → 6 (DefaultPageManager 816 → 297 LOC)
+- `get_manager_callers_repo_wide` 1017 → 915 (-102) — single largest
+  drop in any phase so far
+- `get_manager_callers_in_main` 195 → 130 (-65)
+- `archunit_frozen_violations` 37 → 35 (-2)
+- `wikantik-observability` gained a `provided` dep on `wikantik-main`
+  to reach `PageSubsystemBridge` from a single health-check call
+
+**Done when:** zero `engine.getManager(PageManager.class)` callers
+outside the SKIP list (engine-internal lookups during initialize, the
+PageSaveHelper in wikantik-api which can't depend on wikantik-main,
+and the auth-internal classes whose lookups happen before
+PageSubsystem is built); the three new helpers + the facade are each
+<400 LOC.
 
 ### Phase 6 — RenderingSubsystem extraction (≈ 4 days)
 

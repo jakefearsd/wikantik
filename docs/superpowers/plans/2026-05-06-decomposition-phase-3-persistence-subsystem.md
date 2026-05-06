@@ -1,13 +1,14 @@
 # Phase 3: PersistenceSubsystem extraction — implementation plan
 
 **Spec:** [docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md](../specs/2026-05-05-wikantik-main-decomposition-design.md)
-**Status:** ready
+**Status:** complete (2026-05-06)
 **Estimated effort:** 4–5 days
 **Goal:** centralize the `DataSource` and every JDBC repository / DAO under a single `PersistenceSubsystem` boundary. After Phase 3, no consumer outside Persistence holds raw JDBC handles or constructs `Jdbc*Repository` classes itself; downstream subsystems receive narrow repository interfaces. The 1561-line `JdbcKnowledgeRepository` is decomposed along its real usage seams.
 
 ## Scope
 
 **In:**
+
 1. **`PersistenceSubsystem.Deps` + `.Services`** records housing every repository/DAO currently registered or constructed inline in `WikiEngine.initialize()` and `KnowledgeSubsystemFactory.create()`.
 2. **`PersistenceSubsystemFactory.create(Deps) → Services`** — pure factory. Inputs: `DataSource`, `WikiProperties` (only for repo-level config), and any cross-subsystem repos the Knowledge subsystem currently constructs as collaborators.
 3. **`DataSource` creation moved out of `WikiEngine`** into the factory. The engine still bootstraps the `DataSource` from `wikantik.datasource` JNDI / properties (one-time JDBC plumbing), but every repository sees `DataSource` only via Persistence.
@@ -21,6 +22,7 @@
 6. **Update tests** that construct repositories directly so they receive the narrow interface (or build a `PersistenceSubsystem.Services` from a Testcontainers DataSource).
 
 **Out:**
+
 - Splitting per-repo into a separate `wikantik-persistence` Maven module (the spec defers this until the public surface stabilises). Phase 3 keeps the new types in `wikantik-main` under `com.wikantik.persistence.subsystem.*`.
 - Migrating CRUD that lives outside `wikantik-main` — `wikantik-knowledge` has its own MCP server but reaches repositories through service interfaces. Already clean; no change.
 - Touching `wikantik-event` or `wikantik-cache` (no repositories).
@@ -68,6 +70,7 @@ public final class PersistenceSubsystem {
 ### `KnowledgeSubsystem.Deps` evolution
 
 After Phase 3:
+
 ```java
 public record Deps(
     PersistenceSubsystem.Services persistence,   // ← replaces DataSource
@@ -116,6 +119,7 @@ Each checkpoint = one commit + the full IT reactor before commit.
 ### Checkpoint 3 — Decompose `JdbcKnowledgeRepository` (Opus)
 
 The big surgery. Approach:
+
 1. Create `KgNodeRepository`, `KgEdgeRepository`, `KgProposalRepository`, `KgRejectionRepository` — each a new `public final class` with the same constructor (`DataSource dataSource`).
 2. Move the implementations method-by-method, keeping signatures + SQL identical. Cross-table verdict methods live on `KgProposalRepository` and take `KgNodeRepository` / `KgEdgeRepository` constructor refs.
 3. Leave `JdbcKnowledgeRepository` as a thin facade for the duration of Checkpoint 3 — every method delegates to one of the new repos. This keeps the diff reviewable and the IT suite green while consumers migrate.

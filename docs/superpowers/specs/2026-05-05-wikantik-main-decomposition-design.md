@@ -293,7 +293,7 @@ sits below `wikantik-main` in the module hierarchy and can't reach
 - `archunit_frozen_violations` 40 → 37 (-3)
 - `registered_managers` unchanged at 28 (deferred above)
 
-### Phase 3 — PersistenceSubsystem extraction (≈ 4 days)
+### Phase 3 — PersistenceSubsystem extraction (≈ 4 days)  *(complete 2026-05-06)*
 
 **Goal:** centralize the DataSource and the JDBC repositories.
 
@@ -301,7 +301,27 @@ sits below `wikantik-main` in the module hierarchy and can't reach
 - Decompose `JdbcKnowledgeRepository` (1561 lines) into 3–4 cohesive repositories along its actual usage seams (nodes, edges, proposals, reviews/rejections). Keep the public `Repository` interface intact during the split; clean it up afterward.
 - All other subsystems consume narrower repository interfaces from `Persistence`.
 
-**Done when:** every JDBC-touching class lives under `Persistence`; `JdbcKnowledgeRepository` is split or has a credible plan to be split in a follow-up; consumers receive narrow repo interfaces.
+**Outcome:** `PersistenceSubsystem.Services` exposes the four narrow KG
+repositories (`KgNodeRepository`, `KgEdgeRepository`,
+`KgProposalRepository`, `KgRejectionRepository`) plus every other JDBC
+repository / DAO (twelve total). `JdbcKnowledgeRepository` (1561 LOC)
+has been deleted; production and test consumers (engine,
+KnowledgeSubsystemFactory, hub services, judge runner, bootstrap
+indexer, extract-cli, ~25 test files) take the narrow types directly.
+`KnowledgeSubsystem.Deps` declares `PersistenceSubsystem.Services
+persistence` as the second cross-subsystem dependency edge.
+
+**Metrics (`bin/metrics/decomposition-progress.json`):**
+- `god_classes_over_800` 9 → 8 (the 1561-line monolith is gone)
+- `JdbcKnowledgeRepository` (1561 LOC) → 4 repos at 443/359/489/156 LOC
+- `loc_main` +216 (the four repos duplicate generic helpers — accepted
+  trade-off: each repo owns its connection-handling loop)
+- `archunit_frozen_violations` unchanged at 37 (Phase 3 doesn't touch
+  `engine.getManager` callers — that's Phase 4+ territory)
+
+**Deferred:** consolidating `wikantik-extract-cli`'s manual repository
+construction behind a small CLI persistence factory (not worth a
+phase of its own; the CLI's boot is shallow and stable).
 
 ### Phase 4 — AuthSubsystem extraction (≈ 4 days)
 

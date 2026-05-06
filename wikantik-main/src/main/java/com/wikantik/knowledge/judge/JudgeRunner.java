@@ -23,6 +23,8 @@ import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
 import com.wikantik.api.knowledge.KgProposalReview;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.PoolClosedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -51,7 +53,8 @@ public class JudgeRunner implements AutoCloseable {
 
     private static final Logger LOG = LogManager.getLogger( JudgeRunner.class );
 
-    private final JdbcKnowledgeRepository repo;
+    private final KgProposalRepository proposals;
+    private final KgRejectionRepository rejections;
     private final KgProposalJudgeService judge;
     private final KgMaterializationService materialization;
     private final KgJudgeConfig config;
@@ -98,14 +101,25 @@ public class JudgeRunner implements AutoCloseable {
         );
     }
 
+    public JudgeRunner( final KgProposalRepository proposals,
+                         final KgRejectionRepository rejections,
+                         final KgProposalJudgeService judge,
+                         final KgMaterializationService materialization,
+                         final KgJudgeConfig config ) {
+        this.proposals       = Objects.requireNonNull( proposals, "proposals" );
+        this.rejections      = Objects.requireNonNull( rejections, "rejections" );
+        this.judge           = Objects.requireNonNull( judge, "judge" );
+        this.materialization = Objects.requireNonNull( materialization, "materialization" );
+        this.config          = Objects.requireNonNull( config, "config" );
+    }
+
+    /** @deprecated Use the narrow-repo constructor; kept for test/integration compatibility. */
+    @Deprecated
     public JudgeRunner( final JdbcKnowledgeRepository repo,
                          final KgProposalJudgeService judge,
                          final KgMaterializationService materialization,
                          final KgJudgeConfig config ) {
-        this.repo            = Objects.requireNonNull( repo, "repo" );
-        this.judge           = Objects.requireNonNull( judge, "judge" );
-        this.materialization = Objects.requireNonNull( materialization, "materialization" );
-        this.config          = Objects.requireNonNull( config, "config" );
+        this( repo.proposals(), repo.rejections(), judge, materialization, config );
     }
 
     public synchronized void schedule() {
@@ -160,7 +174,7 @@ public class JudgeRunner implements AutoCloseable {
     }
 
     private int runOnceInternal() {
-        final List< KgProposal > batch = repo.getProposalsForJudging( config.batchSize() );
+        final List< KgProposal > batch = proposals.getProposalsForJudging( config.batchSize() );
         if ( batch.isEmpty() ) return 0;
 
         final ExecutorService pool = Executors.newFixedThreadPool( Math.max( 1, config.concurrency() ),
@@ -192,7 +206,7 @@ public class JudgeRunner implements AutoCloseable {
     }
 
     private boolean pastMaxAttempts( final KgProposal p ) {
-        final long abstainCount = repo.listReviews( p.id() ).stream()
+        final long abstainCount = proposals.listReviews( p.id() ).stream()
             .filter( r -> KgProposalReview.REVIEWER_MACHINE.equals( r.reviewerKind() ) )
             .filter( r -> JudgeVerdict.ABSTAIN.equals( r.verdict() ) )
             .count();
@@ -214,8 +228,8 @@ public class JudgeRunner implements AutoCloseable {
                     proposal.id(), v.rationale() );
                 return;
             }
-            repo.applyMachineVerdict( proposal.id(), v.verdict(), v.confidence(), v.model() );
-            repo.recordReview( proposal.id(), KgProposalReview.REVIEWER_MACHINE, v.model(),
+            proposals.applyMachineVerdict( proposal.id(), v.verdict(), v.confidence(), v.model() );
+            proposals.recordReview( proposal.id(), KgProposalReview.REVIEWER_MACHINE, v.model(),
                 v.verdict(), v.confidence(), v.rationale() );
             if ( JudgeVerdict.APPROVED.equals( v.verdict() ) ) {
                 materialization.materializeMachine( proposal );
@@ -226,7 +240,7 @@ public class JudgeRunner implements AutoCloseable {
                 final String tgt = Objects.toString( data.get( "target" ), null );
                 final String rel = Objects.toString( data.get( "relationship" ), null );
                 if ( src != null && tgt != null && rel != null ) {
-                    repo.insertRejection( src, tgt, rel, v.model(), v.rationale() );
+                    rejections.insertRejection( src, tgt, rel, v.model(), v.rationale() );
                 }
             }
             lastRunCompleted.incrementAndGet();

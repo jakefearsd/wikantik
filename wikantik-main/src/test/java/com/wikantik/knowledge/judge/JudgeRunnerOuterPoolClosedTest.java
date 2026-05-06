@@ -19,7 +19,8 @@
 package com.wikantik.knowledge.judge;
 
 import com.wikantik.api.knowledge.KgProposalJudgeService;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.PoolClosedException;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -38,10 +39,11 @@ class JudgeRunnerOuterPoolClosedTest {
 
     @Test
     void poolClosedAtBatchAcquisitionExitsGracefully() {
-        // Repo throws PoolClosedException on getProposalsForJudging itself —
+        // proposals throws PoolClosedException on getProposalsForJudging itself —
         // simulating webapp shutdown before any workers are spawned.
-        final JdbcKnowledgeRepository repo = Mockito.mock( JdbcKnowledgeRepository.class );
-        when( repo.getProposalsForJudging( Mockito.anyInt() ) )
+        final KgProposalRepository proposals = Mockito.mock( KgProposalRepository.class );
+        final KgRejectionRepository rejections = Mockito.mock( KgRejectionRepository.class );
+        when( proposals.getProposalsForJudging( Mockito.anyInt() ) )
             .thenThrow( new PoolClosedException(
                 "getProposalsForJudging aborted: pool closed",
                 new java.sql.SQLException( "Data source is closed" ) ) );
@@ -51,7 +53,7 @@ class JudgeRunnerOuterPoolClosedTest {
         final KgJudgeConfig config = new KgJudgeConfig(
             true, "endpoint", "model", true, 10, 5, 1, 30, 3, "30m" );
 
-        final JudgeRunner runner = new JudgeRunner( repo, judge, materialization, config );
+        final JudgeRunner runner = new JudgeRunner( proposals, rejections, judge, materialization, config );
 
         // runOnceQuietly must NOT throw.
         runner.runOnceQuietly();

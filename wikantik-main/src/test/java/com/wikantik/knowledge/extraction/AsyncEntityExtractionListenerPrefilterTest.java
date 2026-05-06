@@ -21,6 +21,9 @@ package com.wikantik.knowledge.extraction;
 import com.wikantik.api.knowledge.EntityExtractor;
 import com.wikantik.api.knowledge.ExtractionResult;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
@@ -52,9 +55,15 @@ class AsyncEntityExtractionListenerPrefilterTest {
 
         final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
         final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
+        final KgNodeRepository nodeRepo = Mockito.mock( KgNodeRepository.class );
+        final KgProposalRepository proposalRepo = Mockito.mock( KgProposalRepository.class );
+        final KgRejectionRepository rejectionRepo = Mockito.mock( KgRejectionRepository.class );
         final JdbcKnowledgeRepository kgRepo = Mockito.mock( JdbcKnowledgeRepository.class );
+        when( kgRepo.nodes() ).thenReturn( nodeRepo );
+        when( kgRepo.proposals() ).thenReturn( proposalRepo );
+        when( kgRepo.rejections() ).thenReturn( rejectionRepo );
         // Existing-nodes lookup goes through queryNodes(Map, String, int, int).
-        when( kgRepo.queryNodes( anyMap(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        when( nodeRepo.queryNodes( anyMap(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
 
         final UUID keep = UUID.randomUUID();
         final UUID skip = UUID.randomUUID();

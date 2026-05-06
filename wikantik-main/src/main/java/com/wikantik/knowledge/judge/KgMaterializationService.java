@@ -21,7 +21,10 @@ package com.wikantik.knowledge.judge;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.Provenance;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -39,10 +42,25 @@ public class KgMaterializationService {
 
     private static final Logger LOG = LogManager.getLogger( KgMaterializationService.class );
 
-    private final JdbcKnowledgeRepository repo;
+    private final KgNodeRepository      nodes;
+    private final KgEdgeRepository      edges;
+    private final KgProposalRepository  proposals;
+    private final KgRejectionRepository rejections;
 
-    public KgMaterializationService( final JdbcKnowledgeRepository repo ) {
-        this.repo = Objects.requireNonNull( repo, "repo" );
+    public KgMaterializationService( final KgNodeRepository nodes,
+                                      final KgEdgeRepository edges,
+                                      final KgProposalRepository proposals,
+                                      final KgRejectionRepository rejections ) {
+        this.nodes      = Objects.requireNonNull( nodes, "nodes" );
+        this.edges      = Objects.requireNonNull( edges, "edges" );
+        this.proposals  = Objects.requireNonNull( proposals, "proposals" );
+        this.rejections = Objects.requireNonNull( rejections, "rejections" );
+    }
+
+    /** @deprecated Use the narrow-repo constructor; kept for test/integration compatibility. */
+    @Deprecated
+    public KgMaterializationService( final com.wikantik.knowledge.JdbcKnowledgeRepository repo ) {
+        this( repo.nodes(), repo.edges(), repo.proposals(), repo.rejections() );
     }
 
     /** Materialise the proposal at tier='machine'. Currently handles proposalType='new-edge'. */
@@ -62,19 +80,19 @@ public class KgMaterializationService {
             final String tgt = Objects.toString( data.get( "target" ), null );
             final String rel = Objects.toString( data.get( "relationship" ), null );
             if ( src != null && tgt != null && rel != null ) {
-                repo.deleteRejection( src, tgt, rel );
+                rejections.deleteRejection( src, tgt, rel );
             }
         }
         // Insert if absent (preserves existing tier on conflict).
         materialize( proposal, "human" );
         // Then promote any pre-existing machine-tier rows to human.
-        repo.updateTierByProvenance( proposal.id(), "human" );
+        proposals.updateTierByProvenance( proposal.id(), "human" );
     }
 
     /** Delete materialised rows for this proposal. Used when a human rejects a machine-approved edge. */
     public void retract( final KgProposal proposal ) {
-        repo.deleteEdgesByProvenance( proposal.id() );
-        repo.deleteNodesByProvenance( proposal.id() );
+        edges.deleteEdgesByProvenance( proposal.id() );
+        nodes.deleteNodesByProvenance( proposal.id() );
     }
 
     void materialize( final KgProposal proposal, final String tier ) {
@@ -91,9 +109,9 @@ public class KgMaterializationService {
             return;
         }
 
-        final KgNode src = repo.upsertNodeWithProvenance( source, "concept", null,
+        final KgNode src = nodes.upsertNodeWithProvenance( source, "concept", null,
             Provenance.AI_INFERRED, Map.of(), tier, proposal.id() );
-        final KgNode tgt = repo.upsertNodeWithProvenance( target, "concept", null,
+        final KgNode tgt = nodes.upsertNodeWithProvenance( target, "concept", null,
             Provenance.AI_INFERRED, Map.of(), tier, proposal.id() );
         // upsertNodeWithProvenance returns null when the post-INSERT read-back
         // is filtered out by the KG inclusion policy (the row IS in kg_nodes,
@@ -106,7 +124,7 @@ public class KgMaterializationService {
                 proposal.id(), source, src != null, target, tgt != null );
             return;
         }
-        repo.upsertEdgeWithProvenance( src.id(), tgt.id(), rel,
+        edges.upsertEdgeWithProvenance( src.id(), tgt.id(), rel,
             Provenance.AI_INFERRED, Map.of(), tier, proposal.id() );
     }
 }

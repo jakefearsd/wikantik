@@ -22,6 +22,9 @@ import com.wikantik.api.kgpolicy.ExclusionReason;
 import com.wikantik.api.knowledge.EntityExtractor;
 import com.wikantik.api.knowledge.ExtractionResult;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.kgpolicy.KgExcludedPagesRepository;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -60,8 +63,14 @@ class AsyncEntityExtractionListenerSkipTest {
 
         final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
         final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
+        final KgNodeRepository nodeRepo = Mockito.mock( KgNodeRepository.class );
+        final KgProposalRepository proposalRepo = Mockito.mock( KgProposalRepository.class );
+        final KgRejectionRepository rejectionRepo = Mockito.mock( KgRejectionRepository.class );
         final JdbcKnowledgeRepository kgRepo = Mockito.mock( JdbcKnowledgeRepository.class );
-        when( kgRepo.queryNodes( anyMap(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        when( kgRepo.nodes() ).thenReturn( nodeRepo );
+        when( kgRepo.proposals() ).thenReturn( proposalRepo );
+        when( kgRepo.rejections() ).thenReturn( rejectionRepo );
+        when( nodeRepo.queryNodes( anyMap(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
 
         final KgExcludedPagesRepository excluded = Mockito.mock( KgExcludedPagesRepository.class );
 
@@ -113,8 +122,14 @@ class AsyncEntityExtractionListenerSkipTest {
 
         final ContentChunkRepository chunkRepo = Mockito.mock( ContentChunkRepository.class );
         final ChunkEntityMentionRepository mentionRepo = Mockito.mock( ChunkEntityMentionRepository.class );
+        final KgNodeRepository nodeRepo = Mockito.mock( KgNodeRepository.class );
+        final KgProposalRepository proposalRepo = Mockito.mock( KgProposalRepository.class );
+        final KgRejectionRepository rejectionRepo = Mockito.mock( KgRejectionRepository.class );
         final JdbcKnowledgeRepository kgRepo = Mockito.mock( JdbcKnowledgeRepository.class );
-        when( kgRepo.queryNodes( anyMap(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        when( kgRepo.nodes() ).thenReturn( nodeRepo );
+        when( kgRepo.proposals() ).thenReturn( proposalRepo );
+        when( kgRepo.rejections() ).thenReturn( rejectionRepo );
+        when( nodeRepo.queryNodes( anyMap(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
 
         final UUID chunk1 = UUID.randomUUID();
         final UUID chunk2 = UUID.randomUUID();

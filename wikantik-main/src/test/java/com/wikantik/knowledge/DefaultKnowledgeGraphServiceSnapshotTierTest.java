@@ -23,6 +23,10 @@ import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.knowledge.SnapshotNode;
 import com.wikantik.api.knowledge.Tier;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -51,11 +55,13 @@ class DefaultKnowledgeGraphServiceSnapshotTierTest {
             null
         );
 
-        final JdbcKnowledgeRepository repo = mock( JdbcKnowledgeRepository.class );
-        when( repo.getAllNodes( any( Tier.class ) ) ).thenReturn( List.of( kgNode ) );
-        when( repo.getAllEdges( any( Tier.class ) ) ).thenReturn( List.of() );
+        final KgNodeRepository nodes = mock( KgNodeRepository.class );
+        final KgEdgeRepository edges = mock( KgEdgeRepository.class );
+        when( nodes.getAllNodes( any( Tier.class ) ) ).thenReturn( List.of( kgNode ) );
+        when( edges.getAllEdges( any( Tier.class ) ) ).thenReturn( List.of() );
 
-        final DefaultKnowledgeGraphService svc = new DefaultKnowledgeGraphService( repo );
+        final DefaultKnowledgeGraphService svc = new DefaultKnowledgeGraphService(
+            nodes, edges, mock( KgProposalRepository.class ), mock( KgRejectionRepository.class ), null );
         final GraphSnapshot snap = svc.snapshotGraph( null, Tier.HUMAN );
 
         assertEquals( 1, snap.nodes().size() );

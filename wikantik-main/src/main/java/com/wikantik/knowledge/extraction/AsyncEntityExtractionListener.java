@@ -27,6 +27,9 @@ import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.ProposedEdge;
 import com.wikantik.api.knowledge.ProposedNode;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.kgpolicy.KgExcludedPagesRepository;
 import io.micrometer.core.instrument.Counter;
@@ -74,7 +77,9 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
     private final ChunkExtractionPrefilter prefilter;
     private final ContentChunkRepository chunkRepository;
     private final ChunkEntityMentionRepository mentionRepository;
-    private final JdbcKnowledgeRepository knowledgeRepository;
+    private final KgNodeRepository nodeRepository;
+    private final KgProposalRepository proposalRepository;
+    private final KgRejectionRepository rejectionRepository;
     private final ExecutorService executor;
     private final boolean ownsExecutor;
 
@@ -97,9 +102,12 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
                                           final EntityExtractorConfig config,
                                           final ContentChunkRepository chunkRepository,
                                           final ChunkEntityMentionRepository mentionRepository,
-                                          final JdbcKnowledgeRepository knowledgeRepository,
+                                          final KgNodeRepository nodeRepository,
+                                          final KgProposalRepository proposalRepository,
+                                          final KgRejectionRepository rejectionRepository,
                                           final MeterRegistry meterRegistry ) {
-        this( extractor, config, chunkRepository, mentionRepository, knowledgeRepository,
+        this( extractor, config, chunkRepository, mentionRepository,
+              nodeRepository, proposalRepository, rejectionRepository,
               meterRegistry, defaultExecutor(), /*ownsExecutor*/ true, /*excludedPages*/ null );
     }
 
@@ -107,10 +115,13 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
                                           final EntityExtractorConfig config,
                                           final ContentChunkRepository chunkRepository,
                                           final ChunkEntityMentionRepository mentionRepository,
-                                          final JdbcKnowledgeRepository knowledgeRepository,
+                                          final KgNodeRepository nodeRepository,
+                                          final KgProposalRepository proposalRepository,
+                                          final KgRejectionRepository rejectionRepository,
                                           final MeterRegistry meterRegistry,
                                           final ExecutorService executor ) {
-        this( extractor, config, chunkRepository, mentionRepository, knowledgeRepository,
+        this( extractor, config, chunkRepository, mentionRepository,
+              nodeRepository, proposalRepository, rejectionRepository,
               meterRegistry, executor, /*ownsExecutor*/ false, /*excludedPages*/ null );
     }
 
@@ -118,10 +129,13 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
                                           final EntityExtractorConfig config,
                                           final ContentChunkRepository chunkRepository,
                                           final ChunkEntityMentionRepository mentionRepository,
-                                          final JdbcKnowledgeRepository knowledgeRepository,
+                                          final KgNodeRepository nodeRepository,
+                                          final KgProposalRepository proposalRepository,
+                                          final KgRejectionRepository rejectionRepository,
                                           final MeterRegistry meterRegistry,
                                           final KgExcludedPagesRepository excludedPages ) {
-        this( extractor, config, chunkRepository, mentionRepository, knowledgeRepository,
+        this( extractor, config, chunkRepository, mentionRepository,
+              nodeRepository, proposalRepository, rejectionRepository,
               meterRegistry, defaultExecutor(), /*ownsExecutor*/ true, excludedPages );
     }
 
@@ -129,7 +143,9 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
                                            final EntityExtractorConfig config,
                                            final ContentChunkRepository chunkRepository,
                                            final ChunkEntityMentionRepository mentionRepository,
-                                           final JdbcKnowledgeRepository knowledgeRepository,
+                                           final KgNodeRepository nodeRepository,
+                                           final KgProposalRepository proposalRepository,
+                                           final KgRejectionRepository rejectionRepository,
                                            final MeterRegistry meterRegistry,
                                            final ExecutorService executor,
                                            final boolean ownsExecutor,
@@ -140,7 +156,9 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
         if( config == null ) {
             throw new IllegalArgumentException( "config must not be null" );
         }
-        if( chunkRepository == null || mentionRepository == null || knowledgeRepository == null ) {
+        if( chunkRepository == null || mentionRepository == null
+                || nodeRepository == null || proposalRepository == null
+                || rejectionRepository == null ) {
             throw new IllegalArgumentException( "repositories must not be null" );
         }
         this.extractor = extractor;
@@ -154,7 +172,9 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
             config.prefilterMinTokens() );
         this.chunkRepository = chunkRepository;
         this.mentionRepository = mentionRepository;
-        this.knowledgeRepository = knowledgeRepository;
+        this.nodeRepository = nodeRepository;
+        this.proposalRepository = proposalRepository;
+        this.rejectionRepository = rejectionRepository;
         this.executor = executor;
         this.ownsExecutor = ownsExecutor;
         this.excludedPages = excludedPages;
@@ -176,6 +196,49 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
             .description( "End-to-end extraction latency for one page save batch" )
             .tag( "extractor", code )
             .register( meterRegistry );
+    }
+
+    // ---- Bridge constructors for test compatibility ----
+
+    /** @deprecated Use the narrow-repo constructor; kept for test compatibility. */
+    @Deprecated
+    public AsyncEntityExtractionListener( final EntityExtractor extractor,
+                                          final EntityExtractorConfig config,
+                                          final ContentChunkRepository chunkRepository,
+                                          final ChunkEntityMentionRepository mentionRepository,
+                                          final JdbcKnowledgeRepository knowledgeRepository,
+                                          final MeterRegistry meterRegistry ) {
+        this( extractor, config, chunkRepository, mentionRepository,
+              knowledgeRepository.nodes(), knowledgeRepository.proposals(), knowledgeRepository.rejections(),
+              meterRegistry, defaultExecutor(), true, null );
+    }
+
+    /** @deprecated Use the narrow-repo constructor; kept for test compatibility. */
+    @Deprecated
+    public AsyncEntityExtractionListener( final EntityExtractor extractor,
+                                          final EntityExtractorConfig config,
+                                          final ContentChunkRepository chunkRepository,
+                                          final ChunkEntityMentionRepository mentionRepository,
+                                          final JdbcKnowledgeRepository knowledgeRepository,
+                                          final MeterRegistry meterRegistry,
+                                          final ExecutorService executor ) {
+        this( extractor, config, chunkRepository, mentionRepository,
+              knowledgeRepository.nodes(), knowledgeRepository.proposals(), knowledgeRepository.rejections(),
+              meterRegistry, executor, false, null );
+    }
+
+    /** @deprecated Use the narrow-repo constructor; kept for test compatibility. */
+    @Deprecated
+    public AsyncEntityExtractionListener( final EntityExtractor extractor,
+                                          final EntityExtractorConfig config,
+                                          final ContentChunkRepository chunkRepository,
+                                          final ChunkEntityMentionRepository mentionRepository,
+                                          final JdbcKnowledgeRepository knowledgeRepository,
+                                          final MeterRegistry meterRegistry,
+                                          final KgExcludedPagesRepository excludedPages ) {
+        this( extractor, config, chunkRepository, mentionRepository,
+              knowledgeRepository.nodes(), knowledgeRepository.proposals(), knowledgeRepository.rejections(),
+              meterRegistry, defaultExecutor(), true, excludedPages );
     }
 
     private static ExecutorService defaultExecutor() {
@@ -321,7 +384,7 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
 
     private List< KgNode > loadExistingNodes() {
         try {
-            return knowledgeRepository.queryNodes( Map.of(), null, config.maxExistingNodes(), 0 );
+            return nodeRepository.queryNodes( Map.of(), null, config.maxExistingNodes(), 0 );
         } catch( final RuntimeException e ) {
             LOG.warn( "Failed to load existing nodes for extractor dictionary: {}", e.getMessage() );
             return List.of();
@@ -350,7 +413,7 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
                 // Try a canonical DB lookup — the cap on loadExistingNodes means an unknown node isn't
                 // necessarily a proposal candidate; it may just be outside the dictionary window.
                 try {
-                    final KgNode fresh = knowledgeRepository.getNodeByName( m.nodeName() );
+                    final KgNode fresh = nodeRepository.getNodeByName( m.nodeName() );
                     if( fresh != null ) {
                         nodeId = fresh.id();
                     }
@@ -383,7 +446,7 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
                 continue;
             }
             try {
-                knowledgeRepository.insertProposal(
+                proposalRepository.insertProposal(
                     "new-node", pageName,
                     Map.of(
                         "name", n.name(),
@@ -403,10 +466,10 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
                 continue;
             }
             try {
-                if( knowledgeRepository.isRejected( e.sourceName(), e.targetName(), e.relationshipType() ) ) {
+                if( rejectionRepository.isRejected( e.sourceName(), e.targetName(), e.relationshipType() ) ) {
                     continue;
                 }
-                knowledgeRepository.insertProposal(
+                proposalRepository.insertProposal(
                     "new-edge", pageName,
                     Map.of(
                         "source", e.sourceName(),

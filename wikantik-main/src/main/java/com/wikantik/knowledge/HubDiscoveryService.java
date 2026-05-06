@@ -59,7 +59,8 @@ public class HubDiscoveryService {
     private static final int DEFAULT_MIN_PTS            = 3;
     private static final int DEFAULT_MIN_CANDIDATE_POOL = 6;
 
-    private final JdbcKnowledgeRepository kgRepo;
+    private final KgNodeRepository        kgNodes;
+    private final KgEdgeRepository        kgEdges;
     private final HubDiscoveryRepository  discoveryRepo;
     private final NodeMentionSimilarity   similarity;
     private final HdbscanClusterer        clusterer;
@@ -71,7 +72,8 @@ public class HubDiscoveryService {
     private final Predicate< String >     pageExists;
 
     private HubDiscoveryService( final Builder b ) {
-        this.kgRepo               = b.kgRepo;
+        this.kgNodes              = b.kgNodes;
+        this.kgEdges              = b.kgEdges;
         this.discoveryRepo        = b.discoveryRepo;
         this.similarity           = b.similarity;
         this.clusterer            = b.clusterer != null ? b.clusterer : new HdbscanClusterer();
@@ -332,11 +334,11 @@ public class HubDiscoveryService {
     private List< String > loadCandidatePool( final Set< String > mentionedNames ) {
         // Load all node names that are targets of 'related' edges (i.e., existing hub members).
         final List< Map< String, Object > > relatedEdges =
-            kgRepo.queryEdgesWithNames( "related", null, 100_000, 0 );
+            kgEdges.queryEdgesWithNames( "related", null, 100_000, 0 );
 
         // Identify hub node names (source_name where the source is hub-typed)
         final List< com.wikantik.api.knowledge.KgNode > allNodes =
-            kgRepo.queryNodes( null, null, 100_000, 0 );
+            kgNodes.queryNodes( null, null, 100_000, 0 );
         final Set< String > hubNames = new HashSet<>();
         for ( final com.wikantik.api.knowledge.KgNode node : allNodes ) {
             if ( node.properties() != null && "hub".equals( node.properties().get( "type" ) ) ) {
@@ -464,7 +466,8 @@ public class HubDiscoveryService {
      * {@link HubDiscoveryService#acceptProposal(int, String, List, String)} is called.
      */
     public static final class Builder {
-        private JdbcKnowledgeRepository  kgRepo;
+        private KgNodeRepository         kgNodes;
+        private KgEdgeRepository         kgEdges;
         private HubDiscoveryRepository   discoveryRepo;
         private NodeMentionSimilarity    similarity;
         private HdbscanClusterer         clusterer;
@@ -476,8 +479,16 @@ public class HubDiscoveryService {
 
         private Builder() {}
 
-        public Builder kgRepo( final JdbcKnowledgeRepository kgRepo ) {
-            this.kgRepo = kgRepo; return this;
+        public Builder kgNodes( final KgNodeRepository kgNodes ) {
+            this.kgNodes = kgNodes; return this;
+        }
+        public Builder kgEdges( final KgEdgeRepository kgEdges ) {
+            this.kgEdges = kgEdges; return this;
+        }
+        /** @deprecated Use {@link #kgNodes} + {@link #kgEdges}; kept for test compatibility. */
+        @Deprecated
+        public Builder kgRepo( final JdbcKnowledgeRepository repo ) {
+            this.kgNodes = repo.nodes(); this.kgEdges = repo.edges(); return this;
         }
         public Builder discoveryRepo( final HubDiscoveryRepository discoveryRepo ) {
             this.discoveryRepo = discoveryRepo; return this;
@@ -511,9 +522,9 @@ public class HubDiscoveryService {
         }
 
         public HubDiscoveryService build() {
-            if ( kgRepo == null || discoveryRepo == null || similarity == null ) {
+            if ( kgNodes == null || kgEdges == null || discoveryRepo == null || similarity == null ) {
                 throw new IllegalStateException(
-                    "HubDiscoveryService.Builder: kgRepo, discoveryRepo, and similarity are all required" );
+                    "HubDiscoveryService.Builder: kgNodes, kgEdges, discoveryRepo, and similarity are all required" );
             }
             return new HubDiscoveryService( this );
         }

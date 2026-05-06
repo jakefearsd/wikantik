@@ -28,6 +28,7 @@ import com.wikantik.api.knowledge.PageExtractor;
 import com.wikantik.api.knowledge.ProposalJudge;
 import com.wikantik.api.knowledge.Verdict;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository;
 import com.wikantik.knowledge.embedding.KgNodeEmbeddingService;
@@ -128,7 +129,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
     private final KgNodeEmbeddingRepository embeddingRepo;
     private final ContentChunkRepository chunkRepo;
     private final ChunkEntityMentionRepository mentionRepo;
-    private final JdbcKnowledgeRepository kgRepo;
+    private final KgNodeRepository kgNodes;
     private final MentionAttributor mentionAttributor;
     private final PageEmbeddingProvider pageEmbeddings;
     private final KgExcludedPagesRepository excludedPages;
@@ -176,6 +177,113 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                                              final KgNodeEmbeddingRepository embeddingRepo,
                                              final ContentChunkRepository chunkRepo,
                                              final ChunkEntityMentionRepository mentionRepo,
+                                             final KgNodeRepository kgNodes,
+                                             final MentionAttributor mentionAttributor,
+                                             final PageEmbeddingProvider pageEmbeddings,
+                                             final KgExcludedPagesRepository excludedPages,
+                                             final int concurrency,
+                                             final int dictionaryTopK,
+                                             final int maxEntitiesPerPage,
+                                             final int maxRelationsPerPage ) {
+        this( pageExtractor, judge, consolidator, upserter, embeddingService, embeddingRepo,
+              chunkRepo, mentionRepo, kgNodes, mentionAttributor, pageEmbeddings, excludedPages,
+              defaultExecutor(), /*ownsExecutor*/ true,
+              defaultWorkerPool( concurrency ), /*ownsWorkerPool*/ true,
+              EntityExtractorConfig.clampConcurrency( concurrency ),
+              dictionaryTopK, maxEntitiesPerPage, maxRelationsPerPage );
+    }
+
+    /** Test-friendly variant: caller supplies an in-process executor and worker pool. */
+    public BootstrapEntityExtractionIndexer( final PageExtractor pageExtractor,
+                                             final ProposalJudge judge,
+                                             final ProposalConsolidator consolidator,
+                                             final ProposalUpserter upserter,
+                                             final KgNodeEmbeddingService embeddingService,
+                                             final KgNodeEmbeddingRepository embeddingRepo,
+                                             final ContentChunkRepository chunkRepo,
+                                             final ChunkEntityMentionRepository mentionRepo,
+                                             final KgNodeRepository kgNodes,
+                                             final MentionAttributor mentionAttributor,
+                                             final PageEmbeddingProvider pageEmbeddings,
+                                             final KgExcludedPagesRepository excludedPages,
+                                             final ExecutorService executor,
+                                             final ExecutorService workerPool,
+                                             final int concurrency,
+                                             final int dictionaryTopK,
+                                             final int maxEntitiesPerPage,
+                                             final int maxRelationsPerPage ) {
+        this( pageExtractor, judge, consolidator, upserter, embeddingService, embeddingRepo,
+              chunkRepo, mentionRepo, kgNodes, mentionAttributor, pageEmbeddings, excludedPages,
+              executor, /*ownsExecutor*/ false,
+              workerPool, /*ownsWorkerPool*/ false,
+              EntityExtractorConfig.clampConcurrency( concurrency ),
+              dictionaryTopK, maxEntitiesPerPage, maxRelationsPerPage );
+    }
+
+    private BootstrapEntityExtractionIndexer( final PageExtractor pageExtractor,
+                                              final ProposalJudge judge,
+                                              final ProposalConsolidator consolidator,
+                                              final ProposalUpserter upserter,
+                                              final KgNodeEmbeddingService embeddingService,
+                                              final KgNodeEmbeddingRepository embeddingRepo,
+                                              final ContentChunkRepository chunkRepo,
+                                              final ChunkEntityMentionRepository mentionRepo,
+                                              final KgNodeRepository kgNodes,
+                                              final MentionAttributor mentionAttributor,
+                                              final PageEmbeddingProvider pageEmbeddings,
+                                              final KgExcludedPagesRepository excludedPages,
+                                              final ExecutorService executor,
+                                              final boolean ownsExecutor,
+                                              final ExecutorService workerPool,
+                                              final boolean ownsWorkerPool,
+                                              final int concurrency,
+                                              final int dictionaryTopK,
+                                              final int maxEntitiesPerPage,
+                                              final int maxRelationsPerPage ) {
+        if( pageExtractor == null ) throw new IllegalArgumentException( "pageExtractor must not be null" );
+        if( judge == null ) throw new IllegalArgumentException( "judge must not be null" );
+        if( consolidator == null ) throw new IllegalArgumentException( "consolidator must not be null" );
+        if( upserter == null ) throw new IllegalArgumentException( "upserter must not be null" );
+        if( chunkRepo == null ) throw new IllegalArgumentException( "chunkRepo must not be null" );
+        if( mentionRepo == null ) throw new IllegalArgumentException( "mentionRepo must not be null" );
+        if( kgNodes == null ) throw new IllegalArgumentException( "kgNodes must not be null" );
+        if( mentionAttributor == null ) throw new IllegalArgumentException( "mentionAttributor must not be null" );
+        if( executor == null ) throw new IllegalArgumentException( "executor must not be null" );
+        if( workerPool == null ) throw new IllegalArgumentException( "workerPool must not be null" );
+        this.pageExtractor = pageExtractor;
+        this.judge = judge;
+        this.consolidator = consolidator;
+        this.upserter = upserter;
+        this.embeddingService = embeddingService;
+        this.embeddingRepo = embeddingRepo;
+        this.chunkRepo = chunkRepo;
+        this.mentionRepo = mentionRepo;
+        this.kgNodes = kgNodes;
+        this.mentionAttributor = mentionAttributor;
+        this.pageEmbeddings = pageEmbeddings == null ? PageEmbeddingProvider.EMPTY : pageEmbeddings;
+        this.excludedPages = excludedPages;
+        this.executor = executor;
+        this.ownsExecutor = ownsExecutor;
+        this.workerPool = workerPool;
+        this.ownsWorkerPool = ownsWorkerPool;
+        this.concurrency = concurrency;
+        this.dictionaryTopK = Math.max( 0, dictionaryTopK );
+        this.maxEntitiesPerPage = maxEntitiesPerPage;
+        this.maxRelationsPerPage = maxRelationsPerPage;
+    }
+
+    // ---- Bridge constructors for test compatibility (accepts facade, delegates to narrow repo) ----
+
+    /** @deprecated Use the {@link KgNodeRepository}-based constructor; kept for test compatibility. */
+    @Deprecated
+    public BootstrapEntityExtractionIndexer( final PageExtractor pageExtractor,
+                                             final ProposalJudge judge,
+                                             final ProposalConsolidator consolidator,
+                                             final ProposalUpserter upserter,
+                                             final KgNodeEmbeddingService embeddingService,
+                                             final KgNodeEmbeddingRepository embeddingRepo,
+                                             final ContentChunkRepository chunkRepo,
+                                             final ChunkEntityMentionRepository mentionRepo,
                                              final JdbcKnowledgeRepository kgRepo,
                                              final MentionAttributor mentionAttributor,
                                              final PageEmbeddingProvider pageEmbeddings,
@@ -185,14 +293,12 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                                              final int maxEntitiesPerPage,
                                              final int maxRelationsPerPage ) {
         this( pageExtractor, judge, consolidator, upserter, embeddingService, embeddingRepo,
-              chunkRepo, mentionRepo, kgRepo, mentionAttributor, pageEmbeddings, excludedPages,
-              defaultExecutor(), /*ownsExecutor*/ true,
-              defaultWorkerPool( concurrency ), /*ownsWorkerPool*/ true,
-              EntityExtractorConfig.clampConcurrency( concurrency ),
-              dictionaryTopK, maxEntitiesPerPage, maxRelationsPerPage );
+              chunkRepo, mentionRepo, kgRepo.nodes(), mentionAttributor, pageEmbeddings, excludedPages,
+              concurrency, dictionaryTopK, maxEntitiesPerPage, maxRelationsPerPage );
     }
 
-    /** Test-friendly variant: caller supplies an in-process executor and worker pool. */
+    /** @deprecated Use the {@link KgNodeRepository}-based constructor; kept for test compatibility. */
+    @Deprecated
     public BootstrapEntityExtractionIndexer( final PageExtractor pageExtractor,
                                              final ProposalJudge judge,
                                              final ProposalConsolidator consolidator,
@@ -212,63 +318,8 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
                                              final int maxEntitiesPerPage,
                                              final int maxRelationsPerPage ) {
         this( pageExtractor, judge, consolidator, upserter, embeddingService, embeddingRepo,
-              chunkRepo, mentionRepo, kgRepo, mentionAttributor, pageEmbeddings, excludedPages,
-              executor, /*ownsExecutor*/ false,
-              workerPool, /*ownsWorkerPool*/ false,
-              EntityExtractorConfig.clampConcurrency( concurrency ),
-              dictionaryTopK, maxEntitiesPerPage, maxRelationsPerPage );
-    }
-
-    private BootstrapEntityExtractionIndexer( final PageExtractor pageExtractor,
-                                              final ProposalJudge judge,
-                                              final ProposalConsolidator consolidator,
-                                              final ProposalUpserter upserter,
-                                              final KgNodeEmbeddingService embeddingService,
-                                              final KgNodeEmbeddingRepository embeddingRepo,
-                                              final ContentChunkRepository chunkRepo,
-                                              final ChunkEntityMentionRepository mentionRepo,
-                                              final JdbcKnowledgeRepository kgRepo,
-                                              final MentionAttributor mentionAttributor,
-                                              final PageEmbeddingProvider pageEmbeddings,
-                                              final KgExcludedPagesRepository excludedPages,
-                                              final ExecutorService executor,
-                                              final boolean ownsExecutor,
-                                              final ExecutorService workerPool,
-                                              final boolean ownsWorkerPool,
-                                              final int concurrency,
-                                              final int dictionaryTopK,
-                                              final int maxEntitiesPerPage,
-                                              final int maxRelationsPerPage ) {
-        if( pageExtractor == null ) throw new IllegalArgumentException( "pageExtractor must not be null" );
-        if( judge == null ) throw new IllegalArgumentException( "judge must not be null" );
-        if( consolidator == null ) throw new IllegalArgumentException( "consolidator must not be null" );
-        if( upserter == null ) throw new IllegalArgumentException( "upserter must not be null" );
-        if( chunkRepo == null ) throw new IllegalArgumentException( "chunkRepo must not be null" );
-        if( mentionRepo == null ) throw new IllegalArgumentException( "mentionRepo must not be null" );
-        if( kgRepo == null ) throw new IllegalArgumentException( "kgRepo must not be null" );
-        if( mentionAttributor == null ) throw new IllegalArgumentException( "mentionAttributor must not be null" );
-        if( executor == null ) throw new IllegalArgumentException( "executor must not be null" );
-        if( workerPool == null ) throw new IllegalArgumentException( "workerPool must not be null" );
-        this.pageExtractor = pageExtractor;
-        this.judge = judge;
-        this.consolidator = consolidator;
-        this.upserter = upserter;
-        this.embeddingService = embeddingService;
-        this.embeddingRepo = embeddingRepo;
-        this.chunkRepo = chunkRepo;
-        this.mentionRepo = mentionRepo;
-        this.kgRepo = kgRepo;
-        this.mentionAttributor = mentionAttributor;
-        this.pageEmbeddings = pageEmbeddings == null ? PageEmbeddingProvider.EMPTY : pageEmbeddings;
-        this.excludedPages = excludedPages;
-        this.executor = executor;
-        this.ownsExecutor = ownsExecutor;
-        this.workerPool = workerPool;
-        this.ownsWorkerPool = ownsWorkerPool;
-        this.concurrency = concurrency;
-        this.dictionaryTopK = Math.max( 0, dictionaryTopK );
-        this.maxEntitiesPerPage = maxEntitiesPerPage;
-        this.maxRelationsPerPage = maxRelationsPerPage;
+              chunkRepo, mentionRepo, kgRepo.nodes(), mentionAttributor, pageEmbeddings, excludedPages,
+              executor, workerPool, concurrency, dictionaryTopK, maxEntitiesPerPage, maxRelationsPerPage );
     }
 
     private static ExecutorService defaultExecutor() {
@@ -561,7 +612,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
     private void warmNodeEmbeddings() {
         if( embeddingService == null ) return;
         try {
-            final List< KgNode > all = kgRepo.getAllNodes();
+            final List< KgNode > all = kgNodes.getAllNodes();
             final KgNodeEmbeddingService.Result r = embeddingService.warmUp( all );
             LOG.info( "Bootstrap extraction: node embedding warmup cached={} reEmbedded={} errors={}",
                 r.cached(), r.reEmbedded(), r.errors() );
@@ -664,7 +715,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
             final String name = cp.displayName();
             if( name == null || nameToNodeId.containsKey( name ) ) continue;
             try {
-                final KgNode existing = kgRepo.getNodeByName( name );
+                final KgNode existing = kgNodes.getNodeByName( name );
                 if( existing != null ) {
                     nameToNodeId.put( name, existing.id() );
                 }

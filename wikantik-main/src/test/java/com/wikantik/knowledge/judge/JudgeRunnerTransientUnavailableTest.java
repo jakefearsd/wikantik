@@ -21,7 +21,8 @@ package com.wikantik.knowledge.judge;
 import com.wikantik.api.knowledge.JudgeVerdict;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -67,26 +68,27 @@ class JudgeRunnerTransientUnavailableTest {
 
     @Test
     void transient_unavailable_verdict_is_not_persisted() {
-        final JdbcKnowledgeRepository repo = mock( JdbcKnowledgeRepository.class );
+        final KgProposalRepository proposals = mock( KgProposalRepository.class );
+        final KgRejectionRepository rejections = mock( KgRejectionRepository.class );
         final KgProposalJudgeService judge = mock( KgProposalJudgeService.class );
         final KgMaterializationService materialization = mock( KgMaterializationService.class );
 
         final KgProposal p = proposal();
-        when( repo.getProposalsForJudging( anyInt() ) ).thenReturn( List.of( p ) );
-        when( repo.listReviews( any() ) ).thenReturn( List.of() );
+        when( proposals.getProposalsForJudging( anyInt() ) ).thenReturn( List.of( p ) );
+        when( proposals.listReviews( any() ) ).thenReturn( List.of() );
         when( judge.judge( any() ) ).thenReturn( new JudgeVerdict(
             JudgeVerdict.ABSTAIN, 0.0,
             "judge_unavailable: request timed out",
             "test-model" ) );
 
-        final JudgeRunner runner = new JudgeRunner( repo, judge, materialization, cfg() );
+        final JudgeRunner runner = new JudgeRunner( proposals, rejections, judge, materialization, cfg() );
         runner.runOnce();
 
         // The judge WAS called.
         verify( judge, atLeast( 1 ) ).judge( any() );
         // But NEITHER the verdict stamp NOR the review row was written.
-        verify( repo, never() ).applyMachineVerdict( any(), anyString(), anyDouble(), anyString() );
-        verify( repo, never() ).recordReview( any(), anyString(), anyString(), anyString(),
+        verify( proposals, never() ).applyMachineVerdict( any(), anyString(), anyDouble(), anyString() );
+        verify( proposals, never() ).recordReview( any(), anyString(), anyString(), anyString(),
             any(), any() );
         // And neither materialise path fired.
         verify( materialization, never() ).materializeMachine( any() );
@@ -95,22 +97,23 @@ class JudgeRunnerTransientUnavailableTest {
     @Test
     void real_abstain_IS_persisted() {
         // Sanity check: real model abstentions still flow through normally.
-        final JdbcKnowledgeRepository repo = mock( JdbcKnowledgeRepository.class );
+        final KgProposalRepository proposals = mock( KgProposalRepository.class );
+        final KgRejectionRepository rejections = mock( KgRejectionRepository.class );
         final KgProposalJudgeService judge = mock( KgProposalJudgeService.class );
         final KgMaterializationService materialization = mock( KgMaterializationService.class );
 
         final KgProposal p = proposal();
-        when( repo.getProposalsForJudging( anyInt() ) ).thenReturn( List.of( p ) );
-        when( repo.listReviews( any() ) ).thenReturn( List.of() );
+        when( proposals.getProposalsForJudging( anyInt() ) ).thenReturn( List.of( p ) );
+        when( proposals.listReviews( any() ) ).thenReturn( List.of() );
         when( judge.judge( any() ) ).thenReturn( new JudgeVerdict(
             JudgeVerdict.ABSTAIN, 0.4,
             "evidence is ambiguous between depends_on and uses",
             "test-model" ) );
 
-        final JudgeRunner runner = new JudgeRunner( repo, judge, materialization, cfg() );
+        final JudgeRunner runner = new JudgeRunner( proposals, rejections, judge, materialization, cfg() );
         runner.runOnce();
 
-        verify( repo ).applyMachineVerdict( any(), anyString(), anyDouble(), anyString() );
-        verify( repo ).recordReview( any(), anyString(), anyString(), anyString(), any(), any() );
+        verify( proposals ).applyMachineVerdict( any(), anyString(), anyDouble(), anyString() );
+        verify( proposals ).recordReview( any(), anyString(), anyString(), anyString(), any(), any() );
     }
 }

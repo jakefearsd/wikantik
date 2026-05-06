@@ -22,51 +22,66 @@ import com.wikantik.api.core.Session;
 import com.wikantik.api.knowledge.GraphSnapshot;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Tier;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class DefaultKnowledgeGraphServiceTierReadTest {
 
+    private static DefaultKnowledgeGraphService newSvc( final KgNodeRepository nodes,
+                                                         final KgEdgeRepository edges ) {
+        return new DefaultKnowledgeGraphService(
+            nodes, edges,
+            mock( KgProposalRepository.class ), mock( KgRejectionRepository.class ),
+            null );
+    }
+
     @Test
     void snapshotGraph_default_overload_uses_machine_tier() {
-        final JdbcKnowledgeRepository repo = mock( JdbcKnowledgeRepository.class );
-        when( repo.getAllNodes( any( Tier.class ) ) ).thenReturn( List.of() );
-        when( repo.getAllEdges( any( Tier.class ) ) ).thenReturn( List.of() );
+        final KgNodeRepository nodes = mock( KgNodeRepository.class );
+        final KgEdgeRepository edges = mock( KgEdgeRepository.class );
+        when( nodes.getAllNodes( any( Tier.class ) ) ).thenReturn( List.of() );
+        when( edges.getAllEdges( any( Tier.class ) ) ).thenReturn( List.of() );
 
-        final DefaultKnowledgeGraphService svc = new DefaultKnowledgeGraphService( repo );
+        final DefaultKnowledgeGraphService svc = newSvc( nodes, edges );
         svc.snapshotGraph( mock( Session.class ) );
 
-        verify( repo ).getAllNodes( Tier.MACHINE );
-        verify( repo ).getAllEdges( Tier.MACHINE );
+        verify( nodes ).getAllNodes( Tier.MACHINE );
+        verify( edges ).getAllEdges( Tier.MACHINE );
     }
 
     @Test
     void snapshotGraph_strict_overload_uses_human_tier() {
-        final JdbcKnowledgeRepository repo = mock( JdbcKnowledgeRepository.class );
-        when( repo.getAllNodes( any( Tier.class ) ) ).thenReturn( List.of() );
-        when( repo.getAllEdges( any( Tier.class ) ) ).thenReturn( List.of() );
+        final KgNodeRepository nodes = mock( KgNodeRepository.class );
+        final KgEdgeRepository edges = mock( KgEdgeRepository.class );
+        when( nodes.getAllNodes( any( Tier.class ) ) ).thenReturn( List.of() );
+        when( edges.getAllEdges( any( Tier.class ) ) ).thenReturn( List.of() );
 
-        final DefaultKnowledgeGraphService svc = new DefaultKnowledgeGraphService( repo );
+        final DefaultKnowledgeGraphService svc = newSvc( nodes, edges );
         svc.snapshotGraph( mock( Session.class ), Tier.HUMAN );
 
-        verify( repo ).getAllNodes( Tier.HUMAN );
-        verify( repo ).getAllEdges( Tier.HUMAN );
+        verify( nodes ).getAllNodes( Tier.HUMAN );
+        verify( edges ).getAllEdges( Tier.HUMAN );
     }
 
     @Test
     void searchKnowledge_default_overload_uses_machine_tier() {
-        final JdbcKnowledgeRepository repo = mock( JdbcKnowledgeRepository.class );
-        when( repo.searchNodes( any(), any(), anyInt(), any( Tier.class ) ) ).thenReturn( List.of() );
+        final KgNodeRepository nodes = mock( KgNodeRepository.class );
+        when( nodes.searchNodes( any(), any(), anyInt(), any( Tier.class ) ) ).thenReturn( List.of() );
 
-        final DefaultKnowledgeGraphService svc = new DefaultKnowledgeGraphService( repo );
+        final DefaultKnowledgeGraphService svc = newSvc( nodes, mock( KgEdgeRepository.class ) );
         svc.searchKnowledge( "foo", null, 10 );
 
-        verify( repo ).searchNodes( eq( "foo" ), any(), eq( 10 ), eq( Tier.MACHINE ) );
+        verify( nodes ).searchNodes( eq( "foo" ), any(), eq( 10 ), eq( Tier.MACHINE ) );
     }
 }

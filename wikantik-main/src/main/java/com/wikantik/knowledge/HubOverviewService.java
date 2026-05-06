@@ -65,7 +65,8 @@ public class HubOverviewService {
     private static final int    DEFAULT_NEAR_MISS_MAX       = 10;
     private static final int    DEFAULT_MLT_MAX             = 10;
 
-    private final JdbcKnowledgeRepository    kgRepo;
+    private final KgNodeRepository           kgNodes;
+    private final KgEdgeRepository           kgEdges;
     private final NodeMentionSimilarity      similarity;
     private final PageManager                pageManager;
     private final HubDiscoveryService.PageWriter pageWriter;
@@ -76,7 +77,8 @@ public class HubOverviewService {
     private final int                        mltMaxResults;
 
     private HubOverviewService( final Builder b ) {
-        this.kgRepo                = b.kgRepo;
+        this.kgNodes               = b.kgNodes;
+        this.kgEdges               = b.kgEdges;
         this.similarity            = b.similarity;
         this.pageManager           = b.pageManager;
         this.pageWriter            = b.pageWriter;
@@ -162,7 +164,7 @@ public class HubOverviewService {
      */
     private Map< String, com.wikantik.api.knowledge.KgNode > loadHubNodes() {
         final List< com.wikantik.api.knowledge.KgNode > allNodes =
-            kgRepo.queryNodes( null, null, 100_000, 0 );
+            kgNodes.queryNodes( null, null, 100_000, 0 );
         final Map< String, com.wikantik.api.knowledge.KgNode > hubsByName = new LinkedHashMap<>();
         for ( final var node : allNodes ) {
             if ( node.properties() != null && "hub".equals( node.properties().get( "type" ) ) ) {
@@ -307,7 +309,7 @@ public class HubOverviewService {
             final Map< String, com.wikantik.api.knowledge.KgNode > hubsByName,
             final Map< String, Set< String > > hubMembers ) {
         final List< Map< String, Object > > linksToEdges =
-            kgRepo.queryEdgesWithNames( "links_to", null, 100_000, 0 );
+            kgEdges.queryEdgesWithNames( "links_to", null, 100_000, 0 );
         final Map< String, Set< String > > inboundByHub = new HashMap<>();
         for ( final String hubName : hubsByName.keySet() ) inboundByHub.put( hubName, new HashSet<>() );
         for ( final Map< String, Object > edge : linksToEdges ) {
@@ -377,7 +379,7 @@ public class HubOverviewService {
      */
     private Map< String, Set< String > > loadAllHubMembers() {
         final List< com.wikantik.api.knowledge.KgNode > allNodes =
-            kgRepo.queryNodes( null, null, 100_000, 0 );
+            kgNodes.queryNodes( null, null, 100_000, 0 );
         final Set< String > hubNames = new HashSet<>();
         for ( final var node : allNodes ) {
             if ( node.properties() != null && "hub".equals( node.properties().get( "type" ) ) ) {
@@ -391,7 +393,7 @@ public class HubOverviewService {
         for ( final String hub : hubNames ) out.put( hub, new HashSet<>() );
 
         final List< Map< String, Object > > edges =
-            kgRepo.queryEdgesWithNames( "related", null, 100_000, 0 );
+            kgEdges.queryEdgesWithNames( "related", null, 100_000, 0 );
         for ( final Map< String, Object > edge : edges ) {
             final String src = (String) edge.get( "source_name" );
             final String tgt = (String) edge.get( "target_name" );
@@ -459,7 +461,7 @@ public class HubOverviewService {
      */
     private boolean hubNodeExists( final String hubName ) {
         final List< com.wikantik.api.knowledge.KgNode > hubNodes =
-            kgRepo.queryNodes( Map.of( "node_type", "hub" ), null, 100_000, 0 );
+            kgNodes.queryNodes( Map.of( "node_type", "hub" ), null, 100_000, 0 );
         for ( final var n : hubNodes ) {
             if ( hubName.equals( n.name() ) ) return true;
         }
@@ -677,7 +679,8 @@ public class HubOverviewService {
     // ---- Builder ----
 
     public static final class Builder {
-        private JdbcKnowledgeRepository    kgRepo;
+        private KgNodeRepository           kgNodes;
+        private KgEdgeRepository           kgEdges;
         private NodeMentionSimilarity      similarity;
         private PageManager                pageManager;
         private HubDiscoveryService.PageWriter pageWriter;
@@ -689,7 +692,13 @@ public class HubOverviewService {
 
         private Builder() {}
 
-        public Builder kgRepo( final JdbcKnowledgeRepository v ) { this.kgRepo = v; return this; }
+        public Builder kgNodes( final KgNodeRepository v ) { this.kgNodes = v; return this; }
+        public Builder kgEdges( final KgEdgeRepository v ) { this.kgEdges = v; return this; }
+        /** @deprecated Use {@link #kgNodes} + {@link #kgEdges}; kept for test compatibility. */
+        @Deprecated
+        public Builder kgRepo( final JdbcKnowledgeRepository repo ) {
+            this.kgNodes = repo.nodes(); this.kgEdges = repo.edges(); return this;
+        }
         public Builder similarity( final NodeMentionSimilarity v ) { this.similarity = v; return this; }
         public Builder pageManager( final PageManager v ) { this.pageManager = v; return this; }
         public Builder pageWriter( final HubDiscoveryService.PageWriter v ) { this.pageWriter = v; return this; }
@@ -713,9 +722,9 @@ public class HubOverviewService {
         }
 
         public HubOverviewService build() {
-            if ( kgRepo == null || similarity == null || pageManager == null ) {
+            if ( kgNodes == null || kgEdges == null || similarity == null || pageManager == null ) {
                 throw new IllegalStateException(
-                    "HubOverviewService.Builder: kgRepo, similarity, and pageManager are required" );
+                    "HubOverviewService.Builder: kgNodes, kgEdges, similarity, and pageManager are required" );
             }
             return new HubOverviewService( this );
         }

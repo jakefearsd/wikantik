@@ -294,6 +294,14 @@ public class JdbcKnowledgeRepository {
         return rejections.deleteRejection( source, target, relationship );
     }
 
+    // ---- Public accessors (used by bridge constructors in consuming classes across sub-packages) ----
+
+    public KgNodeRepository nodes()           { return nodes; }
+    public KgEdgeRepository edges()           { return edges; }
+    public KgProposalRepository proposals()   { return proposals; }
+    public KgRejectionRepository rejections() { return rejections; }
+    public DataSource dataSource()            { return dataSource; }
+
     // ---- Teardown (kept here for IT teardown path; Ckpt 5 will migrate this) ----
 
     /**

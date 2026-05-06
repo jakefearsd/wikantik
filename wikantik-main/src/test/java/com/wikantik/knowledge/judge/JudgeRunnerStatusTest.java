@@ -21,7 +21,8 @@ package com.wikantik.knowledge.judge;
 import com.wikantik.api.knowledge.JudgeVerdict;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -53,11 +54,12 @@ class JudgeRunnerStatusTest {
 
     @Test
     void status_before_any_run_returns_defaults() {
-        final JdbcKnowledgeRepository repo = mock( JdbcKnowledgeRepository.class );
-        when( repo.getProposalsForJudging( anyInt() ) ).thenReturn( List.of() );
+        final KgProposalRepository proposals = mock( KgProposalRepository.class );
+        final KgRejectionRepository rejections = mock( KgRejectionRepository.class );
+        when( proposals.getProposalsForJudging( anyInt() ) ).thenReturn( List.of() );
 
-        final JudgeRunner runner = new JudgeRunner( repo, mock( KgProposalJudgeService.class ),
-            mock( KgMaterializationService.class ), cfg() );
+        final JudgeRunner runner = new JudgeRunner( proposals, rejections,
+            mock( KgProposalJudgeService.class ), mock( KgMaterializationService.class ), cfg() );
 
         final JudgeRunner.Status s = runner.status( 7L );
 
@@ -73,15 +75,16 @@ class JudgeRunnerStatusTest {
     @Test
     void status_after_successful_run_reflects_completions() {
         final KgProposal p = proposal();
-        final JdbcKnowledgeRepository repo = mock( JdbcKnowledgeRepository.class );
-        when( repo.getProposalsForJudging( anyInt() ) ).thenReturn( List.of( p ) );
-        when( repo.listReviews( any() ) ).thenReturn( List.of() );
+        final KgProposalRepository proposals = mock( KgProposalRepository.class );
+        final KgRejectionRepository rejections = mock( KgRejectionRepository.class );
+        when( proposals.getProposalsForJudging( anyInt() ) ).thenReturn( List.of( p ) );
+        when( proposals.listReviews( any() ) ).thenReturn( List.of() );
 
         final KgProposalJudgeService judge = mock( KgProposalJudgeService.class );
         when( judge.judge( any() ) ).thenReturn(
             new JudgeVerdict( "abstain", 0.0, "no opinion", "test-model" ) );
 
-        final JudgeRunner runner = new JudgeRunner( repo, judge,
+        final JudgeRunner runner = new JudgeRunner( proposals, rejections, judge,
             mock( KgMaterializationService.class ), cfg() );
         runner.runOnce();
 
@@ -97,12 +100,13 @@ class JudgeRunnerStatusTest {
 
     @Test
     void status_captures_error_and_clears_inFlight_when_runOnce_throws() {
-        final JdbcKnowledgeRepository repo = mock( JdbcKnowledgeRepository.class );
-        when( repo.getProposalsForJudging( anyInt() ) )
+        final KgProposalRepository proposals = mock( KgProposalRepository.class );
+        final KgRejectionRepository rejections = mock( KgRejectionRepository.class );
+        when( proposals.getProposalsForJudging( anyInt() ) )
             .thenThrow( new RuntimeException( "db gone" ) );
 
-        final JudgeRunner runner = new JudgeRunner( repo, mock( KgProposalJudgeService.class ),
-            mock( KgMaterializationService.class ), cfg() );
+        final JudgeRunner runner = new JudgeRunner( proposals, rejections,
+            mock( KgProposalJudgeService.class ), mock( KgMaterializationService.class ), cfg() );
 
         assertThrows( RuntimeException.class, runner::runOnce );
 

@@ -21,7 +21,10 @@ package com.wikantik.knowledge.judge;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.Provenance;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -49,12 +52,13 @@ class KgMaterializationServiceNullGuardTest {
 
     @Test
     void materialize_skips_edge_when_target_is_filtered_out() {
-        final JdbcKnowledgeRepository repo = mock( JdbcKnowledgeRepository.class );
+        final KgNodeRepository nodes = mock( KgNodeRepository.class );
+        final KgEdgeRepository edges = mock( KgEdgeRepository.class );
         final KgNode src = new KgNode( UUID.randomUUID(), "Alpha", "concept", null,
             Provenance.AI_INFERRED, Map.of(), Instant.now(), Instant.now(), "machine", null );
-        when( repo.upsertNodeWithProvenance( eq( "Alpha" ), anyString(), any(), any(), any(), anyString(), any() ) )
+        when( nodes.upsertNodeWithProvenance( eq( "Alpha" ), anyString(), any(), any(), any(), anyString(), any() ) )
             .thenReturn( src );
-        when( repo.upsertNodeWithProvenance( eq( "Beta" ),  anyString(), any(), any(), any(), anyString(), any() ) )
+        when( nodes.upsertNodeWithProvenance( eq( "Beta" ),  anyString(), any(), any(), any(), anyString(), any() ) )
             .thenReturn( null );
 
         final KgProposal proposal = new KgProposal(
@@ -74,22 +78,24 @@ class KgMaterializationServiceNullGuardTest {
             null,                               // machineJudgedAt
             null );                             // machineModel
 
-        final KgMaterializationService svc = new KgMaterializationService( repo );
+        final KgMaterializationService svc = new KgMaterializationService(
+            nodes, edges, mock( KgProposalRepository.class ), mock( KgRejectionRepository.class ) );
         svc.materializeMachine( proposal ); // must not throw
 
         // Edge upsert must NOT be called when either node was filtered out.
-        verify( repo, never() ).upsertEdgeWithProvenance( any(), any(), anyString(),
+        verify( edges, never() ).upsertEdgeWithProvenance( any(), any(), anyString(),
             any(), any(), anyString(), any() );
     }
 
     @Test
     void materialize_skips_edge_when_source_is_filtered_out() {
-        final JdbcKnowledgeRepository repo = mock( JdbcKnowledgeRepository.class );
+        final KgNodeRepository nodes = mock( KgNodeRepository.class );
+        final KgEdgeRepository edges = mock( KgEdgeRepository.class );
         final KgNode tgt = new KgNode( UUID.randomUUID(), "Beta", "concept", null,
             Provenance.AI_INFERRED, Map.of(), Instant.now(), Instant.now(), "machine", null );
-        when( repo.upsertNodeWithProvenance( eq( "Alpha" ), anyString(), any(), any(), any(), anyString(), any() ) )
+        when( nodes.upsertNodeWithProvenance( eq( "Alpha" ), anyString(), any(), any(), any(), anyString(), any() ) )
             .thenReturn( null );
-        when( repo.upsertNodeWithProvenance( eq( "Beta" ),  anyString(), any(), any(), any(), anyString(), any() ) )
+        when( nodes.upsertNodeWithProvenance( eq( "Beta" ),  anyString(), any(), any(), any(), anyString(), any() ) )
             .thenReturn( tgt );
 
         final KgProposal proposal = new KgProposal(
@@ -109,10 +115,11 @@ class KgMaterializationServiceNullGuardTest {
             null,                               // machineJudgedAt
             null );                             // machineModel
 
-        final KgMaterializationService svc = new KgMaterializationService( repo );
+        final KgMaterializationService svc = new KgMaterializationService(
+            nodes, edges, mock( KgProposalRepository.class ), mock( KgRejectionRepository.class ) );
         svc.materializeMachine( proposal ); // must not throw
 
-        verify( repo, never() ).upsertEdgeWithProvenance( any(), any(), anyString(),
+        verify( edges, never() ).upsertEdgeWithProvenance( any(), any(), anyString(),
             any(), any(), anyString(), any() );
     }
 }

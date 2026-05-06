@@ -1037,8 +1037,9 @@ public class WikiEngine implements Engine {
         }
         final com.wikantik.knowledge.extraction.ChunkEntityMentionRepository mentionRepo =
             new com.wikantik.knowledge.extraction.ChunkEntityMentionRepository( ds );
-        final com.wikantik.knowledge.JdbcKnowledgeRepository kgRepo =
-            new com.wikantik.knowledge.JdbcKnowledgeRepository( ds );
+        final com.wikantik.knowledge.KgNodeRepository kgNodes = persistenceSubsystem.kgNodes();
+        final com.wikantik.knowledge.KgProposalRepository kgProposals = persistenceSubsystem.kgProposals();
+        final com.wikantik.knowledge.KgRejectionRepository kgRejections = persistenceSubsystem.kgRejections();
         final io.micrometer.core.instrument.MeterRegistry meter =
             io.micrometer.core.instrument.Metrics.globalRegistry;
 
@@ -1049,8 +1050,8 @@ public class WikiEngine implements Engine {
 
         final com.wikantik.knowledge.extraction.AsyncEntityExtractionListener listener =
             new com.wikantik.knowledge.extraction.AsyncEntityExtractionListener(
-                extractorOpt.get(), extractorCfg, contentChunkRepo, mentionRepo, kgRepo, meter,
-                excludedPagesRepo );
+                extractorOpt.get(), extractorCfg, contentChunkRepo, mentionRepo,
+                kgNodes, kgProposals, kgRejections, meter, excludedPagesRepo );
         this.entityExtractionListener = listener;
         managers.put( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class, mentionRepo );
         managers.put( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class, listener );
@@ -1062,7 +1063,7 @@ public class WikiEngine implements Engine {
         // admin REST endpoint returns 503 — the same degraded state as before
         // wiring landed. Production runs go through wikantik-extract-cli.
         if ( "ollama".equalsIgnoreCase( extractorCfg.backend() ) ) {
-            wireBootstrapIndexer( props, ds, contentChunkRepo, mentionRepo, kgRepo,
+            wireBootstrapIndexer( props, ds, contentChunkRepo, mentionRepo, kgNodes,
                                   excludedPagesRepo, extractorCfg );
         } else {
             LOG.info( "Bootstrap indexer not wired (backend={}); /admin/knowledge-graph/extract-mentions "
@@ -1119,7 +1120,7 @@ public class WikiEngine implements Engine {
                                        final javax.sql.DataSource ds,
                                        final com.wikantik.knowledge.chunking.ContentChunkRepository chunkRepo,
                                        final com.wikantik.knowledge.extraction.ChunkEntityMentionRepository mentionRepo,
-                                       final com.wikantik.knowledge.JdbcKnowledgeRepository kgRepo,
+                                       final com.wikantik.knowledge.KgNodeRepository kgNodes,
                                        final com.wikantik.kgpolicy.KgExcludedPagesRepository excludedPagesRepo,
                                        final com.wikantik.knowledge.extraction.EntityExtractorConfig extractorCfg ) {
         final java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
@@ -1141,10 +1142,10 @@ public class WikiEngine implements Engine {
                 extractor,
                 new com.wikantik.knowledge.extraction.NoOpProposalJudge(),
                 new com.wikantik.knowledge.extraction.ProposalConsolidator(),
-                new com.wikantik.knowledge.extraction.ProposalUpserter( kgRepo ),
+                new com.wikantik.knowledge.extraction.ProposalUpserter( persistenceSubsystem.kgProposals() ),
                 /*embeddingService*/ null,
                 /*embeddingRepo*/ null,
-                chunkRepo, mentionRepo, kgRepo,
+                chunkRepo, mentionRepo, kgNodes,
                 new com.wikantik.knowledge.extraction.MentionAttributor(),
                 com.wikantik.knowledge.extraction.PageEmbeddingProvider.EMPTY,
                 excludedPagesRepo,

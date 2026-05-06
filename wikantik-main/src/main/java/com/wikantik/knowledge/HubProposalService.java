@@ -43,16 +43,19 @@ public class HubProposalService {
     public static final String PROP_REVIEW_PERCENTILE = "wikantik.hub.reviewPercentile";
     private static final int DEFAULT_REVIEW_PERCENTILE = 50;
 
-    private final JdbcKnowledgeRepository kgRepo;
+    private final KgNodeRepository kgNodes;
+    private final KgEdgeRepository kgEdges;
     private final HubProposalRepository proposalRepo;
     private final NodeMentionSimilarity similarity;
     private final int reviewPercentile;
 
-    private HubProposalService( final JdbcKnowledgeRepository kgRepo,
+    private HubProposalService( final KgNodeRepository kgNodes,
+                                 final KgEdgeRepository kgEdges,
                                  final HubProposalRepository proposalRepo,
                                  final NodeMentionSimilarity similarity,
                                  final int reviewPercentile ) {
-        this.kgRepo = kgRepo;
+        this.kgNodes = kgNodes;
+        this.kgEdges = kgEdges;
         this.proposalRepo = proposalRepo;
         this.similarity = similarity;
         this.reviewPercentile = reviewPercentile;
@@ -64,19 +67,28 @@ public class HubProposalService {
 
     /**
      * Fluent builder for {@link HubProposalService}. Required parameters are
-     * ({@code kgRepo}, {@code proposalRepo}, {@code similarity}); the review
+     * ({@code kgNodes}, {@code kgEdges}, {@code proposalRepo}, {@code similarity}); the review
      * percentile defaults to {@value DEFAULT_REVIEW_PERCENTILE} if not set.
      */
     public static final class Builder {
-        private JdbcKnowledgeRepository kgRepo;
+        private KgNodeRepository kgNodes;
+        private KgEdgeRepository kgEdges;
         private HubProposalRepository proposalRepo;
         private NodeMentionSimilarity similarity;
         private Integer reviewPercentile;
 
         private Builder() {}
 
-        public Builder kgRepo( final JdbcKnowledgeRepository kgRepo ) {
-            this.kgRepo = kgRepo; return this;
+        public Builder kgNodes( final KgNodeRepository kgNodes ) {
+            this.kgNodes = kgNodes; return this;
+        }
+        public Builder kgEdges( final KgEdgeRepository kgEdges ) {
+            this.kgEdges = kgEdges; return this;
+        }
+        /** @deprecated Use {@link #kgNodes} + {@link #kgEdges}; kept for test compatibility. */
+        @Deprecated
+        public Builder kgRepo( final JdbcKnowledgeRepository repo ) {
+            this.kgNodes = repo.nodes(); this.kgEdges = repo.edges(); return this;
         }
         public Builder proposalRepo( final HubProposalRepository proposalRepo ) {
             this.proposalRepo = proposalRepo; return this;
@@ -95,13 +107,13 @@ public class HubProposalService {
         }
 
         public HubProposalService build() {
-            if ( kgRepo == null || proposalRepo == null || similarity == null ) {
-                throw new IllegalStateException( "HubProposalService.Builder: kgRepo, "
+            if ( kgNodes == null || kgEdges == null || proposalRepo == null || similarity == null ) {
+                throw new IllegalStateException( "HubProposalService.Builder: kgNodes, kgEdges, "
                     + "proposalRepo, and similarity are all required" );
             }
             final int percentile = reviewPercentile != null
                 ? reviewPercentile : DEFAULT_REVIEW_PERCENTILE;
-            return new HubProposalService( kgRepo, proposalRepo, similarity, percentile );
+            return new HubProposalService( kgNodes, kgEdges, proposalRepo, similarity, percentile );
         }
     }
 
@@ -192,7 +204,7 @@ public class HubProposalService {
 
     /** Step 1a — identify hub-typed KG nodes. */
     private Set< String > loadHubNames() {
-        final List< KgNode > allNodes = kgRepo.queryNodes( null, null, 100_000, 0 );
+        final List< KgNode > allNodes = kgNodes.queryNodes( null, null, 100_000, 0 );
         LOG.info( "Hub proposals step 1a: loaded {} KG nodes", allNodes.size() );
         final Set< String > allHubNames = new HashSet<>();
         for ( final KgNode node : allNodes ) {
@@ -207,7 +219,7 @@ public class HubProposalService {
     /** Step 1b — group `related` edges by their hub source. */
     private Map< String, List< String > > groupRelatedEdgesByHub( final Set< String > allHubNames ) {
         final List< Map< String, Object > > relatedEdges =
-            kgRepo.queryEdgesWithNames( "related", null, 100_000, 0 );
+            kgEdges.queryEdgesWithNames( "related", null, 100_000, 0 );
         LOG.info( "Hub proposals step 1b: loaded {} 'related' edges", relatedEdges.size() );
 
         final Map< String, List< String > > hubMembers = new LinkedHashMap<>();

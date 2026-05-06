@@ -24,7 +24,10 @@ import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.judge.JudgeRunner;
 import com.wikantik.knowledge.judge.KgJudgeConfig;
 import com.wikantik.knowledge.judge.KgMaterializationService;
@@ -72,12 +75,16 @@ class AdminKnowledgeResourceJudgeStatusTest {
     }
 
     private static JudgeRunner realRunner() {
-        final JdbcKnowledgeRepository repo = Mockito.mock( JdbcKnowledgeRepository.class );
-        Mockito.when( repo.getProposalsForJudging( Mockito.anyInt() ) ).thenReturn( List.of() );
+        final KgProposalRepository proposals = Mockito.mock( KgProposalRepository.class );
+        final KgRejectionRepository rejections = Mockito.mock( KgRejectionRepository.class );
+        Mockito.when( proposals.getProposalsForJudging( Mockito.anyInt() ) ).thenReturn( List.of() );
+        final KgMaterializationService mat = new KgMaterializationService(
+            Mockito.mock( KgNodeRepository.class ), Mockito.mock( KgEdgeRepository.class ),
+            proposals, rejections );
         final KgJudgeConfig cfg = new KgJudgeConfig( true, "x", "test-model",
             false, 5, 50, 1, 30, 3, "30m" );
-        return new JudgeRunner( repo, Mockito.mock( com.wikantik.api.knowledge.KgProposalJudgeService.class ),
-            new KgMaterializationService( repo ), cfg );
+        return new JudgeRunner( proposals, rejections,
+            Mockito.mock( com.wikantik.api.knowledge.KgProposalJudgeService.class ), mat, cfg );
     }
 
     @Test

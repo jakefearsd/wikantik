@@ -21,7 +21,8 @@ package com.wikantik.knowledge.judge;
 import com.wikantik.api.knowledge.JudgeVerdict;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.PoolClosedException;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -46,13 +47,14 @@ class JudgeRunnerPoolClosedTest {
         final KgProposal proposal = Mockito.mock( KgProposal.class );
         when( proposal.id() ).thenReturn( UUID.randomUUID() );
 
-        final JdbcKnowledgeRepository repo = Mockito.mock( JdbcKnowledgeRepository.class );
-        when( repo.getProposalsForJudging( Mockito.anyInt() ) )
+        final KgProposalRepository proposals = Mockito.mock( KgProposalRepository.class );
+        final KgRejectionRepository rejections = Mockito.mock( KgRejectionRepository.class );
+        when( proposals.getProposalsForJudging( Mockito.anyInt() ) )
             .thenReturn( List.of( proposal ) );
-        when( repo.listReviews( any() ) ).thenReturn( List.of() );
+        when( proposals.listReviews( any() ) ).thenReturn( List.of() );
         Mockito.doThrow( new PoolClosedException( "applyMachineVerdict aborted: pool closed",
                 new java.sql.SQLException( "Data source is closed" ) ) )
-            .when( repo ).applyMachineVerdict( any(), anyString(), anyDouble(), anyString() );
+            .when( proposals ).applyMachineVerdict( any(), anyString(), anyDouble(), anyString() );
 
         final KgProposalJudgeService judge = Mockito.mock( KgProposalJudgeService.class );
         when( judge.judge( any() ) ).thenReturn(
@@ -62,14 +64,14 @@ class JudgeRunnerPoolClosedTest {
         final KgJudgeConfig config = new KgJudgeConfig( true, "endpoint", "model",
             true, 10, 5, 1, 30, 3, "30m" );
 
-        final JudgeRunner runner = new JudgeRunner( repo, judge, materialization, config );
+        final JudgeRunner runner = new JudgeRunner( proposals, rejections, judge, materialization, config );
 
         // Act
         final int submitted = runner.runOnce();
 
         // Assert — the worker exited gracefully on PoolClosedException.
         // No recordReview, no materializeMachine. No throw out of runOnce.
-        verify( repo, never() ).recordReview( any(), anyString(), anyString(), anyString(),
+        verify( proposals, never() ).recordReview( any(), anyString(), anyString(), anyString(),
             anyDouble(), any() );
         verify( materialization, never() ).materializeMachine( any() );
         // submitted reflects dispatched workers, not completed

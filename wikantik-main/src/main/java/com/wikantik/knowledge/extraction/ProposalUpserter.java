@@ -20,6 +20,7 @@ package com.wikantik.knowledge.extraction;
 
 import com.wikantik.api.knowledge.ConsolidatedProposal;
 import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
 
 /**
  * Wraps the DB-side upsert. Computes the JSON support payload, delegates to
@@ -28,14 +29,20 @@ import com.wikantik.knowledge.JdbcKnowledgeRepository;
  */
 public final class ProposalUpserter {
 
-    private final JdbcKnowledgeRepository repo;
+    private final KgProposalRepository proposals;
 
+    public ProposalUpserter( final KgProposalRepository proposals ) {
+        this.proposals = proposals;
+    }
+
+    /** @deprecated Use {@link #ProposalUpserter(KgProposalRepository)}; kept for test compatibility. */
+    @Deprecated
     public ProposalUpserter( final JdbcKnowledgeRepository repo ) {
-        this.repo = repo;
+        this( repo.proposals() );
     }
 
     public Result upsert( final ConsolidatedProposal cp ) {
-        return repo.upsertConsolidatedProposal( cp );
+        return proposals.upsertConsolidatedProposal( cp );
     }
 
     public record Result(boolean inserted, int supportCount) {}

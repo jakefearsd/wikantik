@@ -29,7 +29,10 @@ import com.wikantik.knowledge.HubOverviewService;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
 import com.wikantik.knowledge.HubSyncFilter;
-import com.wikantik.knowledge.JdbcKnowledgeRepository;
+import com.wikantik.knowledge.KgEdgeRepository;
+import com.wikantik.knowledge.KgNodeRepository;
+import com.wikantik.knowledge.KgProposalRepository;
+import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.chunking.ChunkProjector;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
@@ -88,7 +91,11 @@ public final class KnowledgeSubsystemFactory {
         final var luceneMlt   = deps.luceneMlt();
         final var meterReg    = core.meterRegistry();
 
-        final JdbcKnowledgeRepository repo = persistence.kgRepository();
+        final KgNodeRepository       kgNodes      = persistence.kgNodes();
+        final KgEdgeRepository       kgEdges      = persistence.kgEdges();
+        final KgProposalRepository   kgProposals  = persistence.kgProposals();
+        final KgRejectionRepository  kgRejections = persistence.kgRejections();
+
         // MentionIndex isn't a repository — it's a service that keeps a
         // DataSource for lazy-loaded mention reads. Stays on dataSource
         // until the chunking pipeline gets its own typed accessor.
@@ -96,7 +103,8 @@ public final class KnowledgeSubsystemFactory {
 
         // KG staged validation: judge service, materialisation, runner.
         final KgJudgeConfig judgeCfg = KgJudgeConfig.fromProperties( props );
-        final KgMaterializationService kgMat = new KgMaterializationService( repo );
+        final KgMaterializationService kgMat = new KgMaterializationService(
+            kgNodes, kgEdges, kgProposals, kgRejections );
 
         // Timeout-tracking repo always constructed (cheap, no connections held);
         // surfaces chronic-timeout proposals to the admin UI even when the
@@ -110,7 +118,7 @@ public final class KnowledgeSubsystemFactory {
                 .connectTimeout( Duration.ofSeconds( judgeCfg.timeoutSeconds() ) )
                 .build();
             kgJudge = new DefaultKgProposalJudgeService( http, judgeCfg, judgeTimeoutRepo );
-            kgRunner = new JudgeRunner( repo, kgJudge, kgMat, judgeCfg );
+            kgRunner = new JudgeRunner( kgProposals, kgRejections, kgJudge, kgMat, judgeCfg );
             kgRunner.schedule();
             LOG.info( "KG judge service enabled: model={} endpoint={} cron={}m",
                 judgeCfg.model(), judgeCfg.endpoint(), judgeCfg.cronIntervalMinutes() );
@@ -120,7 +128,8 @@ public final class KnowledgeSubsystemFactory {
         }
 
         final DefaultKnowledgeGraphService kgService =
-            new DefaultKnowledgeGraphService( repo, null, mentionIndex, kgMat, kgJudge );
+            new DefaultKnowledgeGraphService( kgNodes, kgEdges, kgProposals, kgRejections,
+                dataSource, null, mentionIndex, kgMat, kgJudge );
 
         final FrontmatterDefaultsFilter fmDefaults = new FrontmatterDefaultsFilter(
             name -> spr != null && spr.isSystemPage( name ), props );
@@ -152,7 +161,8 @@ public final class KnowledgeSubsystemFactory {
 
         final HubProposalRepository hubProposalRepo = persistence.hubProposals();
         final HubProposalService hubProposalService = HubProposalService.builder()
-            .kgRepo( repo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .proposalRepo( hubProposalRepo )
             .similarity( similarity )
             .reviewPercentileFromProperties( props )
@@ -160,7 +170,8 @@ public final class KnowledgeSubsystemFactory {
 
         final HubDiscoveryRepository hubDiscoveryRepo = persistence.hubDiscovery();
         final HubDiscoveryService hubDiscoveryService = HubDiscoveryService.builder()
-            .kgRepo( repo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .discoveryRepo( hubDiscoveryRepo )
             .similarity( similarity )
             .propsFrom( props )
@@ -179,7 +190,8 @@ public final class KnowledgeSubsystemFactory {
             .build();
 
         final HubOverviewService hubOverviewService = HubOverviewService.builder()
-            .kgRepo( repo )
+            .kgNodes( kgNodes )
+            .kgEdges( kgEdges )
             .similarity( similarity )
             .pageManager( pageMgr )
             .pageWriter( ( name, content ) -> saveHelper.saveText( name, content,

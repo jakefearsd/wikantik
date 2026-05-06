@@ -20,6 +20,8 @@ package com.wikantik.knowledge;
 
 import com.wikantik.api.knowledge.*;
 import com.wikantik.api.core.Engine;
+import java.sql.Connection;
+import java.sql.SQLException;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.managers.PageManager;
@@ -34,8 +36,9 @@ import java.util.*;
 
 /**
  * Default implementation of {@link KnowledgeGraphService}. Delegates data access
- * to {@link JdbcKnowledgeRepository} and adds BFS graph traversal, schema discovery,
- * node merging, and proposal approval/rejection logic.
+ * to the four narrow repositories ({@link KgNodeRepository}, {@link KgEdgeRepository},
+ * {@link KgProposalRepository}, {@link KgRejectionRepository}) and adds BFS graph
+ * traversal, schema discovery, node merging, and proposal approval/rejection logic.
  *
  * @since 1.0
  */
@@ -47,7 +50,11 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     private static final Set< Provenance > DEFAULT_PROVENANCE_FILTER =
             Set.of( Provenance.HUMAN_AUTHORED, Provenance.AI_REVIEWED );
 
-    private final JdbcKnowledgeRepository repo;
+    private final KgNodeRepository nodes;
+    private final KgEdgeRepository edges;
+    private final KgProposalRepository proposals;
+    private final KgRejectionRepository rejections;
+    private final javax.sql.DataSource dataSource;
     private Engine engine;
     private final MentionIndex mentionIndex;
     private final com.wikantik.knowledge.judge.KgMaterializationService materialization;
@@ -57,30 +64,87 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     private final java.util.Map< Tier, Instant > cacheTsByTier = new java.util.concurrent.ConcurrentHashMap<>();
     private static final long CACHE_TTL_SECONDS = 60;
 
+    public DefaultKnowledgeGraphService( final KgNodeRepository nodes,
+                                          final KgEdgeRepository edges,
+                                          final KgProposalRepository proposals,
+                                          final KgRejectionRepository rejections,
+                                          final javax.sql.DataSource dataSource ) {
+        this( nodes, edges, proposals, rejections, dataSource, null, null, null, null );
+    }
+
+    public DefaultKnowledgeGraphService( final KgNodeRepository nodes,
+                                          final KgEdgeRepository edges,
+                                          final KgProposalRepository proposals,
+                                          final KgRejectionRepository rejections,
+                                          final javax.sql.DataSource dataSource,
+                                          final Engine engine ) {
+        this( nodes, edges, proposals, rejections, dataSource, engine, null, null, null );
+    }
+
+    public DefaultKnowledgeGraphService( final KgNodeRepository nodes,
+                                          final KgEdgeRepository edges,
+                                          final KgProposalRepository proposals,
+                                          final KgRejectionRepository rejections,
+                                          final javax.sql.DataSource dataSource,
+                                          final Engine engine,
+                                          final MentionIndex mentionIndex ) {
+        this( nodes, edges, proposals, rejections, dataSource, engine, mentionIndex, null, null );
+    }
+
+    public DefaultKnowledgeGraphService( final KgNodeRepository nodes,
+                                          final KgEdgeRepository edges,
+                                          final KgProposalRepository proposals,
+                                          final KgRejectionRepository rejections,
+                                          final javax.sql.DataSource dataSource,
+                                          final Engine engine,
+                                          final MentionIndex mentionIndex,
+                                          final com.wikantik.knowledge.judge.KgMaterializationService materialization,
+                                          final com.wikantik.api.knowledge.KgProposalJudgeService judgeService ) {
+        this.nodes = nodes;
+        this.edges = edges;
+        this.proposals = proposals;
+        this.rejections = rejections;
+        this.dataSource = dataSource;
+        this.engine = engine;
+        this.mentionIndex = mentionIndex;
+        this.materialization = materialization;
+        this.judgeService = judgeService;
+    }
+
+    // --- Bridge constructors for test compatibility (use narrow repos internally) ---
+
+    /** @deprecated Use the narrow-repo constructor; kept for test/integration compatibility. */
+    @Deprecated
     public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo ) {
-        this( repo, null, null, null, null );
+        this( repo.nodes(), repo.edges(), repo.proposals(), repo.rejections(), repo.dataSource(),
+              null, null, null, null );
     }
 
+    /** @deprecated Use the narrow-repo constructor; kept for test/integration compatibility. */
+    @Deprecated
     public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo, final Engine engine ) {
-        this( repo, engine, null, null, null );
+        this( repo.nodes(), repo.edges(), repo.proposals(), repo.rejections(), repo.dataSource(),
+              engine, null, null, null );
     }
 
+    /** @deprecated Use the narrow-repo constructor; kept for test/integration compatibility. */
+    @Deprecated
     public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo,
                                           final Engine engine,
                                           final MentionIndex mentionIndex ) {
-        this( repo, engine, mentionIndex, null, null );
+        this( repo.nodes(), repo.edges(), repo.proposals(), repo.rejections(), repo.dataSource(),
+              engine, mentionIndex, null, null );
     }
 
+    /** @deprecated Use the narrow-repo constructor; kept for test/integration compatibility. */
+    @Deprecated
     public DefaultKnowledgeGraphService( final JdbcKnowledgeRepository repo,
                                           final Engine engine,
                                           final MentionIndex mentionIndex,
                                           final com.wikantik.knowledge.judge.KgMaterializationService materialization,
                                           final com.wikantik.api.knowledge.KgProposalJudgeService judgeService ) {
-        this.repo = repo;
-        this.engine = engine;
-        this.mentionIndex = mentionIndex;
-        this.materialization = materialization;
-        this.judgeService = judgeService;
+        this( repo.nodes(), repo.edges(), repo.proposals(), repo.rejections(), repo.dataSource(),
+              engine, mentionIndex, materialization, judgeService );
     }
 
     public void setEngine( final Engine engine ) {
@@ -91,14 +155,14 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     @Override
     public SchemaDescription discoverSchema() {
-        final List< String > nodeTypes = repo.getDistinctNodeTypes();
-        final List< String > relTypes = repo.getDistinctRelationshipTypes();
+        final List< String > nodeTypes = nodes.getDistinctNodeTypes();
+        final List< String > relTypes = edges.getDistinctRelationshipTypes();
 
         // Scan all nodes to build property key stats and collect distinct status values
         final Map< String, Long > propCounts = new LinkedHashMap<>();
         final Map< String, List< String > > propSamples = new LinkedHashMap<>();
         final Set< String > statusSet = new TreeSet<>();
-        final List< KgNode > allNodes = repo.queryNodes( null, null, Integer.MAX_VALUE, 0 );
+        final List< KgNode > allNodes = nodes.queryNodes( null, null, Integer.MAX_VALUE, 0 );
         for( final KgNode node : allNodes ) {
             if( node.properties() != null ) {
                 for( final Map.Entry< String, Object > entry : node.properties().entrySet() ) {
@@ -123,9 +187,9 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             ) );
         }
 
-        final long nodeCount = repo.countNodes();
-        final long edgeCount = repo.countEdges();
-        final long pendingCount = repo.countPendingProposals();
+        final long nodeCount = nodes.countNodes();
+        final long edgeCount = edges.countEdges();
+        final long pendingCount = proposals.countPendingProposals();
 
         return new SchemaDescription(
                 nodeTypes,
@@ -140,46 +204,46 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     @Override
     public KgNode getNode( final UUID id ) {
-        return repo.getNode( id );
+        return nodes.getNode( id );
     }
 
     @Override
     public KgNode getNodeByName( final String name ) {
-        return repo.getNodeByName( name );
+        return nodes.getNodeByName( name );
     }
 
     @Override
     public KgNode upsertNode( final String name, final String nodeType, final String sourcePage,
                               final Provenance provenance, final Map< String, Object > properties ) {
-        final KgNode result = repo.upsertNode( name, nodeType, sourcePage, provenance, properties );
+        final KgNode result = nodes.upsertNode( name, nodeType, sourcePage, provenance, properties );
         invalidateSnapshotCache();
         return result;
     }
 
     @Override
     public void deleteNode( final UUID id ) {
-        repo.deleteNode( id );
+        nodes.deleteNode( id );
         invalidateSnapshotCache();
     }
 
     @Override
     public void mergeNodes( final UUID sourceId, final UUID targetId ) {
         // Move all outbound edges from sourceId to targetId
-        final List< KgEdge > outbound = repo.getEdgesForNode( sourceId, "outbound" );
+        final List< KgEdge > outbound = edges.getEdgesForNode( sourceId, "outbound" );
         for( final KgEdge edge : outbound ) {
-            repo.upsertEdge( targetId, edge.targetId(), edge.relationshipType(),
+            edges.upsertEdge( targetId, edge.targetId(), edge.relationshipType(),
                     edge.provenance(), edge.properties() );
         }
 
         // Move all inbound edges to sourceId → point to targetId instead
-        final List< KgEdge > inbound = repo.getEdgesForNode( sourceId, "inbound" );
+        final List< KgEdge > inbound = edges.getEdgesForNode( sourceId, "inbound" );
         for( final KgEdge edge : inbound ) {
-            repo.upsertEdge( edge.sourceId(), targetId, edge.relationshipType(),
+            edges.upsertEdge( edge.sourceId(), targetId, edge.relationshipType(),
                     edge.provenance(), edge.properties() );
         }
 
         // Delete the source node (cascade deletes its old edges)
-        repo.deleteNode( sourceId );
+        nodes.deleteNode( sourceId );
         invalidateSnapshotCache();
     }
 
@@ -187,7 +251,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     public List< KgNode > queryNodes( final Map< String, Object > filters,
                                       final Set< Provenance > provenanceFilter,
                                       final int limit, final int offset ) {
-        return repo.queryNodes( filters, provenanceFilter, limit, offset );
+        return nodes.queryNodes( filters, provenanceFilter, limit, offset );
     }
 
     // --- Edge operations ---
@@ -195,38 +259,38 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     @Override
     public KgEdge upsertEdge( final UUID sourceId, final UUID targetId, final String relationshipType,
                               final Provenance provenance, final Map< String, Object > properties ) {
-        final KgEdge result = repo.upsertEdge( sourceId, targetId, relationshipType, provenance, properties );
+        final KgEdge result = edges.upsertEdge( sourceId, targetId, relationshipType, provenance, properties );
         invalidateSnapshotCache();
         return result;
     }
 
     @Override
     public void deleteEdge( final UUID id ) {
-        repo.deleteEdge( id );
+        edges.deleteEdge( id );
         invalidateSnapshotCache();
     }
 
     @Override
     public void diffAndRemoveStaleEdges( final UUID sourceId,
                                          final Set< Map.Entry< String, String > > currentEdges ) {
-        repo.diffAndRemoveStaleEdges( sourceId, currentEdges );
+        edges.diffAndRemoveStaleEdges( sourceId, currentEdges );
         invalidateSnapshotCache();
     }
 
     @Override
     public List< KgEdge > getEdgesForNode( final UUID nodeId, final String direction ) {
-        return repo.getEdgesForNode( nodeId, direction );
+        return edges.getEdgesForNode( nodeId, direction );
     }
 
     @Override
     public List< Map< String, Object > > queryEdges( final String relationshipType, final String searchName,
                                                       final int limit, final int offset ) {
-        return repo.queryEdgesWithNames( relationshipType, searchName, limit, offset );
+        return edges.queryEdgesWithNames( relationshipType, searchName, limit, offset );
     }
 
     @Override
     public Map< UUID, String > getNodeNames( final Collection< UUID > ids ) {
-        return repo.getNodeNames( ids );
+        return nodes.getNodeNames( ids );
     }
 
     // --- Traversal ---
@@ -235,7 +299,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     public TraversalResult traverse( final String startNodeName, final String direction,
                                      final Set< String > relationshipTypes, final int maxDepth,
                                      final Set< Provenance > provenanceFilter ) {
-        final KgNode startNode = repo.getNodeByName( startNodeName );
+        final KgNode startNode = nodes.getNodeByName( startNodeName );
         if( startNode == null ) {
             return new TraversalResult( List.of(), List.of() );
         }
@@ -264,8 +328,8 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                 continue;
             }
 
-            final List< KgEdge > edges = repo.getEdgesForNode( currentId, direction );
-            for( final KgEdge edge : edges ) {
+            final List< KgEdge > nodeEdges = edges.getEdgesForNode( currentId, direction );
+            for( final KgEdge edge : nodeEdges ) {
                 // Check provenance filter
                 if( !effectiveProvenance.contains( edge.provenance() ) ) {
                     continue;
@@ -285,7 +349,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                         : edge.sourceId();
 
                 if( !visited.containsKey( neighborId ) ) {
-                    final KgNode neighbor = repo.getNode( neighborId );
+                    final KgNode neighbor = nodes.getNode( neighborId );
                     if( neighbor != null ) {
                         visited.put( neighborId, neighbor );
                         queue.add( neighborId );
@@ -312,7 +376,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             LOG.warn( "traverseByCoMention called but MentionIndex is not configured" );
             return new TraversalResult( List.of(), List.of() );
         }
-        final KgNode startNode = repo.getNodeByName( startNodeName );
+        final KgNode startNode = nodes.getNodeByName( startNodeName );
         if ( startNode == null || !minTier.includes( startNode.tier() ) ) {
             return new TraversalResult( List.of(), List.of() );
         }
@@ -340,7 +404,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
                 // Tier-filter the neighbor before admitting it.
                 if ( !visited.containsKey( neighborId ) ) {
-                    final KgNode neighbor = repo.getNode( neighborId );
+                    final KgNode neighbor = nodes.getNode( neighborId );
                     if ( neighbor == null || !minTier.includes( neighbor.tier() ) ) {
                         continue;
                     }
@@ -376,7 +440,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     @Override
     public List< KgNode > searchKnowledge( final String query, final Set< Provenance > provenanceFilter,
                                            final int limit, final Tier minTier ) {
-        return repo.searchNodes( query, provenanceFilter, limit, minTier );
+        return nodes.searchNodes( query, provenanceFilter, limit, minTier );
     }
 
     // --- Proposal management ---
@@ -391,24 +455,24 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             final String target = Objects.toString( proposedData.get( "target" ), null );
             final String relationship = Objects.toString( proposedData.get( "relationship" ), null );
             if( source != null && target != null && relationship != null
-                    && repo.isRejected( source, target, relationship ) ) {
+                    && rejections.isRejected( source, target, relationship ) ) {
                 LOG.info( "Proposal rejected: {}->{} [{}] was previously rejected",
                         source, target, relationship );
                 return null;
             }
         }
-        return repo.insertProposal( proposalType, sourcePage, proposedData, confidence, reasoning );
+        return proposals.insertProposal( proposalType, sourcePage, proposedData, confidence, reasoning );
     }
 
     @Override
     public List< KgProposal > listProposals( final String status, final String sourcePage,
                                              final int limit, final int offset ) {
-        return repo.listProposals( status, sourcePage, limit, offset );
+        return proposals.listProposals( status, sourcePage, limit, offset );
     }
 
     @Override
     public KgProposal getProposal( final UUID proposalId ) {
-        return repo.getProposal( proposalId );
+        return proposals.getProposal( proposalId );
     }
 
     @Override
@@ -417,21 +481,21 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                                              final boolean includeMachineRejected,
                                              final String sourcePage,
                                              final int limit, final int offset ) {
-        return repo.listProposalsFiltered( status, tier, machineStatus, includeMachineRejected,
+        return proposals.listProposalsFiltered( status, tier, machineStatus, includeMachineRejected,
             sourcePage, limit, offset );
     }
 
     @Override
     public List< KgProposalReview > listReviews( final UUID proposalId ) {
-        return repo.listReviews( proposalId );
+        return proposals.listReviews( proposalId );
     }
 
     @Override
     public KgProposal approveProposal( final UUID proposalId, final String reviewedBy ) {
-        repo.applyHumanVerdict( proposalId, "approved", reviewedBy );
-        repo.recordReview( proposalId, KgProposalReview.REVIEWER_HUMAN, reviewedBy,
+        proposals.applyHumanVerdict( proposalId, "approved", reviewedBy );
+        proposals.recordReview( proposalId, KgProposalReview.REVIEWER_HUMAN, reviewedBy,
             "approved", null, null );
-        final KgProposal proposal = repo.getProposal( proposalId );
+        final KgProposal proposal = proposals.getProposal( proposalId );
         if ( proposal != null && materialization != null ) {
             materialization.promoteToHuman( proposal );
             invalidateSnapshotCache();
@@ -441,9 +505,9 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     @Override
     public KgProposal rejectProposal( final UUID proposalId, final String reviewedBy, final String reason ) {
-        final KgProposal proposal = repo.getProposal( proposalId );
-        repo.applyHumanVerdict( proposalId, "rejected", reviewedBy );
-        repo.recordReview( proposalId, KgProposalReview.REVIEWER_HUMAN, reviewedBy,
+        final KgProposal proposal = proposals.getProposal( proposalId );
+        proposals.applyHumanVerdict( proposalId, "rejected", reviewedBy );
+        proposals.recordReview( proposalId, KgProposalReview.REVIEWER_HUMAN, reviewedBy,
             "rejected", null, reason );
 
         if ( proposal != null ) {
@@ -457,11 +521,11 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                 final String target = Objects.toString( proposal.proposedData().get( "target" ), null );
                 final String relationship = Objects.toString( proposal.proposedData().get( "relationship" ), null );
                 if ( source != null && target != null && relationship != null ) {
-                    repo.insertRejection( source, target, relationship, reviewedBy, reason );
+                    rejections.insertRejection( source, target, relationship, reviewedBy, reason );
                 }
             }
         }
-        return repo.getProposal( proposalId );
+        return proposals.getProposal( proposalId );
     }
 
     // --- Rejection queries ---
@@ -469,18 +533,30 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     @Override
     public List< KgRejection > listRejections( final String sourceName, final String targetName,
                                                final String relationshipType ) {
-        return repo.listRejections( sourceName, targetName, relationshipType );
+        return rejections.listRejections( sourceName, targetName, relationshipType );
     }
 
     @Override
     public boolean isRejected( final String sourceName, final String targetName,
                                final String relationshipType ) {
-        return repo.isRejected( sourceName, targetName, relationshipType );
+        return rejections.isRejected( sourceName, targetName, relationshipType );
     }
 
     @Override
     public void clearAll() {
-        repo.clearAll();
+        final String[] tables = {
+            "kg_proposal_reviews", "kg_edges", "kg_proposals", "kg_rejections", "kg_nodes"
+        };
+        try ( Connection conn = dataSource.getConnection();
+              var stmt = conn.createStatement() ) {
+            for ( final String table : tables ) {
+                stmt.execute( "DELETE FROM " + table );
+            }
+            LOG.info( "Cleared all knowledge graph data ({} tables)", tables.length );
+        } catch ( final SQLException e ) {
+            LOG.warn( "Failed to clear knowledge graph data: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
         invalidateSnapshotCache();
     }
 
@@ -512,8 +588,8 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     }
 
     private GraphSnapshot buildUnredactedSnapshot( final Tier minTier ) {
-        final List< KgNode > allNodes = repo.getAllNodes( minTier );
-        final List< KgEdge > allEdges = repo.getAllEdges( minTier );
+        final List< KgNode > allNodes = nodes.getAllNodes( minTier );
+        final List< KgEdge > allEdges = edges.getAllEdges( minTier );
 
         final Map< UUID, int[] > degrees = new HashMap<>();
         for ( final KgEdge edge : allEdges ) {
@@ -629,13 +705,13 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         if ( judgeService == null ) {
             throw new IllegalStateException( "judgeService not configured" );
         }
-        final KgProposal proposal = repo.getProposal( proposalId );
+        final KgProposal proposal = proposals.getProposal( proposalId );
         if ( proposal == null ) {
             throw new IllegalArgumentException( "no proposal: " + proposalId );
         }
         final JudgeVerdict v = judgeService.judge( proposal );
-        repo.applyMachineVerdict( proposalId, v.verdict(), v.confidence(), v.model() );
-        repo.recordReview( proposalId, KgProposalReview.REVIEWER_MACHINE, v.model(),
+        proposals.applyMachineVerdict( proposalId, v.verdict(), v.confidence(), v.model() );
+        proposals.recordReview( proposalId, KgProposalReview.REVIEWER_MACHINE, v.model(),
             v.verdict(), v.confidence(), v.rationale() );
         if ( JudgeVerdict.APPROVED.equals( v.verdict() ) && materialization != null ) {
             materialization.materializeMachine( proposal );
@@ -647,7 +723,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             final String tgt = Objects.toString( data.get( "target" ), null );
             final String rel = Objects.toString( data.get( "relationship" ), null );
             if ( src != null && tgt != null && rel != null ) {
-                repo.insertRejection( src, tgt, rel, v.model(), v.rationale() );
+                rejections.insertRejection( src, tgt, rel, v.model(), v.rationale() );
             }
         }
         LOG.info( "judgeNow proposal={} verdict={} triggeredBy={}", proposalId, v.verdict(), triggeredBy );
@@ -658,6 +734,6 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     @Override
     public long countPendingUnjudgedProposals() {
-        return repo.countPendingUnjudgedProposals();
+        return proposals.countPendingUnjudgedProposals();
     }
 }

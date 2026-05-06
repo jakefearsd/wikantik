@@ -14,144 +14,119 @@
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
-    under the License.    
+    under the License.
  */
 package com.wikantik.auth;
 
-import org.apache.commons.lang3.ArrayUtils;
 import com.wikantik.api.core.Engine;
-import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.WikiException;
-import com.wikantik.auth.authorize.Group;
-import com.wikantik.auth.authorize.GroupDatabase;
 import com.wikantik.auth.authorize.GroupManager;
-import com.wikantik.auth.authorize.Role;
-import com.wikantik.auth.authorize.WebContainerAuthorizer;
-import com.wikantik.auth.permissions.AllPermission;
-import com.wikantik.auth.permissions.GroupPermission;
-import com.wikantik.auth.permissions.PermissionFactory;
-import com.wikantik.auth.permissions.WikiPermission;
-import com.wikantik.auth.user.DummyUserDatabase;
-import com.wikantik.auth.user.UserDatabase;
-import com.wikantik.auth.user.UserProfile;
-import org.freshcookies.security.policy.PolicyReader;
+import com.wikantik.auth.subsystem.verify.ContainerRoleVerifier;
+import com.wikantik.auth.subsystem.verify.JaasVerifier;
+import com.wikantik.auth.subsystem.verify.PolicyVerifier;
 
-import javax.security.auth.spi.LoginModule;
 import java.io.File;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.security.KeyStore;
 import java.security.Permission;
 import java.security.Principal;
-import java.security.ProtectionDomain;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
 
 /**
- * Helper class for verifying Wikantik's security configuration. Invoked by the admin security API at
- * <code>/admin/policy/verify</code>.
+ * Facade for verifying Wikantik's security configuration. Invoked by the
+ * admin security API at <code>/admin/policy/verify</code>.
+ *
+ * <p>This class is a thin delegator. The three helpers that do the real
+ * work are:</p>
+ * <ul>
+ *   <li>{@link JaasVerifier} — JAAS login-module check</li>
+ *   <li>{@link PolicyVerifier} — policy file, policy-to-container-role
+ *       alignment, group DB, user DB</li>
+ *   <li>{@link ContainerRoleVerifier} — web-container role/URL-pattern table</li>
+ * </ul>
+ *
+ * <p>All {@code public static final String} message-key constants are
+ * declared here so that JSPs and callers that reference them as
+ * {@code SecurityVerifier.ERROR_POLICY} etc. continue to compile
+ * unchanged.</p>
  *
  * @since 2.4
  */
 public final class SecurityVerifier {
 
-    private final Engine                engine;
-
-    private boolean               isSecurityPolicyConfigured;
-
-    private Principal[]           policyPrincipals           = new Principal[0];
-
-    private final Session               session;
-
-    private final AuthorizationManager  authorizationManager;
-
-    private final GroupManager          groupManager;
-
-    private final UserManager           userManager;
-
     /** Message prefix for errors. */
-    public static final String    ERROR                        = "Error.";
+    public static final String ERROR          = "Error.";
 
     /** Message prefix for warnings. */
-    public static final String    WARNING                      = "Warning.";
+    public static final String WARNING        = "Warning.";
 
     /** Message prefix for information messages. */
-    public static final String    INFO                         = "Info.";
+    public static final String INFO           = "Info.";
 
     /** Message topic for policy errors. */
-    public static final String    ERROR_POLICY                 = "Error.Policy";
+    public static final String ERROR_POLICY   = "Error.Policy";
 
     /** Message topic for policy warnings. */
-    public static final String    WARNING_POLICY               = "Warning.Policy";
+    public static final String WARNING_POLICY = "Warning.Policy";
 
     /** Message topic for policy information messages. */
-    public static final String    INFO_POLICY                  = "Info.Policy";
+    public static final String INFO_POLICY    = "Info.Policy";
 
     /** Message topic for JAAS errors. */
-    public static final String    ERROR_JAAS                   = "Error.Jaas";
+    public static final String ERROR_JAAS     = "Error.Jaas";
 
     /** Message topic for JAAS warnings. */
-    public static final String    WARNING_JAAS                 = "Warning.Jaas";
+    public static final String WARNING_JAAS   = "Warning.Jaas";
 
     /** Message topic for role-checking errors. */
-    public static final String    ERROR_ROLES                  = "Error.Roles";
+    public static final String ERROR_ROLES    = "Error.Roles";
 
     /** Message topic for role-checking information messages. */
-    public static final String    INFO_ROLES                   = "Info.Roles";
+    public static final String INFO_ROLES     = "Info.Roles";
 
     /** Message topic for user database errors. */
-    public static final String    ERROR_DB                     = "Error.UserDatabase";
+    public static final String ERROR_DB       = "Error.UserDatabase";
 
     /** Message topic for user database warnings. */
-    public static final String    WARNING_DB                   = "Warning.UserDatabase";
+    public static final String WARNING_DB     = "Warning.UserDatabase";
 
     /** Message topic for user database information messages. */
-    public static final String    INFO_DB                      = "Info.UserDatabase";
+    public static final String INFO_DB        = "Info.UserDatabase";
 
     /** Message topic for group database errors. */
-    public static final String    ERROR_GROUPS                 = "Error.GroupDatabase";
+    public static final String ERROR_GROUPS   = "Error.GroupDatabase";
 
     /** Message topic for group database warnings. */
-    public static final String    WARNING_GROUPS               = "Warning.GroupDatabase";
+    public static final String WARNING_GROUPS = "Warning.GroupDatabase";
 
     /** Message topic for group database information messages. */
-    public static final String    INFO_GROUPS                  = "Info.GroupDatabase";
+    public static final String INFO_GROUPS    = "Info.GroupDatabase";
 
     /** Message topic for JAAS information messages. */
-    public static final String    INFO_JAAS                    = "Info.Jaas";
+    public static final String INFO_JAAS      = "Info.Jaas";
 
-    private static final String[] CONTAINER_ACTIONS            = { "View pages",
-                                                                                "Comment on existing pages",
-                                                                                "Edit pages",
-                                                                                "Upload attachments",
-                                                                                "Create a new group",
-                                                                                "Rename an existing page",
-                                                                                "Delete pages"
-                                                                              };
+    // -------------------------------------------------------------------------
+    // Delegates and retained seams needed by package-private test surface
+    // -------------------------------------------------------------------------
 
-    private static final String[] CONTAINER_PATHS               = { "/attach/*",
-                                                                                "/attach/*",
-                                                                                "/api/*",
-                                                                                "/api/attachments/*",
-                                                                                "/admin/*",
-                                                                                "/admin/*",
-                                                                                "/admin/*"
-                                                                              };
+    private final PolicyVerifier        policyVerifier;
+    private final ContainerRoleVerifier containerRoleVerifier;
 
-    private static final String   BG_GREEN                     = "bgcolor=\"#c0ffc0\"";
+    /** Retained for {@link #verifyStaticPermission} package-private seam used by tests. */
+    private final AuthorizationManager  authorizationManager;
 
-    private static final String   BG_RED                       = "bgcolor=\"#ffc0c0\"";
+    /** Retained for {@link #getFileFromProperty} package-private seam used by tests. */
+    private final Session               session;
 
+    // -------------------------------------------------------------------------
+    // Constructors
+    // -------------------------------------------------------------------------
 
     /**
      * Constructs a new SecurityVerifier for a supplied Engine and WikiSession.
      *
-     * @param engine the wiki engine
+     * @param engine  the wiki engine
      * @param session the wiki session (typically, that of an administrator)
      */
     public SecurityVerifier( final Engine engine, final Session session ) {
@@ -162,641 +137,142 @@ public final class SecurityVerifier {
     }
 
     /**
-     * Constructs a new SecurityVerifier with explicitly provided manager dependencies.
-     * This constructor is useful for testing, allowing mock managers to be injected directly.
+     * Constructs a new SecurityVerifier with explicitly provided manager
+     * dependencies. Useful for testing with mock managers.
      *
-     * @param engine the wiki engine
-     * @param session the wiki session (typically, that of an administrator)
+     * @param engine               the wiki engine
+     * @param session              the wiki session (typically, that of an administrator)
      * @param authorizationManager the authorization manager
-     * @param groupManager the group manager
-     * @param userManager the user manager
+     * @param groupManager         the group manager
+     * @param userManager          the user manager
      */
-    SecurityVerifier( final Engine engine, final Session session,
+    SecurityVerifier( final Engine engine,
+                      final Session session,
                       final AuthorizationManager authorizationManager,
                       final GroupManager groupManager,
                       final UserManager userManager ) {
-        this.engine = engine;
-        this.session = session;
-        this.authorizationManager = authorizationManager;
-        this.groupManager = groupManager;
-        this.userManager = userManager;
-        this.session.clearMessages();
-        verifyJaas();
-        verifyPolicy();
-        try {
-            verifyPolicyAndContainerRoles();
-        } catch( final WikiException e ) {
-            this.session.addMessage( ERROR_ROLES, e.getMessage() );
-        }
-        verifyGroupDatabase();
-        verifyUserDatabase();
+        this.session               = session;
+        this.authorizationManager  = authorizationManager;
+        session.clearMessages();
+        new JaasVerifier( engine, session );
+        this.policyVerifier        = new PolicyVerifier( engine, session, authorizationManager, groupManager, userManager );
+        this.containerRoleVerifier = new ContainerRoleVerifier( engine, authorizationManager );
     }
 
+    // -------------------------------------------------------------------------
+    // Public API — delegates to helpers
+    // -------------------------------------------------------------------------
+
     /**
-     * Returns an array of unique Principals from the Wikantik security policy
-     * file. This array will be zero-length if the policy file was not
-     * successfully located, or if the file did not specify any Principals in
-     * the policy.
-     * @return the array of principals
+     * Returns an array of unique Principals from the Wikantik security policy file.
+     *
+     * @return the array of principals (zero-length if policy was not located or specifies none)
      */
-    public Principal[] policyPrincipals()
-    {
-        return policyPrincipals;
+    public Principal[] policyPrincipals() {
+        return policyVerifier.policyPrincipals();
     }
 
     /**
      * Formats and returns an HTML table containing sample permissions and what
-     * roles are allowed to have them. This method will throw an
-     * {@link IllegalStateException} if the authorizer is not of type
-     * {@link com.wikantik.auth.authorize.WebContainerAuthorizer}
-     * @return the formatted HTML table containing the result of the tests
+     * roles are allowed to have them.
+     *
+     * @return the formatted HTML table
      */
-    public String policyRoleTable()
-    {
-        final Principal[] roles = policyPrincipals;
-        final String wiki = engine.getApplicationName();
-
-        final String[] pages = { "Main", "Index", "GroupTest", "GroupAdmin" };
-        final String[] pageActions = { "view", "edit", "modify", "rename", "delete" };
-
-        final String[] groups = { "Admin", "TestGroup", "Foo" };
-        final String[] groupActions = { "view", "edit", null, null, "delete" };
-
-
-        final int rolesLength = roles.length;
-        final int pageActionsLength = pageActions.length;
-        // Calculate column widths
-        final String colWidth;
-        if( rolesLength > 0 ) {
-            colWidth = ( 67f / ( pageActionsLength * rolesLength ) ) + "%";
-        } else {
-            colWidth = "67%";
-        }
-
-        final StringBuilder table = new StringBuilder();
-
-        // Write the table header
-        table.append( "<table class=\"wikitable\" border=\"1\">\n" );
-        table.append( "  <colgroup span=\"1\" width=\"33%\"/>\n" );
-        table.append( "  <colgroup span=\"" ).append( pageActionsLength * rolesLength ).append( "\" width=\"" ).append( colWidth ).append( "\" align=\"center\"/>\n" );
-        table.append( "  <tr>\n" );
-        table.append( "    <th rowspan=\"2\" valign=\"bottom\">Permission</th>\n" );
-        for (final Principal principal : roles) {
-            table.append("    <th colspan=\"").append(pageActionsLength).append("\" title=\"").append(principal.getClass().getName()).append("\">").append(principal.getName()).append("</th>\n");
-        }
-        table.append( "  </tr>\n" );
-
-        // Print a column for each role
-        table.append( "  <tr>\n" );
-        for( int i = 0; i < rolesLength; i++ )
-        {
-            for( final String pageAction : pageActions )
-            {
-                final String action = pageAction.substring( 0, 1 );
-                table.append( "    <th title=\"" ).append( pageAction ).append( "\">" ).append( action ).append( "</th>\n" );
-            }
-        }
-        table.append( "  </tr>\n" );
-
-        // Write page permission tests first
-        for( final String page : pages ) {
-            table.append( "  <tr>\n" );
-            table.append( "    <td>PagePermission \"" ).append( wiki ).append(':').append( page ).append( "\"</td>\n" );
-            for( final Principal role : roles ) {
-                for( final String pageAction : pageActions ) {
-                    final Permission permission = PermissionFactory.getPagePermission( wiki + ":" + page, pageAction );
-                    table.append( printPermissionTest( permission, role, 1 ) );
-                }
-            }
-            table.append( "  </tr>\n" );
-        }
-
-        // Now do the group tests
-        for( final String group : groups ) {
-            table.append( "  <tr>\n" );
-            table.append( "    <td>GroupPermission \"" ).append( wiki ).append(':').append( group ).append( "\"</td>\n" );
-            for( final Principal role : roles ) {
-                for( final String groupAction : groupActions ) {
-                    Permission permission = null;
-                    if( groupAction != null ) {
-                        permission = new GroupPermission( wiki + ":" + group, groupAction );
-                    }
-                    table.append( printPermissionTest( permission, role, 1 ) );
-                }
-            }
-            table.append( "  </tr>\n" );
-        }
-
-
-        // Now check the wiki-wide permissions
-        final String[] wikiPerms = { "createGroups", "createPages", "login", "editPreferences", "editProfile" };
-        for( final String wikiPerm : wikiPerms ) {
-            table.append( "  <tr>\n" );
-            table.append( "    <td>WikiPermission \"" ).append( wiki ).append( "\",\"" ).append( wikiPerm ).append( "\"</td>\n" );
-            for( final Principal role : roles ) {
-                final Permission permission = new WikiPermission( wiki, wikiPerm );
-                table.append( printPermissionTest( permission, role, pageActionsLength ) );
-            }
-            table.append( "  </tr>\n" );
-        }
-
-        // Lastly, check for AllPermission
-        table.append( "  <tr>\n" );
-        table.append( "    <td>AllPermission \"" ).append( wiki ).append( "\"</td>\n" );
-        for( final Principal role : roles )
-        {
-            final Permission permission = new AllPermission( wiki );
-            table.append( printPermissionTest( permission, role, pageActionsLength ) );
-        }
-        table.append( "  </tr>\n" );
-
-        // We're done!
-        table.append( "</table>" );
-        return table.toString();
+    public String policyRoleTable() {
+        return policyVerifier.policyRoleTable();
     }
 
     /**
-     * Prints a &lt;td&gt; HTML element with the results of a permission test.
-     * @param permission the permission to format
-     * @param principal
-     * @param cols
+     * Returns {@code true} if the Java security policy is configured correctly.
+     *
+     * @return the result of the configuration check
      */
-    private String printPermissionTest( final Permission permission, final Principal principal, final int cols ) {
-    	final StringBuilder cell = new StringBuilder();
-        if( permission == null ) {
-            cell.append( "    <td colspan=\"" ).append( cols ).append( "\" align=\"center\" title=\"N/A\">" );
-            cell.append( "&nbsp;</td>\n" );
-        } else {
-            final boolean allowed = verifyStaticPermission( principal, permission );
-            cell.append( "    <td colspan=\"" ).append( cols ).append( "\" align=\"center\" title=\"" );
-            cell.append( allowed ? "ALLOW: " : "DENY: " );
-            cell.append( permission.getClass().getName() );
-            cell.append( " &quot;" );
-            cell.append( permission.getName() );
-            cell.append( "&quot;" );
-            if ( permission.getName() != null )
-            {
-                cell.append( ",&quot;" );
-                cell.append( permission.getActions() );
-                cell.append( "&quot;" );
-            }
-            cell.append(' ');
-            cell.append( principal.getClass().getName() );
-            cell.append( " &quot;" );
-            cell.append( principal.getName() );
-            cell.append( "&quot;" );
-            cell.append('\"');
-            cell.append( allowed ? BG_GREEN + ">" : BG_RED + ">" );
-            cell.append( "&nbsp;</td>\n" );
-        }
-        return cell.toString();
+    public boolean isSecurityPolicyConfigured() {
+        return policyVerifier.isSecurityPolicyConfigured();
     }
 
     /**
      * Formats and returns an HTML table containing the roles the web container
-     * is aware of, and whether each role maps to particular servlet URL patterns. This method
-     * throws an {@link IllegalStateException} if the authorizer is not of type
-     * {@link com.wikantik.auth.authorize.WebContainerAuthorizer}
-     * @return the formatted HTML table containing the result of the tests
+     * is aware of, and whether each role maps to particular servlet URL patterns.
+     *
+     * @return the formatted HTML table
      * @throws WikiException if tests fail for unexpected reasons
      */
     public String containerRoleTable() throws WikiException {
-        final Authorizer authorizer = authorizationManager.getAuthorizer();
-
-        // If authorizer not WebContainerAuthorizer, print error message
-        if ( !( authorizer instanceof final WebContainerAuthorizer wca ) ) {
-            throw new IllegalStateException( "Authorizer should be WebContainerAuthorizer" );
-        }
-
-        // Now, print a table with servlet URL patterns listed on the left, and
-        // an evaluation of each pattern's constraints for each role
-        // we discovered
-        final StringBuilder containerTable = new StringBuilder();
-        final Principal[] roles = authorizer.getRoles();
-        containerTable.append( "<table class=\"wikitable\" border=\"1\">\n" );
-        containerTable.append( "<thead>\n" );
-        containerTable.append( "  <tr>\n" );
-        containerTable.append( "    <th rowspan=\"2\">Action</th>\n" );
-        containerTable.append( "    <th rowspan=\"2\">Page</th>\n" );
-        containerTable.append( "    <th colspan=\"" ).append( roles.length ).append( 1 ).append( "\">Roles</th>\n" );
-        containerTable.append( "  </tr>\n" );
-        containerTable.append( "  <tr>\n" );
-        containerTable.append( "    <th>Anonymous</th>\n" );
-        for( final Principal role : roles ) {
-            containerTable.append( "    <th>" ).append( role.getName() ).append( "</th>\n" );
-        }
-        containerTable.append( "</tr>\n" );
-        containerTable.append( "</thead>\n" );
-        containerTable.append( "<tbody>\n" );
-
-        for( int i = 0; i < CONTAINER_ACTIONS.length; i++ ) {
-            final String action = CONTAINER_ACTIONS[i];
-            final String path = CONTAINER_PATHS[i];
-
-            // Print whether the path is constrained for each role
-            final boolean allowsAnonymous = !wca.isConstrained( path, Role.ALL );
-            containerTable.append( "  <tr>\n" );
-            containerTable.append( "    <td>" ).append( action ).append( "</td>\n" );
-            containerTable.append( "    <td>" ).append( path ).append( "</td>\n" );
-            containerTable.append( "    <td title=\"" );
-            containerTable.append( allowsAnonymous ? "ALLOW: " : "DENY: " );
-            containerTable.append( path );
-            containerTable.append( " Anonymous" );
-            containerTable.append('\"');
-            containerTable.append( allowsAnonymous ? BG_GREEN + ">" : BG_RED + ">" );
-            containerTable.append( "&nbsp;</td>\n" );
-            for( final Principal role : roles )
-            {
-                final boolean allowed = allowsAnonymous || wca.isConstrained( path, (Role)role );
-                containerTable.append( "    <td title=\"" );
-                containerTable.append( allowed ? "ALLOW: " : "DENY: " );
-                containerTable.append( path );
-                containerTable.append(' ');
-                containerTable.append( role.getClass().getName() );
-                containerTable.append( " &quot;" );
-                containerTable.append( role.getName() );
-                containerTable.append( "&quot;" );
-                containerTable.append('\"');
-                containerTable.append( allowed ? BG_GREEN + ">" : BG_RED + ">" );
-                containerTable.append( "&nbsp;</td>\n" );
-            }
-            containerTable.append( "  </tr>\n" );
-        }
-
-        containerTable.append( "</tbody>\n" );
-        containerTable.append( "</table>\n" );
-        return containerTable.toString();
+        return containerRoleVerifier.containerRoleTable();
     }
 
     /**
-     * Returns <code>true</code> if the Java security policy is configured
-     * correctly, and it verifies as valid.
-     * @return the result of the configuration check
-     */
-    public boolean isSecurityPolicyConfigured()
-    {
-        return isSecurityPolicyConfigured;
-    }
-
-    /**
-     * If the active Authorizer is the WebContainerAuthorizer, returns the roles it knows about; otherwise, a zero-length array.
+     * If the active Authorizer is the WebContainerAuthorizer, returns the roles
+     * it knows about; otherwise, a zero-length array.
      *
-     * @return the roles parsed from <code>web.xml</code>, or a zero-length array
+     * @return the roles parsed from {@code web.xml}, or a zero-length array
      * @throws WikiException if the web authorizer cannot obtain the list of roles
      */
     public Principal[] webContainerRoles() throws WikiException {
-        final Authorizer authorizer = authorizationManager.getAuthorizer();
-        if ( authorizer instanceof WebContainerAuthorizer wca ) {
-            return wca.getRoles();
-        }
-        return new Principal[0];
+        return containerRoleVerifier.webContainerRoles();
     }
 
-    /**
-     * Verifies that the roles given in the security policy are reflected by the
-     * container <code>web.xml</code> file.
-     * @throws WikiException if the web authorizer cannot verify the roles
-     */
-    void verifyPolicyAndContainerRoles() throws WikiException {
-        final Authorizer authorizer = authorizationManager.getAuthorizer();
-        final Principal[] containerRoles = authorizer.getRoles();
-        boolean missing = false;
-        for( final Principal principal : policyPrincipals ) {
-            if( principal instanceof final Role role ) {
-                final boolean isContainerRole = ArrayUtils.contains( containerRoles, role );
-                if ( !Role.isBuiltInRole( role ) && !isContainerRole ) {
-                    session.addMessage( ERROR_ROLES, "Role '" + role.getName() + "' is defined in security policy but not in web.xml." );
-                    missing = true;
-                }
-            }
-        }
-        if ( !missing ) {
-            session.addMessage( INFO_ROLES, "Every non-standard role defined in the security policy was also found in web.xml." );
-        }
-    }
-
-    /**
-     * Verifies that the group datbase was initialized properly, and that
-     * user add and delete operations work as they should.
-     */
-    void verifyGroupDatabase() {
-        final GroupManager mgr = groupManager;
-        GroupDatabase db = null;
-        try {
-            db = groupManager.getGroupDatabase();
-        } catch ( final WikiSecurityException e ) {
-            session.addMessage( ERROR_GROUPS, "Could not retrieve GroupManager: " + e.getMessage() );
-        }
-
-        // Check for obvious error conditions
-        if ( mgr == null || db == null ) {
-            if ( mgr == null ) {
-                session.addMessage( ERROR_GROUPS, "GroupManager is null; JSPWiki could not initialize it. Check the error logs." );
-            }
-            if ( db == null ) {
-                session.addMessage( ERROR_GROUPS, "GroupDatabase is null; JSPWiki could not initialize it. Check the error logs." );
-            }
-            return;
-        }
-
-        // Everything initialized OK...
-
-        // Tell user what class of database this is.
-        session.addMessage( INFO_GROUPS, "GroupDatabase is of type '" + db.getClass().getName() + "'. It appears to be initialized properly." );
-
-        // Now, see how many groups we have.
-        final int oldGroupCount;
-        try {
-            final Group[] groups = db.groups();
-            oldGroupCount = groups.length;
-            session.addMessage( INFO_GROUPS, "The group database contains " + oldGroupCount + " groups." );
-        } catch( final WikiSecurityException e ) {
-            session.addMessage( ERROR_GROUPS, "Could not obtain a list of current groups: " + e.getMessage() );
-            return;
-        }
-
-        // Try adding a bogus group with random name
-        final String name = "TestGroup" + System.currentTimeMillis();
-        final Group group;
-        try {
-            // Create dummy test group
-            group = mgr.parseGroup( name, "", true );
-            final Principal user = new WikiPrincipal( "TestUser" );
-            group.add( user );
-            db.save( group, new WikiPrincipal( "SecurityVerifier" ) );
-
-            // Make sure the group saved successfully
-            if( db.groups().length == oldGroupCount ) {
-                session.addMessage( ERROR_GROUPS, "Could not add a test group to the database." );
-                return;
-            }
-            session.addMessage( INFO_GROUPS, "The group database allows new groups to be created, as it should." );
-        } catch( final WikiSecurityException e ) {
-            session.addMessage( ERROR_GROUPS, "Could not add a group to the database: " + e.getMessage() );
-            return;
-        }
-
-        // Now delete the group; should be back to old count
-        try {
-            db.delete( group );
-            if( db.groups().length != oldGroupCount ) {
-                session.addMessage( ERROR_GROUPS, "Could not delete a test group from the database." );
-                return;
-            }
-            session.addMessage( INFO_GROUPS, "The group database allows groups to be deleted, as it should." );
-        } catch( final WikiSecurityException e ) {
-            session.addMessage( ERROR_GROUPS, "Could not delete a test group from the database: " + e.getMessage() );
-            return;
-        }
-
-        session.addMessage( INFO_GROUPS, "The group database configuration looks fine." );
-    }
-
-    /**
-     * Verfies the JAAS configuration. The configuration is valid if value of the
-     * <code>wikantik.properties<code> property
-     * {@value com.wikantik.auth.AuthenticationManager#PROP_LOGIN_MODULE}
-     * resolves to a valid class on the classpath.
-     */
-    void verifyJaas() {
-        // Verify that the specified JAAS moduie corresponds to a class we can load successfully.
-        final String jaasClass = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( AuthenticationManager.PROP_LOGIN_MODULE );
-        if( jaasClass == null || jaasClass.isEmpty() ) {
-            session.addMessage( ERROR_JAAS, "The value of the '" + AuthenticationManager.PROP_LOGIN_MODULE
-                    + "' property was null or blank. This is a fatal error. This value should be set to a valid LoginModule implementation "
-                    + "on the classpath." );
-            return;
-        }
-
-        // See if we can find the LoginModule on the classpath
-        Class< ? > c = null;
-        try {
-            session.addMessage( INFO_JAAS,
-                    "The property '" + AuthenticationManager.PROP_LOGIN_MODULE + "' specified the class '" + jaasClass + ".'" );
-            c = Class.forName( jaasClass );
-        } catch( final ClassNotFoundException e ) {
-            session.addMessage( ERROR_JAAS, "We could not find the the class '" + jaasClass + "' on the " + "classpath. This is fatal error." );
-        }
-
-        // Is the specified class actually a LoginModule?
-        if( LoginModule.class.isAssignableFrom( c ) ) {
-            session.addMessage( INFO_JAAS, "We found the the class '" + jaasClass + "' on the classpath, and it is a LoginModule implementation. Good!" );
-        } else {
-            session.addMessage( ERROR_JAAS, "We found the the class '" + jaasClass + "' on the classpath, but it does not seem to be LoginModule implementation! This is fatal error." );
-        }
-    }
-
-    /**
-     * Looks up a file name based on a JRE system property and returns the associated
-     * File object if it exists. This method adds messages with the topic prefix 
-     * {@link #ERROR} and {@link #INFO} as appropriate, with the suffix matching the 
-     * supplied property.
-     * @param property the system property to look up
-     * @return the file object, or <code>null</code> if not found
-     */
-    File getFileFromProperty( final String property )
-    {
-        String propertyValue;
-        try
-        {
-            propertyValue = System.getProperty( property );
-            if ( propertyValue == null )
-            {
-                session.addMessage( "Error." + property, "The system property '" + property + "' is null." );
-                return null;
-            }
-
-            //
-            //  It's also possible to use "==" to mark a property.  We remove that
-            //  here so that we can actually find the property file, then.
-            //
-            if( propertyValue.startsWith("=") )
-            {
-                propertyValue = propertyValue.substring(1);
-            }
-
-            try
-            {
-                session.addMessage( "Info." + property, "The system property '" + property + "' is set to: "
-                        + propertyValue + "." );
-
-                // Prepend a file: prefix if not there already
-                if ( !propertyValue.startsWith( "file:" ) )
-                {
-                  propertyValue = "file:" + propertyValue;
-                }
-                final URL url = URI.create( propertyValue ).toURL();
-                final File file = new File( url.getPath() );
-                if ( file.exists() )
-                {
-                    session.addMessage( "Info." + property, "File '" + propertyValue + "' exists in the filesystem." );
-                    return file;
-                }
-            }
-            catch( final MalformedURLException e )
-            {
-                // Swallow exception because we can't find it anyway
-            }
-            session.addMessage( "Error." + property, "File '" + propertyValue
-                    + "' doesn't seem to exist. This might be a problem." );
-            return null;
-        }
-        catch( final SecurityException e )
-        {
-            session.addMessage( "Error." + property, "We could not read system property '" + property
-                    + "'. This is probably because you are running with a security manager." );
-            return null;
-        }
-    }
-
-    /**
-     * Verfies the Java security policy configuration. The configuration is
-     * valid if value of the local policy (at <code>WEB-INF/wikantik.policy</code>
-     * resolves to an existing file, and the policy file contained therein
-     * represents a valid policy.
-     */
-    @SuppressWarnings("unchecked")
-    void verifyPolicy() {
-        // Look up the policy file and set the status text.
-        final URL policyURL = engine.findConfigFile( AuthorizationManager.DEFAULT_POLICY );
-        String path = policyURL.getPath();
-        if ( path.startsWith("file:") ) {
-            path = path.substring( 5 );
-        }
-        final File policyFile = new File( path );
-
-        // Next, verify the policy
-        try {
-            // Get the file
-            final PolicyReader policy = new PolicyReader( policyFile );
-            session.addMessage( INFO_POLICY, "The security policy '" + policy.getFile() + "' exists." );
-
-            // See if there is a keystore that's valid
-            final KeyStore ks = policy.getKeyStore();
-            if ( ks == null ) {
-                session.addMessage( WARNING_POLICY,
-                    "Policy file does not have a keystore... at least not one that we can locate. If your policy file " +
-                    "does not contain any 'signedBy' blocks, this is probably ok." );
-            } else {
-                session.addMessage( INFO_POLICY,
-                    "The security policy specifies a keystore, and we were able to locate it in the filesystem." );
-            }
-
-            // Verify the file
-            policy.read();
-            final List<Exception> errors = policy.getMessages();
-            if (!errors.isEmpty()) {
-                for( final Exception e : errors ) {
-                    session.addMessage( ERROR_POLICY, e.getMessage() );
-                }
-            } else {
-                session.addMessage( INFO_POLICY, "The security policy looks fine." );
-                isSecurityPolicyConfigured = true;
-            }
-
-            // Stash the unique principals mentioned in the file,
-            // plus our standard roles.
-            final Set<Principal> principals = new LinkedHashSet<>();
-            principals.add( Role.ALL );
-            principals.add( Role.ANONYMOUS );
-            principals.add( Role.ASSERTED );
-            principals.add( Role.AUTHENTICATED );
-            final ProtectionDomain[] domains = policy.getProtectionDomains();
-            for ( final ProtectionDomain domain : domains ) {
-                principals.addAll(Arrays.asList(domain.getPrincipals()));
-            }
-            policyPrincipals = principals.toArray( new Principal[0] );
-        } catch( final IOException e ) {
-            session.addMessage( ERROR_POLICY, e.getMessage() );
-        }
-    }
+    // -------------------------------------------------------------------------
+    // Package-private seams retained for unit-test coverage
+    // -------------------------------------------------------------------------
 
     /**
      * Verifies that a particular Principal possesses a Permission, as defined
      * in the security policy file.
-     * @param principal the principal
+     *
+     * @param principal  the principal
      * @param permission the permission
-     * @return the result, based on consultation with the active Java security
-     *         policy
+     * @return the result, based on consultation with the active Java security policy
      */
-    boolean verifyStaticPermission( final Principal principal, final Permission permission )
-    {
-        // Note: JVM-wide security policy via AccessController is deprecated and removed.
-        // JSPWiki now relies solely on its local policy for authorization.
-        // Check local policy directly
+    boolean verifyStaticPermission( final Principal principal, final Permission permission ) {
         final Principal[] principals = { principal };
         return authorizationManager.allowedByLocalPolicy( principals, permission );
     }
 
     /**
-     * Verifies that the user datbase was initialized properly, and that
-     * user add and delete operations work as they should.
+     * Looks up a file name based on a JRE system property and returns the
+     * associated File object if it exists. Adds messages to the session.
+     *
+     * @param property the system property to look up
+     * @return the file object, or {@code null} if not found
      */
-    void verifyUserDatabase() {
-        final UserDatabase db = userManager.getUserDatabase();
-
-        // Check for obvious error conditions
-        if ( db == null ) {
-            session.addMessage( ERROR_DB, "UserDatabase is null; JSPWiki could not initialize it. Check the error logs." );
-            return;
-        }
-
-        if ( db instanceof DummyUserDatabase dummyDb ) {
-            session.addMessage( ERROR_DB, "UserDatabase is DummyUserDatabase; JSPWiki " +
-                    "may not have been able to initialize the database you supplied in " +
-                    "wikantik.properties, or you left the 'wikantik.userdatabase' property " +
-                    "blank. Check the error logs." );
-        }
-
-        // Tell user what class of database this is.
-        session.addMessage( INFO_DB, "UserDatabase is of type '" + db.getClass().getName() +
-                                       "'. It appears to be initialized properly." );
-
-        // Now, see how many users we have.
-        final int oldUserCount;
+    File getFileFromProperty( final String property ) {
+        String propertyValue;
         try {
-            final Principal[] users = db.getWikiNames();
-            oldUserCount = users.length;
-            session.addMessage( INFO_DB, "The user database contains " + oldUserCount + " users." );
-        } catch( final WikiSecurityException e ) {
-            session.addMessage( ERROR_DB, "Could not obtain a list of current users: " + e.getMessage() );
-            return;
-        }
-
-        // Try adding a bogus user with random name
-        final String loginName = "TestUser" + System.currentTimeMillis();
-        try {
-            final UserProfile profile = db.newProfile();
-            profile.setEmail( "wikantik.tests@mailinator.com" );
-            profile.setLoginName( loginName );
-            profile.setFullname( "FullName" + loginName );
-            profile.setPassword( "password" );
-            db.save( profile );
-
-            // Make sure the profile saved successfully
-            if( db.getWikiNames().length == oldUserCount ) {
-                session.addMessage( ERROR_DB, "Could not add a test user to the database." );
-                return;
+            propertyValue = System.getProperty( property );
+            if( propertyValue == null ) {
+                session.addMessage( "Error." + property, "The system property '" + property + "' is null." );
+                return null;
             }
-            session.addMessage( INFO_DB, "The user database allows new users to be created, as it should." );
-        } catch( final WikiSecurityException e ) {
-            session.addMessage( ERROR_DB, "Could not add a test user to the database: " + e.getMessage() );
-            return;
-        }
 
-        // Now delete the profile; should be back to old count
-        try {
-            db.deleteByLoginName( loginName );
-            if( db.getWikiNames().length != oldUserCount ) {
-                session.addMessage( ERROR_DB, "Could not delete a test user from the database." );
-                return;
+            if( propertyValue.startsWith( "=" ) ) {
+                propertyValue = propertyValue.substring( 1 );
             }
-            session.addMessage( INFO_DB, "The user database allows users to be deleted, as it should." );
-        } catch( final WikiSecurityException e ) {
-            session.addMessage( ERROR_DB, "Could not delete a test user to the database: " + e.getMessage() );
-            return;
-        }
 
-        session.addMessage( INFO_DB, "The user database configuration looks fine." );
+            try {
+                session.addMessage( "Info." + property, "The system property '" + property + "' is set to: "
+                        + propertyValue + "." );
+
+                if( !propertyValue.startsWith( "file:" ) ) {
+                    propertyValue = "file:" + propertyValue;
+                }
+                final URL url = URI.create( propertyValue ).toURL();
+                final File file = new File( url.getPath() );
+                if( file.exists() ) {
+                    session.addMessage( "Info." + property, "File '" + propertyValue + "' exists in the filesystem." );
+                    return file;
+                }
+            } catch( final MalformedURLException e ) {
+                // Swallow exception because we can't find it anyway
+            }
+            session.addMessage( "Error." + property, "File '" + propertyValue
+                    + "' doesn't seem to exist. This might be a problem." );
+            return null;
+        } catch( final SecurityException e ) {
+            session.addMessage( "Error." + property, "We could not read system property '" + property
+                    + "'. This is probably because you are running with a security manager." );
+            return null;
+        }
     }
 }

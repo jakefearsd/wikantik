@@ -79,9 +79,12 @@ public final class AuthSubsystem {
      *       (e.g. test fixtures that wire a stub authorizer).</li>
      *   <li>{@code apiKeys} is {@code null} when no JDBC datasource is
      *       configured (the legacy {@code ApiKeyServiceHolder} contract).</li>
-     *   <li>{@code securityVerifier} is null until Checkpoint 3 wires a
-     *       per-engine constructor; callers that want it should continue
-     *       to instantiate {@link SecurityVerifier} themselves.</li>
+     *   <li>{@code securityVerifier} is always {@code null} — it is
+     *       session-scoped (a fresh {@link SecurityVerifier} per admin
+     *       request) and does not fit the engine-scoped typed-services
+     *       bundle. Callers must instantiate {@link SecurityVerifier}
+     *       directly as before. This field is retained so that Checkpoint 5
+     *       can remove it cleanly if it remains unused.</li>
      * </ul>
      */
     public record Services(

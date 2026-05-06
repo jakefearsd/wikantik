@@ -84,6 +84,13 @@ class KnowledgeSubsystemFactoryTest {
             dataSource, new DefaultWikiProperties( new Properties() ) ) );
     }
 
+    private com.wikantik.page.subsystem.PageSubsystem.Services page() {
+        return new com.wikantik.page.subsystem.PageSubsystem.Services(
+            pageManager, /*attachments=*/ null, /*renamer=*/ null,
+            pageSaveHelper, /*provider=*/ null,
+            /*repository=*/ null, /*lifecycle=*/ null, /*lockService=*/ null );
+    }
+
     @BeforeEach
     void setUp() throws Exception {
         dataSource = PostgresTestContainer.createDataSource();
@@ -106,8 +113,7 @@ class KnowledgeSubsystemFactoryTest {
         // to DEFAULT_ENDPOINT). The judge service + runner are wired here;
         // the runner is closed after the test to avoid a leaked scheduler.
         final KnowledgeSubsystem.Deps deps = new KnowledgeSubsystem.Deps(
-            dataSource, persistence(), core( new Properties() ),
-            pageManager, pageSaveHelper,
+            dataSource, persistence(), core( new Properties() ), page(),
             /*luceneMlt=*/ null );
 
         final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create( deps );
@@ -139,7 +145,7 @@ class KnowledgeSubsystemFactoryTest {
         props.setProperty( "wikantik.kg.judge.enabled", "false" );
 
         final KnowledgeSubsystem.Deps deps = new KnowledgeSubsystem.Deps(
-            dataSource, persistence(), core( props ), pageManager, pageSaveHelper,
+            dataSource, persistence(), core( props ), page(),
             /*luceneMlt=*/ null );
 
         final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create( deps );
@@ -157,7 +163,7 @@ class KnowledgeSubsystemFactoryTest {
     void create_kgServiceRoundTripsThroughTheSubsystem() {
         final KnowledgeSubsystem.Services services = KnowledgeSubsystemFactory.create(
             new KnowledgeSubsystem.Deps( dataSource, persistence(), core( new Properties() ),
-                pageManager, pageSaveHelper,
+                page(),
                 /*luceneMlt=*/ null ) );
 
         // Upsert a node via the public service interface...

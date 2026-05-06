@@ -86,8 +86,9 @@ public final class KnowledgeSubsystemFactory {
         final var core        = deps.core();
         final var props       = core.properties().asProperties();
         final var spr         = core.systemPageRegistry();
-        final var pageMgr     = deps.pageManager();
-        final var saveHelper  = deps.pageSaveHelper();
+        final var page        = deps.page();
+        final var pageMgr     = page.pages();
+        final var saveHelper  = page.pageSaveHelper();
         final var luceneMlt   = deps.luceneMlt();
         final var meterReg    = core.meterRegistry();
 

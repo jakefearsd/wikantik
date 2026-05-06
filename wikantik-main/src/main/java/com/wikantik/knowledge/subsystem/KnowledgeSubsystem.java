@@ -20,9 +20,8 @@ package com.wikantik.knowledge.subsystem;
 
 import com.wikantik.api.knowledge.KgProposalJudgeService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
-import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.core.subsystem.CoreSubsystem;
+import com.wikantik.page.subsystem.PageSubsystem;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 import com.wikantik.knowledge.FrontmatterDefaultsFilter;
 import com.wikantik.knowledge.HubDiscoveryRepository;
@@ -90,8 +89,7 @@ public final class KnowledgeSubsystem {
         DataSource dataSource,
         PersistenceSubsystem.Services persistence,
         CoreSubsystem.Services core,
-        PageManager pageManager,
-        PageSaveHelper pageSaveHelper,
+        PageSubsystem.Services page,
         HubOverviewService.LuceneMlt luceneMlt
     ) {}
 

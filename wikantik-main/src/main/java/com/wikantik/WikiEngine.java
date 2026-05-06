@@ -414,25 +414,28 @@ public class WikiEngine implements Engine {
                     getManager( RecentArticlesManager.class ),
                     getManager( BlogManager.class ) ) );
 
-            // Phase 9: Knowledge graph (optional — requires datasource configuration)
-            initKnowledgeGraph( props );
-
             // Phase 4 of the wikantik-main subsystem decomposition: build
-            // the Auth subsystem after the four auth managers + Persistence
-            // are ready. AuthSubsystem.Deps tolerates a null persistence
-            // (engines without a datasource still need typed auth access).
+            // the Auth subsystem after the four auth managers are
+            // registered. Persistence is null at this point — it gets
+            // built inside initKnowledgeGraph below — and the auth
+            // factory tolerates that.
             this.authSubsystem = com.wikantik.auth.subsystem.AuthSubsystemFactory.create(
                 new com.wikantik.auth.subsystem.AuthSubsystem.Deps(
                     coreSubsystem, persistenceSubsystem, servletContext, this ) );
 
             // Phase 5 of the wikantik-main subsystem decomposition: build
-            // the Page subsystem after Auth. Locates PageManager /
-            // AttachmentManager / PageRenamer on the engine's legacy
-            // registry; Ckpt 2 lifts the page-provider chain construction
-            // into the factory and Ckpt 3 lifts manager construction.
+            // the Page subsystem BEFORE initKnowledgeGraph so the KG
+            // factory can declare a typed PageSubsystem.Services
+            // dependency. Page doesn't currently consume persistence; the
+            // null-persistence Deps is fine.
             this.pageSubsystem = com.wikantik.page.subsystem.PageSubsystemFactory.create(
                 new com.wikantik.page.subsystem.PageSubsystem.Deps(
                     coreSubsystem, persistenceSubsystem, authSubsystem, this ) );
+
+            // Phase 9: Knowledge graph (optional — requires datasource
+            // configuration). Builds persistenceSubsystem internally and
+            // consumes pageSubsystem via KnowledgeSubsystem.Deps.
+            initKnowledgeGraph( props );
         } catch( final RuntimeException e ) {
             // RuntimeExceptions may occur here, even if they shouldn't.
             LOG.fatal( "Failed to start managers.", e );
@@ -722,8 +725,7 @@ public class WikiEngine implements Engine {
                     ds,
                     persistenceSubsystem,
                     coreSubsystem,
-                    getManager( PageManager.class ),
-                    new PageSaveHelper( this ),
+                    pageSubsystem,
                     luceneMlt );
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services svcs =
                 com.wikantik.knowledge.subsystem.KnowledgeSubsystemFactory.create( kgDeps );

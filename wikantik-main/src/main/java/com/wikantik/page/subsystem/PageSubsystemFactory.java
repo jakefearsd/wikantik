@@ -23,6 +23,7 @@ import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.providers.PageProvider;
@@ -119,6 +120,9 @@ public final class PageSubsystemFactory {
         final PageRenamer       renamer     = engine.getManager( PageRenamer.class );
         final PageSaveHelper    saveHelper  = new PageSaveHelper( engine );
         final PageProvider      provider    = pages != null ? pages.getProvider() : null;
+        // ReferenceManager is initialized asynchronously after the page-manager scan
+        // completes; it may be null at this point and will be populated later.
+        final ReferenceManager  refMgr      = engine.getManager( ReferenceManager.class );
 
         PageRepository  pageRepository  = null;
         PageLifecycle   pageLifecycle   = null;
@@ -130,6 +134,6 @@ public final class PageSubsystemFactory {
         }
 
         return new PageSubsystem.Services( pages, attachments, renamer, saveHelper, provider,
-                                           pageRepository, pageLifecycle, pageLockService );
+                                           pageRepository, pageLifecycle, pageLockService, refMgr );
     }
 }

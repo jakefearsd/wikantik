@@ -212,6 +212,13 @@ public final class KnowledgeSubsystemFactory {
             : new ChunkProjector( chunker, contentChunkRepo,
                 () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ) );
 
+        // Phase 8 Ckpt 1.5: the six post-construction services (ContextRetrievalService,
+        // ForAgentProjectionService, BootstrapEntityExtractionIndexer, KgInclusionPolicy,
+        // ReconciliationJobRunner, RetrievalQualityRunner) are wired into the engine's
+        // manager registry AFTER this factory returns — either by WikiEngine.initKnowledgeGraph
+        // continuations or by a servlet listener (ContextRetrievalServiceInitializer).
+        // They start null here; WikiEngine rebuilds the Services record with the live
+        // instances before stashing WikiSubsystems on the ServletContext.
         return new KnowledgeSubsystem.Services(
             kgService,
             kgJudge,
@@ -228,7 +235,13 @@ public final class KnowledgeSubsystemFactory {
             mentionIndex,
             similarity,
             fmDefaults,
-            hubSync
+            hubSync,
+            /*contextRetrievalService=*/     null,
+            /*forAgentProjectionService=*/   null,
+            /*bootstrapEntityExtractionIndexer=*/ null,
+            /*kgInclusionPolicy=*/           null,
+            /*reconciliationJobRunner=*/     null,
+            /*retrievalQualityRunner=*/      null
         );
     }
 }

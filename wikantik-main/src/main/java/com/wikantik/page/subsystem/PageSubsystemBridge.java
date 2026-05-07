@@ -21,6 +21,7 @@ package com.wikantik.page.subsystem;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.content.PageRenamer;
@@ -58,6 +59,7 @@ public final class PageSubsystemBridge {
         final PageRenamer       renamer     = engine.getManager( PageRenamer.class );
         final PageSaveHelper    saveHelper  = new PageSaveHelper( engine );
         final PageProvider      provider    = pages != null ? pages.getProvider() : null;
+        final ReferenceManager  refMgr      = engine.getManager( ReferenceManager.class );
 
         PageRepository  pageRepository  = null;
         PageLifecycle   pageLifecycle   = null;
@@ -69,6 +71,6 @@ public final class PageSubsystemBridge {
         }
 
         return new PageSubsystem.Services( pages, attachments, renamer, saveHelper, provider,
-                                           pageRepository, pageLifecycle, pageLockService );
+                                           pageRepository, pageLifecycle, pageLockService, refMgr );
     }
 }

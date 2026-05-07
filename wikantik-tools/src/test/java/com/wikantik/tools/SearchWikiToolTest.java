@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +44,12 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+// KnowledgeSubsystemBridge.fromLegacyEngine() calls engine.getManager() for every
+// service in the Knowledge subsystem. Test stubs only ContextRetrievalService; the
+// other calls return null by default (unregistered). LENIENT avoids strict-stubbing
+// false-positives on the bridge's internal lookups.
 @ExtendWith( MockitoExtension.class )
+@MockitoSettings( strictness = Strictness.LENIENT )
 class SearchWikiToolTest {
 
     @Mock Engine engine;

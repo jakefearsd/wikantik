@@ -21,6 +21,7 @@ package com.wikantik.tools;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
+import com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge;
 import com.wikantik.api.knowledge.RetrievalResult;
 import com.wikantik.api.knowledge.RelatedPage;
 import com.wikantik.api.knowledge.RetrievedChunk;
@@ -64,7 +65,8 @@ class SearchWikiTool {
      */
     Map< String, Object > execute( final String query, final int maxResults, final HttpServletRequest request ) {
         final int clamped = clampLimit( maxResults );
-        final ContextRetrievalService ctxService = engine.getManager( ContextRetrievalService.class );
+        final ContextRetrievalService ctxService =
+                KnowledgeSubsystemBridge.fromLegacyEngine( engine ).contextRetrievalService();
         if ( ctxService == null ) {
             final Map< String, Object > error = ResultShaper.orderedMap();
             error.put( "query", query );

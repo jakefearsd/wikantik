@@ -88,7 +88,8 @@ class KnowledgeSubsystemFactoryTest {
         return new com.wikantik.page.subsystem.PageSubsystem.Services(
             pageManager, /*attachments=*/ null, /*renamer=*/ null,
             pageSaveHelper, /*provider=*/ null,
-            /*repository=*/ null, /*lifecycle=*/ null, /*lockService=*/ null );
+            /*repository=*/ null, /*lifecycle=*/ null, /*lockService=*/ null,
+            /*referenceManager=*/ null );
     }
 
     @BeforeEach
@@ -134,6 +135,14 @@ class KnowledgeSubsystemFactoryTest {
             assertNotNull( services.nodeMentionSimilarity(),          "nodeMentionSimilarity" );
             assertNotNull( services.frontmatterDefaultsFilter(),      "frontmatterDefaultsFilter" );
             assertNotNull( services.hubSyncFilter(),                  "hubSyncFilter" );
+            // Phase 8 Ckpt 1.5 post-construction fields — null from factory
+            // (WikiEngine wires them after create() returns; bridge reads from getManager).
+            assertNull( services.contextRetrievalService(),           "contextRetrievalService (post-construction)" );
+            assertNull( services.forAgentProjectionService(),         "forAgentProjectionService (post-construction)" );
+            assertNull( services.bootstrapEntityExtractionIndexer(),  "bootstrapEntityExtractionIndexer (post-construction)" );
+            assertNull( services.kgInclusionPolicy(),                 "kgInclusionPolicy (post-construction)" );
+            assertNull( services.reconciliationJobRunner(),           "reconciliationJobRunner (post-construction)" );
+            assertNull( services.retrievalQualityRunner(),            "retrievalQualityRunner (post-construction)" );
         } finally {
             services.judgeRunner().close();
         }

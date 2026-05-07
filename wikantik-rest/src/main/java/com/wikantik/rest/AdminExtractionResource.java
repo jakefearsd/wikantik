@@ -60,8 +60,8 @@ public class AdminExtractionResource extends RestServletBase {
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-        final BootstrapEntityExtractionIndexer indexer = getEngine()
-                .getManager( BootstrapEntityExtractionIndexer.class );
+        final BootstrapEntityExtractionIndexer indexer =
+                getSubsystems().knowledge().bootstrapEntityExtractionIndexer();
         if ( indexer == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "Entity extraction batch is not configured (wikantik.knowledge.extractor.backend=disabled?)" );
@@ -73,8 +73,8 @@ public class AdminExtractionResource extends RestServletBase {
     @Override
     protected void doDelete( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-        final BootstrapEntityExtractionIndexer indexer = getEngine()
-                .getManager( BootstrapEntityExtractionIndexer.class );
+        final BootstrapEntityExtractionIndexer indexer =
+                getSubsystems().knowledge().bootstrapEntityExtractionIndexer();
         if ( indexer == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "Entity extraction batch is not configured" );
@@ -93,8 +93,8 @@ public class AdminExtractionResource extends RestServletBase {
     @Override
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-        final BootstrapEntityExtractionIndexer indexer = getEngine()
-                .getManager( BootstrapEntityExtractionIndexer.class );
+        final BootstrapEntityExtractionIndexer indexer =
+                getSubsystems().knowledge().bootstrapEntityExtractionIndexer();
         if ( indexer == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "Entity extraction batch is not configured (wikantik.knowledge.extractor.backend=disabled?)" );

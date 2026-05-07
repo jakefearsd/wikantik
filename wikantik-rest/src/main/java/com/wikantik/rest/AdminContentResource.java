@@ -140,10 +140,9 @@ public class AdminContentResource extends RestServletBase {
     // ---- GET handlers ----
 
     private void handleStats( final HttpServletResponse response ) throws IOException {
-        final Engine engine = getEngine();
         final PageManager pm = getSubsystems().page().pages();
-        final ReferenceManager rm = engine.getManager( ReferenceManager.class );
-        final CachingManager cm = engine.getManager( CachingManager.class );
+        final ReferenceManager rm = getSubsystems().page().referenceManager();
+        final CachingManager cm = getEngine().getManager( CachingManager.class );
 
         final Map< String, Object > stats = new LinkedHashMap<>();
         stats.put( "pageCount", pm.getTotalPageCount() );
@@ -180,7 +179,7 @@ public class AdminContentResource extends RestServletBase {
     }
 
     private void handleOrphanedPages( final HttpServletResponse response ) throws IOException {
-        final ReferenceManager rm = getEngine().getManager( ReferenceManager.class );
+        final ReferenceManager rm = getSubsystems().page().referenceManager();
         if ( rm == null ) {
             sendJson( response, Map.of( "pages", List.of() ) );
             return;
@@ -193,7 +192,7 @@ public class AdminContentResource extends RestServletBase {
     }
 
     private void handleBrokenLinks( final HttpServletResponse response ) throws IOException {
-        final ReferenceManager rm = getEngine().getManager( ReferenceManager.class );
+        final ReferenceManager rm = getSubsystems().page().referenceManager();
         if ( rm == null ) {
             sendJson( response, Map.of( "links", List.of() ) );
             return;

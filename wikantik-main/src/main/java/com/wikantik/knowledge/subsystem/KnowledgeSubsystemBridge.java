@@ -18,7 +18,11 @@
  */
 package com.wikantik.knowledge.subsystem;
 
+import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.eval.RetrievalQualityRunner;
+import com.wikantik.api.kgpolicy.KgInclusionPolicy;
+import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.knowledge.FrontmatterDefaultsFilter;
@@ -32,9 +36,11 @@ import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.chunking.ChunkProjector;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
+import com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer;
 import com.wikantik.knowledge.judge.JudgeRunner;
 import com.wikantik.knowledge.judge.KgJudgeTimeoutRepository;
 import com.wikantik.knowledge.judge.KgMaterializationService;
+import com.wikantik.kgpolicy.ReconciliationJobRunner;
 
 /**
  * Adapter that synthesises a sparse {@link KnowledgeSubsystem.Services}
@@ -91,7 +97,13 @@ public final class KnowledgeSubsystemBridge {
             engine.getManager( MentionIndex.class ),
             engine.getManager( NodeMentionSimilarity.class ),
             engine.getManager( FrontmatterDefaultsFilter.class ),
-            engine.getManager( HubSyncFilter.class )
+            engine.getManager( HubSyncFilter.class ),
+            engine.getManager( ContextRetrievalService.class ),
+            engine.getManager( ForAgentProjectionService.class ),
+            engine.getManager( BootstrapEntityExtractionIndexer.class ),
+            engine.getManager( KgInclusionPolicy.class ),
+            engine.getManager( ReconciliationJobRunner.class ),
+            engine.getManager( RetrievalQualityRunner.class )
         );
     }
 }

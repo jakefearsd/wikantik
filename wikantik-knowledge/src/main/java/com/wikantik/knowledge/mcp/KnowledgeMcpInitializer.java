@@ -89,9 +89,9 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services kg =
             com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine );
         final KnowledgeGraphService kgService = kg.kgService();
-        final ContextRetrievalService ctxService = engine.getManager( ContextRetrievalService.class );
+        final ContextRetrievalService ctxService = kg.contextRetrievalService();
         final StructuralIndexService structuralIndex = engine.getManager( StructuralIndexService.class );
-        final ForAgentProjectionService forAgent = engine.getManager( ForAgentProjectionService.class );
+        final ForAgentProjectionService forAgent = kg.forAgentProjectionService();
 
         if ( kgService == null && ctxService == null && structuralIndex == null ) {
             LOG.info( "Neither KnowledgeGraphService, ContextRetrievalService, nor " +

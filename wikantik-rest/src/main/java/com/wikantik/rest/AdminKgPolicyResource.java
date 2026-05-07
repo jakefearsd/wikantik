@@ -61,7 +61,10 @@ public class AdminKgPolicyResource extends RestServletBase {
 
     private Engine engineOverride;
 
-    void setEngineForTesting( final Engine engine ) { this.engineOverride = engine; }
+    // setEngineForTesting calls setEngine() so that getSubsystems() (which calls
+    // getEngine() on RestServletBase) sees the test engine. engineOverride is kept
+    // for the residual engine().getManager(StructuralIndexService.class) calls.
+    void setEngineForTesting( final Engine engine ) { setEngine( engine ); this.engineOverride = engine; }
 
     private Engine engine() { return engineOverride != null ? engineOverride : getEngine(); }
 
@@ -96,7 +99,7 @@ public class AdminKgPolicyResource extends RestServletBase {
     }
 
     private void doListClusters( final HttpServletResponse resp ) throws IOException {
-        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        final KgInclusionPolicy policy = getSubsystems().knowledge().kgInclusionPolicy();
         final StructuralIndexService struct = engine().getManager( StructuralIndexService.class );
         if ( policy == null || struct == null ) {
             unavailable( resp );
@@ -128,7 +131,7 @@ public class AdminKgPolicyResource extends RestServletBase {
     }
 
     private void doClusterDetail( final String cluster, final HttpServletResponse resp ) throws IOException {
-        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        final KgInclusionPolicy policy = getSubsystems().knowledge().kgInclusionPolicy();
         if ( policy == null ) {
             unavailable( resp );
             return;
@@ -158,7 +161,7 @@ public class AdminKgPolicyResource extends RestServletBase {
     }
 
     private void doExplain( final String idOrName, final HttpServletResponse resp ) throws IOException {
-        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        final KgInclusionPolicy policy = getSubsystems().knowledge().kgInclusionPolicy();
         if ( policy == null ) {
             unavailable( resp );
             return;
@@ -176,7 +179,7 @@ public class AdminKgPolicyResource extends RestServletBase {
     }
 
     private void doPending( final HttpServletResponse resp ) throws IOException {
-        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        final KgInclusionPolicy policy = getSubsystems().knowledge().kgInclusionPolicy();
         final StructuralIndexService struct = engine().getManager( StructuralIndexService.class );
         if ( policy == null || struct == null ) {
             unavailable( resp );
@@ -219,7 +222,7 @@ public class AdminKgPolicyResource extends RestServletBase {
     }
 
     private void doAudit( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
-        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        final KgInclusionPolicy policy = getSubsystems().knowledge().kgInclusionPolicy();
         if ( policy == null ) {
             unavailable( resp );
             return;
@@ -237,7 +240,7 @@ public class AdminKgPolicyResource extends RestServletBase {
     }
 
     private void doReconciliation( final HttpServletResponse resp ) throws IOException {
-        final ReconciliationJobRunner runner = engine().getManager( ReconciliationJobRunner.class );
+        final ReconciliationJobRunner runner = getSubsystems().knowledge().reconciliationJobRunner();
         if ( runner == null ) {
             unavailable( resp );
             return;
@@ -351,7 +354,7 @@ public class AdminKgPolicyResource extends RestServletBase {
 
     private void doSetCluster( final String cluster, final HttpServletRequest req, final HttpServletResponse resp )
             throws IOException {
-        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        final KgInclusionPolicy policy = getSubsystems().knowledge().kgInclusionPolicy();
         if ( policy == null ) { unavailable( resp ); return; }
 
         final JsonObject body = parseBody( req, resp );
@@ -378,7 +381,7 @@ public class AdminKgPolicyResource extends RestServletBase {
 
     private void doClearCluster( final String cluster, final HttpServletRequest req, final HttpServletResponse resp )
             throws IOException {
-        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        final KgInclusionPolicy policy = getSubsystems().knowledge().kgInclusionPolicy();
         if ( policy == null ) { unavailable( resp ); return; }
         final String actor = actorOf( req );
         policy.clearClusterPolicy( cluster, actor );
@@ -391,7 +394,7 @@ public class AdminKgPolicyResource extends RestServletBase {
 
     private void doMarkReviewed( final String cluster, final HttpServletRequest req, final HttpServletResponse resp )
             throws IOException {
-        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        final KgInclusionPolicy policy = getSubsystems().knowledge().kgInclusionPolicy();
         if ( policy == null ) { unavailable( resp ); return; }
         final String actor = actorOf( req );
         policy.markReviewed( cluster, actor );
@@ -403,7 +406,7 @@ public class AdminKgPolicyResource extends RestServletBase {
     }
 
     private void doBootstrap( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
-        final KgInclusionPolicy policy = engine().getManager( KgInclusionPolicy.class );
+        final KgInclusionPolicy policy = getSubsystems().knowledge().kgInclusionPolicy();
         if ( policy == null ) { unavailable( resp ); return; }
         final JsonObject body = parseBody( req, resp );
         if ( body == null ) return;

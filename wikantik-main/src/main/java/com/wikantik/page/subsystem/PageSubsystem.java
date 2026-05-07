@@ -21,6 +21,7 @@ package com.wikantik.page.subsystem;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.auth.subsystem.AuthSubsystem;
@@ -73,10 +74,15 @@ public final class PageSubsystem {
     /**
      * What the Page subsystem exposes to downstream consumers.
      *
-     * <p>Every field is non-null after a successful
-     * {@link PageSubsystemFactory#create} call. Phase 5 Ckpt 3 will
-     * extend this record with the decomposed {@code PageRepository},
-     * {@code PageLifecycle}, and {@code PageLockService} helpers.</p>
+     * <p>All fields except {@code referenceManager} are non-null after a
+     * successful {@link PageSubsystemFactory#create} call. {@code referenceManager}
+     * is null until {@code WikiEngine.initReferenceManager()} completes; it
+     * is initialized asynchronously after the rest of the page subsystem so
+     * that the large page-scan it performs does not block engine startup.</p>
+     *
+     * <p>Phase 5 Ckpt 3 will extend this record with the decomposed
+     * {@code PageRepository}, {@code PageLifecycle}, and {@code PageLockService}
+     * helpers.</p>
      */
     public record Services(
         PageManager       pages,
@@ -86,6 +92,7 @@ public final class PageSubsystem {
         PageProvider      pageProvider,
         PageRepository    pageRepository,
         PageLifecycle     pageLifecycle,
-        PageLockService   pageLockService
+        PageLockService   pageLockService,
+        ReferenceManager  referenceManager
     ) {}
 }

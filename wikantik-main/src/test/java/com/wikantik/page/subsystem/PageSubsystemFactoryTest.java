@@ -21,6 +21,7 @@ package com.wikantik.page.subsystem;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.content.PageRenamer;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,7 @@ final class PageSubsystemFactoryTest {
         final PageManager       pages       = mock( PageManager.class );
         final AttachmentManager attachments = mock( AttachmentManager.class );
         final PageRenamer       renamer     = mock( PageRenamer.class );
+        final ReferenceManager  refMgr      = mock( ReferenceManager.class );
 
         when( pages.getProvider() ).thenReturn( provider );
 
@@ -54,6 +56,7 @@ final class PageSubsystemFactoryTest {
         when( engine.getManager( PageManager.class ) ).thenReturn( pages );
         when( engine.getManager( AttachmentManager.class ) ).thenReturn( attachments );
         when( engine.getManager( PageRenamer.class ) ).thenReturn( renamer );
+        when( engine.getManager( ReferenceManager.class ) ).thenReturn( refMgr );
 
         final PageSubsystem.Services services = PageSubsystemFactory.create(
             new PageSubsystem.Deps(
@@ -67,6 +70,7 @@ final class PageSubsystemFactoryTest {
         assertSame( renamer, services.pageRenamer() );
         assertSame( provider, services.pageProvider() );
         assertNotNull( services.pageSaveHelper(), "pageSaveHelper" );
+        assertSame( refMgr, services.referenceManager() );
         // pageRepository/pageLifecycle/pageLockService are null when pages is a mock
         // (not a DefaultPageManager) — that is expected and acceptable in this test
 

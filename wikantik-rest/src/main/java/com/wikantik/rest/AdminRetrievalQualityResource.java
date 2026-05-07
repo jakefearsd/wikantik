@@ -54,13 +54,14 @@ public class AdminRetrievalQualityResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( AdminRetrievalQualityResource.class );
 
-    private Engine engineOverride;
-    void setEngineForTesting( final Engine engine ) { this.engineOverride = engine; }
-    private Engine engine() { return engineOverride != null ? engineOverride : getEngine(); }
+    // setEngineForTesting also calls setEngine() so that getSubsystems() (which calls
+    // getEngine() on RestServletBase) sees the test engine and can build the synthetic
+    // WikiSubsystems bundle via KnowledgeSubsystemBridge.fromLegacyEngine().
+    void setEngineForTesting( final Engine engine ) { setEngine( engine ); }
 
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
-        final RetrievalQualityRunner runner = engine().getManager( RetrievalQualityRunner.class );
+        final RetrievalQualityRunner runner = getSubsystems().knowledge().retrievalQualityRunner();
         if ( runner == null ) {
             sendUnavailable( resp );
             return;
@@ -105,7 +106,7 @@ public class AdminRetrievalQualityResource extends RestServletBase {
             sendError( resp, HttpServletResponse.SC_NOT_FOUND, "Not found: " + path );
             return;
         }
-        final RetrievalQualityRunner runner = engine().getManager( RetrievalQualityRunner.class );
+        final RetrievalQualityRunner runner = getSubsystems().knowledge().retrievalQualityRunner();
         if ( runner == null ) {
             sendUnavailable( resp );
             return;

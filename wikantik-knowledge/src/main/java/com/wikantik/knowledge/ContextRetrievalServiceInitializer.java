@@ -54,6 +54,10 @@ public class ContextRetrievalServiceInitializer implements ServletContextListene
         }
         if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
             wikiEngine.setManager( ContextRetrievalService.class, svc );
+            // Phase 8 Ckpt 1.5: also patch the WikiSubsystems stash so that servlet
+            // callers using getSubsystems().knowledge().contextRetrievalService() see
+            // the live service rather than the null placeholder frozen at engine boot.
+            wikiEngine.patchContextRetrievalService( svc );
             LOG.info( "ContextRetrievalService registered" );
         } else {
             LOG.warn( "Engine is not a WikiEngine; cannot setManager. ContextRetrievalService unregistered." );

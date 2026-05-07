@@ -18,7 +18,7 @@
  */
 package com.wikantik.rest;
 
-import com.wikantik.api.core.Engine;
+
 import com.wikantik.api.managers.ReferenceManager;
 
 import jakarta.servlet.ServletException;
@@ -59,8 +59,7 @@ public class OutboundLinksResource extends RestServletBase {
 
         LOG.debug( "GET outbound links: {}", pageName );
 
-        final Engine engine = getEngine();
-        final ReferenceManager refManager = engine.getManager( ReferenceManager.class );
+        final ReferenceManager refManager = getSubsystems().page().referenceManager();
 
         final Collection< String > refersTo = refManager.findRefersTo( pageName );
 

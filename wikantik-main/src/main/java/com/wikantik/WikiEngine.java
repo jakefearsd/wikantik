@@ -510,6 +510,17 @@ public class WikiEngine implements Engine {
         // engines built via TestEngine.setManager). In those cases
         // RestServletBase falls back to a synthetic bundle reading the
         // legacy manager registry.
+        // Phase 8 Ckpt 1.5: rebuild the KnowledgeSubsystem.Services record with the five
+        // post-construction services that were wired into the manager registry by
+        // initKnowledgeGraph (ForAgentProjectionService, BootstrapEntityExtractionIndexer,
+        // KgInclusionPolicy, ReconciliationJobRunner, RetrievalQualityRunner) after
+        // KnowledgeSubsystemFactory.create() returned. ContextRetrievalService is wired
+        // even later by ContextRetrievalServiceInitializer (a servlet listener) and stays
+        // null here; the bridge picks it up from getManager() in the test-path fallback.
+        if ( knowledgeSubsystem != null ) {
+            knowledgeSubsystem = rebuildKnowledgeSubsystemWithPostConstructionServices( knowledgeSubsystem );
+        }
+
         if ( servletContext != null && coreSubsystem != null && knowledgeSubsystem != null ) {
             final WikiSubsystems subsystems = new WikiSubsystems(
                 coreSubsystem, persistenceSubsystem, authSubsystem, pageSubsystem,
@@ -1502,6 +1513,48 @@ public class WikiEngine implements Engine {
     }
 
     /**
+     * Rebuilds the {@link com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services}
+     * record by copying the original 16 core fields and filling in the six
+     * post-construction services that were registered into the manager map
+     * after {@code KnowledgeSubsystemFactory.create()} returned.
+     *
+     * <p>Phase 8 Ckpt 1.5 of the wikantik-main decomposition. Called once
+     * from {@code initialize()} just before the {@code WikiSubsystems} bundle
+     * is stashed on the {@code ServletContext}. {@code ContextRetrievalService}
+     * is intentionally left null here — it is wired by
+     * {@code ContextRetrievalServiceInitializer} (a {@code ServletContextListener})
+     * after the engine starts and cannot be present at this point.</p>
+     */
+    private com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services
+    rebuildKnowledgeSubsystemWithPostConstructionServices(
+            final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services base ) {
+        return new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services(
+            base.kgService(),
+            base.judgeService(),
+            base.judgeRunner(),
+            base.kgMaterialization(),
+            base.judgeTimeoutRepository(),
+            base.hubProposalService(),
+            base.hubDiscoveryService(),
+            base.hubOverviewService(),
+            base.hubProposalRepository(),
+            base.hubDiscoveryRepository(),
+            base.contentChunkRepository(),
+            base.chunkProjector(),
+            base.mentionIndex(),
+            base.nodeMentionSimilarity(),
+            base.frontmatterDefaultsFilter(),
+            base.hubSyncFilter(),
+            /* contextRetrievalService — set by servlet listener post-boot */      null,
+            getManager( com.wikantik.api.agent.ForAgentProjectionService.class ),
+            getManager( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class ),
+            getManager( com.wikantik.api.kgpolicy.KgInclusionPolicy.class ),
+            getManager( com.wikantik.kgpolicy.ReconciliationJobRunner.class ),
+            getManager( com.wikantik.api.eval.RetrievalQualityRunner.class )
+        );
+    }
+
+    /**
      * Returns the Knowledge subsystem's services bundle, or {@code null} if
      * the subsystem failed to initialize or the engine ran without a
      * knowledge graph datasource.
@@ -1512,6 +1565,62 @@ public class WikiEngine implements Engine {
      */
     public com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services getKnowledgeSubsystem() {
         return knowledgeSubsystem;
+    }
+
+    /**
+     * Patches the live {@link WikiSubsystems} stash and the local
+     * {@code knowledgeSubsystem} field with the supplied
+     * {@link com.wikantik.api.knowledge.ContextRetrievalService} instance.
+     *
+     * <p>{@code ContextRetrievalService} cannot be placed in the stash at
+     * engine-boot time because it is wired by
+     * {@code ContextRetrievalServiceInitializer} (a {@code ServletContextListener})
+     * that fires after {@code initialize()} returns. Call this method from that
+     * listener once the service is available so that servlet callers reading
+     * {@code getSubsystems().knowledge().contextRetrievalService()} get the
+     * live service rather than {@code null}.</p>
+     *
+     * <p>If the knowledge subsystem is not present (no datasource) this is a
+     * no-op.</p>
+     */
+    public synchronized void patchContextRetrievalService(
+            final com.wikantik.api.knowledge.ContextRetrievalService svc ) {
+        if ( knowledgeSubsystem == null || servletContext == null ) return;
+        knowledgeSubsystem = new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services(
+            knowledgeSubsystem.kgService(),
+            knowledgeSubsystem.judgeService(),
+            knowledgeSubsystem.judgeRunner(),
+            knowledgeSubsystem.kgMaterialization(),
+            knowledgeSubsystem.judgeTimeoutRepository(),
+            knowledgeSubsystem.hubProposalService(),
+            knowledgeSubsystem.hubDiscoveryService(),
+            knowledgeSubsystem.hubOverviewService(),
+            knowledgeSubsystem.hubProposalRepository(),
+            knowledgeSubsystem.hubDiscoveryRepository(),
+            knowledgeSubsystem.contentChunkRepository(),
+            knowledgeSubsystem.chunkProjector(),
+            knowledgeSubsystem.mentionIndex(),
+            knowledgeSubsystem.nodeMentionSimilarity(),
+            knowledgeSubsystem.frontmatterDefaultsFilter(),
+            knowledgeSubsystem.hubSyncFilter(),
+            svc,
+            knowledgeSubsystem.forAgentProjectionService(),
+            knowledgeSubsystem.bootstrapEntityExtractionIndexer(),
+            knowledgeSubsystem.kgInclusionPolicy(),
+            knowledgeSubsystem.reconciliationJobRunner(),
+            knowledgeSubsystem.retrievalQualityRunner()
+        );
+        // Rebuild the full WikiSubsystems stash so servlet callers see the updated record.
+        final WikiSubsystems current =
+            (WikiSubsystems) servletContext.getAttribute( WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE );
+        if ( current != null ) {
+            servletContext.setAttribute(
+                WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE,
+                new WikiSubsystems(
+                    current.core(), current.persistence(), current.auth(),
+                    current.page(), current.rendering(), current.search(),
+                    knowledgeSubsystem ) );
+        }
     }
 
     /**

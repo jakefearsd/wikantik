@@ -18,7 +18,6 @@
  */
 package com.wikantik.rest;
 
-import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.RetrievalResult;
@@ -88,11 +87,9 @@ public class SearchResource extends RestServletBase {
 
         LOG.debug( "GET search: q={}, limit={}", effectiveQuery, limit );
 
-        final Engine engine = getEngine();
-
         // Delegate retrieval to ContextRetrievalService. The service owns
         // BM25 → hybrid rerank → graph rerank → page shaping.
-        final ContextRetrievalService ctxService = engine.getManager( ContextRetrievalService.class );
+        final ContextRetrievalService ctxService = getSubsystems().knowledge().contextRetrievalService();
         if ( ctxService == null ) {
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                 "ContextRetrievalService not configured" );

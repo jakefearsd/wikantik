@@ -18,11 +18,13 @@
  */
 package com.wikantik.knowledge.subsystem;
 
+import com.wikantik.api.agent.ForAgentProjectionService;
+import com.wikantik.api.eval.RetrievalQualityRunner;
+import com.wikantik.api.kgpolicy.KgInclusionPolicy;
+import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.core.subsystem.CoreSubsystem;
-import com.wikantik.page.subsystem.PageSubsystem;
-import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 import com.wikantik.knowledge.FrontmatterDefaultsFilter;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
@@ -34,9 +36,13 @@ import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.chunking.ChunkProjector;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
+import com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer;
 import com.wikantik.knowledge.judge.JudgeRunner;
 import com.wikantik.knowledge.judge.KgJudgeTimeoutRepository;
 import com.wikantik.knowledge.judge.KgMaterializationService;
+import com.wikantik.kgpolicy.ReconciliationJobRunner;
+import com.wikantik.page.subsystem.PageSubsystem;
+import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 import javax.sql.DataSource;
 
 /**
@@ -111,6 +117,22 @@ public final class KnowledgeSubsystem {
      * Knowledge-driven (read/write KG state) and produced here for now;
      * Phase 6 will route them through Rendering's filter registration without
      * moving their construction.</p>
+     *
+     * <p>Phase 8 Checkpoint 1.5 additions (all nullable):</p>
+     * <ul>
+     *   <li>{@code contextRetrievalService} — null until the
+     *       {@code ContextRetrievalServiceInitializer} servlet listener fires after
+     *       engine startup (it wires this service post-construction).</li>
+     *   <li>{@code forAgentProjectionService} — null when the Knowledge Graph
+     *       datasource is unavailable.</li>
+     *   <li>{@code bootstrapEntityExtractionIndexer} — null when extraction is
+     *       disabled via {@code wikantik.knowledge.extractor.backend=disabled}.</li>
+     *   <li>{@code kgInclusionPolicy} — null when the KG datasource is absent.</li>
+     *   <li>{@code reconciliationJobRunner} — null when KG datasource is absent.</li>
+     *   <li>{@code retrievalQualityRunner} — null when wiring fails (e.g. no
+     *       search stack available); failures are logged at WARN and the admin
+     *       surface returns 503.</li>
+     * </ul>
      */
     public record Services(
         KnowledgeGraphService kgService,
@@ -128,6 +150,12 @@ public final class KnowledgeSubsystem {
         MentionIndex mentionIndex,
         NodeMentionSimilarity nodeMentionSimilarity,
         FrontmatterDefaultsFilter frontmatterDefaultsFilter,
-        HubSyncFilter hubSyncFilter
+        HubSyncFilter hubSyncFilter,
+        ContextRetrievalService contextRetrievalService,
+        ForAgentProjectionService forAgentProjectionService,
+        BootstrapEntityExtractionIndexer bootstrapEntityExtractionIndexer,
+        KgInclusionPolicy kgInclusionPolicy,
+        ReconciliationJobRunner reconciliationJobRunner,
+        RetrievalQualityRunner retrievalQualityRunner
     ) {}
 }

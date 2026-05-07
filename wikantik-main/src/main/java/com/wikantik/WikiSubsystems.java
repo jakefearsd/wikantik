@@ -24,6 +24,7 @@ import com.wikantik.knowledge.subsystem.KnowledgeSubsystem;
 import com.wikantik.page.subsystem.PageSubsystem;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 import com.wikantik.render.subsystem.RenderingSubsystem;
+import com.wikantik.search.subsystem.SearchSubsystem;
 import jakarta.servlet.ServletContext;
 
 /**
@@ -51,6 +52,7 @@ public record WikiSubsystems(
     AuthSubsystem.Services auth,
     PageSubsystem.Services page,
     RenderingSubsystem.Services rendering,
+    SearchSubsystem.Services search,
     KnowledgeSubsystem.Services knowledge
 ) {
 

@@ -173,6 +173,12 @@ public class WikiEngine implements Engine {
      *  DifferenceManager + (Ckpt 4) the four decomposed SpamFilter helpers. */
     private com.wikantik.render.subsystem.RenderingSubsystem.Services renderingSubsystem;
 
+    /** Search subsystem services produced by {@code SearchSubsystemFactory}.
+     *  Phase 7 of the wikantik-main decomposition (2026-05-07); typed
+     *  surface over SearchManager / SearchProvider / hybrid retrieval /
+     *  embedding pipeline + (Ckpt 4) the three decomposed Lucene helpers. */
+    private com.wikantik.search.subsystem.SearchSubsystem.Services searchSubsystem;
+
     /** Stores the template path.  This is relative to "templates". */
     private String           templateDir;
 
@@ -451,6 +457,18 @@ public class WikiEngine implements Engine {
             // configuration). Builds persistenceSubsystem internally and
             // consumes pageSubsystem via KnowledgeSubsystem.Deps.
             initKnowledgeGraph( props );
+
+            // Phase 7 of the wikantik-main subsystem decomposition: build
+            // the Search subsystem AFTER Knowledge. Search depends on
+            // Knowledge for the graph-rerank step; Knowledge today
+            // receives a LuceneMlt seam that is resolved earlier in
+            // initKnowledgeGraph by reading the live SearchManager. The
+            // ordering here keeps Search → Knowledge as the dependency
+            // direction; the LuceneMlt cycle stays nullable until a
+            // post-construction wiring lands in a later checkpoint.
+            this.searchSubsystem = com.wikantik.search.subsystem.SearchSubsystemFactory.create(
+                new com.wikantik.search.subsystem.SearchSubsystem.Deps(
+                    coreSubsystem, persistenceSubsystem, pageSubsystem, knowledgeSubsystem, this ) );
         } catch( final RuntimeException e ) {
             // RuntimeExceptions may occur here, even if they shouldn't.
             LOG.fatal( "Failed to start managers.", e );
@@ -485,7 +503,7 @@ public class WikiEngine implements Engine {
         if ( servletContext != null && coreSubsystem != null && knowledgeSubsystem != null ) {
             final WikiSubsystems subsystems = new WikiSubsystems(
                 coreSubsystem, persistenceSubsystem, authSubsystem, pageSubsystem,
-                renderingSubsystem, knowledgeSubsystem );
+                renderingSubsystem, searchSubsystem, knowledgeSubsystem );
             servletContext.setAttribute( WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE, subsystems );
         }
 
@@ -619,6 +637,9 @@ public class WikiEngine implements Engine {
         if ( clazz == RenderingManager.class || clazz == PluginManager.class
                 || clazz == FilterManager.class || clazz == DifferenceManager.class ) {
             this.renderingSubsystem = null;
+        }
+        if ( clazz == SearchManager.class || clazz == SearchProvider.class ) {
+            this.searchSubsystem = null;
         }
     }
 
@@ -1505,6 +1526,21 @@ public class WikiEngine implements Engine {
      */
     public com.wikantik.render.subsystem.RenderingSubsystem.Services getRenderingSubsystem() {
         return renderingSubsystem;
+    }
+
+    /**
+     * Returns the Search subsystem's services bundle, or {@code null}
+     * when the engine has not yet completed initialization.
+     *
+     * <p>Phase 7 of the wikantik-main subsystem decomposition. New code
+     * should obtain {@link com.wikantik.search.SearchManager},
+     * {@link com.wikantik.search.SearchProvider}, hybrid retrieval
+     * services, and the embedding pipeline through this accessor. Phase 7
+     * Ckpt 4 will additionally expose the three decomposed Lucene helpers
+     * on the same record.</p>
+     */
+    public com.wikantik.search.subsystem.SearchSubsystem.Services getSearchSubsystem() {
+        return searchSubsystem;
     }
 
     /** {@inheritDoc} */

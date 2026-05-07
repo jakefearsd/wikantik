@@ -20,8 +20,14 @@ package com.wikantik.search.subsystem;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.search.FrontmatterMetadataCache;
+import com.wikantik.search.LuceneSearchProvider;
 import com.wikantik.search.SearchManager;
 import com.wikantik.search.SearchProvider;
+import com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle;
+import com.wikantik.search.subsystem.lucene.LuceneIndexer;
+import com.wikantik.search.subsystem.lucene.LuceneSearcher;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import com.wikantik.search.embedding.AsyncEmbeddingIndexListener;
 import com.wikantik.search.embedding.BootstrapEmbeddingIndexer;
 import com.wikantik.search.embedding.EmbeddingIndexService;
@@ -59,6 +65,8 @@ import java.util.Objects;
  * provider via accessors.</p>
  */
 public final class SearchSubsystemFactory {
+
+    private static final Logger LOG = LogManager.getLogger( SearchSubsystemFactory.class );
 
     private SearchSubsystemFactory() {}
 
@@ -99,15 +107,37 @@ public final class SearchSubsystemFactory {
         final FrontmatterMetadataCache frontmatterMetadataCache =
             engine.getManager( FrontmatterMetadataCache.class );
 
-        // TODO Phase 7 Ckpt 3: populate luceneIndexer / luceneSearcher /
-        // luceneIndexLifecycle off the decomposed LuceneSearchProvider via
-        // its new accessors.
+        // Phase 7 Ckpt 4: pull the three Lucene helpers off the decomposed
+        // LuceneSearchProvider facade (Ckpt 3) when the configured provider
+        // is in fact Lucene. A non-Lucene SearchProvider (e.g. a future
+        // alternative impl, or a test mock) leaves the slots null — same
+        // shape as a missing legacy manager — and we LOG.warn so the gap
+        // is visible to operators reading the startup log.
+        LuceneIndexer        luceneIndexer        = null;
+        LuceneSearcher       luceneSearcher       = null;
+        LuceneIndexLifecycle luceneIndexLifecycle = null;
+        if ( searchProvider instanceof LuceneSearchProvider lsp ) {
+            luceneIndexer        = lsp.getIndexer();
+            luceneSearcher       = lsp.getSearcher();
+            luceneIndexLifecycle = lsp.getIndexLifecycle();
+            if ( luceneIndexer == null || luceneSearcher == null || luceneIndexLifecycle == null ) {
+                LOG.warn( "LuceneSearchProvider returned null helper accessors "
+                    + "(indexer={}, searcher={}, lifecycle={}); SearchSubsystem.Services "
+                    + "Lucene slots will be partial.",
+                    luceneIndexer, luceneSearcher, luceneIndexLifecycle );
+            }
+        } else if ( searchProvider != null ) {
+            LOG.warn( "SearchProvider is not a LuceneSearchProvider (actual={}); "
+                + "leaving SearchSubsystem.Services Lucene helper slots null.",
+                searchProvider.getClass().getName() );
+        }
+
         return new SearchSubsystem.Services(
             searchManager,
             searchProvider,
-            /*luceneIndexer=*/        null,
-            /*luceneSearcher=*/       null,
-            /*luceneIndexLifecycle=*/ null,
+            luceneIndexer,
+            luceneSearcher,
+            luceneIndexLifecycle,
             hybridSearch,
             queryEmbedder,
             queryEntityResolver,

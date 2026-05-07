@@ -20,8 +20,12 @@ package com.wikantik.search.subsystem;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.search.FrontmatterMetadataCache;
+import com.wikantik.search.LuceneSearchProvider;
 import com.wikantik.search.SearchManager;
 import com.wikantik.search.SearchProvider;
+import com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle;
+import com.wikantik.search.subsystem.lucene.LuceneIndexer;
+import com.wikantik.search.subsystem.lucene.LuceneSearcher;
 import com.wikantik.search.embedding.AsyncEmbeddingIndexListener;
 import com.wikantik.search.embedding.BootstrapEmbeddingIndexer;
 import com.wikantik.search.embedding.EmbeddingIndexService;
@@ -156,6 +160,66 @@ final class SearchSubsystemFactoryTest {
         assertNull( services.queryEmbedder() );
         assertNull( services.embeddingIndexService() );
         assertNull( services.frontmatterMetadataCache() );
+    }
+
+    @Test
+    void createPopulatesLuceneHelpersWhenProviderIsLucene() {
+        // Phase 7 Ckpt 4: when the configured SearchProvider is a
+        // LuceneSearchProvider, the factory pulls the three decomposed
+        // helpers off the facade accessors and installs them on Services.
+        final LuceneIndexer        indexer   = mock( LuceneIndexer.class );
+        final LuceneSearcher       searcher  = mock( LuceneSearcher.class );
+        final LuceneIndexLifecycle lifecycle = mock( LuceneIndexLifecycle.class );
+
+        final LuceneSearchProvider provider = mock( LuceneSearchProvider.class );
+        when( provider.getIndexer() ).thenReturn( indexer );
+        when( provider.getSearcher() ).thenReturn( searcher );
+        when( provider.getIndexLifecycle() ).thenReturn( lifecycle );
+
+        final SearchManager manager = mock( SearchManager.class );
+        when( manager.getSearchEngine() ).thenReturn( provider );
+
+        final Engine engine = mock( Engine.class );
+        when( engine.getManager( SearchManager.class ) ).thenReturn( manager );
+
+        final SearchSubsystem.Services services = SearchSubsystemFactory.create(
+            new SearchSubsystem.Deps(
+                /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
+                /*persistence=*/ null,
+                /*page=*/ null,
+                /*knowledge=*/ null,
+                engine ) );
+
+        assertSame( provider,  services.searchProvider() );
+        assertSame( indexer,   services.luceneIndexer() );
+        assertSame( searcher,  services.luceneSearcher() );
+        assertSame( lifecycle, services.luceneIndexLifecycle() );
+    }
+
+    @Test
+    void createLeavesLuceneHelpersNullWhenProviderIsNotLucene() {
+        // A non-Lucene SearchProvider (e.g. a future alternative impl, or
+        // a vanilla mock as in createWiresManagerAndProviderFromEngineRegistry
+        // above) leaves the slots null with a LOG.warn. This test asserts
+        // the null shape — the warn is emitted but not asserted here.
+        final SearchProvider provider = mock( SearchProvider.class );
+        final SearchManager  manager  = mock( SearchManager.class );
+        when( manager.getSearchEngine() ).thenReturn( provider );
+
+        final Engine engine = mock( Engine.class );
+        when( engine.getManager( SearchManager.class ) ).thenReturn( manager );
+
+        final SearchSubsystem.Services services = SearchSubsystemFactory.create(
+            new SearchSubsystem.Deps(
+                /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
+                /*persistence=*/ null,
+                /*page=*/ null,
+                /*knowledge=*/ null,
+                engine ) );
+
+        assertNull( services.luceneIndexer() );
+        assertNull( services.luceneSearcher() );
+        assertNull( services.luceneIndexLifecycle() );
     }
 
     @Test

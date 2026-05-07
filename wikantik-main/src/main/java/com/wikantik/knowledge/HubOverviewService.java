@@ -70,7 +70,14 @@ public class HubOverviewService {
     private final NodeMentionSimilarity      similarity;
     private final PageManager                pageManager;
     private final HubDiscoveryService.PageWriter pageWriter;
-    private final LuceneMlt                  luceneMlt;
+    /**
+     * Volatile so the post-construction setter ({@link #setLuceneMlt}) is
+     * safely visible to reader threads. Phase 7 Ckpt 4 of the wikantik-main
+     * subsystem decomposition wires this AFTER both the Knowledge and
+     * Search subsystems are constructed, breaking the Search↔Knowledge
+     * construction-time cycle.
+     */
+    private volatile LuceneMlt               luceneMlt;
     private final double                     nearMissThreshold;
     private final double                     overlapThreshold;
     private final int                        nearMissMaxResults;
@@ -674,6 +681,22 @@ public class HubOverviewService {
     public interface LuceneMlt {
         List< MoreLikeThisLucene > findSimilar( String seedDoc, int maxResults, Set< String > excludeNames )
             throws Exception;
+    }
+
+    /**
+     * Post-construction wire of the {@link LuceneMlt} seam. Phase 7 Ckpt 4:
+     * Search builds AFTER Knowledge to satisfy the dependency direction
+     * (Search → Knowledge for graph rerank), so {@code WikiEngine.initialize}
+     * calls this once both subsystems are ready. A null argument is treated
+     * as "no MLT available" — the no-op default installed at construction
+     * stays in place.
+     */
+    public void setLuceneMlt( final LuceneMlt mlt ) {
+        if ( mlt == null ) {
+            LOG.warn( "HubOverviewService.setLuceneMlt: ignoring null mlt; existing seam preserved" );
+            return;
+        }
+        this.luceneMlt = mlt;
     }
 
     // ---- Builder ----

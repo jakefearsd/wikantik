@@ -469,6 +469,16 @@ public class WikiEngine implements Engine {
             this.searchSubsystem = com.wikantik.search.subsystem.SearchSubsystemFactory.create(
                 new com.wikantik.search.subsystem.SearchSubsystem.Deps(
                     coreSubsystem, persistenceSubsystem, pageSubsystem, knowledgeSubsystem, this ) );
+
+            // Phase 7 Ckpt 4: post-construction wire of the LuceneMlt seam
+            // onto HubOverviewService. Resolves the Search↔Knowledge cycle
+            // (Search is built AFTER Knowledge, but Knowledge needs an MLT
+            // implementation backed by Lucene). Skipped when Knowledge
+            // didn't initialise (no datasource), or when the configured
+            // search provider isn't Lucene — in either case the no-op MLT
+            // installed by HubOverviewService at construction time stays
+            // active. Delegates to the decomposed LuceneSearcher (Ckpt 3).
+            wireLuceneMltPostConstruction();
         } catch( final RuntimeException e ) {
             // RuntimeExceptions may occur here, even if they shouldn't.
             LOG.fatal( "Failed to start managers.", e );
@@ -975,6 +985,51 @@ public class WikiEngine implements Engine {
             // continues to start; only KG-dependent features go offline).
             LOG.warn( "Knowledge graph initialization failed: {}", e.getMessage(), e );
         }
+    }
+
+    /**
+     * Phase 7 Ckpt 4 — post-construction wire of the {@link HubOverviewService.LuceneMlt}
+     * seam. Called after both the Knowledge and Search subsystems are
+     * built so the cycle (Search depends on Knowledge for graph rerank;
+     * Knowledge needs Lucene for MoreLikeThis) is broken: Knowledge
+     * constructs with the no-op MLT default, Search constructs, then this
+     * method walks the live {@link LuceneSearchProvider} and installs a
+     * delegating MLT onto {@link HubOverviewService}. Skipped silently
+     * (modulo a debug log) when Knowledge didn't initialise or when the
+     * configured search provider isn't Lucene.
+     *
+     * <p>Delegates to the decomposed {@link com.wikantik.search.subsystem.lucene.LuceneSearcher}
+     * (Phase 7 Ckpt 3) when available, falling back to the facade's own
+     * {@code moreLikeThis} method for safety. Either path produces an
+     * identical wire result; the facade just adds one delegation hop.</p>
+     */
+    private void wireLuceneMltPostConstruction() {
+        if ( knowledgeSubsystem == null ) {
+            return;
+        }
+        final HubOverviewService hub = knowledgeSubsystem.hubOverviewService();
+        if ( hub == null ) {
+            return;
+        }
+        final SearchProvider sp = searchSubsystem != null ? searchSubsystem.searchProvider() : null;
+        if ( !( sp instanceof LuceneSearchProvider lsp ) ) {
+            LOG.debug( "wireLuceneMltPostConstruction: SearchProvider is not Lucene "
+                + "(actual={}); leaving HubOverviewService MLT as no-op.",
+                sp == null ? "null" : sp.getClass().getName() );
+            return;
+        }
+        final HubOverviewService.LuceneMlt mlt = ( seed, max, excludes ) -> {
+            final var hits = lsp.moreLikeThis( seed, max, excludes );
+            final java.util.List< HubOverviewService.MoreLikeThisLucene > out =
+                new java.util.ArrayList<>( hits.size() );
+            for ( final var h : hits ) {
+                out.add( new HubOverviewService.MoreLikeThisLucene( h.name(), h.score() ) );
+            }
+            return out;
+        };
+        hub.setLuceneMlt( mlt );
+        LOG.info( "wireLuceneMltPostConstruction: HubOverviewService.LuceneMlt wired "
+            + "to live LuceneSearchProvider." );
     }
 
     /**

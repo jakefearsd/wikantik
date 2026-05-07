@@ -449,7 +449,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 
     private AuthorizationManager authorizationManager() {
         if ( authorizationManager == null ) {
-            authorizationManager = engine.getManager( AuthorizationManager.class );
+            authorizationManager = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
         }
         return authorizationManager;
     }

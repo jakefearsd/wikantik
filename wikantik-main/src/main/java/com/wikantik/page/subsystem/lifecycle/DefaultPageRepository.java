@@ -25,6 +25,8 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pages.PageSorter;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.spi.Wiki;
@@ -86,11 +88,11 @@ public class DefaultPageRepository implements PageRepository {
     // --- Lazy manager accessors (same ordering / comments as original facade) ---
 
     private AttachmentManager getAttachmentManager() {
-        return engine.getManager( AttachmentManager.class );
+        return PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
     }
 
     private ReferenceManager getReferenceManager() {
-        return engine.getManager( ReferenceManager.class );
+        return PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager();
     }
 
     // --- Event helper ---

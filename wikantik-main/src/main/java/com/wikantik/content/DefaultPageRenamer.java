@@ -109,7 +109,7 @@ public class DefaultPageRenamer implements PageRenamer {
         final List< Attachment > attachmentsOldName = PageSubsystemBridge.fromLegacyEngine( engine ).attachments().listAttachments( fromPage );
         for( final Attachment att: attachmentsOldName ) {
             final Page fromAttPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( att.getName() );
-            engine.getManager( ReferenceManager.class ).pageRemoved( fromAttPage );
+            com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().pageRemoved( fromAttPage );
         }
 
         PageSubsystemBridge.fromLegacyEngine( engine ).pages().getProvider().movePage( renameFrom, renameToClean );
@@ -127,8 +127,8 @@ public class DefaultPageRenamer implements PageRenamer {
         PageSubsystemBridge.fromLegacyEngine( engine ).pages().putPageText( toPage, PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( toPage ) );
 
         //  Update the references
-        engine.getManager( ReferenceManager.class ).pageRemoved( fromPage );
-        engine.getManager( ReferenceManager.class ).updateReferences( toPage );
+        com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().pageRemoved( fromPage );
+        com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().updateReferences( toPage );
 
         //  Update referrers
         if( changeReferrers ) {
@@ -142,7 +142,7 @@ public class DefaultPageRenamer implements PageRenamer {
         for( final Attachment att:attachmentsNewName ) {
             final Page toAttPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( att.getName() );
             // add reference to attachment under new page name
-            engine.getManager( ReferenceManager.class ).updateReferences( toAttPage );
+            com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().updateReferences( toAttPage );
             com.wikantik.search.subsystem.SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager().reindexPage( att );
         }
 
@@ -202,7 +202,7 @@ public class DefaultPageRenamer implements PageRenamer {
 
                 try {
                     PageSubsystemBridge.fromLegacyEngine( engine ).pages().putPageText( referrerPage, newText );
-                    engine.getManager( ReferenceManager.class ).updateReferences( referrerPage );
+                    com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().updateReferences( referrerPage );
                 } catch( final ProviderException e ) {
                     //  We fail with an error, but we will try to continue to rename other referrers as well.
                     LOG.error("Unable to perform rename.",e);
@@ -213,12 +213,12 @@ public class DefaultPageRenamer implements PageRenamer {
 
     private Set<String> getReferencesToChange( final Page fromPage, final Engine engine ) {
         final Set< String > referrers = new TreeSet<>();
-        referrers.addAll( engine.getManager( ReferenceManager.class ).findReferrers( fromPage.getName() ) );
+        referrers.addAll( com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().findReferrers( fromPage.getName() ) );
 
         try {
             final List< Attachment > attachments = PageSubsystemBridge.fromLegacyEngine( engine ).attachments().listAttachments( fromPage );
             for( final Attachment att : attachments  ) {
-                referrers.addAll( engine.getManager( ReferenceManager.class ).findReferrers( att.getName() ) );
+                referrers.addAll( com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().findReferrers( att.getName() ) );
             }
         } catch( final ProviderException e ) {
             // We will continue despite this error

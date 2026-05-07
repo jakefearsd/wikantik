@@ -162,7 +162,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         }
 
         // Make the GroupManager listen for WikiEvents (WikiSecurityEvents for changed user profiles)
-        engine.getManager( UserManager.class ).addWikiEventListener( this );
+        com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).users().addWikiEventListener( this );
 
         // Success!
         LOG.info( "Authorizer GroupManager initialized successfully; loaded {} group(s).", groups.length );

@@ -36,6 +36,7 @@ import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
@@ -90,7 +91,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine );
         final KnowledgeGraphService kgService = kg.kgService();
         final ContextRetrievalService ctxService = kg.contextRetrievalService();
-        final StructuralIndexService structuralIndex = engine.getManager( StructuralIndexService.class );
+        final StructuralIndexService structuralIndex = PageGraphSubsystemBridge.fromLegacyEngine( engine ).structuralIndexService();
         final ForAgentProjectionService forAgent = kg.forAgentProjectionService();
 
         if ( kgService == null && ctxService == null && structuralIndex == null ) {

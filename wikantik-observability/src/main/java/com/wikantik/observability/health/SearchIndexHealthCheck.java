@@ -60,7 +60,7 @@ public class SearchIndexHealthCheck implements HealthCheck {
             final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
             if ( pageManager == null ) {
                 // Fallback: legacy callers may register PageProvider directly
-                final PageProvider provider = engine.getManager( PageProvider.class );
+                final PageProvider provider = PageSubsystemBridge.fromLegacyEngine( engine ).pageProvider();
                 if ( provider == null ) {
                     return HealthResult.down( System.currentTimeMillis() - start, "PageManager not available" );
                 }

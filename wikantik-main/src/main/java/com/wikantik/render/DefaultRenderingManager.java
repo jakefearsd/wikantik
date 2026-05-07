@@ -137,7 +137,7 @@ public class DefaultRenderingManager implements RenderingManager {
      * construction time (Phase 5). Resolved on first use in {@link #actionPerformed}.
      */
     private ReferenceManager getReferenceManager() {
-        return engine.getManager( ReferenceManager.class );
+        return com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager();
     }
 
     /**
@@ -150,7 +150,7 @@ public class DefaultRenderingManager implements RenderingManager {
     public void initialize( final Engine engine, final Properties properties ) throws WikiException {
         this.engine = engine;
         this.cachingManager = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).cachingManager();
-        this.filterManager = engine.getManager( FilterManager.class );
+        this.filterManager = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager();
         this.pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         this.attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
         this.variableManager = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).variableManager();

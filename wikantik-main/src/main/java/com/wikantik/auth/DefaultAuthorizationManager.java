@@ -518,14 +518,14 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
     private GroupManager groupManager() {
         if ( groupManager == null ) {
-            groupManager = engine.getManager( GroupManager.class );
+            groupManager = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).groups();
         }
         return groupManager;
     }
 
     private UserManager userManager() {
         if ( userManager == null ) {
-            userManager = engine.getManager( UserManager.class );
+            userManager = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).users();
         }
         return userManager;
     }

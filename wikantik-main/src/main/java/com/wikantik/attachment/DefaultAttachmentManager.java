@@ -32,6 +32,7 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.search.SearchManager;
@@ -260,10 +261,10 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
         }
 
         provider.putAttachmentData( att, in );
-        engine.getManager( ReferenceManager.class ).updateReferences( att.getName(), new ArrayList<>() );
+        PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().updateReferences( att.getName(), new ArrayList<>() );
 
         final Page parent = Wiki.contents().page( engine, att.getParentName() );
-        engine.getManager( ReferenceManager.class ).updateReferences( parent );
+        PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().updateReferences( parent );
         SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager().reindexPage( att );
     }
 
@@ -324,7 +325,7 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
 
         provider.deleteAttachment( att );
         SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager().pageRemoved( att );
-        engine.getManager( ReferenceManager.class ).clearPageEntries( att.getName() );
+        PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager().clearPageEntries( att.getName() );
     }
 
 }

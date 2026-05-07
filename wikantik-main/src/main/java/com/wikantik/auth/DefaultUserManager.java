@@ -187,7 +187,7 @@ public class DefaultUserManager implements UserManager {
         final Session session = context.getWikiSession();
         // Verify user is allowed to save profile!
         final Permission editProfilePermission = new WikiPermission( engine.getApplicationName(), WikiPermission.EDIT_PROFILE_ACTION );
-        if ( !engine.getManager( AuthorizationManager.class ).checkPermission( session, editProfilePermission ) ) {
+        if ( !com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).authorization().checkPermission( session, editProfilePermission ) ) {
             throw new WikiSecurityException( "You are not allowed to save wiki profiles." );
         }
 
@@ -224,7 +224,7 @@ public class DefaultUserManager implements UserManager {
             // If the profile doesn't need approval, then just log the user in
 
             try {
-                final AuthenticationManager mgr = engine.getManager( AuthenticationManager.class );
+                final AuthenticationManager mgr = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).authentication();
                 if( !mgr.isContainerAuthenticated() ) {
                     mgr.login( session, null, profile.getLoginName(), profile.getPassword() );
                 }
@@ -329,7 +329,7 @@ public class DefaultUserManager implements UserManager {
         email = StringUtils.trim( email );
 
         // A special case if we have container authentication: if authenticated, login name is always taken from container
-        if ( engine.getManager( AuthenticationManager.class ).isContainerAuthenticated() && context.getWikiSession().isAuthenticated() ) {
+        if ( com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).authentication().isContainerAuthenticated() && context.getWikiSession().isAuthenticated() ) {
             loginName = context.getWikiSession().getLoginPrincipal().getName();
         }
 
@@ -373,7 +373,7 @@ public class DefaultUserManager implements UserManager {
 
     private void validateRequiredFields( final Context context, final Session session, final UserProfile profile, final ResourceBundle rb ) {
         // If container-managed auth and user not logged in, throw an error
-        if ( engine.getManager( AuthenticationManager.class ).isContainerAuthenticated()
+        if ( com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).authentication().isContainerAuthenticated()
              && !context.getWikiSession().isAuthenticated() ) {
             session.addMessage( SESSION_MESSAGES, rb.getString("security.error.createprofilebeforelogin") );
         }
@@ -385,7 +385,7 @@ public class DefaultUserManager implements UserManager {
     }
 
     private void validatePassword( final Context context, final Session session, final UserProfile profile, final ResourceBundle rb ) {
-        if( engine.getManager( AuthenticationManager.class ).isContainerAuthenticated() ) {
+        if( com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).authentication().isContainerAuthenticated() ) {
             return;
         }
 

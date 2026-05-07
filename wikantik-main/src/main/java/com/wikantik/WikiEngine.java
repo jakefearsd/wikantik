@@ -652,15 +652,45 @@ public class WikiEngine implements Engine {
             this.authSubsystem = null;
         }
         if ( clazz == PageManager.class || clazz == AttachmentManager.class
-                || clazz == PageRenamer.class ) {
+                || clazz == PageRenamer.class
+                || clazz == com.wikantik.api.managers.ReferenceManager.class ) {
             this.pageSubsystem = null;
         }
         if ( clazz == RenderingManager.class || clazz == PluginManager.class
                 || clazz == FilterManager.class || clazz == DifferenceManager.class ) {
             this.renderingSubsystem = null;
         }
-        if ( clazz == SearchManager.class || clazz == SearchProvider.class ) {
+        // Search snapshot covers manager/provider, the three Lucene helpers (post-Phase-7),
+        // hybrid retrieval services, in-memory indexes, and the embedding pipeline. Any of
+        // these can be hot-swapped by a unit test and the snapshot must rebuild.
+        if ( clazz == SearchManager.class || clazz == SearchProvider.class
+                || clazz == com.wikantik.search.subsystem.lucene.LuceneIndexer.class
+                || clazz == com.wikantik.search.subsystem.lucene.LuceneSearcher.class
+                || clazz == com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle.class
+                || clazz == com.wikantik.search.hybrid.HybridSearchService.class
+                || clazz == com.wikantik.search.hybrid.QueryEmbedder.class
+                || clazz == com.wikantik.search.hybrid.QueryEntityResolver.class
+                || clazz == com.wikantik.search.hybrid.GraphRerankStep.class
+                || clazz == com.wikantik.search.hybrid.GraphProximityScorer.class
+                || clazz == com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class
+                || clazz == com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class
+                || clazz == com.wikantik.search.embedding.EmbeddingIndexService.class
+                || clazz == com.wikantik.search.embedding.OllamaEmbeddingClient.class
+                || clazz == com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class
+                || clazz == com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class
+                || clazz == com.wikantik.search.FrontmatterMetadataCache.class ) {
             this.searchSubsystem = null;
+        }
+        // Knowledge snapshot covers KG services. ContextRetrievalService is
+        // intentionally excluded — it is wired post-boot by
+        // ContextRetrievalServiceInitializer which calls setManager(...) followed
+        // by patchContextRetrievalService(...); invalidating the snapshot here
+        // would null the field before the patch can rebuild it.
+        if ( clazz == com.wikantik.api.knowledge.KnowledgeGraphService.class
+                || clazz == com.wikantik.api.agent.ForAgentProjectionService.class
+                || clazz == com.wikantik.api.kgpolicy.KgInclusionPolicy.class
+                || clazz == com.wikantik.api.eval.RetrievalQualityRunner.class ) {
+            this.knowledgeSubsystem = null;
         }
     }
 

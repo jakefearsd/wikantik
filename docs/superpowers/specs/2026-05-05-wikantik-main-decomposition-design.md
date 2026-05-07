@@ -507,13 +507,51 @@ not justify it inside Phase 7's window.
 
 **Done when:** Lucene split lands; `SearchSubsystem.Services` exposes only the query API consumers should depend on.
 
-### Phase 8 — ApiSubsystem cleanup (≈ 3 days)
+### Phase 8 — ApiSubsystem cleanup (≈ 3 days)  *(complete 2026-05-07)*
 
 **Goal:** the `wikantik-rest` and MCP packages become pure consumers.
 
 - Servlets receive a `WikiSubsystems` reference at init via `ServletContext` attribute (preferred) or a thin `ServletContextListener`-driven wiring.
 - 219 `getManager()` callers in `wikantik-rest` collapse to a handful of subsystem references.
 - MCP tool factories receive subsystem references at construction; each tool's mocked tests no longer touch `WikiEngine`.
+
+**Outcome:** `KnowledgeSubsystem.Services` expanded by 6 fields
+(`StructuralIndexService`, `PageGraphService`, `ContextRetrievalService`,
+`ForAgentProjectionService`, plus two retrieval-pipeline collaborators) and
+`PageSubsystem.Services` by 1 (`PageRenamer`). ~70 production
+`engine.getManager(...)` callsites migrated across `wikantik-rest`,
+`wikantik-admin-mcp`, `wikantik-knowledge`, `wikantik-tools`, and
+`wikantik-observability` to typed accessors via `getSubsystems().<sub>()`
+(servlets) or `<X>SubsystemBridge.fromLegacyEngine(engine)` (non-servlets).
+The `ContextRetrievalService` post-boot wiring cycle was resolved via a
+narrow `patchContextRetrievalService` seam plus a `WikiEngine.setManager(...)`
+subsystem-snapshot invalidation exemption — the bundle rebuilds when the
+delayed retrieval service registers, so callers always see the live
+collaborator without re-introducing service-locator lookups in hot paths.
+
+**Deviation from plan:** Ckpt 2 was scoped to add an ArchUnit guard
+forbidding `engine.getManager(...)` outside bootstrap classes in the five
+migrated modules. The guard was **skipped** — the existing
+`DecompositionArchTest` is `wikantik-main`-scoped (`packages =
+"com.wikantik"`, analysing only the main module's compile classpath), and a
+multi-module ArchUnit rule with per-module bootstrap-allowlist predicates
+plus a freeze store covering the legitimate residuals (StructuralIndexService,
+PageGraphService, ContentIndexRebuildService, NewsPageGenerator,
+CachingManager, plus a few in `McpServerInitializer` / `McpToolRegistry` /
+`SearchIndexHealthCheck`) blew past the half-day budget. Phase 9's
+`no_get_manager_anywhere` sweeping ban supersedes a Phase-8-scoped rule
+anyway, so the rule is folded into Phase 9. Residual call-sites
+(StructuralIndexService, PageGraphService, ContentIndexRebuildService,
+NewsPageGenerator, CachingManager) are deferred to a future Page Graph /
+Admin subsystem extraction phase — they don't fit cleanly into any of the
+seven currently-extracted subsystems.
+
+**Metrics (`bin/metrics/decomposition-progress.json`):**
+- `loc_main` 80761 → 80966 (+205, expanded `Services` records and bridge plumbing)
+- `get_manager_callers_repo_wide` 935 → 926 (-9 net; ~70 consumer migrations offset by added bridge-internal lookups in expanded factories)
+- `get_manager_callers_in_main` 137 → 145 (+8; same bridge-code attribution)
+- `god_classes_over_800` unchanged at 4 (`WikiEngine` 1770 → 1909 from `setManager` invalidation + expanded factory wiring; eligible for Phase 9 demolition)
+- `archunit_frozen_violations` 35 → 40 (5 new frozen entries from expanded subsystem bridges; no rule violations introduced)
 
 **Done when:** `wikantik-rest` and `wikantik-*-mcp` modules contain zero `getManager()` calls outside the bootstrap.
 

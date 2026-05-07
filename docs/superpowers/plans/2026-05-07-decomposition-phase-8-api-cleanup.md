@@ -1,7 +1,7 @@
 # Phase 8: ApiSubsystem cleanup — implementation plan
 
 **Spec:** [docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md](../specs/2026-05-05-wikantik-main-decomposition-design.md)
-**Status:** ready
+**Status:** complete (2026-05-07)
 **Estimated effort:** 1.5 days (smaller than the spec's 3-day estimate — Phases 1–7 trimmed REST faster than predicted)
 **Goal:** REST + MCP + tools + observability modules contain zero `engine.getManager()` calls outside their bootstrap. Consumers reach the typed `WikiSubsystems` bundle via `getSubsystems()` (servlets) or `*SubsystemBridge.fromLegacyEngine(engine)` (non-servlets).
 

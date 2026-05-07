@@ -234,5 +234,27 @@
     ],
     "test_engine_references_in_production": 9,
     "archunit_frozen_violations": 35
+  },
+  "phase_8_close": {
+    "captured_at": "2026-05-07T21:07:05Z",
+    "loc_main": 80966,
+    "registered_managers": 28,
+    "get_manager_callers_repo_wide": 926,
+    "get_manager_callers_in_main": 145,
+    "god_classes_over_800": 4,
+    "god_class_top10": [
+      {"path": "com/wikantik/WikiEngine.java", "loc": 1909},
+      {"path": "com/wikantik/pagegraph/references/DefaultReferenceManager.java", "loc": 1003},
+      {"path": "com/wikantik/providers/AbstractFileProvider.java", "loc": 925},
+      {"path": "com/wikantik/WikiContext.java", "loc": 821},
+      {"path": "com/wikantik/providers/VersioningFileProvider.java", "loc": 783},
+      {"path": "com/wikantik/knowledge/extraction/BootstrapEntityExtractionIndexer.java", "loc": 766},
+      {"path": "com/wikantik/knowledge/HubOverviewService.java", "loc": 750},
+      {"path": "com/wikantik/search/LuceneSearchProvider.java", "loc": 724},
+      {"path": "com/wikantik/knowledge/DefaultKnowledgeGraphService.java", "loc": 705},
+      {"path": "com/wikantik/content/DefaultRecentArticlesManager.java", "loc": 701}
+    ],
+    "test_engine_references_in_production": 9,
+    "archunit_frozen_violations": 40
   }
 }

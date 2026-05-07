@@ -21,6 +21,7 @@ package com.wikantik.plugin;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.managers.ReferenceManager;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.util.TextUtil;
 
 import java.util.Collection;
@@ -46,7 +47,7 @@ public class UnusedPagesPlugin extends AbstractReferralPlugin {
      */
     @Override
     public String execute( final Context context, final Map< String, String > params ) throws PluginException {
-        final ReferenceManager refmgr = context.getEngine().getManager( ReferenceManager.class );
+        final ReferenceManager refmgr = PageGraphSubsystemBridge.fromLegacyEngine( context.getEngine() ).referenceManager();
         Collection< String > links = refmgr.findUnreferenced();
 
         // filter out attachments if "excludeattachments" was requested:

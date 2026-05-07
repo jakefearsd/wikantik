@@ -22,6 +22,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.auth.authorize.GroupManager;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.subsystem.verify.ContainerRoleVerifier;
 import com.wikantik.auth.subsystem.verify.JaasVerifier;
 import com.wikantik.auth.subsystem.verify.PolicyVerifier;
@@ -131,9 +132,9 @@ public final class SecurityVerifier {
      */
     public SecurityVerifier( final Engine engine, final Session session ) {
         this( engine, session,
-              engine.getManager( AuthorizationManager.class ),
-              engine.getManager( GroupManager.class ),
-              engine.getManager( UserManager.class ) );
+              AuthSubsystemBridge.fromLegacyEngine( engine ).authorization(),
+              AuthSubsystemBridge.fromLegacyEngine( engine ).groups(),
+              AuthSubsystemBridge.fromLegacyEngine( engine ).users() );
     }
 
     /**

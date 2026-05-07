@@ -29,6 +29,7 @@ import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.ReferenceManager;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.util.TextUtil;
 
 import java.util.ArrayList;
@@ -160,7 +161,7 @@ public class ReferredPagesPlugin implements Plugin {
                 || !PageSubsystemBridge.fromLegacyEngine( engine ).pages().wikiPageExists( pagename ) ) {
             return;
         }
-        final ReferenceManager mgr = engine.getManager( ReferenceManager.class );
+        final ReferenceManager mgr = PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager();
         handleLinks( context, mgr.findRefersTo( pagename ), currentDepth + 1, pagename, result );
     }
 

@@ -29,6 +29,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.api.managers.ReferenceManager;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.util.TextUtil;
 
 import java.text.MessageFormat;
@@ -70,7 +71,7 @@ public class ReferringPagesPlugin extends AbstractReferralPlugin {
      */
     @Override
     public String execute( final Context context, final Map< String, String > params ) throws PluginException {
-        final ReferenceManager refmgr = context.getEngine().getManager( ReferenceManager.class );
+        final ReferenceManager refmgr = PageGraphSubsystemBridge.fromLegacyEngine( context.getEngine() ).referenceManager();
         String pageName = params.get( PARAM_PAGE );
         final ResourceBundle rb = Preferences.getBundle( context, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
 

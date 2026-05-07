@@ -20,6 +20,7 @@ package com.wikantik.auth.login;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.auth.UserManager;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
@@ -72,7 +73,7 @@ public class WikiCallbackHandler implements CallbackHandler {
             } else if( callback instanceof WikiEngineCallback wikiEngineCallback ) {
                 wikiEngineCallback.setEngine( engine );
             } else if( callback instanceof UserDatabaseCallback userDatabaseCallback ) {
-                userDatabaseCallback.setUserDatabase( engine.getManager( UserManager.class ).getUserDatabase() );
+                userDatabaseCallback.setUserDatabase( AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase() );
             } else if( callback instanceof NameCallback nameCallback ) {
                 nameCallback.setName( username );
             } else if( callback instanceof PasswordCallback passwordCallback ) {

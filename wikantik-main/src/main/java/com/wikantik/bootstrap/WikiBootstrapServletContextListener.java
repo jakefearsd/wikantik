@@ -155,7 +155,8 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
                     .fromLegacyEngine( engine ).judgeRunner() );
         final DefaultRetrievalQualityRunner rqRunner = engine == null ? null
             : runQuietly( "lookup RetrievalQualityRunner",
-                () -> engine.getManager( RetrievalQualityRunner.class )
+                () -> com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge
+                    .fromLegacyEngine( engine ).retrievalQualityRunner()
                     instanceof DefaultRetrievalQualityRunner d ? d : null );
 
         // 2. Close the runner schedulers BEFORE firing SHUTDOWN — gives their

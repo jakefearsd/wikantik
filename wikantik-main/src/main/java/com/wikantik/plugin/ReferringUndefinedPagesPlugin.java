@@ -23,6 +23,7 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.api.managers.ReferenceManager;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.util.TextUtil;
 
 import java.text.MessageFormat;
@@ -50,7 +51,7 @@ public class ReferringUndefinedPagesPlugin extends AbstractReferralPlugin {
     @Override
     public String execute( final Context context, final Map<String, String> params) throws PluginException {
         final ResourceBundle rb = Preferences.getBundle(context, Plugin.CORE_PLUGINS_RESOURCEBUNDLE);
-        final ReferenceManager referenceManager = context.getEngine().getManager( ReferenceManager.class );
+        final ReferenceManager referenceManager = PageGraphSubsystemBridge.fromLegacyEngine( context.getEngine() ).referenceManager();
 
         final int items = TextUtil.parseIntParameter(params.get(PARAM_MAX), ALL_ITEMS);
         String extras = params.get(PARAM_EXTRAS);

@@ -30,6 +30,7 @@ import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.ReferenceManager;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import org.jdom2.Element;
 import org.jdom2.Namespace;
 import org.jdom2.output.Format;
@@ -140,7 +141,7 @@ public class IndexPlugin extends AbstractReferralPlugin implements Plugin {
         final Pattern includePtrn = include != null ? Pattern.compile( include ) : Pattern.compile(".*");
         final Pattern excludePtrn = exclude != null ? Pattern.compile( exclude ) : Pattern.compile("\\p{Cntrl}"); // there are no control characters in page names
         final List< String > result;
-        final Set< String > pages = context.getEngine().getManager( ReferenceManager.class ).findCreated();
+        final Set< String > pages = PageGraphSubsystemBridge.fromLegacyEngine( context.getEngine() ).referenceManager().findCreated();
         result = pages.stream().filter(pageName -> !excludePtrn.matcher(pageName).matches()).filter(pageName -> includePtrn.matcher(pageName).matches()).collect(Collectors.toList());
         return result;
     }

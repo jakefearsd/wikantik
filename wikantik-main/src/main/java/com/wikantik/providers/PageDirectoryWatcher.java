@@ -31,6 +31,7 @@ import com.wikantik.event.WikiPageEvent;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.api.managers.ReferenceManager;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.search.SearchManager;
 
 import java.io.File;
@@ -239,7 +240,7 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
         try {
             invalidateCaches( pageName );
 
-            final ReferenceManager refMgr = engine.getManager( ReferenceManager.class );
+            final ReferenceManager refMgr = PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager();
             if( refMgr != null ) {
                 refMgr.updateReferences( Wiki.contents().page( engine, pageName ) );
             }
@@ -264,7 +265,7 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
         try {
             invalidateCaches( pageName );
 
-            final ReferenceManager refMgr = engine.getManager( ReferenceManager.class );
+            final ReferenceManager refMgr = PageGraphSubsystemBridge.fromLegacyEngine( engine ).referenceManager();
             if( refMgr != null ) {
                 refMgr.pageRemoved( Wiki.contents().page( engine, pageName ) );
             }

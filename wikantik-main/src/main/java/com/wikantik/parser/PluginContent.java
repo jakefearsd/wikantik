@@ -160,7 +160,7 @@ public class PluginContent extends Text implements PluginElement {
                 //  Parse any variable instances from the string
                 for( final Map.Entry< String, String > e : params.entrySet() ) {
                     String val = e.getValue();
-                    val = engine.getManager( VariableManager.class).expandVariables( context, val );
+                    val = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).variableManager().expandVariables( context, val );
                     parsedParams.put( e.getKey(), val );
                 }
                 final PluginManager pm = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).pluginManager();

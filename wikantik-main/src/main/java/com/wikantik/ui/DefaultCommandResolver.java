@@ -213,7 +213,7 @@ public class DefaultCommandResolver implements CommandResolver {
     public String getSpecialPageReference( final String page ) {
         final Command command = specialPages.get( page );
         if ( command != null ) {
-            return engine.getManager( URLConstructor.class ).makeURL( command.getRequestContext(), command.getURLPattern(), null );
+            return com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).urlConstructor().makeURL( command.getRequestContext(), command.getURLPattern(), null );
         }
 
         return null;
@@ -265,7 +265,7 @@ public class DefaultCommandResolver implements CommandResolver {
     public String extractPageFromParameter( final String requestContext, final HttpServletRequest request ) {
         // Extract the page name from the URL directly
         try {
-            String page = engine.getManager( URLConstructor.class ).parsePage( requestContext, request, engine.getContentEncoding() );
+            String page = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).urlConstructor().parsePage( requestContext, request, engine.getContentEncoding() );
             if ( page != null ) {
                 try {
                     // Look for singular/plural variants; if one not found, take the one the user supplied

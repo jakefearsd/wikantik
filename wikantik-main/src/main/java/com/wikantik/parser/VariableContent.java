@@ -73,7 +73,7 @@ public class VariableContent extends Text {
             result = "[" + varName + "]";
         } else {
             try {
-                result = context.getEngine().getManager( VariableManager.class ).parseAndGetValue( context, varName );
+                result = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( context.getEngine() ).variableManager().parseAndGetValue( context, varName );
             } catch( final NoSuchVariableException e ) {
                 result = MarkupParser.makeError( "No such variable: " + e.getMessage() ).getText(); 
             }

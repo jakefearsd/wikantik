@@ -135,7 +135,7 @@ public class Preferences extends HashMap< String,String > {
      */
     public static ResourceBundle getBundle( final Context context, final String bundle ) throws MissingResourceException {
         final Locale loc = getLocale( context );
-        final InternationalizationManager i18n = context.getEngine().getManager( InternationalizationManager.class );
+        final InternationalizationManager i18n = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( context.getEngine() ).i18n();
         return i18n.getBundle( bundle, loc );
     }
 
@@ -149,7 +149,7 @@ public class Preferences extends HashMap< String,String > {
      * @since 2.8
      */
     public static SimpleDateFormat getDateFormat( final Context context, final TimeFormat tf ) {
-        final InternationalizationManager imgr = context.getEngine().getManager( InternationalizationManager.class );
+        final InternationalizationManager imgr = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( context.getEngine() ).i18n();
         final Locale clientLocale = getLocale( context );
         final String prefTimeZone = getPreference( context, "TimeZone" );
         String prefDateFormat;

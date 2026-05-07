@@ -153,7 +153,7 @@ public class DefaultRenderingManager implements RenderingManager {
         this.filterManager = engine.getManager( FilterManager.class );
         this.pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         this.attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
-        this.variableManager = engine.getManager( VariableManager.class );
+        this.variableManager = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).variableManager();
 
         markupParserClass = properties.getProperty( PROP_PARSER, DEFAULT_PARSER );
         if( !ClassUtil.assignable( markupParserClass, MarkupParser.class.getName() ) ) {

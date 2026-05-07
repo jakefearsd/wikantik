@@ -227,7 +227,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                 authorizationManager = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
             }
             if ( aclManager == null ) {
-                aclManager = engine.getManager( AclManager.class );
+                aclManager = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).aclManager();
             }
             final AuthorizationManager mgr = authorizationManager;
             final AclManager aclMgr = aclManager;

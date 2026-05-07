@@ -210,7 +210,7 @@ public class TableOfContents implements Plugin, HeadingListener {
 
         try {
             String wikiText = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPureText( page );
-            final boolean runFilters = "true".equals( engine.getManager( VariableManager.class ).getValue( context, VariableManager.VAR_RUNFILTERS, "true" ) );
+            final boolean runFilters = "true".equals( com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).variableManager().getValue( context, VariableManager.VAR_RUNFILTERS, "true" ) );
 
             if( runFilters ) {
 				try {

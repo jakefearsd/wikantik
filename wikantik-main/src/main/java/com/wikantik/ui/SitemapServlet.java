@@ -199,7 +199,7 @@ public class SitemapServlet extends HttpServlet {
         final String appName = engine.getApplicationName();
 
         final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern( "yyyy-MM-dd", Locale.ROOT );
-        final URLConstructor urlConstructor = engine.getManager( URLConstructor.class );
+        final URLConstructor urlConstructor = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).urlConstructor();
         final AttachmentManager attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
 
         // Build fully qualified base URL using shared 3-tier resolution

@@ -20,6 +20,11 @@ package com.wikantik.core.subsystem;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.cache.CachingManager;
+import com.wikantik.i18n.InternationalizationManager;
+import com.wikantik.ui.CommandResolver;
+import com.wikantik.ui.progress.ProgressManager;
+import com.wikantik.url.URLConstructor;
+import com.wikantik.variables.VariableManager;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
@@ -52,6 +57,11 @@ public final class CoreSubsystemFactory {
         final MeterRegistry meters =
             deps.meterRegistry() != null ? deps.meterRegistry() : new SimpleMeterRegistry();
         final CachingManager cachingManager = deps.engine().getManager( CachingManager.class );
+        final VariableManager variableManager = deps.engine().getManager( VariableManager.class );
+        final ProgressManager progressManager = deps.engine().getManager( ProgressManager.class );
+        final CommandResolver commandResolver = deps.engine().getManager( CommandResolver.class );
+        final URLConstructor urlConstructor = deps.engine().getManager( URLConstructor.class );
+        final InternationalizationManager i18n = deps.engine().getManager( InternationalizationManager.class );
 
         return new CoreSubsystem.Services(
             properties,
@@ -60,7 +70,12 @@ public final class CoreSubsystemFactory {
             deps.systemPageRegistry(),
             deps.recentArticlesManager(),
             deps.blogManager(),
-            cachingManager
+            cachingManager,
+            variableManager,
+            progressManager,
+            commandResolver,
+            urlConstructor,
+            i18n
         );
     }
 }

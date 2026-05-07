@@ -511,7 +511,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
     private AclManager aclManager() {
         if ( aclManager == null ) {
-            aclManager = engine.getManager( AclManager.class );
+            aclManager = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).aclManager();
         }
         return aclManager;
     }

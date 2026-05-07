@@ -23,6 +23,11 @@ import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.blog.BlogManager;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.content.RecentArticlesManager;
+import com.wikantik.i18n.InternationalizationManager;
+import com.wikantik.ui.CommandResolver;
+import com.wikantik.ui.progress.ProgressManager;
+import com.wikantik.url.URLConstructor;
+import com.wikantik.variables.VariableManager;
 
 /**
  * Adapter that synthesises a sparse {@link CoreSubsystem.Services} record
@@ -61,7 +66,12 @@ public final class CoreSubsystemBridge {
             engine.getManager( SystemPageRegistry.class ),
             engine.getManager( RecentArticlesManager.class ),
             engine.getManager( BlogManager.class ),
-            engine.getManager( CachingManager.class )
+            engine.getManager( CachingManager.class ),
+            engine.getManager( VariableManager.class ),
+            engine.getManager( ProgressManager.class ),
+            engine.getManager( CommandResolver.class ),
+            engine.getManager( URLConstructor.class ),
+            engine.getManager( InternationalizationManager.class )
         );
     }
 }

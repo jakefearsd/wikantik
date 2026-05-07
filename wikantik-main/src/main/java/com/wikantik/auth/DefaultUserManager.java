@@ -265,7 +265,7 @@ public class DefaultUserManager implements UserManager {
         if ( profile.getEmail() != null ) {
             final Locale loc = context.getWikiSession().getLocale();
             try {
-                final InternationalizationManager i18n = engine.getManager( InternationalizationManager.class );
+                final InternationalizationManager i18n = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).i18n();
                 final String app = engine.getApplicationName();
                 final String to = profile.getEmail();
                 final String subject = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
@@ -293,7 +293,7 @@ public class DefaultUserManager implements UserManager {
         if ( adminEmail != null && !adminEmail.isBlank() ) {
             final Locale loc = context.getWikiSession().getLocale();
             try {
-                final InternationalizationManager i18n = engine.getManager( InternationalizationManager.class );
+                final InternationalizationManager i18n = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).i18n();
                 final String app = engine.getApplicationName();
                 final String adminSubject = i18n.get( InternationalizationManager.DEF_TEMPLATE, loc,
                         "notification.createUserProfile.admin.subject", app );

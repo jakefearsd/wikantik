@@ -50,7 +50,7 @@ public class VariableLinkNodePostProcessorState implements NodePostProcessorStat
         final String variable = NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, wysiwygEditorMode );
         if( !wysiwygEditorMode ) {
             try {
-                final String parsedVariable = wikiContext.getEngine().getManager( VariableManager.class ).parseAndGetValue( wikiContext, variable );
+                final String parsedVariable = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( wikiContext.getEngine() ).variableManager().parseAndGetValue( wikiContext, variable );
                 final WikiHtmlInline content = WikiHtmlInline.of( parsedVariable, wikiContext );
                 NodePostProcessorStateCommonOperations.addContent( state, link, content );
             } catch( final NoSuchVariableException e ) {

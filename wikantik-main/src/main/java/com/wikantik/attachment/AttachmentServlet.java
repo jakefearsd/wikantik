@@ -141,7 +141,7 @@ public class AttachmentServlet extends HttpServlet {
         engine = Wiki.engine().find( config );
         attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();
         authorizationManager = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
-        progressManager = engine.getManager( ProgressManager.class );
+        progressManager = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).progressManager();
         final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
         final String tmpDir = engine.getWorkDir() + File.separator + "attach-tmp";
         final String allowed = TextUtil.getStringProperty( props, AttachmentManager.PROP_ALLOWEDEXTENSIONS, null );

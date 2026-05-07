@@ -23,6 +23,11 @@ import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.blog.BlogManager;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.content.RecentArticlesManager;
+import com.wikantik.i18n.InternationalizationManager;
+import com.wikantik.ui.CommandResolver;
+import com.wikantik.ui.progress.ProgressManager;
+import com.wikantik.url.URLConstructor;
+import com.wikantik.variables.VariableManager;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -57,8 +62,18 @@ final class CoreSubsystemFactoryTest {
         final SimpleMeterRegistry meters = new SimpleMeterRegistry();
 
         final CachingManager cachingManager = mock( CachingManager.class );
+        final VariableManager variableManager = mock( VariableManager.class );
+        final ProgressManager progressManager = mock( ProgressManager.class );
+        final CommandResolver commandResolver = mock( CommandResolver.class );
+        final URLConstructor urlConstructor = mock( URLConstructor.class );
+        final InternationalizationManager i18n = mock( InternationalizationManager.class );
         final Engine engine = mock( Engine.class );
         when( engine.getManager( CachingManager.class ) ).thenReturn( cachingManager );
+        when( engine.getManager( VariableManager.class ) ).thenReturn( variableManager );
+        when( engine.getManager( ProgressManager.class ) ).thenReturn( progressManager );
+        when( engine.getManager( CommandResolver.class ) ).thenReturn( commandResolver );
+        when( engine.getManager( URLConstructor.class ) ).thenReturn( urlConstructor );
+        when( engine.getManager( InternationalizationManager.class ) ).thenReturn( i18n );
 
         final CoreSubsystem.Services services = CoreSubsystemFactory.create(
             new CoreSubsystem.Deps( raw, null, meters, sys, recent, blog, engine ) );
@@ -76,6 +91,11 @@ final class CoreSubsystemFactoryTest {
         assertSame( recent, services.recentArticlesManager() );
         assertSame( blog, services.blogManager() );
         assertSame( cachingManager, services.cachingManager() );
+        assertSame( variableManager, services.variableManager() );
+        assertSame( progressManager, services.progressManager() );
+        assertSame( commandResolver, services.commandResolver() );
+        assertSame( urlConstructor, services.urlConstructor() );
+        assertSame( i18n, services.i18n() );
     }
 
     @Test
@@ -83,6 +103,7 @@ final class CoreSubsystemFactoryTest {
         final CachingManager cachingManager = mock( CachingManager.class );
         final Engine engine = mock( Engine.class );
         when( engine.getManager( CachingManager.class ) ).thenReturn( cachingManager );
+        // other managers return null by default from the mock
 
         final CoreSubsystem.Services services = CoreSubsystemFactory.create(
             new CoreSubsystem.Deps(

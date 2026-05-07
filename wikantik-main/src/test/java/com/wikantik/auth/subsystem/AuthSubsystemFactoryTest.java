@@ -22,6 +22,7 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.UserManager;
+import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.blog.BlogManager;
 import com.wikantik.content.RecentArticlesManager;
@@ -56,12 +57,14 @@ final class AuthSubsystemFactoryTest {
         final AuthorizationManager  authz = mock( AuthorizationManager.class );
         final UserManager           users = mock( UserManager.class );
         final GroupManager          groups = mock( GroupManager.class );
+        final AclManager            aclManager = mock( AclManager.class );
 
         final Engine engine = mock( Engine.class );
         when( engine.getManager( AuthenticationManager.class ) ).thenReturn( authn );
         when( engine.getManager( AuthorizationManager.class ) ).thenReturn( authz );
         when( engine.getManager( UserManager.class ) ).thenReturn( users );
         when( engine.getManager( GroupManager.class ) ).thenReturn( groups );
+        when( engine.getManager( AclManager.class ) ).thenReturn( aclManager );
 
         final CoreSubsystem.Services core = CoreSubsystemFactory.create( new CoreSubsystem.Deps(
             new Properties(), null, new SimpleMeterRegistry(),
@@ -77,6 +80,7 @@ final class AuthSubsystemFactoryTest {
         assertSame( authz, services.authorization() );
         assertSame( users, services.users() );
         assertSame( groups, services.groups() );
+        assertSame( aclManager, services.aclManager() );
         assertNotNull( services, "services" );
         // webAuthorizer is null when the authorizer isn't configured (mocked
         // AuthorizationManager.getAuthorizer() returns null) — no assertion.

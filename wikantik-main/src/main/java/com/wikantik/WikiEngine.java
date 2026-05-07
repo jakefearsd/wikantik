@@ -665,7 +665,8 @@ public class WikiEngine implements Engine {
         // invalidate the frozen authSubsystem snapshot so that AuthSubsystemBridge falls
         // through to live getManager() lookups on the next call.
         if ( clazz == AuthenticationManager.class || clazz == AuthorizationManager.class
-                || clazz == UserManager.class || clazz == GroupManager.class ) {
+                || clazz == UserManager.class || clazz == GroupManager.class
+                || clazz == com.wikantik.auth.acl.AclManager.class ) {
             this.authSubsystem = null;
         }
         if ( clazz == PageManager.class || clazz == AttachmentManager.class
@@ -673,7 +674,12 @@ public class WikiEngine implements Engine {
                 || clazz == com.wikantik.api.managers.ReferenceManager.class ) {
             this.pageSubsystem = null;
         }
-        if ( clazz == com.wikantik.cache.CachingManager.class ) {
+        if ( clazz == com.wikantik.cache.CachingManager.class
+                || clazz == com.wikantik.variables.VariableManager.class
+                || clazz == com.wikantik.ui.progress.ProgressManager.class
+                || clazz == com.wikantik.ui.CommandResolver.class
+                || clazz == com.wikantik.url.URLConstructor.class
+                || clazz == com.wikantik.i18n.InternationalizationManager.class ) {
             this.coreSubsystem = null;
         }
         if ( clazz == RenderingManager.class || clazz == PluginManager.class

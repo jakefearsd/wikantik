@@ -24,6 +24,7 @@ import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.Authorizer;
 import com.wikantik.auth.SecurityVerifier;
 import com.wikantik.auth.UserManager;
+import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.core.subsystem.CoreSubsystem;
@@ -94,6 +95,7 @@ public final class AuthSubsystem {
         GroupManager          groups,
         Authorizer            webAuthorizer,
         ApiKeyService         apiKeys,
-        SecurityVerifier      securityVerifier
+        SecurityVerifier      securityVerifier,
+        AclManager            aclManager
     ) {}
 }

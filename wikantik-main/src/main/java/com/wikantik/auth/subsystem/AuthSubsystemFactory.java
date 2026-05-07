@@ -24,6 +24,7 @@ import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.Authorizer;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.auth.authorize.GroupManager;
@@ -75,6 +76,8 @@ public final class AuthSubsystemFactory {
         final ApiKeyService apiKeys = ApiKeyServiceHolder.get(
             deps.core().properties().asProperties() );
 
+        final AclManager aclManager = engine.getManager( AclManager.class );
+
         return new AuthSubsystem.Services(
             authentication,
             authorization,
@@ -82,7 +85,8 @@ public final class AuthSubsystemFactory {
             groups,
             webAuthorizer,
             apiKeys,
-            /* securityVerifier — wired in Ckpt 3 */ null
+            /* securityVerifier — wired in Ckpt 3 */ null,
+            aclManager
         );
     }
 }

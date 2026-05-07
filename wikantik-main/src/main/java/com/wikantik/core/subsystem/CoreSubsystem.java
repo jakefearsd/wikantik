@@ -23,6 +23,11 @@ import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.blog.BlogManager;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.content.RecentArticlesManager;
+import com.wikantik.i18n.InternationalizationManager;
+import com.wikantik.ui.CommandResolver;
+import com.wikantik.ui.progress.ProgressManager;
+import com.wikantik.url.URLConstructor;
+import com.wikantik.variables.VariableManager;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.ServletContext;
 
@@ -79,6 +84,11 @@ public final class CoreSubsystem {
         SystemPageRegistry systemPageRegistry,
         RecentArticlesManager recentArticlesManager,
         BlogManager blogManager,
-        CachingManager cachingManager
+        CachingManager cachingManager,
+        VariableManager variableManager,
+        ProgressManager progressManager,
+        CommandResolver commandResolver,
+        URLConstructor urlConstructor,
+        InternationalizationManager i18n
     ) {}
 }

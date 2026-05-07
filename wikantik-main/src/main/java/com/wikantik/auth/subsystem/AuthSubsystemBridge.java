@@ -24,6 +24,7 @@ import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.Authorizer;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.auth.authorize.GroupManager;
@@ -73,7 +74,8 @@ public final class AuthSubsystemBridge {
             engine.getManager( GroupManager.class ),
             webAuthorizer,
             apiKeys,
-            /* securityVerifier */ null
+            /* securityVerifier */ null,
+            engine.getManager( AclManager.class )
         );
     }
 }

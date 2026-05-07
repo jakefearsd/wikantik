@@ -185,7 +185,7 @@ public class WikiContext implements Context, Command {
      * @throws IllegalArgumentException if <code>engine</code> or <code>command</code> are <code>null</code>
      */
     public WikiContext( final Engine engine, final HttpServletRequest request, final Command command ) throws IllegalArgumentException {
-        this( engine, request, command, engine.getManager( CommandResolver.class ) );
+        this( engine, request, command, com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).commandResolver() );
     }
 
     /**
@@ -263,7 +263,7 @@ public class WikiContext implements Context, Command {
      *  @since 2.1.15.
      */
     public WikiContext( final Engine engine, final HttpServletRequest request, final String requestContext ) {
-        this( engine, request, engine.getManager( CommandResolver.class ).findCommand( request, requestContext ), engine.getManager( CommandResolver.class ) );
+        this( engine, request, com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).commandResolver().findCommand( request, requestContext ), com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).commandResolver() );
         if( !engine.isConfigured() ) {
             throw new InternalWikiException( "Engine has not been properly started.  It is likely that the configuration is faulty.  Please check all logs for the possible reason." );
         }
@@ -792,7 +792,7 @@ public class WikiContext implements Context, Command {
      */
     protected static Command findCommand( final Engine engine, final HttpServletRequest request, final Page page ) {
         final String defaultContext = ContextEnum.PAGE_VIEW.getRequestContext();
-        Command command = engine.getManager( CommandResolver.class ).findCommand( request, defaultContext );
+        Command command = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).commandResolver().findCommand( request, defaultContext );
         if ( command instanceof GenericCommand gc4 && gc4.isPageCommand() && page != null ) {
             command = command.targetedCommand( page );
         }

@@ -112,7 +112,7 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
     public DefaultPageManager( final Engine newEngine, final Properties props,
                                final PageProvider pageProvider ) throws NoSuchElementException {
         this.engine = newEngine;
-        final CommandResolver commandResolver = newEngine.getManager( CommandResolver.class );
+        final CommandResolver commandResolver = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( newEngine ).commandResolver();
         final int expiryTime = TextUtil.parseIntParameter( props.getProperty( PROP_LOCKEXPIRY ), 60 );
         pageSorter.initialize( props );
 
@@ -238,7 +238,7 @@ public class DefaultPageManager implements com.wikantik.api.managers.PageManager
                     if ( aclChanged ) {
                         // If the Acl needed changing, change it now
                         try {
-                            engine.getManager( AclManager.class ).setPermissions( page, page.getAcl() );
+                            com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine ).aclManager().setPermissions( page, page.getAcl() );
                         } catch ( final WikiSecurityException e ) {
                             LOG.error( "Could not change page ACL for page {}: {}", page.getName(), e.getMessage(), e );
                         }

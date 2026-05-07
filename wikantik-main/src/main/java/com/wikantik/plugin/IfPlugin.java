@@ -182,7 +182,7 @@ public class IfPlugin implements Plugin {
         }
 
         if( var != null ) {
-            final String content = context.getEngine().getManager( VariableManager.class ).getVariable(context, var);
+            final String content = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( context.getEngine() ).variableManager().getVariable(context, var);
             include |= checkContains(content,contains);
             include |= checkIs(content,is);
             include |= checkVarExists(content,exists);

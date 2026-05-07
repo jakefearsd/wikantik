@@ -65,7 +65,7 @@ public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorSt
             LOG.debug( "page={}, ACL = {}", page.getName(), ruleLine );
 
             try {
-                final Acl acl = wikiContext.getEngine().getManager( AclManager.class ).parseAcl( page, ruleLine );
+                final Acl acl = com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( wikiContext.getEngine() ).aclManager().parseAcl( page, ruleLine );
                 page.setAcl( acl );
                 link.unlink();
                 state.nodeRemoved( link );

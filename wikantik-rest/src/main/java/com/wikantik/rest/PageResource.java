@@ -139,7 +139,7 @@ public class PageResource extends RestServletBase {
         // Rendered HTML option
         if ( "true".equalsIgnoreCase( request.getParameter( "render" ) ) ) {
             try {
-                final RenderingManager renderingManager = engine.getManager( RenderingManager.class );
+                final RenderingManager renderingManager = getSubsystems().rendering().renderingManager();
                 final Context context = Wiki.context().create( engine, request, page );
                 final String html = renderingManager.textToHTML( context, rawText );
                 result.put( "contentHtml", html );

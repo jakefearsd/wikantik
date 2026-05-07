@@ -163,7 +163,7 @@ public class PluginContent extends Text implements PluginElement {
                     val = engine.getManager( VariableManager.class).expandVariables( context, val );
                     parsedParams.put( e.getKey(), val );
                 }
-                final PluginManager pm = engine.getManager( PluginManager.class );
+                final PluginManager pm = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).pluginManager();
                 result = pm.execute( context, pluginName, parsedParams );
             }
         } catch( final Exception e ) {
@@ -185,7 +185,7 @@ public class PluginContent extends Text implements PluginElement {
     /**{@inheritDoc}*/
     @Override
     public void executeParse( final Context context ) throws PluginException {
-        final PluginManager pm = context.getEngine().getManager( PluginManager.class );
+        final PluginManager pm = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( context.getEngine() ).pluginManager();
         if( pm.pluginsEnabled() ) {
             final ResourceBundle rb = Preferences.getBundle( context, Plugin.CORE_PLUGINS_RESOURCEBUNDLE);
             final Map< String, String > params = getParameters();
@@ -212,7 +212,7 @@ public class PluginContent extends Text implements PluginElement {
      */
     public static PluginContent parsePluginLine( final Context context, final String commandline, final int pos ) throws PluginException {
         try {
-            final PluginManager pm = context.getEngine().getManager( PluginManager.class );
+            final PluginManager pm = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( context.getEngine() ).pluginManager();
             final Matcher matcher = pm.getPluginPattern().matcher( commandline );
             if( matcher.find() ) {
                 final String plugin = matcher.group( 2 );

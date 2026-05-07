@@ -141,10 +141,10 @@ public class IfPlugin implements Plugin {
     /**
      *  {@inheritDoc}
      */
-    @Override 
+    @Override
     public String execute( final Context context, final Map< String, String > params ) throws PluginException {
         return ifInclude( context,params )
-                ? context.getEngine().getManager( RenderingManager.class ).textToHTML( context, params.get( DefaultPluginManager.PARAM_BODY ) )
+                ? com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( context.getEngine() ).renderingManager().textToHTML( context, params.get( DefaultPluginManager.PARAM_BODY ) )
                 : "" ;
     }
 

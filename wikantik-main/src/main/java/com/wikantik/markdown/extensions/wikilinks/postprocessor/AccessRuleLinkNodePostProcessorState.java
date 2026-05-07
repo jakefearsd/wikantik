@@ -54,7 +54,7 @@ public class AccessRuleLinkNodePostProcessorState implements NodePostProcessorSt
     @Override
     public void process( final NodeTracker state, final WikantikLink link ) {
         String ruleLine = NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, wysiwygEditorMode );
-        if( wikiContext.getEngine().getManager( RenderingManager.class ).getParser( wikiContext, link.getUrl().toString() ).isParseAccessRules() ) {
+        if( com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( wikiContext.getEngine() ).renderingManager().getParser( wikiContext, link.getUrl().toString() ).isParseAccessRules() ) {
             final Page page = wikiContext.getRealPage();
             if( ruleLine.startsWith( "{" ) ) {
                 ruleLine = ruleLine.substring( 1 );

@@ -43,8 +43,8 @@ public class MarkdownRenderer extends WikiRenderer {
 
 	public MarkdownRenderer( final Context context, final WikiDocument doc ) {
 		super( context, doc );
-		final MarkupParser mp = context.getEngine()
-				                       .getManager( RenderingManager.class )
+		final MarkupParser mp = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( context.getEngine() )
+				                       .renderingManager()
 				                       .getParser( context, StringUtils.defaultString( doc.getPageData() ) );
 		final boolean isImageInlining = mp.isImageInlining();
 		final List< Pattern > inlineImagePatterns = mp.getInlineImagePatterns();

@@ -279,7 +279,7 @@ public class BlogResource extends RestServletBase {
 
                 if ( "true".equals( request.getParameter( "render" ) ) ) {
                     final Context ctx = Wiki.context().create( getEngine(), request, blogPage );
-                    final RenderingManager rm = getEngine().getManager( RenderingManager.class );
+                    final RenderingManager rm = getSubsystems().rendering().renderingManager();
                     result.put( "contentHtml", rm.textToHTML( ctx, parsed.body() ) );
                 }
             }
@@ -442,7 +442,7 @@ public class BlogResource extends RestServletBase {
         // Rendered HTML option
         if ( "true".equalsIgnoreCase( request.getParameter( "render" ) ) ) {
             try {
-                final RenderingManager renderingManager = engine.getManager( RenderingManager.class );
+                final RenderingManager renderingManager = getSubsystems().rendering().renderingManager();
                 final Context context = Wiki.context().create( engine, request, page );
                 final String html = renderingManager.textToHTML( context, rawText );
                 result.put( "contentHtml", html );
@@ -589,7 +589,7 @@ public class BlogResource extends RestServletBase {
             pm.putPageText( page, content );
 
             // Evict blog homepage cache so plugins reflect updated entry metadata
-            final RenderingManager rm = engine.getManager( RenderingManager.class );
+            final RenderingManager rm = getSubsystems().rendering().renderingManager();
             rm.evictRenderCache( BlogManager.blogPagePath( username, BlogManager.BLOG_HOME_PAGE ) );
 
             final Map< String, Object > result = new LinkedHashMap<>();
@@ -630,7 +630,7 @@ public class BlogResource extends RestServletBase {
             pm.deletePage( pageName );
 
             // Evict blog homepage cache so plugins reflect the deleted entry
-            final RenderingManager rm = engine.getManager( RenderingManager.class );
+            final RenderingManager rm = getSubsystems().rendering().renderingManager();
             rm.evictRenderCache( BlogManager.blogPagePath( username, BlogManager.BLOG_HOME_PAGE ) );
 
             final Map< String, Object > result = new LinkedHashMap<>();

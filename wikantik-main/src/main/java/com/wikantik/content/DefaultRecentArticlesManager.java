@@ -30,6 +30,7 @@ import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.render.RenderingManager;
+import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.util.TextUtil;
 
 import java.time.ZoneId;
@@ -136,7 +137,7 @@ public class DefaultRecentArticlesManager implements RecentArticlesManager {
     public void initialize( final Engine newEngine, final Properties props ) {
         this.engine = newEngine;
         this.pageManager = PageSubsystemBridge.fromLegacyEngine( newEngine ).pages();
-        this.renderingManager = newEngine.getManager( RenderingManager.class );
+        this.renderingManager = RenderingSubsystemBridge.fromLegacyEngine( newEngine ).renderingManager();
         this.systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( newEngine ).systemPageRegistry();
         cacheTTL = TextUtil.getIntegerProperty( props, PROP_CACHE_TTL, DEFAULT_CACHE_TTL );
         defaultCount = TextUtil.getIntegerProperty( props, PROP_DEFAULT_COUNT, RecentArticlesQuery.DEFAULT_COUNT );

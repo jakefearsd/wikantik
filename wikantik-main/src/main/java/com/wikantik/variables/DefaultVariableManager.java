@@ -30,6 +30,7 @@ import com.wikantik.api.filters.PageFilter;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.filters.FilterManager;
+import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.api.modules.InternalModule;
 import com.wikantik.api.managers.PageManager;
@@ -414,7 +415,7 @@ public class DefaultVariableManager implements VariableManager {
         }
 
         private FilterManager filterManager() {
-            return filterManager != null ? filterManager : context.getEngine().getManager( FilterManager.class );
+            return filterManager != null ? filterManager : com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( context.getEngine() ).filterManager();
         }
 
         public String getPagename()

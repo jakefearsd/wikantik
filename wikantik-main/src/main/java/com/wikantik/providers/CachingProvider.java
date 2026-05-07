@@ -35,6 +35,7 @@ import com.wikantik.content.NewsPageGenerator;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.render.RenderingManager;
+import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.util.ClassUtil;
 import com.wikantik.util.TextUtil;
 
@@ -439,7 +440,7 @@ public class CachingProvider implements PageProvider {
     //  FIXME: Kludge: make sure that the page is also parsed and it gets all the necessary variables.
     private void refreshMetadata( final Page page ) {
         if( page != null && !page.hasMetadata() ) {
-            final RenderingManager mgr = engine.getManager( RenderingManager.class );
+            final RenderingManager mgr = RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager();
             try {
                 final String data = provider.getPageText( page.getName(), page.getVersion() );
                 final Context ctx = Wiki.context().create( engine, page );

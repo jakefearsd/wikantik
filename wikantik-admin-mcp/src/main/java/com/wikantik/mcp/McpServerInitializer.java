@@ -43,6 +43,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.filters.FilterManager;
+import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 
 
 /**
@@ -154,7 +155,7 @@ public class McpServerInitializer implements ServletContextListener {
                     .build();
 
             subscriptionBridge = new WikiEventSubscriptionBridge( mcpServer );
-            subscriptionBridge.register( pageManager, engine.getManager( FilterManager.class ) );
+            subscriptionBridge.register( pageManager, RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager() );
 
             servletContext.setAttribute( ATTR_MCP_SERVER, mcpServer );
             final int totalTools = toolRegistry.readOnlyTools().size() + toolRegistry.authorConfigurableTools().size();

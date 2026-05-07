@@ -37,6 +37,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.providers.AbstractFileProvider;
 import com.wikantik.render.RenderingManager;
+import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 
 import java.io.File;
 import java.io.IOException;
@@ -357,7 +358,7 @@ public class DefaultBlogManager implements BlogManager {
      * Lazy accessor for RenderingManager (initialized after BlogManager in the engine lifecycle).
      */
     private RenderingManager getRenderingManager() {
-        return engine.getManager( RenderingManager.class );
+        return RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager();
     }
 
     /**

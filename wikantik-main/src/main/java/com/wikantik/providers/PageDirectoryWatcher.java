@@ -29,6 +29,7 @@ import com.wikantik.cache.CachingManager;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.filters.FilterManager;
+import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.search.SearchManager;
 
@@ -288,7 +289,7 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
         cachingManager.remove( CachingManager.CACHE_PAGES_TEXT, pageName );
         cachingManager.remove( CachingManager.CACHE_PAGES_HISTORY, pageName );
 
-        final FilterManager filterManager = engine.getManager( FilterManager.class );
+        final FilterManager filterManager = RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager();
         if( filterManager != null && WikiEventManager.isListening( filterManager ) ) {
             com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).eventBus().fireEvent( filterManager,
                     new WikiPageEvent( engine, WikiPageEvent.POST_SAVE_BEGIN, pageName ) );

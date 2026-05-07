@@ -60,7 +60,7 @@ public class DefaultPageLifecycle implements PageLifecycle {
     }
 
     private FilterManager getFilterManager() {
-        return engine.getManager( FilterManager.class );
+        return com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager();
     }
 
     // -------------------------------------------------------------------------

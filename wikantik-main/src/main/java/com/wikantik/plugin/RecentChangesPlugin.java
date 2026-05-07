@@ -146,7 +146,7 @@ public class RecentChangesPlugin extends AbstractReferralPlugin implements Plugi
 
                 final String href = context.getURL( pageref instanceof Attachment ? ContextEnum.PAGE_ATTACH.getRequestContext()
                                                                                   : ContextEnum.PAGE_VIEW.getRequestContext(), pageref.getName() );
-                Element link = XhtmlUtil.link( href, engine.getManager( RenderingManager.class ).beautifyTitle( pageref.getName() ) );
+                Element link = XhtmlUtil.link( href, com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager().beautifyTitle( pageref.getName() ) );
                 final Element row = XhtmlUtil.element( XHTML.tr );
                 final Element col = XhtmlUtil.element( XHTML.td );
                 col.setAttribute( XHTML.ATTR_width, "30%" );

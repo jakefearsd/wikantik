@@ -136,7 +136,7 @@ public class Search implements Plugin {
             name.setAttribute(XHTML.ATTR_width,"30%");
 
             name.addContent( XhtmlUtil.link(context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), sr.getPage().getName() ),
-                             engine.getManager( RenderingManager.class ).beautifyTitle(sr.getPage().getName() ) ) );
+                             com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager().beautifyTitle(sr.getPage().getName() ) ) );
 
             row.addContent(name);
 

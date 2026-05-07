@@ -46,6 +46,7 @@ import com.wikantik.preferences.Preferences;
 import com.wikantik.ui.InputValidator;
 import com.wikantik.util.ClassUtil;
 import com.wikantik.util.HttpUtil;
+import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.util.MailUtil;
 import com.wikantik.util.TextUtil;
 
@@ -356,7 +357,7 @@ public class DefaultUserManager implements UserManager {
 
     /** Returns {@code true} if the spam filter rejected the profile (caller should stop further validation). */
     private boolean validateSpamFilter( final Context context, final Session session, final UserProfile profile ) {
-        final FilterManager fm = engine.getManager( FilterManager.class );
+        final FilterManager fm = RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager();
         final boolean spamFilterRejects = fm.getFilterList().stream()
                 .filter( SpamFilter.class::isInstance )
                 .map( SpamFilter.class::cast )

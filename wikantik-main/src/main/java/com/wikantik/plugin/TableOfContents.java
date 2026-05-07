@@ -214,7 +214,7 @@ public class TableOfContents implements Plugin, HeadingListener {
 
             if( runFilters ) {
 				try {
-					final FilterManager fm = engine.getManager( FilterManager.class );
+					final FilterManager fm = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).filterManager();
 					wikiText = fm.doPreTranslateFiltering(context, wikiText);
 
 				} catch( final Exception e ) {
@@ -225,7 +225,7 @@ public class TableOfContents implements Plugin, HeadingListener {
 
             context.setVariable( VAR_ALREADY_PROCESSING, "x" );
 
-            final MarkupParser parser = engine.getManager( RenderingManager.class ).getParser( context, wikiText );
+            final MarkupParser parser = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager().getParser( context, wikiText );
             parser.addHeadingListener( this );
             parser.parse();
 

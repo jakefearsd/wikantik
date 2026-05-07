@@ -158,7 +158,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
         dateFormat = Preferences.getDateFormat( context, TimeFormat.DATETIME );
         engine = context.getEngine();
         // Determine link syntax: use Markdown links unless the configured parser for this page is the legacy wiki-syntax parser
-        final MarkupParser configuredParser = engine.getManager( RenderingManager.class ).getParser( context, "" );
+        final MarkupParser configuredParser = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager().getParser( context, "" );
         useWikiSyntax = !configuredParser.getClass().getName().contains( "MarkdownParser" );
         maxwidth = TextUtil.parseIntParameter( params.get( PARAM_MAXWIDTH ), Integer.MAX_VALUE );
         if( maxwidth < 0 ) {
@@ -380,7 +380,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
 
             output.append( effectiveBefore );
 
-            final String title = engine.getManager( RenderingManager.class ).beautifyTitle( value );
+            final String title = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager().beautifyTitle( value );
             if( useMarkdownLinks ) {
                 // Markdown link: [title](pageName)
                 output.append('[').append( title ).append( "](" ).append( value ).append(')');
@@ -410,7 +410,7 @@ public abstract class AbstractReferralPlugin implements Plugin {
     protected String makeHTML( final Context context, final String wikitext ) {
         String result = "";
 
-        final RenderingManager mgr = engine.getManager( RenderingManager.class );
+        final RenderingManager mgr = com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager();
 
         try {
             final MarkupParser parser = mgr.getParser( context, wikitext );

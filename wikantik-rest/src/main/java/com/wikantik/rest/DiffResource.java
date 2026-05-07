@@ -105,7 +105,7 @@ public class DiffResource extends RestServletBase {
 
             if ( htmlFormat ) {
                 final Context context = Wiki.context().create( engine, page );
-                final DifferenceManager diffManager = engine.getManager( DifferenceManager.class );
+                final DifferenceManager diffManager = getSubsystems().rendering().differenceManager();
                 final String diff = diffManager.makeDiff( context, fromText, toText );
                 result.put( "format", "html" );
                 result.put( "diff", diff );

@@ -214,7 +214,7 @@ public class InsertPage implements Plugin {
         if ( !DEFAULT_STYLE.equals( style ) ) res.append( "\" style=\"" ).append( style );
         if ( showOnce ) res.append( "\" data-once=\"" ).append( cookieName );
         res.append( "\" >" );
-        res.append( engine.getManager( RenderingManager.class ).textToHTML( includedContext, pageData ) );
+        res.append( com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine ).renderingManager().textToHTML( includedContext, pageData ) );
         res.append( moreLink );
         res.append( "</div>" );
         return res.toString();

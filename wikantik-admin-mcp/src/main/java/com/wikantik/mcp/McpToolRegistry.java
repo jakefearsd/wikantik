@@ -24,6 +24,7 @@ import com.wikantik.content.PageRenamer;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.diff.DifferenceManager;
+import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.mcp.tools.*;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
@@ -62,7 +63,7 @@ public class McpToolRegistry {
         final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         final ReferenceManager referenceManager = engine.getManager( ReferenceManager.class );
         final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
-        final DifferenceManager differenceManager = engine.getManager( DifferenceManager.class );
+        final DifferenceManager differenceManager = RenderingSubsystemBridge.fromLegacyEngine( engine ).differenceManager();
         final PageRenamer pageRenamer = PageSubsystemBridge.fromLegacyEngine( engine ).pageRenamer();
         final PageSaveHelper pageSaveHelper = new PageSaveHelper( engine );
 

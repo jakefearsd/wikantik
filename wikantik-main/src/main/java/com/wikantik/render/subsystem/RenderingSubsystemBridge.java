@@ -51,15 +51,18 @@ public final class RenderingSubsystemBridge {
     private RenderingSubsystemBridge() {}
 
     public static RenderingSubsystem.Services fromLegacyEngine( final Engine engine ) {
-        if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
-            final RenderingSubsystem.Services typed = wikiEngine.getRenderingSubsystem();
-            if ( typed != null ) return typed;
+        if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
+            // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
+            return new RenderingSubsystem.Services(
+                null, null, null, null, null, null, null, null, null );
         }
+        final RenderingSubsystem.Services typed = wikiEngine.getRenderingSubsystem();
+        if ( typed != null ) return typed;
 
-        final RenderingManager  renderingManager  = engine.getManager( RenderingManager.class );
-        final PluginManager     pluginManager     = engine.getManager( PluginManager.class );
-        final FilterManager     filterManager     = engine.getManager( FilterManager.class );
-        final DifferenceManager differenceManager = engine.getManager( DifferenceManager.class );
+        final RenderingManager  renderingManager  = wikiEngine.getManager( RenderingManager.class );
+        final PluginManager     pluginManager     = wikiEngine.getManager( PluginManager.class );
+        final FilterManager     filterManager     = wikiEngine.getManager( FilterManager.class );
+        final DifferenceManager differenceManager = wikiEngine.getManager( DifferenceManager.class );
 
         // Phase 6 Ckpt 4: extract the decomposed helpers from the
         // registered SpamFilter. Absent SpamFilter (test fixtures) keeps
@@ -70,7 +73,7 @@ public final class RenderingSubsystemBridge {
         final SpamExternalSignals spamExternalSignals = spam != null ? spam.getExternalSignals() : null;
         final SpamPolicy          spamPolicy          = spam != null ? spam.getPolicy()          : null;
 
-        final NewsPageGenerator newsPageGenerator = engine.getManager( NewsPageGenerator.class );
+        final NewsPageGenerator newsPageGenerator = wikiEngine.getManager( NewsPageGenerator.class );
 
         return new RenderingSubsystem.Services(
             renderingManager, pluginManager, filterManager, differenceManager,

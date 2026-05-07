@@ -77,33 +77,39 @@ public final class KnowledgeSubsystemBridge {
      * register the services they need).</p>
      */
     public static KnowledgeSubsystem.Services fromLegacyEngine( final Engine engine ) {
-        if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
-            final KnowledgeSubsystem.Services typed = wikiEngine.getKnowledgeSubsystem();
-            if ( typed != null ) return typed;
+        if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
+            // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
+            return new KnowledgeSubsystem.Services(
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null,
+                null, null );
         }
+        final KnowledgeSubsystem.Services typed = wikiEngine.getKnowledgeSubsystem();
+        if ( typed != null ) return typed;
+
         return new KnowledgeSubsystem.Services(
-            engine.getManager( KnowledgeGraphService.class ),
-            engine.getManager( KgProposalJudgeService.class ),
-            engine.getManager( JudgeRunner.class ),
-            engine.getManager( KgMaterializationService.class ),
-            engine.getManager( KgJudgeTimeoutRepository.class ),
-            engine.getManager( HubProposalService.class ),
-            engine.getManager( HubDiscoveryService.class ),
-            engine.getManager( HubOverviewService.class ),
-            engine.getManager( HubProposalRepository.class ),
-            engine.getManager( HubDiscoveryRepository.class ),
-            engine.getManager( ContentChunkRepository.class ),
-            engine.getManager( ChunkProjector.class ),
-            engine.getManager( MentionIndex.class ),
-            engine.getManager( NodeMentionSimilarity.class ),
-            engine.getManager( FrontmatterDefaultsFilter.class ),
-            engine.getManager( HubSyncFilter.class ),
-            engine.getManager( ContextRetrievalService.class ),
-            engine.getManager( ForAgentProjectionService.class ),
-            engine.getManager( BootstrapEntityExtractionIndexer.class ),
-            engine.getManager( KgInclusionPolicy.class ),
-            engine.getManager( ReconciliationJobRunner.class ),
-            engine.getManager( RetrievalQualityRunner.class )
+            wikiEngine.getManager( KnowledgeGraphService.class ),
+            wikiEngine.getManager( KgProposalJudgeService.class ),
+            wikiEngine.getManager( JudgeRunner.class ),
+            wikiEngine.getManager( KgMaterializationService.class ),
+            wikiEngine.getManager( KgJudgeTimeoutRepository.class ),
+            wikiEngine.getManager( HubProposalService.class ),
+            wikiEngine.getManager( HubDiscoveryService.class ),
+            wikiEngine.getManager( HubOverviewService.class ),
+            wikiEngine.getManager( HubProposalRepository.class ),
+            wikiEngine.getManager( HubDiscoveryRepository.class ),
+            wikiEngine.getManager( ContentChunkRepository.class ),
+            wikiEngine.getManager( ChunkProjector.class ),
+            wikiEngine.getManager( MentionIndex.class ),
+            wikiEngine.getManager( NodeMentionSimilarity.class ),
+            wikiEngine.getManager( FrontmatterDefaultsFilter.class ),
+            wikiEngine.getManager( HubSyncFilter.class ),
+            wikiEngine.getManager( ContextRetrievalService.class ),
+            wikiEngine.getManager( ForAgentProjectionService.class ),
+            wikiEngine.getManager( BootstrapEntityExtractionIndexer.class ),
+            wikiEngine.getManager( KgInclusionPolicy.class ),
+            wikiEngine.getManager( ReconciliationJobRunner.class ),
+            wikiEngine.getManager( RetrievalQualityRunner.class )
         );
     }
 }

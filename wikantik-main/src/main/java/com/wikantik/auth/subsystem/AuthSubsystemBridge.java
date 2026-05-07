@@ -48,12 +48,15 @@ public final class AuthSubsystemBridge {
     private AuthSubsystemBridge() {}
 
     public static AuthSubsystem.Services fromLegacyEngine( final Engine engine ) {
-        if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
-            final AuthSubsystem.Services typed = wikiEngine.getAuthSubsystem();
-            if ( typed != null ) return typed;
+        if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
+            // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
+            return new AuthSubsystem.Services(
+                null, null, null, null, null, null, null, null );
         }
+        final AuthSubsystem.Services typed = wikiEngine.getAuthSubsystem();
+        if ( typed != null ) return typed;
 
-        final AuthorizationManager authorization = engine.getManager( AuthorizationManager.class );
+        final AuthorizationManager authorization = wikiEngine.getManager( AuthorizationManager.class );
         Authorizer webAuthorizer = null;
         if ( authorization != null ) {
             try {
@@ -63,19 +66,19 @@ public final class AuthSubsystemBridge {
             }
         }
 
-        final ApiKeyService apiKeys = engine.getWikiProperties() != null
-            ? ApiKeyServiceHolder.get( engine.getWikiProperties() )
+        final ApiKeyService apiKeys = wikiEngine.getWikiProperties() != null
+            ? ApiKeyServiceHolder.get( wikiEngine.getWikiProperties() )
             : null;
 
         return new AuthSubsystem.Services(
-            engine.getManager( AuthenticationManager.class ),
+            wikiEngine.getManager( AuthenticationManager.class ),
             authorization,
-            engine.getManager( UserManager.class ),
-            engine.getManager( GroupManager.class ),
+            wikiEngine.getManager( UserManager.class ),
+            wikiEngine.getManager( GroupManager.class ),
             webAuthorizer,
             apiKeys,
             /* securityVerifier */ null,
-            engine.getManager( AclManager.class )
+            wikiEngine.getManager( AclManager.class )
         );
     }
 }

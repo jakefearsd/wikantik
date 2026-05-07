@@ -52,26 +52,36 @@ public final class CoreSubsystemBridge {
     private CoreSubsystemBridge() {}
 
     public static CoreSubsystem.Services fromLegacyEngine( final Engine engine ) {
-        if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
-            final CoreSubsystem.Services typed = wikiEngine.getCoreSubsystem();
-            if ( typed != null ) return typed;
+        if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
+            // Non-WikiEngine callers cannot reach getManager — return a minimal all-null record.
+            final java.util.Properties raw = engine.getWikiProperties() != null
+                ? engine.getWikiProperties()
+                : new java.util.Properties();
+            return new CoreSubsystem.Services(
+                new DefaultWikiProperties( raw ),
+                new DefaultWikiEventBus(),
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
+                null, null, null, null, null, null, null, null, null );
         }
-        final java.util.Properties raw = engine.getWikiProperties() != null
-            ? engine.getWikiProperties()
+        final CoreSubsystem.Services typed = wikiEngine.getCoreSubsystem();
+        if ( typed != null ) return typed;
+
+        final java.util.Properties raw = wikiEngine.getWikiProperties() != null
+            ? wikiEngine.getWikiProperties()
             : new java.util.Properties();
         return new CoreSubsystem.Services(
             new DefaultWikiProperties( raw ),
             new DefaultWikiEventBus(),
             new io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
-            engine.getManager( SystemPageRegistry.class ),
-            engine.getManager( RecentArticlesManager.class ),
-            engine.getManager( BlogManager.class ),
-            engine.getManager( CachingManager.class ),
-            engine.getManager( VariableManager.class ),
-            engine.getManager( ProgressManager.class ),
-            engine.getManager( CommandResolver.class ),
-            engine.getManager( URLConstructor.class ),
-            engine.getManager( InternationalizationManager.class )
+            wikiEngine.getManager( SystemPageRegistry.class ),
+            wikiEngine.getManager( RecentArticlesManager.class ),
+            wikiEngine.getManager( BlogManager.class ),
+            wikiEngine.getManager( CachingManager.class ),
+            wikiEngine.getManager( VariableManager.class ),
+            wikiEngine.getManager( ProgressManager.class ),
+            wikiEngine.getManager( CommandResolver.class ),
+            wikiEngine.getManager( URLConstructor.class ),
+            wikiEngine.getManager( InternationalizationManager.class )
         );
     }
 }

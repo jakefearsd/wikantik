@@ -49,17 +49,20 @@ public final class PageSubsystemBridge {
     private PageSubsystemBridge() {}
 
     public static PageSubsystem.Services fromLegacyEngine( final Engine engine ) {
-        if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
-            final PageSubsystem.Services typed = wikiEngine.getPageSubsystem();
-            if ( typed != null ) return typed;
+        if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
+            // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
+            return new PageSubsystem.Services(
+                null, null, null, null, null, null, null, null, null );
         }
+        final PageSubsystem.Services typed = wikiEngine.getPageSubsystem();
+        if ( typed != null ) return typed;
 
-        final PageManager       pages       = engine.getManager( PageManager.class );
-        final AttachmentManager attachments = engine.getManager( AttachmentManager.class );
-        final PageRenamer       renamer     = engine.getManager( PageRenamer.class );
-        final PageSaveHelper    saveHelper  = new PageSaveHelper( engine );
+        final PageManager       pages       = wikiEngine.getManager( PageManager.class );
+        final AttachmentManager attachments = wikiEngine.getManager( AttachmentManager.class );
+        final PageRenamer       renamer     = wikiEngine.getManager( PageRenamer.class );
+        final PageSaveHelper    saveHelper  = new PageSaveHelper( wikiEngine );
         final PageProvider      provider    = pages != null ? pages.getProvider() : null;
-        final ReferenceManager  refMgr      = engine.getManager( ReferenceManager.class );
+        final ReferenceManager  refMgr      = wikiEngine.getManager( ReferenceManager.class );
 
         PageRepository  pageRepository  = null;
         PageLifecycle   pageLifecycle   = null;

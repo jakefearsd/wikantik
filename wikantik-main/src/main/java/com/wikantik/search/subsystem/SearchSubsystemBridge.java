@@ -55,37 +55,41 @@ public final class SearchSubsystemBridge {
     private SearchSubsystemBridge() {}
 
     public static SearchSubsystem.Services fromLegacyEngine( final Engine engine ) {
-        if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
-            final SearchSubsystem.Services typed = wikiEngine.getSearchSubsystem();
-            if ( typed != null ) return typed;
+        if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
+            // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
+            return new SearchSubsystem.Services(
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null );
         }
+        final SearchSubsystem.Services typed = wikiEngine.getSearchSubsystem();
+        if ( typed != null ) return typed;
 
-        final SearchManager  searchManager  = engine.getManager( SearchManager.class );
+        final SearchManager  searchManager  = wikiEngine.getManager( SearchManager.class );
         final SearchProvider searchProvider =
             searchManager != null ? safeGetSearchEngine( searchManager ) : null;
 
-        final HybridSearchService  hybridSearch         = engine.getManager( HybridSearchService.class );
-        final QueryEmbedder        queryEmbedder        = engine.getManager( QueryEmbedder.class );
-        final QueryEntityResolver  queryEntityResolver  = engine.getManager( QueryEntityResolver.class );
-        final GraphRerankStep      graphRerankStep      = engine.getManager( GraphRerankStep.class );
-        final GraphProximityScorer graphProximityScorer = engine.getManager( GraphProximityScorer.class );
+        final HybridSearchService  hybridSearch         = wikiEngine.getManager( HybridSearchService.class );
+        final QueryEmbedder        queryEmbedder        = wikiEngine.getManager( QueryEmbedder.class );
+        final QueryEntityResolver  queryEntityResolver  = wikiEngine.getManager( QueryEntityResolver.class );
+        final GraphRerankStep      graphRerankStep      = wikiEngine.getManager( GraphRerankStep.class );
+        final GraphProximityScorer graphProximityScorer = wikiEngine.getManager( GraphProximityScorer.class );
 
         final InMemoryChunkVectorIndex   chunkVectorIndex   =
-            engine.getManager( InMemoryChunkVectorIndex.class );
+            wikiEngine.getManager( InMemoryChunkVectorIndex.class );
         final InMemoryGraphNeighborIndex graphNeighborIndex =
-            engine.getManager( InMemoryGraphNeighborIndex.class );
+            wikiEngine.getManager( InMemoryGraphNeighborIndex.class );
 
         final EmbeddingIndexService       embeddingIndexService       =
-            engine.getManager( EmbeddingIndexService.class );
+            wikiEngine.getManager( EmbeddingIndexService.class );
         final OllamaEmbeddingClient       embeddingClient             =
-            engine.getManager( OllamaEmbeddingClient.class );
+            wikiEngine.getManager( OllamaEmbeddingClient.class );
         final BootstrapEmbeddingIndexer   bootstrapEmbeddingIndexer   =
-            engine.getManager( BootstrapEmbeddingIndexer.class );
+            wikiEngine.getManager( BootstrapEmbeddingIndexer.class );
         final AsyncEmbeddingIndexListener asyncEmbeddingIndexListener =
-            engine.getManager( AsyncEmbeddingIndexListener.class );
+            wikiEngine.getManager( AsyncEmbeddingIndexListener.class );
 
         final FrontmatterMetadataCache frontmatterMetadataCache =
-            engine.getManager( FrontmatterMetadataCache.class );
+            wikiEngine.getManager( FrontmatterMetadataCache.class );
 
         return new SearchSubsystem.Services(
             searchManager,

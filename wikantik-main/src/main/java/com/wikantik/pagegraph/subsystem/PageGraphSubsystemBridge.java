@@ -57,19 +57,21 @@ public final class PageGraphSubsystemBridge {
      * @return a (possibly sparsely populated) Services record; never null
      */
     public static PageGraphSubsystem.Services fromLegacyEngine( final Engine engine ) {
-        if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
-            final PageGraphSubsystem.Services typed = wikiEngine.getPageGraphSubsystem();
-            if ( typed != null ) return typed;
+        if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
+            // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
+            return new PageGraphSubsystem.Services( null, null, null, null );
         }
+        final PageGraphSubsystem.Services typed = wikiEngine.getPageGraphSubsystem();
+        if ( typed != null ) return typed;
 
         final StructuralIndexService     structuralIndexService     =
-            engine.getManager( StructuralIndexService.class );
+            wikiEngine.getManager( StructuralIndexService.class );
         final PageGraphService           pageGraphService           =
-            engine.getManager( PageGraphService.class );
+            wikiEngine.getManager( PageGraphService.class );
         final ReferenceManager           referenceManager           =
-            engine.getManager( ReferenceManager.class );
+            wikiEngine.getManager( ReferenceManager.class );
         final ContentIndexRebuildService contentIndexRebuildService =
-            engine.getManager( ContentIndexRebuildService.class );
+            wikiEngine.getManager( ContentIndexRebuildService.class );
 
         return new PageGraphSubsystem.Services(
             structuralIndexService,

@@ -136,14 +136,14 @@ public class DefaultPageRenamer implements PageRenamer {
         }
 
         //  re-index the page including its attachments
-        engine.getManager( SearchManager.class ).reindexPage( toPage );
+        com.wikantik.search.subsystem.SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager().reindexPage( toPage );
 
         final Collection< Attachment > attachmentsNewName = PageSubsystemBridge.fromLegacyEngine( engine ).attachments().listAttachments( toPage );
         for( final Attachment att:attachmentsNewName ) {
             final Page toAttPage = PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( att.getName() );
             // add reference to attachment under new page name
             engine.getManager( ReferenceManager.class ).updateReferences( toAttPage );
-            engine.getManager( SearchManager.class ).reindexPage( att );
+            com.wikantik.search.subsystem.SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager().reindexPage( att );
         }
 
         firePageRenameEvent( renameFrom, renameToClean );

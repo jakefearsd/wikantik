@@ -104,7 +104,7 @@ public class Search implements Plugin {
 
     private Collection<SearchResult> doBasicQuery( final Context context, final String query ) throws ProviderException, IOException {
         LOG.debug( "Searching for string {}", query );
-        return context.getEngine().getManager( SearchManager.class ).findPages( query, context );
+        return com.wikantik.search.subsystem.SearchSubsystemBridge.fromLegacyEngine( context.getEngine() ).searchManager().findPages( query, context );
     }
 
     private String renderResults( final Collection<SearchResult> results, final Context context, final int maxItems ) {

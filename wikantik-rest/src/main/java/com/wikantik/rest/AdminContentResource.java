@@ -313,7 +313,7 @@ public class AdminContentResource extends RestServletBase {
             "</admin/content/rebuild-indexes>; rel=\"successor-version\"" );
         try {
             final Engine engine = getEngine();
-            final SearchManager sm = engine.getManager( SearchManager.class );
+            final SearchManager sm = getSubsystems().search().searchManager();
             final PageManager pm = getSubsystems().page().pages();
 
             // Reindex all pages by queuing each one

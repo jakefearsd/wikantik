@@ -56,7 +56,7 @@ public class DefaultPageLifecycle implements PageLifecycle {
     // --- Lazy accessors for managers initialised after PageManager ---
 
     private SearchManager getSearchManager() {
-        return engine.getManager( SearchManager.class );
+        return com.wikantik.search.subsystem.SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager();
     }
 
     private FilterManager getFilterManager() {

@@ -35,6 +35,7 @@ import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.search.SearchManager;
+import com.wikantik.search.subsystem.SearchSubsystemBridge;
 import com.wikantik.util.ClassUtil;
 import com.wikantik.util.TextUtil;
 
@@ -263,7 +264,7 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
 
         final Page parent = Wiki.contents().page( engine, att.getParentName() );
         engine.getManager( ReferenceManager.class ).updateReferences( parent );
-        engine.getManager( SearchManager.class ).reindexPage( att );
+        SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager().reindexPage( att );
     }
 
     /** {@inheritDoc} */
@@ -322,7 +323,7 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
         }
 
         provider.deleteAttachment( att );
-        engine.getManager( SearchManager.class ).pageRemoved( att );
+        SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager().pageRemoved( att );
         engine.getManager( ReferenceManager.class ).clearPageEntries( att.getName() );
     }
 

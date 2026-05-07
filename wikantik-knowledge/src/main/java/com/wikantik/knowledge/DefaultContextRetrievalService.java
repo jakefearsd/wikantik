@@ -125,7 +125,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     public static DefaultContextRetrievalService fromEngine( final Engine engine ) {
         final PageManager pm = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         if ( pm == null ) return null;
-        final SearchManager sm = engine.getManager( SearchManager.class );
+        final SearchManager sm = com.wikantik.search.subsystem.SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager();
         if ( sm == null ) return null;
         // Phase 1 of the wikantik-main subsystem decomposition: KG-flavored
         // services are sourced through the typed KnowledgeSubsystem.Services

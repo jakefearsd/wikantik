@@ -244,7 +244,7 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
                 refMgr.updateReferences( Wiki.contents().page( engine, pageName ) );
             }
 
-            final SearchManager searchMgr = engine.getManager( SearchManager.class );
+            final SearchManager searchMgr = com.wikantik.search.subsystem.SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager();
             if( searchMgr != null ) {
                 final Page page = Wiki.contents().page( engine, pageName );
                 page.setVersion( PageProvider.LATEST_VERSION );
@@ -269,7 +269,7 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
                 refMgr.pageRemoved( Wiki.contents().page( engine, pageName ) );
             }
 
-            final SearchManager searchMgr = engine.getManager( SearchManager.class );
+            final SearchManager searchMgr = com.wikantik.search.subsystem.SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager();
             if( searchMgr != null ) {
                 searchMgr.pageRemoved( Wiki.contents().page( engine, pageName ) );
             }

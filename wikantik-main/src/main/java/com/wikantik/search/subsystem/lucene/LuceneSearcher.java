@@ -18,16 +18,61 @@
  */
 package com.wikantik.search.subsystem.lucene;
 
+import com.wikantik.api.core.Context;
+import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.search.SearchResult;
+
+import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+
 /**
  * Read-side seam for {@code LuceneSearchProvider}.
  *
- * <p>Phase 7 Checkpoint 1 placeholder. Phase 7 Checkpoint 3 splits
- * {@code LuceneSearchProvider} into write/read/lifecycle collaborators;
- * this interface will then carry {@code findPages} overloads,
- * {@code moreLikeThis}, query parsing, and snippet/highlight helpers. Until
- * then the slot on
- * {@link com.wikantik.search.subsystem.SearchSubsystem.Services#luceneSearcher()}
- * stays {@code null}.</p>
+ * <p>Owns {@code findPages} overloads, {@code moreLikeThis}, query parsing,
+ * scored-hits assembly, highlighting, and snippet extraction.</p>
  */
 public interface LuceneSearcher {
+
+    /** Create contexts also. Generating contexts can be expensive, so they're not on by default. */
+    int FLAG_CONTEXTS = 0x01;
+
+    /**
+     * Searches the index using the default flag set ({@link #FLAG_CONTEXTS}).
+     *
+     * @param query       the Lucene query string
+     * @param wikiContext the current wiki context (session + page)
+     * @return matching search results, ordered by score
+     * @throws ProviderException if the backend cannot be queried
+     */
+    Collection<SearchResult> findPages( String query, Context wikiContext ) throws ProviderException;
+
+    /**
+     * Searches the index with explicit flags.
+     *
+     * @param query       the Lucene query string
+     * @param flags       bitfield of {@link #FLAG_CONTEXTS} etc.
+     * @param wikiContext the current wiki context (session + page)
+     * @return matching search results, ordered by score
+     * @throws ProviderException if the backend cannot be queried
+     */
+    Collection<SearchResult> findPages( String query, int flags, Context wikiContext ) throws ProviderException;
+
+    /**
+     * Returns up to {@code maxResults} documents similar to {@code seedDocName}
+     * based on the {@code contents} field, excluding any document in
+     * {@code excludeNames}.
+     *
+     * @param seedDocName  the {@code LUCENE_ID} value of the seed document
+     * @param maxResults   upper bound on returned hits (after exclusions)
+     * @param excludeNames document ids to filter out of the result list
+     * @return list of similar-document hits, ordered by Lucene relevance score (best first)
+     * @throws IOException if the Lucene index cannot be opened or queried
+     */
+    List<MoreLikeThisHit> moreLikeThis( String seedDocName, int maxResults, Set<String> excludeNames )
+            throws IOException;
+
+    /** Lucene MoreLikeThis hit returned by {@link #moreLikeThis(String, int, Set)}. */
+    record MoreLikeThisHit( String name, float score ) {}
 }

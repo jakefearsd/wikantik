@@ -103,12 +103,11 @@ public class ConvertResource extends RestServletBase {
                                         final HttpServletResponse response,
                                         final String content ) throws IOException {
         try {
-            final com.wikantik.api.core.Engine engine = getEngine();
             final com.wikantik.render.RenderingManager rm =
-                    engine.getManager( com.wikantik.render.RenderingManager.class );
+                    getSubsystems().rendering().renderingManager();
             // Headless context — no current page needed for ad-hoc conversion.
             final com.wikantik.api.core.Context ctx =
-                    com.wikantik.api.spi.Wiki.context().create( engine, request, (com.wikantik.api.core.Page) null );
+                    com.wikantik.api.spi.Wiki.context().create( getEngine(), request, (com.wikantik.api.core.Page) null );
             final String html = rm.textToHTML( ctx, content );
 
             final Map< String, Object > responseBody = new LinkedHashMap<>();

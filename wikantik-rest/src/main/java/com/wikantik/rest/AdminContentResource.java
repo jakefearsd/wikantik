@@ -376,7 +376,7 @@ public class AdminContentResource extends RestServletBase {
     @SuppressWarnings( "PMD.CloseResource" ) // BootstrapEmbeddingIndexer runs on a background thread and shuts itself down once bootstrap completes.
     private void handleReindexEmbeddings( final HttpServletResponse response ) throws IOException {
         final com.wikantik.search.embedding.BootstrapEmbeddingIndexer boot =
-            getEngine().getManager( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
+            getSubsystems().search().bootstrapEmbeddingIndexer();
         if ( boot == null ) {
             sendJsonWithStatus( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 Map.of(
@@ -510,7 +510,7 @@ public class AdminContentResource extends RestServletBase {
     private Map< String, Object > embedderMap() {
         final Map< String, Object > m = new LinkedHashMap<>();
         final com.wikantik.search.hybrid.QueryEmbedder qe =
-            getEngine().getManager( com.wikantik.search.hybrid.QueryEmbedder.class );
+            getSubsystems().search().queryEmbedder();
         if ( qe == null ) {
             m.put( "circuit_state", "DISABLED" );
             m.put( "call_success", 0L );
@@ -552,7 +552,7 @@ public class AdminContentResource extends RestServletBase {
     private Map< String, Object > bootstrapMap( final int liveRowCount ) {
         final Map< String, Object > m = new LinkedHashMap<>();
         final com.wikantik.search.embedding.BootstrapEmbeddingIndexer boot =
-            getEngine().getManager( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class );
+            getSubsystems().search().bootstrapEmbeddingIndexer();
         if ( boot == null ) {
             m.put( "state", "DISABLED" );
             m.put( "chunks_total", 0L );

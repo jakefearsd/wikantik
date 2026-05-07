@@ -127,22 +127,23 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         if ( pm == null ) return null;
         final SearchManager sm = com.wikantik.search.subsystem.SearchSubsystemBridge.fromLegacyEngine( engine ).searchManager();
         if ( sm == null ) return null;
-        // Phase 1 of the wikantik-main subsystem decomposition: KG-flavored
-        // services are sourced through the typed KnowledgeSubsystem.Services
-        // record. The bridge resolves to engine.getManager() lookups under
-        // the hood; both the new and legacy paths agree on the same instances.
+        // Phase 1 / Phase 8: KG-flavored services from KnowledgeSubsystem; Search-
+        // flavored services from SearchSubsystem. Both bridges prefer the typed
+        // subsystem record and fall back to engine.getManager() in test fixtures.
         final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services kg =
             com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine );
+        final com.wikantik.search.subsystem.SearchSubsystem.Services search =
+            com.wikantik.search.subsystem.SearchSubsystemBridge.fromLegacyEngine( engine );
         return new DefaultContextRetrievalService(
             engine, sm,
-            engine.getManager( HybridSearchService.class ),
-            engine.getManager( GraphRerankStep.class ),
-            engine.getManager( ChunkVectorIndex.class ),
+            search.hybridSearch(),
+            search.graphRerankStep(),
+            search.chunkVectorIndex(),
             kg.contentChunkRepository(),
             kg.nodeMentionSimilarity(),
             kg.mentionIndex(),
             pm,
-            engine.getManager( FrontmatterMetadataCache.class ),
+            search.frontmatterMetadataCache(),
             engine.getBaseURL() );
     }
 

@@ -430,7 +430,8 @@ public class WikiEngine implements Engine {
                     com.wikantik.api.observability.MeterRegistryHolder.get(),
                     getManager( SystemPageRegistry.class ),
                     getManager( RecentArticlesManager.class ),
-                    getManager( BlogManager.class ) ) );
+                    getManager( BlogManager.class ),
+                    this ) );
 
             // Phase 4 of the wikantik-main subsystem decomposition: build
             // the Auth subsystem after the four auth managers are
@@ -672,8 +673,12 @@ public class WikiEngine implements Engine {
                 || clazz == com.wikantik.api.managers.ReferenceManager.class ) {
             this.pageSubsystem = null;
         }
+        if ( clazz == com.wikantik.cache.CachingManager.class ) {
+            this.coreSubsystem = null;
+        }
         if ( clazz == RenderingManager.class || clazz == PluginManager.class
-                || clazz == FilterManager.class || clazz == DifferenceManager.class ) {
+                || clazz == FilterManager.class || clazz == DifferenceManager.class
+                || clazz == com.wikantik.content.NewsPageGenerator.class ) {
             this.renderingSubsystem = null;
         }
         // Search snapshot covers manager/provider, the three Lucene helpers (post-Phase-7),

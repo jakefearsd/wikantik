@@ -77,7 +77,7 @@ public class DefaultAttachmentManager implements com.wikantik.api.managers.Attac
      */
     public DefaultAttachmentManager( final Engine engine, final Properties props ) {
         this.engine = engine;
-        cachingManager = this.engine.getManager( CachingManager.class );
+        cachingManager = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).cachingManager();
         final String forceDownload = TextUtil.getStringProperty( props, PROP_FORCEDOWNLOAD, null );
         forceDownloadPatterns = StringUtils.isNotEmpty( forceDownload )
                 ? forceDownload.toLowerCase( Locale.ROOT ).split( "\\s" )

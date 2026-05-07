@@ -69,7 +69,7 @@ public class CachingAttachmentProvider implements AttachmentProvider {
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws NoRequiredPropertyException, IOException {
         LOG.info( "Initing CachingAttachmentProvider" );
-        cachingManager = engine.getManager( CachingManager.class );
+        cachingManager = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).cachingManager();
         cachingManager.registerListener( CachingManager.CACHE_ATTACHMENTS, "expired", allRequested );
 
         // Find and initialize real provider.

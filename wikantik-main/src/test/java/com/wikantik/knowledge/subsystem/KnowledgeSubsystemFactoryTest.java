@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.subsystem;
 
 import com.wikantik.PostgresTestContainer;
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.managers.PageManager;
@@ -41,6 +42,9 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.util.Map;
 import java.util.Properties;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -74,9 +78,11 @@ class KnowledgeSubsystemFactoryTest {
     private PageSaveHelper pageSaveHelper;
 
     private CoreSubsystem.Services core( final Properties props ) {
+        final Engine engine = mock( Engine.class );
+        when( engine.getManager( com.wikantik.cache.CachingManager.class ) ).thenReturn( null );
         return CoreSubsystemFactory.create( new CoreSubsystem.Deps(
             props, null, meterRegistry, systemPageRegistry,
-            mock( RecentArticlesManager.class ), mock( BlogManager.class ) ) );
+            mock( RecentArticlesManager.class ), mock( BlogManager.class ), engine ) );
     }
 
     private PersistenceSubsystem.Services persistence() {

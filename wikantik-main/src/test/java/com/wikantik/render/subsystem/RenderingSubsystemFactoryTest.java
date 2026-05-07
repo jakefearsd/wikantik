@@ -19,6 +19,7 @@
 package com.wikantik.render.subsystem;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.content.NewsPageGenerator;
 import com.wikantik.diff.DifferenceManager;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.filters.SpamFilter;
@@ -56,12 +57,14 @@ final class RenderingSubsystemFactoryTest {
         final PluginManager     pluginManager     = mock( PluginManager.class );
         final FilterManager     filterManager     = mock( FilterManager.class );
         final DifferenceManager differenceManager = mock( DifferenceManager.class );
+        final NewsPageGenerator newsPageGenerator = mock( NewsPageGenerator.class );
 
         final Engine engine = mock( Engine.class );
         when( engine.getManager( RenderingManager.class ) ).thenReturn( renderingManager );
         when( engine.getManager( PluginManager.class ) ).thenReturn( pluginManager );
         when( engine.getManager( FilterManager.class ) ).thenReturn( filterManager );
         when( engine.getManager( DifferenceManager.class ) ).thenReturn( differenceManager );
+        when( engine.getManager( NewsPageGenerator.class ) ).thenReturn( newsPageGenerator );
 
         final RenderingSubsystem.Services services = RenderingSubsystemFactory.create(
             new RenderingSubsystem.Deps(
@@ -81,6 +84,7 @@ final class RenderingSubsystemFactoryTest {
         assertNull( services.spamPatternMatcher(),  "no SpamFilter → null spamPatternMatcher" );
         assertNull( services.spamExternalSignals(), "no SpamFilter → null spamExternalSignals" );
         assertNull( services.spamPolicy(),          "no SpamFilter → null spamPolicy" );
+        assertSame( newsPageGenerator, services.newsPageGenerator() );
     }
 
     @Test
@@ -89,6 +93,7 @@ final class RenderingSubsystemFactoryTest {
         final PluginManager     pluginManager     = mock( PluginManager.class );
         final FilterManager     filterManager     = mock( FilterManager.class );
         final DifferenceManager differenceManager = mock( DifferenceManager.class );
+        final NewsPageGenerator newsPageGenerator = mock( NewsPageGenerator.class );
 
         final SpamRateLimiter     rateLimiter     = mock( SpamRateLimiter.class );
         final SpamPatternMatcher  patternMatcher  = mock( SpamPatternMatcher.class );
@@ -107,6 +112,7 @@ final class RenderingSubsystemFactoryTest {
         when( engine.getManager( PluginManager.class ) ).thenReturn( pluginManager );
         when( engine.getManager( FilterManager.class ) ).thenReturn( filterManager );
         when( engine.getManager( DifferenceManager.class ) ).thenReturn( differenceManager );
+        when( engine.getManager( NewsPageGenerator.class ) ).thenReturn( newsPageGenerator );
 
         final RenderingSubsystem.Services services = RenderingSubsystemFactory.create(
             new RenderingSubsystem.Deps(
@@ -120,6 +126,7 @@ final class RenderingSubsystemFactoryTest {
         assertSame( patternMatcher,  services.spamPatternMatcher() );
         assertSame( externalSignals, services.spamExternalSignals() );
         assertSame( policy,          services.spamPolicy() );
+        assertSame( newsPageGenerator, services.newsPageGenerator() );
     }
 
     @Test

@@ -21,6 +21,7 @@ package com.wikantik.core.subsystem;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.blog.BlogManager;
+import com.wikantik.cache.CachingManager;
 import com.wikantik.content.RecentArticlesManager;
 
 /**
@@ -59,7 +60,8 @@ public final class CoreSubsystemBridge {
             new io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
             engine.getManager( SystemPageRegistry.class ),
             engine.getManager( RecentArticlesManager.class ),
-            engine.getManager( BlogManager.class )
+            engine.getManager( BlogManager.class ),
+            engine.getManager( CachingManager.class )
         );
     }
 }

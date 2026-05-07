@@ -18,8 +18,10 @@
  */
 package com.wikantik.core.subsystem;
 
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.blog.BlogManager;
+import com.wikantik.cache.CachingManager;
 import com.wikantik.content.RecentArticlesManager;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.ServletContext;
@@ -49,7 +51,9 @@ public final class CoreSubsystem {
      * <p>{@code servletContext} may be {@code null} for non-servlet
      * engines (test harnesses). {@code meterRegistry} may be {@code null};
      * the factory falls back to an in-process {@code SimpleMeterRegistry}
-     * that won't be scraped at {@code /observability/metrics}.</p>
+     * that won't be scraped at {@code /observability/metrics}. {@code engine}
+     * is the legacy manager registry seam — used to pull {@link CachingManager}
+     * which is initialized early in Phase 1 of {@code WikiEngine.initialize()}.</p>
      */
     public record Deps(
         Properties rawProperties,
@@ -57,14 +61,16 @@ public final class CoreSubsystem {
         MeterRegistry meterRegistry,
         SystemPageRegistry systemPageRegistry,
         RecentArticlesManager recentArticlesManager,
-        BlogManager blogManager
+        BlogManager blogManager,
+        Engine engine
     ) {}
 
     /**
      * What the Core subsystem exposes to downstream consumers.
      *
      * <p>Every field is non-null after a successful
-     * {@link CoreSubsystemFactory#create} call.</p>
+     * {@link CoreSubsystemFactory#create} call. The {@code cachingManager}
+     * field is added in Phase 9 Ckpt 2.</p>
      */
     public record Services(
         WikiProperties properties,
@@ -72,6 +78,7 @@ public final class CoreSubsystem {
         MeterRegistry meterRegistry,
         SystemPageRegistry systemPageRegistry,
         RecentArticlesManager recentArticlesManager,
-        BlogManager blogManager
+        BlogManager blogManager,
+        CachingManager cachingManager
     ) {}
 }

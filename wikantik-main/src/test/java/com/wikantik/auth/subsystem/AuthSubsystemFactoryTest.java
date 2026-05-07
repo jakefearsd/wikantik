@@ -67,7 +67,8 @@ final class AuthSubsystemFactoryTest {
             new Properties(), null, new SimpleMeterRegistry(),
             mock( SystemPageRegistry.class ),
             mock( RecentArticlesManager.class ),
-            mock( BlogManager.class ) ) );
+            mock( BlogManager.class ),
+            engine ) );
 
         final AuthSubsystem.Services services = AuthSubsystemFactory.create(
             new AuthSubsystem.Deps( core, /*persistence=*/ null, /*servletContext=*/ null, engine ) );
@@ -85,11 +86,13 @@ final class AuthSubsystemFactoryTest {
 
     @Test
     void createRejectsMissingDeps() {
+        final Engine engine = mock( Engine.class );
         final CoreSubsystem.Services core = CoreSubsystemFactory.create( new CoreSubsystem.Deps(
             new Properties(), null, new SimpleMeterRegistry(),
             mock( SystemPageRegistry.class ),
             mock( RecentArticlesManager.class ),
-            mock( BlogManager.class ) ) );
+            mock( BlogManager.class ),
+            engine ) );
 
         assertThrows( NullPointerException.class, () -> AuthSubsystemFactory.create( null ) );
         assertThrows( NullPointerException.class, () -> AuthSubsystemFactory.create(

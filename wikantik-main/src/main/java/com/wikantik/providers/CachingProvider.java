@@ -125,7 +125,7 @@ public class CachingProvider implements PageProvider {
 
         // engine is used for getting the search engine
         this.engine = engine;
-        cachingManager = this.engine.getManager( CachingManager.class );
+        cachingManager = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).cachingManager();
 
         // Configure the TTL for the all-pages cache (in seconds, converted to milliseconds)
         final int allPagesTTL = TextUtil.getIntegerProperty( properties, PROP_CACHE_ALLPAGES_TTL, DEFAULT_ALLPAGES_TTL );

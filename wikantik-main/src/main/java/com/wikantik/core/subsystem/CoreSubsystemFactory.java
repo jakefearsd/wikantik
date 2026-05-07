@@ -18,6 +18,8 @@
  */
 package com.wikantik.core.subsystem;
 
+import com.wikantik.api.core.Engine;
+import com.wikantik.cache.CachingManager;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
@@ -43,11 +45,13 @@ public final class CoreSubsystemFactory {
         Objects.requireNonNull( deps.systemPageRegistry(), "systemPageRegistry" );
         Objects.requireNonNull( deps.recentArticlesManager(), "recentArticlesManager" );
         Objects.requireNonNull( deps.blogManager(), "blogManager" );
+        Objects.requireNonNull( deps.engine(), "engine" );
 
         final WikiProperties properties = new DefaultWikiProperties( deps.rawProperties() );
         final WikiEventBus eventBus = new DefaultWikiEventBus();
         final MeterRegistry meters =
             deps.meterRegistry() != null ? deps.meterRegistry() : new SimpleMeterRegistry();
+        final CachingManager cachingManager = deps.engine().getManager( CachingManager.class );
 
         return new CoreSubsystem.Services(
             properties,
@@ -55,7 +59,8 @@ public final class CoreSubsystemFactory {
             meters,
             deps.systemPageRegistry(),
             deps.recentArticlesManager(),
-            deps.blogManager()
+            deps.blogManager(),
+            cachingManager
         );
     }
 }

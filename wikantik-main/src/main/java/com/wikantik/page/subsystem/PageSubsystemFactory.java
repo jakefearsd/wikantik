@@ -82,7 +82,8 @@ public final class PageSubsystemFactory {
         Objects.requireNonNull( engine, "engine" );
         Objects.requireNonNull( props, "props" );
 
-        final boolean useCache = engine.getManager( CachingManager.class ).enabled( CachingManager.CACHE_PAGES );
+        final com.wikantik.cache.CachingManager cm = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).cachingManager();
+        final boolean useCache = cm != null ? cm.enabled( com.wikantik.cache.CachingManager.CACHE_PAGES ) : false;
         final String classname = useCache
             ? "com.wikantik.providers.CachingProvider"
             : TextUtil.getRequiredProperty( props, PROP_PAGEPROVIDER );

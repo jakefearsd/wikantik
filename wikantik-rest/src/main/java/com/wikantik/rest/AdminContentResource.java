@@ -142,7 +142,7 @@ public class AdminContentResource extends RestServletBase {
     private void handleStats( final HttpServletResponse response ) throws IOException {
         final PageManager pm = getSubsystems().page().pages();
         final ReferenceManager rm = getSubsystems().page().referenceManager();
-        final CachingManager cm = getEngine().getManager( CachingManager.class );
+        final CachingManager cm = getSubsystems().core().cachingManager();
 
         final Map< String, Object > stats = new LinkedHashMap<>();
         stats.put( "pageCount", pm.getTotalPageCount() );
@@ -636,7 +636,7 @@ public class AdminContentResource extends RestServletBase {
         final JsonObject body = parseJsonBody( request, response );
         if ( body == null ) return;
 
-        final CachingManager cm = getEngine().getManager( CachingManager.class );
+        final CachingManager cm = getSubsystems().core().cachingManager();
         if ( cm == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Caching is not enabled" );
             return;
@@ -664,7 +664,7 @@ public class AdminContentResource extends RestServletBase {
 
     private void handleRefreshNews( final HttpServletRequest request,
                                      final HttpServletResponse response ) throws IOException {
-        final NewsPageGenerator gen = getEngine().getManager( NewsPageGenerator.class );
+        final NewsPageGenerator gen = getSubsystems().rendering().newsPageGenerator();
         if ( gen == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                        "News page generator is not running" );

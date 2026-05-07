@@ -149,7 +149,7 @@ public class DefaultRenderingManager implements RenderingManager {
     @Override
     public void initialize( final Engine engine, final Properties properties ) throws WikiException {
         this.engine = engine;
-        this.cachingManager = engine.getManager( CachingManager.class );
+        this.cachingManager = com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).cachingManager();
         this.filterManager = engine.getManager( FilterManager.class );
         this.pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
         this.attachmentManager = PageSubsystemBridge.fromLegacyEngine( engine ).attachments();

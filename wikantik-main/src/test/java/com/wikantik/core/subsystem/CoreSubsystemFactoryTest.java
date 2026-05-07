@@ -18,8 +18,10 @@
  */
 package com.wikantik.core.subsystem;
 
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.blog.BlogManager;
+import com.wikantik.cache.CachingManager;
 import com.wikantik.content.RecentArticlesManager;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Phase 2 subsystem-isolation test for {@link CoreSubsystemFactory}.
@@ -53,8 +56,12 @@ final class CoreSubsystemFactoryTest {
         final BlogManager blog = mock( BlogManager.class );
         final SimpleMeterRegistry meters = new SimpleMeterRegistry();
 
+        final CachingManager cachingManager = mock( CachingManager.class );
+        final Engine engine = mock( Engine.class );
+        when( engine.getManager( CachingManager.class ) ).thenReturn( cachingManager );
+
         final CoreSubsystem.Services services = CoreSubsystemFactory.create(
-            new CoreSubsystem.Deps( raw, null, meters, sys, recent, blog ) );
+            new CoreSubsystem.Deps( raw, null, meters, sys, recent, blog, engine ) );
 
         assertNotNull( services.properties() );
         assertEquals( "42", services.properties().get( "answer" ) );
@@ -68,24 +75,37 @@ final class CoreSubsystemFactoryTest {
         assertSame( sys, services.systemPageRegistry() );
         assertSame( recent, services.recentArticlesManager() );
         assertSame( blog, services.blogManager() );
+        assertSame( cachingManager, services.cachingManager() );
     }
 
     @Test
     void createWithoutMeterRegistryFallsBackToSimple() {
+        final CachingManager cachingManager = mock( CachingManager.class );
+        final Engine engine = mock( Engine.class );
+        when( engine.getManager( CachingManager.class ) ).thenReturn( cachingManager );
+
         final CoreSubsystem.Services services = CoreSubsystemFactory.create(
             new CoreSubsystem.Deps(
                 new Properties(), null, null,
                 mock( SystemPageRegistry.class ),
                 mock( RecentArticlesManager.class ),
-                mock( BlogManager.class ) ) );
+                mock( BlogManager.class ),
+                engine ) );
 
         assertNotNull( services.meterRegistry() );
+        assertSame( cachingManager, services.cachingManager() );
     }
 
     @Test
     void createRejectsMissingDeps() {
         assertThrows( NullPointerException.class, () -> CoreSubsystemFactory.create( null ) );
         assertThrows( NullPointerException.class, () -> CoreSubsystemFactory.create(
-            new CoreSubsystem.Deps( null, null, null, null, null, null ) ) );
+            new CoreSubsystem.Deps( null, null, null, null, null, null, null ) ) );
+        assertThrows( NullPointerException.class, () -> CoreSubsystemFactory.create(
+            new CoreSubsystem.Deps( new Properties(), null, null,
+                mock( SystemPageRegistry.class ),
+                mock( RecentArticlesManager.class ),
+                mock( BlogManager.class ),
+                null ) ) );
     }
 }

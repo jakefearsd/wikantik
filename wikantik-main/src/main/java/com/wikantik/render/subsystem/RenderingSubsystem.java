@@ -20,6 +20,7 @@ package com.wikantik.render.subsystem;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.auth.subsystem.AuthSubsystem;
+import com.wikantik.content.NewsPageGenerator;
 import com.wikantik.core.subsystem.CoreSubsystem;
 import com.wikantik.diff.DifferenceManager;
 import com.wikantik.filters.FilterManager;
@@ -76,7 +77,8 @@ public final class RenderingSubsystem {
      * {@code differenceManager}) are non-null after a successful
      * {@link RenderingSubsystemFactory#create} call. The four spam helper
      * fields are stubbed {@code null} in Phase 6 Ckpt 1 and populated by
-     * Phase 6 Ckpt 4 once {@code SpamFilter} has been decomposed.</p>
+     * Phase 6 Ckpt 4 once {@code SpamFilter} has been decomposed. The
+     * {@code newsPageGenerator} field is added in Phase 9 Ckpt 2.</p>
      */
     public record Services(
         // Manager-level interfaces:
@@ -89,6 +91,9 @@ public final class RenderingSubsystem {
         SpamRateLimiter     spamRateLimiter,
         SpamPatternMatcher  spamPatternMatcher,
         SpamExternalSignals spamExternalSignals,
-        SpamPolicy          spamPolicy
+        SpamPolicy          spamPolicy,
+
+        // Content rendering helpers (Phase 9 Ckpt 2):
+        NewsPageGenerator   newsPageGenerator
     ) {}
 }

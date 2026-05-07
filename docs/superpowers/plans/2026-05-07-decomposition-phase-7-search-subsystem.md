@@ -1,7 +1,7 @@
 # Phase 7: SearchSubsystem extraction + LuceneSearchProvider decomposition — implementation plan
 
 **Spec:** [docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md](../specs/2026-05-05-wikantik-main-decomposition-design.md)
-**Status:** ready
+**Status:** complete (2026-05-07)
 **Estimated effort:** 5 days
 **Goal:** wall off Lucene + hybrid retrieval + embeddings behind a typed `SearchSubsystem.Services` surface. Decompose `LuceneSearchProvider` (1251 LOC) into three cohesive collaborators along its actual seams (write/read/lifecycle). Migrate the 8 production callsites of `SearchManager` to the typed accessor.
 

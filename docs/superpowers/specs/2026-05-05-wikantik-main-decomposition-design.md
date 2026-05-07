@@ -460,7 +460,7 @@ registered SpamFilter through `FilterManager.getFilterList()`.
 - `get_manager_callers_in_main` 130 → 119 (-11)
 - `archunit_frozen_violations` unchanged at 35
 
-### Phase 7 — SearchSubsystem extraction + LuceneSearchProvider decomposition (≈ 5 days)
+### Phase 7 — SearchSubsystem extraction + LuceneSearchProvider decomposition (≈ 5 days)  *(complete 2026-05-07)*
 
 **Goal:** untangle Lucene from hybrid retrieval, both depending cleanly on `Knowledge` and `Page`.
 
@@ -470,6 +470,40 @@ registered SpamFilter through `FilterManager.getFilterList()`.
   - **LuceneSearcher** (read side: query parse, scored hits, highlight)
   - **LuceneIndexLifecycle** (open/close/optimize/cache directory)
 - Hybrid retrieval already largely encapsulates well; placement and dependency direction is the main work.
+
+**Outcome:** `SearchSubsystem.Services` exposes a 15-field bundle —
+`SearchManager` + `SearchProvider` + the three decomposed Lucene helpers
+(`LuceneIndexer`, `LuceneSearcher`, `LuceneIndexLifecycle`) + 5 hybrid
+retrieval services (`HybridSearchService`, `QueryEmbedder`,
+`QueryEntityResolver`, `GraphRerankStep`, `GraphProximityScorer`) + 2
+in-memory indexes + 4 embedding-pipeline services + the
+`FrontmatterMetadataCache`. `LuceneSearchProvider` decomposed: the facade
+shrunk 1251 → 724 LOC, dropping out of the `god_classes_over_800` list.
+9 production `engine.getManager(SearchManager.class)` callsites (one
+more than the planned 8 — re-grep surfaced an extra) migrated to typed
+accessors via `SearchSubsystemBridge` / `getSubsystems().search()`. The
+Search → Knowledge `LuceneMlt` cycle resolved by post-construction
+wiring: `WikiSubsystems` builds Knowledge first with a `null` MLT seam,
+then Phase 7 Ckpt 4 wires the `LuceneSearcher`-backed `LuceneMlt` into
+`HubOverviewService.setLuceneMlt(...)` once both subsystems exist.
+
+**Deviation from plan:** Ckpt 3 targeted a ~250-LOC facade; the actual
+landing is 724 LOC. Test-reflection compatibility constraints
+(`LuceneSearchProviderTest` reaches into private state via reflection,
+plus the public `PROP_*` / `STRATEGY_*` / `MAX_SEARCH_HITS` /
+`SEARCHABLE_FILE_SUFFIXES` constant surface that JSPs and integration
+tests reference statically) forced retention of more orchestration code
+on the facade than originally projected. The three helpers absorb the
+real work; the facade is delegation + state passthrough. A future
+follow-up could chase the remaining ~470 LOC by migrating the
+reflection-based tests onto the helpers, but the cost/value tilt did
+not justify it inside Phase 7's window.
+
+**Metrics (`bin/metrics/decomposition-progress.json`):**
+- `god_classes_over_800` 5 → 4 (LuceneSearchProvider 1251 → 724 LOC)
+- `get_manager_callers_repo_wide` 904 → 935 (+31; new SearchSubsystemBridge / SearchSubsystemFactory bridge code accounts for +26 internal calls — net consumer-side migration is the expected -9 against the 9 migrated callsites)
+- `get_manager_callers_in_main` 119 → 137 (+18; same bridge-code attribution)
+- `archunit_frozen_violations` unchanged at 35
 
 **Done when:** Lucene split lands; `SearchSubsystem.Services` exposes only the query API consumers should depend on.
 

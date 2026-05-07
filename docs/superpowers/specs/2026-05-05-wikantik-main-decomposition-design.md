@@ -426,15 +426,39 @@ and the auth-internal classes whose lookups happen before
 PageSubsystem is built); the three new helpers + the facade are each
 <400 LOC.
 
-### Phase 6 — RenderingSubsystem extraction (≈ 4 days)
+### Phase 6 — RenderingSubsystem extraction (≈ 4 days)  *(complete 2026-05-07)*
 
 **Goal:** clean up the parser/plugin/filter pipeline.
 
 - Extract `RenderingSubsystemFactory`.
 - Plugins receive their dependencies via plugin context, not `engine.getManager()`. Refactor `PluginContent` to carry a `RenderingServices` reference.
-- Decompose `SpamFilter` (1002 lines) along its actual responsibilities (rate-limit, token check, content-pattern reject).
+- Decompose `SpamFilter` (1003 lines) along its actual responsibilities (rate-limit, token check, content-pattern reject).
 
-**Done when:** plugins compile against the new context; filter chain documented; spam filter decomposition shipped or planned.
+**Outcome:** `RenderingSubsystem.Services` exposes the four manager-
+level objects (`RenderingManager`, `PluginManager`, `FilterManager`,
+`DifferenceManager`) plus four narrow SpamFilter helpers
+(`SpamRateLimiter`, `SpamPatternMatcher`, `SpamExternalSignals`,
+`SpamPolicy`). `SpamFilter` (1003 LOC) decomposed four ways:
+`DefaultSpamRateLimiter` (201 LOC), `DefaultSpamPatternMatcher` (320
+LOC), `DefaultSpamExternalSignals` (174 LOC), `DefaultSpamPolicy` (78
+LOC), and a 339-LOC facade that retains every public `PROP_*` and
+`STRATEGY_*` constant + the four static utility methods JSPs reference
+statically. ~29 production `getManager` callsites for the four
+rendering managers migrated across two parallel-Haiku passes
+(REST/MCP slice + wikantik-main interior). The four spam helpers reach
+the typed bundle via `RenderingSubsystemFactory` looking up the
+registered SpamFilter through `FilterManager.getFilterList()`.
+
+**Deferred (per spec scope):**
+- Plugin-context refactor — `PluginContent` carrying a `RenderingServices`
+  reference. Touches every plugin class + the `wikantik-api`
+  `PluginContent` interface; earns its own pass. Tracked separately.
+
+**Metrics (`bin/metrics/decomposition-progress.json`):**
+- `god_classes_over_800` 6 → 5 (SpamFilter 1003 → 339 LOC)
+- `get_manager_callers_repo_wide` 915 → 904 (-11)
+- `get_manager_callers_in_main` 130 → 119 (-11)
+- `archunit_frozen_violations` unchanged at 35
 
 ### Phase 7 — SearchSubsystem extraction + LuceneSearchProvider decomposition (≈ 5 days)
 

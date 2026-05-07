@@ -1,7 +1,7 @@
 # Phase 6: RenderingSubsystem extraction + SpamFilter decomposition — implementation plan
 
 **Spec:** [docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md](../specs/2026-05-05-wikantik-main-decomposition-design.md)
-**Status:** ready
+**Status:** complete (2026-05-07)
 **Estimated effort:** 4 days
 **Goal:** wall off the parser / plugin / filter / diff pipeline behind a typed `RenderingSubsystem.Services` surface. Decompose `SpamFilter` (1003 LOC) along its actual responsibilities. Migrate the ~25 production callsites of `RenderingManager` / `PluginManager` / `FilterManager` / `DifferenceManager` to the typed accessor.
 

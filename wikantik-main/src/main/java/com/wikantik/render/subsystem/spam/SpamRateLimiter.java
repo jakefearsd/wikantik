@@ -18,20 +18,48 @@
  */
 package com.wikantik.render.subsystem.spam;
 
+import com.wikantik.api.core.Context;
+import com.wikantik.api.exceptions.RedirectException;
+
 /**
  * Rate-limit + IP-ban bucket of the decomposed SpamFilter.
  *
- * <p>Phase 6 Checkpoint 1 of the wikantik-main subsystem decomposition
- * declares this as an empty marker interface so that
- * {@link com.wikantik.render.subsystem.RenderingSubsystem.Services} can
- * carry a properly-typed (but null) slot. Phase 6 Checkpoint 3 lifts the
- * page-changes-per-minute / similar-modifications / IP rate-limit + ban
- * tracking out of {@code SpamFilter} into a real implementation behind
- * this interface.</p>
- *
- * <p>TODO Phase 6 Ckpt 3: define the operational surface
- * ({@code allow(Context)} / {@code recordModification(Context)} / IP-ban
- * lookup &amp; TTL).</p>
+ * <p>Owns the in-memory temporary ban list and the per-IP page-changes-per-minute
+ * window. Extracted from {@code SpamFilter} in Phase 6 Checkpoint 3 of the
+ * wikantik-main subsystem decomposition.</p>
  */
 public interface SpamRateLimiter {
+
+    /**
+     * Removes expired entries from the temporary ban list.
+     * Must be called at the start of every {@code preSave} cycle.
+     */
+    void cleanBanList();
+
+    /**
+     * Checks whether the remote IP in the request is on the temporary ban list.
+     *
+     * @param context page context
+     * @param change  the current change (used for logging)
+     * @throws RedirectException if the IP is temporarily banned
+     */
+    void checkBanList( Context context, SpamChange change ) throws RedirectException;
+
+    /**
+     * Tracks the current modification and enforces the per-minute page-change limit
+     * and the similar-modifications limit. Adds the IP to the temporary ban list when
+     * a limit is exceeded.
+     *
+     * @param context page context
+     * @param change  the current change
+     * @throws RedirectException if a limit is exceeded
+     */
+    void checkSinglePageChange( Context context, SpamChange change ) throws RedirectException;
+
+    /**
+     * Records a modification in the recent-modifications window AFTER all checks pass.
+     * Must be called at the end of {@link #checkSinglePageChange} internally.
+     * (Exposed so {@code DefaultSpamRateLimiter} can call it at the right point.)
+     */
+    void recordModification( String addr, SpamChange change );
 }

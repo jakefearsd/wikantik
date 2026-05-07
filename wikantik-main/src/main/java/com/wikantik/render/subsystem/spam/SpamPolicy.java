@@ -18,20 +18,27 @@
  */
 package com.wikantik.render.subsystem.spam;
 
+import com.wikantik.api.core.Context;
+import com.wikantik.api.exceptions.RedirectException;
+
 /**
- * Strategy / verdict bucket of the decomposed SpamFilter.
+ * Strategy aggregator for the decomposed SpamFilter.
  *
- * <p>Phase 6 Checkpoint 1 of the wikantik-main subsystem decomposition
- * declares this as an empty marker interface so that
- * {@link com.wikantik.render.subsystem.RenderingSubsystem.Services} can
- * carry a properly-typed (but null) slot. Phase 6 Checkpoint 3 lifts the
- * score / eager strategy selection (which aggregates verdicts from the
- * other three buckets) plus the {@code errorPage} configuration and score
- * thresholds out of {@code SpamFilter} into a real implementation behind
- * this interface.</p>
- *
- * <p>TODO Phase 6 Ckpt 3: define the operational surface
- * ({@code evaluate(Context, String) -> Verdict}).</p>
+ * <p>Runs all checks via the three collaborators ({@link SpamRateLimiter},
+ * {@link SpamPatternMatcher}, {@link SpamExternalSignals}) according to the
+ * configured strategy (eager or score). Extracted from {@code SpamFilter} in
+ * Phase 6 Checkpoint 3 of the wikantik-main subsystem decomposition.</p>
  */
 public interface SpamPolicy {
+
+    /**
+     * Evaluates all applicable spam checks for the given context and content.
+     *
+     * @param context page context
+     * @param content the new page content
+     * @param change  pre-computed change record
+     * @throws RedirectException if a check rejects the edit (eager strategy), or if
+     *                           the accumulated score reaches the limit (score strategy)
+     */
+    void evaluate( Context context, String content, SpamChange change ) throws RedirectException;
 }

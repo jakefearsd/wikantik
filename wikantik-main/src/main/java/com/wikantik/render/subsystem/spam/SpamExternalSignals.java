@@ -18,20 +18,44 @@
  */
 package com.wikantik.render.subsystem.spam;
 
+import com.wikantik.api.core.Context;
+import com.wikantik.api.exceptions.RedirectException;
+
 /**
- * Akismet integration + bot-trap hidden-field check bucket of the
+ * Akismet integration + bot-trap hidden-field check + UTF-8 trap bucket of the
  * decomposed SpamFilter.
  *
- * <p>Phase 6 Checkpoint 1 of the wikantik-main subsystem decomposition
- * declares this as an empty marker interface so that
- * {@link com.wikantik.render.subsystem.RenderingSubsystem.Services} can
- * carry a properly-typed (but null) slot. Phase 6 Checkpoint 3 lifts the
- * Akismet OkHttp client and the static bot-trap hidden-field validation
- * out of {@code SpamFilter} into a real implementation behind this
- * interface.</p>
- *
- * <p>TODO Phase 6 Ckpt 3: define the operational surface
- * ({@code checkAkismet(Context, String)} / {@code checkBotTrap(Context)}).</p>
+ * <p>Owns the Akismet client (lazy-initialised on first use) and the two
+ * request-field traps. Extracted from {@code SpamFilter} in Phase 6 Checkpoint 3
+ * of the wikantik-main subsystem decomposition.</p>
  */
 public interface SpamExternalSignals {
+
+    /**
+     * Checks whether the hidden bot-trap field in the request is non-empty.
+     *
+     * @param context page context
+     * @param change  current change (used for logging)
+     * @throws RedirectException if the bot trap fires
+     */
+    void checkBotTrap( Context context, SpamChange change ) throws RedirectException;
+
+    /**
+     * Checks whether the UTF-8 sentinel field in the request has been mangled.
+     *
+     * @param context page context
+     * @param change  current change (used for logging)
+     * @throws RedirectException if the UTF-8 trap fires
+     */
+    void checkUTF8( Context context, SpamChange change ) throws RedirectException;
+
+    /**
+     * Submits the change to Akismet for spam classification.
+     * No-op when no API key is configured.
+     *
+     * @param context page context
+     * @param change  current change
+     * @throws RedirectException if Akismet classifies the change as spam
+     */
+    void checkAkismet( Context context, SpamChange change ) throws RedirectException;
 }

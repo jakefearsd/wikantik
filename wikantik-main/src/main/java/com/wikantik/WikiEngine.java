@@ -167,6 +167,12 @@ public class WikiEngine implements Engine {
      *  PageSaveHelper / PageProvider. */
     private com.wikantik.page.subsystem.PageSubsystem.Services pageSubsystem;
 
+    /** Rendering subsystem services produced by {@code RenderingSubsystemFactory}.
+     *  Phase 6 of the wikantik-main decomposition (2026-05-07); typed
+     *  surface over RenderingManager / PluginManager / FilterManager /
+     *  DifferenceManager + (Ckpt 4) the four decomposed SpamFilter helpers. */
+    private com.wikantik.render.subsystem.RenderingSubsystem.Services renderingSubsystem;
+
     /** Stores the template path.  This is relative to "templates". */
     private String           templateDir;
 
@@ -432,6 +438,15 @@ public class WikiEngine implements Engine {
                 new com.wikantik.page.subsystem.PageSubsystem.Deps(
                     coreSubsystem, persistenceSubsystem, authSubsystem, this ) );
 
+            // Phase 6 of the wikantik-main subsystem decomposition: build
+            // the Rendering subsystem after Page (Rendering depends on Page
+            // for the page-save filter chain seam) and BEFORE
+            // initKnowledgeGraph so KG can evolve to consume Rendering in a
+            // Phase 6 follow-up.
+            this.renderingSubsystem = com.wikantik.render.subsystem.RenderingSubsystemFactory.create(
+                new com.wikantik.render.subsystem.RenderingSubsystem.Deps(
+                    coreSubsystem, authSubsystem, pageSubsystem, this ) );
+
             // Phase 9: Knowledge graph (optional — requires datasource
             // configuration). Builds persistenceSubsystem internally and
             // consumes pageSubsystem via KnowledgeSubsystem.Deps.
@@ -469,7 +484,8 @@ public class WikiEngine implements Engine {
         // legacy manager registry.
         if ( servletContext != null && coreSubsystem != null && knowledgeSubsystem != null ) {
             final WikiSubsystems subsystems = new WikiSubsystems(
-                coreSubsystem, persistenceSubsystem, authSubsystem, pageSubsystem, knowledgeSubsystem );
+                coreSubsystem, persistenceSubsystem, authSubsystem, pageSubsystem,
+                renderingSubsystem, knowledgeSubsystem );
             servletContext.setAttribute( WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE, subsystems );
         }
 
@@ -599,6 +615,10 @@ public class WikiEngine implements Engine {
         if ( clazz == PageManager.class || clazz == AttachmentManager.class
                 || clazz == PageRenamer.class ) {
             this.pageSubsystem = null;
+        }
+        if ( clazz == RenderingManager.class || clazz == PluginManager.class
+                || clazz == FilterManager.class || clazz == DifferenceManager.class ) {
+            this.renderingSubsystem = null;
         }
     }
 
@@ -1469,6 +1489,22 @@ public class WikiEngine implements Engine {
      */
     public com.wikantik.page.subsystem.PageSubsystem.Services getPageSubsystem() {
         return pageSubsystem;
+    }
+
+    /**
+     * Returns the Rendering subsystem's services bundle, or {@code null}
+     * when the engine has not yet completed initialization.
+     *
+     * <p>Phase 6 of the wikantik-main subsystem decomposition. New code
+     * should obtain {@link com.wikantik.render.RenderingManager},
+     * {@link com.wikantik.plugin.PluginManager},
+     * {@link com.wikantik.filters.FilterManager}, and
+     * {@link com.wikantik.diff.DifferenceManager} through this accessor.
+     * Phase 6 Ckpt 4 will additionally expose the four decomposed
+     * SpamFilter helpers on the same record.</p>
+     */
+    public com.wikantik.render.subsystem.RenderingSubsystem.Services getRenderingSubsystem() {
+        return renderingSubsystem;
     }
 
     /** {@inheritDoc} */

@@ -18,7 +18,6 @@ Method <com.wikantik.WikiEngine.initKnowledgeGraph(java.util.Properties)> calls 
 Method <com.wikantik.WikiEngine.initKnowledgeGraph(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:803)
 Method <com.wikantik.WikiEngine.initKnowledgeGraph(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:812)
 Method <com.wikantik.WikiEngine.initKnowledgeGraph(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:833)
-Method <com.wikantik.WikiEngine.initKnowledgeGraph(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:852)
 Method <com.wikantik.WikiEngine.initReferenceManager()> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:598)
 Method <com.wikantik.WikiEngine.initReferenceManager()> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:600)
 Method <com.wikantik.WikiEngine.initReferenceManager()> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:601)

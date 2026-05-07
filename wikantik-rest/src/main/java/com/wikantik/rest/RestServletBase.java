@@ -165,6 +165,8 @@ public abstract class RestServletBase extends HttpServlet {
             com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine );
         final com.wikantik.page.subsystem.PageSubsystem.Services pageServices =
             com.wikantik.page.subsystem.PageSubsystemBridge.fromLegacyEngine( engine );
+        final com.wikantik.render.subsystem.RenderingSubsystem.Services renderingServices =
+            com.wikantik.render.subsystem.RenderingSubsystemBridge.fromLegacyEngine( engine );
         com.wikantik.persistence.subsystem.PersistenceSubsystem.Services persistenceServices = null;
         if ( engine instanceof com.wikantik.WikiEngine wikiEngine ) {
             persistenceServices = wikiEngine.getPersistenceSubsystem();
@@ -172,7 +174,8 @@ public abstract class RestServletBase extends HttpServlet {
                 wikiEngine.getKnowledgeSubsystem();
             if ( kgServices != null ) {
                 return new com.wikantik.WikiSubsystems(
-                    coreServices, persistenceServices, authServices, pageServices, kgServices );
+                    coreServices, persistenceServices, authServices, pageServices,
+                    renderingServices, kgServices );
             }
         }
         return new com.wikantik.WikiSubsystems(
@@ -180,6 +183,7 @@ public abstract class RestServletBase extends HttpServlet {
             persistenceServices,
             authServices,
             pageServices,
+            renderingServices,
             com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine ) );
     }
 

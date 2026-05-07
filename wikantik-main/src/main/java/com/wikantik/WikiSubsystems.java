@@ -23,6 +23,7 @@ import com.wikantik.core.subsystem.CoreSubsystem;
 import com.wikantik.knowledge.subsystem.KnowledgeSubsystem;
 import com.wikantik.page.subsystem.PageSubsystem;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
+import com.wikantik.render.subsystem.RenderingSubsystem;
 import jakarta.servlet.ServletContext;
 
 /**
@@ -49,6 +50,7 @@ public record WikiSubsystems(
     PersistenceSubsystem.Services persistence,
     AuthSubsystem.Services auth,
     PageSubsystem.Services page,
+    RenderingSubsystem.Services rendering,
     KnowledgeSubsystem.Services knowledge
 ) {
 

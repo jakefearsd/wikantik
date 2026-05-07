@@ -62,8 +62,8 @@ public class AdminKgPolicyResource extends RestServletBase {
     private Engine engineOverride;
 
     // setEngineForTesting calls setEngine() so that getSubsystems() (which calls
-    // getEngine() on RestServletBase) sees the test engine. engineOverride is kept
-    // for the residual engine().getManager(StructuralIndexService.class) calls.
+    // getEngine() on RestServletBase) sees the test engine. engineOverride allows
+    // the private engine() accessor to stay available for any future need.
     void setEngineForTesting( final Engine engine ) { setEngine( engine ); this.engineOverride = engine; }
 
     private Engine engine() { return engineOverride != null ? engineOverride : getEngine(); }
@@ -100,7 +100,7 @@ public class AdminKgPolicyResource extends RestServletBase {
 
     private void doListClusters( final HttpServletResponse resp ) throws IOException {
         final KgInclusionPolicy policy = getSubsystems().knowledge().kgInclusionPolicy();
-        final StructuralIndexService struct = engine().getManager( StructuralIndexService.class );
+        final StructuralIndexService struct = getSubsystems().pageGraph().structuralIndexService();
         if ( policy == null || struct == null ) {
             unavailable( resp );
             return;
@@ -180,7 +180,7 @@ public class AdminKgPolicyResource extends RestServletBase {
 
     private void doPending( final HttpServletResponse resp ) throws IOException {
         final KgInclusionPolicy policy = getSubsystems().knowledge().kgInclusionPolicy();
-        final StructuralIndexService struct = engine().getManager( StructuralIndexService.class );
+        final StructuralIndexService struct = getSubsystems().pageGraph().structuralIndexService();
         if ( policy == null || struct == null ) {
             unavailable( resp );
             return;
@@ -279,7 +279,7 @@ public class AdminKgPolicyResource extends RestServletBase {
             resp.getWriter().write( "{\"error\":\"action must be include or exclude\"}" );
             return;
         }
-        final StructuralIndexService struct = engine().getManager( StructuralIndexService.class );
+        final StructuralIndexService struct = getSubsystems().pageGraph().structuralIndexService();
         if ( struct == null ) {
             unavailable( resp );
             return;

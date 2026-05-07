@@ -51,7 +51,7 @@ public class StructureResource extends RestServletBase {
 
     private Engine engineOverride;
 
-    void setEngineForTesting( final Engine engine ) {
+    void setEngineForTesting( final Engine engine ) { setEngine( engine );
         this.engineOverride = engine;
     }
 
@@ -62,7 +62,7 @@ public class StructureResource extends RestServletBase {
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
         final String pathInfo = Optional.ofNullable( req.getPathInfo() ).orElse( "" );
-        final StructuralIndexService svc = engine().getManager( StructuralIndexService.class );
+        final StructuralIndexService svc = getSubsystems().pageGraph().structuralIndexService();
         if ( svc == null ) {
             writeError( resp, 503, "structural index unavailable" );
             return;

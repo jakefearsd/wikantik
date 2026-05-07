@@ -332,7 +332,7 @@ public class AdminContentResource extends RestServletBase {
     }
 
     private void handleIndexStatus( final HttpServletResponse response ) throws IOException {
-        final ContentIndexRebuildService svc = getEngine().getManager( ContentIndexRebuildService.class );
+        final ContentIndexRebuildService svc = getSubsystems().pageGraph().contentIndexRebuildService();
         if ( svc == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "rebuild service not available" );
@@ -343,7 +343,7 @@ public class AdminContentResource extends RestServletBase {
     }
 
     private void handleRebuildIndexes( final HttpServletResponse response ) throws IOException {
-        final ContentIndexRebuildService svc = getEngine().getManager( ContentIndexRebuildService.class );
+        final ContentIndexRebuildService svc = getSubsystems().pageGraph().contentIndexRebuildService();
         if ( svc == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "rebuild service not available" );

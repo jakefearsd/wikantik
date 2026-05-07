@@ -179,6 +179,12 @@ public class WikiEngine implements Engine {
      *  embedding pipeline + (Ckpt 4) the three decomposed Lucene helpers. */
     private com.wikantik.search.subsystem.SearchSubsystem.Services searchSubsystem;
 
+    /** Page Graph subsystem services produced by {@code PageGraphSubsystemFactory}.
+     *  Phase 9 Checkpoint 1 of the wikantik-main decomposition (2026-05-07); typed
+     *  surface over StructuralIndexService / PageGraphService / ReferenceManager /
+     *  ContentIndexRebuildService. */
+    private com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services pageGraphSubsystem;
+
     /** Stores the template path.  This is relative to "templates". */
     private String           templateDir;
 
@@ -521,10 +527,20 @@ public class WikiEngine implements Engine {
             knowledgeSubsystem = rebuildKnowledgeSubsystemWithPostConstructionServices( knowledgeSubsystem );
         }
 
+        // Phase 9 Ckpt 1: build the Page Graph subsystem after page + knowledge
+        // (both may be deps of PG services in future phases). The four services
+        // (StructuralIndexService, PageGraphService, ReferenceManager,
+        // ContentIndexRebuildService) are registered in initPageGraphServices()
+        // which fires earlier in initialize(). This call just wraps them into
+        // the typed Services record.
+        this.pageGraphSubsystem = com.wikantik.pagegraph.subsystem.PageGraphSubsystemFactory.create(
+            new com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Deps(
+                coreSubsystem, persistenceSubsystem, pageSubsystem, this ) );
+
         if ( servletContext != null && coreSubsystem != null && knowledgeSubsystem != null ) {
             final WikiSubsystems subsystems = new WikiSubsystems(
                 coreSubsystem, persistenceSubsystem, authSubsystem, pageSubsystem,
-                renderingSubsystem, searchSubsystem, knowledgeSubsystem );
+                renderingSubsystem, searchSubsystem, knowledgeSubsystem, pageGraphSubsystem );
             servletContext.setAttribute( WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE, subsystems );
         }
 
@@ -691,6 +707,15 @@ public class WikiEngine implements Engine {
                 || clazz == com.wikantik.api.kgpolicy.KgInclusionPolicy.class
                 || clazz == com.wikantik.api.eval.RetrievalQualityRunner.class ) {
             this.knowledgeSubsystem = null;
+        }
+        // Page Graph snapshot covers the four services. Any hot-swap (unit test
+        // installing a mock) must invalidate the snapshot so the bridge falls
+        // through to live getManager() lookups on the next call.
+        if ( clazz == com.wikantik.api.pagegraph.StructuralIndexService.class
+                || clazz == com.wikantik.api.pagegraph.PageGraphService.class
+                || clazz == com.wikantik.api.managers.ReferenceManager.class
+                || clazz == com.wikantik.admin.ContentIndexRebuildService.class ) {
+            this.pageGraphSubsystem = null;
         }
     }
 
@@ -1649,7 +1674,7 @@ public class WikiEngine implements Engine {
                 new WikiSubsystems(
                     current.core(), current.persistence(), current.auth(),
                     current.page(), current.rendering(), current.search(),
-                    knowledgeSubsystem ) );
+                    knowledgeSubsystem, current.pageGraph() ) );
         }
     }
 
@@ -1735,6 +1760,21 @@ public class WikiEngine implements Engine {
      */
     public com.wikantik.search.subsystem.SearchSubsystem.Services getSearchSubsystem() {
         return searchSubsystem;
+    }
+
+    /**
+     * Returns the Page Graph subsystem's services bundle, or {@code null}
+     * when the engine has not yet completed initialization.
+     *
+     * <p>Phase 9 Checkpoint 1 of the wikantik-main subsystem decomposition. New
+     * code should obtain {@link com.wikantik.api.pagegraph.StructuralIndexService},
+     * {@link com.wikantik.api.pagegraph.PageGraphService},
+     * {@link com.wikantik.api.managers.ReferenceManager}, and
+     * {@link com.wikantik.admin.ContentIndexRebuildService} through this
+     * accessor rather than via {@code getManager(Class)}.</p>
+     */
+    public com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services getPageGraphSubsystem() {
+        return pageGraphSubsystem;
     }
 
     /** {@inheritDoc} */

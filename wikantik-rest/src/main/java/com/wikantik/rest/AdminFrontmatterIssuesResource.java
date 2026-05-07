@@ -62,7 +62,7 @@ public class AdminFrontmatterIssuesResource extends RestServletBase {
     private static final Logger LOG = LogManager.getLogger( AdminFrontmatterIssuesResource.class );
 
     private Engine engineOverride;
-    void setEngineForTesting( final Engine engine ) { this.engineOverride = engine; }
+    void setEngineForTesting( final Engine engine ) { this.engineOverride = engine; setEngine( engine ); }
     private Engine engine() { return engineOverride != null ? engineOverride : getEngine(); }
 
     @Override

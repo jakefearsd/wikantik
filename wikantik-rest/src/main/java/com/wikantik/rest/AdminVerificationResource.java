@@ -55,12 +55,12 @@ public class AdminVerificationResource extends RestServletBase {
     private static final Logger LOG = LogManager.getLogger( AdminVerificationResource.class );
 
     private Engine engineOverride;
-    void setEngineForTesting( final Engine engine ) { this.engineOverride = engine; }
+    void setEngineForTesting( final Engine engine ) { this.engineOverride = engine; setEngine( engine ); }
     private Engine engine() { return engineOverride != null ? engineOverride : getEngine(); }
 
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {
-        final StructuralIndexService svc = engine().getManager( StructuralIndexService.class );
+        final StructuralIndexService svc = getSubsystems().pageGraph().structuralIndexService();
         if ( svc == null ) {
             resp.setStatus( 503 );
             resp.setContentType( "application/json; charset=UTF-8" );

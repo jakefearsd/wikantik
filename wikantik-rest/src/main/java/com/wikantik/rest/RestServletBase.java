@@ -174,12 +174,16 @@ public abstract class RestServletBase extends HttpServlet {
             persistenceServices = wikiEngine.getPersistenceSubsystem();
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services kgServices =
                 wikiEngine.getKnowledgeSubsystem();
+            final com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services pgServices =
+                com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine );
             if ( kgServices != null ) {
                 return new com.wikantik.WikiSubsystems(
                     coreServices, persistenceServices, authServices, pageServices,
-                    renderingServices, searchServices, kgServices );
+                    renderingServices, searchServices, kgServices, pgServices );
             }
         }
+        final com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services pgServices =
+            com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine );
         return new com.wikantik.WikiSubsystems(
             coreServices,
             persistenceServices,
@@ -187,7 +191,8 @@ public abstract class RestServletBase extends HttpServlet {
             pageServices,
             renderingServices,
             searchServices,
-            com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine ) );
+            com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.fromLegacyEngine( engine ),
+            pgServices );
     }
 
     /**

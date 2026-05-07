@@ -22,6 +22,7 @@ import com.wikantik.auth.subsystem.AuthSubsystem;
 import com.wikantik.core.subsystem.CoreSubsystem;
 import com.wikantik.knowledge.subsystem.KnowledgeSubsystem;
 import com.wikantik.page.subsystem.PageSubsystem;
+import com.wikantik.pagegraph.subsystem.PageGraphSubsystem;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 import com.wikantik.render.subsystem.RenderingSubsystem;
 import com.wikantik.search.subsystem.SearchSubsystem;
@@ -42,9 +43,9 @@ import jakarta.servlet.ServletContext;
  *
  * <p>As subsequent phases extract additional subsystems, this record gains
  * fields ({@code core}, {@code persistence}, {@code auth}, {@code page},
- * {@code rendering}, {@code search}, {@code api}). Adding a field is the
- * trigger to migrate every legacy {@code getManager()} caller for that
- * subsystem's services.</p>
+ * {@code rendering}, {@code search}, {@code knowledge}, {@code pageGraph}).
+ * Adding a field is the trigger to migrate every legacy {@code getManager()}
+ * caller for that subsystem's services.</p>
  */
 public record WikiSubsystems(
     CoreSubsystem.Services core,
@@ -53,7 +54,8 @@ public record WikiSubsystems(
     PageSubsystem.Services page,
     RenderingSubsystem.Services rendering,
     SearchSubsystem.Services search,
-    KnowledgeSubsystem.Services knowledge
+    KnowledgeSubsystem.Services knowledge,
+    PageGraphSubsystem.Services pageGraph
 ) {
 
     /** {@link ServletContext} attribute key under which a {@link WikiSubsystems}

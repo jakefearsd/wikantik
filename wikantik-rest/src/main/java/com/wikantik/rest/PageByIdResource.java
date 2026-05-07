@@ -42,7 +42,7 @@ public class PageByIdResource extends RestServletBase {
     private static final Logger LOG = LogManager.getLogger( PageByIdResource.class );
 
     private Engine engineOverride;
-    void setEngineForTesting( final Engine engine ) { this.engineOverride = engine; }
+    void setEngineForTesting( final Engine engine ) { this.engineOverride = engine; setEngine( engine ); }
     private Engine engine() { return engineOverride != null ? engineOverride : getEngine(); }
 
     @Override
@@ -56,7 +56,7 @@ public class PageByIdResource extends RestServletBase {
         }
         final String canonicalId = pathInfo.substring( 1 );
 
-        final StructuralIndexService svc = engine().getManager( StructuralIndexService.class );
+        final StructuralIndexService svc = getSubsystems().pageGraph().structuralIndexService();
         if ( svc == null ) {
             resp.setStatus( 503 );
             resp.setContentType( "application/json; charset=UTF-8" );

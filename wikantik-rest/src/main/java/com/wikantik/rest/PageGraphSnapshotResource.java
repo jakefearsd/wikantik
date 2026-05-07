@@ -53,7 +53,7 @@ public class PageGraphSnapshotResource extends RestServletBase {
         final Engine engine = getEngine();
         final Session session = Wiki.session().find( engine, request );
         try {
-            final PageGraphService svc = engine.getManager( PageGraphService.class );
+            final PageGraphService svc = getSubsystems().pageGraph().pageGraphService();
             if ( svc == null ) {
                 LOG.warn( "PageGraphService not registered — page graph snapshot unavailable" );
                 sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,

@@ -45,11 +45,13 @@ import java.util.Map;
 public class PageSaveHelper {
 
     private final Engine engine;
+    private final PageManager pageManager;
 
     @SuppressFBWarnings( value = "EI_EXPOSE_REP2",
             justification = "Engine is the shared runtime singleton; the helper is intentionally bound to it, not a private copy." )
-    public PageSaveHelper( final Engine engine ) {
+    public PageSaveHelper( final Engine engine, final PageManager pageManager ) {
         this.engine = engine;
+        this.pageManager = pageManager;
     }
 
     /**
@@ -65,7 +67,7 @@ public class PageSaveHelper {
      * @throws WikiException            on any other save failure
      */
     public Page saveText( final String pageName, final String text, final SaveOptions options ) throws WikiException {
-        final PageManager pm = engine.getManager( PageManager.class );
+        final PageManager pm = pageManager;
 
         // Optimistic locking: version check
         if( options.expectedVersion() > 0 ) {

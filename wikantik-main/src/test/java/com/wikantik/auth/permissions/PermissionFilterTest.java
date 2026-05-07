@@ -18,7 +18,7 @@
  */
 package com.wikantik.auth.permissions;
 
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.managers.PageManager;
@@ -41,7 +41,7 @@ import static org.mockito.Mockito.*;
  */
 class PermissionFilterTest {
 
-    private Engine engine;
+    private WikiEngine engine;
     private PageManager pageManager;
     private AuthorizationManager authMgr;
     private Session session;
@@ -49,7 +49,7 @@ class PermissionFilterTest {
 
     @BeforeEach
     void setUp() {
-        engine = mock( Engine.class );
+        engine = mock( WikiEngine.class );
         pageManager = mock( PageManager.class );
         authMgr = mock( AuthorizationManager.class );
         session = mock( Session.class );

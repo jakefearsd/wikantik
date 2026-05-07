@@ -21,6 +21,7 @@ package com.wikantik.rest;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.kgpolicy.ClusterAction;
 import com.wikantik.api.kgpolicy.ClusterPolicy;
@@ -57,7 +58,7 @@ import static org.mockito.Mockito.*;
 
 class AdminKgPolicyResourceTest {
 
-    private Engine engine;
+    private WikiEngine engine;
     private KgInclusionPolicy policy;
     private StructuralIndexService struct;
     private ReconciliationJobRunner runner;
@@ -68,7 +69,7 @@ class AdminKgPolicyResourceTest {
 
     @BeforeEach
     void setup() throws Exception {
-        engine  = mock( Engine.class );
+        engine  = mock( WikiEngine.class );
         policy  = mock( KgInclusionPolicy.class );
         struct  = mock( StructuralIndexService.class );
         runner  = mock( ReconciliationJobRunner.class );

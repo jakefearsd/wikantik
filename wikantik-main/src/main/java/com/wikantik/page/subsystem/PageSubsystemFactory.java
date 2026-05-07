@@ -18,6 +18,7 @@
  */
 package com.wikantik.page.subsystem;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.api.exceptions.WikiException;
@@ -114,12 +115,12 @@ public final class PageSubsystemFactory {
     public static PageSubsystem.Services create( final PageSubsystem.Deps deps ) {
         Objects.requireNonNull( deps, "deps" );
         Objects.requireNonNull( deps.core(), "core" );
-        final Engine engine = Objects.requireNonNull( deps.engine(), "engine" );
+        final WikiEngine engine = ( WikiEngine ) Objects.requireNonNull( deps.engine(), "engine" );
 
         final PageManager       pages       = engine.getManager( PageManager.class );
         final AttachmentManager attachments = engine.getManager( AttachmentManager.class );
         final PageRenamer       renamer     = engine.getManager( PageRenamer.class );
-        final PageSaveHelper    saveHelper  = new PageSaveHelper( engine );
+        final PageSaveHelper    saveHelper  = new PageSaveHelper( engine, pages );
         final PageProvider      provider    = pages != null ? pages.getProvider() : null;
         // ReferenceManager is initialized asynchronously after the page-manager scan
         // completes; it may be null at this point and will be populated later.

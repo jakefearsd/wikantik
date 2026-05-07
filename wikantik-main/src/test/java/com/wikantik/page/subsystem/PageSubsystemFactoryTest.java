@@ -18,7 +18,7 @@
  */
 package com.wikantik.page.subsystem;
 
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
@@ -52,7 +52,7 @@ final class PageSubsystemFactoryTest {
 
         when( pages.getProvider() ).thenReturn( provider );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( PageManager.class ) ).thenReturn( pages );
         when( engine.getManager( AttachmentManager.class ) ).thenReturn( attachments );
         when( engine.getManager( PageRenamer.class ) ).thenReturn( renamer );
@@ -80,7 +80,7 @@ final class PageSubsystemFactoryTest {
     void createRejectsMissingDeps() {
         assertThrows( NullPointerException.class, () -> PageSubsystemFactory.create( null ) );
         assertThrows( NullPointerException.class, () -> PageSubsystemFactory.create(
-            new PageSubsystem.Deps( null, null, null, mock( Engine.class ) ) ) );
+            new PageSubsystem.Deps( null, null, null, mock( WikiEngine.class ) ) ) );
         assertThrows( NullPointerException.class, () -> PageSubsystemFactory.create(
             new PageSubsystem.Deps(
                 mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),

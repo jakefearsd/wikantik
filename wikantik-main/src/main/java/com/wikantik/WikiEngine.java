@@ -605,8 +605,7 @@ public class WikiEngine implements Engine {
         }
     }
 
-    /** {@inheritDoc} */
-    @Override
+    /** Retrieves the object registered under the given type key. Not part of the {@link Engine} interface. */
     @SuppressWarnings( "unchecked" )
     public < T > T getManager( final Class< T > manager ) {
         // 1. Try Guice first
@@ -647,8 +646,7 @@ public class WikiEngine implements Engine {
         return null;
     }
 
-    /** {@inheritDoc} */
-    @Override
+    /** Retrieves all objects assignable to the given type key. Not part of the {@link Engine} interface. */
     @SuppressWarnings( "unchecked" )
     public < T > List< T > getManagers( final Class< T > manager ) {
         return ( List< T > )managers.entrySet().stream()
@@ -657,8 +655,7 @@ public class WikiEngine implements Engine {
                                                .toList();
     }
 
-    /** {@inheritDoc} */
-    @Override
+    /** Registers an object under the given type key. Not part of the {@link Engine} interface. */
     public < T > void setManager( final Class< T > clazz, final T manager ) {
         managers.put( clazz, manager );
         // If an auth-layer manager is swapped in (e.g. by a unit test installing a mock),

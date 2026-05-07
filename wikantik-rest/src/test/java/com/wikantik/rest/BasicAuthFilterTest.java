@@ -19,6 +19,7 @@
 package com.wikantik.rest;
 
 import com.wikantik.HttpMockFactory;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.SessionSPI;
@@ -95,13 +96,13 @@ class BasicAuthFilterTest {
     // ----- doFilter coverage -----
 
     private BasicAuthFilter filter;
-    private Engine engine;
+    private WikiEngine engine;
     private AuthenticationManager authMgr;
 
     @BeforeEach
     void setUpDoFilter() throws Exception {
         filter = new BasicAuthFilter();
-        engine = mock( Engine.class );
+        engine = mock( WikiEngine.class );
         authMgr = mock( AuthenticationManager.class );
         when( engine.getManager( AuthenticationManager.class ) ).thenReturn( authMgr );
 

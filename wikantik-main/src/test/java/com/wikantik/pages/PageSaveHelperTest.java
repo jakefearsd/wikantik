@@ -43,8 +43,8 @@ class PageSaveHelperTest {
     @BeforeEach
     void setUp() {
         engine = TestEngine.build();
-        helper = new PageSaveHelper( engine );
         pageManager = engine.getManager( PageManager.class );
+        helper = new PageSaveHelper( engine, pageManager );
     }
 
     @AfterEach

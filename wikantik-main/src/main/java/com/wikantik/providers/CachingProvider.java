@@ -21,6 +21,7 @@ package com.wikantik.providers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Context;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
@@ -164,7 +165,7 @@ public class CachingProvider implements PageProvider {
                 final String pageDir = fileProvider.getPageDirectory();
                 final NewsPageGenerator newsGenerator = new NewsPageGenerator( engine, pageDir );
                 newsGenerator.start();
-                engine.setManager( NewsPageGenerator.class, newsGenerator );
+                ( ( WikiEngine ) engine ).setManager( NewsPageGenerator.class, newsGenerator );
             }
         }
     }

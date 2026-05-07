@@ -18,7 +18,7 @@
  */
 package com.wikantik.render.subsystem;
 
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.content.NewsPageGenerator;
 import com.wikantik.diff.DifferenceManager;
 import com.wikantik.filters.FilterManager;
@@ -59,7 +59,7 @@ final class RenderingSubsystemFactoryTest {
         final DifferenceManager differenceManager = mock( DifferenceManager.class );
         final NewsPageGenerator newsPageGenerator = mock( NewsPageGenerator.class );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( RenderingManager.class ) ).thenReturn( renderingManager );
         when( engine.getManager( PluginManager.class ) ).thenReturn( pluginManager );
         when( engine.getManager( FilterManager.class ) ).thenReturn( filterManager );
@@ -107,7 +107,7 @@ final class RenderingSubsystemFactoryTest {
         when( spam.getPolicy()          ).thenReturn( policy );
         when( filterManager.getFilterList() ).thenReturn( List.of( spam ) );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( RenderingManager.class ) ).thenReturn( renderingManager );
         when( engine.getManager( PluginManager.class ) ).thenReturn( pluginManager );
         when( engine.getManager( FilterManager.class ) ).thenReturn( filterManager );
@@ -133,7 +133,7 @@ final class RenderingSubsystemFactoryTest {
     void createRejectsMissingDeps() {
         assertThrows( NullPointerException.class, () -> RenderingSubsystemFactory.create( null ) );
         assertThrows( NullPointerException.class, () -> RenderingSubsystemFactory.create(
-            new RenderingSubsystem.Deps( null, null, null, mock( Engine.class ) ) ) );
+            new RenderingSubsystem.Deps( null, null, null, mock( WikiEngine.class ) ) ) );
         assertThrows( NullPointerException.class, () -> RenderingSubsystemFactory.create(
             new RenderingSubsystem.Deps(
                 mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),

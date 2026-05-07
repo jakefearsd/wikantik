@@ -575,7 +575,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             }
 
             final String updatedText = FrontmatterWriter.write( metadata, parsed.body() );
-            final PageSaveHelper saveHelper = new PageSaveHelper( getEngine() );
+            final PageSaveHelper saveHelper = new PageSaveHelper( getEngine(), pm );
             final SaveOptions options = SaveOptions.builder()
                     .author( "Knowledge Admin" )
                     .changeNote( "Approved knowledge proposal: " + relationship + " → " + target )
@@ -638,7 +638,7 @@ public class AdminKnowledgeResource extends RestServletBase {
 
                 if ( changed ) {
                     final String updatedText = FrontmatterWriter.write( metadata, parsed.body() );
-                    final PageSaveHelper saveHelper = new PageSaveHelper( getEngine() );
+                    final PageSaveHelper saveHelper = new PageSaveHelper( getEngine(), pm );
                     final SaveOptions options = SaveOptions.builder()
                             .author( "Knowledge Admin" )
                             .changeNote( "Merge: renamed " + oldName + " → " + newName )
@@ -1038,7 +1038,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             final var allPages = pm.getAllPages();
             backfillTotal = allPages.size();
 
-            final PageSaveHelper saveHelper = new PageSaveHelper( getEngine() );
+            final PageSaveHelper saveHelper = new PageSaveHelper( getEngine(), pm );
 
             for ( final Page page : allPages ) {
                 try {
@@ -1225,7 +1225,7 @@ public class AdminKnowledgeResource extends RestServletBase {
     private void handlePostSyncHubMemberships( final HttpServletResponse response ) throws IOException {
         try {
             final PageManager pm = getSubsystems().page().pages();
-            final PageSaveHelper saveHelper = new PageSaveHelper( getEngine() );
+            final PageSaveHelper saveHelper = new PageSaveHelper( getEngine(), pm );
             int synced = 0;
             for ( final Page page : pm.getAllPages() ) {
                 try {

@@ -18,7 +18,7 @@
  */
 package com.wikantik.render.subsystem;
 
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.content.NewsPageGenerator;
 import com.wikantik.diff.DifferenceManager;
 import com.wikantik.filters.FilterManager;
@@ -54,7 +54,7 @@ public final class RenderingSubsystemFactory {
     public static RenderingSubsystem.Services create( final RenderingSubsystem.Deps deps ) {
         Objects.requireNonNull( deps, "deps" );
         Objects.requireNonNull( deps.core(), "core" );
-        final Engine engine = Objects.requireNonNull( deps.engine(), "engine" );
+        final WikiEngine engine = ( WikiEngine ) Objects.requireNonNull( deps.engine(), "engine" );
 
         final RenderingManager  renderingManager  = engine.getManager( RenderingManager.class );
         final PluginManager     pluginManager     = engine.getManager( PluginManager.class );

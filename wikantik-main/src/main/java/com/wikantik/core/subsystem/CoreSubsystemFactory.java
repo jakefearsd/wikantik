@@ -18,7 +18,7 @@
  */
 package com.wikantik.core.subsystem;
 
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.ui.CommandResolver;
@@ -56,12 +56,13 @@ public final class CoreSubsystemFactory {
         final WikiEventBus eventBus = new DefaultWikiEventBus();
         final MeterRegistry meters =
             deps.meterRegistry() != null ? deps.meterRegistry() : new SimpleMeterRegistry();
-        final CachingManager cachingManager = deps.engine().getManager( CachingManager.class );
-        final VariableManager variableManager = deps.engine().getManager( VariableManager.class );
-        final ProgressManager progressManager = deps.engine().getManager( ProgressManager.class );
-        final CommandResolver commandResolver = deps.engine().getManager( CommandResolver.class );
-        final URLConstructor urlConstructor = deps.engine().getManager( URLConstructor.class );
-        final InternationalizationManager i18n = deps.engine().getManager( InternationalizationManager.class );
+        final WikiEngine wikiEngine = ( WikiEngine ) deps.engine();
+        final CachingManager cachingManager = wikiEngine.getManager( CachingManager.class );
+        final VariableManager variableManager = wikiEngine.getManager( VariableManager.class );
+        final ProgressManager progressManager = wikiEngine.getManager( ProgressManager.class );
+        final CommandResolver commandResolver = wikiEngine.getManager( CommandResolver.class );
+        final URLConstructor urlConstructor = wikiEngine.getManager( URLConstructor.class );
+        final InternationalizationManager i18n = wikiEngine.getManager( InternationalizationManager.class );
 
         return new CoreSubsystem.Services(
             properties,

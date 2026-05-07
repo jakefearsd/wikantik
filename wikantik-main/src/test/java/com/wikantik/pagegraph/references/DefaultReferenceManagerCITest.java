@@ -21,6 +21,7 @@ package com.wikantik.pagegraph.references;
 import com.wikantik.MockEngineBuilder;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Context;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
@@ -50,7 +51,7 @@ import static org.mockito.Mockito.*;
  */
 class DefaultReferenceManagerCITest {
 
-    private Engine engine;
+    private WikiEngine engine;
     private PageManager pageManager;
     private AttachmentManager attachmentManager;
 
@@ -637,7 +638,7 @@ class DefaultReferenceManagerCITest {
     @Test
     void pluralMatchingWhenEnabled() throws ProviderException {
         // Create a new manager with plural matching enabled
-        final Engine pluralEngine = MockEngineBuilder.engine()
+        final WikiEngine pluralEngine = MockEngineBuilder.engine()
                 .with( PageManager.class, pageManager )
                 .with( AttachmentManager.class, attachmentManager )
                 .property( Engine.PROP_MATCHPLURALS, "true" )
@@ -657,7 +658,7 @@ class DefaultReferenceManagerCITest {
 
     @Test
     void pluralMatchingSuppressesSelfReferenceOnPlural() throws ProviderException {
-        final Engine pluralEngine = MockEngineBuilder.engine()
+        final WikiEngine pluralEngine = MockEngineBuilder.engine()
                 .with( PageManager.class, pageManager )
                 .with( AttachmentManager.class, attachmentManager )
                 .property( Engine.PROP_MATCHPLURALS, "true" )
@@ -823,7 +824,7 @@ class DefaultReferenceManagerCITest {
     @Test
     void delegatingConstructorResolvesFromEngine() {
         // The single-arg constructor should call engine.getManager() for both managers
-        final Engine testEngine = MockEngineBuilder.engine()
+        final WikiEngine testEngine = MockEngineBuilder.engine()
                 .with( PageManager.class, pageManager )
                 .with( AttachmentManager.class, attachmentManager )
                 .build();

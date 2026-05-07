@@ -41,7 +41,7 @@ public class StubPageSaveHelper extends PageSaveHelper {
     private final StubPageManager pm;
 
     public StubPageSaveHelper( final StubPageManager pm ) {
-        super( null );   // engine won't be used — saveText is fully overridden
+        super( null, null );   // engine and pageManager won't be used — saveText is fully overridden
         this.pm = pm;
     }
 

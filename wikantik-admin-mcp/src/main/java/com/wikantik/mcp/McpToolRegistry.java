@@ -65,7 +65,7 @@ public class McpToolRegistry {
         final SystemPageRegistry systemPageRegistry = CoreSubsystemBridge.fromLegacyEngine( engine ).systemPageRegistry();
         final DifferenceManager differenceManager = RenderingSubsystemBridge.fromLegacyEngine( engine ).differenceManager();
         final PageRenamer pageRenamer = PageSubsystemBridge.fromLegacyEngine( engine ).pageRenamer();
-        final PageSaveHelper pageSaveHelper = new PageSaveHelper( engine );
+        final PageSaveHelper pageSaveHelper = new PageSaveHelper( engine, pageManager );
 
         // --- Read-only tools (no author resolution needed) ---
         final GetBacklinksTool getBacklinks = new GetBacklinksTool( referenceManager );

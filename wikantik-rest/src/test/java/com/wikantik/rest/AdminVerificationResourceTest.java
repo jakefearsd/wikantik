@@ -20,6 +20,7 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.pagegraph.Audience;
 import com.wikantik.api.pagegraph.Confidence;
@@ -51,7 +52,7 @@ class AdminVerificationResourceTest {
     @BeforeEach
     void setUp() {
         svc = mock( StructuralIndexService.class );
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( StructuralIndexService.class ) ).thenReturn( svc );
         resource = new AdminVerificationResource();
         resource.setEngineForTesting( engine );
@@ -115,7 +116,7 @@ class AdminVerificationResourceTest {
 
     @Test
     void service_absent_returns_503() throws Exception {
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( StructuralIndexService.class ) ).thenReturn( null );
         final var r = new AdminVerificationResource();
         r.setEngineForTesting( engine );

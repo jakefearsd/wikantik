@@ -18,6 +18,7 @@
  */
 package com.wikantik.tools;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
@@ -39,7 +40,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith( MockitoExtension.class )
 class GetPageToolTest {
 
-    @Mock Engine engine;
+    @Mock WikiEngine engine;
     @Mock PageManager pageManager;
     @Mock Page page;
     @Mock HttpServletRequest request;
@@ -49,7 +50,7 @@ class GetPageToolTest {
      * stub-context pattern so existing body/frontmatter assertions don't require a
      * real engine wiring.
      */
-    private GetPageTool allowingTool( final Engine engine, final ToolsConfig config ) {
+    private GetPageTool allowingTool( final WikiEngine engine, final ToolsConfig config ) {
         return new GetPageTool( engine, config ) {
             @Override
             boolean canView( final HttpServletRequest request, final String pageName ) {

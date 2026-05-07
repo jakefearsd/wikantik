@@ -18,7 +18,7 @@
  */
 package com.wikantik.auth.subsystem;
 
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.UserManager;
@@ -59,7 +59,7 @@ final class AuthSubsystemFactoryTest {
         final GroupManager          groups = mock( GroupManager.class );
         final AclManager            aclManager = mock( AclManager.class );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( AuthenticationManager.class ) ).thenReturn( authn );
         when( engine.getManager( AuthorizationManager.class ) ).thenReturn( authz );
         when( engine.getManager( UserManager.class ) ).thenReturn( users );
@@ -90,7 +90,7 @@ final class AuthSubsystemFactoryTest {
 
     @Test
     void createRejectsMissingDeps() {
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         final CoreSubsystem.Services core = CoreSubsystemFactory.create( new CoreSubsystem.Deps(
             new Properties(), null, new SimpleMeterRegistry(),
             mock( SystemPageRegistry.class ),
@@ -100,7 +100,7 @@ final class AuthSubsystemFactoryTest {
 
         assertThrows( NullPointerException.class, () -> AuthSubsystemFactory.create( null ) );
         assertThrows( NullPointerException.class, () -> AuthSubsystemFactory.create(
-            new AuthSubsystem.Deps( null, null, null, mock( Engine.class ) ) ) );
+            new AuthSubsystem.Deps( null, null, null, mock( WikiEngine.class ) ) ) );
         assertThrows( NullPointerException.class, () -> AuthSubsystemFactory.create(
             new AuthSubsystem.Deps( core, null, null, null ) ) );
     }

@@ -18,7 +18,7 @@
  */
 package com.wikantik.core.subsystem;
 
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.blog.BlogManager;
 import com.wikantik.cache.CachingManager;
@@ -67,7 +67,7 @@ final class CoreSubsystemFactoryTest {
         final CommandResolver commandResolver = mock( CommandResolver.class );
         final URLConstructor urlConstructor = mock( URLConstructor.class );
         final InternationalizationManager i18n = mock( InternationalizationManager.class );
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( CachingManager.class ) ).thenReturn( cachingManager );
         when( engine.getManager( VariableManager.class ) ).thenReturn( variableManager );
         when( engine.getManager( ProgressManager.class ) ).thenReturn( progressManager );
@@ -101,7 +101,7 @@ final class CoreSubsystemFactoryTest {
     @Test
     void createWithoutMeterRegistryFallsBackToSimple() {
         final CachingManager cachingManager = mock( CachingManager.class );
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( CachingManager.class ) ).thenReturn( cachingManager );
         // other managers return null by default from the mock
 

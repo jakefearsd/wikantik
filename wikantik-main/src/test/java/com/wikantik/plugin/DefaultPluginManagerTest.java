@@ -21,6 +21,7 @@ package com.wikantik.plugin;
 
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.spi.Wiki;
@@ -35,7 +36,7 @@ import java.util.Properties;
 
 public class DefaultPluginManagerTest {
 
-    static Engine engine = TestEngine.build();
+    static WikiEngine engine = TestEngine.build();
     static PluginManager manager = engine.getManager( PluginManager.class );
     Properties props = TestEngine.getTestProperties();
 

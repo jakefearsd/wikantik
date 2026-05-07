@@ -18,7 +18,7 @@
  */
 package com.wikantik.search.subsystem;
 
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.search.FrontmatterMetadataCache;
 import com.wikantik.search.LuceneSearchProvider;
 import com.wikantik.search.SearchManager;
@@ -64,7 +64,7 @@ final class SearchSubsystemFactoryTest {
         final SearchManager  manager  = mock( SearchManager.class );
         when( manager.getSearchEngine() ).thenReturn( provider );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( SearchManager.class ) ).thenReturn( manager );
 
         final SearchSubsystem.Services services = SearchSubsystemFactory.create(
@@ -103,7 +103,7 @@ final class SearchSubsystemFactoryTest {
 
         final FrontmatterMetadataCache frontmatterCache = mock( FrontmatterMetadataCache.class );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( HybridSearchService.class ) ).thenReturn( hybrid );
         when( engine.getManager( QueryEmbedder.class ) ).thenReturn( queryEmbedder );
         when( engine.getManager( QueryEntityResolver.class ) ).thenReturn( queryEntityResolver );
@@ -144,7 +144,7 @@ final class SearchSubsystemFactoryTest {
         // No managers stubbed — every getManager() returns null. The
         // factory still produces a Services record with every field null
         // (mirrors the legacy getManager() behaviour for unwired engines).
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         final SearchSubsystem.Services services = SearchSubsystemFactory.create(
             new SearchSubsystem.Deps(
                 /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
@@ -179,7 +179,7 @@ final class SearchSubsystemFactoryTest {
         final SearchManager manager = mock( SearchManager.class );
         when( manager.getSearchEngine() ).thenReturn( provider );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( SearchManager.class ) ).thenReturn( manager );
 
         final SearchSubsystem.Services services = SearchSubsystemFactory.create(
@@ -206,7 +206,7 @@ final class SearchSubsystemFactoryTest {
         final SearchManager  manager  = mock( SearchManager.class );
         when( manager.getSearchEngine() ).thenReturn( provider );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( SearchManager.class ) ).thenReturn( manager );
 
         final SearchSubsystem.Services services = SearchSubsystemFactory.create(
@@ -226,7 +226,7 @@ final class SearchSubsystemFactoryTest {
     void createRejectsMissingDeps() {
         assertThrows( NullPointerException.class, () -> SearchSubsystemFactory.create( null ) );
         assertThrows( NullPointerException.class, () -> SearchSubsystemFactory.create(
-            new SearchSubsystem.Deps( null, null, null, null, mock( Engine.class ) ) ) );
+            new SearchSubsystem.Deps( null, null, null, null, mock( WikiEngine.class ) ) ) );
         assertThrows( NullPointerException.class, () -> SearchSubsystemFactory.create(
             new SearchSubsystem.Deps(
                 mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),

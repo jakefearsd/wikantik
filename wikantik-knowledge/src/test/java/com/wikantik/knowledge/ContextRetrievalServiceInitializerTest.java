@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.managers.PageManager;
@@ -56,7 +57,7 @@ class ContextRetrievalServiceInitializerTest {
         final ServletContextEvent sce = mock( ServletContextEvent.class );
         final ServletContext ctx = mock( ServletContext.class );
         when( sce.getServletContext() ).thenReturn( ctx );
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( PageManager.class ) ).thenReturn( null );
         final EngineSPI spi = mock( EngineSPI.class );
         when( spi.find( any( ServletContext.class ), isNull() ) ).thenReturn( engine );
@@ -74,7 +75,7 @@ class ContextRetrievalServiceInitializerTest {
         final ServletContextEvent sce = mock( ServletContextEvent.class );
         final ServletContext ctx = mock( ServletContext.class );
         when( sce.getServletContext() ).thenReturn( ctx );
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( PageManager.class ) ).thenReturn( mock( PageManager.class ) );
         when( engine.getManager( SearchManager.class ) ).thenReturn( mock( SearchManager.class ) );
         when( engine.getBaseURL() ).thenReturn( "https://wiki.example" );

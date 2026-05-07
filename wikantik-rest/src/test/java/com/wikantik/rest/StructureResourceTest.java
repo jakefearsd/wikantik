@@ -20,6 +20,7 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.pagegraph.ClusterSummary;
 import com.wikantik.api.pagegraph.PageDescriptor;
@@ -49,7 +50,7 @@ class StructureResourceTest {
     @BeforeEach
     void setUp() {
         svc = mock( StructuralIndexService.class );
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( StructuralIndexService.class ) ).thenReturn( svc );
         resource = new StructureResource();
         resource.setEngineForTesting( engine );

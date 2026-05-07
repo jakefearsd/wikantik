@@ -20,6 +20,7 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.pagegraph.IndexHealth;
 import com.wikantik.api.pagegraph.StructuralIndexService;
@@ -47,7 +48,7 @@ class StructuralIndexHealthResourceTest {
             @Override public int tagCount()        { return 185; }
             @Override public Instant generatedAt() { return Instant.EPOCH; }
         } );
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( StructuralIndexService.class ) ).thenReturn( svc );
 
         final StructuralIndexHealthResource r = new StructuralIndexHealthResource();
@@ -68,7 +69,7 @@ class StructuralIndexHealthResourceTest {
 
     @Test
     void reports_503_when_service_absent() throws Exception {
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( StructuralIndexService.class ) ).thenReturn( null );
         final StructuralIndexHealthResource r = new StructuralIndexHealthResource();
         r.setEngineForTesting( engine );

@@ -19,6 +19,7 @@
 package com.wikantik.observability.health;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith( MockitoExtension.class )
 class SearchIndexHealthCheckTest {
 
-    @Mock private Engine engine;
+    @Mock private WikiEngine engine;
     @Mock private PageManager pageManager;
     @Mock private PageProvider pageProvider;
 

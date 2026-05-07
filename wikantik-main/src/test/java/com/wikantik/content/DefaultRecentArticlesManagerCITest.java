@@ -21,7 +21,7 @@ package com.wikantik.content;
 import com.wikantik.MockEngineBuilder;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.attachment.Attachment;
@@ -50,7 +50,7 @@ import static org.mockito.Mockito.*;
  */
 class DefaultRecentArticlesManagerCITest {
 
-    private Engine engine;
+    private WikiEngine engine;
     private PageManager pageManager;
     private RenderingManager renderingManager;
     private SystemPageRegistry systemPageRegistry;

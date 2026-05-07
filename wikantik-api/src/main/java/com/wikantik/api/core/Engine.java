@@ -39,7 +39,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.Collection;
 import java.util.Date;
-import java.util.List;
 import java.util.Properties;
 import java.util.ServiceLoader;
 
@@ -123,35 +122,6 @@ public interface Engine {
     default < E extends Engine > E adapt( final Class< E > cls ) {
         return ( E )this;
     }
-
-    /**
-     * Retrieves the object instantiated by the Engine matching the requested type.
-     *
-     * @param manager requested object instantiated by the Engine.
-     * @param <T> type of the requested object.
-     * @return requested object instantiated by the Engine, {@code null} if not available.
-     */
-    < T > T getManager( Class< T > manager );
-
-    /**
-     * Retrieves the objects instantiated by the Engine that can be assigned to the requested type.
-     *
-     * @param manager requested objectx instantiated by the Engine.
-     * @param <T> type of the requested object.
-     * @return collection of requested objects instantiated by the Engine, {@code empty} list if none available.
-     */
-    < T > List< T > getManagers( Class< T > manager );
-
-    /**
-     * Registers an object with the Engine under the given type key, making it retrievable via
-     * {@link #getManager(Class)}. Use this to expose background services or other components
-     * that are created outside the normal engine initialization sequence.
-     *
-     * @param clazz the type key to register under
-     * @param manager the object to register
-     * @param <T> type of the object
-     */
-    < T > void setManager( Class< T > clazz, T manager );
 
     /**
      * check if the Engine has been configured.

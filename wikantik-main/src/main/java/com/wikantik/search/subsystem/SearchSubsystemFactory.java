@@ -18,7 +18,7 @@
  */
 package com.wikantik.search.subsystem;
 
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.search.FrontmatterMetadataCache;
 import com.wikantik.search.LuceneSearchProvider;
 import com.wikantik.search.SearchManager;
@@ -73,7 +73,7 @@ public final class SearchSubsystemFactory {
     public static SearchSubsystem.Services create( final SearchSubsystem.Deps deps ) {
         Objects.requireNonNull( deps, "deps" );
         Objects.requireNonNull( deps.core(), "core" );
-        final Engine engine = Objects.requireNonNull( deps.engine(), "engine" );
+        final WikiEngine engine = ( WikiEngine ) Objects.requireNonNull( deps.engine(), "engine" );
 
         final SearchManager  searchManager  = engine.getManager( SearchManager.class );
         final SearchProvider searchProvider =

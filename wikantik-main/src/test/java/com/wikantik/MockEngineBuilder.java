@@ -1,17 +1,16 @@
 package com.wikantik;
 
-import com.wikantik.api.core.Engine;
 import java.util.Properties;
 import static org.mockito.Mockito.*;
 
 /**
- * Lightweight builder that creates a mock {@link Engine} pre-wired with
+ * Lightweight builder that creates a mock {@link WikiEngine} pre-wired with
  * stub manager instances. Each {@code with()} call registers a manager
  * that will be returned by {@code engine.getManager(type)}.
  *
  * <p>Usage:
  * <pre>{@code
- * Engine engine = MockEngineBuilder.engine()
+ * WikiEngine engine = MockEngineBuilder.engine()
  *     .with(PageManager.class, mockPageManager)
  *     .with(SearchManager.class, mockSearchManager)
  *     .properties(props)
@@ -20,11 +19,11 @@ import static org.mockito.Mockito.*;
  */
 public final class MockEngineBuilder {
 
-    private final Engine engine;
+    private final WikiEngine engine;
     private Properties properties;
 
     private MockEngineBuilder() {
-        engine = mock( Engine.class );
+        engine = mock( WikiEngine.class );
         properties = new Properties();
         when( engine.getWikiProperties() ).thenReturn( properties );
         when( engine.getApplicationName() ).thenReturn( "test" );
@@ -51,7 +50,7 @@ public final class MockEngineBuilder {
         return this;
     }
 
-    public Engine build() {
+    public WikiEngine build() {
         return engine;
     }
 

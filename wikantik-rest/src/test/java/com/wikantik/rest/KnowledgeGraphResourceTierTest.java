@@ -18,6 +18,7 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.knowledge.GraphSnapshot;
@@ -71,7 +72,7 @@ class KnowledgeGraphResourceTierTest {
         when( svc.snapshotGraph( any( Session.class ), eq( Tier.HUMAN ) ) )
             .thenReturn( new GraphSnapshot( "ts", 0, 0, 0, List.of(), List.of() ) );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( KnowledgeGraphService.class ) ).thenReturn( svc );
         when( engine.getWikiProperties() ).thenReturn( new Properties() );
 
@@ -90,7 +91,7 @@ class KnowledgeGraphResourceTierTest {
         when( svc.snapshotGraph( any( Session.class ), eq( Tier.MACHINE ) ) )
             .thenReturn( new GraphSnapshot( "ts", 0, 0, 0, List.of(), List.of() ) );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( KnowledgeGraphService.class ) ).thenReturn( svc );
         when( engine.getWikiProperties() ).thenReturn( new Properties() );
 
@@ -112,7 +113,7 @@ class KnowledgeGraphResourceTierTest {
         final Properties props = new Properties();
         props.setProperty( "wikantik.kg.read.default_min_tier", "human" );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( KnowledgeGraphService.class ) ).thenReturn( svc );
         when( engine.getWikiProperties() ).thenReturn( props );
 
@@ -128,7 +129,7 @@ class KnowledgeGraphResourceTierTest {
         final HttpServletResponse resp = mock( HttpServletResponse.class );
         when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         new TestableResource( engine ).doGet( req, resp );
 
         verify( resp ).setStatus( HttpServletResponse.SC_BAD_REQUEST );

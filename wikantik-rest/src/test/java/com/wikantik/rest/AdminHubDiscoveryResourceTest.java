@@ -18,6 +18,7 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.knowledge.HubDiscoveryException;
 import com.wikantik.knowledge.HubDiscoveryRepository;
@@ -51,7 +52,7 @@ class AdminHubDiscoveryResourceTest {
 
     private HubDiscoveryService service;
     private HubDiscoveryRepository repo;
-    private Engine engine;
+    private WikiEngine engine;
     private AdminHubDiscoveryResource resource;
     private HttpServletRequest req;
     private HttpServletResponse resp;
@@ -61,7 +62,7 @@ class AdminHubDiscoveryResourceTest {
     void setUp() throws Exception {
         service = mock( HubDiscoveryService.class );
         repo = mock( HubDiscoveryRepository.class );
-        engine = mock( Engine.class );
+        engine = mock( WikiEngine.class );
         when( engine.getManager( HubDiscoveryService.class ) ).thenReturn( service );
         when( engine.getManager( HubDiscoveryRepository.class ) ).thenReturn( repo );
 

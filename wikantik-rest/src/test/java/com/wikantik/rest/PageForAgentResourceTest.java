@@ -25,6 +25,7 @@ import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.agent.HeadingOutline;
 import com.wikantik.api.agent.KeyFact;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.pagegraph.Audience;
 import com.wikantik.api.pagegraph.Confidence;
@@ -50,7 +51,7 @@ class PageForAgentResourceTest {
     @BeforeEach
     void setUp() {
         svc = mock( ForAgentProjectionService.class );
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( ForAgentProjectionService.class ) ).thenReturn( svc );
         resource = new PageForAgentResource();
         resource.setEngineForTesting( engine );

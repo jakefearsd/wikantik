@@ -20,6 +20,7 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.pagegraph.StructuralConflict;
 import com.wikantik.api.pagegraph.StructuralIndexService;
@@ -43,7 +44,7 @@ class AdminStructuralConflictsResourceTest {
     @BeforeEach
     void setUp() {
         svc = mock( StructuralIndexService.class );
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( StructuralIndexService.class ) ).thenReturn( svc );
         resource = new AdminStructuralConflictsResource();
         resource.setEngineForTesting( engine );
@@ -86,7 +87,7 @@ class AdminStructuralConflictsResourceTest {
 
     @Test
     void service_absent_returns_503() throws Exception {
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( StructuralIndexService.class ) ).thenReturn( null );
         final var r = new AdminStructuralConflictsResource();
         r.setEngineForTesting( engine );

@@ -19,7 +19,7 @@
 package com.wikantik.pagegraph.subsystem;
 
 import com.wikantik.admin.ContentIndexRebuildService;
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.PageGraphService;
 import com.wikantik.api.pagegraph.StructuralIndexService;
@@ -51,7 +51,7 @@ final class PageGraphSubsystemFactoryTest {
         final ReferenceManager           referenceManager           = mock( ReferenceManager.class );
         final ContentIndexRebuildService contentIndexRebuildService = mock( ContentIndexRebuildService.class );
 
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( StructuralIndexService.class ) ).thenReturn( structuralIndex );
         when( engine.getManager( PageGraphService.class ) ).thenReturn( pageGraphService );
         when( engine.getManager( ReferenceManager.class ) ).thenReturn( referenceManager );
@@ -76,7 +76,7 @@ final class PageGraphSubsystemFactoryTest {
         // No managers stubbed — every getManager() returns null. The factory
         // still produces a Services record with every field null (mirrors
         // the legacy getManager() behaviour for unwired engines).
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         final PageGraphSubsystem.Services services = PageGraphSubsystemFactory.create(
             new PageGraphSubsystem.Deps(
                 /*core=*/        mock( CoreSubsystem.Services.class ),
@@ -97,7 +97,7 @@ final class PageGraphSubsystemFactoryTest {
             () -> PageGraphSubsystemFactory.create( null ) );
         assertThrows( NullPointerException.class,
             () -> PageGraphSubsystemFactory.create(
-                new PageGraphSubsystem.Deps( null, null, null, mock( Engine.class ) ) ) );
+                new PageGraphSubsystem.Deps( null, null, null, mock( WikiEngine.class ) ) ) );
         assertThrows( NullPointerException.class,
             () -> PageGraphSubsystemFactory.create(
                 new PageGraphSubsystem.Deps(

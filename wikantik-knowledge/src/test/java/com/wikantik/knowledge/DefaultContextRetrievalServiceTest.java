@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.RetrievedPage;
 import com.wikantik.api.managers.PageManager;
@@ -284,14 +285,14 @@ class DefaultContextRetrievalServiceTest {
 
     @Test
     void fromEngine_returnsNullWhenPageManagerMissing() {
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( PageManager.class ) ).thenReturn( null );
         assertNull( DefaultContextRetrievalService.fromEngine( engine ) );
     }
 
     @Test
     void fromEngine_returnsNullWhenSearchManagerMissing() {
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( PageManager.class ) ).thenReturn( mock( PageManager.class ) );
         when( engine.getManager( SearchManager.class ) ).thenReturn( null );
         assertNull( DefaultContextRetrievalService.fromEngine( engine ) );
@@ -299,7 +300,7 @@ class DefaultContextRetrievalServiceTest {
 
     @Test
     void fromEngine_buildsServiceWhenCoreManagersPresent() {
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         final PageManager pm = mock( PageManager.class );
         final SearchManager sm = mock( SearchManager.class );
         when( engine.getManager( PageManager.class ) ).thenReturn( pm );

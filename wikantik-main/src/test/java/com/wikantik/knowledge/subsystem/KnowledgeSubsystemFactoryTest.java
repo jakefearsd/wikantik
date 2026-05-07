@@ -19,7 +19,7 @@
 package com.wikantik.knowledge.subsystem;
 
 import com.wikantik.PostgresTestContainer;
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.managers.PageManager;
@@ -78,7 +78,7 @@ class KnowledgeSubsystemFactoryTest {
     private PageSaveHelper pageSaveHelper;
 
     private CoreSubsystem.Services core( final Properties props ) {
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( com.wikantik.cache.CachingManager.class ) ).thenReturn( null );
         return CoreSubsystemFactory.create( new CoreSubsystem.Deps(
             props, null, meterRegistry, systemPageRegistry,

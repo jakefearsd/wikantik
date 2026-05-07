@@ -19,7 +19,7 @@
 package com.wikantik.pagegraph.subsystem;
 
 import com.wikantik.admin.ContentIndexRebuildService;
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.PageGraphService;
 import com.wikantik.api.pagegraph.StructuralIndexService;
@@ -58,7 +58,7 @@ public final class PageGraphSubsystemFactory {
     public static PageGraphSubsystem.Services create( final PageGraphSubsystem.Deps deps ) {
         Objects.requireNonNull( deps, "deps" );
         Objects.requireNonNull( deps.core(), "core" );
-        final Engine engine = Objects.requireNonNull( deps.engine(), "engine" );
+        final WikiEngine engine = ( WikiEngine ) Objects.requireNonNull( deps.engine(), "engine" );
 
         final StructuralIndexService     structuralIndexService     =
             engine.getManager( StructuralIndexService.class );

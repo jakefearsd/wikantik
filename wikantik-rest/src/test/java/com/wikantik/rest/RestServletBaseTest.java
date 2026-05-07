@@ -21,6 +21,7 @@ package com.wikantik.rest;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
@@ -52,8 +53,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class RestServletBaseTest {
 
     private static class TestRestServlet extends RestServletBase {
-        private final Engine engine;
-        TestRestServlet( final Engine engine ) { this.engine = engine; }
+        private final WikiEngine engine;
+        TestRestServlet( final WikiEngine engine ) { this.engine = engine; }
         @Override protected Engine getEngine() { return engine; }
         // Expose the package-private helper for tests.
         void applyCors( final HttpServletRequest req, final HttpServletResponse resp ) {
@@ -70,11 +71,11 @@ class RestServletBaseTest {
         }
     }
 
-    private Engine engine;
+    private WikiEngine engine;
 
     @BeforeEach
     void setUp() {
-        engine = Mockito.mock( Engine.class );
+        engine = Mockito.mock( WikiEngine.class );
         final Properties props = new Properties();
         props.setProperty( "wikantik.cors.allowedOrigins",
                 "https://wiki.example.com,https://other.example.com" );
@@ -136,7 +137,7 @@ class RestServletBaseTest {
     // ---- Wildcard origin tests ----
 
     private TestRestServlet servletWithAllowed( final String allowed ) {
-        final Engine eng = Mockito.mock( Engine.class );
+        final WikiEngine eng = Mockito.mock( WikiEngine.class );
         final Properties props = new Properties();
         props.setProperty( "wikantik.cors.allowedOrigins", allowed );
         Mockito.when( eng.getWikiProperties() ).thenReturn( props );

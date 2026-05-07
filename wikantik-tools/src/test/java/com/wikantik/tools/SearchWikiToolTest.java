@@ -18,6 +18,7 @@
  */
 package com.wikantik.tools;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
@@ -52,7 +53,7 @@ import static org.mockito.Mockito.*;
 @MockitoSettings( strictness = Strictness.LENIENT )
 class SearchWikiToolTest {
 
-    @Mock Engine engine;
+    @Mock WikiEngine engine;
     @Mock ContextRetrievalService ctxService;
     @Mock HttpServletRequest request;
 

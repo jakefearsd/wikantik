@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.mcp;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
@@ -57,7 +58,7 @@ class KnowledgeMcpInitializerTest {
         final ServletContextEvent sce = mock( ServletContextEvent.class );
         final ServletContext ctx = mock( ServletContext.class );
         when( sce.getServletContext() ).thenReturn( ctx );
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( KnowledgeGraphService.class ) ).thenReturn( null );
         when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( null );
         final EngineSPI spi = mock( EngineSPI.class );

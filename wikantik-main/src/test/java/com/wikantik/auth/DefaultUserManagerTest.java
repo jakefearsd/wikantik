@@ -20,7 +20,7 @@
 package com.wikantik.auth;
 
 import com.wikantik.api.core.Context;
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Session;
 import com.wikantik.auth.user.UserProfile;
 import org.junit.jupiter.api.Assertions;
@@ -48,7 +48,7 @@ class DefaultUserManagerTest {
         when( aMgr.isContainerAuthenticated() ).thenReturn( false );
         final Properties props = new Properties();
         props.put( "wikantik.userdatabase", "com.wikantik.auth.user.XMLUserDatabase" );
-        final Engine engine = mock( Engine.class );
+        final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( AuthenticationManager.class ) ).thenReturn( aMgr );
         when( engine.getWikiProperties() ).thenReturn( props );
 

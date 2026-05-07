@@ -60,7 +60,7 @@ public final class PageSubsystemBridge {
         final PageManager       pages       = wikiEngine.getManager( PageManager.class );
         final AttachmentManager attachments = wikiEngine.getManager( AttachmentManager.class );
         final PageRenamer       renamer     = wikiEngine.getManager( PageRenamer.class );
-        final PageSaveHelper    saveHelper  = new PageSaveHelper( wikiEngine );
+        final PageSaveHelper    saveHelper  = new PageSaveHelper( wikiEngine, pages );
         final PageProvider      provider    = pages != null ? pages.getProvider() : null;
         final ReferenceManager  refMgr      = wikiEngine.getManager( ReferenceManager.class );
 

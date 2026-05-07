@@ -306,7 +306,7 @@ public class PageResource extends RestServletBase {
             }
             optionsBuilder.author( effectiveAuthor );
 
-            final PageSaveHelper helper = new PageSaveHelper( engine );
+            final PageSaveHelper helper = new PageSaveHelper( engine, getSubsystems().page().pages() );
             final Page saved = helper.saveText( pageName, content, optionsBuilder.build() );
 
             final Map< String, Object > result = new LinkedHashMap<>();
@@ -483,7 +483,7 @@ public class PageResource extends RestServletBase {
         final String newText = FrontmatterWriter.write( newMetadata, parsed.body() );
 
         try {
-            final PageSaveHelper helper = new PageSaveHelper( engine );
+            final PageSaveHelper helper = new PageSaveHelper( engine, pm );
             // D7: the PageSaveHelper builds a headless context so the author would
             // otherwise default to "Guest". Resolve it from the authenticated session
             // the same way doPut does.

@@ -18,7 +18,7 @@
  */
 package com.wikantik.auth.subsystem;
 
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.Authorizer;
@@ -57,7 +57,7 @@ public final class AuthSubsystemFactory {
         // persistence is optional — engines that boot without a datasource
         // (test fixtures) still need the four auth managers wired up via the
         // legacy registry path, which doesn't touch PersistenceSubsystem.
-        final Engine engine = Objects.requireNonNull( deps.engine(), "engine" );
+        final WikiEngine engine = ( WikiEngine ) Objects.requireNonNull( deps.engine(), "engine" );
 
         final AuthenticationManager authentication = engine.getManager( AuthenticationManager.class );
         final AuthorizationManager  authorization  = engine.getManager( AuthorizationManager.class );

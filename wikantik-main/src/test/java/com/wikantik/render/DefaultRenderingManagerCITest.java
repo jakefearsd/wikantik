@@ -23,7 +23,7 @@ import com.wikantik.WikiPage;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
-import com.wikantik.api.core.Engine;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.FilterException;
 import com.wikantik.api.exceptions.ProviderException;
@@ -65,7 +65,7 @@ import static org.mockito.Mockito.*;
  */
 class DefaultRenderingManagerCITest {
 
-    private Engine engine;
+    private WikiEngine engine;
     private CachingManager cachingManager;
     private FilterManager filterManager;
     private PageManager pageManager;

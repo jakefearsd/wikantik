@@ -20,6 +20,7 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.eval.RetrievalMode;
 import com.wikantik.api.eval.RetrievalQualityRunner;
@@ -50,12 +51,12 @@ class AdminRetrievalQualityResourceTest {
 
     private RetrievalQualityRunner runner;
     private AdminRetrievalQualityResource resource;
-    private Engine engine;
+    private WikiEngine engine;
 
     @BeforeEach
     void setUp() {
         runner = mock( RetrievalQualityRunner.class );
-        engine = mock( Engine.class );
+        engine = mock( WikiEngine.class );
         when( engine.getManager( RetrievalQualityRunner.class ) ).thenReturn( runner );
         resource = new AdminRetrievalQualityResource();
         resource.setEngineForTesting( engine );

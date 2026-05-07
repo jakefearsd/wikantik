@@ -154,7 +154,7 @@ public class CommentResource extends RestServletBase {
         final String newText = ( currentText != null ? currentText : "" ) + commentBlock;
 
         try {
-            final PageSaveHelper helper = new PageSaveHelper( engine );
+            final PageSaveHelper helper = new PageSaveHelper( engine, pm );
             final SaveOptions options = SaveOptions.builder()
                     .changeNote( "Added comment" )
                     .author( author )

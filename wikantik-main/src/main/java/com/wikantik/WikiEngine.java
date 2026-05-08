@@ -1025,39 +1025,55 @@ public class WikiEngine implements Engine {
                 dkgs.setEngine( this );
             }
 
+            // Resolve collaborators that multiple wiring helpers consume.
+            final PageManager pageManager = getManager( PageManager.class );
+            final FilterManager filterManager = getManager( FilterManager.class );
+            final ReferenceManager referenceManager = getManager( ReferenceManager.class );
+            final CachingManager cachingManager = getManager( CachingManager.class );
+
             // Wire structural spine + page graph (PageGraphWiringHelper).
             final com.wikantik.pagegraph.spine.DefaultStructuralIndexService structuralIndex =
                 com.wikantik.pagegraph.subsystem.PageGraphWiringHelper.wireStructuralSpine(
-                    props, persistenceSubsystem, coreSubsystem, this );
+                    props, persistenceSubsystem, coreSubsystem,
+                    pageManager, filterManager, referenceManager, this );
 
             // Wire KG policy + ForAgent + ContentIndexRebuild (KnowledgeWiringHelper).
             final com.wikantik.admin.ContentIndexRebuildService rebuildService =
                 com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireKgPolicyAndContent(
                     props, structuralIndex, coreSubsystem, persistenceSubsystem,
-                    svcs, searchMgr, meterRegistry, this );
+                    svcs, searchMgr, meterRegistry, pageManager, cachingManager, this );
 
             // Wire hybrid retrieval (SearchWiringHelper).
             com.wikantik.search.subsystem.SearchWiringHelper.wireHybridRetrieval(
                 props, ds, svcs.chunkProjector(), rebuildService, this );
 
             // Wire entity extraction (KnowledgeWiringHelper).
+            // KgExcludedPagesRepository is registered by wireKgPolicyAndContent above;
+            // read it via getManager so the parameter is explicit in wireEntityExtraction.
+            final com.wikantik.kgpolicy.KgExcludedPagesRepository excludedPagesRepo =
+                getManager( com.wikantik.kgpolicy.KgExcludedPagesRepository.class );
             com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireEntityExtraction(
                 props, ds, svcs.chunkProjector(), svcs.contentChunkRepository(),
-                persistenceSubsystem, this );
+                persistenceSubsystem, excludedPagesRepo, this );
 
             // Wire graph rerank (SearchWiringHelper).
             com.wikantik.search.subsystem.SearchWiringHelper.wireGraphRerank( props, ds, this );
 
             // Wire retrieval-quality runner (SearchWiringHelper).
+            // HybridSearchService + GraphRerankStep are registered by the two helpers above.
+            final com.wikantik.search.hybrid.HybridSearchService hybridSearch =
+                getManager( com.wikantik.search.hybrid.HybridSearchService.class );
+            final com.wikantik.search.hybrid.GraphRerankStep graphRerankStep =
+                getManager( com.wikantik.search.hybrid.GraphRerankStep.class );
             com.wikantik.search.subsystem.SearchWiringHelper.wireRetrievalQualityRunner(
-                props, ds, structuralIndex, this );
+                props, ds, structuralIndex, searchMgr, pageManager,
+                hybridSearch, graphRerankStep, this );
 
             // Register save-time filters.
-            final FilterManager filterManager = getManager( FilterManager.class );
             filterManager.addPageFilter( svcs.chunkProjector(), -1005 );
             filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), -1004 );
             com.wikantik.pagegraph.subsystem.PageGraphWiringHelper.wireSpineFilters(
-                props, structuralIndex, coreSubsystem, this );
+                props, structuralIndex, coreSubsystem, filterManager, pageManager, this );
             filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
 
             // Assign the typed snapshot ONLY after all helpers have run.

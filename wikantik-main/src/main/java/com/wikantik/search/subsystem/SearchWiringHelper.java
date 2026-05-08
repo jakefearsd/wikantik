@@ -22,6 +22,7 @@ import com.wikantik.WikiContext;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.eval.RetrievalQualityRunner;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.search.SearchResult;
 import com.wikantik.search.SearchManager;
@@ -48,7 +49,6 @@ import com.wikantik.search.hybrid.QueryEmbedder;
 import com.wikantik.search.hybrid.QueryEmbedderConfig;
 import com.wikantik.search.hybrid.QueryEntityResolver;
 import com.wikantik.admin.ContentIndexRebuildService;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner;
 import com.wikantik.knowledge.eval.RetrievalQualityDao;
 import com.wikantik.knowledge.eval.RetrievalQualityMetrics;
@@ -239,15 +239,25 @@ public final class SearchWiringHelper {
      * Registers the {@link RetrievalQualityRunner} so the
      * {@code /admin/retrieval-quality} endpoint and the nightly schedule have
      * a backend.
+     *
+     * <p>{@code searchManager}, {@code pageManager}, {@code hybridSearch}, and
+     * {@code graphRerankStep} are the collaborators consumed by the retriever
+     * lambda.  Each may be {@code null} when the corresponding feature is
+     * disabled; the lambda degrades gracefully in that case.</p>
      */
     public static void wireRetrievalQualityRunner( final Properties props,
                                                     final javax.sql.DataSource ds,
                                                     final StructuralIndexService structuralIndex,
+                                                    final SearchManager searchManager,
+                                                    final PageManager pageManager,
+                                                    final HybridSearchService hybridSearch,
+                                                    final GraphRerankStep graphRerankStep,
                                                     final WikiEngine engine ) {
         try {
             final RetrievalQualityDao rqDao = new RetrievalQualityDao( ds );
             final RetrievalQualityMetrics rqMetrics = RetrievalQualityMetrics.resolveAndBind();
-            final DefaultRetrievalQualityRunner.Retriever retriever = buildRetriever( engine );
+            final DefaultRetrievalQualityRunner.Retriever retriever =
+                buildRetriever( engine, searchManager, pageManager, hybridSearch, graphRerankStep );
             final DefaultRetrievalQualityRunner.CanonicalIdResolver resolver =
                 slug -> structuralIndex.resolveCanonicalIdFromSlug( slug );
             final int hour = TextUtil.getIntegerProperty( props, "wikantik.retrieval.cron.hour_utc", 3 );
@@ -270,15 +280,22 @@ public final class SearchWiringHelper {
     /**
      * Bridges the live search stack to the
      * {@link DefaultRetrievalQualityRunner.Retriever} functional interface.
+     *
+     * <p>All four service parameters may be {@code null} when the corresponding
+     * feature is disabled; the lambda degrades gracefully (falls back to BM25
+     * or returns an empty list).</p>
      */
-    private static DefaultRetrievalQualityRunner.Retriever buildRetriever( final WikiEngine engine ) {
+    private static DefaultRetrievalQualityRunner.Retriever buildRetriever(
+            final WikiEngine engine,
+            final SearchManager searchManager,
+            final PageManager pageManager,
+            final HybridSearchService hybridSearch,
+            final GraphRerankStep graphRerankStep ) {
         return ( mode, query ) -> {
-            final SearchManager sm = engine.getManager( SearchManager.class );
-            if ( sm == null ) return List.of();
+            if ( searchManager == null ) return List.of();
             final com.wikantik.api.core.Context ctx;
             try {
-                final PageManager pm = engine.getManager( PageManager.class );
-                final Page front = pm == null ? null : pm.getPage( engine.getFrontPage() );
+                final Page front = pageManager == null ? null : pageManager.getPage( engine.getFrontPage() );
                 ctx = front == null ? null : new WikiContext( engine, front );
             } catch ( final RuntimeException e ) {
                 LOG.warn( "Could not build evaluation Context; aborting query: {}", e.getMessage() );
@@ -287,7 +304,7 @@ public final class SearchWiringHelper {
             if ( ctx == null ) return List.of();
             final List< String > bm25Names;
             try {
-                final Collection< SearchResult > raw = sm.findPages( query, ctx );
+                final Collection< SearchResult > raw = searchManager.findPages( query, ctx );
                 bm25Names = new ArrayList<>( raw.size() );
                 for ( final SearchResult sr : raw ) {
                     if ( sr.getPage() != null ) bm25Names.add( sr.getPage().getName() );
@@ -299,15 +316,12 @@ public final class SearchWiringHelper {
             switch ( mode ) {
                 case BM25:
                     return bm25Names;
-                case HYBRID: {
-                    final HybridSearchService hs = engine.getManager( HybridSearchService.class );
-                    return hs == null ? bm25Names : hs.rerank( query, bm25Names );
-                }
+                case HYBRID:
+                    return hybridSearch == null ? bm25Names : hybridSearch.rerank( query, bm25Names );
                 case HYBRID_GRAPH: {
-                    final HybridSearchService hs = engine.getManager( HybridSearchService.class );
-                    final List< String > fused = hs == null ? bm25Names : hs.rerank( query, bm25Names );
-                    final GraphRerankStep gr = engine.getManager( GraphRerankStep.class );
-                    return gr == null ? fused : gr.rerank( query, fused );
+                    final List< String > fused =
+                        hybridSearch == null ? bm25Names : hybridSearch.rerank( query, bm25Names );
+                    return graphRerankStep == null ? fused : graphRerankStep.rerank( query, fused );
                 }
                 default:
                     return bm25Names;

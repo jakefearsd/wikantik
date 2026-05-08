@@ -69,6 +69,9 @@ public final class PageGraphWiringHelper {
             final Properties props,
             final PersistenceSubsystem.Services persistenceSubsystem,
             final CoreSubsystem.Services coreSubsystem,
+            final PageManager pageManager,
+            final FilterManager filterManager,
+            final ReferenceManager referenceManager,
             final WikiEngine engine ) {
 
         final PageCanonicalIdsDao canonicalIdsDao = persistenceSubsystem.pageCanonicalIds();
@@ -81,7 +84,7 @@ public final class PageGraphWiringHelper {
         final StructuralIndexMetrics structuralMetrics = StructuralIndexMetrics.resolveAndBind();
         final DefaultStructuralIndexService structuralIndex =
             new DefaultStructuralIndexService(
-                engine.getManager( PageManager.class ), canonicalIdsDao,
+                pageManager, canonicalIdsDao,
                 pageVerificationDao, confidenceComputer, structuralMetrics );
 
         engine.registerPageVerificationDao( pageVerificationDao );
@@ -92,19 +95,16 @@ public final class PageGraphWiringHelper {
         // reference in the managers map so the listener is not GC'd between events.
         final StructuralIndexEventListener structuralIndexListener =
             new StructuralIndexEventListener( structuralIndex );
-        structuralIndexListener.register(
-            engine.getManager( PageManager.class ),
-            engine.getManager( FilterManager.class ) );
+        structuralIndexListener.register( pageManager, filterManager );
         engine.registerStructuralIndexEventListener( structuralIndexListener );
 
         new Thread( structuralIndex::rebuild, "structural-index-bootstrap" ).start();
         LOG.info( "StructuralIndexService registered; initial rebuild dispatched" );
 
         // Page Graph snapshot service — backs the /page-graph React route.
-        final ReferenceManager refMgrForGraph = engine.getManager( ReferenceManager.class );
         final DefaultPageGraphService pageGraphService =
             new DefaultPageGraphService(
-                structuralIndex, refMgrForGraph, engine.getManager( PageManager.class ) );
+                structuralIndex, referenceManager, pageManager );
         pageGraphService.setEngine( engine );
         engine.registerPageGraphService( pageGraphService );
         LOG.info( "PageGraphService registered" );
@@ -125,9 +125,10 @@ public final class PageGraphWiringHelper {
             final Properties props,
             final DefaultStructuralIndexService structuralIndex,
             final CoreSubsystem.Services coreSubsystem,
+            final FilterManager filterManager,
+            final PageManager pageManager,
             final WikiEngine engine ) {
 
-        final FilterManager filterManager = engine.getManager( FilterManager.class );
         filterManager.addPageFilter(
             new StructuralSpinePageFilter(
                 structuralIndex,
@@ -139,7 +140,7 @@ public final class PageGraphWiringHelper {
             -1003 );
         filterManager.addPageFilter(
             new com.wikantik.knowledge.agent.RunbookValidationPageFilter(
-                structuralIndex, engine.getManager( PageManager.class ), props ),
+                structuralIndex, pageManager, props ),
             -1003 );
         filterManager.addPageFilter(
             new com.wikantik.knowledge.FrontmatterValidationPageFilter( props ),

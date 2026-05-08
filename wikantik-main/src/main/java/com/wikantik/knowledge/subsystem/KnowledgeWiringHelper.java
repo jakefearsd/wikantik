@@ -112,6 +112,8 @@ public final class KnowledgeWiringHelper {
             final KnowledgeSubsystem.Services knowledgeSvcs,
             final SearchManager searchMgr,
             final MeterRegistry meterRegistry,
+            final PageManager pageManager,
+            final CachingManager cachingManager,
             final WikiEngine engine ) {
 
         // KG inclusion policy
@@ -149,8 +151,8 @@ public final class KnowledgeWiringHelper {
         final DefaultForAgentProjectionService forAgentService =
             new DefaultForAgentProjectionService(
                 structuralIndex,
-                engine.getManager( PageManager.class ),
-                engine.getManager( CachingManager.class ),
+                pageManager,
+                cachingManager,
                 forAgentMetrics );
         engine.registerForAgentProjectionService( forAgentService );
         LOG.info( "ForAgentProjectionService registered" );
@@ -165,7 +167,7 @@ public final class KnowledgeWiringHelper {
                     TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 150 ) ) );
             rebuildService = meterRegistry != null
                 ? new ContentIndexRebuildService(
-                    engine.getManager( PageManager.class ),
+                    pageManager,
                     coreSubsystem.systemPageRegistry(),
                     queue,
                     knowledgeSvcs.contentChunkRepository(),
@@ -174,7 +176,7 @@ public final class KnowledgeWiringHelper {
                     TextUtil.getIntegerProperty( props, "wikantik.rebuild.lucene_drain_poll_ms", 2000 ),
                     meterRegistry )
                 : new ContentIndexRebuildService(
-                    engine.getManager( PageManager.class ),
+                    pageManager,
                     coreSubsystem.systemPageRegistry(),
                     queue,
                     knowledgeSvcs.contentChunkRepository(),
@@ -206,6 +208,7 @@ public final class KnowledgeWiringHelper {
                                               final ChunkProjector chunkProjector,
                                               final ContentChunkRepository contentChunkRepo,
                                               final PersistenceSubsystem.Services persistenceSubsystem,
+                                              final KgExcludedPagesRepository excludedPagesRepo,
                                               final WikiEngine engine ) {
         final EntityExtractorConfig extractorCfg = EntityExtractorConfig.fromProperties( props );
         if ( !extractorCfg.enabled() ) {
@@ -225,9 +228,6 @@ public final class KnowledgeWiringHelper {
         final KgProposalRepository kgProposals = persistenceSubsystem.kgProposals();
         final KgRejectionRepository kgRejections = persistenceSubsystem.kgRejections();
         final MeterRegistry meter = Metrics.globalRegistry;
-
-        final KgExcludedPagesRepository excludedPagesRepo =
-            engine.getManager( KgExcludedPagesRepository.class );
 
         final AsyncEntityExtractionListener listener =
             new AsyncEntityExtractionListener(

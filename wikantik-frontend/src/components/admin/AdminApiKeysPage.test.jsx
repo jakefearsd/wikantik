@@ -238,8 +238,8 @@ describe('AdminApiKeysPage — bulk-revoke', () => {
         fireEvent.click(screen.getByRole('button', { name: /Revoke Keys/i }));
 
         await waitFor(() => expect(bulkRevoke).toHaveBeenCalledWith('revoke', ['1']));
-        // Result banner should show success
-        await waitFor(() => expect(screen.getByText(/1 succeeded/i)).toBeInTheDocument());
+        // AdminTable's success toast prefers `result.message` from the server when present.
+        await waitFor(() => expect(screen.getByText(/1 of 1 keys revoked/i)).toBeInTheDocument());
     });
 
     it('bulk-revoke partial failure: shows failed count in result banner', async () => {

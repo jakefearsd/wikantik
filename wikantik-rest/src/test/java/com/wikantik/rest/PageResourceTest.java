@@ -242,6 +242,46 @@ class PageResourceTest {
         assertTrue( html.contains( "<" ), "contentHtml should contain HTML tags" );
     }
 
+    /**
+     * Exercises the full markdown→HTML conversion through PageResource — the same path
+     * that AnonymousViewIT hits in the browser, but at the API level. Verifies that
+     * markdown link syntax is actually converted to anchor tags rather than passing
+     * through verbatim.
+     *
+     * <p>Catches WikiContext-construction regressions that swallow exceptions during
+     * {@code renderingManager.textToHTML(...)} and leave {@code contentHtml} null —
+     * the Cargo-launched IT detects this only via a missing {@code .article-prose}
+     * link, but by then the build has spent 6+ minutes.</p>
+     */
+    @Test
+    void testGetPageWithRenderActuallyConvertsMarkdownToHtml() throws Exception {
+        engine.saveText( "RestRenderPage",
+                "## Heading\n\nYou have successfully installed [Wikantik](About).\n" );
+
+        final String json = doGetWithParams( "RestRenderPage", Map.of( "render", "true" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.has( "contentHtml" ), "render=true must produce contentHtml" );
+        assertFalse( obj.get( "contentHtml" ).isJsonNull(),
+                "contentHtml must not be null — null indicates the renderer threw and the exception was swallowed" );
+        final String html = obj.get( "contentHtml" ).getAsString();
+
+        // Markdown link syntax must NOT survive in the rendered output.
+        assertFalse( html.contains( "[Wikantik](About)" ),
+                "Markdown link syntax must be converted to <a> tags, not passed through verbatim. "
+                + "Got HTML: " + html );
+
+        // The link text 'Wikantik' must appear inside an anchor element.
+        assertTrue( html.matches( "(?s).*<a[^>]*>\\s*Wikantik\\s*</a>.*" ),
+                "Rendered HTML must contain an <a> tag with text 'Wikantik'. Got: " + html );
+
+        // Heading must be rendered as an <h1> or <h2> tag, not literal '## Heading'.
+        assertFalse( html.contains( "## Heading" ),
+                "Markdown heading syntax must be converted to <hN> tags. Got: " + html );
+        assertTrue( html.matches( "(?s).*<h[1-6][^>]*>\\s*Heading\\s*</h[1-6]>.*" ),
+                "Rendered HTML must contain an <h1>-<h6> tag with text 'Heading'. Got: " + html );
+    }
+
     @Test
     void testGetPageWithoutRenderOption() throws Exception {
         engine.saveText( "RestRenderPage", "No render test." );

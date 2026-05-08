@@ -57,6 +57,60 @@ class WikiEngineTest {
         m_engine.stop();
     }
 
+    /**
+     * Regression test for the snapshot-poisoning bug introduced by Phase 9 Ckpt 4d-iii:
+     * {@code WikiEngine.setManager(NewsPageGenerator.class, ...)} was called from
+     * {@code CachingProvider.initialize} (during {@code initComponent(PageManager.class)})
+     * BEFORE {@code FilterManager} had been registered. setManager eagerly rebuilt the
+     * {@code renderingSubsystem} snapshot from a partial registry, baking in
+     * {@code filterManager == null}. {@code DefaultRenderingManager.initialize} then
+     * read the cached null snapshot through the bridge, leaving its {@code filterManager}
+     * field null forever — every subsequent {@code textToHTML} call NPE'd.
+     *
+     * <p>This caught the bug only in the Selenide IT (raw markdown rendered into the page).
+     * This unit-level test reproduces the same path: build a real engine via
+     * {@link TestEngine} (which runs the full {@code WikiEngine.initialize} sequence
+     * including {@code CachingProvider}), call {@code textToHTML} with markdown link
+     * syntax, and assert the output is rendered HTML — not literal markdown.</p>
+     */
+    @Test
+    void engineBoot_renderingPipelineConvertsMarkdownToHtml() throws Exception {
+        // Force the CachingProvider + directory-watcher + news-generator path that production
+        // uses (and that Phase 9 broke). The default test config has
+        // wikantik.newsPageGenerator.enabled=false, which sidesteps the bug — we enable it
+        // explicitly so the regression is caught here, not only in the IT.
+        //
+        // The bug: CachingProvider.initialize calls registerNewsPageGenerator BEFORE
+        // FilterManager is registered. setManager prematurely rebuilt the renderingSubsystem
+        // snapshot from the partial registry, baking in filterManager=null. The cached null
+        // snapshot then poisoned RenderingManager.initialize via the bridge — every
+        // subsequent textToHTML call NPE'd, leaving raw markdown in the rendered output.
+        final Properties props = TestEngine.getTestProperties();
+        props.setProperty( "wikantik.cache.enable", "true" );
+        props.setProperty( "wikantik.cache.watcherEnabled", "true" );
+        props.setProperty( "wikantik.newsPageGenerator.enabled", "true" );
+        m_engine.stop();
+        m_engine = new TestEngine( props );
+
+        m_engine.saveText( "MarkdownRegression",
+                "## Heading\n\nYou have successfully installed [Wikantik](About).\n" );
+        final RenderingManager rm = m_engine.getManager( RenderingManager.class );
+        final Page page = m_engine.getManager( PageManager.class ).getPage( "MarkdownRegression" );
+        final Context ctx = Wiki.context().create( m_engine, null, page );
+
+        final String html = rm.textToHTML( ctx, m_engine.getManager( PageManager.class ).getPureText( page ) );
+
+        Assertions.assertNotNull( html, "textToHTML must not return null after engine boot" );
+        Assertions.assertFalse( html.contains( "[Wikantik](About)" ),
+                "Markdown link syntax must be converted to <a> tags, not passed through verbatim. "
+                + "If this assertion trips, FilterManager / RenderingManager wiring is broken at boot. "
+                + "Got: " + html );
+        Assertions.assertTrue( html.matches( "(?s).*<a[^>]*>\\s*Wikantik\\s*</a>.*" ),
+                "Rendered HTML must contain an <a> tag with text 'Wikantik'. Got: " + html );
+        Assertions.assertFalse( html.contains( "## Heading" ),
+                "Markdown heading syntax must be converted to <hN> tags. Got: " + html );
+    }
+
     @Test
     void testNonExistentDirectory() {
         final String newdir = "." + File.separator + "target" + File.separator + "non-existent-directory";

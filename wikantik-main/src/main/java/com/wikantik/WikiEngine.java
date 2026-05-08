@@ -1046,18 +1046,27 @@ public class WikiEngine implements Engine {
         managers.put( clazz, manager );
         // Ckpt A1: also write the per-class typed backing field.
         writeTypedField( clazz, manager );
-        // When an auth-layer manager is hot-swapped (e.g. by a unit test installing a mock),
-        // rebuild the typed auth snapshot from the current registry state so callers
-        // reaching authSubsystem directly see the new value without a full re-init.
+        // When a subsystem-owned manager is hot-swapped POST-BOOT (e.g. by a unit test installing
+        // a mock), rebuild the typed snapshot so callers reaching the subsystem directly see the
+        // new value without a full re-init. During boot the snapshot is null — DO NOT rebuild
+        // eagerly: the partial registry would produce a snapshot with null fields that then
+        // poisons subsequent initComponent calls (RenderingManager.initialize reads filterManager
+        // through the bridge; if a stale snapshot is cached the bridge returns it instead of
+        // rebuilding from the now-complete registry, so filterManager stays null forever).
+        // The boot path builds each snapshot at the correct moment via *SubsystemFactory.create.
         if ( clazz == AuthenticationManager.class || clazz == AuthorizationManager.class
                 || clazz == UserManager.class || clazz == GroupManager.class
                 || clazz == com.wikantik.auth.acl.AclManager.class ) {
-            this.authSubsystem = com.wikantik.auth.subsystem.AuthSubsystemBridge.rebuildFromManagers( this );
+            if ( this.authSubsystem != null ) {
+                this.authSubsystem = com.wikantik.auth.subsystem.AuthSubsystemBridge.rebuildFromManagers( this );
+            }
         }
         if ( clazz == PageManager.class || clazz == AttachmentManager.class
                 || clazz == PageRenamer.class
                 || clazz == com.wikantik.api.managers.ReferenceManager.class ) {
-            this.pageSubsystem = com.wikantik.page.subsystem.PageSubsystemBridge.rebuildFromManagers( this );
+            if ( this.pageSubsystem != null ) {
+                this.pageSubsystem = com.wikantik.page.subsystem.PageSubsystemBridge.rebuildFromManagers( this );
+            }
         }
         if ( clazz == com.wikantik.cache.CachingManager.class
                 || clazz == com.wikantik.variables.VariableManager.class
@@ -1065,12 +1074,16 @@ public class WikiEngine implements Engine {
                 || clazz == com.wikantik.ui.CommandResolver.class
                 || clazz == com.wikantik.url.URLConstructor.class
                 || clazz == com.wikantik.i18n.InternationalizationManager.class ) {
-            this.coreSubsystem = com.wikantik.core.subsystem.CoreSubsystemBridge.rebuildFromManagers( this );
+            if ( this.coreSubsystem != null ) {
+                this.coreSubsystem = com.wikantik.core.subsystem.CoreSubsystemBridge.rebuildFromManagers( this );
+            }
         }
         if ( clazz == RenderingManager.class || clazz == PluginManager.class
                 || clazz == FilterManager.class || clazz == DifferenceManager.class
                 || clazz == com.wikantik.content.NewsPageGenerator.class ) {
-            this.renderingSubsystem = com.wikantik.render.subsystem.RenderingSubsystemBridge.rebuildFromManagers( this );
+            if ( this.renderingSubsystem != null ) {
+                this.renderingSubsystem = com.wikantik.render.subsystem.RenderingSubsystemBridge.rebuildFromManagers( this );
+            }
         }
         // Search snapshot covers manager/provider, the three Lucene helpers (post-Phase-7),
         // hybrid retrieval services, in-memory indexes, and the embedding pipeline. Any of
@@ -1091,7 +1104,9 @@ public class WikiEngine implements Engine {
                 || clazz == com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class
                 || clazz == com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class
                 || clazz == com.wikantik.search.FrontmatterMetadataCache.class ) {
-            this.searchSubsystem = com.wikantik.search.subsystem.SearchSubsystemBridge.rebuildFromManagers( this );
+            if ( this.searchSubsystem != null ) {
+                this.searchSubsystem = com.wikantik.search.subsystem.SearchSubsystemBridge.rebuildFromManagers( this );
+            }
         }
         // Knowledge snapshot covers all KnowledgeSubsystem.Services fields.
         // ContextRetrievalService is intentionally excluded — it is wired post-boot by
@@ -1119,7 +1134,9 @@ public class WikiEngine implements Engine {
                 || clazz == com.wikantik.api.kgpolicy.KgInclusionPolicy.class
                 || clazz == com.wikantik.kgpolicy.ReconciliationJobRunner.class
                 || clazz == com.wikantik.api.eval.RetrievalQualityRunner.class ) {
-            this.knowledgeSubsystem = com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.rebuildFromManagers( this );
+            if ( this.knowledgeSubsystem != null ) {
+                this.knowledgeSubsystem = com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.rebuildFromManagers( this );
+            }
         }
         // Page Graph snapshot covers the four services. Any hot-swap (unit test
         // installing a mock) must rebuild the snapshot so callers see the new value.
@@ -1127,7 +1144,9 @@ public class WikiEngine implements Engine {
                 || clazz == com.wikantik.api.pagegraph.PageGraphService.class
                 || clazz == com.wikantik.api.managers.ReferenceManager.class
                 || clazz == com.wikantik.admin.ContentIndexRebuildService.class ) {
-            this.pageGraphSubsystem = com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.rebuildFromManagers( this );
+            if ( this.pageGraphSubsystem != null ) {
+                this.pageGraphSubsystem = com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.rebuildFromManagers( this );
+            }
         }
     }
 

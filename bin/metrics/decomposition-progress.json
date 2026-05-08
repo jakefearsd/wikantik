@@ -300,5 +300,66 @@
     ],
     "test_engine_references_in_production": 10,
     "archunit_frozen_violations": 129
+  },
+  "phase_11_close": {
+    "captured_at": "2026-05-08T00:00:00Z",
+    "loc_main": 82798,
+    "registered_managers": 0,
+    "get_manager_callers_repo_wide": 1048,
+    "get_manager_callers_in_main": 138,
+    "god_classes_over_800": 4,
+    "god_class_top10": [
+      {"path": "com/wikantik/WikiEngine.java", "loc": 1934},
+      {"path": "com/wikantik/pagegraph/references/DefaultReferenceManager.java", "loc": 1003},
+      {"path": "com/wikantik/providers/AbstractFileProvider.java", "loc": 925},
+      {"path": "com/wikantik/WikiContext.java", "loc": 874},
+      {"path": "com/wikantik/providers/VersioningFileProvider.java", "loc": 783},
+      {"path": "com/wikantik/knowledge/HubOverviewService.java", "loc": 483},
+      {"path": "com/wikantik/knowledge/extraction/BootstrapEntityExtractionIndexer.java", "loc": 461},
+      {"path": "com/wikantik/knowledge/DefaultKnowledgeGraphService.java", "loc": 453},
+      {"path": "com/wikantik/search/LuceneSearchProvider.java", "loc": 724},
+      {"path": "com/wikantik/content/DefaultRecentArticlesManager.java", "loc": 701}
+    ],
+    "test_engine_references_in_production": 10,
+    "archunit_frozen_violations": 92,
+    "static_analysis": {
+      "pmd_total_violations": 39,
+      "pmd_by_rule": {
+        "MissingStaticMethodInNonInstantiatableClass": 8,
+        "SingularField": 4,
+        "UseLocaleWithCaseConversions": 4,
+        "ExhaustiveSwitchHasDefault": 4,
+        "ArrayIsStoredDirectly": 3,
+        "AbstractClassWithoutAbstractMethod": 2,
+        "MethodReturnsInternalArray": 2,
+        "PreserveStackTrace": 2,
+        "UnusedAssignment": 2,
+        "CheckResultSet": 2,
+        "MissingSerialVersionUID": 1,
+        "SimplifyBooleanReturns": 1,
+        "UseDiamondOperator": 1,
+        "CompareObjectsWithEquals": 1,
+        "UseArraysAsList": 1,
+        "UselessOverridingMethod": 1
+      },
+      "spotbugs_total": 355,
+      "spotbugs_priority_1": 0,
+      "spotbugs_security": 0,
+      "spotbugs_mt_correctness": 0,
+      "spotbugs_by_category": {
+        "MALICIOUS_CODE": 308,
+        "BAD_PRACTICE": 30,
+        "STYLE": 14,
+        "PERFORMANCE": 3
+      },
+      "cpd_duplication_blocks": 0,
+      "cpd_duplicated_lines": 0,
+      "wiki_engine_setmanager_npath": "eliminated (class->writer map)",
+      "wiki_engine_loc": 1934,
+      "wiki_context_loc": 874,
+      "hub_overview_service_loc": 483,
+      "default_kg_service_loc": 453,
+      "bootstrap_entity_extraction_indexer_loc": 461
+    }
   }
 }

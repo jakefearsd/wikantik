@@ -628,6 +628,38 @@ seven currently-extracted subsystems.
 **get_manager_callers_repo_wide trend (baseline → final):**
 baseline 1069 → ph1 1055 → ph2 1037 → ph3 1037 → ph4 1017 → ph5 915 → ph6 904 → ph7 935 → ph8 926 → ph9 887 → ph10 890
 
+### Phase 11 — Static-analysis cleanup  *(complete 2026-05-08)*
+
+**Status: complete (2026-05-08)**
+
+**Goal:** post-decomposition health pass — eliminate real bugs, reduce noise, kill duplication, split remaining outlier god classes.
+
+**Checkpoints shipped (commits d557fb0ab..361e429a6):**
+
+- **Ckpt 1 (`d557fb0ab`):** `WikiEngine.setManager` NPath 191M → eliminated via class→writer map (`Map<Class<?>, BiConsumer<WikiEngine, Object>>`).
+- **Ckpt 2 (`6fe57b182`):** SpotBugs filter for record-exposes-component noise added; 450 → 361 bugs.
+- **Ckpt 3 (`28fbece3a`):** 5 priority-1 / SECURITY / MT_CORRECTNESS SpotBugs bugs fixed; 5 → 0.
+- **Ckpt 4 (`da5d33014`):** 9 PMD CloseResource sites swept; 9 → 0.
+- **Ckpt 5 (`c1ab97508`):** 8 bridges delegate to factories (~150 LOC deduplication); CPD blocks eliminated.
+- **Ckpt 6 (`e267426a4`):** 3 god classes split: HubOverviewService 750 → 483 LOC, DefaultKnowledgeGraphService 705 → 453 LOC, BootstrapEntityExtractionIndexer 766 → 461 LOC.
+- **Ckpt 7 (`279dfc2f7` + `361e429a6`):** 135 PMD lint violations fixed across 6 rules.
+
+**Metrics at phase_11_close (2026-05-08):**
+- `pmd_total_violations`: 39 (baseline 165+ → final 39)
+- `pmd_priority_lint_violations`: 0 across targeted 6 rules (baseline 135 → 0)
+- `pmd_close_resource`: 0 (baseline 9 → 0)
+- `spotbugs_total`: 355 (baseline 450 → 355, with filter active)
+- `spotbugs_priority_1 / SECURITY / MT_CORRECTNESS`: 0 / 0 / 0 (baseline 5 real bugs → 0)
+- `cpd_duplication_blocks`: 0 (baseline 27 → 0)
+- `wiki_engine_setmanager_npath`: eliminated (class→writer map; no NPath violation in PMD)
+- `loc_main`: 82,798
+- `god_classes_over_800`: 4 (unchanged — WikiEngine 1934, DefaultReferenceManager 1003, AbstractFileProvider 925, WikiContext 874; none of these were in-scope for Ph11 splits)
+- `archunit_frozen_violations`: 92 (reduced from 129; Ph11 clean-ups retired some frozen legacy violations)
+
+**WikiEngine.java final LOC:** 1934 (post-Ph11 delta: −50 from Ckpt 5 deduplication)
+**WikiContext.java final LOC:** 874 (unchanged in Ph11)
+**3 split god classes final LOC:** HubOverviewService 483, DefaultKnowledgeGraphService 453, BootstrapEntityExtractionIndexer 461
+
 ## Tooling
 
 ### ArchUnit guards (added in Phase 0, expanded each phase)

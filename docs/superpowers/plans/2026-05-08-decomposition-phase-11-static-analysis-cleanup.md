@@ -1,7 +1,7 @@
 # Phase 11: static-analysis cleanup
 
 **Spec:** [docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md](../specs/2026-05-05-wikantik-main-decomposition-design.md) — Phase 11 is the post-decomposition health pass.
-**Status:** ready
+**Status:** complete (2026-05-08)
 **Goal:** address concrete findings from the post-Phase-10 PMD/SpotBugs/CPD scan. Reduce `WikiEngine.setManager` complexity; cut SpotBugs noise; fix real bugs (security, sync, leaks); deduplicate bridge ⇄ factory mirrors; chip at the remaining god classes.
 
 ## Findings recap (from `/tmp/static-analysis.log` runs against current main)

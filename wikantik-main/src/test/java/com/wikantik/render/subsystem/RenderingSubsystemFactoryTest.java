@@ -131,9 +131,9 @@ final class RenderingSubsystemFactoryTest {
 
     @Test
     void createRejectsMissingDeps() {
+        // null deps record → NPE
         assertThrows( NullPointerException.class, () -> RenderingSubsystemFactory.create( null ) );
-        assertThrows( NullPointerException.class, () -> RenderingSubsystemFactory.create(
-            new RenderingSubsystem.Deps( null, null, null, mock( WikiEngine.class ) ) ) );
+        // null engine → NPE (core/auth/page are optional — factory does not use them today)
         assertThrows( NullPointerException.class, () -> RenderingSubsystemFactory.create(
             new RenderingSubsystem.Deps(
                 mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),

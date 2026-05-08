@@ -19,20 +19,6 @@
 package com.wikantik.search.subsystem;
 
 import com.wikantik.api.core.Engine;
-import com.wikantik.search.FrontmatterMetadataCache;
-import com.wikantik.search.SearchManager;
-import com.wikantik.search.SearchProvider;
-import com.wikantik.search.embedding.AsyncEmbeddingIndexListener;
-import com.wikantik.search.embedding.BootstrapEmbeddingIndexer;
-import com.wikantik.search.embedding.EmbeddingIndexService;
-import com.wikantik.search.embedding.OllamaEmbeddingClient;
-import com.wikantik.search.hybrid.GraphProximityScorer;
-import com.wikantik.search.hybrid.GraphRerankStep;
-import com.wikantik.search.hybrid.HybridSearchService;
-import com.wikantik.search.hybrid.InMemoryChunkVectorIndex;
-import com.wikantik.search.hybrid.InMemoryGraphNeighborIndex;
-import com.wikantik.search.hybrid.QueryEmbedder;
-import com.wikantik.search.hybrid.QueryEntityResolver;
 
 /**
  * Adapter that synthesises a sparse {@link SearchSubsystem.Services}
@@ -75,60 +61,25 @@ public final class SearchSubsystemBridge {
      * {@link com.wikantik.WikiEngine#setManager} whenever a search-layer manager
      * is hot-swapped (e.g. by a unit test installing a mock) so that the typed
      * snapshot stays coherent without requiring a full re-initialization cycle.
+     *
+     * <p>Delegates to {@link SearchSubsystemFactory#create} using a
+     * {@link SearchSubsystem.Deps} synthesised from the engine's manager
+     * registry and sibling subsystem bridges.</p>
      */
     public static SearchSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
-        final SearchManager  searchManager  = engine.getManager( SearchManager.class );
-        final SearchProvider searchProvider =
-            searchManager != null ? safeGetSearchEngine( searchManager ) : null;
-
-        final HybridSearchService  hybridSearch         = engine.getManager( HybridSearchService.class );
-        final QueryEmbedder        queryEmbedder        = engine.getManager( QueryEmbedder.class );
-        final QueryEntityResolver  queryEntityResolver  = engine.getManager( QueryEntityResolver.class );
-        final GraphRerankStep      graphRerankStep      = engine.getManager( GraphRerankStep.class );
-        final GraphProximityScorer graphProximityScorer = engine.getManager( GraphProximityScorer.class );
-
-        final InMemoryChunkVectorIndex   chunkVectorIndex   =
-            engine.getManager( InMemoryChunkVectorIndex.class );
-        final InMemoryGraphNeighborIndex graphNeighborIndex =
-            engine.getManager( InMemoryGraphNeighborIndex.class );
-
-        final EmbeddingIndexService       embeddingIndexService       =
-            engine.getManager( EmbeddingIndexService.class );
-        final OllamaEmbeddingClient       embeddingClient             =
-            engine.getManager( OllamaEmbeddingClient.class );
-        final BootstrapEmbeddingIndexer   bootstrapEmbeddingIndexer   =
-            engine.getManager( BootstrapEmbeddingIndexer.class );
-        final AsyncEmbeddingIndexListener asyncEmbeddingIndexListener =
-            engine.getManager( AsyncEmbeddingIndexListener.class );
-
-        final FrontmatterMetadataCache frontmatterMetadataCache =
-            engine.getManager( FrontmatterMetadataCache.class );
-
-        return new SearchSubsystem.Services(
-            searchManager,
-            searchProvider,
-            /*luceneIndexer=*/        null,
-            /*luceneSearcher=*/       null,
-            /*luceneIndexLifecycle=*/ null,
-            hybridSearch,
-            queryEmbedder,
-            queryEntityResolver,
-            graphRerankStep,
-            graphProximityScorer,
-            chunkVectorIndex,
-            graphNeighborIndex,
-            embeddingIndexService,
-            embeddingClient,
-            bootstrapEmbeddingIndexer,
-            asyncEmbeddingIndexListener,
-            frontmatterMetadataCache );
+        return SearchSubsystemFactory.create( synthDepsFromEngine( engine ) );
     }
 
-    private static SearchProvider safeGetSearchEngine( final SearchManager sm ) {
-        try {
-            return sm.getSearchEngine();
-        } catch ( final RuntimeException e ) {
-            return null;
-        }
+    private static SearchSubsystem.Deps synthDepsFromEngine( final com.wikantik.WikiEngine engine ) {
+        // core, persistence, page, and knowledge are reserved in Deps for future use but are
+        // not yet read by SearchSubsystemFactory.create. Pass null to avoid cascading
+        // getManager calls into sibling subsystem bridges during hot-swap rebuilds.
+        return new SearchSubsystem.Deps(
+            /* core= */        null,
+            /* persistence= */ null,
+            /* page= */        null,
+            /* knowledge= */   null,
+            engine
+        );
     }
 }

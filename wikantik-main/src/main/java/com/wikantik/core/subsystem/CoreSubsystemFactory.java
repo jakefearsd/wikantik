@@ -47,10 +47,9 @@ public final class CoreSubsystemFactory {
     public static CoreSubsystem.Services create( final CoreSubsystem.Deps deps ) {
         Objects.requireNonNull( deps, "deps" );
         Objects.requireNonNull( deps.rawProperties(), "rawProperties" );
-        Objects.requireNonNull( deps.systemPageRegistry(), "systemPageRegistry" );
-        Objects.requireNonNull( deps.recentArticlesManager(), "recentArticlesManager" );
-        Objects.requireNonNull( deps.blogManager(), "blogManager" );
         Objects.requireNonNull( deps.engine(), "engine" );
+        // systemPageRegistry, recentArticlesManager, and blogManager are optional
+        // (null in mid-initialize and test-fixture paths that haven't registered them yet).
 
         final WikiProperties properties = new DefaultWikiProperties( deps.rawProperties() );
         final WikiEventBus eventBus = new DefaultWikiEventBus();

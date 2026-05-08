@@ -19,16 +19,6 @@
 package com.wikantik.render.subsystem;
 
 import com.wikantik.api.core.Engine;
-import com.wikantik.content.NewsPageGenerator;
-import com.wikantik.diff.DifferenceManager;
-import com.wikantik.filters.FilterManager;
-import com.wikantik.filters.SpamFilter;
-import com.wikantik.plugin.PluginManager;
-import com.wikantik.render.RenderingManager;
-import com.wikantik.render.subsystem.spam.SpamExternalSignals;
-import com.wikantik.render.subsystem.spam.SpamPatternMatcher;
-import com.wikantik.render.subsystem.spam.SpamPolicy;
-import com.wikantik.render.subsystem.spam.SpamRateLimiter;
 
 /**
  * Adapter that synthesises a sparse {@link RenderingSubsystem.Services}
@@ -70,39 +60,24 @@ public final class RenderingSubsystemBridge {
      * {@link com.wikantik.WikiEngine#setManager} whenever a rendering-layer manager
      * is hot-swapped (e.g. by a unit test installing a mock) so that the typed
      * snapshot stays coherent without requiring a full re-initialization cycle.
+     *
+     * <p>Delegates to {@link RenderingSubsystemFactory#create} using a
+     * {@link RenderingSubsystem.Deps} synthesised from the engine's manager
+     * registry and sibling subsystem bridges.</p>
      */
     public static RenderingSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
-        final RenderingManager  renderingManager  = engine.getManager( RenderingManager.class );
-        final PluginManager     pluginManager     = engine.getManager( PluginManager.class );
-        final FilterManager     filterManager     = engine.getManager( FilterManager.class );
-        final DifferenceManager differenceManager = engine.getManager( DifferenceManager.class );
-
-        // Extract the decomposed helpers from the registered SpamFilter.
-        // Absent SpamFilter (test fixtures) keeps the four slots null.
-        final SpamFilter spam = findSpamFilter( filterManager );
-        final SpamRateLimiter     spamRateLimiter     = spam != null ? spam.getRateLimiter()     : null;
-        final SpamPatternMatcher  spamPatternMatcher  = spam != null ? spam.getPatternMatcher()  : null;
-        final SpamExternalSignals spamExternalSignals = spam != null ? spam.getExternalSignals() : null;
-        final SpamPolicy          spamPolicy          = spam != null ? spam.getPolicy()          : null;
-
-        final NewsPageGenerator newsPageGenerator = engine.getManager( NewsPageGenerator.class );
-
-        return new RenderingSubsystem.Services(
-            renderingManager, pluginManager, filterManager, differenceManager,
-            spamRateLimiter, spamPatternMatcher, spamExternalSignals, spamPolicy,
-            newsPageGenerator );
+        return RenderingSubsystemFactory.create( synthDepsFromEngine( engine ) );
     }
 
-    private static SpamFilter findSpamFilter( final FilterManager filterManager ) {
-        if ( filterManager == null ) return null;
-        try {
-            return filterManager.getFilterList().stream()
-                .filter( SpamFilter.class::isInstance )
-                .map( SpamFilter.class::cast )
-                .findFirst()
-                .orElse( null );
-        } catch ( final RuntimeException e ) {
-            return null;
-        }
+    private static RenderingSubsystem.Deps synthDepsFromEngine( final com.wikantik.WikiEngine engine ) {
+        // core, auth, and page are reserved in Deps for future use but are not yet
+        // read by RenderingSubsystemFactory.create. Pass null to avoid cascading
+        // getManager calls into sibling subsystem bridges during hot-swap rebuilds.
+        return new RenderingSubsystem.Deps(
+            /* core= */ null,
+            /* auth= */ null,
+            /* page= */ null,
+            engine
+        );
     }
 }

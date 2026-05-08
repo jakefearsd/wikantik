@@ -19,16 +19,6 @@
 package com.wikantik.page.subsystem;
 
 import com.wikantik.api.core.Engine;
-import com.wikantik.api.managers.AttachmentManager;
-import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.managers.ReferenceManager;
-import com.wikantik.api.pages.PageSaveHelper;
-import com.wikantik.api.providers.PageProvider;
-import com.wikantik.content.PageRenamer;
-import com.wikantik.page.subsystem.lifecycle.PageLifecycle;
-import com.wikantik.page.subsystem.lifecycle.PageLockService;
-import com.wikantik.page.subsystem.lifecycle.PageRepository;
-import com.wikantik.pages.DefaultPageManager;
 
 /**
  * Adapter that synthesises a sparse {@link PageSubsystem.Services} record
@@ -68,25 +58,23 @@ public final class PageSubsystemBridge {
      * {@link com.wikantik.WikiEngine#setManager} whenever a page-layer manager
      * is hot-swapped (e.g. by a unit test installing a mock) so that the typed
      * snapshot stays coherent without requiring a full re-initialization cycle.
+     *
+     * <p>Delegates to {@link PageSubsystemFactory#create} using a {@link PageSubsystem.Deps}
+     * synthesised from the engine's manager registry and sibling subsystem bridges.</p>
      */
     public static PageSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
-        final PageManager       pages       = engine.getManager( PageManager.class );
-        final AttachmentManager attachments = engine.getManager( AttachmentManager.class );
-        final PageRenamer       renamer     = engine.getManager( PageRenamer.class );
-        final PageSaveHelper    saveHelper  = new PageSaveHelper( engine, pages );
-        final PageProvider      provider    = pages != null ? pages.getProvider() : null;
-        final ReferenceManager  refMgr      = engine.getManager( ReferenceManager.class );
+        return PageSubsystemFactory.create( synthDepsFromEngine( engine ) );
+    }
 
-        PageRepository  pageRepository  = null;
-        PageLifecycle   pageLifecycle   = null;
-        PageLockService pageLockService = null;
-        if ( pages instanceof DefaultPageManager dpm ) {
-            pageRepository  = dpm.getRepository();
-            pageLifecycle   = dpm.getLifecycle();
-            pageLockService = dpm.getLockService();
-        }
-
-        return new PageSubsystem.Services( pages, attachments, renamer, saveHelper, provider,
-                                           pageRepository, pageLifecycle, pageLockService, refMgr );
+    private static PageSubsystem.Deps synthDepsFromEngine( final com.wikantik.WikiEngine engine ) {
+        // core, persistence, and auth are reserved in Deps for future use but are not yet
+        // read by PageSubsystemFactory.create. Pass null to avoid cascading getManager calls
+        // into sibling subsystem bridges during hot-swap rebuilds.
+        return new PageSubsystem.Deps(
+            /* core= */        null,
+            /* persistence= */ engine.getPersistenceSubsystem(),
+            /* auth= */        null,
+            engine
+        );
     }
 }

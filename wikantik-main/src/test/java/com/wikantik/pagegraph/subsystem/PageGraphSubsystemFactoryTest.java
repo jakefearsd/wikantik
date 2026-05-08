@@ -93,11 +93,10 @@ final class PageGraphSubsystemFactoryTest {
 
     @Test
     void createRejectsMissingDeps() {
+        // null deps record → NPE
         assertThrows( NullPointerException.class,
             () -> PageGraphSubsystemFactory.create( null ) );
-        assertThrows( NullPointerException.class,
-            () -> PageGraphSubsystemFactory.create(
-                new PageGraphSubsystem.Deps( null, null, null, mock( WikiEngine.class ) ) ) );
+        // null engine → NPE (core/persistence/page are optional — factory does not use them today)
         assertThrows( NullPointerException.class,
             () -> PageGraphSubsystemFactory.create(
                 new PageGraphSubsystem.Deps(

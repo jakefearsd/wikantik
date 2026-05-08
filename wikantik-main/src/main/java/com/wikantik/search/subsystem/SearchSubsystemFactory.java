@@ -72,7 +72,9 @@ public final class SearchSubsystemFactory {
 
     public static SearchSubsystem.Services create( final SearchSubsystem.Deps deps ) {
         Objects.requireNonNull( deps, "deps" );
-        Objects.requireNonNull( deps.core(), "core" );
+        // deps.core(), deps.persistence(), deps.page(), deps.knowledge() are reserved for future
+        // use when SearchSubsystemFactory takes over manager construction; they are not yet
+        // read in the method body.
         final WikiEngine engine = ( WikiEngine ) Objects.requireNonNull( deps.engine(), "engine" );
 
         final SearchManager  searchManager  = engine.getManager( SearchManager.class );

@@ -53,7 +53,9 @@ public final class RenderingSubsystemFactory {
 
     public static RenderingSubsystem.Services create( final RenderingSubsystem.Deps deps ) {
         Objects.requireNonNull( deps, "deps" );
-        Objects.requireNonNull( deps.core(), "core" );
+        // deps.core(), deps.auth(), deps.page() are reserved for future use when
+        // RenderingSubsystemFactory takes over manager construction; they are not yet
+        // read in the method body.
         final WikiEngine engine = ( WikiEngine ) Objects.requireNonNull( deps.engine(), "engine" );
 
         final RenderingManager  renderingManager  = engine.getManager( RenderingManager.class );

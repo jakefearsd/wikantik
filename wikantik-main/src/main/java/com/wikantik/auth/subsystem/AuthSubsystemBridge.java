@@ -19,15 +19,7 @@
 package com.wikantik.auth.subsystem;
 
 import com.wikantik.api.core.Engine;
-import com.wikantik.auth.AuthenticationManager;
-import com.wikantik.auth.AuthorizationManager;
-import com.wikantik.auth.Authorizer;
-import com.wikantik.auth.UserManager;
-import com.wikantik.auth.WikiSecurityException;
-import com.wikantik.auth.acl.AclManager;
-import com.wikantik.auth.apikeys.ApiKeyService;
-import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
-import com.wikantik.auth.authorize.GroupManager;
+import com.wikantik.core.subsystem.CoreSubsystemBridge;
 
 /**
  * Adapter that synthesises a sparse {@link AuthSubsystem.Services} record
@@ -67,31 +59,20 @@ public final class AuthSubsystemBridge {
      * {@link com.wikantik.WikiEngine#setManager} whenever an auth-layer manager
      * is hot-swapped (e.g. by a unit test installing a mock) so that the typed
      * snapshot stays coherent without requiring a full re-initialization cycle.
+     *
+     * <p>Delegates to {@link AuthSubsystemFactory#create} using a {@link AuthSubsystem.Deps}
+     * synthesised from the engine's manager registry and sibling subsystem bridges.</p>
      */
     public static AuthSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
-        final AuthorizationManager authorization = engine.getManager( AuthorizationManager.class );
-        Authorizer webAuthorizer = null;
-        if ( authorization != null ) {
-            try {
-                webAuthorizer = authorization.getAuthorizer();
-            } catch ( final WikiSecurityException ignored ) {
-                // best-effort — leave webAuthorizer null
-            }
-        }
+        return AuthSubsystemFactory.create( synthDepsFromEngine( engine ) );
+    }
 
-        final ApiKeyService apiKeys = engine.getWikiProperties() != null
-            ? ApiKeyServiceHolder.get( engine.getWikiProperties() )
-            : null;
-
-        return new AuthSubsystem.Services(
-            engine.getManager( AuthenticationManager.class ),
-            authorization,
-            engine.getManager( UserManager.class ),
-            engine.getManager( GroupManager.class ),
-            webAuthorizer,
-            apiKeys,
-            /* securityVerifier */ null,
-            engine.getManager( AclManager.class )
+    private static AuthSubsystem.Deps synthDepsFromEngine( final com.wikantik.WikiEngine engine ) {
+        return new AuthSubsystem.Deps(
+            CoreSubsystemBridge.fromLegacyEngine( engine ),
+            engine.getPersistenceSubsystem(),
+            /* servletContext= */ null,
+            engine
         );
     }
 }

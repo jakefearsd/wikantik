@@ -22,68 +22,60 @@ import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
-import com.wikantik.api.providers.PageProvider;
 import com.wikantik.content.PageRenamer;
 import org.junit.jupiter.api.Test;
 
+import java.util.Properties;
+
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Phase 5 subsystem-isolation test for {@link PageSubsystemFactory}.
+ * Phase 11 Checkpoint 5 bridge-delegation test for {@link PageSubsystemBridge}.
  *
- * <p>Demonstrates that the Page subsystem can be assembled without
- * {@code WikiEngine} or {@code TestEngine}: a mocked {@link Engine}
- * stocked with the three core page managers + a stub {@link PageProvider}
- * is enough to produce a fully populated {@link PageSubsystem.Services}.</p>
+ * <p>Confirms that {@link PageSubsystemBridge#rebuildFromManagers} delegates to
+ * {@link PageSubsystemFactory#create} and produces a {@link PageSubsystem.Services}
+ * record wired from the engine's manager registry.</p>
  */
-final class PageSubsystemFactoryTest {
+final class PageSubsystemBridgeTest {
 
     @Test
-    void createWiresThreeManagersAndProviderFromEngineRegistry() {
-        final PageProvider      provider    = mock( PageProvider.class );
+    void rebuildFromManagers_delegatesToFactory_wiresManagersFromRegistry() {
         final PageManager       pages       = mock( PageManager.class );
         final AttachmentManager attachments = mock( AttachmentManager.class );
         final PageRenamer       renamer     = mock( PageRenamer.class );
         final ReferenceManager  refMgr      = mock( ReferenceManager.class );
 
-        when( pages.getProvider() ).thenReturn( provider );
-
         final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.getWikiProperties() ).thenReturn( new Properties() );
         when( engine.getManager( PageManager.class ) ).thenReturn( pages );
         when( engine.getManager( AttachmentManager.class ) ).thenReturn( attachments );
         when( engine.getManager( PageRenamer.class ) ).thenReturn( renamer );
         when( engine.getManager( ReferenceManager.class ) ).thenReturn( refMgr );
 
-        final PageSubsystem.Services services = PageSubsystemFactory.create(
-            new PageSubsystem.Deps(
-                /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
-                /*persistence=*/ null,
-                /*auth=*/ null,
-                engine ) );
+        final PageSubsystem.Services services = PageSubsystemBridge.rebuildFromManagers( engine );
 
-        assertSame( pages, services.pages() );
+        assertNotNull( services );
+        assertSame( pages,       services.pages() );
         assertSame( attachments, services.attachments() );
-        assertSame( renamer, services.pageRenamer() );
-        assertSame( provider, services.pageProvider() );
-        assertNotNull( services.pageSaveHelper(), "pageSaveHelper" );
-        assertSame( refMgr, services.referenceManager() );
-        // pageRepository/pageLifecycle/pageLockService are null when pages is a mock
-        // (not a DefaultPageManager) — that is expected and acceptable in this test
-
+        assertSame( renamer,     services.pageRenamer() );
+        assertSame( refMgr,      services.referenceManager() );
+        assertNotNull( services.pageSaveHelper() );
     }
 
     @Test
-    void createRejectsMissingDeps() {
-        // null deps record → NPE
-        assertThrows( NullPointerException.class, () -> PageSubsystemFactory.create( null ) );
-        // null engine → NPE (core is optional — factory does not use deps.core() today)
-        assertThrows( NullPointerException.class, () -> PageSubsystemFactory.create(
-            new PageSubsystem.Deps(
-                mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
-                null, null, null ) ) );
+    void rebuildFromManagers_toleratesUnregisteredManagers() {
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.getWikiProperties() ).thenReturn( new Properties() );
+        // No managers registered
+
+        final PageSubsystem.Services services = PageSubsystemBridge.rebuildFromManagers( engine );
+
+        assertNotNull( services );
+        assertNull( services.pages() );
+        assertNull( services.attachments() );
     }
 }

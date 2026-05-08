@@ -114,7 +114,8 @@ public final class PageSubsystemFactory {
 
     public static PageSubsystem.Services create( final PageSubsystem.Deps deps ) {
         Objects.requireNonNull( deps, "deps" );
-        Objects.requireNonNull( deps.core(), "core" );
+        // deps.core() is reserved for future use when PageSubsystemFactory takes over
+        // page-provider construction; it is not yet read in the method body.
         final WikiEngine engine = ( WikiEngine ) Objects.requireNonNull( deps.engine(), "engine" );
 
         final PageManager       pages       = engine.getManager( PageManager.class );

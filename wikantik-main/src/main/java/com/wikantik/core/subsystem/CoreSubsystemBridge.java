@@ -21,13 +21,7 @@ package com.wikantik.core.subsystem;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.blog.BlogManager;
-import com.wikantik.cache.CachingManager;
 import com.wikantik.content.RecentArticlesManager;
-import com.wikantik.i18n.InternationalizationManager;
-import com.wikantik.ui.CommandResolver;
-import com.wikantik.ui.progress.ProgressManager;
-import com.wikantik.url.URLConstructor;
-import com.wikantik.variables.VariableManager;
 
 /**
  * Adapter that synthesises a sparse {@link CoreSubsystem.Services} record
@@ -77,24 +71,26 @@ public final class CoreSubsystemBridge {
      * {@link com.wikantik.WikiEngine#setManager} whenever a core manager is
      * hot-swapped (e.g. by a unit test installing a mock) so that the typed
      * snapshot stays coherent without requiring a full re-initialization cycle.
+     *
+     * <p>Delegates to {@link CoreSubsystemFactory#create} using a {@link CoreSubsystem.Deps}
+     * synthesised from the engine's manager registry.</p>
      */
     public static CoreSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
+        return CoreSubsystemFactory.create( synthDepsFromEngine( engine ) );
+    }
+
+    private static CoreSubsystem.Deps synthDepsFromEngine( final com.wikantik.WikiEngine engine ) {
         final java.util.Properties raw = engine.getWikiProperties() != null
             ? engine.getWikiProperties()
             : new java.util.Properties();
-        return new CoreSubsystem.Services(
-            new DefaultWikiProperties( raw ),
-            new DefaultWikiEventBus(),
-            new io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
+        return new CoreSubsystem.Deps(
+            raw,
+            /* servletContext= */ null,
+            /* meterRegistry= */ null,
             engine.getManager( SystemPageRegistry.class ),
             engine.getManager( RecentArticlesManager.class ),
             engine.getManager( BlogManager.class ),
-            engine.getManager( CachingManager.class ),
-            engine.getManager( VariableManager.class ),
-            engine.getManager( ProgressManager.class ),
-            engine.getManager( CommandResolver.class ),
-            engine.getManager( URLConstructor.class ),
-            engine.getManager( InternationalizationManager.class )
+            engine
         );
     }
 }

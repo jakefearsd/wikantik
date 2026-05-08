@@ -224,9 +224,9 @@ final class SearchSubsystemFactoryTest {
 
     @Test
     void createRejectsMissingDeps() {
+        // null deps record → NPE
         assertThrows( NullPointerException.class, () -> SearchSubsystemFactory.create( null ) );
-        assertThrows( NullPointerException.class, () -> SearchSubsystemFactory.create(
-            new SearchSubsystem.Deps( null, null, null, null, mock( WikiEngine.class ) ) ) );
+        // null engine → NPE (core/persistence/page/knowledge are optional — factory does not use them today)
         assertThrows( NullPointerException.class, () -> SearchSubsystemFactory.create(
             new SearchSubsystem.Deps(
                 mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),

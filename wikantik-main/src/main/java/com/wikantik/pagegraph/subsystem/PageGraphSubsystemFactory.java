@@ -57,7 +57,9 @@ public final class PageGraphSubsystemFactory {
      */
     public static PageGraphSubsystem.Services create( final PageGraphSubsystem.Deps deps ) {
         Objects.requireNonNull( deps, "deps" );
-        Objects.requireNonNull( deps.core(), "core" );
+        // deps.core(), deps.persistence(), deps.page() are reserved for future use when
+        // PageGraphSubsystemFactory takes over service construction; they are not yet
+        // read in the method body.
         final WikiEngine engine = ( WikiEngine ) Objects.requireNonNull( deps.engine(), "engine" );
 
         final StructuralIndexService     structuralIndexService     =

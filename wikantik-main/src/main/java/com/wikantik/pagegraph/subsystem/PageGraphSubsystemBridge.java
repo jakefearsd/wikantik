@@ -18,11 +18,7 @@
  */
 package com.wikantik.pagegraph.subsystem;
 
-import com.wikantik.admin.ContentIndexRebuildService;
 import com.wikantik.api.core.Engine;
-import com.wikantik.api.managers.ReferenceManager;
-import com.wikantik.api.pagegraph.PageGraphService;
-import com.wikantik.api.pagegraph.StructuralIndexService;
 
 /**
  * Adapter that synthesises a sparse {@link PageGraphSubsystem.Services}
@@ -75,12 +71,24 @@ public final class PageGraphSubsystemBridge {
      * {@link com.wikantik.WikiEngine#setManager} whenever a page-graph manager
      * is hot-swapped (e.g. by a unit test installing a mock) so that the typed
      * snapshot stays coherent without requiring a full re-initialization cycle.
+     *
+     * <p>Delegates to {@link PageGraphSubsystemFactory#create} using a
+     * {@link PageGraphSubsystem.Deps} synthesised from the engine's manager
+     * registry and sibling subsystem bridges.</p>
      */
     public static PageGraphSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
-        return new PageGraphSubsystem.Services(
-            engine.getManager( StructuralIndexService.class ),
-            engine.getManager( PageGraphService.class ),
-            engine.getManager( ReferenceManager.class ),
-            engine.getManager( ContentIndexRebuildService.class ) );
+        return PageGraphSubsystemFactory.create( synthDepsFromEngine( engine ) );
+    }
+
+    private static PageGraphSubsystem.Deps synthDepsFromEngine( final com.wikantik.WikiEngine engine ) {
+        // core, persistence, and page are reserved in Deps for future use but are not yet
+        // read by PageGraphSubsystemFactory.create. Pass null to avoid cascading
+        // getManager calls into sibling subsystem bridges during hot-swap rebuilds.
+        return new PageGraphSubsystem.Deps(
+            /* core= */        null,
+            /* persistence= */ null,
+            /* page= */        null,
+            engine
+        );
     }
 }

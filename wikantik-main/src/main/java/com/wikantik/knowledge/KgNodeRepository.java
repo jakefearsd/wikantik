@@ -18,8 +18,6 @@
  */
 package com.wikantik.knowledge;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.kgpolicy.KgInclusionFilter;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -27,9 +25,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.lang.reflect.Type;
 import java.sql.*;
-import java.time.Instant;
 import java.util.*;
 
 /**
@@ -41,62 +37,16 @@ import java.util.*;
  *
  * @since 1.0
  */
-public final class KgNodeRepository {
+public final class KgNodeRepository extends KgJdbcSupport {
 
     private static final Logger LOG = LogManager.getLogger( KgNodeRepository.class );
-    private static final Gson GSON = new Gson();
-    private static final Type MAP_TYPE = new TypeToken< Map< String, Object > >() {}.getType();
-
-    private final DataSource dataSource;
 
     public KgNodeRepository( final DataSource dataSource ) {
-        this.dataSource = dataSource;
+        super( dataSource );
     }
 
-    private Map< String, Object > parseJson( final String json ) {
-        if ( json == null || json.isBlank() ) return Map.of();
-        final Map< String, Object > result = GSON.fromJson( json, MAP_TYPE );
-        return result != null ? result : Map.of();
-    }
-
-    private Instant toInstant( final Timestamp ts ) {
-        return ts != null ? ts.toInstant() : null;
-    }
-
-    private List< String > queryDistinct( final String sql ) {
-        final List< String > results = new ArrayList<>();
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql );
-              ResultSet rs = ps.executeQuery() ) {
-            while ( rs.next() ) results.add( rs.getString( 1 ) );
-        } catch ( final SQLException e ) {
-            LOG.warn( "Failed to execute distinct query: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-        return results;
-    }
-
-    private long queryCount( final String sql ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql );
-              ResultSet rs = ps.executeQuery() ) {
-            return rs.next() ? rs.getLong( 1 ) : 0;
-        } catch ( final SQLException e ) {
-            LOG.warn( "Failed to execute count query: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
-    }
-
-    private int executeDelete( final String sql, final UUID id ) {
-        try ( Connection c = dataSource.getConnection();
-              PreparedStatement ps = c.prepareStatement( sql ) ) {
-            ps.setObject( 1, id );
-            return ps.executeUpdate();
-        } catch ( final SQLException e ) {
-            LOG.warn( "deleteByProvenance({}) failed: {}", id, e.getMessage(), e );
-            throw new RuntimeException( "deleteByProvenance failed: " + e.getMessage(), e );
-        }
-    }
+    @Override
+    protected Logger log() { return LOG; }
 
     private KgNode mapNode( final ResultSet rs ) throws SQLException {
         return new KgNode(

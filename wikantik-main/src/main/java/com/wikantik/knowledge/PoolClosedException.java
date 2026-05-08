@@ -26,6 +26,8 @@ package com.wikantik.knowledge;
  */
 public class PoolClosedException extends RuntimeException {
 
+    private static final long serialVersionUID = 1L;
+
     public PoolClosedException( final String message, final Throwable cause ) {
         super( message, cause );
     }

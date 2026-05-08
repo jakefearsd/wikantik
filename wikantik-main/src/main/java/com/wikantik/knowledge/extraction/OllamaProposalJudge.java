@@ -37,6 +37,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -164,7 +165,7 @@ public final class OllamaProposalJudge implements ProposalJudge {
             user.append( "Nearby existing nodes:\n" );
             for( final KgNode n : c.neighborhoodNodes() ) {
                 user.append( "  - " ).append( n.name() ).append( " :: " )
-                    .append( n.nodeType() == null ? "concept" : n.nodeType().toLowerCase() ).append( '\n' );
+                    .append( n.nodeType() == null ? "concept" : n.nodeType().toLowerCase( Locale.ROOT ) ).append( '\n' );
             }
         }
         user.append( "\nReturn ONLY the JSON object." );
@@ -182,7 +183,7 @@ public final class OllamaProposalJudge implements ProposalJudge {
         }
         try {
             final JsonObject obj = JsonParser.parseString( raw ).getAsJsonObject();
-            final String verdict = obj.get( "verdict" ).getAsString().toLowerCase();
+            final String verdict = obj.get( "verdict" ).getAsString().toLowerCase( Locale.ROOT );
             final String reason  = obj.has( "reason_code" )
                 ? obj.get( "reason_code" ).getAsString() : "ok";
             final String rationale = obj.has( "rationale" )

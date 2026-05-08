@@ -89,7 +89,7 @@ public class FrontmatterValidationPageFilter implements PageFilter {
             }
             msg.append( ". Wrap values containing ':' or other YAML special characters in "
                 + "double quotes, e.g. title: \"Foo: Bar\"." );
-            throw new FilterException( msg.toString() );
+            throw new FilterException( msg.toString(), e );
         }
         return content;
     }

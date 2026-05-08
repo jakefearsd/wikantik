@@ -43,6 +43,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -169,7 +170,7 @@ public class DefaultPageGraphService implements PageGraphService {
             final int[] deg = degrees.getOrDefault( id, new int[2] );
             final PageDescriptor desc = nameToDescriptor.get( name );
             final String type = ( desc != null && desc.type() != null )
-                    ? desc.type().name().toLowerCase()
+                    ? desc.type().name().toLowerCase( Locale.ROOT )
                     : null;
             final String cluster = ( desc != null ) ? desc.cluster() : null;
             final List< String > tags = ( desc != null ) ? desc.tags() : List.of();

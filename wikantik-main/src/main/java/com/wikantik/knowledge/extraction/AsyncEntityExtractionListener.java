@@ -90,7 +90,7 @@ public class AsyncEntityExtractionListener implements Consumer< List< UUID > >, 
     private final Timer latencyTimer;
 
     private final Map< String, Long > lastExtractedAtMillis = Collections.synchronizedMap(
-        new LinkedHashMap< String, Long >( 128, 0.75f, true ) {
+        new LinkedHashMap<>( 128, 0.75f, true ) {
             @Override
             protected boolean removeEldestEntry( final Map.Entry< String, Long > eldest ) {
                 return size() > 1024;

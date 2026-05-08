@@ -454,9 +454,9 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
 
         Snapshot( final UUID[] chunkIds, final String[] pageNames,
                   final float[] flatVectors, final int dim ) {
-            this.chunkIds = chunkIds;
-            this.pageNames = pageNames;
-            this.flatVectors = flatVectors;
+            this.chunkIds = chunkIds.clone();
+            this.pageNames = pageNames.clone();
+            this.flatVectors = flatVectors.clone();
             this.dim = dim;
         }
 

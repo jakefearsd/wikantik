@@ -625,7 +625,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
             }
             throw new ProviderException(
                     "Failed to move attachments from '" + oldParent + "' to '" + newParent
-                            + "': " + e.getMessage() );
+                            + "': " + e.getMessage(), e );
         }
     }
 

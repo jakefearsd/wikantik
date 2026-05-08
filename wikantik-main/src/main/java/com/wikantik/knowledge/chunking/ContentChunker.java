@@ -208,10 +208,7 @@ public class ContentChunker {
             // chunk larger than the embedder's window.
             return estimateTokens(block.getChars().toString()) <= config.maxTokens() * 4;
         }
-        if (TABLE_BLOCK_CLASS != null && TABLE_BLOCK_CLASS.isInstance(block)) {
-            return true;
-        }
-        return false;
+        return TABLE_BLOCK_CLASS != null && TABLE_BLOCK_CLASS.isInstance(block);
     }
 
     private void flushBlocks(String pageName, int[] idx, List<String> headingPath,

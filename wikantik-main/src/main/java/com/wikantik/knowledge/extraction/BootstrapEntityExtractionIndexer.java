@@ -440,7 +440,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         if ( ownsExecutor ) {
             shutdown( executor, "Bootstrap extraction executor" );
         }
-        if ( ownsWorkerPool && workerPool != executor ) {
+        if ( ownsWorkerPool && workerPool != executor ) { // NOPMD: CompareObjectsWithEquals - intentional identity check (avoid double-shutdown when same instance)
             shutdown( workerPool, "Bootstrap extraction worker pool" );
         }
     }

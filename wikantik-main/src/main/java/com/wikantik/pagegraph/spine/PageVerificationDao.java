@@ -65,7 +65,7 @@ public class PageVerificationDao {
                         "SELECT 1 FROM page_verification WHERE canonical_id = ?" ) ) {
                     ps.setString( 1, canonicalId );
                     try ( ResultSet rs = ps.executeQuery() ) {
-                        exists = rs.next();
+                        exists = rs.next(); // NOPMD: CheckResultSet - return value IS checked via the 'exists' variable
                     }
                 }
                 if ( exists ) {

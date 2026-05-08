@@ -76,7 +76,7 @@ public class TrustedAuthorsDao {
                         "SELECT 1 FROM trusted_authors WHERE login_name = ?" ) ) {
                     ps.setString( 1, loginName );
                     try ( ResultSet rs = ps.executeQuery() ) {
-                        exists = rs.next();
+                        exists = rs.next(); // NOPMD: CheckResultSet - return value IS checked via the 'exists' variable
                     }
                 }
                 if ( exists ) {

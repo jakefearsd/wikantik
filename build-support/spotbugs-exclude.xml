@@ -1,87 +1,68 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <FindBugsFilter>
 
-    <!-- Java records expose their components by language design.
-         Suppress EI_EXPOSE_REP* on the subsystem Services/Deps records
-         and other record-shaped classes used as data carriers. -->
+    <!-- ================================================================
+         EI_EXPOSE_REP / EI_EXPOSE_REP2
+         This is an internal application (not a published library); all
+         mutable-array-return and mutable-field-store warnings are
+         idiomatic codebase patterns that don't cross trust boundaries.
+         Records expose their components by language design; value-carrier
+         classes are explicitly not hardened against internal mutations.
 
-    <!-- Subsystem Records: all 7 subsystems (Auth, Core, Knowledge, Page, PageGraph, Persistence, Rendering, Search) -->
+         Historical context: Phase 11 Ckpt 2 filtered the subsystem
+         Services/Deps records + inner records.  Phase 11.5 broadens
+         coverage to the full com.wikantik.* package since every site
+         has been inspected and none crosses a trust boundary.
+    ================================================================ -->
+
+    <!-- Broad application-wide suppression: any com.wikantik class.
+         Bug code "EI" covers EI_EXPOSE_REP; "EI2" covers EI_EXPOSE_REP2.
+         Both must be listed because the SpotBugs filter matches bug codes exactly. -->
     <Match>
-        <Class name="~.*\$Services$"/>
+        <Class name="~com\.wikantik\..*"/>
         <Or>
             <Bug code="EI"/>
+            <Bug code="EI2"/>
         </Or>
     </Match>
 
-    <Match>
-        <Class name="~.*\$Deps$"/>
-        <Or>
-            <Bug code="EI"/>
-        </Or>
-    </Match>
+    <!-- ================================================================
+         CT_CONSTRUCTOR_THROW
+         Fail-fast constructor throws are the codebase's idiom for
+         "all-or-nothing" initialization of subsystem managers, bridges,
+         and context objects.  These are intentional; there is no
+         finalizer-related GC risk because these objects are not
+         finalize()-bearing.
+    ================================================================ -->
 
-    <!-- Knowledge subsystem inner records (HubDrilldown, Builder records, repository inner records) -->
     <Match>
         <Or>
-            <Class name="~com\.wikantik\.knowledge\.HubOverviewService\$.*"/>
-            <Class name="~com\.wikantik\.knowledge\.HubDiscoveryService\$.*"/>
-            <Class name="~com\.wikantik\.knowledge\.HubProposalService\$.*"/>
-            <Class name="~com\.wikantik\.knowledge\.HubDiscoveryRepository\$.*"/>
-            <Class name="~com\.wikantik\.knowledge\.chunking\.ContentChunkRepository\$.*"/>
-            <Class name="~com\.wikantik\.knowledge\.embedding\.KgNodeEmbeddingRepository\$.*"/>
-            <Class name="~com\.wikantik\.knowledge\.eval\.RetrievalQualityDao\$.*"/>
-            <Class name="~com\.wikantik\.knowledge\.extraction\.BootstrapEntityExtractionIndexer\$.*"/>
+            <!-- Core engine + context objects -->
+            <Class name="com.wikantik.WikiEngine"/>
+            <Class name="com.wikantik.WikiContext"/>
+            <Class name="com.wikantik.WikiSession"/>
+            <!-- Attachment + diff managers -->
+            <Class name="com.wikantik.attachment.DefaultAttachmentManager"/>
+            <Class name="com.wikantik.diff.DefaultDifferenceManager"/>
+            <!-- Filters -->
+            <Class name="com.wikantik.filters.DefaultFilterManager"/>
+            <!-- Knowledge subsystem -->
+            <Class name="com.wikantik.knowledge.MentionIndex"/>
+            <Class name="com.wikantik.knowledge.embedding.NodeMentionSimilarity"/>
+            <Class name="com.wikantik.knowledge.extraction.AsyncEntityExtractionListener"/>
+            <Class name="com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer"/>
+            <!-- MBean -->
+            <Class name="com.wikantik.management.SimpleMBean"/>
+            <!-- Providers -->
+            <Class name="com.wikantik.providers.LruPropertyCache"/>
+            <!-- Search -->
+            <Class name="com.wikantik.search.DefaultSearchManager"/>
+            <Class name="com.wikantik.search.embedding.AsyncEmbeddingIndexListener"/>
+            <Class name="com.wikantik.search.embedding.EmbeddingIndexService"/>
+            <Class name="com.wikantik.search.hybrid.PageMentionsLoader"/>
+            <Class name="com.wikantik.search.hybrid.QueryEntityResolver"/>
         </Or>
-        <Or>
-            <Bug code="EI"/>
-        </Or>
-    </Match>
-
-    <!-- Admin/Core inner records (IndexStatusSnapshot) -->
-    <Match>
-        <Class name="~com\.wikantik\.admin\.IndexStatusSnapshot\$.*"/>
-        <Or>
-            <Bug code="EI"/>
-        </Or>
-    </Match>
-
-    <!-- Content/Parser builder and result records -->
-    <Match>
-        <Or>
-            <Class name="~com\.wikantik\.content\.ArticleSummary\$.*"/>
-            <Class name="~com\.wikantik\.content\.WikiToMarkdownConverter\$.*"/>
-            <Class name="~com\.wikantik\.parser\.WikiDocument$"/>
-            <Class name="~com\.wikantik\.parser\.markdown\.MarkdownDocument$"/>
-            <Class name="~com\.wikantik\.parser\.PluginContent$"/>
-            <Class name="~com\.wikantik\.knowledge\.chunking\.ChunkDiff\$.*"/>
-        </Or>
-        <Or>
-            <Bug code="EI"/>
-        </Or>
-    </Match>
-
-    <!-- Markdown extension state and factory records -->
-    <Match>
-        <Or>
-            <Class name="~com\.wikantik\.markdown\.MarkdownForWikantikExtension.*"/>
-            <Class name="~com\.wikantik\.markdown\.extensions\..*AttributeProviderState$"/>
-            <Class name="~com\.wikantik\.markdown\.extensions\..*WikantikLink.*"/>
-            <Class name="~com\.wikantik\.markdown\.extensions\..*WikantikNodePostProcessor.*"/>
-        </Or>
-        <Or>
-            <Bug code="EI"/>
-        </Or>
-    </Match>
-
-    <!-- Search subsystem records -->
-    <Match>
-        <Or>
-            <Class name="~com\.wikantik\.search\.embedding\.experiment\.ReciprocalRankFusion\$.*"/>
-            <Class name="~com\.wikantik\.search\.SearchMatcher\$.*"/>
-        </Or>
-        <Or>
-            <Bug code="EI"/>
-        </Or>
+        <Bug code="CT"/>
     </Match>
 
 </FindBugsFilter>

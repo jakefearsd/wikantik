@@ -65,23 +65,36 @@ public final class CoreSubsystemBridge {
         }
         final CoreSubsystem.Services typed = wikiEngine.getCoreSubsystem();
         if ( typed != null ) return typed;
+        // Snapshot not yet built (mid-initialize path) — synthesise from registry.
+        // Post-initialize paths (setManager hot-swaps) rebuild the snapshot directly,
+        // so tests reaching this branch return a coherent record.
+        return rebuildFromManagers( wikiEngine );
+    }
 
-        final java.util.Properties raw = wikiEngine.getWikiProperties() != null
-            ? wikiEngine.getWikiProperties()
+    /**
+     * Synthesises a {@link CoreSubsystem.Services} record directly from the
+     * {@code WikiEngine}'s manager registry. Called by
+     * {@link com.wikantik.WikiEngine#setManager} whenever a core manager is
+     * hot-swapped (e.g. by a unit test installing a mock) so that the typed
+     * snapshot stays coherent without requiring a full re-initialization cycle.
+     */
+    public static CoreSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
+        final java.util.Properties raw = engine.getWikiProperties() != null
+            ? engine.getWikiProperties()
             : new java.util.Properties();
         return new CoreSubsystem.Services(
             new DefaultWikiProperties( raw ),
             new DefaultWikiEventBus(),
             new io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
-            wikiEngine.getManager( SystemPageRegistry.class ),
-            wikiEngine.getManager( RecentArticlesManager.class ),
-            wikiEngine.getManager( BlogManager.class ),
-            wikiEngine.getManager( CachingManager.class ),
-            wikiEngine.getManager( VariableManager.class ),
-            wikiEngine.getManager( ProgressManager.class ),
-            wikiEngine.getManager( CommandResolver.class ),
-            wikiEngine.getManager( URLConstructor.class ),
-            wikiEngine.getManager( InternationalizationManager.class )
+            engine.getManager( SystemPageRegistry.class ),
+            engine.getManager( RecentArticlesManager.class ),
+            engine.getManager( BlogManager.class ),
+            engine.getManager( CachingManager.class ),
+            engine.getManager( VariableManager.class ),
+            engine.getManager( ProgressManager.class ),
+            engine.getManager( CommandResolver.class ),
+            engine.getManager( URLConstructor.class ),
+            engine.getManager( InternationalizationManager.class )
         );
     }
 }

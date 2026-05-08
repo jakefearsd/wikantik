@@ -86,30 +86,43 @@ public final class KnowledgeSubsystemBridge {
         }
         final KnowledgeSubsystem.Services typed = wikiEngine.getKnowledgeSubsystem();
         if ( typed != null ) return typed;
+        // Snapshot not yet built (mid-initialize path) — synthesise from registry.
+        // Post-initialize paths (setManager hot-swaps) rebuild the snapshot directly,
+        // so tests reaching this branch return a coherent record.
+        return rebuildFromManagers( wikiEngine );
+    }
 
+    /**
+     * Synthesises a {@link KnowledgeSubsystem.Services} record directly from the
+     * {@code WikiEngine}'s manager registry. Called by
+     * {@link com.wikantik.WikiEngine#setManager} whenever a knowledge-layer manager
+     * is hot-swapped (e.g. by a unit test installing a mock) so that the typed
+     * snapshot stays coherent without requiring a full re-initialization cycle.
+     */
+    public static KnowledgeSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
         return new KnowledgeSubsystem.Services(
-            wikiEngine.getManager( KnowledgeGraphService.class ),
-            wikiEngine.getManager( KgProposalJudgeService.class ),
-            wikiEngine.getManager( JudgeRunner.class ),
-            wikiEngine.getManager( KgMaterializationService.class ),
-            wikiEngine.getManager( KgJudgeTimeoutRepository.class ),
-            wikiEngine.getManager( HubProposalService.class ),
-            wikiEngine.getManager( HubDiscoveryService.class ),
-            wikiEngine.getManager( HubOverviewService.class ),
-            wikiEngine.getManager( HubProposalRepository.class ),
-            wikiEngine.getManager( HubDiscoveryRepository.class ),
-            wikiEngine.getManager( ContentChunkRepository.class ),
-            wikiEngine.getManager( ChunkProjector.class ),
-            wikiEngine.getManager( MentionIndex.class ),
-            wikiEngine.getManager( NodeMentionSimilarity.class ),
-            wikiEngine.getManager( FrontmatterDefaultsFilter.class ),
-            wikiEngine.getManager( HubSyncFilter.class ),
-            wikiEngine.getManager( ContextRetrievalService.class ),
-            wikiEngine.getManager( ForAgentProjectionService.class ),
-            wikiEngine.getManager( BootstrapEntityExtractionIndexer.class ),
-            wikiEngine.getManager( KgInclusionPolicy.class ),
-            wikiEngine.getManager( ReconciliationJobRunner.class ),
-            wikiEngine.getManager( RetrievalQualityRunner.class )
+            engine.getManager( KnowledgeGraphService.class ),
+            engine.getManager( KgProposalJudgeService.class ),
+            engine.getManager( JudgeRunner.class ),
+            engine.getManager( KgMaterializationService.class ),
+            engine.getManager( KgJudgeTimeoutRepository.class ),
+            engine.getManager( HubProposalService.class ),
+            engine.getManager( HubDiscoveryService.class ),
+            engine.getManager( HubOverviewService.class ),
+            engine.getManager( HubProposalRepository.class ),
+            engine.getManager( HubDiscoveryRepository.class ),
+            engine.getManager( ContentChunkRepository.class ),
+            engine.getManager( ChunkProjector.class ),
+            engine.getManager( MentionIndex.class ),
+            engine.getManager( NodeMentionSimilarity.class ),
+            engine.getManager( FrontmatterDefaultsFilter.class ),
+            engine.getManager( HubSyncFilter.class ),
+            engine.getManager( ContextRetrievalService.class ),
+            engine.getManager( ForAgentProjectionService.class ),
+            engine.getManager( BootstrapEntityExtractionIndexer.class ),
+            engine.getManager( KgInclusionPolicy.class ),
+            engine.getManager( ReconciliationJobRunner.class ),
+            engine.getManager( RetrievalQualityRunner.class )
         );
     }
 }

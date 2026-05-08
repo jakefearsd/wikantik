@@ -55,30 +55,43 @@ public final class AuthSubsystemBridge {
         }
         final AuthSubsystem.Services typed = wikiEngine.getAuthSubsystem();
         if ( typed != null ) return typed;
+        // Snapshot not yet built (mid-initialize path) — synthesise from registry.
+        // Post-initialize paths (setManager hot-swaps) rebuild the snapshot directly,
+        // so tests reaching this branch return a coherent record.
+        return rebuildFromManagers( wikiEngine );
+    }
 
-        final AuthorizationManager authorization = wikiEngine.getManager( AuthorizationManager.class );
+    /**
+     * Synthesises an {@link AuthSubsystem.Services} record directly from the
+     * {@code WikiEngine}'s manager registry. Called by
+     * {@link com.wikantik.WikiEngine#setManager} whenever an auth-layer manager
+     * is hot-swapped (e.g. by a unit test installing a mock) so that the typed
+     * snapshot stays coherent without requiring a full re-initialization cycle.
+     */
+    public static AuthSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
+        final AuthorizationManager authorization = engine.getManager( AuthorizationManager.class );
         Authorizer webAuthorizer = null;
         if ( authorization != null ) {
             try {
                 webAuthorizer = authorization.getAuthorizer();
             } catch ( final WikiSecurityException ignored ) {
-                // bridge only — caller falls through to null
+                // best-effort — leave webAuthorizer null
             }
         }
 
-        final ApiKeyService apiKeys = wikiEngine.getWikiProperties() != null
-            ? ApiKeyServiceHolder.get( wikiEngine.getWikiProperties() )
+        final ApiKeyService apiKeys = engine.getWikiProperties() != null
+            ? ApiKeyServiceHolder.get( engine.getWikiProperties() )
             : null;
 
         return new AuthSubsystem.Services(
-            wikiEngine.getManager( AuthenticationManager.class ),
+            engine.getManager( AuthenticationManager.class ),
             authorization,
-            wikiEngine.getManager( UserManager.class ),
-            wikiEngine.getManager( GroupManager.class ),
+            engine.getManager( UserManager.class ),
+            engine.getManager( GroupManager.class ),
             webAuthorizer,
             apiKeys,
             /* securityVerifier */ null,
-            wikiEngine.getManager( AclManager.class )
+            engine.getManager( AclManager.class )
         );
     }
 }

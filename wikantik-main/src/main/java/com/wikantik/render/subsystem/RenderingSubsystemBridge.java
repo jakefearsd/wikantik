@@ -58,22 +58,34 @@ public final class RenderingSubsystemBridge {
         }
         final RenderingSubsystem.Services typed = wikiEngine.getRenderingSubsystem();
         if ( typed != null ) return typed;
+        // Snapshot not yet built (mid-initialize path) — synthesise from registry.
+        // Post-initialize paths (setManager hot-swaps) rebuild the snapshot directly,
+        // so tests reaching this branch return a coherent record.
+        return rebuildFromManagers( wikiEngine );
+    }
 
-        final RenderingManager  renderingManager  = wikiEngine.getManager( RenderingManager.class );
-        final PluginManager     pluginManager     = wikiEngine.getManager( PluginManager.class );
-        final FilterManager     filterManager     = wikiEngine.getManager( FilterManager.class );
-        final DifferenceManager differenceManager = wikiEngine.getManager( DifferenceManager.class );
+    /**
+     * Synthesises a {@link RenderingSubsystem.Services} record directly from the
+     * {@code WikiEngine}'s manager registry. Called by
+     * {@link com.wikantik.WikiEngine#setManager} whenever a rendering-layer manager
+     * is hot-swapped (e.g. by a unit test installing a mock) so that the typed
+     * snapshot stays coherent without requiring a full re-initialization cycle.
+     */
+    public static RenderingSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
+        final RenderingManager  renderingManager  = engine.getManager( RenderingManager.class );
+        final PluginManager     pluginManager     = engine.getManager( PluginManager.class );
+        final FilterManager     filterManager     = engine.getManager( FilterManager.class );
+        final DifferenceManager differenceManager = engine.getManager( DifferenceManager.class );
 
-        // Phase 6 Ckpt 4: extract the decomposed helpers from the
-        // registered SpamFilter. Absent SpamFilter (test fixtures) keeps
-        // the four slots null — same shape as Ckpt 1.
+        // Extract the decomposed helpers from the registered SpamFilter.
+        // Absent SpamFilter (test fixtures) keeps the four slots null.
         final SpamFilter spam = findSpamFilter( filterManager );
         final SpamRateLimiter     spamRateLimiter     = spam != null ? spam.getRateLimiter()     : null;
         final SpamPatternMatcher  spamPatternMatcher  = spam != null ? spam.getPatternMatcher()  : null;
         final SpamExternalSignals spamExternalSignals = spam != null ? spam.getExternalSignals() : null;
         final SpamPolicy          spamPolicy          = spam != null ? spam.getPolicy()          : null;
 
-        final NewsPageGenerator newsPageGenerator = wikiEngine.getManager( NewsPageGenerator.class );
+        final NewsPageGenerator newsPageGenerator = engine.getManager( NewsPageGenerator.class );
 
         return new RenderingSubsystem.Services(
             renderingManager, pluginManager, filterManager, differenceManager,

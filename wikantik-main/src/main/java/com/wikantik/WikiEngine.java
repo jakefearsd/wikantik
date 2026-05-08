@@ -539,7 +539,7 @@ public class WikiEngine implements Engine {
         // KgInclusionPolicy, ReconciliationJobRunner, RetrievalQualityRunner) after
         // KnowledgeSubsystemFactory.create() returned. ContextRetrievalService is wired
         // even later by ContextRetrievalServiceInitializer (a servlet listener) and stays
-        // null here; the bridge picks it up from getManager() in the test-path fallback.
+        // null here; patchContextRetrievalService() will fill it in once the servlet listener fires.
         if ( knowledgeSubsystem != null ) {
             knowledgeSubsystem = rebuildKnowledgeSubsystemWithPostConstructionServices( knowledgeSubsystem );
         }
@@ -674,18 +674,18 @@ public class WikiEngine implements Engine {
     /** Registers an object under the given type key. Not part of the {@link Engine} interface. */
     public < T > void setManager( final Class< T > clazz, final T manager ) {
         managers.put( clazz, manager );
-        // If an auth-layer manager is swapped in (e.g. by a unit test installing a mock),
-        // invalidate the frozen authSubsystem snapshot so that AuthSubsystemBridge falls
-        // through to live getManager() lookups on the next call.
+        // When an auth-layer manager is hot-swapped (e.g. by a unit test installing a mock),
+        // rebuild the typed auth snapshot from the current registry state so callers
+        // reaching authSubsystem directly see the new value without a full re-init.
         if ( clazz == AuthenticationManager.class || clazz == AuthorizationManager.class
                 || clazz == UserManager.class || clazz == GroupManager.class
                 || clazz == com.wikantik.auth.acl.AclManager.class ) {
-            this.authSubsystem = null;
+            this.authSubsystem = com.wikantik.auth.subsystem.AuthSubsystemBridge.rebuildFromManagers( this );
         }
         if ( clazz == PageManager.class || clazz == AttachmentManager.class
                 || clazz == PageRenamer.class
                 || clazz == com.wikantik.api.managers.ReferenceManager.class ) {
-            this.pageSubsystem = null;
+            this.pageSubsystem = com.wikantik.page.subsystem.PageSubsystemBridge.rebuildFromManagers( this );
         }
         if ( clazz == com.wikantik.cache.CachingManager.class
                 || clazz == com.wikantik.variables.VariableManager.class
@@ -693,12 +693,12 @@ public class WikiEngine implements Engine {
                 || clazz == com.wikantik.ui.CommandResolver.class
                 || clazz == com.wikantik.url.URLConstructor.class
                 || clazz == com.wikantik.i18n.InternationalizationManager.class ) {
-            this.coreSubsystem = null;
+            this.coreSubsystem = com.wikantik.core.subsystem.CoreSubsystemBridge.rebuildFromManagers( this );
         }
         if ( clazz == RenderingManager.class || clazz == PluginManager.class
                 || clazz == FilterManager.class || clazz == DifferenceManager.class
                 || clazz == com.wikantik.content.NewsPageGenerator.class ) {
-            this.renderingSubsystem = null;
+            this.renderingSubsystem = com.wikantik.render.subsystem.RenderingSubsystemBridge.rebuildFromManagers( this );
         }
         // Search snapshot covers manager/provider, the three Lucene helpers (post-Phase-7),
         // hybrid retrieval services, in-memory indexes, and the embedding pipeline. Any of
@@ -719,27 +719,43 @@ public class WikiEngine implements Engine {
                 || clazz == com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class
                 || clazz == com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class
                 || clazz == com.wikantik.search.FrontmatterMetadataCache.class ) {
-            this.searchSubsystem = null;
+            this.searchSubsystem = com.wikantik.search.subsystem.SearchSubsystemBridge.rebuildFromManagers( this );
         }
-        // Knowledge snapshot covers KG services. ContextRetrievalService is
-        // intentionally excluded — it is wired post-boot by
+        // Knowledge snapshot covers all KnowledgeSubsystem.Services fields.
+        // ContextRetrievalService is intentionally excluded — it is wired post-boot by
         // ContextRetrievalServiceInitializer which calls setManager(...) followed
-        // by patchContextRetrievalService(...); invalidating the snapshot here
-        // would null the field before the patch can rebuild it.
+        // by patchContextRetrievalService(...); rebuilding the snapshot here
+        // would lose the patched ContextRetrievalService before the patch can be re-applied.
         if ( clazz == com.wikantik.api.knowledge.KnowledgeGraphService.class
+                || clazz == com.wikantik.api.knowledge.KgProposalJudgeService.class
+                || clazz == com.wikantik.knowledge.judge.JudgeRunner.class
+                || clazz == com.wikantik.knowledge.judge.KgMaterializationService.class
+                || clazz == com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class
+                || clazz == com.wikantik.knowledge.HubProposalService.class
+                || clazz == com.wikantik.knowledge.HubDiscoveryService.class
+                || clazz == com.wikantik.knowledge.HubOverviewService.class
+                || clazz == com.wikantik.knowledge.HubProposalRepository.class
+                || clazz == com.wikantik.knowledge.HubDiscoveryRepository.class
+                || clazz == com.wikantik.knowledge.chunking.ContentChunkRepository.class
+                || clazz == com.wikantik.knowledge.chunking.ChunkProjector.class
+                || clazz == com.wikantik.knowledge.MentionIndex.class
+                || clazz == com.wikantik.knowledge.embedding.NodeMentionSimilarity.class
+                || clazz == com.wikantik.knowledge.FrontmatterDefaultsFilter.class
+                || clazz == com.wikantik.knowledge.HubSyncFilter.class
                 || clazz == com.wikantik.api.agent.ForAgentProjectionService.class
+                || clazz == com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class
                 || clazz == com.wikantik.api.kgpolicy.KgInclusionPolicy.class
+                || clazz == com.wikantik.kgpolicy.ReconciliationJobRunner.class
                 || clazz == com.wikantik.api.eval.RetrievalQualityRunner.class ) {
-            this.knowledgeSubsystem = null;
+            this.knowledgeSubsystem = com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.rebuildFromManagers( this );
         }
         // Page Graph snapshot covers the four services. Any hot-swap (unit test
-        // installing a mock) must invalidate the snapshot so the bridge falls
-        // through to live getManager() lookups on the next call.
+        // installing a mock) must rebuild the snapshot so callers see the new value.
         if ( clazz == com.wikantik.api.pagegraph.StructuralIndexService.class
                 || clazz == com.wikantik.api.pagegraph.PageGraphService.class
                 || clazz == com.wikantik.api.managers.ReferenceManager.class
                 || clazz == com.wikantik.admin.ContentIndexRebuildService.class ) {
-            this.pageGraphSubsystem = null;
+            this.pageGraphSubsystem = com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.rebuildFromManagers( this );
         }
     }
 

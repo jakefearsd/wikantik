@@ -56,13 +56,26 @@ public final class PageSubsystemBridge {
         }
         final PageSubsystem.Services typed = wikiEngine.getPageSubsystem();
         if ( typed != null ) return typed;
+        // Snapshot not yet built (mid-initialize path) — synthesise from registry.
+        // Post-initialize paths (setManager hot-swaps) rebuild the snapshot directly,
+        // so tests reaching this branch return a coherent record.
+        return rebuildFromManagers( wikiEngine );
+    }
 
-        final PageManager       pages       = wikiEngine.getManager( PageManager.class );
-        final AttachmentManager attachments = wikiEngine.getManager( AttachmentManager.class );
-        final PageRenamer       renamer     = wikiEngine.getManager( PageRenamer.class );
-        final PageSaveHelper    saveHelper  = new PageSaveHelper( wikiEngine, pages );
+    /**
+     * Synthesises a {@link PageSubsystem.Services} record directly from the
+     * {@code WikiEngine}'s manager registry. Called by
+     * {@link com.wikantik.WikiEngine#setManager} whenever a page-layer manager
+     * is hot-swapped (e.g. by a unit test installing a mock) so that the typed
+     * snapshot stays coherent without requiring a full re-initialization cycle.
+     */
+    public static PageSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
+        final PageManager       pages       = engine.getManager( PageManager.class );
+        final AttachmentManager attachments = engine.getManager( AttachmentManager.class );
+        final PageRenamer       renamer     = engine.getManager( PageRenamer.class );
+        final PageSaveHelper    saveHelper  = new PageSaveHelper( engine, pages );
         final PageProvider      provider    = pages != null ? pages.getProvider() : null;
-        final ReferenceManager  refMgr      = wikiEngine.getManager( ReferenceManager.class );
+        final ReferenceManager  refMgr      = engine.getManager( ReferenceManager.class );
 
         PageRepository  pageRepository  = null;
         PageLifecycle   pageLifecycle   = null;

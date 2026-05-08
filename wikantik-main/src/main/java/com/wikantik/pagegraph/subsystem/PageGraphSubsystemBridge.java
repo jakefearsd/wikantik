@@ -63,20 +63,24 @@ public final class PageGraphSubsystemBridge {
         }
         final PageGraphSubsystem.Services typed = wikiEngine.getPageGraphSubsystem();
         if ( typed != null ) return typed;
+        // Snapshot not yet built (mid-initialize path) — synthesise from registry.
+        // Post-initialize paths (setManager hot-swaps) rebuild the snapshot directly,
+        // so tests reaching this branch return a coherent record.
+        return rebuildFromManagers( wikiEngine );
+    }
 
-        final StructuralIndexService     structuralIndexService     =
-            wikiEngine.getManager( StructuralIndexService.class );
-        final PageGraphService           pageGraphService           =
-            wikiEngine.getManager( PageGraphService.class );
-        final ReferenceManager           referenceManager           =
-            wikiEngine.getManager( ReferenceManager.class );
-        final ContentIndexRebuildService contentIndexRebuildService =
-            wikiEngine.getManager( ContentIndexRebuildService.class );
-
+    /**
+     * Synthesises a {@link PageGraphSubsystem.Services} record directly from the
+     * {@code WikiEngine}'s manager registry. Called by
+     * {@link com.wikantik.WikiEngine#setManager} whenever a page-graph manager
+     * is hot-swapped (e.g. by a unit test installing a mock) so that the typed
+     * snapshot stays coherent without requiring a full re-initialization cycle.
+     */
+    public static PageGraphSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
         return new PageGraphSubsystem.Services(
-            structuralIndexService,
-            pageGraphService,
-            referenceManager,
-            contentIndexRebuildService );
+            engine.getManager( StructuralIndexService.class ),
+            engine.getManager( PageGraphService.class ),
+            engine.getManager( ReferenceManager.class ),
+            engine.getManager( ContentIndexRebuildService.class ) );
     }
 }

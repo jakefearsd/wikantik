@@ -25,7 +25,6 @@ import com.wikantik.parser.MarkupParser;
 import com.wikantik.parser.WikiDocument;
 import com.wikantik.parser.markdown.MarkdownDocument;
 import com.wikantik.parser.markdown.WikantikHtmlSanitizer;
-import com.wikantik.render.RenderingManager;
 import com.wikantik.render.WikiRenderer;
 
 import java.io.IOException;

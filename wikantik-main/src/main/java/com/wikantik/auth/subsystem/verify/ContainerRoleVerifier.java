@@ -61,7 +61,6 @@ public final class ContainerRoleVerifier {
     private static final String BG_GREEN = "bgcolor=\"#c0ffc0\"";
     private static final String BG_RED   = "bgcolor=\"#ffc0c0\"";
 
-    private final Engine               engine;
     private final AuthorizationManager authorizationManager;
 
     /**
@@ -72,7 +71,6 @@ public final class ContainerRoleVerifier {
      */
     public ContainerRoleVerifier( final Engine engine,
                                   final AuthorizationManager authorizationManager ) {
-        this.engine               = engine;
         this.authorizationManager = authorizationManager;
     }
 

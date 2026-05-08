@@ -29,7 +29,6 @@ import com.vladsch.flexmark.util.sequence.BasedSequence;
 import org.apache.commons.lang3.Strings;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.ContextEnum;
-import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.markdown.nodes.WikantikLink;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.LinkParsingOperations;

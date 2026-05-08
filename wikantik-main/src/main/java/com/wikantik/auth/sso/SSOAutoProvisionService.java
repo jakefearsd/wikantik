@@ -22,7 +22,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
 import com.wikantik.auth.NoSuchPrincipalException;
-import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.user.UserDatabase;

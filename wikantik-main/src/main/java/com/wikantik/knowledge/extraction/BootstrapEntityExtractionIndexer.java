@@ -30,7 +30,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -105,9 +104,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         Map< String, Integer > rejectionReasons
     ) {}
 
-    private final PageExtractor             pageExtractor;
     private final KgNodeRepository          kgNodes;
-    private final KgNodeEmbeddingService    embeddingService;
     private final PageEmbeddingProvider     pageEmbeddings;
     private final ExecutorService           executor;
     private final boolean                   ownsExecutor;
@@ -227,9 +224,7 @@ public class BootstrapEntityExtractionIndexer implements AutoCloseable {
         if ( mentionAttributor == null ) throw new IllegalArgumentException( "mentionAttributor must not be null" );
         if ( executor == null ) throw new IllegalArgumentException( "executor must not be null" );
         if ( workerPool == null ) throw new IllegalArgumentException( "workerPool must not be null" );
-        this.pageExtractor   = pageExtractor;
         this.kgNodes         = kgNodes;
-        this.embeddingService = embeddingService;
         this.pageEmbeddings  = pageEmbeddings == null ? PageEmbeddingProvider.EMPTY : pageEmbeddings;
         this.executor        = executor;
         this.ownsExecutor    = ownsExecutor;

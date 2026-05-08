@@ -26,9 +26,7 @@ import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.auth.WikiSecurityException;
-import com.wikantik.auth.acl.AclManager;
 import com.wikantik.markdown.nodes.WikantikLink;
-import com.wikantik.render.RenderingManager;
 
 
 /**

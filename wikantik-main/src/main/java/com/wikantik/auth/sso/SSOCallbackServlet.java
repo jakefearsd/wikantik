@@ -22,7 +22,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import org.pac4j.core.config.Config;
 import org.pac4j.core.engine.CallbackLogic;

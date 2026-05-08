@@ -23,7 +23,6 @@ import com.vladsch.flexmark.util.ast.NodeTracker;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.NoSuchVariableException;
 import com.wikantik.markdown.nodes.WikantikLink;
-import com.wikantik.variables.VariableManager;
 
 
 /**

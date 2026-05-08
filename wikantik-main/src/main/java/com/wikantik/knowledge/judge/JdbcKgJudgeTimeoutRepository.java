@@ -55,10 +55,10 @@ public class JdbcKgJudgeTimeoutRepository implements KgJudgeTimeoutRepository {
               FROM kg_judge_timeouts
              WHERE proposal_id = ?
             """;
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement( sql ) ) {
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( sql ) ) {
             ps.setObject( 1, proposalId );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 return rs.next() ? Optional.of( map( rs ) ) : Optional.empty();
             }
         } catch ( final SQLException e ) {
@@ -94,8 +94,8 @@ public class JdbcKgJudgeTimeoutRepository implements KgJudgeTimeoutRepository {
                 base_timeout_seconds = EXCLUDED.base_timeout_seconds,
                 last_seen            = NOW()
             """;
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement( sql ) ) {
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( sql ) ) {
             ps.setObject( 1, proposalId );
             ps.setString( 2, contentSha256 );
             setNullableString( ps, 3, sourcePage );
@@ -112,8 +112,8 @@ public class JdbcKgJudgeTimeoutRepository implements KgJudgeTimeoutRepository {
 
     @Override
     public void clear( final UUID proposalId ) {
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement(
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement(
                   "DELETE FROM kg_judge_timeouts WHERE proposal_id = ?" ) ) {
             ps.setObject( 1, proposalId );
             ps.executeUpdate();
@@ -134,10 +134,10 @@ public class JdbcKgJudgeTimeoutRepository implements KgJudgeTimeoutRepository {
              LIMIT ?
             """;
         final List< TimeoutRow > rows = new ArrayList<>();
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement( sql ) ) {
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( sql ) ) {
             ps.setInt( 1, safeLimit );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) rows.add( map( rs ) );
             }
         } catch ( final SQLException e ) {

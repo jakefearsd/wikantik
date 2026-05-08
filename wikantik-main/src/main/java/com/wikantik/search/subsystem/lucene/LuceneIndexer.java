@@ -20,7 +20,6 @@ package com.wikantik.search.subsystem.lucene;
 
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Attachment;
-import com.wikantik.api.exceptions.ProviderException;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
 

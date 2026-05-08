@@ -30,7 +30,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -126,10 +125,10 @@ public class NodeMentionSimilarity {
      * for the active model, or {@code 0} if no rows exist yet.
      */
     public int dimension() {
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement( SELECT_DIM_SQL ) ) {
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( SELECT_DIM_SQL ) ) {
             ps.setString( 1, modelCode );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 if ( rs.next() ) return rs.getInt( 1 );
                 return 0;
             }
@@ -153,11 +152,11 @@ public class NodeMentionSimilarity {
     public Optional< float[] > vectorFor( final String nodeName ) {
         if ( nodeName == null || nodeName.isBlank() ) return Optional.empty();
         final List< float[] > vectors = new ArrayList<>();
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement( SELECT_VECTORS_FOR_NODE_NAME_SQL ) ) {
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( SELECT_VECTORS_FOR_NODE_NAME_SQL ) ) {
             ps.setString( 1, nodeName );
             ps.setString( 2, modelCode );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) {
                     final int dim = rs.getInt( 1 );
                     final byte[] raw = rs.getBytes( 2 );
@@ -188,9 +187,9 @@ public class NodeMentionSimilarity {
     /** Names of all nodes with at least one chunk mention. */
     public List< String > mentionedNodeNames() {
         final List< String > names = new ArrayList<>();
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement( SELECT_MENTIONED_NODE_NAMES_SQL );
-              final ResultSet rs = ps.executeQuery() ) {
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( SELECT_MENTIONED_NODE_NAMES_SQL );
+              ResultSet rs = ps.executeQuery() ) {
             while ( rs.next() ) names.add( rs.getString( 1 ) );
         } catch ( final SQLException e ) {
             LOG.warn( "NodeMentionSimilarity.mentionedNodeNames failed: {}", e.getMessage(), e );
@@ -243,11 +242,11 @@ public class NodeMentionSimilarity {
 
     private Map< String, float[] > loadAllCentroids() {
         final Map< String, List< float[] > > perNode = new LinkedHashMap<>();
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement( SELECT_ALL_NODE_CHUNK_VECTORS_SQL ) ) {
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( SELECT_ALL_NODE_CHUNK_VECTORS_SQL ) ) {
             ps.setString( 1, modelCode );
             ps.setFetchSize( 500 );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) {
                     final String name = rs.getString( 1 );
                     final int dim = rs.getInt( 2 );

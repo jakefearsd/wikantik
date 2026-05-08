@@ -122,7 +122,7 @@ public class StructuralSpinePageFilter implements PageFilter {
         final Object kgInclude = metadata.get( "kg_include" );
         if ( kgInclude != null ) {
             final String s = kgInclude.toString().trim().toLowerCase( java.util.Locale.ROOT );
-            if ( !s.equals( "true" ) && !s.equals( "false" ) ) {
+            if ( !"true".equals( s ) && !"false".equals( s ) ) {
                 throw new FilterException(
                         "Page '" + pageName + "' has invalid kg_include='"
                         + kgInclude + "' (must be true or false)" );

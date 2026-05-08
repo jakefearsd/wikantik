@@ -39,7 +39,6 @@ import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.chunking.ContentChunker;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.judge.DefaultKgProposalJudgeService;
-import com.wikantik.knowledge.judge.JdbcKgJudgeTimeoutRepository;
 import com.wikantik.knowledge.judge.JudgeRunner;
 import com.wikantik.knowledge.judge.KgJudgeConfig;
 import com.wikantik.knowledge.judge.KgJudgeTimeoutRepository;

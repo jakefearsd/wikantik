@@ -19,8 +19,6 @@
 package com.wikantik.knowledge.agent;
 
 import com.wikantik.api.agent.RunbookBlock;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +42,6 @@ import java.util.regex.Pattern;
  */
 public final class FrontmatterRunbookValidator {
 
-    private static final Logger LOG = LogManager.getLogger( FrontmatterRunbookValidator.class );
 
     public enum IssueKind {
         MISSING_BLOCK,

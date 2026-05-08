@@ -31,7 +31,6 @@ import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.Authorizer;
 import com.wikantik.auth.GroupPrincipal;
 import com.wikantik.auth.NoSuchPrincipalException;
-import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.user.UserProfile;

@@ -26,10 +26,7 @@ import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.search.SearchManager;
 import com.wikantik.util.TextUtil;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
-import java.security.Principal;
 
 /**
  * Default implementation of {@link PageLifecycle}.
@@ -39,7 +36,6 @@ import java.security.Principal;
  */
 public class DefaultPageLifecycle implements PageLifecycle {
 
-    private static final Logger LOG = LogManager.getLogger( DefaultPageLifecycle.class );
 
     private final Engine         engine;
     private final PageRepository repository;

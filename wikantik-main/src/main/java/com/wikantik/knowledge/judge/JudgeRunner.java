@@ -167,7 +167,7 @@ public class JudgeRunner implements AutoCloseable {
         final List< KgProposal > batch = proposals.getProposalsForJudging( config.batchSize() );
         if ( batch.isEmpty() ) return 0;
 
-        try ( final ExecutorService pool = Executors.newFixedThreadPool( Math.max( 1, config.concurrency() ),
+        try ( ExecutorService pool = Executors.newFixedThreadPool( Math.max( 1, config.concurrency() ),
             r -> { final Thread t = new Thread( r, "kg-judge-worker" ); t.setDaemon( true ); return t; } ) ) {
             int submitted = 0;
             for ( final KgProposal proposal : batch ) {

@@ -25,7 +25,6 @@ import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
-import com.wikantik.cache.CachingManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.content.PageRenamer;

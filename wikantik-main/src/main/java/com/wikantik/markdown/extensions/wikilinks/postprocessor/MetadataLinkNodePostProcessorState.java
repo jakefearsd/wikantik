@@ -26,7 +26,6 @@ import com.wikantik.api.core.Context;
 import com.wikantik.i18n.InternationalizationManager;
 import com.wikantik.markdown.nodes.WikantikLink;
 import com.wikantik.preferences.Preferences;
-import com.wikantik.variables.VariableManager;
 
 import java.text.MessageFormat;
 import java.util.ResourceBundle;

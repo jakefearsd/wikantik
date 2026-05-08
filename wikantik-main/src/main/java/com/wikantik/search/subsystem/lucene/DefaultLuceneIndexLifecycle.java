@@ -18,8 +18,6 @@
  */
 package com.wikantik.search.subsystem.lucene;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -41,7 +39,6 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class DefaultLuceneIndexLifecycle implements LuceneIndexLifecycle {
 
-    private static final Logger LOG = LogManager.getLogger( DefaultLuceneIndexLifecycle.class );
 
     private final Analyzer analyzer;
 

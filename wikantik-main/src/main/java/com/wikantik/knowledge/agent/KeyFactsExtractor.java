@@ -19,8 +19,6 @@
 package com.wikantik.knowledge.agent;
 
 import com.wikantik.api.agent.KeyFact;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,7 +44,6 @@ import java.util.regex.Pattern;
  */
 public final class KeyFactsExtractor {
 
-    private static final Logger LOG = LogManager.getLogger( KeyFactsExtractor.class );
 
     public static final int MAX_FACTS = 6;
     public static final int MAX_PARAGRAPHS = 3;

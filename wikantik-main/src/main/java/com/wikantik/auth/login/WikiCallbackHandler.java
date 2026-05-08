@@ -19,7 +19,6 @@
 package com.wikantik.auth.login;
 
 import com.wikantik.api.core.Engine;
-import com.wikantik.auth.UserManager;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 
 import javax.security.auth.callback.Callback;

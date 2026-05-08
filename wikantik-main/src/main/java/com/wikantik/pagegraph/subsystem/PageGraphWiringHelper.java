@@ -21,8 +21,6 @@ package com.wikantik.pagegraph.subsystem;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
-import com.wikantik.api.pagegraph.PageGraphService;
-import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.core.subsystem.CoreSubsystem;
 import com.wikantik.pagegraph.DefaultPageGraphService;
 import com.wikantik.pagegraph.spine.ConfidenceComputer;

@@ -19,8 +19,6 @@
 package com.wikantik.knowledge.agent;
 
 import com.wikantik.api.agent.McpToolHint;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +34,6 @@ import java.util.Map;
  */
 public final class McpToolHintsResolver {
 
-    private static final Logger LOG = LogManager.getLogger( McpToolHintsResolver.class );
 
     public static final int MAX_HINTS = 5;
 

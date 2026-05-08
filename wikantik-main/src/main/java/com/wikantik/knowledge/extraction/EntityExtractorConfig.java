@@ -152,10 +152,10 @@ public record EntityExtractorConfig(
             return def;
         }
         final String trimmed = v.trim();
-        if( trimmed.equalsIgnoreCase( "true" ) || trimmed.equals( "1" ) || trimmed.equalsIgnoreCase( "yes" ) ) {
+        if( "true".equalsIgnoreCase( trimmed ) || "1".equals( trimmed ) || "yes".equalsIgnoreCase( trimmed ) ) {
             return true;
         }
-        if( trimmed.equalsIgnoreCase( "false" ) || trimmed.equals( "0" ) || trimmed.equalsIgnoreCase( "no" ) ) {
+        if( "false".equalsIgnoreCase( trimmed ) || "0".equals( trimmed ) || "no".equalsIgnoreCase( trimmed ) ) {
             return false;
         }
         LOG.info( "Ignoring non-boolean value '{}' for property {}{} — using default {}",

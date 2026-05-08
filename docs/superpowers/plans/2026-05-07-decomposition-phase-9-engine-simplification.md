@@ -1,7 +1,7 @@
 # Phase 9: WikiEngine simplification + registry deletion — implementation plan
 
 **Spec:** [docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md](../specs/2026-05-05-wikantik-main-decomposition-design.md)
-**Status:** ready
+**Status:** complete (partial — see spec § Phase 9 deferral note)
 **Estimated effort:** 4–5 days
 **Goal:** delete what the prior phases made dead. `WikiEngine.managers` map + `getManager(Class<T>)` method gone. `WikiEngine.initialize()` becomes a 30–50 line DAG-build. `TestEngine` either thin or replaced by `WikiSubsystems.forTesting(...)`. ArchUnit forbids `engine.getManager(...)` anywhere.
 

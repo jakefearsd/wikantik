@@ -557,6 +557,8 @@ seven currently-extracted subsystems.
 
 ### Phase 9 — `WikiEngine` simplification + registry deletion (≈ 3 days)
 
+**Status: partial — registry deletion deferred to Phase 10 (2026-05-08)**
+
 **Goal:** delete what the prior phases made dead.
 
 - `WikiEngine.managers` map and the `getManager(Class<T>)` method: deleted.
@@ -566,11 +568,39 @@ seven currently-extracted subsystems.
 
 **Done when:** `WikiEngine.java` is under 300 LOC; the registry is gone; the build is green.
 
+#### What landed (Ckpts 1–5 partial, commits f7339fae2..a32890b92)
+
+- `PageGraphSubsystem` extracted with 4 services (`StructuralIndexService`, `PageGraphService`, `ReferenceManager`, `ContentIndexRebuildService`) + ~12 callers migrated.
+- `NewsPageGenerator` + `CachingManager` added to existing `RenderingSubsystem.Services` and `CoreSubsystem.Services` respectively.
+- ~11 wikantik-main bulk callers + 25 Default*Manager cross-calls migrated to typed subsystem accessors.
+- `Core` + `Auth` `Services` expanded with 6 new fields + 14 callers migrated.
+- `WikiSubsystemsTestFactory` shipped.
+- All 8 bridges cast `Engine` → `WikiEngine`.
+- `Engine.getManager` deleted from the `Engine` interface (breaking change documented).
+- `WikiEngine.initialize()` slimmed by relocating wiring helpers onto subsystem factories.
+- 28 typed `register*` setters added on `WikiEngine` concrete class.
+- `WiringHelpers`' `getManager` reads flattened to method parameters.
+- Bridges' registry-fallback paths deleted — production code outside `WikiEngine.java`, `*SubsystemFactory`, and `*SubsystemBridge` has **zero** `getManager` calls.
+
+**Metrics at phase_9_partial_close (2026-05-08):**
+- `loc_main`: 81,893
+- `get_manager_callers_repo_wide`: 887
+- `get_manager_callers_in_main`: 100
+- `god_classes_over_800`: 4 (`WikiEngine` 1593 LOC)
+- `archunit_frozen_violations`: 129
+
+#### What deferred — registry deletion (Phase 10 sub-task)
+
+`WikiEngine.managers` map, `WikiEngine.getManager(Class<T>)`, and `WikiEngine.setManager(Class<T>, T)` survive on the `WikiEngine` **concrete class** (not the `Engine` interface). Root cause: the bridge `rebuildFromManagers` paths read from the registry for ~70 distinct class keys; deleting the map without per-class typed backing fields on `WikiEngine` would produce NPEs across every subsystem bridge reconstruction path. The per-class typed backing-field refactor is a multi-checkpoint piece of work in its own right. The ArchUnit `no_get_manager_anywhere` final ban is also deferred until the map is gone.
+
+**Phase 10 inherits this sub-task:** "complete registry deletion via per-class typed backing fields on `WikiEngine`, then add ArchUnit `no_get_manager_anywhere` ban" — alongside WikiContext decomposition.
+
 ### Phase 10 — Decomposition of remaining God-classes + measurement (≈ ongoing)
 
 **Goal:** the remaining outliers don't disappear with subsystem extraction. Keep cutting them.
 
-- `WikiContext` (818 lines) — likely splits into "request scope" + "page scope" + "rendering scope".
+- **Registry deletion (carried over from Phase 9):** complete `WikiEngine.managers` map deletion + `getManager`/`setManager` removal via per-class typed backing fields on `WikiEngine`; add ArchUnit `no_get_manager_anywhere` final ban.
+- `WikiContext` (821 lines as of phase_9_partial_close) — likely splits into "request scope" + "page scope" + "rendering scope".
 - Anything else that emerges over the prior phases.
 - Re-measure metrics from Phase 0. Publish the diff.
 

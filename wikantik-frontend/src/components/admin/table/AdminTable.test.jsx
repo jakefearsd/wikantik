@@ -555,3 +555,62 @@ describe('AdminTable — rowAction', () => {
     expect(onClick).toHaveBeenCalledWith(ROWS[0]);
   });
 });
+
+describe('AdminTable — onRowClick', () => {
+  it('clicking a row fires onRowClick when selectable is false', () => {
+    const onRowClick = vi.fn();
+    renderTable({ onRowClick });
+    fireEvent.click(screen.getByText('Alice'));
+    expect(onRowClick).toHaveBeenCalledWith(ROWS[0]);
+  });
+
+  it('clicking a row does not fire onRowClick when selectable is true', () => {
+    // When selectable, the row click handler is intentionally suppressed so that
+    // checkbox clicks don't double-fire as row clicks.
+    const onRowClick = vi.fn();
+    renderTable({
+      onRowClick,
+      selectable: true,
+      bulkActions: [{ id: 'a', label: 'Act' }],
+      onBulkAction: vi.fn(),
+    });
+    fireEvent.click(screen.getByText('Alice'));
+    expect(onRowClick).not.toHaveBeenCalled();
+  });
+});
+
+describe('AdminTable — action with reason but no confirm', () => {
+  it('opens a modal for reason collection when action has reason but no confirm', async () => {
+    const onBulkAction = vi.fn().mockResolvedValue(SUCCESS_RESULT);
+    renderTable({
+      selectable: true,
+      bulkActions: [
+        {
+          id: 'reject',
+          label: 'Reject',
+          // No `confirm` field — only a `reason` field. Modal still opens for reason collection.
+          reason: { label: 'Reason', required: true },
+        },
+      ],
+      onBulkAction,
+    });
+    // Select two rows.
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(checkboxes[2]);
+    // Trigger the action via the selection bar — should open the modal even without confirm.
+    fireEvent.click(screen.getByRole('button', { name: /^Reject$/ }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    // Provide a reason in the modal then confirm via the modal's action button.
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'duplicate' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Reject$/ }));
+    await waitFor(() =>
+      expect(onBulkAction).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'reject' }),
+        expect.any(Array),
+        'duplicate'
+      )
+    );
+  });
+});

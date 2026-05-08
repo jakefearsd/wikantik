@@ -199,4 +199,65 @@ describe('ConfirmBulkModal', () => {
     const confirmBtn = screen.getByRole('button', { name: /Delete/i });
     expect(confirmBtn.className).toMatch(/btn-danger/);
   });
+
+  it('confirm button has primary class for primary variant', () => {
+    const action = { id: 'go', label: 'Approve', variant: 'primary' };
+    render(
+      <ConfirmBulkModal
+        action={action}
+        selectedRows={mkRows(1)}
+        getRowKey={getKey}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    const confirmBtn = screen.getByRole('button', { name: /Approve/i });
+    expect(confirmBtn.className).toMatch(/btn-primary/);
+  });
+
+  it('typing in the reason field clears the error message', () => {
+    const action = {
+      id: 'reject',
+      label: 'Reject',
+      reason: { label: 'Reason', required: true },
+    };
+    render(
+      <ConfirmBulkModal
+        action={action}
+        selectedRows={mkRows(1)}
+        getRowKey={getKey}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    // Trigger the required-empty error.
+    fireEvent.click(screen.getByRole('button', { name: /Reject/i }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    // Typing into the reason should clear it.
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'because' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('reason without an explicit label falls back to the default "Reason"', () => {
+    const action = {
+      id: 'reject',
+      label: 'Reject',
+      // No `label` field → component should fall back to 'Reason'.
+      reason: { required: true },
+    };
+    render(
+      <ConfirmBulkModal
+        action={action}
+        selectedRows={mkRows(1)}
+        getRowKey={getKey}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+    // The label text appears next to a required asterisk.
+    expect(screen.getByText('Reason')).toBeInTheDocument();
+    // And the validation error uses the same fallback label.
+    fireEvent.click(screen.getByRole('button', { name: /Reject/i }));
+    expect(screen.getByRole('alert').textContent).toMatch(/^Reason is required/);
+  });
 });

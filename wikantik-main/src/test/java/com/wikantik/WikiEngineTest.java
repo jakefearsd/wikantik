@@ -21,13 +21,11 @@ package com.wikantik;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
-import com.wikantik.api.engine.RenderApi;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.content.PageRenamer;
-import com.wikantik.modules.ModuleManager;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.providers.FileSystemProvider;
 import com.wikantik.api.managers.ReferenceManager;
@@ -370,15 +368,16 @@ class WikiEngineTest {
 
     @Test
     void testGetManagers() {
+        // Ckpt A2: getManagers(Class) deleted — map gone, only typed backing fields remain.
+        // Unknown classes (no typed field, not in Guice) return null.
         Assertions.assertNull( m_engine.getManager( String.class ) );
-        Assertions.assertNotNull( m_engine.getManager( RenderApi.class ) );
+        // RenderApi is an interface; getManager is keyed on the concrete class (RenderingManager).
+        Assertions.assertNotNull( m_engine.getManager( RenderingManager.class ) );
         Assertions.assertNotNull( m_engine.getManager( PageManager.class ) );
-        Assertions.assertNotNull( m_engine.getManager( ModuleManager.class ) );
-
-        Assertions.assertEquals( 0, m_engine.getManagers( String.class ).size() );
-        Assertions.assertEquals( 1, m_engine.getManagers( RenderApi.class ).size() );
-        Assertions.assertEquals( 1, m_engine.getManagers( PageManager.class ).size() );
-        Assertions.assertEquals( 2, m_engine.getManagers( ModuleManager.class ).size() );
+        // ModuleManager is an abstract supertype with no dedicated typed field.
+        // Accessing via concrete types (FilterManager, PluginManager) still works.
+        Assertions.assertNotNull( m_engine.getManager( com.wikantik.filters.FilterManager.class ) );
+        Assertions.assertNotNull( m_engine.getManager( com.wikantik.plugin.PluginManager.class ) );
     }
 
     @Test

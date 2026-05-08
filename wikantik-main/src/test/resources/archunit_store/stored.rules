@@ -1,4 +1,5 @@
 #
-#Tue May 05 07:43:49 CEST 2026
+#Fri May 08 08:01:44 CEST 2026
 no\ new\ WikiEngine\#getManager\ callers\ \u2014\ services\ must\ receive\ collaborators\ via\ constructor\ injection.\ See\ spec\:\ docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md=c2d8357c-140a-4853-b4b3-de647014a688
+no_get_manager_anywhere\ \u2014\ only\ WikiEngine,\ *SubsystemFactory,\ *SubsystemBridge,\ and\ *WiringHelper\ may\ call\ WikiEngine\#getManager;\ all\ others\ must\ receive\ collaborators\ via\ constructor\ injection.\ See\ Phase\ 10\ Ckpt\ A2\:\ docs/superpowers/plans/2026-05-08-decomposition-phase-10.md=067abf7c-7b22-4ea9-8872-dce78a145cb9
 production\ code\ may\ not\ depend\ on\ TestEngine\ \u2014\ it's\ a\ test\ fixture,\ not\ a\ runtime\ collaborator=087928d9-e494-4519-8f4e-49c817b898f4

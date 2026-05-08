@@ -126,9 +126,8 @@ public class WikiEngine implements Engine {
     private ServletContext   servletContext;
 
     /** Knowledge subsystem services produced by {@code KnowledgeSubsystemFactory}.
-     *  Phase 1 of the wikantik-main decomposition (2026-05-05); legacy
-     *  {@code managers.put(...)} entries for KG-flavored services delegate to
-     *  the fields of this record. */
+     *  Phase 1 of the wikantik-main decomposition (2026-05-05). Ckpt A2: all
+     *  KG-flavored service registrations go through typed backing fields. */
     private com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services knowledgeSubsystem;
 
     /** Core subsystem services produced by {@code CoreSubsystemFactory}.
@@ -193,12 +192,11 @@ public class WikiEngine implements Engine {
     /** Stores wikiengine attributes. */
     private final Map< String, Object > attributes = new ConcurrentHashMap<>();
 
-    /** Stores WikiEngine's associated managers. */
-    protected final Map< Class< ? >, Object > managers = new ConcurrentHashMap<>();
+    // Ckpt A2: managers Map deleted — all reads/writes go through typed backing fields.
 
     // -----------------------------------------------------------------------
-    // Per-class typed backing fields — Ckpt A1 (Phase 10)
-    // Populated by setManager / initComponent; read first by getManager.
+    // Per-class typed backing fields — Phase 10 (Ckpt A1 + A2)
+    // Populated by setManager / initComponent; read by getManager.
     // Names use mgr_ prefix to avoid collisions with existing subsystem fields.
     // -----------------------------------------------------------------------
 
@@ -710,13 +708,12 @@ public class WikiEngine implements Engine {
         } else {
             component = ClassUtil.getMappedObject( componentInitClass, initArgs );
         }
-        // Write to the legacy map AND the typed backing field (Ckpt A1), but do NOT
-        // call setManager here: setManager triggers subsystem snapshot rebuilds which
-        // would produce partial snapshots (e.g. coreSubsystem with null systemPageRegistry)
-        // that subsequent initializers then see via getCoreSubsystem(). The full snapshots
-        // are built by the factory calls (CoreSubsystemFactory.create etc.) after all
+        // Write directly to the typed backing field. Do NOT call setManager here:
+        // setManager triggers subsystem snapshot rebuilds which would produce partial
+        // snapshots (e.g. coreSubsystem with null systemPageRegistry) that subsequent
+        // initializers then see via getCoreSubsystem(). The full snapshots are built
+        // by the factory calls (CoreSubsystemFactory.create etc.) after all
         // initComponent calls complete.
-        managers.put( componentClass, component );
         writeTypedField( componentClass, component );
         if( Initializable.class.isAssignableFrom( component.getClass() ) ) {
             ( ( Initializable )component ).initialize( this, properties );
@@ -725,11 +722,9 @@ public class WikiEngine implements Engine {
 
     /**
      * Writes {@code mgr} to the per-class typed backing field for {@code clazz}.
-     * Called from {@link #setManager} so the typed field stays in sync with the
-     * legacy {@code managers} map (Ckpt A1). The map is still written by
-     * {@link #setManager}; this method only updates the field.
+     * Called from {@link #setManager} and {@link #initComponent}.
      *
-     * <p>Unknown class keys are silently ignored — they stay in the map only.</p>
+     * <p>Unknown class keys are silently ignored — they carry no typed field.</p>
      */
     @SuppressWarnings( "unchecked" )
     private < T > void writeTypedField( final Class< T > clazz, final T mgr ) {
@@ -896,7 +891,7 @@ public class WikiEngine implements Engine {
     /**
      * Reads the per-class typed backing field for {@code clazz}, or {@code null}
      * when the class is not in the known-types table. Used by
-     * {@link #getManager(Class)} as the fast path before Guice / map fallback.
+     * {@link #getManager(Class)} as the primary lookup.
      */
     @SuppressWarnings( "unchecked" )
     private < T > T readTypedField( final Class< T > clazz ) {
@@ -989,7 +984,7 @@ public class WikiEngine implements Engine {
     /** Retrieves the object registered under the given type key. Not part of the {@link Engine} interface. */
     @SuppressWarnings( "unchecked" )
     public < T > T getManager( final Class< T > manager ) {
-        // 1. Typed backing field (Ckpt A1) — O(1) exact-class lookup for all known types.
+        // 1. Typed backing field — O(1) exact-class lookup for all known types.
         //    Returns non-null when the field has been written by setManager / initComponent.
         final T fromField = readTypedField( manager );
         if ( fromField != null ) return fromField;
@@ -1000,24 +995,15 @@ public class WikiEngine implements Engine {
                 return injector.getInstance( manager );
             }
         } catch( final ConfigurationException | ProvisionException e ) {
-            // Not bound in Guice or failed to provision, fall back to legacy map
-            LOG.trace( "Manager {} not found in Guice, falling back to legacy map", manager.getName() );
+            // Not bound in Guice — fall through to coreSubsystem bridge.
+            LOG.trace( "Manager {} not found in Guice or typed field", manager.getName() );
         }
 
-        // 3. Fallback to legacy manual map (subtype-assignable search for plugin-registered impls)
-        final T fromMap = ( T )managers.entrySet().stream()
-                                       .filter( e -> manager.isAssignableFrom( e.getKey() ) )
-                                       .map( Map.Entry::getValue )
-                                       .findFirst().orElse( null );
-        if ( fromMap != null ) return fromMap;
-
-        // 4. Fall through to typed subsystem services. Phase 2 of the
+        // 3. Fall through to typed subsystem services. Phase 2 of the
         //    wikantik-main decomposition removed SystemPageRegistry,
-        //    RecentArticlesManager, and BlogManager from the legacy
-        //    managers map; this bridge keeps getManager(X.class) returning
-        //    them transparently for code (and tests) that still ask the
-        //    old way. New code should reach the typed accessor directly:
-        //    getCoreSubsystem().xxx().
+        //    RecentArticlesManager, and BlogManager from the typed-field table;
+        //    this bridge keeps getManager(X.class) returning them transparently.
+        //    New code should reach the typed accessor directly: getCoreSubsystem().xxx().
         if ( coreSubsystem != null ) {
             if ( manager.isInstance( coreSubsystem.systemPageRegistry() ) ) {
                 return ( T ) coreSubsystem.systemPageRegistry();
@@ -1029,22 +1015,14 @@ public class WikiEngine implements Engine {
                 return ( T ) coreSubsystem.blogManager();
             }
         }
-        return null;
-    }
 
-    /** Retrieves all objects assignable to the given type key. Not part of the {@link Engine} interface. */
-    @SuppressWarnings( "unchecked" )
-    public < T > List< T > getManagers( final Class< T > manager ) {
-        return ( List< T > )managers.entrySet().stream()
-                                               .filter( e -> manager.isAssignableFrom( e.getKey() ) )
-                                               .map( Map.Entry::getValue )
-                                               .toList();
+        // Unknown class with no typed field — log a warning so callers notice the gap.
+        LOG.warn( "getManager({}) returned null — class has no typed backing field and was not found in Guice", manager.getName() );
+        return null;
     }
 
     /** Registers an object under the given type key. Not part of the {@link Engine} interface. */
     public < T > void setManager( final Class< T > clazz, final T manager ) {
-        managers.put( clazz, manager );
-        // Ckpt A1: also write the per-class typed backing field.
         writeTypedField( clazz, manager );
         // When a subsystem-owned manager is hot-swapped POST-BOOT (e.g. by a unit test installing
         // a mock), rebuild the typed snapshot so callers reaching the subsystem directly see the

@@ -107,4 +107,43 @@ class DecompositionArchTest {
             .as( "production code may not depend on TestEngine — it's a "
                + "test fixture, not a runtime collaborator" )
     );
+
+    /**
+     * R-4: {@code WikiEngine#getManager} is banned outside approved wiring classes.
+     *
+     * <p>Phase 10 Ckpt A2 deleted the {@code managers} Map. The only legitimate
+     * callers of {@code getManager} in production code are:
+     * <ul>
+     *   <li>{@code WikiEngine} itself (the dispatcher)</li>
+     *   <li>{@code *SubsystemFactory} classes (subsystem boot)</li>
+     *   <li>{@code *SubsystemBridge} classes (typed snapshot rebuilds)</li>
+     *   <li>{@code *WiringHelper} classes (lazy post-boot wiring)</li>
+     * </ul>
+     * Existing violations in wikantik-main are frozen at their current count.
+     * New callers outside the approved list fail the build.</p>
+     */
+    @ArchTest
+    static final ArchRule no_get_manager_anywhere = freeze(
+        noClasses()
+            .that().resideInAPackage( "com.wikantik.." )
+            .and().doNotHaveSimpleName( "WikiEngine" )
+            .and().haveSimpleNameNotEndingWith( "SubsystemFactory" )
+            .and().haveSimpleNameNotEndingWith( "SubsystemBridge" )
+            .and().haveSimpleNameNotEndingWith( "WiringHelper" )
+            .should().callMethodWhere(
+                com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                    com.tngtech.archunit.core.domain.properties.HasName.Predicates.name( "getManager" )
+                ).and(
+                    com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                        com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner(
+                            com.tngtech.archunit.core.domain.JavaClass.Predicates.equivalentTo( WikiEngine.class )
+                        )
+                    )
+                )
+            )
+            .as( "no_get_manager_anywhere — only WikiEngine, *SubsystemFactory, "
+               + "*SubsystemBridge, and *WiringHelper may call WikiEngine#getManager; "
+               + "all others must receive collaborators via constructor injection. "
+               + "See Phase 10 Ckpt A2: docs/superpowers/plans/2026-05-08-decomposition-phase-10.md" )
+    );
 }

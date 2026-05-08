@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+
+    <!-- Java records expose their components by language design.
+         Suppress EI_EXPOSE_REP* on the subsystem Services/Deps records
+         and other record-shaped classes used as data carriers. -->
+
+    <!-- Subsystem Records: all 7 subsystems (Auth, Core, Knowledge, Page, PageGraph, Persistence, Rendering, Search) -->
+    <Match>
+        <Class name="~.*\$Services$"/>
+        <Or>
+            <Bug code="EI"/>
+        </Or>
+    </Match>
+
+    <Match>
+        <Class name="~.*\$Deps$"/>
+        <Or>
+            <Bug code="EI"/>
+        </Or>
+    </Match>
+
+    <!-- Knowledge subsystem inner records (HubDrilldown, Builder records, repository inner records) -->
+    <Match>
+        <Or>
+            <Class name="~com\.wikantik\.knowledge\.HubOverviewService\$.*"/>
+            <Class name="~com\.wikantik\.knowledge\.HubDiscoveryService\$.*"/>
+            <Class name="~com\.wikantik\.knowledge\.HubProposalService\$.*"/>
+            <Class name="~com\.wikantik\.knowledge\.HubDiscoveryRepository\$.*"/>
+            <Class name="~com\.wikantik\.knowledge\.chunking\.ContentChunkRepository\$.*"/>
+            <Class name="~com\.wikantik\.knowledge\.embedding\.KgNodeEmbeddingRepository\$.*"/>
+            <Class name="~com\.wikantik\.knowledge\.eval\.RetrievalQualityDao\$.*"/>
+            <Class name="~com\.wikantik\.knowledge\.extraction\.BootstrapEntityExtractionIndexer\$.*"/>
+        </Or>
+        <Or>
+            <Bug code="EI"/>
+        </Or>
+    </Match>
+
+    <!-- Admin/Core inner records (IndexStatusSnapshot) -->
+    <Match>
+        <Class name="~com\.wikantik\.admin\.IndexStatusSnapshot\$.*"/>
+        <Or>
+            <Bug code="EI"/>
+        </Or>
+    </Match>
+
+    <!-- Content/Parser builder and result records -->
+    <Match>
+        <Or>
+            <Class name="~com\.wikantik\.content\.ArticleSummary\$.*"/>
+            <Class name="~com\.wikantik\.content\.WikiToMarkdownConverter\$.*"/>
+            <Class name="~com\.wikantik\.parser\.WikiDocument$"/>
+            <Class name="~com\.wikantik\.parser\.markdown\.MarkdownDocument$"/>
+            <Class name="~com\.wikantik\.parser\.PluginContent$"/>
+            <Class name="~com\.wikantik\.knowledge\.chunking\.ChunkDiff\$.*"/>
+        </Or>
+        <Or>
+            <Bug code="EI"/>
+        </Or>
+    </Match>
+
+    <!-- Markdown extension state and factory records -->
+    <Match>
+        <Or>
+            <Class name="~com\.wikantik\.markdown\.MarkdownForWikantikExtension.*"/>
+            <Class name="~com\.wikantik\.markdown\.extensions\..*AttributeProviderState$"/>
+            <Class name="~com\.wikantik\.markdown\.extensions\..*WikantikLink.*"/>
+            <Class name="~com\.wikantik\.markdown\.extensions\..*WikantikNodePostProcessor.*"/>
+        </Or>
+        <Or>
+            <Bug code="EI"/>
+        </Or>
+    </Match>
+
+    <!-- Search subsystem records -->
+    <Match>
+        <Or>
+            <Class name="~com\.wikantik\.search\.embedding\.experiment\.ReciprocalRankFusion\$.*"/>
+            <Class name="~com\.wikantik\.search\.SearchMatcher\$.*"/>
+        </Or>
+        <Or>
+            <Bug code="EI"/>
+        </Or>
+    </Match>
+
+</FindBugsFilter>

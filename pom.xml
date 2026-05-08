@@ -145,6 +145,7 @@
          The `coverage` profile leaves this empty too — JaCoCo's prepare-agent
          goal repopulates it at runtime. -->
     <argLine></argLine>
+    <spotbugs.excludeFilterFile>build-support/spotbugs-exclude.xml</spotbugs.excludeFilterFile>
   </properties>
 
   <scm>

@@ -138,13 +138,17 @@ public class PageResource extends RestServletBase {
 
         // Rendered HTML option
         if ( "true".equalsIgnoreCase( request.getParameter( "render" ) ) ) {
+            final long t0 = System.nanoTime();
             try {
                 final RenderingManager renderingManager = getSubsystems().rendering().renderingManager();
                 final Context context = Wiki.context().create( engine, request, page );
                 final String html = renderingManager.textToHTML( context, rawText );
                 result.put( "contentHtml", html );
+                LOG.info( "Rendered page={} bytes={} durationMs={}",
+                        pageName, html != null ? html.length() : 0, ( System.nanoTime() - t0 ) / 1_000_000L );
             } catch ( final Exception e ) {
-                LOG.warn( "Failed to render page {}: {}", pageName, e.getMessage() );
+                LOG.warn( "Failed to render page {} (durationMs={}): {}",
+                        pageName, ( System.nanoTime() - t0 ) / 1_000_000L, e.getMessage() );
                 result.put( "contentHtml", null );
             }
         }

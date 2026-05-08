@@ -26,6 +26,7 @@ import io.modelcontextprotocol.spec.McpSchema.ServerCapabilities;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
+import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
@@ -137,13 +138,13 @@ public class McpServerInitializer implements ServletContextListener {
 
             for ( final McpTool tool : toolRegistry.readOnlyTools() ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) ->
-                        tool.execute( request.arguments() ) );
+                        auditedExecute( tool, request.arguments(), exchange, false ) );
             }
 
             for ( final McpTool tool : toolRegistry.authorConfigurableTools() ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) -> {
                     resolveAuthor( exchange, tool );
-                    return tool.execute( request.arguments() );
+                    return auditedExecute( tool, request.arguments(), exchange, true );
                 } );
             }
 
@@ -266,6 +267,47 @@ public class McpServerInitializer implements ServletContextListener {
             LOG.warn( "MCP tools registered but NOT mentioned in the instructions text: {} — "
                     + "the agent will not know about these without seeing tools/list directly.",
                     drift.registeredButNotMentioned() );
+        }
+    }
+
+    /**
+     * Wraps {@link McpTool#execute} with an INFO-level audit line so admins can see
+     * which MCP tool ran, by which client, how long it took, and whether the tool
+     * returned an error envelope (CallToolResult.isError) — none of which is
+     * visible in the access log alone.
+     */
+    private static McpSchema.CallToolResult auditedExecute(
+            final McpTool tool,
+            final Map< String, Object > arguments,
+            final io.modelcontextprotocol.server.McpSyncServerExchange exchange,
+            final boolean writeSurface ) {
+        final long t0 = System.nanoTime();
+        McpSchema.CallToolResult result = null;
+        Throwable thrown = null;
+        try {
+            result = tool.execute( arguments );
+            return result;
+        } catch ( final RuntimeException re ) {
+            thrown = re;
+            throw re;
+        } finally {
+            final long ms = ( System.nanoTime() - t0 ) / 1_000_000L;
+            String client = "?";
+            try {
+                final McpSchema.Implementation ci = exchange != null ? exchange.getClientInfo() : null;
+                if ( ci != null && ci.name() != null ) client = ci.name();
+            } catch ( final RuntimeException ignored ) {
+                // exchange.getClientInfo can throw before initialize completes
+            }
+            final boolean isError = result != null && Boolean.TRUE.equals( result.isError() );
+            if ( thrown != null ) {
+                LOG.info( "MCP tools/call name={} client={} surface={} durationMs={} threw={}",
+                        tool.name(), client, writeSurface ? "write" : "read", ms,
+                        thrown.getClass().getSimpleName() );
+            } else {
+                LOG.info( "MCP tools/call name={} client={} surface={} durationMs={} isError={}",
+                        tool.name(), client, writeSurface ? "write" : "read", ms, isError );
+            }
         }
     }
 

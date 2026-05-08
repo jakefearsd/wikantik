@@ -185,7 +185,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
 
             for ( final McpTool tool : tools ) {
                 builder.toolCall( tool.definition(), ( exchange, request ) ->
-                        tool.execute( request.arguments() ) );
+                        auditedExecute( tool, request.arguments(), exchange ) );
             }
 
             mcpServer = builder.build();
@@ -194,6 +194,44 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         } catch ( final Exception e ) {
             LOG.error( "Knowledge MCP startup failed during server build — transport servlet is registered " +
                     "but will return protocol errors: {}", e.getMessage(), e );
+        }
+    }
+
+    /**
+     * Wraps {@link McpTool#execute} with an INFO-level audit line so admins can see
+     * which knowledge-MCP tool ran, by which client, how long it took, and whether
+     * the tool returned an error envelope.
+     */
+    private static io.modelcontextprotocol.spec.McpSchema.CallToolResult auditedExecute(
+            final McpTool tool,
+            final java.util.Map< String, Object > arguments,
+            final io.modelcontextprotocol.server.McpSyncServerExchange exchange ) {
+        final long t0 = System.nanoTime();
+        io.modelcontextprotocol.spec.McpSchema.CallToolResult result = null;
+        Throwable thrown = null;
+        try {
+            result = tool.execute( arguments );
+            return result;
+        } catch ( final RuntimeException re ) {
+            thrown = re;
+            throw re;
+        } finally {
+            final long ms = ( System.nanoTime() - t0 ) / 1_000_000L;
+            String client = "?";
+            try {
+                final var ci = exchange != null ? exchange.getClientInfo() : null;
+                if ( ci != null && ci.name() != null ) client = ci.name();
+            } catch ( final RuntimeException ignored ) {
+                // exchange.getClientInfo can throw before initialize completes
+            }
+            final boolean isError = result != null && Boolean.TRUE.equals( result.isError() );
+            if ( thrown != null ) {
+                LOG.info( "Knowledge MCP tools/call name={} client={} durationMs={} threw={}",
+                        tool.name(), client, ms, thrown.getClass().getSimpleName() );
+            } else {
+                LOG.info( "Knowledge MCP tools/call name={} client={} durationMs={} isError={}",
+                        tool.name(), client, ms, isError );
+            }
         }
     }
 

@@ -51,9 +51,15 @@ public class OutboundLinksResource extends RestServletBase {
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
 
-        final String pageName = extractPathParam( request );
+        // Accept either path-style (/api/outbound-links/X) or query-string (?page=X).
+        // The path form is the primary documented surface; ?page= mirrors backlinks.
+        String pageName = extractPathParam( request );
         if ( pageName == null || pageName.isEmpty() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
+            pageName = request.getParameter( "page" );
+        }
+        if ( pageName == null || pageName.isEmpty() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "Page name is required (use /api/outbound-links/{name} or ?page={name})" );
             return;
         }
 

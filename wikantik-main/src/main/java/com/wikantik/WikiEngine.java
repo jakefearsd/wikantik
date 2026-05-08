@@ -1076,8 +1076,16 @@ public class WikiEngine implements Engine {
             }
         }
 
-        // Unknown class with no typed field — log a warning so callers notice the gap.
-        LOG.warn( "getManager({}) returned null — class has no typed backing field and was not found in Guice", manager.getName() );
+        // Differentiate "known class, field not yet populated (boot-ordering between
+        // cross-manager getManager calls)" vs "genuinely unknown class". The former is
+        // expected during init — managers reach for siblings before all initComponent
+        // calls have finished — and produced 9000+ WARN lines on every boot. Only
+        // warn when the class isn't on the typed table at all.
+        if ( ! TYPED_FIELD_READERS.containsKey( manager ) ) {
+            LOG.warn( "getManager({}) returned null — class has no typed backing field and was not found in Guice", manager.getName() );
+        } else {
+            LOG.debug( "getManager({}) returned null — typed field not yet populated (called before its initComponent)", manager.getName() );
+        }
         return null;
     }
 
@@ -1276,7 +1284,13 @@ public class WikiEngine implements Engine {
                 }
             }
             if( !exists ) {
-                LOG.warn( "{} template not found, updating WikiEngine's default template to {}", getTemplateDir(), DEFAULT_TEMPLATE_NAME );
+                // Only warn when an explicit non-default template was configured but is missing.
+                // The "couldn't find default, falling back to default" case is the boot-time
+                // happy path for a wiki without a custom template — silent it.
+                if ( ! DEFAULT_TEMPLATE_NAME.equals( getTemplateDir() ) ) {
+                    LOG.warn( "Configured template '{}' not found — falling back to '{}'.",
+                            getTemplateDir(), DEFAULT_TEMPLATE_NAME );
+                }
                 templateDir = DEFAULT_TEMPLATE_NAME;
             }
         }

@@ -51,9 +51,16 @@ public class BacklinksResource extends RestServletBase {
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
 
-        final String pageName = extractPathParam( request );
+        // Accept either path-style (/api/backlinks/X) or query-string (/api/backlinks?page=X).
+        // The path form is the primary documented surface; the query form mirrors the
+        // ?page= shape used by older clients and matches what curl users expect.
+        String pageName = extractPathParam( request );
         if ( pageName == null || pageName.isEmpty() ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page name is required" );
+            pageName = request.getParameter( "page" );
+        }
+        if ( pageName == null || pageName.isEmpty() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "Page name is required (use /api/backlinks/{name} or ?page={name})" );
             return;
         }
 

@@ -85,7 +85,8 @@ public class ChangesResource extends RestServletBase {
                 } catch ( final ParseException e ) {
                     LOG.warn( "Rejected /api/changes request with invalid 'since' parameter: {}", sinceParam );
                     sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                            "Invalid 'since' parameter (expected ISO 8601): " + sinceParam );
+                            "Invalid 'since' parameter '" + sinceParam
+                            + "' — expected ISO 8601, e.g. 2026-05-01T00:00:00Z." );
                     return;
                 }
             }

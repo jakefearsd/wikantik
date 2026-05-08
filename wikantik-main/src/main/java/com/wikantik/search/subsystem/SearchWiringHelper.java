@@ -261,6 +261,7 @@ public final class SearchWiringHelper {
             final DefaultRetrievalQualityRunner.CanonicalIdResolver resolver =
                 slug -> structuralIndex.resolveCanonicalIdFromSlug( slug );
             final int hour = TextUtil.getIntegerProperty( props, "wikantik.retrieval.cron.hour_utc", 3 );
+            @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to engine.registerRetrievalQualityRunner()
             final DefaultRetrievalQualityRunner runner =
                 new DefaultRetrievalQualityRunner( rqDao, retriever, resolver, rqMetrics, hour );
             engine.registerRetrievalQualityRunner( runner );

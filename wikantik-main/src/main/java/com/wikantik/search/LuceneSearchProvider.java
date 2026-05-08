@@ -231,6 +231,7 @@ public class LuceneSearchProvider implements SearchProvider {
         if ( lifecycle == null ) {
             synchronized ( this ) {
                 if ( lifecycle == null ) {
+                    @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to DefaultLuceneIndexLifecycle
                     final Analyzer a = this.analyzer != null ? this.analyzer : new ClassicAnalyzer();
                     lifecycle = new DefaultLuceneIndexLifecycle( a );
                 }

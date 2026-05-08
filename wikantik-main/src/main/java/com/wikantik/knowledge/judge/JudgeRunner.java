@@ -167,10 +167,9 @@ public class JudgeRunner implements AutoCloseable {
         final List< KgProposal > batch = proposals.getProposalsForJudging( config.batchSize() );
         if ( batch.isEmpty() ) return 0;
 
-        final ExecutorService pool = Executors.newFixedThreadPool( Math.max( 1, config.concurrency() ),
-            r -> { final Thread t = new Thread( r, "kg-judge-worker" ); t.setDaemon( true ); return t; } );
-        int submitted = 0;
-        try {
+        try ( final ExecutorService pool = Executors.newFixedThreadPool( Math.max( 1, config.concurrency() ),
+            r -> { final Thread t = new Thread( r, "kg-judge-worker" ); t.setDaemon( true ); return t; } ) ) {
+            int submitted = 0;
             for ( final KgProposal proposal : batch ) {
                 if ( pastMaxAttempts( proposal ) ) {
                     LOG.debug( "skip {} — past max_attempts ({})", proposal.id(), config.maxAttempts() );
@@ -187,12 +186,11 @@ public class JudgeRunner implements AutoCloseable {
                 LOG.warn( "judge pool timed out after {}s — {} tasks may still be running",
                     awaitSec, submitted );
             }
+            return submitted;
         } catch ( final InterruptedException e ) {
             Thread.currentThread().interrupt();
-        } finally {
-            if ( !pool.isShutdown() ) pool.shutdownNow();
+            return 0;
         }
-        return submitted;
     }
 
     private boolean pastMaxAttempts( final KgProposal p ) {

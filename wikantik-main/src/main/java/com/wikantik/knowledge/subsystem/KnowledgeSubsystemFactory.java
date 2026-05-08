@@ -115,6 +115,7 @@ public final class KnowledgeSubsystemFactory {
         KgProposalJudgeService kgJudge = null;
         JudgeRunner kgRunner = null;
         if ( judgeCfg.enabled() && judgeCfg.endpoint() != null && !judgeCfg.endpoint().isBlank() ) {
+            @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to DefaultKgProposalJudgeService
             final HttpClient http = HttpClient.newBuilder()
                 .connectTimeout( Duration.ofSeconds( judgeCfg.timeoutSeconds() ) )
                 .build();

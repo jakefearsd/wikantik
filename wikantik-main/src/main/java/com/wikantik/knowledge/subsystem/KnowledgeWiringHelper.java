@@ -130,6 +130,7 @@ public final class KnowledgeWiringHelper {
 
             final PagesByCluster pagesByCluster =
                 PagesByCluster.fromStructural( structuralIndex );
+            @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to engine.registerReconciliationJobRunner()
             final ReconciliationJobRunner reconciler =
                 new ReconciliationJobRunner( policy, excludedRepo, pagesByCluster );
             ReconciliationHook.install( reconciler::enqueue );
@@ -283,6 +284,7 @@ public final class KnowledgeWiringHelper {
                                                final EntityExtractorConfig extractorCfg,
                                                final PersistenceSubsystem.Services persistenceSubsystem,
                                                final WikiEngine engine ) {
+        @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to OllamaPageExtractor
         final HttpClient http = HttpClient.newHttpClient();
         final int maxEntitiesPerPage = 12;
         final int maxRelationsPerPage = 8;
@@ -296,6 +298,7 @@ public final class KnowledgeWiringHelper {
                 http, extractorCfg.ollamaBaseUrl(), extractorCfg.ollamaModel(),
                 extractorCfg.timeoutMs(), parser );
 
+        @SuppressWarnings( "PMD.CloseResource" ) // ownership transferred to engine.registerBootstrapEntityExtractionIndexer()
         final BootstrapEntityExtractionIndexer indexer =
             new BootstrapEntityExtractionIndexer(
                 extractor,

@@ -149,10 +149,12 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
         // Phase 1 of the wikantik-main subsystem decomposition: JudgeRunner
         // comes from the typed KnowledgeSubsystem.Services bundle. The bridge
         // resolves to the engine's manager registry under the hood.
+        @SuppressWarnings( "PMD.CloseResource" ) // closed in lines 164-165 via null-checks
         final JudgeRunner judgeRunner = engine == null ? null
             : runQuietly( "lookup JudgeRunner",
                 () -> com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge
                     .fromLegacyEngine( engine ).judgeRunner() );
+        @SuppressWarnings( "PMD.CloseResource" ) // closed in lines 164-165 via null-checks
         final DefaultRetrievalQualityRunner rqRunner = engine == null ? null
             : runQuietly( "lookup RetrievalQualityRunner",
                 () -> com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge

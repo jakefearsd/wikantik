@@ -54,23 +54,11 @@ import com.wikantik.search.LuceneSearchProvider;
 import com.wikantik.search.SearchManager;
 import com.wikantik.search.SearchProvider;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
-import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
-import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubOverviewService;
-import com.wikantik.pagegraph.spine.ConfidenceComputer;
-import com.wikantik.pagegraph.spine.DefaultStructuralIndexService;
-import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
-import com.wikantik.pagegraph.spine.PageVerificationDao;
-import com.wikantik.pagegraph.spine.StructuralIndexEventListener;
-import com.wikantik.pagegraph.spine.StructuralIndexMetrics;
-import com.wikantik.pagegraph.spine.StructuralSpinePageFilter;
-import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
 import com.wikantik.api.pagegraph.StructuralIndexService;
-import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.HubProposalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
-import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.ui.CommandResolver;
 import com.wikantik.ui.progress.ProgressManager;
 import com.wikantik.url.URLConstructor;
@@ -218,6 +206,34 @@ public class WikiEngine implements Engine {
 
     /** Entity-extraction lifecycle handle; null when the extractor is disabled. */
     private com.wikantik.knowledge.extraction.AsyncEntityExtractionListener entityExtractionListener;
+
+    // -----------------------------------------------------------------------
+    // Lifecycle-handle setters — called by the subsystem wiring helpers
+    // (SearchWiringHelper, KnowledgeWiringHelper) that live in other packages.
+    // These are intentionally not part of the Engine interface; they are
+    // internal plumbing used during initialize() and deleted in Ckpt 4d.
+    // -----------------------------------------------------------------------
+
+    /** Sets the hybrid-retrieval async embedding listener. Called by {@link com.wikantik.search.subsystem.SearchWiringHelper}. */
+    public void setHybridIndexListener( final com.wikantik.search.embedding.AsyncEmbeddingIndexListener l ) {
+        this.hybridIndexListener = l;
+    }
+    /** Returns the hybrid-retrieval async embedding listener (for composing the entity-extraction chain). */
+    public com.wikantik.search.embedding.AsyncEmbeddingIndexListener getHybridIndexListener() {
+        return hybridIndexListener;
+    }
+    /** Sets the query embedder lifecycle handle. Called by {@link com.wikantik.search.subsystem.SearchWiringHelper}. */
+    public void setHybridQueryEmbedder( final com.wikantik.search.hybrid.QueryEmbedder e ) {
+        this.hybridQueryEmbedder = e;
+    }
+    /** Sets the bootstrap embedding indexer lifecycle handle. Called by {@link com.wikantik.search.subsystem.SearchWiringHelper}. */
+    public void setHybridBootstrapIndexer( final com.wikantik.search.embedding.BootstrapEmbeddingIndexer b ) {
+        this.hybridBootstrapIndexer = b;
+    }
+    /** Sets the entity-extraction listener lifecycle handle. Called by {@link com.wikantik.knowledge.subsystem.KnowledgeWiringHelper}. */
+    public void setEntityExtractionListener( final com.wikantik.knowledge.extraction.AsyncEntityExtractionListener l ) {
+        this.entityExtractionListener = l;
+    }
 
     /**
      *  Gets a WikiEngine related to this servlet.  Since this method is only called from JSP pages (and JspInit()) to be specific,
@@ -791,6 +807,12 @@ public class WikiEngine implements Engine {
     /**
      * Initialises the knowledge-graph subsystem when a JNDI datasource is configured.
      *
+     * <p>Phase 9 Ckpt 4c: the bulk of the inline wiring has been relocated to
+     * {@link com.wikantik.pagegraph.subsystem.PageGraphWiringHelper},
+     * {@link com.wikantik.knowledge.subsystem.KnowledgeWiringHelper}, and
+     * {@link com.wikantik.search.subsystem.SearchWiringHelper}. This method
+     * is now a sequenced call into those helpers.</p>
+     *
      * @param props engine properties
      */
     private void initKnowledgeGraph( final Properties props ) {
@@ -801,17 +823,12 @@ public class WikiEngine implements Engine {
             final javax.naming.Context ctx = ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
             final javax.sql.DataSource ds = ( javax.sql.DataSource ) ctx.lookup( datasource );
 
-            // Phase 3 of the wikantik-main subsystem decomposition: build the
-            // Persistence subsystem before Knowledge so every JDBC repository
-            // is owned by Persistence. Knowledge consumes narrow refs off
-            // persistenceSubsystem.xxx() in subsequent checkpoints.
+            // Phase 3: Persistence subsystem.
             this.persistenceSubsystem = com.wikantik.persistence.subsystem.PersistenceSubsystemFactory.create(
                 new com.wikantik.persistence.subsystem.PersistenceSubsystem.Deps(
                     ds, coreSubsystem.properties() ) );
 
-            // Resolve the Lucene MoreLikeThis seam if SearchManager is using a Lucene
-            // provider. Otherwise the factory falls back to a no-op MLT and the
-            // hub-overview drilldown's MLT section stays empty.
+            // Resolve the Lucene MoreLikeThis seam.
             HubOverviewService.LuceneMlt luceneMlt = null;
             final SearchManager searchMgr = getManager( SearchManager.class );
             if ( searchMgr != null ) {
@@ -829,12 +846,6 @@ public class WikiEngine implements Engine {
                 }
             }
 
-            // Resolve the Prometheus MeterRegistry installed by the observability
-            // extension in its onInit phase. When present (the production path),
-            // chunker / rebuild metrics flow to /observability/metrics. When
-            // absent (unusual — e.g. test harnesses that skip Engine.start()),
-            // the chunker and rebuild service each fall back to an in-process
-            // SimpleMeterRegistry and we log a WARN so the gap is visible.
             final io.micrometer.core.instrument.MeterRegistry meterRegistry =
                 com.wikantik.api.observability.MeterRegistryHolder.get();
             if ( meterRegistry == null ) {
@@ -845,204 +856,51 @@ public class WikiEngine implements Engine {
                         + "is on the classpath and that onInit has run." );
             }
 
+            // Build Knowledge subsystem core.
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps kgDeps =
                 new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps(
-                    ds,
-                    persistenceSubsystem,
-                    coreSubsystem,
-                    pageSubsystem,
-                    luceneMlt );
+                    ds, persistenceSubsystem, coreSubsystem, pageSubsystem, luceneMlt );
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services svcs =
                 com.wikantik.knowledge.subsystem.KnowledgeSubsystemFactory.create( kgDeps );
             this.knowledgeSubsystem = svcs;
 
-            // Inject engine reference for graph visualization ACL checks.
             if ( svcs.kgService() instanceof DefaultKnowledgeGraphService dkgs ) {
                 dkgs.setEngine( this );
             }
 
-            // Phase 1 of the wikantik-main subsystem decomposition: the
-            // KG-flavored managers.put(...) bridge entries that lived here
-            // were deleted in Checkpoint 7 once the last legacy consumer
-            // migrated to KnowledgeSubsystem.Services (via WikiSubsystems
-            // on the ServletContext for servlets, or
-            // KnowledgeSubsystemBridge.fromLegacyEngine for non-servlet
-            // callers in other modules). The KnowledgeSubsystem.Services
-            // bundle is the sole source of these services going forward.
+            // Wire structural spine + page graph (PageGraphWiringHelper).
+            final com.wikantik.pagegraph.spine.DefaultStructuralIndexService structuralIndex =
+                com.wikantik.pagegraph.subsystem.PageGraphWiringHelper.wireStructuralSpine(
+                    props, persistenceSubsystem, coreSubsystem, this );
 
-            // Structural spine — observe-only Phase 1. Builds an in-memory projection
-            // of wiki shape (clusters, tags, types, canonical_ids) over every page.
-            // Page-save events trigger incremental rebuilds; bootstrap rebuild runs
-            // in the background so Engine.start() does not block on a ~1000-page scan.
-            final PageCanonicalIdsDao canonicalIdsDao = persistenceSubsystem.pageCanonicalIds();
-            final PageVerificationDao pageVerificationDao = persistenceSubsystem.pageVerification();
-            final TrustedAuthorsDao trustedAuthorsDao = persistenceSubsystem.trustedAuthors();
-            final int staleDays = TextUtil.getIntegerProperty( props,
-                "wikantik.verification.stale_days", ConfidenceComputer.DEFAULT_STALE_DAYS );
-            final ConfidenceComputer confidenceComputer =
-                new ConfidenceComputer( trustedAuthorsDao::contains, staleDays );
-            final StructuralIndexMetrics structuralMetrics = StructuralIndexMetrics.resolveAndBind();
-            final DefaultStructuralIndexService structuralIndex =
-                new DefaultStructuralIndexService(
-                    getManager( PageManager.class ), canonicalIdsDao,
-                    pageVerificationDao, confidenceComputer, structuralMetrics );
-            managers.put( PageVerificationDao.class, pageVerificationDao );
-            managers.put( TrustedAuthorsDao.class, trustedAuthorsDao );
-            managers.put( StructuralIndexService.class, structuralIndex );
-            // WikiEventManager holds listeners as WeakReferences — keep a strong
-            // reference in the managers map so the listener is not GC'd between
-            // events. Without this, REST-saved pages don't reach onPageSaved.
-            final StructuralIndexEventListener structuralIndexListener =
-                new StructuralIndexEventListener( structuralIndex );
-            structuralIndexListener.register( getManager( PageManager.class ),
-                                              getManager( com.wikantik.filters.FilterManager.class ) );
-            managers.put( StructuralIndexEventListener.class, structuralIndexListener );
-            new Thread( structuralIndex::rebuild, "structural-index-bootstrap" ).start();
-            LOG.info( "StructuralIndexService registered; initial rebuild dispatched" );
+            // Wire KG policy + ForAgent + ContentIndexRebuild (KnowledgeWiringHelper).
+            final com.wikantik.admin.ContentIndexRebuildService rebuildService =
+                com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireKgPolicyAndContent(
+                    props, structuralIndex, coreSubsystem, persistenceSubsystem,
+                    svcs, searchMgr, meterRegistry, this );
 
-            // Page Graph snapshot service — backs the /page-graph React route.
-            // Reads wikilinks from ReferenceManager + page metadata from
-            // StructuralIndexService and projects them into a cytoscape-friendly
-            // snapshot. Distinct from KnowledgeGraphService (LLM-extracted entities)
-            // — see docs/wikantik-pages/PageGraphVsKnowledgeGraph.md.
-            final com.wikantik.api.managers.ReferenceManager refMgrForGraph =
-                getManager( com.wikantik.api.managers.ReferenceManager.class );
-            final com.wikantik.pagegraph.DefaultPageGraphService pageGraphService =
-                new com.wikantik.pagegraph.DefaultPageGraphService(
-                    structuralIndex, refMgrForGraph, getManager( PageManager.class ) );
-            pageGraphService.setEngine( this );
-            managers.put( com.wikantik.api.pagegraph.PageGraphService.class, pageGraphService );
-            LOG.info( "PageGraphService registered" );
+            // Wire hybrid retrieval (SearchWiringHelper).
+            com.wikantik.search.subsystem.SearchWiringHelper.wireHybridRetrieval(
+                props, ds, svcs.chunkProjector(), rebuildService, this );
 
-            // KG inclusion policy — cluster-primary include/exclude with frontmatter
-            // override. See docs/superpowers/specs/2026-04-27-kg-inclusion-policy-design.md.
-            // The master switch wikantik.kg_policy.enabled (default true) gates the wiring;
-            // when disabled, the policy is not registered and downstream components fall
-            // back to legacy behaviour (no exclusion).
-            final boolean kgPolicyEnabled = TextUtil.getBooleanProperty(
-                props, "wikantik.kg_policy.enabled", true );
-            if ( kgPolicyEnabled ) {
-                final var policyRepo   = persistenceSubsystem.kgClusterPolicy();
-                final var excludedRepo = persistenceSubsystem.kgExcludedPages();
-                final var overrides    = new com.wikantik.kgpolicy.StructuralIndexFrontmatterOverrideReader(
-                        structuralIndex );
-                final var policy       = new com.wikantik.kgpolicy.DefaultKgInclusionPolicy(
-                        coreSubsystem.systemPageRegistry(),
-                        structuralIndex,
-                        policyRepo,
-                        overrides );
-                policy.initialize( this, props );
+            // Wire entity extraction (KnowledgeWiringHelper).
+            com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireEntityExtraction(
+                props, ds, svcs.chunkProjector(), svcs.contentChunkRepository(),
+                persistenceSubsystem, this );
 
-                final var pagesByCluster = com.wikantik.kgpolicy.PagesByCluster.fromStructural( structuralIndex );
-                final var reconciler = new com.wikantik.kgpolicy.ReconciliationJobRunner(
-                        policy, excludedRepo, pagesByCluster );
-                com.wikantik.kgpolicy.ReconciliationHook.install( reconciler::enqueue );
+            // Wire graph rerank (SearchWiringHelper).
+            com.wikantik.search.subsystem.SearchWiringHelper.wireGraphRerank( props, ds, this );
 
-                managers.put( com.wikantik.api.kgpolicy.KgInclusionPolicy.class, policy );
-                managers.put( com.wikantik.kgpolicy.KgClusterPolicyRepository.class, policyRepo );
-                managers.put( com.wikantik.kgpolicy.KgExcludedPagesRepository.class, excludedRepo );
-                managers.put( com.wikantik.kgpolicy.ReconciliationJobRunner.class, reconciler );
+            // Wire retrieval-quality runner (SearchWiringHelper).
+            com.wikantik.search.subsystem.SearchWiringHelper.wireRetrievalQualityRunner(
+                props, ds, structuralIndex, this );
 
-                LOG.info( "KG inclusion policy wired (default-exclude active)" );
-
-                new com.wikantik.kgpolicy.SystemPageBackfillTask(
-                        coreSubsystem.systemPageRegistry(), excludedRepo ).run();
-            } else {
-                LOG.info( "KG inclusion policy DISABLED via wikantik.kg_policy.enabled=false" );
-            }
-
-            // Agent-Grade Content Phase 2: token-budgeted /for-agent projection.
-            // Reads from the structural index + PageManager, memoises in CACHE_FOR_AGENT,
-            // emits wikantik_for_agent_response_bytes histogram.
-            final com.wikantik.knowledge.agent.ForAgentMetrics forAgentMetrics =
-                com.wikantik.knowledge.agent.ForAgentMetrics.resolveAndBind();
-            final com.wikantik.knowledge.agent.DefaultForAgentProjectionService forAgentService =
-                new com.wikantik.knowledge.agent.DefaultForAgentProjectionService(
-                    structuralIndex,
-                    getManager( PageManager.class ),
-                    getManager( CachingManager.class ),
-                    forAgentMetrics );
-            managers.put( com.wikantik.api.agent.ForAgentProjectionService.class, forAgentService );
-            LOG.info( "ForAgentProjectionService registered" );
-
-            // Content rebuild orchestrator — singleton wired against the live Lucene
-            // provider (if any) so an admin-triggered rebuild can enqueue pages,
-            // observe queue depth, and wipe the index without leaving the filesystem
-            // in a half-broken state. When Lucene is disabled/unsupported we skip
-            // wiring the service so the admin UI surfaces a clean "not available"
-            // instead of NPE'ing; the rest of the knowledge graph still starts.
-            com.wikantik.admin.ContentIndexRebuildService rebuildService = null;
-            if ( searchMgr != null && searchMgr.getSearchEngine() instanceof LuceneSearchProvider lsp ) {
-                final com.wikantik.admin.LuceneReindexQueue queue =
-                    new com.wikantik.admin.LuceneSearchProviderAdapter( lsp );
-                final com.wikantik.knowledge.chunking.ContentChunker rebuildChunker =
-                    new com.wikantik.knowledge.chunking.ContentChunker(
-                        new com.wikantik.knowledge.chunking.ContentChunker.Config(
-                            TextUtil.getIntegerProperty( props, "wikantik.chunker.max_tokens", 512 ),
-                            TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 150 ) ) );
-                rebuildService =
-                    meterRegistry != null
-                        ? new com.wikantik.admin.ContentIndexRebuildService(
-                            getManager( PageManager.class ),
-                            coreSubsystem.systemPageRegistry(),
-                            queue,
-                            svcs.contentChunkRepository(),
-                            rebuildChunker,
-                            () -> TextUtil.getBooleanProperty( props, "wikantik.rebuild.enabled", true ),
-                            TextUtil.getIntegerProperty( props, "wikantik.rebuild.lucene_drain_poll_ms", 2000 ),
-                            meterRegistry )
-                        : new com.wikantik.admin.ContentIndexRebuildService(
-                            getManager( PageManager.class ),
-                            coreSubsystem.systemPageRegistry(),
-                            queue,
-                            svcs.contentChunkRepository(),
-                            rebuildChunker,
-                            () -> TextUtil.getBooleanProperty( props, "wikantik.rebuild.enabled", true ),
-                            TextUtil.getIntegerProperty( props, "wikantik.rebuild.lucene_drain_poll_ms", 2000 ) );
-                managers.put( com.wikantik.admin.ContentIndexRebuildService.class, rebuildService );
-                LOG.info( "ContentIndexRebuildService registered" );
-            } else {
-                LOG.info( "ContentIndexRebuildService NOT registered — no LuceneSearchProvider in use" );
-            }
-
-            wireHybridRetrieval( props, ds, svcs.chunkProjector(), rebuildService );
-            wireEntityExtraction( props, ds, svcs.chunkProjector(), svcs.contentChunkRepository() );
-            wireGraphRerank( props, ds );
-            wireRetrievalQualityRunner( props, ds, structuralIndex );
-
-            // Register filters (priority order preserved; higher priority runs first).
-            // ChunkProjector at -1005 is the active save-time chunker for the
-            // embedding / entity-extraction pipelines.
+            // Register save-time filters.
             final FilterManager filterManager = getManager( FilterManager.class );
             filterManager.addPageFilter( svcs.chunkProjector(), -1005 );
             filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), -1004 );
-            // -1003 — runs after frontmatter defaulting so the page already has a
-            // frontmatter block, but before chunking and hub sync so the
-            // canonical_id this filter assigns is visible to downstream filters.
-            filterManager.addPageFilter(
-                new StructuralSpinePageFilter( structuralIndex,
-                    name -> {
-                        final SystemPageRegistry sys = coreSubsystem.systemPageRegistry();
-                        return sys != null && sys.isSystemPage( name );
-                    },
-                    props ),
-                -1003 );
-            // Phase 3: schema-validate type: runbook frontmatter at save time.
-            // Same priority band as the structural-spine filter — both validate
-            // frontmatter; both reject invalid saves with FilterException.
-            filterManager.addPageFilter(
-                new com.wikantik.knowledge.agent.RunbookValidationPageFilter(
-                    structuralIndex, getManager( PageManager.class ), props ),
-                -1003 );
-            // -1006 — runs BEFORE chunking (-1005), defaults (-1004), structural spine
-            // (-1003), and runbook validation (-1003). Rejects saves whose YAML
-            // frontmatter is malformed (e.g. unquoted colon in 'title: Foo: Bar') so
-            // downstream filters never see a page that will silently lose its metadata
-            // when re-read. Gated by wikantik.frontmatter.enforcement.enabled
-            // (default true).
-            filterManager.addPageFilter(
-                new com.wikantik.knowledge.FrontmatterValidationPageFilter( props ),
-                -1006 );
+            com.wikantik.pagegraph.subsystem.PageGraphWiringHelper.wireSpineFilters(
+                props, structuralIndex, coreSubsystem, this );
             filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
 
             LOG.info( "HubProposalService registered (reviewPercentile property='{}')",
@@ -1052,11 +910,6 @@ public class WikiEngine implements Engine {
                 props.getProperty( HubDiscoveryService.PROP_MIN_PTS, "default" ) );
             LOG.info( "Knowledge graph initialized with datasource '{}'", datasource );
         } catch ( final javax.naming.NamingException | RuntimeException e ) {
-            // Log with the throwable so the stack trace is visible — partial init failures
-            // previously hid behind a one-line warn and caused downstream managers like
-            // HubProposalService to be silently null. Checked JNDI NamingException + any
-            // runtime failure from service construction are both recoverable (the engine
-            // continues to start; only KG-dependent features go offline).
             LOG.warn( "Knowledge graph initialization failed: {}", e.getMessage(), e );
         }
     }
@@ -1106,416 +959,6 @@ public class WikiEngine implements Engine {
             + "to live LuceneSearchProvider." );
     }
 
-    /**
-     * Wires the Phase 5 hybrid-retrieval infrastructure: embedding client,
-     * batch indexer, async listener on {@code ChunkProjector}, in-memory vector
-     * index, and the query-side {@link com.wikantik.search.hybrid.QueryEmbedder}.
-     * Every wiring step is flag-gated — when
-     * {@link com.wikantik.search.embedding.EmbeddingConfig#PROP_ENABLED} is
-     * {@code false} the factory returns {@link java.util.Optional#empty()} and
-     * this method is a no-op, guaranteeing zero background cost for deployments
-     * that have not opted in.
-     */
-    @SuppressWarnings( "PMD.CloseResource" ) // AsyncEmbeddingIndexListener / BootstrapEmbeddingIndexer are stored as managers; their lifecycles follow the engine shutdown.
-    private void wireHybridRetrieval( final Properties props,
-                                      final javax.sql.DataSource ds,
-                                      final com.wikantik.knowledge.chunking.ChunkProjector chunkProjector,
-                                      final com.wikantik.admin.ContentIndexRebuildService rebuildService ) {
-        final com.wikantik.search.embedding.EmbeddingConfig cfg;
-        try {
-            cfg = com.wikantik.search.embedding.EmbeddingConfig.fromProperties( props );
-        } catch( final IllegalArgumentException e ) {
-            LOG.warn( "Invalid embedding configuration; hybrid retrieval disabled: {}", e.getMessage() );
-            return;
-        }
-        final java.util.Optional< com.wikantik.search.embedding.TextEmbeddingClient > clientOpt =
-            com.wikantik.search.embedding.EmbeddingClientFactory.create( cfg );
-        if ( clientOpt.isEmpty() ) {
-            // Master flag off — nothing to wire.
-            return;
-        }
-        final com.wikantik.search.embedding.TextEmbeddingClient client = clientOpt.get();
-        final String modelCode = cfg.model().code();
-
-        final com.wikantik.search.embedding.EmbeddingIndexService indexService =
-            new com.wikantik.search.embedding.EmbeddingIndexService( ds, client, cfg.batchSize() );
-        managers.put( com.wikantik.search.embedding.EmbeddingIndexService.class, indexService );
-
-        // In-memory vector index loads current embeddings at construction time.
-        // An empty table is fine — the index reloads after each indexing batch.
-        final com.wikantik.search.hybrid.InMemoryChunkVectorIndex vectorIndex;
-        try {
-            vectorIndex = new com.wikantik.search.hybrid.InMemoryChunkVectorIndex( ds, modelCode );
-        } catch( final RuntimeException e ) {
-            LOG.warn( "Failed to initialize InMemoryChunkVectorIndex (model={}); "
-                + "hybrid retrieval disabled: {}", modelCode, e.getMessage(), e );
-            return;
-        }
-        managers.put( com.wikantik.search.hybrid.ChunkVectorIndex.class, vectorIndex );
-        managers.put( com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class, vectorIndex );
-
-        // Async listener that reindexes per-page saves and refreshes the vector
-        // index snapshot afterward. postIndexCallback failures must not cascade.
-        final com.wikantik.search.embedding.AsyncEmbeddingIndexListener listener =
-            new com.wikantik.search.embedding.AsyncEmbeddingIndexListener( indexService, modelCode );
-        listener.setPostIndexCallback( vectorIndex::upsertChunks );
-        chunkProjector.setPostChunkSink( listener );
-        this.hybridIndexListener = listener;
-
-        // Rebuild-path hook: after a full content rebuild, walk all chunks and
-        // upsert embeddings via EmbeddingIndexService.indexAll(modelCode).
-        if ( rebuildService != null ) {
-            rebuildService.setEmbeddingHook( indexService, modelCode );
-        }
-
-        // Query-side wrapper with cache + timeout + circuit breaker.
-        final com.wikantik.search.hybrid.QueryEmbedderConfig qeCfg =
-            com.wikantik.search.hybrid.QueryEmbedderConfig.fromProperties( props );
-        final com.wikantik.search.hybrid.QueryEmbedder embedder =
-            new com.wikantik.search.hybrid.QueryEmbedder( client, qeCfg, java.time.Clock.systemUTC() );
-        managers.put( com.wikantik.search.hybrid.QueryEmbedder.class, embedder );
-        this.hybridQueryEmbedder = embedder;
-
-        // Retrieval-side orchestrator: embed the query, run dense retrieval,
-        // fuse with BM25 via RRF. Fails closed to BM25-only when the embedding
-        // backend is unavailable. Reads the winner eval defaults directly so a
-        // fresh install gets the best-measured config with zero knobs.
-        final com.wikantik.search.hybrid.HybridConfig hybridCfg;
-        try {
-            hybridCfg = com.wikantik.search.hybrid.HybridConfig.fromProperties( props );
-        } catch( final IllegalArgumentException e ) {
-            LOG.warn( "Invalid hybrid retrieval configuration; hybrid search disabled: {}", e.getMessage() );
-            LOG.info( "Hybrid retrieval wired (embedding-only; search path NOT enabled)" );
-            return;
-        }
-        final com.wikantik.search.hybrid.DenseRetriever denseRetriever =
-            new com.wikantik.search.hybrid.DenseRetriever( vectorIndex,
-                hybridCfg.pageAggregation(), hybridCfg.denseChunkTop(), hybridCfg.densePageTop() );
-        final com.wikantik.search.hybrid.HybridFuser fuser =
-            new com.wikantik.search.hybrid.HybridFuser( hybridCfg.rrfK(),
-                hybridCfg.bm25Weight(), hybridCfg.denseWeight(), hybridCfg.rrfTruncate() );
-        final com.wikantik.search.hybrid.HybridSearchService hybridSearch =
-            new com.wikantik.search.hybrid.HybridSearchService( embedder, denseRetriever, fuser,
-                hybridCfg.enabled() );
-        managers.put( com.wikantik.search.hybrid.HybridSearchService.class, hybridSearch );
-
-        // One-shot bootstrap: if the embeddings table is empty for this model,
-        // kick off indexAll(modelCode) on a background thread. Idempotent —
-        // safe to call on every engine init; it latches after the first run.
-        final com.wikantik.search.embedding.BootstrapEmbeddingIndexer bootstrap =
-            new com.wikantik.search.embedding.BootstrapEmbeddingIndexer(
-                ds, indexService, modelCode, vectorIndex::reload );
-        managers.put( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class, bootstrap );
-        this.hybridBootstrapIndexer = bootstrap;
-        try {
-            bootstrap.startIfNeeded();
-        } catch( final RuntimeException e ) {
-            LOG.warn( "Embedding bootstrap start failed (model={}): {}", modelCode, e.getMessage(), e );
-        }
-
-        com.wikantik.search.hybrid.HybridMetricsBridge.register(
-            com.wikantik.api.observability.MeterRegistryHolder.get(),
-            embedder, bootstrap, vectorIndex );
-
-        LOG.info( "Hybrid retrieval wired (model={}, backend={}, vectorIndex.size={})",
-            modelCode, cfg.backend(), vectorIndex.size() );
-    }
-
-    /**
-     * Wires the Phase 2 entity-extraction pipeline: extractor backend (Claude
-     * or Ollama), async listener on {@code ChunkProjector}'s post-chunk sink,
-     * and the mention repository. Opt-in via
-     * {@code wikantik.knowledge.extractor.backend=claude|ollama|disabled}
-     * (default {@code disabled}) — a fresh deploy emits no proposals until an
-     * operator flips the flag.
-     */
-    @SuppressWarnings( "PMD.CloseResource" ) // Listener is stored as a field; lifecycle follows engine shutdown.
-    private void wireEntityExtraction( final Properties props,
-                                       final javax.sql.DataSource ds,
-                                       final com.wikantik.knowledge.chunking.ChunkProjector chunkProjector,
-                                       final com.wikantik.knowledge.chunking.ContentChunkRepository contentChunkRepo ) {
-        final com.wikantik.knowledge.extraction.EntityExtractorConfig extractorCfg =
-            com.wikantik.knowledge.extraction.EntityExtractorConfig.fromProperties( props );
-        if ( !extractorCfg.enabled() ) {
-            LOG.info( "Entity extraction disabled (wikantik.knowledge.extractor.backend=disabled)" );
-            return;
-        }
-        final java.util.Optional< com.wikantik.api.knowledge.EntityExtractor > extractorOpt =
-            com.wikantik.knowledge.extraction.EntityExtractorFactory.create( extractorCfg );
-        if ( extractorOpt.isEmpty() ) {
-            LOG.warn( "Entity extraction configured ({}), but no usable backend; skipping wiring",
-                      extractorCfg.backend() );
-            return;
-        }
-        final com.wikantik.knowledge.extraction.ChunkEntityMentionRepository mentionRepo =
-            new com.wikantik.knowledge.extraction.ChunkEntityMentionRepository( ds );
-        final com.wikantik.knowledge.KgNodeRepository kgNodes = persistenceSubsystem.kgNodes();
-        final com.wikantik.knowledge.KgProposalRepository kgProposals = persistenceSubsystem.kgProposals();
-        final com.wikantik.knowledge.KgRejectionRepository kgRejections = persistenceSubsystem.kgRejections();
-        final io.micrometer.core.instrument.MeterRegistry meter =
-            io.micrometer.core.instrument.Metrics.globalRegistry;
-
-        // KgExcludedPagesRepository is optional: present only when kgPolicyEnabled=true.
-        // Passing null is safe — both extraction components check for null before calling it.
-        final com.wikantik.kgpolicy.KgExcludedPagesRepository excludedPagesRepo =
-            getManager( com.wikantik.kgpolicy.KgExcludedPagesRepository.class );
-
-        final com.wikantik.knowledge.extraction.AsyncEntityExtractionListener listener =
-            new com.wikantik.knowledge.extraction.AsyncEntityExtractionListener(
-                extractorOpt.get(), extractorCfg, contentChunkRepo, mentionRepo,
-                kgNodes, kgProposals, kgRejections, meter, excludedPagesRepo );
-        this.entityExtractionListener = listener;
-        managers.put( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class, mentionRepo );
-        managers.put( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class, listener );
-
-        // Admin-triggered full-corpus extraction now runs through the per-page
-        // pipeline. The OllamaPageExtractor only supports an Ollama backend;
-        // when the save-time extractor is configured for a different backend
-        // (claude, disabled) we leave the indexer manager unregistered and the
-        // admin REST endpoint returns 503 — the same degraded state as before
-        // wiring landed. Production runs go through wikantik-extract-cli.
-        if ( "ollama".equalsIgnoreCase( extractorCfg.backend() ) ) {
-            wireBootstrapIndexer( props, ds, contentChunkRepo, mentionRepo, kgNodes,
-                                  excludedPagesRepo, extractorCfg );
-        } else {
-            LOG.info( "Bootstrap indexer not wired (backend={}); /admin/knowledge-graph/extract-mentions "
-                    + "will return 503 until an Ollama-backed extractor is configured",
-                extractorCfg.backend() );
-        }
-
-        // Compose with any existing post-chunk sink so embedding indexing and
-        // entity extraction both run on every save. Consumer.andThen catches
-        // exceptions from the first and still invokes the second? No — andThen
-        // propagates. Wrap the first so a listener crash can't poison the chain.
-        final java.util.function.Consumer< java.util.List< java.util.UUID > > prior =
-            this.hybridIndexListener;
-        final java.util.function.Consumer< java.util.List< java.util.UUID > > safePrior = prior == null
-            ? null
-            : ids -> {
-                try {
-                    prior.accept( ids );
-                } catch( final RuntimeException e ) {
-                    LOG.warn( "Hybrid index listener failed; entity extraction will still run: {}",
-                              e.getMessage(), e );
-                }
-            };
-        final java.util.function.Consumer< java.util.List< java.util.UUID > > composite =
-            safePrior == null ? listener : safePrior.andThen( listener );
-        chunkProjector.setPostChunkSink( composite );
-
-        final String modelLabel = "claude".equalsIgnoreCase( extractorCfg.backend() )
-            ? extractorCfg.claudeModel()
-            : extractorCfg.ollamaModel();
-        LOG.info( "Entity extraction wired (backend={}, model={}, threshold={}, timeoutMs={}, batchConcurrency={})",
-                  extractorCfg.backend(), modelLabel, extractorCfg.confidenceThreshold(),
-                  extractorCfg.timeoutMs(), extractorCfg.concurrency() );
-    }
-
-    /**
-     * Wires the per-page entity-extraction indexer that backs the
-     * {@code POST /admin/knowledge-graph/extract-mentions} REST trigger. The judge
-     * defaults to {@link com.wikantik.knowledge.extraction.NoOpProposalJudge}
-     * (accept everything) so admin-triggered runs match the production
-     * behaviour of the wikantik-extract-cli's default invocation. Operators
-     * who want a real judge should run the CLI instead — the REST surface is
-     * intentionally minimal.
-     *
-     * <p>Page-mean embeddings (used to fetch a per-page dictionary of nearby
-     * existing nodes) are not provided here — the admin trigger pays the
-     * dictionary lookup cost only via the CLI, which constructs a real
-     * {@link com.wikantik.knowledge.extraction.PageEmbeddingProvider}. For
-     * the REST surface, {@link com.wikantik.knowledge.extraction.PageEmbeddingProvider#EMPTY}
-     * is sufficient: the LLM still extracts cleanly without dictionary anchoring,
-     * just less aligned with existing nodes.</p>
-     */
-    private void wireBootstrapIndexer( final Properties props,
-                                       final javax.sql.DataSource ds,
-                                       final com.wikantik.knowledge.chunking.ContentChunkRepository chunkRepo,
-                                       final com.wikantik.knowledge.extraction.ChunkEntityMentionRepository mentionRepo,
-                                       final com.wikantik.knowledge.KgNodeRepository kgNodes,
-                                       final com.wikantik.kgpolicy.KgExcludedPagesRepository excludedPagesRepo,
-                                       final com.wikantik.knowledge.extraction.EntityExtractorConfig extractorCfg ) {
-        final java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
-        final int maxEntitiesPerPage = 12;
-        final int maxRelationsPerPage = 8;
-        final int dictionaryTopK = 0; // No PageEmbeddingProvider wired — top-K skipped anyway.
-
-        final com.wikantik.knowledge.extraction.PageExtractionResponseParser parser =
-            new com.wikantik.knowledge.extraction.PageExtractionResponseParser(
-                new com.wikantik.knowledge.extraction.EvidenceGroundingVerifier(),
-                maxEntitiesPerPage, maxRelationsPerPage );
-        final com.wikantik.knowledge.extraction.OllamaPageExtractor extractor =
-            new com.wikantik.knowledge.extraction.OllamaPageExtractor(
-                http, extractorCfg.ollamaBaseUrl(), extractorCfg.ollamaModel(),
-                extractorCfg.timeoutMs(), parser );
-
-        final com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer indexer =
-            new com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer(
-                extractor,
-                new com.wikantik.knowledge.extraction.NoOpProposalJudge(),
-                new com.wikantik.knowledge.extraction.ProposalConsolidator(),
-                new com.wikantik.knowledge.extraction.ProposalUpserter( persistenceSubsystem.kgProposals() ),
-                /*embeddingService*/ null,
-                /*embeddingRepo*/ null,
-                chunkRepo, mentionRepo, kgNodes,
-                new com.wikantik.knowledge.extraction.MentionAttributor(),
-                com.wikantik.knowledge.extraction.PageEmbeddingProvider.EMPTY,
-                excludedPagesRepo,
-                extractorCfg.concurrency(), dictionaryTopK,
-                maxEntitiesPerPage, maxRelationsPerPage );
-        managers.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class, indexer );
-        LOG.info( "Bootstrap indexer wired (model={}, concurrency={}, judge=none, "
-                + "maxEntitiesPerPage={}, maxRelationsPerPage={})",
-            extractorCfg.ollamaModel(), extractorCfg.concurrency(),
-            maxEntitiesPerPage, maxRelationsPerPage );
-    }
-
-    /**
-     * Wires the Phase 3 graph-aware rerank step: loads {@code kg_edges} into
-     * an {@link com.wikantik.search.hybrid.InMemoryGraphNeighborIndex}, builds
-     * the name-based {@link com.wikantik.search.hybrid.QueryEntityResolver},
-     * and registers a {@link com.wikantik.search.hybrid.GraphRerankStep} for
-     * {@link com.wikantik.rest.SearchResource} to pick up. The feature is
-     * config-gated: {@code wikantik.search.graph.boost=0} skips wiring
-     * entirely so a fresh deploy pays zero cost until an operator opts in.
-     */
-    private void wireGraphRerank( final Properties props, final javax.sql.DataSource ds ) {
-        final com.wikantik.search.hybrid.GraphRerankConfig cfg;
-        try {
-            cfg = com.wikantik.search.hybrid.GraphRerankConfig.fromProperties( props );
-        } catch ( final IllegalArgumentException e ) {
-            LOG.warn( "Invalid graph rerank config; feature disabled: {}", e.getMessage() );
-            return;
-        }
-        if ( !cfg.enabled() ) {
-            LOG.info( "Graph rerank disabled (wikantik.search.graph.boost=0)" );
-            return;
-        }
-        final com.wikantik.search.hybrid.InMemoryGraphNeighborIndex neighborIndex;
-        try {
-            neighborIndex = new com.wikantik.search.hybrid.InMemoryGraphNeighborIndex( ds, cfg.neighborIndexMaxEdges() );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "Graph neighbor index failed to initialize; graph rerank disabled: {}", e.getMessage(), e );
-            return;
-        }
-        final com.wikantik.search.hybrid.GraphProximityScorer scorer =
-            new com.wikantik.search.hybrid.GraphProximityScorer( neighborIndex );
-        final com.wikantik.search.hybrid.QueryEntityResolver resolver =
-            new com.wikantik.search.hybrid.QueryEntityResolver( ds, cfg );
-        final com.wikantik.search.hybrid.PageMentionsLoader mentionsLoader =
-            new com.wikantik.search.hybrid.PageMentionsLoader( ds );
-        final com.wikantik.search.hybrid.GraphRerankStep step =
-            new com.wikantik.search.hybrid.GraphRerankStep( resolver, mentionsLoader, scorer, neighborIndex, cfg );
-
-        managers.put( com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class, neighborIndex );
-        managers.put( com.wikantik.search.hybrid.GraphNeighborIndex.class, neighborIndex );
-        managers.put( com.wikantik.search.hybrid.GraphProximityScorer.class, scorer );
-        managers.put( com.wikantik.search.hybrid.QueryEntityResolver.class, resolver );
-        managers.put( com.wikantik.search.hybrid.PageMentionsLoader.class, mentionsLoader );
-        managers.put( com.wikantik.search.hybrid.GraphRerankStep.class, step );
-
-        LOG.info( "Graph rerank wired (boost={}, maxHops={}, indexNodes={})",
-            cfg.boost(), cfg.maxHops(), neighborIndex.nodeCount() );
-    }
-
-    /**
-     * Phase 5 of the Agent-Grade Content design — registers the
-     * {@link com.wikantik.api.eval.RetrievalQualityRunner} so the
-     * {@code /admin/retrieval-quality} endpoint and the nightly schedule
-     * have a backend. The runner pulls one query at a time through BM25,
-     * HYBRID, or HYBRID_GRAPH via the live {@link SearchManager} /
-     * {@link com.wikantik.search.hybrid.HybridSearchService} /
-     * {@link com.wikantik.search.hybrid.GraphRerankStep} stack.
-     *
-     * <p>The schedule activates only when {@code wikantik.retrieval.cron.enabled=true}
-     * (default). Disable the cron in test harnesses without a live search
-     * index to avoid noisy failures.</p>
-     */
-    private void wireRetrievalQualityRunner( final Properties props,
-                                              final javax.sql.DataSource ds,
-                                              final com.wikantik.api.pagegraph.StructuralIndexService structuralIndex ) {
-        try {
-            final com.wikantik.knowledge.eval.RetrievalQualityDao rqDao =
-                new com.wikantik.knowledge.eval.RetrievalQualityDao( ds );
-            final com.wikantik.knowledge.eval.RetrievalQualityMetrics rqMetrics =
-                com.wikantik.knowledge.eval.RetrievalQualityMetrics.resolveAndBind();
-            final com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner.Retriever retriever =
-                buildRetriever();
-            final com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner.CanonicalIdResolver resolver =
-                slug -> structuralIndex.resolveCanonicalIdFromSlug( slug );
-            final int hour = TextUtil.getIntegerProperty( props, "wikantik.retrieval.cron.hour_utc", 3 );
-            final com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner runner =
-                new com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner(
-                    rqDao, retriever, resolver, rqMetrics, hour );
-            managers.put( com.wikantik.api.eval.RetrievalQualityRunner.class, runner );
-
-            if ( TextUtil.getBooleanProperty( props, "wikantik.retrieval.cron.enabled", true ) ) {
-                runner.scheduleNightly();
-                LOG.info( "RetrievalQualityRunner registered with nightly schedule (hour={}Z)", hour );
-            } else {
-                LOG.info( "RetrievalQualityRunner registered (nightly schedule disabled by config)" );
-            }
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "RetrievalQualityRunner wiring failed; /admin/retrieval-quality will return 503: {}",
-                e.getMessage(), e );
-        }
-    }
-
-    /**
-     * Bridge the live search stack to the {@link
-     * com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner.Retriever}
-     * functional interface. BM25 calls {@link SearchManager#findPages} and
-     * extracts page-name strings; HYBRID passes those through the hybrid
-     * fuser; HYBRID_GRAPH adds the graph rerank step. Any throw collapses to
-     * an empty list — the runner records {@code degraded=true} on the row.
-     */
-    private com.wikantik.knowledge.eval.DefaultRetrievalQualityRunner.Retriever buildRetriever() {
-        return ( mode, query ) -> {
-            final SearchManager sm = getManager( SearchManager.class );
-            if ( sm == null ) return java.util.List.of();
-            final com.wikantik.api.core.Context ctx;
-            try {
-                final PageManager pm = getManager( PageManager.class );
-                final com.wikantik.api.core.Page front = pm == null ? null : pm.getPage( getFrontPage() );
-                ctx = front == null ? null : new WikiContext( this, front );
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "Could not build evaluation Context; aborting query: {}", e.getMessage() );
-                return java.util.List.of();
-            }
-            if ( ctx == null ) return java.util.List.of();
-            final java.util.List< String > bm25Names;
-            try {
-                final java.util.Collection< com.wikantik.api.search.SearchResult > raw =
-                    sm.findPages( query, ctx );
-                bm25Names = new java.util.ArrayList<>( raw.size() );
-                for ( final com.wikantik.api.search.SearchResult sr : raw ) {
-                    if ( sr.getPage() != null ) bm25Names.add( sr.getPage().getName() );
-                }
-            } catch ( final Exception e ) {
-                LOG.warn( "BM25 findPages failed for '{}': {}", query, e.getMessage(), e );
-                return java.util.List.of();
-            }
-            switch ( mode ) {
-                case BM25:
-                    return bm25Names;
-                case HYBRID: {
-                    final com.wikantik.search.hybrid.HybridSearchService hs =
-                        getManager( com.wikantik.search.hybrid.HybridSearchService.class );
-                    return hs == null ? bm25Names : hs.rerank( query, bm25Names );
-                }
-                case HYBRID_GRAPH: {
-                    final com.wikantik.search.hybrid.HybridSearchService hs =
-                        getManager( com.wikantik.search.hybrid.HybridSearchService.class );
-                    final java.util.List< String > fused = hs == null ? bm25Names : hs.rerank( query, bm25Names );
-                    final com.wikantik.search.hybrid.GraphRerankStep gr =
-                        getManager( com.wikantik.search.hybrid.GraphRerankStep.class );
-                    return gr == null ? fused : gr.rerank( query, fused );
-                }
-                default:
-                    return bm25Names;
-            }
-        };
-    }
 
     /** {@inheritDoc} */
     @Override

@@ -537,6 +537,116 @@
   font-style: italic;
 }
 
+/* ============================================================
+   AdminTable — bulk-action primitives (Ckpt 1)
+   ============================================================ */
+
+/* CSS custom properties for selection-bar theming */
+:root {
+  --selection-bar-bg: #f0ede6;
+  --selection-bar-border: var(--border-strong, #D0C8BC);
+  --selection-bar-accent: var(--accent, #C45D3E);
+}
+
+[data-theme="dark"] {
+  --selection-bar-bg: #2a2825;
+  --selection-bar-border: #44403c;
+}
+
+/* Table density variants */
+.admin-table--compact .admin-table td,
+.admin-table--compact .admin-table th {
+  height: 32px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.admin-table--comfortable .admin-table td,
+.admin-table--comfortable .admin-table th {
+  height: 44px;
+}
+
+/* Selection bar */
+.admin-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  margin-bottom: 8px;
+  background: var(--selection-bar-bg);
+  border: 1px solid var(--selection-bar-border);
+  border-left: 3px solid var(--selection-bar-accent);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Floating variant (when scrolled past natural bar position) */
+.admin-selection-bar--floating {
+  box-shadow: 0 4px 16px var(--shadow-strong);
+}
+
+.admin-selection-bar__count {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  padding-right: 8px;
+  border-right: 1px solid var(--selection-bar-border);
+}
+
+.admin-selection-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.admin-selection-bar__clear {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+
+/* Row status icons during dispatch */
+.admin-row-status-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  font-size: 12px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.admin-row-status-icon--pending {
+  border: 2px solid var(--text-muted);
+  animation: spin 1s linear infinite;
+}
+
+.admin-row-status-icon--done {
+  background: var(--sage);
+  color: #fff;
+}
+
+.admin-row-status-icon--failed {
+  background: #C44;
+  color: #fff;
+  cursor: help;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Indeterminate checkbox dash affordance — browsers handle :indeterminate
+   natively; this class is available if JS wants to style it explicitly */
+.admin-checkbox-indeterminate {
+  accent-color: var(--accent);
+}
+
 /* Version management */
 .version-lookup {
   display: flex;

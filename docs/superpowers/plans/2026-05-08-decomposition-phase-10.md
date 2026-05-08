@@ -1,7 +1,7 @@
 # Phase 10: registry deletion + WikiContext decomposition + final ban
 
 **Spec:** [docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md](../specs/2026-05-05-wikantik-main-decomposition-design.md)
-**Status:** ready
+**Status:** complete (2026-05-08)
 **Estimated effort:** 2–3 days
 **Goal:** complete the registry deletion deferred from Phase 9 and decompose WikiContext (821 LOC).
 

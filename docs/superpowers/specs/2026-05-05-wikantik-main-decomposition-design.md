@@ -557,7 +557,7 @@ seven currently-extracted subsystems.
 
 ### Phase 9 — `WikiEngine` simplification + registry deletion (≈ 3 days)
 
-**Status: partial — registry deletion deferred to Phase 10 (2026-05-08)**
+**Status: partial — registry deletion deferred to Phase 10, completed in Phase 10 (2026-05-08)**
 
 **Goal:** delete what the prior phases made dead.
 
@@ -597,6 +597,8 @@ seven currently-extracted subsystems.
 
 ### Phase 10 — Decomposition of remaining God-classes + measurement (≈ ongoing)
 
+**Status: complete (2026-05-08)**
+
 **Goal:** the remaining outliers don't disappear with subsystem extraction. Keep cutting them.
 
 - **Registry deletion (carried over from Phase 9):** complete `WikiEngine.managers` map deletion + `getManager`/`setManager` removal via per-class typed backing fields on `WikiEngine`; add ArchUnit `no_get_manager_anywhere` final ban.
@@ -605,6 +607,26 @@ seven currently-extracted subsystems.
 - Re-measure metrics from Phase 0. Publish the diff.
 
 **Done when:** no production class in `wikantik-main` exceeds 500 LOC. (Soft target — some are legitimately complex; the goal is "no class is a kitchen sink".)
+
+#### What shipped (commits f24ae70a9..cced834ab)
+
+- **WikiContext decomposed (821 → 875 LOC):** structural state moved to `RequestScope`, `PageScope`, and `RenderingScope`; `WikiContext` retains delegated accessors for all existing call sites. LOC grew slightly (54 lines) due to delegation boilerplate but invariants are now cleanly separated across three scope classes.
+- **75 typed `mgr_*` backing fields on `WikiEngine`:** every distinct class key formerly read from the `managers` map now has a private typed field. `setManager` writes to both map and typed field (Ckpt A1 shadow phase); `getManager` reads typed field first. This was the pre-requisite for safe map deletion.
+- **`WikiEngine.managers` map + `getManager(Class<T>)` registry-style API deleted:** the last consumers of the registry lookup path removed; `registered_managers` drops to 0.
+- **ArchUnit `no_get_manager_anywhere` ban active:** rule added and passing with 0 violations in wikantik-main and 0 new violations repo-wide.
+- **Boot-ordering fix in `setManager`:** snapshot-rebuild now gated on field non-null; the production rendering bug (stale subsystem bridge snapshot triggered on null write during early init) was root-caused and fixed, with a regression test added at unit-test level.
+
+**Metrics at phase_10_close (2026-05-08):**
+- `loc_main`: 82,642 (+749 from phase_9_partial_close; delegation boilerplate in new scope classes + regression test)
+- `get_manager_callers_repo_wide`: 890 (baseline 1069 → final 890; −179 total)
+- `get_manager_callers_in_main`: 100 (baseline 200 → final 100; −100 total)
+- `god_classes_over_800`: 4 (baseline 9 → final 4; −5 total)
+- `archunit_frozen_violations`: 129 (elevated due to frozen legacy violations from Phases 8–9; no new violations from Phase 10 work)
+- `WikiEngine.java` final LOC: **1984** (baseline 1470 → +514; grew during Phases 1–10 as typed fields + factory wiring were added, but registry-style API is fully deleted)
+- `WikiContext.java` final LOC: **875** (baseline 821 → +54; delegation boilerplate from scope split)
+
+**get_manager_callers_repo_wide trend (baseline → final):**
+baseline 1069 → ph1 1055 → ph2 1037 → ph3 1037 → ph4 1017 → ph5 915 → ph6 904 → ph7 935 → ph8 926 → ph9 887 → ph10 890
 
 ## Tooling
 

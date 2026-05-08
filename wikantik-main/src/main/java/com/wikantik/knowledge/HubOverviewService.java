@@ -28,6 +28,7 @@ import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -245,7 +246,7 @@ public class HubOverviewService {
      */
     private static com.wikantik.api.knowledge.KgNode synthesizeHubNode( final String hubName ) {
         return new com.wikantik.api.knowledge.KgNode(
-            java.util.UUID.nameUUIDFromBytes( ( "frontmatter-hub:" + hubName ).getBytes() ),
+            java.util.UUID.nameUUIDFromBytes( ( "frontmatter-hub:" + hubName ).getBytes( StandardCharsets.UTF_8 ) ),
             hubName,
             "hub",
             hubName,

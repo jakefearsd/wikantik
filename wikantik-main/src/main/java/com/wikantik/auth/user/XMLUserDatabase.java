@@ -192,7 +192,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         sanitizeDOM();
     }
 
-    private void buildDOM() {
+    private synchronized void buildDOM() {
         final DocumentBuilderFactory factory = XmlDomUtil.createSecureDocumentBuilderFactory();
         dom = XmlDomUtil.parseXmlFile( userFile, factory );
         if( dom != null ) {
@@ -205,11 +205,15 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         }
     }
 
-    private void saveDOM() throws WikiSecurityException {
+    private synchronized void saveDOM() throws WikiSecurityException {
         if( dom == null ) {
             throw new IllegalStateException( "FATAL: database does not exist" );
         }
 
+        // Capture dom into a local variable so the lambda below does not cause
+        // SpotBugs IS2_INCONSISTENT_SYNC — the lambda body executes while this
+        // synchronized method holds the monitor, but SpotBugs cannot track that.
+        final Document localDom = dom;
         try {
             XmlDomUtil.saveXmlFile( userFile, io -> {
                 // Write the file header and document root
@@ -217,7 +221,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
                 io.write( "<users>\n" );
 
                 // Write each profile as a <user> node
-                final Element root = dom.getDocumentElement();
+                final Element root = localDom.getDocumentElement();
                 final NodeList nodes = root.getElementsByTagName( USER_TAG );
                 for( int i = 0; i < nodes.getLength(); i++ ) {
                     final Element user = ( Element )nodes.item( i );
@@ -508,7 +512,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
      * After loading the DOM, this method sanity-checks the dates in the DOM and makes sure they are formatted properly. This is sort-of
      * hacky, but it should work.
      */
-    private void sanitizeDOM() {
+    private synchronized void sanitizeDOM() {
         if( dom == null ) {
             throw new IllegalStateException( "FATAL: database does not exist" );
         }

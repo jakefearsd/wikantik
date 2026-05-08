@@ -109,7 +109,7 @@ public class LuceneSearchProvider implements SearchProvider {
     private static final String LUCENE_DIR = "lucene";
 
     /** These attachment file suffixes will be indexed. */
-    public static final String[] SEARCHABLE_FILE_SUFFIXES = DefaultLuceneIndexer.SEARCHABLE_FILE_SUFFIXES;
+    public static final java.util.List<String> SEARCHABLE_FILE_SUFFIXES = DefaultLuceneIndexer.SEARCHABLE_FILE_SUFFIXES;
 
     // -------------------------------------------------------------------------
     // Lucene field names (public so tests and external tools can reference them)

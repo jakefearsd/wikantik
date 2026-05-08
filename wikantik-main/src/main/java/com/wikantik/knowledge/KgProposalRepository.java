@@ -248,11 +248,18 @@ public final class KgProposalRepository {
             throw new IllegalArgumentException( "verdict must be approved|rejected|abstain, got: " + verdict );
         }
 
-        final String sql = "UPDATE kg_proposals SET " +
+        // Two constant SQL templates — one that also flips the human-visible status
+        // (rejected), one that does not (approved / abstain). Neither template
+        // contains any runtime-variable fragment, so there is no SQL-injection risk.
+        final String sqlWithStatus =
+            "UPDATE kg_proposals SET " +
             "machine_status = ?, machine_confidence = ?, machine_judged_at = NOW(), " +
-            "machine_model = ?, tier = ?" +
-            ( newStatus != null ? ", status = ?" : "" ) +
-            " WHERE id = ?";
+            "machine_model = ?, tier = ?, status = ? WHERE id = ?";
+        final String sqlNoStatus =
+            "UPDATE kg_proposals SET " +
+            "machine_status = ?, machine_confidence = ?, machine_judged_at = NOW(), " +
+            "machine_model = ?, tier = ? WHERE id = ?";
+        final String sql = newStatus != null ? sqlWithStatus : sqlNoStatus;
         try ( Connection c = dataSource.getConnection();
               PreparedStatement ps = c.prepareStatement( sql ) ) {
             int idx = 1;

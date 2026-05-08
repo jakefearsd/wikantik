@@ -98,10 +98,10 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
     public static final String LUCENE_PAGE_SUMMARY  = "summary";
 
     /** Attachment file suffixes eligible for full-text indexing. */
-    public static final String[] SEARCHABLE_FILE_SUFFIXES = {
+    public static final List<String> SEARCHABLE_FILE_SUFFIXES = List.of(
             ".txt", ".ini", ".xml", ".html", "htm", ".mm", ".htm",
             ".xhtml", ".java", ".c", ".cpp", ".php", ".asm", ".sh",
-            ".properties", ".kml", ".gpx", ".loc", ".md", ".xml" };
+            ".properties", ".kml", ".gpx", ".loc", ".md", ".xml" );
 
     private final Supplier<String> directorySupplier;
     private final LuceneIndexLifecycle lifecycle;
@@ -530,7 +530,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
     @Override
     public String getAttachmentContent( final Attachment att ) {
         final String filename = att.getFileName();
-        final boolean searchSuffix = Arrays.stream( SEARCHABLE_FILE_SUFFIXES ).anyMatch( filename::endsWith );
+        final boolean searchSuffix = SEARCHABLE_FILE_SUFFIXES.stream().anyMatch( filename::endsWith );
         if ( searchSuffix ) {
             try ( InputStream attStream = attachmentManager.getAttachmentStream( att );
                   StringWriter sout = new StringWriter() ) {

@@ -130,8 +130,11 @@ public class WikiEngine implements Engine {
 
     /** Knowledge subsystem services produced by {@code KnowledgeSubsystemFactory}.
      *  Phase 1 of the wikantik-main decomposition (2026-05-05). Ckpt A2: all
-     *  KG-flavored service registrations go through typed backing fields. */
-    private com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services knowledgeSubsystem;
+     *  KG-flavored service registrations go through typed backing fields.
+     *  Volatile: written once during init (unsynchronized path in initialize())
+     *  and read from both the unsynchronized wireLuceneMltPostConstruction helper
+     *  and the synchronized patchContextRetrievalService method. */
+    private volatile com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services knowledgeSubsystem;
 
     /** Core subsystem services produced by {@code CoreSubsystemFactory}.
      *  Phase 2 of the wikantik-main decomposition (2026-05-06); foundation

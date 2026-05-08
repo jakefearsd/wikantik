@@ -28,14 +28,15 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.user.UserDatabase;
-import com.wikantik.api.managers.PageManager;
+import com.wikantik.context.PageScope;
+import com.wikantik.context.RenderingScope;
+import com.wikantik.context.RequestScope;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.ui.CommandResolver;
 import com.wikantik.ui.GenericCommand;
@@ -58,23 +59,24 @@ import java.util.PropertyPermission;
  *  WikiSession contains information about the user's authentication status, and is consulted by {@link #getCurrentUser()} object.</p>
  *  <p>Do not cache the page object that you get from the WikiContext; always use getPage()!</p>
  *
+ *  <p>Internally, state is split across three scoped sub-objects:
+ *  {@link RequestScope} (HTTP request, session, variables, command resolver),
+ *  {@link PageScope} (current page, real page), and
+ *  {@link RenderingScope} (template).
+ *  All public methods of this class delegate to the appropriate scope.
+ *  </p>
+ *
  *  @see com.wikantik.plugin.Counter
  */
 public class WikiContext implements Context, Command {
 
     private Command  command;
-    private WikiPage page;
-    private WikiPage realPage;
     private Engine   engine;
-    private final CommandResolver commandResolver;
-    private String   template = "default";
 
-    private HashMap< String, Object > variableMap = new HashMap<>();
-
-    /** Stores the HttpServletRequest.  May be null, if the request did not come from a servlet. */
-    protected HttpServletRequest request;
-
-    private Session session;
+    /** The three scoped sub-objects that hold the decomposed state. */
+    private RequestScope   requestScope;
+    private PageScope      pageScope;
+    private RenderingScope renderingScope;
 
     /** User is doing administrative things. */
     public static final String ADMIN = ContextEnum.WIKI_ADMIN.getRequestContext();
@@ -202,33 +204,36 @@ public class WikiContext implements Context, Command {
             throw new IllegalArgumentException( "Parameter engine and command must not be null." );
         }
 
-        this.engine = engine;
-        this.request = request;
-        this.commandResolver = commandResolver;
-        this.session = Wiki.session().find( engine, request );
+        this.engine  = engine;
         this.command = command;
 
-        // If PageCommand, get the WikiPage
+        final Session session = Wiki.session().find( engine, request );
+
+        // Resolve initial page from command
+        WikiPage initialPage = null;
         if( command instanceof GenericCommand gc && gc.isPageCommand() ) {
-            this.page = ( WikiPage )gc.getTarget();
+            initialPage = ( WikiPage )gc.getTarget();
         }
 
         // If page not supplied, default to front page to avoid NPEs
-        if( this.page == null ) {
-            this.page = ( WikiPage )PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( engine.getFrontPage() );
+        if( initialPage == null ) {
+            initialPage = ( WikiPage )PageSubsystemBridge.fromLegacyEngine( engine ).pages().getPage( engine.getFrontPage() );
 
             // Front page does not exist?
-            if( this.page == null ) {
-                this.page = ( WikiPage )Wiki.contents().page( engine, engine.getFrontPage() );
+            if( initialPage == null ) {
+                initialPage = ( WikiPage )Wiki.contents().page( engine, engine.getFrontPage() );
             }
         }
 
-        this.realPage = this.page;
-
         // Special case: retarget any empty 'view' PageCommands to the front page
         if ( GenericCommand.PAGE_VIEW.equals( command ) && command.getTarget() == null ) {
-            this.command = command.targetedCommand( this.page );
+            this.command = command.targetedCommand( initialPage );
         }
+
+        // Initialise the three scopes
+        this.requestScope   = new RequestScope( request, ( WikiSession )session, commandResolver, new HashMap<>() );
+        this.pageScope      = new PageScope( initialPage, initialPage );
+        this.renderingScope = new RenderingScope( "default" );
 
         // Debugging...
         final HttpSession httpSession = ( request == null ) ? null : request.getSession( false );
@@ -269,6 +274,41 @@ public class WikiContext implements Context, Command {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Scope accessors — expose the three sub-objects for callers that need them
+    // -----------------------------------------------------------------------
+
+    /**
+     * Returns the {@link RequestScope} for this context.
+     *
+     * @return the request scope; never {@code null}
+     */
+    public RequestScope getRequestScope() {
+        return requestScope;
+    }
+
+    /**
+     * Returns the {@link PageScope} for this context.
+     *
+     * @return the page scope; never {@code null}
+     */
+    public PageScope getPageScope() {
+        return pageScope;
+    }
+
+    /**
+     * Returns the {@link RenderingScope} for this context.
+     *
+     * @return the rendering scope; never {@code null}
+     */
+    public RenderingScope getRenderingScope() {
+        return renderingScope;
+    }
+
+    // -----------------------------------------------------------------------
+    // Command interface delegates
+    // -----------------------------------------------------------------------
+
     /**
      * {@inheritDoc}
      * @see com.wikantik.api.core.Command#getContentTemplate()
@@ -289,6 +329,10 @@ public class WikiContext implements Context, Command {
         return command.getRoutePath();
     }
 
+    // -----------------------------------------------------------------------
+    // PageScope delegates
+    // -----------------------------------------------------------------------
+
     /**
      *  Sets a reference to the real page whose content is currently being rendered.
      *  <p>
@@ -304,8 +348,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public WikiPage setRealPage( final Page page ) {
-        final WikiPage old = realPage;
-        realPage = ( WikiPage )page;
+        final WikiPage old = pageScope.setRealPage( ( WikiPage )page );
         updateCommand( command.getRequestContext() );
         return old;
     }
@@ -324,7 +367,7 @@ public class WikiContext implements Context, Command {
     @Override
     public WikiPage getRealPage()
     {
-        return realPage;
+        return pageScope.getRealPage();
     }
 
     /**
@@ -335,14 +378,14 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public String getRedirectURL() {
-        final String pagename = page.getName();
-        String redirURL = commandResolver.getSpecialPageReference( pagename );
+        final String pagename = pageScope.getPage().getName();
+        String redirURL = requestScope.getCommandResolver().getSpecialPageReference( pagename );
         if( redirURL == null ) {
-            final String alias = page.getAttribute( WikiPage.ALIAS );
+            final String alias = pageScope.getPage().getAttribute( WikiPage.ALIAS );
             if( alias != null ) {
                 redirURL = getViewURL( alias );
             } else {
-                redirURL = page.getAttribute( WikiPage.REDIRECT );
+                redirURL = pageScope.getPage().getAttribute( WikiPage.REDIRECT );
             }
         }
 
@@ -367,7 +410,7 @@ public class WikiContext implements Context, Command {
     @Override
     public final WikiPage getPage()
     {
-        return page;
+        return pageScope.getPage();
     }
 
     /**
@@ -378,9 +421,13 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public void setPage( final Page page ) {
-        this.page = (WikiPage)page;
+        pageScope.setPage( ( WikiPage )page );
         updateCommand( command.getRequestContext() );
     }
+
+    // -----------------------------------------------------------------------
+    // Command / request-context delegates
+    // -----------------------------------------------------------------------
 
     /**
      *  Returns the request context.
@@ -424,6 +471,10 @@ public class WikiContext implements Context, Command {
         return command.getURLPattern();
     }
 
+    // -----------------------------------------------------------------------
+    // RequestScope delegates — variables, HTTP, session
+    // -----------------------------------------------------------------------
+
     /**
      *  Gets a previously set variable.
      *
@@ -431,9 +482,8 @@ public class WikiContext implements Context, Command {
      *  @return The variable contents.
      */
     @Override
-    @SuppressWarnings( "unchecked" )
     public < T > T getVariable( final String key ) {
-        return ( T )variableMap.get( key );
+        return requestScope.getVariable( key );
     }
 
     /**
@@ -445,7 +495,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public void setVariable( final String key, final Object data ) {
-        variableMap.put( key, data );
+        requestScope.setVariable( key, data );
         updateCommand( command.getRequestContext() );
     }
 
@@ -478,12 +528,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public String getHttpParameter( final String paramName ) {
-        String result = null;
-        if( request != null ) {
-            result = request.getParameter( paramName );
-        }
-
-        return result;
+        return requestScope.getHttpParameter( paramName );
     }
 
     /**
@@ -496,8 +541,12 @@ public class WikiContext implements Context, Command {
     @Override
     public HttpServletRequest getHttpRequest()
     {
-        return request;
+        return requestScope.getHttpRequest();
     }
+
+    // -----------------------------------------------------------------------
+    // RenderingScope delegates — template
+    // -----------------------------------------------------------------------
 
     /**
      *  Sets the template to be used for this request.
@@ -508,7 +557,7 @@ public class WikiContext implements Context, Command {
     @Override
     public void setTemplate( final String dir )
     {
-        template = dir;
+        renderingScope.setTemplate( dir );
     }
 
     /**
@@ -525,7 +574,7 @@ public class WikiContext implements Context, Command {
     @Override
     public final String getName() {
         if ( command instanceof GenericCommand gc3 && gc3.isPageCommand() ) {
-            return page != null ? page.getName() : "<no page>";
+            return pageScope.getPage() != null ? pageScope.getPage().getName() : "<no page>";
         }
         return command.getName();
     }
@@ -539,8 +588,12 @@ public class WikiContext implements Context, Command {
     @Override
     public String getTemplate()
     {
-        return template;
+        return renderingScope.getTemplate();
     }
+
+    // -----------------------------------------------------------------------
+    // Session / auth delegates
+    // -----------------------------------------------------------------------
 
     /**
      *  Convenience method that gets the current user. Delegates the lookup to the WikiSession associated with this WikiContect.
@@ -551,11 +604,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public Principal getCurrentUser() {
-        if (session == null) {
-            // This shouldn't happen, really...
-            return WikiPrincipal.GUEST;
-        }
-        return session.getUserPrincipal();
+        return requestScope.getCurrentUser();
     }
 
     /**
@@ -620,16 +669,19 @@ public class WikiContext implements Context, Command {
             // get the right type
             final WikiContext copy = (WikiContext)super.clone();
 
-            copy.engine = engine;
+            copy.engine  = engine;
             copy.command = command;
 
-            copy.template    = template;
-            copy.variableMap = variableMap;
-            copy.request     = request;
-            copy.session     = session;
-            copy.page        = page;
-            copy.realPage    = realPage;
-            // commandResolver is final — super.clone() already copies it
+            // Re-create scope objects so mutations on the clone do not affect the original.
+            // Shallow: variable map and page references are shared (same behaviour as before decomposition).
+            copy.requestScope   = new RequestScope(
+                    requestScope.getHttpRequest(),
+                    requestScope.getSession(),
+                    requestScope.getCommandResolver(),
+                    requestScope.getVariableMap() );
+            copy.pageScope      = new PageScope( pageScope.getPage(), pageScope.getRealPage() );
+            copy.renderingScope = new RenderingScope( renderingScope.getTemplate() );
+
             return copy;
         } catch( final CloneNotSupportedException e ) {
             LOG.warn( "WikiContext.clone() failed unexpectedly: {}", e.getMessage() );
@@ -656,14 +708,16 @@ public class WikiContext implements Context, Command {
             //  No need to deep clone these
             copy.engine  = engine;
             copy.command = command; // Static structure
-            // commandResolver is final — super.clone() already copies it
 
-            copy.template    = template;
-            copy.variableMap = (HashMap<String,Object>)variableMap.clone();
-            copy.request     = request;
-            copy.session     = session;
-            copy.page        = page.clone();
-            copy.realPage    = realPage.clone();
+            // Deep: clone the variable map and page objects; session + request + resolver are shared
+            copy.requestScope   = new RequestScope(
+                    requestScope.getHttpRequest(),
+                    requestScope.getSession(),
+                    requestScope.getCommandResolver(),
+                    (HashMap<String, Object>) requestScope.getVariableMap().clone() );
+            copy.pageScope      = new PageScope( pageScope.getPage().clone(), pageScope.getRealPage().clone() );
+            copy.renderingScope = new RenderingScope( renderingScope.getTemplate() );
+
             return copy;
         }
         catch( final CloneNotSupportedException e ) {
@@ -682,7 +736,7 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public WikiSession getWikiSession() {
-        return ( WikiSession )session;
+        return requestScope.getSession();
     }
 
     /**
@@ -810,11 +864,11 @@ public class WikiContext implements Context, Command {
         if ( requestContext == null ) {
             command = GenericCommand.PAGE_NONE;
         } else {
-            command = commandResolver.findCommand( request, requestContext );
+            command = requestScope.getCommandResolver().findCommand( requestScope.getHttpRequest(), requestContext );
         }
 
-        if ( command instanceof GenericCommand gc5 && gc5.isPageCommand() && page != null ) {
-            command = command.targetedCommand( page );
+        if ( command instanceof GenericCommand gc5 && gc5.isPageCommand() && pageScope.getPage() != null ) {
+            command = command.targetedCommand( pageScope.getPage() );
         }
     }
 

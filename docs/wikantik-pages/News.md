@@ -6,6 +6,196 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-08** — phase 11 ckpt 8: close-out — static analysis cleanup complete
+
+**2026-05-08** — phase 11 ckpt 7: PMD lint sweep (continued)
+
+**2026-05-08** — phase 11 ckpt 7: PMD lint sweep
+
+**2026-05-08** — phase 11 ckpt 6: split top 3 god classes (HubOverview / DefaultKgService / BootstrapEntityExtractionIndexer)
+
+**2026-05-08** — refactor(decomp): Phase 11 Ckpt 5 — bridges delegate to factory.create
+
+**2026-05-08** — phase 11 ckpt 4: sweep PMD CloseResource sites
+
+**2026-05-08** — phase 11 ckpt 3: fix priority-1 + SECURITY + MT_CORRECTNESS SpotBugs findings
+
+**2026-05-08** — phase 11 ckpt 2: SpotBugs filter for record-exposes-component noise
+
+**2026-05-08** — phase 11 ckpt 1: replace WikiEngine.setManager switch with class→writer map
+
+**2026-05-08** — plan: phase 11 static-analysis cleanup — 8 checkpoints
+
+**2026-05-08** — phase 10 ckpt C: close-out — all 10 phases complete
+
+**2026-05-08** — phase 10 ckpt A2: delete WikiEngine.managers map; reads/writes go to typed fields
+
+**2026-05-08** — fix: setManager must not eagerly rebuild typed snapshots during boot
+
+**2026-05-08** — phase 10 ckpt A1: per-class typed backing fields on WikiEngine
+
+**2026-05-08** — phase 10 ckpt B: decompose WikiContext (821 LOC) into scoped subobjects
+
+**2026-05-08** — plan: phase 10 registry deletion + WikiContext decomposition
+
+**2026-05-08** — phase 9 ckpt 6: close-out — partial completion, registry deletion deferred
+
+**2026-05-08** — phase 9 ckpt 4d-iii: delete bridge registry-fallback paths
+
+**2026-05-08** — phase 9 ckpt 4d-ii: plumb wiring-helper getManager reads as method parameters
+
+**2026-05-08** — phase 9 ckpt 4d-i: typed registerX setters on WikiEngine; migrate setManager writes
+
+**2026-05-08** — phase 9 ckpt 4c-fix: assign knowledgeSubsystem snapshot AFTER wiring helpers
+
+**2026-05-08** — phase 9 ckpt 4c: slim WikiEngine.initialize by relocating wiring onto factories
+
+**2026-05-08** — phase 9 ckpt 4b: delete getManager(Class) from Engine interface
+
+**2026-05-08** — phase 9 ckpt 4a: bridges cast Engine to WikiEngine before getManager fallback
+
+**2026-05-08** — phase 9 ckpt 5 (partial): add WikiSubsystemsTestFactory
+
+**2026-05-08** — phase 9 ckpt 3.6: migrate Default*Manager cross-manager calls to bridges
+
+**2026-05-08** — phase 9 ckpt 3.5: expand Core/Auth Services + migrate residual 14 callers
+
+**2026-05-08** — phase 9 ckpt 3: bulk migrate ~11 wikantik-main callers to typed subsystem accessors
+
+**2026-05-07** — phase 9 ckpt 2: place NewsPageGenerator + CachingManager on existing Services
+
+**2026-05-07** — phase 9 ckpt 1: scaffold PageGraphSubsystem (Deps + Services + factory + bridge)
+
+**2026-05-07** — plan: phase 9 WikiEngine simplification + registry deletion — 6 checkpoints
+
+**2026-05-07** — phase 8 ckpt 2: close-out — Phase 8 complete, metrics captured
+
+**2026-05-07** — phase 8 ckpt 1.5 follow-up: WikiEngine.setManager invalidates expanded subsystem snapshots
+
+**2026-05-07** — phase 8 ckpt 1.5: expand Knowledge/Page Services + finish ~70 caller migration
+
+**2026-05-07** — phase 8 ckpt 1: migrate 7 getManager callers in REST + knowledge
+
+**2026-05-07** — plan: phase 8 ApiSubsystem cleanup — REST + MCP + tools + observability migration
+
+**2026-05-07** — phase 7 ckpt 5: close-out — Phase 7 complete, metrics captured
+
+**2026-05-07** — phase 7 ckpt 4: wire Lucene helpers + LuceneMlt into Services + Knowledge
+
+**2026-05-07** — phase 7 ckpt 3: decompose LuceneSearchProvider 1251 -> 724 LOC facade + 3 helpers
+
+**2026-05-07** — phase 7 ckpt 2: migrate 9 SearchManager getManager callers to SearchSubsystem
+
+**2026-05-07** — phase 7 ckpt 1: scaffold SearchSubsystem (Deps + Services + factory + bridge)
+
+**2026-05-07** — plan: phase 7 SearchSubsystem extraction + LuceneSearchProvider decomposition
+
+**2026-05-07** — phase-6 ckpt-5: close-out — Phase 6 complete, metrics captured
+
+**2026-05-07** — phase-6 ckpt-4: wire SpamFilter helpers into RenderingSubsystem.Services
+
+**2026-05-07** — phase-6 ckpt-3: decompose SpamFilter (1003 -> 339 LOC facade)
+
+**2026-05-07** — phase-6 ckpt-2: migrate ~29 rendering-manager getManager callers to RenderingSubsystem
+
+**2026-05-07** — phase-6 ckpt-1: scaffold RenderingSubsystem (rendering + plugin + filter + diff)
+
+**2026-05-07** — plan: phase 6 RenderingSubsystem extraction + SpamFilter decomposition
+
+**2026-05-07** — phase-5 ckpt-7: close-out — Phase 5 complete, metrics captured
+
+**2026-05-07** — phase-5 ckpt-6: KnowledgeSubsystem.Deps adopts PageSubsystem.Services
+
+**2026-05-07** — phase-5 ckpt-5: migrate AttachmentManager + PageRenamer callers to PageSubsystem
+
+**2026-05-07** — phase-5 ckpt-4: migrate ~91 PageManager getManager callers to PageSubsystem
+
+**2026-05-06** — phase-5 ckpt-3: decompose DefaultPageManager (784 -> 297 LOC facade)
+
+**2026-05-06** — phase-5 ckpt-2: lift PageProvider chain construction into PageSubsystemFactory
+
+**2026-05-06** — phase-5 ckpt-1: scaffold PageSubsystem (PageManager + Attachment + Renamer + Save + Provider)
+
+**2026-05-06** — plan: phase 5 PageSubsystem extraction + DefaultPageManager decomposition
+
+**2026-05-06** — phase-4 ckpt-4-6: close-out — Phase 4 complete, metrics captured
+
+**2026-05-06** — phase-4 ckpt-3: decompose SecurityVerifier (802 -> 278 LOC facade)
+
+**2026-05-06** — phase-4 ckpt-2: migrate 34 auth getManager callers to AuthSubsystem
+
+**2026-05-06** — phase-4 ckpt-1: scaffold AuthSubsystem (auth managers + apiKeys + verifier)
+
+**2026-05-06** — plan: phase 4 AuthSubsystem extraction
+
+**2026-05-06** — phase-3 ckpt-6: close-out — Phase 3 complete, metrics captured
+
+**2026-05-06** — phase-3 ckpt-5: delete the JdbcKnowledgeRepository facade
+
+**2026-05-06** — refactor(persistence): Ckpt 4 — migrate production consumers off JdbcKnowledgeRepository facade
+
+**2026-05-06** — phase-3 ckpt-3: decompose JdbcKnowledgeRepository (1561 -> 318 LOC)
+
+**2026-05-06** — phase-3 ckpt-2: route repository construction through PersistenceSubsystem
+
+**2026-05-06** — phase-3 ckpt-1: scaffold PersistenceSubsystem (DataSource + 13 repos)
+
+**2026-05-06** — plan: phase 3 PersistenceSubsystem extraction
+
+**2026-05-06** — phase-2 ckpt-7: close-out — Phase 2 complete, metrics captured
+
+**2026-05-06** — phase-2 ckpt-6: typed CoreSubsystem accessor + getManager fallback
+
+**2026-05-06** — phase-2 ckpt-5: KnowledgeSubsystem.Deps adopts CoreSubsystem.Services
+
+**2026-05-06** — phase-2 ckpt-4: migrate fireEvent callsites to typed WikiEventBus
+
+**2026-05-06** — phase-2 ckpt-3: migrate engine.getWikiProperties() callers to CoreSubsystem
+
+**2026-05-06** — phase-2 ckpt-2: migrate 22 leaf-manager getManager callers to CoreSubsystem
+
+**2026-05-06** — phase-2 ckpt-1: scaffold CoreSubsystem (typed properties, event bus, leaf services)
+
+**2026-05-06** — docs(decomposition): phase 2 implementation plan — CoreSubsystem
+
+**2026-05-05** — chore(decomposition): phase 1 close-out — metrics + summary
+
+**2026-05-05** — refactor(decomposition): delete KG bridge registrations (phase 1, ckpt 7)
+
+**2026-05-05** — refactor(decomposition): migrate the last 8 KG getManager callers (phase 1, ckpts 4-6)
+
+**2026-05-05** — refactor(decomposition): migrate wikantik-rest KG callers (phase 1, ckpt 3)
+
+**2026-05-05** — test(decomposition): KnowledgeSubsystem isolation test (phase 1, ckpt 2)
+
+**2026-05-05** — refactor(decomposition): KnowledgeSubsystem scaffolding (phase 1, ckpt 1)
+
+**2026-05-05** — docs(decomposition): phase 1 implementation plan — KnowledgeSubsystem
+
+**2026-05-05** — build(it): move cargo IT default port off 8080 -> 18080
+
+**2026-05-05** — test(arch): adopt ArchUnit + capture decomposition baseline (phase 0)
+
+**2026-05-05** — docs(decomposition): design spec for wikantik-main subsystem decomposition
+
+**2026-05-05** — content(hubs): topical hub indexes + content expansions
+
+**2026-05-05** — content(engineering): leadership, architecture practice, domain blueprints
+
+**2026-05-05** — content(wikantik): platform architecture, development docs, conventions
+
+**2026-05-05** — content(cs-math): foundational CS and math reference pages
+
+**2026-05-05** — content(history): Berlin and Portuguese history clusters
+
+**2026-05-05** — chore(main-page): regenerate Main.md to include WikantikPlatformHub + WikantikDevelopment
+
+**2026-05-04** — fix(kg-extraction): swallow chunk_entity_mentions FK violation on stale chunk
+
+**2026-05-04** — test: drive @Disabled and skip-by-assumption count to zero
+
+**2026-05-04** — feat(kg-judge): per-proposal read-timeout tracking + admin review surface
+
 **2026-05-04** — fix(test): re-enable ReleaseTest.testNewer6/testOlder6 at version 1.0.0
 
 **2026-05-04** — refactor(kg-judge): self-healing on transient unavailability — no DB writes, no recovery script
@@ -2624,72 +2814,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-11-08** — Merge pull request #414 from spyhunter99/feature/JSPWIKI-1218
 
 **2025-11-08** — Merge pull request #418 from spyhunter99/build/jdomRollback
-
-**2025-11-08** — slightly newer version of the nekohtml parser
-
-**2025-11-08** — whitespace to retrigger jenkins
-
-**2025-11-07** — and rolling back debug output during unit tests
-
-**2025-11-07** — NOJIRA rolls back the jdom dependency update. CI had green lights before merging, but it's definitely broke the build
-
-**2025-11-07** — Merge branch 'master' of https://github.com/apache/jspwiki
-
-**2025-11-07** — Merge branch 'master' into feature/JSPWIKI-1218
-
-**2025-11-07** — Merge pull request #159 from apache/dependabot/maven/org.jdom-jdom2-2.0.6.1
-
-**2025-11-07** — JSPWIKI-1218 updates the dependencies for Akismet. Confirmed working against their service
-
-**2025-11-07** — fixes the change log
-
-**2025-11-07** — Merge branch 'master' of https://github.com/apache/jspwiki
-
-**2025-11-07** — Merge branch 'master' of https://github.com/apache/jspwiki
-
-**2025-11-07** — Merge pull request #416 from spyhunter99/master
-
-**2025-11-07** — Bump jdom2 from 2.0.6 to 2.0.6.1
-
-**2025-11-07** — JSPWIKI-1218 removes the dependency for http commons client from 3.x to 5. Users of the captcha.jsp file may have some issues caused by this JSPWIKI-1219 SpamFilter Capcha capability via asirra.com is dead, removes all references to the asirra.com based spam filter (was discontinued in 2015)
-
-**2025-11-07** — JSPWIKI-1218 updates the dependency for http commons client from 3.x to 5.x. Oddly it doesn't seem like it's used anywhere. i'll try removing it entirely on the next commit
-
-**2025-11-07** — 3.0.0-git-03
-
-**2025-11-07** — Merge pull request #400 from apache/dependabot/maven/jakarta.mail-jakarta.mail-api-2.1.5
-
-**2025-11-07** — Merge pull request #410 from spyhunter99/feature/JSPWIKI-1183-if-with-ip-check
-
-**2025-11-07** — Merge branch 'master' into feature/JSPWIKI-1183-if-with-ip-check
-
-**2025-11-07** — Merge pull request #412 from spyhunter99/bug/JSPWIKI-1216
-
-**2025-11-07** — Merge pull request #413 from apache/bug/disableSecondRssTest
-
-**2025-11-07** — JSPWIKI-1183 another attempt to remove the duplicate test and get the ci builds working again
-
-**2025-11-07** — Merge pull request #404 from spyhunter99/bug/JSPWIKI-1207
-
-**2025-11-07** — Merge pull request #408 from spyhunter99/bug/JSPWIKI-1211
-
-**2025-11-07** — Merge branch 'master' into feature/JSPWIKI-1183-if-with-ip-check
-
-**2025-11-07** — Merge pull request #411 from spyhunter99/feature/JSPWIKI-615-docs
-
-**2025-11-07** — Merge pull request #409 from spyhunter99/feature/JSPWIKI-1213
-
-**2025-11-07** — temporarily turn on unit test output to diagnosis ci failures
-
-**2025-11-07** — temporarily turn on unit test output to diagnosis ci failures
-
-**2025-11-07** — temporarily turn on unit test output to diagnosis ci failures
-
-**2025-11-07** — JSPWIKI-1183 potential fix for the rss generator test failure when running in parallel. adds JDK25 check for security manager related behavior change
-
-**2025-11-07** — JSPWIKI-1183 potential fix for the rss generator test failure when running in parallel. adds JDK25 check for security manager related behavior change
-
-**2025-11-07** — JSPWIKI-1183 potential fix for the rss generator test failure when running in parallel
-
-**2025-11-07** — JSPWIKI-1217 should resolve the maven parallel build failure on the ci server.
 

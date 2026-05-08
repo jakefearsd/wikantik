@@ -120,7 +120,7 @@ public final class SearchWiringHelper {
 
         final EmbeddingIndexService indexService =
             new EmbeddingIndexService( ds, client, cfg.batchSize() );
-        engine.setManager( EmbeddingIndexService.class, indexService );
+        engine.registerEmbeddingIndexService( indexService );
 
         final InMemoryChunkVectorIndex vectorIndex;
         try {
@@ -130,8 +130,7 @@ public final class SearchWiringHelper {
                 + "hybrid retrieval disabled: {}", modelCode, e.getMessage(), e );
             return;
         }
-        engine.setManager( ChunkVectorIndex.class, vectorIndex );
-        engine.setManager( InMemoryChunkVectorIndex.class, vectorIndex );
+        engine.registerChunkVectorIndex( vectorIndex );
 
         final AsyncEmbeddingIndexListener listener =
             new AsyncEmbeddingIndexListener( indexService, modelCode );
@@ -146,7 +145,7 @@ public final class SearchWiringHelper {
         final QueryEmbedderConfig qeCfg = QueryEmbedderConfig.fromProperties( props );
         final QueryEmbedder embedder =
             new QueryEmbedder( client, qeCfg, java.time.Clock.systemUTC() );
-        engine.setManager( QueryEmbedder.class, embedder );
+        engine.registerQueryEmbedder( embedder );
         engine.setHybridQueryEmbedder( embedder );
 
         final HybridConfig hybridCfg;
@@ -165,11 +164,11 @@ public final class SearchWiringHelper {
                 hybridCfg.bm25Weight(), hybridCfg.denseWeight(), hybridCfg.rrfTruncate() );
         final HybridSearchService hybridSearch =
             new HybridSearchService( embedder, denseRetriever, fuser, hybridCfg.enabled() );
-        engine.setManager( HybridSearchService.class, hybridSearch );
+        engine.registerHybridSearchService( hybridSearch );
 
         final BootstrapEmbeddingIndexer bootstrap =
             new BootstrapEmbeddingIndexer( ds, indexService, modelCode, vectorIndex::reload );
-        engine.setManager( BootstrapEmbeddingIndexer.class, bootstrap );
+        engine.registerBootstrapEmbeddingIndexer( bootstrap );
         engine.setHybridBootstrapIndexer( bootstrap );
         try {
             bootstrap.startIfNeeded();
@@ -222,12 +221,11 @@ public final class SearchWiringHelper {
         final GraphRerankStep step =
             new GraphRerankStep( resolver, mentionsLoader, scorer, neighborIndex, cfg );
 
-        engine.setManager( InMemoryGraphNeighborIndex.class, neighborIndex );
-        engine.setManager( GraphNeighborIndex.class, neighborIndex );
-        engine.setManager( GraphProximityScorer.class, scorer );
-        engine.setManager( QueryEntityResolver.class, resolver );
-        engine.setManager( PageMentionsLoader.class, mentionsLoader );
-        engine.setManager( GraphRerankStep.class, step );
+        engine.registerGraphNeighborIndex( neighborIndex );
+        engine.registerGraphProximityScorer( scorer );
+        engine.registerQueryEntityResolver( resolver );
+        engine.registerPageMentionsLoader( mentionsLoader );
+        engine.registerGraphRerankStep( step );
 
         LOG.info( "Graph rerank wired (boost={}, maxHops={}, indexNodes={})",
             cfg.boost(), cfg.maxHops(), neighborIndex.nodeCount() );
@@ -255,7 +253,7 @@ public final class SearchWiringHelper {
             final int hour = TextUtil.getIntegerProperty( props, "wikantik.retrieval.cron.hour_utc", 3 );
             final DefaultRetrievalQualityRunner runner =
                 new DefaultRetrievalQualityRunner( rqDao, retriever, resolver, rqMetrics, hour );
-            engine.setManager( RetrievalQualityRunner.class, runner );
+            engine.registerRetrievalQualityRunner( runner );
 
             if ( TextUtil.getBooleanProperty( props, "wikantik.retrieval.cron.enabled", true ) ) {
                 runner.scheduleNightly();

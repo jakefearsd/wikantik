@@ -132,10 +132,10 @@ public final class KnowledgeWiringHelper {
                 new ReconciliationJobRunner( policy, excludedRepo, pagesByCluster );
             ReconciliationHook.install( reconciler::enqueue );
 
-            engine.setManager( KgInclusionPolicy.class, policy );
-            engine.setManager( KgClusterPolicyRepository.class, policyRepo );
-            engine.setManager( KgExcludedPagesRepository.class, excludedRepo );
-            engine.setManager( ReconciliationJobRunner.class, reconciler );
+            engine.registerKgInclusionPolicy( policy );
+            engine.registerKgClusterPolicyRepository( policyRepo );
+            engine.registerKgExcludedPagesRepository( excludedRepo );
+            engine.registerReconciliationJobRunner( reconciler );
 
             LOG.info( "KG inclusion policy wired (default-exclude active)" );
 
@@ -152,7 +152,7 @@ public final class KnowledgeWiringHelper {
                 engine.getManager( PageManager.class ),
                 engine.getManager( CachingManager.class ),
                 forAgentMetrics );
-        engine.setManager( ForAgentProjectionService.class, forAgentService );
+        engine.registerForAgentProjectionService( forAgentService );
         LOG.info( "ForAgentProjectionService registered" );
 
         // ContentIndexRebuildService (Lucene-only)
@@ -181,7 +181,7 @@ public final class KnowledgeWiringHelper {
                     rebuildChunker,
                     () -> TextUtil.getBooleanProperty( props, "wikantik.rebuild.enabled", true ),
                     TextUtil.getIntegerProperty( props, "wikantik.rebuild.lucene_drain_poll_ms", 2000 ) );
-            engine.setManager( ContentIndexRebuildService.class, rebuildService );
+            engine.registerContentIndexRebuildService( rebuildService );
             LOG.info( "ContentIndexRebuildService registered" );
         } else {
             LOG.info( "ContentIndexRebuildService NOT registered — no LuceneSearchProvider in use" );
@@ -234,8 +234,8 @@ public final class KnowledgeWiringHelper {
                 extractorOpt.get(), extractorCfg, contentChunkRepo, mentionRepo,
                 kgNodes, kgProposals, kgRejections, meter, excludedPagesRepo );
         engine.setEntityExtractionListener( listener );
-        engine.setManager( ChunkEntityMentionRepository.class, mentionRepo );
-        engine.setManager( AsyncEntityExtractionListener.class, listener );
+        engine.registerChunkEntityMentionRepository( mentionRepo );
+        engine.registerAsyncEntityExtractionListener( listener );
 
         if ( "ollama".equalsIgnoreCase( extractorCfg.backend() ) ) {
             wireBootstrapIndexer( props, ds, contentChunkRepo, mentionRepo, kgNodes,
@@ -310,7 +310,7 @@ public final class KnowledgeWiringHelper {
                 excludedPagesRepo,
                 extractorCfg.concurrency(), dictionaryTopK,
                 maxEntitiesPerPage, maxRelationsPerPage );
-        engine.setManager( BootstrapEntityExtractionIndexer.class, indexer );
+        engine.registerBootstrapEntityExtractionIndexer( indexer );
         LOG.info( "Bootstrap indexer wired (model={}, concurrency={}, judge=none, "
                 + "maxEntitiesPerPage={}, maxRelationsPerPage={})",
             extractorCfg.ollamaModel(), extractorCfg.concurrency(),

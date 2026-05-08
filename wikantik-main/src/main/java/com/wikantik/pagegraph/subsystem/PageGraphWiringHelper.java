@@ -84,9 +84,9 @@ public final class PageGraphWiringHelper {
                 engine.getManager( PageManager.class ), canonicalIdsDao,
                 pageVerificationDao, confidenceComputer, structuralMetrics );
 
-        engine.setManager( PageVerificationDao.class, pageVerificationDao );
-        engine.setManager( TrustedAuthorsDao.class, trustedAuthorsDao );
-        engine.setManager( StructuralIndexService.class, structuralIndex );
+        engine.registerPageVerificationDao( pageVerificationDao );
+        engine.registerTrustedAuthorsDao( trustedAuthorsDao );
+        engine.registerStructuralIndexService( structuralIndex );
 
         // WikiEventManager holds listeners as WeakReferences — keep a strong
         // reference in the managers map so the listener is not GC'd between events.
@@ -95,7 +95,7 @@ public final class PageGraphWiringHelper {
         structuralIndexListener.register(
             engine.getManager( PageManager.class ),
             engine.getManager( FilterManager.class ) );
-        engine.setManager( StructuralIndexEventListener.class, structuralIndexListener );
+        engine.registerStructuralIndexEventListener( structuralIndexListener );
 
         new Thread( structuralIndex::rebuild, "structural-index-bootstrap" ).start();
         LOG.info( "StructuralIndexService registered; initial rebuild dispatched" );
@@ -106,7 +106,7 @@ public final class PageGraphWiringHelper {
             new DefaultPageGraphService(
                 structuralIndex, refMgrForGraph, engine.getManager( PageManager.class ) );
         pageGraphService.setEngine( engine );
-        engine.setManager( PageGraphService.class, pageGraphService );
+        engine.registerPageGraphService( pageGraphService );
         LOG.info( "PageGraphService registered" );
 
         return structuralIndex;

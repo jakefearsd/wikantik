@@ -18,6 +18,8 @@
  */
 package com.wikantik.rest;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import com.wikantik.auth.NoSuchPrincipalException;
@@ -92,6 +94,14 @@ public class AdminApiKeysResource extends RestServletBase {
                     "API key service unavailable — no datasource configured" );
             return;
         }
+
+        // Dispatch bulk-action sub-path before parsing the body for key generation.
+        final String pathInfo = request.getPathInfo();
+        if ( "/bulk-action".equals( pathInfo ) ) {
+            doBulkAction( request, response, svc );
+            return;
+        }
+
         final JsonObject body = parseJsonBody( request, response );
         if ( body == null ) return;
 
@@ -169,6 +179,105 @@ public class AdminApiKeysResource extends RestServletBase {
         }
         LOG.info( "API key revoked: id={}, by={}", id, revokedBy );
         sendJson( response, Map.of( "success", true, "id", id ) );
+    }
+
+    /**
+     * Handles {@code POST /admin/apikeys/bulk-action}.
+     *
+     * <p>Request body: {@code { "action": "revoke", "ids": ["1", "2", ...] }}
+     * where each id is the numeric key id as a string or integer.
+     *
+     * <p>Applies the per-item revoke for every id without aborting on first
+     * failure. Returns a standard bulk-result envelope:
+     * {@code { "succeeded": [...], "failed": [...], "status": "completed",
+     * "message": "N of M keys revoked" }}.
+     *
+     * <p>Emits a single audit log entry per call.
+     */
+    private void doBulkAction( final HttpServletRequest request,
+            final HttpServletResponse response, final ApiKeyService svc )
+            throws ServletException, IOException {
+
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
+
+        final String action = getJsonString( body, "action" );
+        if ( action == null || action.isBlank() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "action is required (supported: revoke)" );
+            return;
+        }
+        if ( !"revoke".equals( action ) ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "Unsupported action '" + action + "' — supported: revoke" );
+            return;
+        }
+
+        final JsonElement idsEl = body.get( "ids" );
+        if ( idsEl == null || !idsEl.isJsonArray() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "ids is required and must be a JSON array" );
+            return;
+        }
+        final JsonArray idsArr = idsEl.getAsJsonArray();
+        if ( idsArr.isEmpty() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "ids must not be empty" );
+            return;
+        }
+
+        final String actor = currentLogin( request );
+        final List< String > succeeded = new ArrayList<>();
+        final List< Map< String, Object > > failed = new ArrayList<>();
+
+        for ( final JsonElement idEl : idsArr ) {
+            final String idStr = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
+            if ( idStr == null || idStr.isBlank() ) {
+                final Map< String, Object > f = new LinkedHashMap<>();
+                f.put( "id", idEl.toString() );
+                f.put( "error", "id must be a non-blank string or integer" );
+                failed.add( f );
+                continue;
+            }
+            final int id;
+            try {
+                id = Integer.parseInt( idStr );
+            } catch ( final NumberFormatException e ) {
+                final Map< String, Object > f = new LinkedHashMap<>();
+                f.put( "id", idStr );
+                f.put( "error", "id must be numeric; got '" + idStr + "'" );
+                failed.add( f );
+                continue;
+            }
+            try {
+                final boolean revoked = svc.revoke( id, actor );
+                if ( revoked ) {
+                    succeeded.add( idStr );
+                } else {
+                    final Map< String, Object > f = new LinkedHashMap<>();
+                    f.put( "id", idStr );
+                    f.put( "error", "Key not found or already revoked" );
+                    failed.add( f );
+                }
+            } catch ( final Exception e ) {
+                LOG.warn( "bulk-revoke: error revoking key id={} actor={}: {}",
+                        id, actor, e.getMessage(), e );
+                final Map< String, Object > f = new LinkedHashMap<>();
+                f.put( "id", idStr );
+                f.put( "error", e.getMessage() != null ? e.getMessage() : "Internal error" );
+                failed.add( f );
+            }
+        }
+
+        LOG.info( "bulk action=revoke resource=apikeys actor={} attempted={} succeeded={} failed={}",
+                actor, idsArr.size(), succeeded.size(), failed.size() );
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "succeeded", succeeded );
+        result.put( "failed", failed );
+        result.put( "status", "completed" );
+        result.put( "message", succeeded.size() + " of " + idsArr.size() + " keys revoked" );
+        sendJson( response, result );
     }
 
     private static String currentLogin( final HttpServletRequest request ) {

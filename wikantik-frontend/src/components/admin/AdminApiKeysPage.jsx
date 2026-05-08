@@ -1,12 +1,64 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
+import { AdminTable } from './table';
 import '../../styles/admin.css';
 
 const SCOPE_OPTIONS = [
   { value: 'tools', label: 'Tools (OpenAPI)' },
   { value: 'mcp', label: 'MCP' },
   { value: 'all', label: 'All (MCP + Tools)' },
+];
+
+const BULK_ACTIONS = [
+  {
+    id: 'revoke',
+    label: 'Revoke',
+    variant: 'danger',
+    confirm: {
+      title: 'Revoke API Keys',
+      body: (selected) => (
+        <p>
+          Revoke {selected.length} key{selected.length !== 1 ? 's' : ''}?
+          Any client using {selected.length === 1 ? 'this token' : 'these tokens'} will
+          start receiving HTTP 403.
+        </p>
+      ),
+      confirmLabel: 'Revoke Keys',
+    },
+  },
+];
+
+const COLUMNS = [
+  { id: 'principalLogin', label: 'Principal', sortable: true },
+  { id: 'label', label: 'Label', render: (k) => k.label || '—' },
+  { id: 'scope', label: 'Scope', render: (k) => <code>{k.scope}</code> },
+  {
+    id: 'fingerprint',
+    label: 'Fingerprint',
+    render: (k) => <code title="SHA-256 prefix">{k.fingerprint}…</code>,
+  },
+  {
+    id: 'createdAt',
+    label: 'Created',
+    render: (k) => <span className="admin-cell-date">{formatDate(k.createdAt)}</span>,
+    sortable: true,
+  },
+  {
+    id: 'lastUsedAt',
+    label: 'Last Used',
+    render: (k) => <span className="admin-cell-date">{formatDate(k.lastUsedAt)}</span>,
+    sortable: true,
+  },
+  {
+    id: 'active',
+    label: 'Status',
+    render: (k) => (
+      <span className={`admin-badge ${k.active ? 'active' : 'locked'}`}>
+        {k.active ? 'Active' : 'Revoked'}
+      </span>
+    ),
+  },
 ];
 
 export default function AdminApiKeysPage() {
@@ -47,6 +99,31 @@ export default function AdminApiKeysPage() {
     await loadKeys();
   };
 
+  const handleBulkAction = async (action, selectedRows) => {
+    const ids = selectedRows.map(k => String(k.id));
+    const result = await api.admin.bulkApiKeyAction(action.id, ids);
+    // Remove succeeded keys from local state for immediate UI feedback
+    if (result.succeeded && result.succeeded.length > 0) {
+      const succeededSet = new Set(result.succeeded);
+      setKeys(prev => prev.map(k =>
+        succeededSet.has(String(k.id)) ? { ...k, active: false } : k
+      ));
+    }
+    return result;
+  };
+
+  const rowAction = (k) => {
+    if (!k.active) return [];
+    return [
+      {
+        id: 'revoke',
+        label: 'Revoke',
+        variant: 'danger',
+        onClick: () => setConfirmRevoke(k),
+      },
+    ];
+  };
+
   return (
     <AdminPage loading={loading} error={error} loadingLabel="Loading API keys…">
       <div className="admin-toolbar">
@@ -55,6 +132,7 @@ export default function AdminApiKeysPage() {
             type="checkbox"
             checked={showRevoked}
             onChange={(e) => setShowRevoked(e.target.checked)}
+            aria-label="Show revoked"
           />
           Show revoked
         </label>
@@ -66,51 +144,19 @@ export default function AdminApiKeysPage() {
         </button>
       </div>
 
-      <div className="admin-table-wrapper">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Principal</th>
-              <th>Label</th>
-              <th>Scope</th>
-              <th>Fingerprint</th>
-              <th>Created</th>
-              <th>Last Used</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.length === 0 ? (
-              <tr><td colSpan="8" className="admin-empty">No API keys found</td></tr>
-            ) : visible.map(k => (
-              <tr key={k.id}>
-                <td className="admin-cell-primary">{k.principalLogin}</td>
-                <td>{k.label || '—'}</td>
-                <td><code>{k.scope}</code></td>
-                <td><code title="SHA-256 prefix">{k.fingerprint}…</code></td>
-                <td className="admin-cell-date">{formatDate(k.createdAt)}</td>
-                <td className="admin-cell-date">{formatDate(k.lastUsedAt)}</td>
-                <td>
-                  <span className={`admin-badge ${k.active ? 'active' : 'locked'}`}>
-                    {k.active ? 'Active' : 'Revoked'}
-                  </span>
-                </td>
-                <td className="admin-cell-actions">
-                  {k.active && (
-                    <button
-                      className="btn btn-ghost btn-sm btn-danger"
-                      onClick={() => setConfirmRevoke(k)}
-                    >
-                      Revoke
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <AdminTable
+        rows={visible}
+        getRowKey={(k) => String(k.id)}
+        columns={COLUMNS}
+        selectable
+        bulkActions={BULK_ACTIONS}
+        onBulkAction={handleBulkAction}
+        emptyMessage="No API keys found"
+        rowAction={rowAction}
+        kind="key"
+        searchable={{ placeholder: 'Filter keys…' }}
+        initialSort={{ columnId: 'createdAt', direction: 'desc' }}
+      />
 
       <ApiKeyFormModal
         isOpen={modalOpen}

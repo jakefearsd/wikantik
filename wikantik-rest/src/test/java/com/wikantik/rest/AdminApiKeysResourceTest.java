@@ -356,6 +356,110 @@ class AdminApiKeysResourceTest {
         assertFalse( servlet.isCrossOriginAllowed() );
     }
 
+    // ----- POST /admin/apikeys/bulk-action -----
+
+    @Test
+    void bulkRevokeAllSucceed() throws Exception {
+        when( mockService.revoke( 10, null ) ).thenReturn( true );
+        when( mockService.revoke( 11, null ) ).thenReturn( true );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "revoke" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "10" );
+        ids.add( "11" );
+        body.add( "ids", ids );
+
+        final JsonObject obj = gson.fromJson( doBulkPost( body.toString() ), JsonObject.class );
+        assertEquals( "completed", obj.get( "status" ).getAsString() );
+        assertEquals( 2, obj.getAsJsonArray( "succeeded" ).size() );
+        assertEquals( 0, obj.getAsJsonArray( "failed" ).size() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "2 of 2" ) );
+    }
+
+    @Test
+    void bulkRevokePartialFailure() throws Exception {
+        when( mockService.revoke( 10, null ) ).thenReturn( true );
+        when( mockService.revoke( 11, null ) ).thenReturn( false ); // already revoked
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "revoke" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "10" );
+        ids.add( "11" );
+        body.add( "ids", ids );
+
+        final JsonObject obj = gson.fromJson( doBulkPost( body.toString() ), JsonObject.class );
+        assertEquals( "completed", obj.get( "status" ).getAsString() );
+        assertEquals( 1, obj.getAsJsonArray( "succeeded" ).size() );
+        assertEquals( "10", obj.getAsJsonArray( "succeeded" ).get( 0 ).getAsString() );
+        assertEquals( 1, obj.getAsJsonArray( "failed" ).size() );
+        final JsonObject failedItem = obj.getAsJsonArray( "failed" ).get( 0 ).getAsJsonObject();
+        assertEquals( "11", failedItem.get( "id" ).getAsString() );
+        assertTrue( failedItem.get( "error" ).getAsString().toLowerCase().contains( "revoked" ) );
+    }
+
+    @Test
+    void bulkRevokeRejectsMissingAction() throws Exception {
+        final JsonObject body = new JsonObject();
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "10" );
+        body.add( "ids", ids );
+
+        final JsonObject obj = gson.fromJson( doBulkPost( body.toString() ), JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        Mockito.verifyNoInteractions( mockService );
+    }
+
+    @Test
+    void bulkRevokeRejectsUnknownAction() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "delete" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "10" );
+        body.add( "ids", ids );
+
+        final JsonObject obj = gson.fromJson( doBulkPost( body.toString() ), JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        Mockito.verifyNoInteractions( mockService );
+    }
+
+    @Test
+    void bulkRevokeRejectsMissingIds() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "revoke" );
+
+        final JsonObject obj = gson.fromJson( doBulkPost( body.toString() ), JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        Mockito.verifyNoInteractions( mockService );
+    }
+
+    @Test
+    void bulkRevokeRejectsEmptyIds() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "revoke" );
+        body.add( "ids", new com.google.gson.JsonArray() );
+
+        final JsonObject obj = gson.fromJson( doBulkPost( body.toString() ), JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        Mockito.verifyNoInteractions( mockService );
+    }
+
+    @Test
+    void bulkRevokeHandlesNonNumericIdAsFailure() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "revoke" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "not-a-number" );
+        body.add( "ids", ids );
+
+        final JsonObject obj = gson.fromJson( doBulkPost( body.toString() ), JsonObject.class );
+        assertEquals( "completed", obj.get( "status" ).getAsString() );
+        assertEquals( 0, obj.getAsJsonArray( "succeeded" ).size() );
+        assertEquals( 1, obj.getAsJsonArray( "failed" ).size() );
+        Mockito.verifyNoInteractions( mockService );
+    }
+
     // ----- Helper methods -----
 
     private String doGet() throws Exception {
@@ -371,6 +475,23 @@ class AdminApiKeysResourceTest {
         final StringWriter sw = new StringWriter();
         Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
         servlet.doPost( createRequest( null, body ), response );
+        return sw.toString();
+    }
+
+    private String doBulkPost( final String body ) throws Exception {
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/apikeys/bulk-action" );
+        Mockito.doReturn( "/bulk-action" ).when( request ).getPathInfo();
+        if ( body != null ) {
+            try {
+                Mockito.doReturn( new BufferedReader( new StringReader( body ) ) ).when( request ).getReader();
+            } catch ( final Exception e ) {
+                throw new RuntimeException( e );
+            }
+        }
+        servlet.doPost( request, response );
         return sw.toString();
     }
 

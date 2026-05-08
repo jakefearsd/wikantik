@@ -438,6 +438,12 @@ export const api = {
         method: 'DELETE',
       }),
 
+    bulkApiKeyAction: (action, ids) =>
+      request('/admin/apikeys/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ action, ids }),
+      }),
+
     // Retrieval Quality (Phase 5b)
     listRetrievalRuns: ({ querySetId, mode, limit = 30 } = {}) => {
       const params = new URLSearchParams();

@@ -17,6 +17,20 @@ const activeKey = {
     active: true,
 };
 
+const activeKey2 = {
+    id: 3,
+    principalLogin: 'charlie',
+    label: 'ci-runner',
+    scope: 'mcp',
+    fingerprint: 'deadbeef1234',
+    createdAt: '2026-04-05T10:00:00Z',
+    createdBy: 'admin',
+    lastUsedAt: null,
+    revokedAt: null,
+    revokedBy: null,
+    active: true,
+};
+
 const revokedKey = {
     id: 2,
     principalLogin: 'bob',
@@ -172,5 +186,127 @@ describe('AdminApiKeysPage', () => {
 
         expect(revoke).not.toHaveBeenCalled();
         expect(screen.queryByText(/Revoke API Key/i)).not.toBeInTheDocument();
+    });
+});
+
+describe('AdminApiKeysPage — bulk-revoke', () => {
+    beforeEach(() => {
+        vi.spyOn(api.admin, 'listApiKeys').mockResolvedValue({
+            keys: [activeKey, activeKey2, revokedKey],
+        });
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('selecting rows surfaces the bulk-action bar', async () => {
+        render(<AdminApiKeysPage />);
+        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+
+        // Select alice's row checkbox
+        const row = screen.getByText('alice').closest('tr');
+        fireEvent.click(within(row).getByRole('checkbox'));
+
+        // Selection bar should appear with count and Revoke bulk action
+        await waitFor(() => expect(screen.getByText(/1 selected/i)).toBeInTheDocument());
+        const toolbar = screen.getByRole('toolbar', { name: /Bulk actions/i });
+        expect(within(toolbar).getByRole('button', { name: /^Revoke$/i })).toBeInTheDocument();
+    });
+
+    it('bulk-revoke happy path: calls bulkApiKeyAction and updates state', async () => {
+        const bulkRevoke = vi.spyOn(api.admin, 'bulkApiKeyAction').mockResolvedValue({
+            succeeded: ['1'],
+            failed: [],
+            status: 'completed',
+            message: '1 of 1 keys revoked',
+        });
+
+        render(<AdminApiKeysPage />);
+        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+
+        // Select alice
+        const aliceRow = screen.getByText('alice').closest('tr');
+        fireEvent.click(within(aliceRow).getByRole('checkbox'));
+
+        await waitFor(() => expect(screen.getByText(/1 selected/i)).toBeInTheDocument());
+        const toolbar = screen.getByRole('toolbar', { name: /Bulk actions/i });
+        fireEvent.click(within(toolbar).getByRole('button', { name: /^Revoke$/i }));
+
+        // Confirm modal should show
+        await waitFor(() => expect(screen.getByText(/Revoke API Keys/i)).toBeInTheDocument());
+        fireEvent.click(screen.getByRole('button', { name: /Revoke Keys/i }));
+
+        await waitFor(() => expect(bulkRevoke).toHaveBeenCalledWith('revoke', ['1']));
+        // Result banner should show success
+        await waitFor(() => expect(screen.getByText(/1 succeeded/i)).toBeInTheDocument());
+    });
+
+    it('bulk-revoke partial failure: shows failed count in result banner', async () => {
+        const bulkRevoke = vi.spyOn(api.admin, 'bulkApiKeyAction').mockResolvedValue({
+            succeeded: ['1'],
+            failed: [{ id: '3', error: 'Key not found or already revoked' }],
+            status: 'completed',
+            message: '1 of 2 keys revoked',
+        });
+
+        render(<AdminApiKeysPage />);
+        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+
+        // Select alice and charlie
+        const aliceRow = screen.getByText('alice').closest('tr');
+        const charlieRow = screen.getByText('charlie').closest('tr');
+        fireEvent.click(within(aliceRow).getByRole('checkbox'));
+        fireEvent.click(within(charlieRow).getByRole('checkbox'));
+
+        await waitFor(() => expect(screen.getByText(/2 selected/i)).toBeInTheDocument());
+        const toolbar = screen.getByRole('toolbar', { name: /Bulk actions/i });
+        fireEvent.click(within(toolbar).getByRole('button', { name: /^Revoke$/i }));
+
+        await waitFor(() => expect(screen.getByText(/Revoke API Keys/i)).toBeInTheDocument());
+        fireEvent.click(screen.getByRole('button', { name: /Revoke Keys/i }));
+
+        await waitFor(() => expect(bulkRevoke).toHaveBeenCalledWith('revoke', expect.arrayContaining(['1', '3'])));
+        await waitFor(() => expect(screen.getByText(/1 failed/i)).toBeInTheDocument());
+    });
+
+    it('cancel on the bulk confirm dialog does not call the API', async () => {
+        const bulkRevoke = vi.spyOn(api.admin, 'bulkApiKeyAction').mockResolvedValue({
+            succeeded: [],
+            failed: [],
+            status: 'completed',
+            message: '0 of 1 keys revoked',
+        });
+
+        render(<AdminApiKeysPage />);
+        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+
+        const aliceRow = screen.getByText('alice').closest('tr');
+        fireEvent.click(within(aliceRow).getByRole('checkbox'));
+
+        await waitFor(() => expect(screen.getByText(/1 selected/i)).toBeInTheDocument());
+        const toolbar = screen.getByRole('toolbar', { name: /Bulk actions/i });
+        fireEvent.click(within(toolbar).getByRole('button', { name: /^Revoke$/i }));
+
+        await waitFor(() => expect(screen.getByText(/Revoke API Keys/i)).toBeInTheDocument());
+        fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
+
+        expect(bulkRevoke).not.toHaveBeenCalled();
+    });
+
+    it('per-row Revoke button still works after AdminTable adoption', async () => {
+        const revoke = vi.spyOn(api.admin, 'revokeApiKey').mockResolvedValue({ success: true, id: 1 });
+
+        render(<AdminApiKeysPage />);
+        await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+
+        const aliceRow = screen.getByText('alice').closest('tr');
+        fireEvent.click(within(aliceRow).getByRole('button', { name: /Revoke/i }));
+
+        expect(screen.getByText(/Revoke API Key/i)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /Revoke Key/i }));
+
+        await waitFor(() => expect(revoke).toHaveBeenCalledWith(1));
+        expect(api.admin.listApiKeys).toHaveBeenCalledTimes(2);
     });
 });

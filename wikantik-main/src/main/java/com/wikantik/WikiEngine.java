@@ -196,6 +196,101 @@ public class WikiEngine implements Engine {
     /** Stores WikiEngine's associated managers. */
     protected final Map< Class< ? >, Object > managers = new ConcurrentHashMap<>();
 
+    // -----------------------------------------------------------------------
+    // Per-class typed backing fields — Ckpt A1 (Phase 10)
+    // Populated by setManager / initComponent; read first by getManager.
+    // Names use mgr_ prefix to avoid collisions with existing subsystem fields.
+    // -----------------------------------------------------------------------
+
+    // Auth group
+    private com.wikantik.auth.AuthenticationManager mgr_AuthenticationManager;
+    private com.wikantik.auth.AuthorizationManager mgr_AuthorizationManager;
+    private com.wikantik.auth.UserManager mgr_UserManager;
+    private com.wikantik.auth.authorize.GroupManager mgr_GroupManager;
+    private com.wikantik.auth.acl.AclManager mgr_AclManager;
+
+    // Page group
+    private com.wikantik.api.managers.PageManager mgr_PageManager;
+    private com.wikantik.api.managers.AttachmentManager mgr_AttachmentManager;
+    private com.wikantik.content.PageRenamer mgr_PageRenamer;
+    private com.wikantik.api.managers.ReferenceManager mgr_ReferenceManager;
+
+    // Core group
+    private com.wikantik.cache.CachingManager mgr_CachingManager;
+    private com.wikantik.variables.VariableManager mgr_VariableManager;
+    private com.wikantik.ui.progress.ProgressManager mgr_ProgressManager;
+    private com.wikantik.ui.CommandResolver mgr_CommandResolver;
+    private com.wikantik.url.URLConstructor mgr_URLConstructor;
+    private com.wikantik.i18n.InternationalizationManager mgr_InternationalizationManager;
+    private com.wikantik.api.managers.SystemPageRegistry mgr_SystemPageRegistry;
+    private com.wikantik.content.RecentArticlesManager mgr_RecentArticlesManager;
+    private com.wikantik.blog.BlogManager mgr_BlogManager;
+
+    // Rendering group
+    private com.wikantik.render.RenderingManager mgr_RenderingManager;
+    private com.wikantik.plugin.PluginManager mgr_PluginManager;
+    private com.wikantik.filters.FilterManager mgr_FilterManager;
+    private com.wikantik.diff.DifferenceManager mgr_DifferenceManager;
+    private com.wikantik.content.NewsPageGenerator mgr_NewsPageGenerator;
+
+    // Search group
+    private com.wikantik.search.SearchManager mgr_SearchManager;
+    private com.wikantik.search.SearchProvider mgr_SearchProvider;
+    private com.wikantik.search.hybrid.HybridSearchService mgr_HybridSearchService;
+    private com.wikantik.search.hybrid.QueryEmbedder mgr_QueryEmbedder;
+    private com.wikantik.search.hybrid.QueryEntityResolver mgr_QueryEntityResolver;
+    private com.wikantik.search.hybrid.GraphRerankStep mgr_GraphRerankStep;
+    private com.wikantik.search.hybrid.GraphProximityScorer mgr_GraphProximityScorer;
+    private com.wikantik.search.hybrid.InMemoryChunkVectorIndex mgr_InMemoryChunkVectorIndex;
+    private com.wikantik.search.hybrid.ChunkVectorIndex mgr_ChunkVectorIndex;
+    private com.wikantik.search.hybrid.InMemoryGraphNeighborIndex mgr_InMemoryGraphNeighborIndex;
+    private com.wikantik.search.hybrid.GraphNeighborIndex mgr_GraphNeighborIndex;
+    private com.wikantik.search.hybrid.PageMentionsLoader mgr_PageMentionsLoader;
+    private com.wikantik.search.embedding.EmbeddingIndexService mgr_EmbeddingIndexService;
+    private com.wikantik.search.embedding.OllamaEmbeddingClient mgr_OllamaEmbeddingClient;
+    private com.wikantik.search.embedding.BootstrapEmbeddingIndexer mgr_BootstrapEmbeddingIndexer;
+    private com.wikantik.search.embedding.AsyncEmbeddingIndexListener mgr_AsyncEmbeddingIndexListener;
+    private com.wikantik.search.FrontmatterMetadataCache mgr_FrontmatterMetadataCache;
+    private com.wikantik.search.subsystem.lucene.LuceneIndexer mgr_LuceneIndexer;
+    private com.wikantik.search.subsystem.lucene.LuceneSearcher mgr_LuceneSearcher;
+    private com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle mgr_LuceneIndexLifecycle;
+
+    // Page Graph group
+    private com.wikantik.api.pagegraph.StructuralIndexService mgr_StructuralIndexService;
+    private com.wikantik.api.pagegraph.PageGraphService mgr_PageGraphService;
+    private com.wikantik.admin.ContentIndexRebuildService mgr_ContentIndexRebuildService;
+    private com.wikantik.pagegraph.spine.PageVerificationDao mgr_PageVerificationDao;
+    private com.wikantik.pagegraph.spine.TrustedAuthorsDao mgr_TrustedAuthorsDao;
+    private com.wikantik.pagegraph.spine.StructuralIndexEventListener mgr_StructuralIndexEventListener;
+
+    // Knowledge group
+    private com.wikantik.api.knowledge.KnowledgeGraphService mgr_KnowledgeGraphService;
+    private com.wikantik.api.knowledge.KgProposalJudgeService mgr_KgProposalJudgeService;
+    private com.wikantik.knowledge.judge.JudgeRunner mgr_JudgeRunner;
+    private com.wikantik.knowledge.judge.KgMaterializationService mgr_KgMaterializationService;
+    private com.wikantik.knowledge.judge.KgJudgeTimeoutRepository mgr_KgJudgeTimeoutRepository;
+    private com.wikantik.knowledge.HubProposalService mgr_HubProposalService;
+    private com.wikantik.knowledge.HubDiscoveryService mgr_HubDiscoveryService;
+    private com.wikantik.knowledge.HubOverviewService mgr_HubOverviewService;
+    private com.wikantik.knowledge.HubProposalRepository mgr_HubProposalRepository;
+    private com.wikantik.knowledge.HubDiscoveryRepository mgr_HubDiscoveryRepository;
+    private com.wikantik.knowledge.chunking.ContentChunkRepository mgr_ContentChunkRepository;
+    private com.wikantik.knowledge.chunking.ChunkProjector mgr_ChunkProjector;
+    private com.wikantik.knowledge.MentionIndex mgr_MentionIndex;
+    private com.wikantik.knowledge.embedding.NodeMentionSimilarity mgr_NodeMentionSimilarity;
+    private com.wikantik.knowledge.FrontmatterDefaultsFilter mgr_FrontmatterDefaultsFilter;
+    private com.wikantik.knowledge.HubSyncFilter mgr_HubSyncFilter;
+    private com.wikantik.api.knowledge.ContextRetrievalService mgr_ContextRetrievalService;
+    private com.wikantik.api.agent.ForAgentProjectionService mgr_ForAgentProjectionService;
+    private com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer mgr_BootstrapEntityExtractionIndexer;
+    private com.wikantik.api.kgpolicy.KgInclusionPolicy mgr_KgInclusionPolicy;
+    private com.wikantik.kgpolicy.ReconciliationJobRunner mgr_ReconciliationJobRunner;
+    private com.wikantik.api.eval.RetrievalQualityRunner mgr_RetrievalQualityRunner;
+    private com.wikantik.knowledge.extraction.ChunkEntityMentionRepository mgr_ChunkEntityMentionRepository;
+    private com.wikantik.knowledge.extraction.AsyncEntityExtractionListener mgr_KgAsyncEntityExtractionListener;
+    private com.wikantik.kgpolicy.KgClusterPolicyRepository mgr_KgClusterPolicyRepository;
+    private com.wikantik.kgpolicy.KgExcludedPagesRepository mgr_KgExcludedPagesRepository;
+
     /** Guice injector for modern dependency management. */
     private Injector injector;
 
@@ -428,7 +523,7 @@ public class WikiEngine implements Engine {
             // Frontmatter metadata cache used by the search response path so we
             // don't re-read and re-parse every result on every /api/search call.
             // Keyed on (pageName, lastModified) so a page edit naturally invalidates.
-            managers.put( com.wikantik.search.FrontmatterMetadataCache.class,
+            setManager( com.wikantik.search.FrontmatterMetadataCache.class,
                 new com.wikantik.search.FrontmatterMetadataCache( getManager( PageManager.class ) ) );
 
             //  Hook the different manager routines into the system.
@@ -615,16 +710,291 @@ public class WikiEngine implements Engine {
         } else {
             component = ClassUtil.getMappedObject( componentInitClass, initArgs );
         }
+        // Write to the legacy map AND the typed backing field (Ckpt A1), but do NOT
+        // call setManager here: setManager triggers subsystem snapshot rebuilds which
+        // would produce partial snapshots (e.g. coreSubsystem with null systemPageRegistry)
+        // that subsequent initializers then see via getCoreSubsystem(). The full snapshots
+        // are built by the factory calls (CoreSubsystemFactory.create etc.) after all
+        // initComponent calls complete.
         managers.put( componentClass, component );
+        writeTypedField( componentClass, component );
         if( Initializable.class.isAssignableFrom( component.getClass() ) ) {
             ( ( Initializable )component ).initialize( this, properties );
         }
     }
 
+    /**
+     * Writes {@code mgr} to the per-class typed backing field for {@code clazz}.
+     * Called from {@link #setManager} so the typed field stays in sync with the
+     * legacy {@code managers} map (Ckpt A1). The map is still written by
+     * {@link #setManager}; this method only updates the field.
+     *
+     * <p>Unknown class keys are silently ignored — they stay in the map only.</p>
+     */
+    @SuppressWarnings( "unchecked" )
+    private < T > void writeTypedField( final Class< T > clazz, final T mgr ) {
+        // Auth
+        if ( clazz == AuthenticationManager.class )
+            { mgr_AuthenticationManager = (com.wikantik.auth.AuthenticationManager) mgr; return; }
+        if ( clazz == AuthorizationManager.class )
+            { mgr_AuthorizationManager = (com.wikantik.auth.AuthorizationManager) mgr; return; }
+        if ( clazz == com.wikantik.auth.UserManager.class )
+            { mgr_UserManager = (com.wikantik.auth.UserManager) mgr; return; }
+        if ( clazz == com.wikantik.auth.authorize.GroupManager.class )
+            { mgr_GroupManager = (com.wikantik.auth.authorize.GroupManager) mgr; return; }
+        if ( clazz == com.wikantik.auth.acl.AclManager.class )
+            { mgr_AclManager = (com.wikantik.auth.acl.AclManager) mgr; return; }
+        // Page
+        if ( clazz == PageManager.class )
+            { mgr_PageManager = (com.wikantik.api.managers.PageManager) mgr; return; }
+        if ( clazz == AttachmentManager.class )
+            { mgr_AttachmentManager = (com.wikantik.api.managers.AttachmentManager) mgr; return; }
+        if ( clazz == com.wikantik.content.PageRenamer.class )
+            { mgr_PageRenamer = (com.wikantik.content.PageRenamer) mgr; return; }
+        if ( clazz == ReferenceManager.class )
+            { mgr_ReferenceManager = (com.wikantik.api.managers.ReferenceManager) mgr; return; }
+        // Core
+        if ( clazz == com.wikantik.cache.CachingManager.class )
+            { mgr_CachingManager = (com.wikantik.cache.CachingManager) mgr; return; }
+        if ( clazz == com.wikantik.variables.VariableManager.class )
+            { mgr_VariableManager = (com.wikantik.variables.VariableManager) mgr; return; }
+        if ( clazz == com.wikantik.ui.progress.ProgressManager.class )
+            { mgr_ProgressManager = (com.wikantik.ui.progress.ProgressManager) mgr; return; }
+        if ( clazz == com.wikantik.ui.CommandResolver.class )
+            { mgr_CommandResolver = (com.wikantik.ui.CommandResolver) mgr; return; }
+        if ( clazz == URLConstructor.class )
+            { mgr_URLConstructor = (com.wikantik.url.URLConstructor) mgr; return; }
+        if ( clazz == com.wikantik.i18n.InternationalizationManager.class )
+            { mgr_InternationalizationManager = (com.wikantik.i18n.InternationalizationManager) mgr; return; }
+        if ( clazz == com.wikantik.api.managers.SystemPageRegistry.class )
+            { mgr_SystemPageRegistry = (com.wikantik.api.managers.SystemPageRegistry) mgr; return; }
+        if ( clazz == com.wikantik.content.RecentArticlesManager.class )
+            { mgr_RecentArticlesManager = (com.wikantik.content.RecentArticlesManager) mgr; return; }
+        if ( clazz == com.wikantik.blog.BlogManager.class )
+            { mgr_BlogManager = (com.wikantik.blog.BlogManager) mgr; return; }
+        // Rendering
+        if ( clazz == RenderingManager.class )
+            { mgr_RenderingManager = (com.wikantik.render.RenderingManager) mgr; return; }
+        if ( clazz == PluginManager.class )
+            { mgr_PluginManager = (com.wikantik.plugin.PluginManager) mgr; return; }
+        if ( clazz == FilterManager.class )
+            { mgr_FilterManager = (com.wikantik.filters.FilterManager) mgr; return; }
+        if ( clazz == com.wikantik.diff.DifferenceManager.class )
+            { mgr_DifferenceManager = (com.wikantik.diff.DifferenceManager) mgr; return; }
+        if ( clazz == com.wikantik.content.NewsPageGenerator.class )
+            { mgr_NewsPageGenerator = (com.wikantik.content.NewsPageGenerator) mgr; return; }
+        // Search
+        if ( clazz == SearchManager.class )
+            { mgr_SearchManager = (com.wikantik.search.SearchManager) mgr; return; }
+        if ( clazz == com.wikantik.search.SearchProvider.class )
+            { mgr_SearchProvider = (com.wikantik.search.SearchProvider) mgr; return; }
+        if ( clazz == com.wikantik.search.hybrid.HybridSearchService.class )
+            { mgr_HybridSearchService = (com.wikantik.search.hybrid.HybridSearchService) mgr; return; }
+        if ( clazz == com.wikantik.search.hybrid.QueryEmbedder.class )
+            { mgr_QueryEmbedder = (com.wikantik.search.hybrid.QueryEmbedder) mgr; return; }
+        if ( clazz == com.wikantik.search.hybrid.QueryEntityResolver.class )
+            { mgr_QueryEntityResolver = (com.wikantik.search.hybrid.QueryEntityResolver) mgr; return; }
+        if ( clazz == com.wikantik.search.hybrid.GraphRerankStep.class )
+            { mgr_GraphRerankStep = (com.wikantik.search.hybrid.GraphRerankStep) mgr; return; }
+        if ( clazz == com.wikantik.search.hybrid.GraphProximityScorer.class )
+            { mgr_GraphProximityScorer = (com.wikantik.search.hybrid.GraphProximityScorer) mgr; return; }
+        if ( clazz == com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class )
+            { mgr_InMemoryChunkVectorIndex = (com.wikantik.search.hybrid.InMemoryChunkVectorIndex) mgr; return; }
+        if ( clazz == com.wikantik.search.hybrid.ChunkVectorIndex.class )
+            { mgr_ChunkVectorIndex = (com.wikantik.search.hybrid.ChunkVectorIndex) mgr; return; }
+        if ( clazz == com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class )
+            { mgr_InMemoryGraphNeighborIndex = (com.wikantik.search.hybrid.InMemoryGraphNeighborIndex) mgr; return; }
+        if ( clazz == com.wikantik.search.hybrid.GraphNeighborIndex.class )
+            { mgr_GraphNeighborIndex = (com.wikantik.search.hybrid.GraphNeighborIndex) mgr; return; }
+        if ( clazz == com.wikantik.search.hybrid.PageMentionsLoader.class )
+            { mgr_PageMentionsLoader = (com.wikantik.search.hybrid.PageMentionsLoader) mgr; return; }
+        if ( clazz == com.wikantik.search.embedding.EmbeddingIndexService.class )
+            { mgr_EmbeddingIndexService = (com.wikantik.search.embedding.EmbeddingIndexService) mgr; return; }
+        if ( clazz == com.wikantik.search.embedding.OllamaEmbeddingClient.class )
+            { mgr_OllamaEmbeddingClient = (com.wikantik.search.embedding.OllamaEmbeddingClient) mgr; return; }
+        if ( clazz == com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class )
+            { mgr_BootstrapEmbeddingIndexer = (com.wikantik.search.embedding.BootstrapEmbeddingIndexer) mgr; return; }
+        if ( clazz == com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class )
+            { mgr_AsyncEmbeddingIndexListener = (com.wikantik.search.embedding.AsyncEmbeddingIndexListener) mgr; return; }
+        if ( clazz == com.wikantik.search.FrontmatterMetadataCache.class )
+            { mgr_FrontmatterMetadataCache = (com.wikantik.search.FrontmatterMetadataCache) mgr; return; }
+        if ( clazz == com.wikantik.search.subsystem.lucene.LuceneIndexer.class )
+            { mgr_LuceneIndexer = (com.wikantik.search.subsystem.lucene.LuceneIndexer) mgr; return; }
+        if ( clazz == com.wikantik.search.subsystem.lucene.LuceneSearcher.class )
+            { mgr_LuceneSearcher = (com.wikantik.search.subsystem.lucene.LuceneSearcher) mgr; return; }
+        if ( clazz == com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle.class )
+            { mgr_LuceneIndexLifecycle = (com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle) mgr; return; }
+        // Page Graph
+        if ( clazz == com.wikantik.api.pagegraph.StructuralIndexService.class )
+            { mgr_StructuralIndexService = (com.wikantik.api.pagegraph.StructuralIndexService) mgr; return; }
+        if ( clazz == com.wikantik.api.pagegraph.PageGraphService.class )
+            { mgr_PageGraphService = (com.wikantik.api.pagegraph.PageGraphService) mgr; return; }
+        if ( clazz == com.wikantik.admin.ContentIndexRebuildService.class )
+            { mgr_ContentIndexRebuildService = (com.wikantik.admin.ContentIndexRebuildService) mgr; return; }
+        if ( clazz == com.wikantik.pagegraph.spine.PageVerificationDao.class )
+            { mgr_PageVerificationDao = (com.wikantik.pagegraph.spine.PageVerificationDao) mgr; return; }
+        if ( clazz == com.wikantik.pagegraph.spine.TrustedAuthorsDao.class )
+            { mgr_TrustedAuthorsDao = (com.wikantik.pagegraph.spine.TrustedAuthorsDao) mgr; return; }
+        if ( clazz == com.wikantik.pagegraph.spine.StructuralIndexEventListener.class )
+            { mgr_StructuralIndexEventListener = (com.wikantik.pagegraph.spine.StructuralIndexEventListener) mgr; return; }
+        // Knowledge
+        if ( clazz == com.wikantik.api.knowledge.KnowledgeGraphService.class )
+            { mgr_KnowledgeGraphService = (com.wikantik.api.knowledge.KnowledgeGraphService) mgr; return; }
+        if ( clazz == com.wikantik.api.knowledge.KgProposalJudgeService.class )
+            { mgr_KgProposalJudgeService = (com.wikantik.api.knowledge.KgProposalJudgeService) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.judge.JudgeRunner.class )
+            { mgr_JudgeRunner = (com.wikantik.knowledge.judge.JudgeRunner) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.judge.KgMaterializationService.class )
+            { mgr_KgMaterializationService = (com.wikantik.knowledge.judge.KgMaterializationService) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class )
+            { mgr_KgJudgeTimeoutRepository = (com.wikantik.knowledge.judge.KgJudgeTimeoutRepository) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.HubProposalService.class )
+            { mgr_HubProposalService = (com.wikantik.knowledge.HubProposalService) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.HubDiscoveryService.class )
+            { mgr_HubDiscoveryService = (com.wikantik.knowledge.HubDiscoveryService) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.HubOverviewService.class )
+            { mgr_HubOverviewService = (com.wikantik.knowledge.HubOverviewService) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.HubProposalRepository.class )
+            { mgr_HubProposalRepository = (com.wikantik.knowledge.HubProposalRepository) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.HubDiscoveryRepository.class )
+            { mgr_HubDiscoveryRepository = (com.wikantik.knowledge.HubDiscoveryRepository) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.chunking.ContentChunkRepository.class )
+            { mgr_ContentChunkRepository = (com.wikantik.knowledge.chunking.ContentChunkRepository) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.chunking.ChunkProjector.class )
+            { mgr_ChunkProjector = (com.wikantik.knowledge.chunking.ChunkProjector) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.MentionIndex.class )
+            { mgr_MentionIndex = (com.wikantik.knowledge.MentionIndex) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.embedding.NodeMentionSimilarity.class )
+            { mgr_NodeMentionSimilarity = (com.wikantik.knowledge.embedding.NodeMentionSimilarity) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.FrontmatterDefaultsFilter.class )
+            { mgr_FrontmatterDefaultsFilter = (com.wikantik.knowledge.FrontmatterDefaultsFilter) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.HubSyncFilter.class )
+            { mgr_HubSyncFilter = (com.wikantik.knowledge.HubSyncFilter) mgr; return; }
+        if ( clazz == com.wikantik.api.knowledge.ContextRetrievalService.class )
+            { mgr_ContextRetrievalService = (com.wikantik.api.knowledge.ContextRetrievalService) mgr; return; }
+        if ( clazz == com.wikantik.api.agent.ForAgentProjectionService.class )
+            { mgr_ForAgentProjectionService = (com.wikantik.api.agent.ForAgentProjectionService) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class )
+            { mgr_BootstrapEntityExtractionIndexer = (com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer) mgr; return; }
+        if ( clazz == com.wikantik.api.kgpolicy.KgInclusionPolicy.class )
+            { mgr_KgInclusionPolicy = (com.wikantik.api.kgpolicy.KgInclusionPolicy) mgr; return; }
+        if ( clazz == com.wikantik.kgpolicy.ReconciliationJobRunner.class )
+            { mgr_ReconciliationJobRunner = (com.wikantik.kgpolicy.ReconciliationJobRunner) mgr; return; }
+        if ( clazz == com.wikantik.api.eval.RetrievalQualityRunner.class )
+            { mgr_RetrievalQualityRunner = (com.wikantik.api.eval.RetrievalQualityRunner) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class )
+            { mgr_ChunkEntityMentionRepository = (com.wikantik.knowledge.extraction.ChunkEntityMentionRepository) mgr; return; }
+        if ( clazz == com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class )
+            { mgr_KgAsyncEntityExtractionListener = (com.wikantik.knowledge.extraction.AsyncEntityExtractionListener) mgr; return; }
+        if ( clazz == com.wikantik.kgpolicy.KgClusterPolicyRepository.class )
+            { mgr_KgClusterPolicyRepository = (com.wikantik.kgpolicy.KgClusterPolicyRepository) mgr; return; }
+        if ( clazz == com.wikantik.kgpolicy.KgExcludedPagesRepository.class )
+            { mgr_KgExcludedPagesRepository = (com.wikantik.kgpolicy.KgExcludedPagesRepository) mgr; return; }
+        // Unknown class — map-only, no typed field (expected for plugin-registered components).
+    }
+
+    /**
+     * Reads the per-class typed backing field for {@code clazz}, or {@code null}
+     * when the class is not in the known-types table. Used by
+     * {@link #getManager(Class)} as the fast path before Guice / map fallback.
+     */
+    @SuppressWarnings( "unchecked" )
+    private < T > T readTypedField( final Class< T > clazz ) {
+        // Auth
+        if ( clazz == AuthenticationManager.class ) return clazz.cast( mgr_AuthenticationManager );
+        if ( clazz == AuthorizationManager.class ) return clazz.cast( mgr_AuthorizationManager );
+        if ( clazz == com.wikantik.auth.UserManager.class ) return clazz.cast( mgr_UserManager );
+        if ( clazz == com.wikantik.auth.authorize.GroupManager.class ) return clazz.cast( mgr_GroupManager );
+        if ( clazz == com.wikantik.auth.acl.AclManager.class ) return clazz.cast( mgr_AclManager );
+        // Page
+        if ( clazz == PageManager.class ) return clazz.cast( mgr_PageManager );
+        if ( clazz == AttachmentManager.class ) return clazz.cast( mgr_AttachmentManager );
+        if ( clazz == com.wikantik.content.PageRenamer.class ) return clazz.cast( mgr_PageRenamer );
+        if ( clazz == ReferenceManager.class ) return clazz.cast( mgr_ReferenceManager );
+        // Core
+        if ( clazz == com.wikantik.cache.CachingManager.class ) return clazz.cast( mgr_CachingManager );
+        if ( clazz == com.wikantik.variables.VariableManager.class ) return clazz.cast( mgr_VariableManager );
+        if ( clazz == com.wikantik.ui.progress.ProgressManager.class ) return clazz.cast( mgr_ProgressManager );
+        if ( clazz == com.wikantik.ui.CommandResolver.class ) return clazz.cast( mgr_CommandResolver );
+        if ( clazz == URLConstructor.class ) return clazz.cast( mgr_URLConstructor );
+        if ( clazz == com.wikantik.i18n.InternationalizationManager.class ) return clazz.cast( mgr_InternationalizationManager );
+        if ( clazz == com.wikantik.api.managers.SystemPageRegistry.class ) return clazz.cast( mgr_SystemPageRegistry );
+        if ( clazz == com.wikantik.content.RecentArticlesManager.class ) return clazz.cast( mgr_RecentArticlesManager );
+        if ( clazz == com.wikantik.blog.BlogManager.class ) return clazz.cast( mgr_BlogManager );
+        // Rendering
+        if ( clazz == RenderingManager.class ) return clazz.cast( mgr_RenderingManager );
+        if ( clazz == PluginManager.class ) return clazz.cast( mgr_PluginManager );
+        if ( clazz == FilterManager.class ) return clazz.cast( mgr_FilterManager );
+        if ( clazz == com.wikantik.diff.DifferenceManager.class ) return clazz.cast( mgr_DifferenceManager );
+        if ( clazz == com.wikantik.content.NewsPageGenerator.class ) return clazz.cast( mgr_NewsPageGenerator );
+        // Search
+        if ( clazz == SearchManager.class ) return clazz.cast( mgr_SearchManager );
+        if ( clazz == com.wikantik.search.SearchProvider.class ) return clazz.cast( mgr_SearchProvider );
+        if ( clazz == com.wikantik.search.hybrid.HybridSearchService.class ) return clazz.cast( mgr_HybridSearchService );
+        if ( clazz == com.wikantik.search.hybrid.QueryEmbedder.class ) return clazz.cast( mgr_QueryEmbedder );
+        if ( clazz == com.wikantik.search.hybrid.QueryEntityResolver.class ) return clazz.cast( mgr_QueryEntityResolver );
+        if ( clazz == com.wikantik.search.hybrid.GraphRerankStep.class ) return clazz.cast( mgr_GraphRerankStep );
+        if ( clazz == com.wikantik.search.hybrid.GraphProximityScorer.class ) return clazz.cast( mgr_GraphProximityScorer );
+        if ( clazz == com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class ) return clazz.cast( mgr_InMemoryChunkVectorIndex );
+        if ( clazz == com.wikantik.search.hybrid.ChunkVectorIndex.class ) return clazz.cast( mgr_ChunkVectorIndex );
+        if ( clazz == com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class ) return clazz.cast( mgr_InMemoryGraphNeighborIndex );
+        if ( clazz == com.wikantik.search.hybrid.GraphNeighborIndex.class ) return clazz.cast( mgr_GraphNeighborIndex );
+        if ( clazz == com.wikantik.search.hybrid.PageMentionsLoader.class ) return clazz.cast( mgr_PageMentionsLoader );
+        if ( clazz == com.wikantik.search.embedding.EmbeddingIndexService.class ) return clazz.cast( mgr_EmbeddingIndexService );
+        if ( clazz == com.wikantik.search.embedding.OllamaEmbeddingClient.class ) return clazz.cast( mgr_OllamaEmbeddingClient );
+        if ( clazz == com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class ) return clazz.cast( mgr_BootstrapEmbeddingIndexer );
+        if ( clazz == com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class ) return clazz.cast( mgr_AsyncEmbeddingIndexListener );
+        if ( clazz == com.wikantik.search.FrontmatterMetadataCache.class ) return clazz.cast( mgr_FrontmatterMetadataCache );
+        if ( clazz == com.wikantik.search.subsystem.lucene.LuceneIndexer.class ) return clazz.cast( mgr_LuceneIndexer );
+        if ( clazz == com.wikantik.search.subsystem.lucene.LuceneSearcher.class ) return clazz.cast( mgr_LuceneSearcher );
+        if ( clazz == com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle.class ) return clazz.cast( mgr_LuceneIndexLifecycle );
+        // Page Graph
+        if ( clazz == com.wikantik.api.pagegraph.StructuralIndexService.class ) return clazz.cast( mgr_StructuralIndexService );
+        if ( clazz == com.wikantik.api.pagegraph.PageGraphService.class ) return clazz.cast( mgr_PageGraphService );
+        if ( clazz == com.wikantik.admin.ContentIndexRebuildService.class ) return clazz.cast( mgr_ContentIndexRebuildService );
+        if ( clazz == com.wikantik.pagegraph.spine.PageVerificationDao.class ) return clazz.cast( mgr_PageVerificationDao );
+        if ( clazz == com.wikantik.pagegraph.spine.TrustedAuthorsDao.class ) return clazz.cast( mgr_TrustedAuthorsDao );
+        if ( clazz == com.wikantik.pagegraph.spine.StructuralIndexEventListener.class ) return clazz.cast( mgr_StructuralIndexEventListener );
+        // Knowledge
+        if ( clazz == com.wikantik.api.knowledge.KnowledgeGraphService.class ) return clazz.cast( mgr_KnowledgeGraphService );
+        if ( clazz == com.wikantik.api.knowledge.KgProposalJudgeService.class ) return clazz.cast( mgr_KgProposalJudgeService );
+        if ( clazz == com.wikantik.knowledge.judge.JudgeRunner.class ) return clazz.cast( mgr_JudgeRunner );
+        if ( clazz == com.wikantik.knowledge.judge.KgMaterializationService.class ) return clazz.cast( mgr_KgMaterializationService );
+        if ( clazz == com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class ) return clazz.cast( mgr_KgJudgeTimeoutRepository );
+        if ( clazz == com.wikantik.knowledge.HubProposalService.class ) return clazz.cast( mgr_HubProposalService );
+        if ( clazz == com.wikantik.knowledge.HubDiscoveryService.class ) return clazz.cast( mgr_HubDiscoveryService );
+        if ( clazz == com.wikantik.knowledge.HubOverviewService.class ) return clazz.cast( mgr_HubOverviewService );
+        if ( clazz == com.wikantik.knowledge.HubProposalRepository.class ) return clazz.cast( mgr_HubProposalRepository );
+        if ( clazz == com.wikantik.knowledge.HubDiscoveryRepository.class ) return clazz.cast( mgr_HubDiscoveryRepository );
+        if ( clazz == com.wikantik.knowledge.chunking.ContentChunkRepository.class ) return clazz.cast( mgr_ContentChunkRepository );
+        if ( clazz == com.wikantik.knowledge.chunking.ChunkProjector.class ) return clazz.cast( mgr_ChunkProjector );
+        if ( clazz == com.wikantik.knowledge.MentionIndex.class ) return clazz.cast( mgr_MentionIndex );
+        if ( clazz == com.wikantik.knowledge.embedding.NodeMentionSimilarity.class ) return clazz.cast( mgr_NodeMentionSimilarity );
+        if ( clazz == com.wikantik.knowledge.FrontmatterDefaultsFilter.class ) return clazz.cast( mgr_FrontmatterDefaultsFilter );
+        if ( clazz == com.wikantik.knowledge.HubSyncFilter.class ) return clazz.cast( mgr_HubSyncFilter );
+        if ( clazz == com.wikantik.api.knowledge.ContextRetrievalService.class ) return clazz.cast( mgr_ContextRetrievalService );
+        if ( clazz == com.wikantik.api.agent.ForAgentProjectionService.class ) return clazz.cast( mgr_ForAgentProjectionService );
+        if ( clazz == com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class ) return clazz.cast( mgr_BootstrapEntityExtractionIndexer );
+        if ( clazz == com.wikantik.api.kgpolicy.KgInclusionPolicy.class ) return clazz.cast( mgr_KgInclusionPolicy );
+        if ( clazz == com.wikantik.kgpolicy.ReconciliationJobRunner.class ) return clazz.cast( mgr_ReconciliationJobRunner );
+        if ( clazz == com.wikantik.api.eval.RetrievalQualityRunner.class ) return clazz.cast( mgr_RetrievalQualityRunner );
+        if ( clazz == com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class ) return clazz.cast( mgr_ChunkEntityMentionRepository );
+        if ( clazz == com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class ) return clazz.cast( mgr_KgAsyncEntityExtractionListener );
+        if ( clazz == com.wikantik.kgpolicy.KgClusterPolicyRepository.class ) return clazz.cast( mgr_KgClusterPolicyRepository );
+        if ( clazz == com.wikantik.kgpolicy.KgExcludedPagesRepository.class ) return clazz.cast( mgr_KgExcludedPagesRepository );
+        // Unknown class — no typed field.
+        return null;
+    }
+
     /** Retrieves the object registered under the given type key. Not part of the {@link Engine} interface. */
     @SuppressWarnings( "unchecked" )
     public < T > T getManager( final Class< T > manager ) {
-        // 1. Try Guice first
+        // 1. Typed backing field (Ckpt A1) — O(1) exact-class lookup for all known types.
+        //    Returns non-null when the field has been written by setManager / initComponent.
+        final T fromField = readTypedField( manager );
+        if ( fromField != null ) return fromField;
+
+        // 2. Try Guice (for classes not in the typed table — plugin-contributed, etc.)
         try {
             if( injector != null ) {
                 return injector.getInstance( manager );
@@ -634,14 +1004,14 @@ public class WikiEngine implements Engine {
             LOG.trace( "Manager {} not found in Guice, falling back to legacy map", manager.getName() );
         }
 
-        // 2. Fallback to legacy manual map
+        // 3. Fallback to legacy manual map (subtype-assignable search for plugin-registered impls)
         final T fromMap = ( T )managers.entrySet().stream()
                                        .filter( e -> manager.isAssignableFrom( e.getKey() ) )
                                        .map( Map.Entry::getValue )
                                        .findFirst().orElse( null );
         if ( fromMap != null ) return fromMap;
 
-        // 3. Fall through to typed subsystem services. Phase 2 of the
+        // 4. Fall through to typed subsystem services. Phase 2 of the
         //    wikantik-main decomposition removed SystemPageRegistry,
         //    RecentArticlesManager, and BlogManager from the legacy
         //    managers map; this bridge keeps getManager(X.class) returning
@@ -674,6 +1044,8 @@ public class WikiEngine implements Engine {
     /** Registers an object under the given type key. Not part of the {@link Engine} interface. */
     public < T > void setManager( final Class< T > clazz, final T manager ) {
         managers.put( clazz, manager );
+        // Ckpt A1: also write the per-class typed backing field.
+        writeTypedField( clazz, manager );
         // When an auth-layer manager is hot-swapped (e.g. by a unit test installing a mock),
         // rebuild the typed auth snapshot from the current registry state so callers
         // reaching authSubsystem directly see the new value without a full re-init.

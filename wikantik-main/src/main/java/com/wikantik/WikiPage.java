@@ -24,7 +24,6 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.auth.acl.AclImpl;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 
 import java.util.Date;

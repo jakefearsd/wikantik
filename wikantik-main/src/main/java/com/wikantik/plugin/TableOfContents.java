@@ -27,13 +27,11 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.filters.FilterManager;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.Heading;
 import com.wikantik.parser.HeadingListener;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.preferences.Preferences;
-import com.wikantik.render.RenderingManager;
 import com.wikantik.util.TextUtil;
 import com.wikantik.variables.VariableManager;
 

@@ -29,7 +29,6 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.pages.PageSorter;
 import com.wikantik.parser.MarkupParser;

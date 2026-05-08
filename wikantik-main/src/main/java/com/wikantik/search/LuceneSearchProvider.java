@@ -138,7 +138,9 @@ public class LuceneSearchProvider implements SearchProvider {
     private Engine engine;
     private PageManager pageManager;
     private AttachmentManager attachmentManager;
+    @SuppressWarnings("PMD.UnusedPrivateField") // Kept for constructor signature compatibility
     private AuthorizationManager authorizationManager;
+    @SuppressWarnings("PMD.UnusedPrivateField") // Kept for constructor signature compatibility
     private AclManager aclManager;
     private SystemPageRegistry systemPageRegistry;
     private Executor searchExecutor;

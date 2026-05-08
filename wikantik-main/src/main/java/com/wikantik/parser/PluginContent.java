@@ -29,7 +29,6 @@ import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.plugin.PluginElement;
 import com.wikantik.plugin.PluginManager;
 import com.wikantik.preferences.Preferences;
-import com.wikantik.variables.VariableManager;
 import org.jdom2.Text;
 
 import java.io.IOException;

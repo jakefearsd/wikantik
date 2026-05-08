@@ -53,12 +53,6 @@ public final class KgNodeRepository {
         this.dataSource = dataSource;
     }
 
-    private static boolean isPoolClosed( final SQLException e ) {
-        if ( e == null ) return false;
-        final String msg = e.getMessage();
-        return msg != null && msg.toLowerCase( java.util.Locale.ROOT ).contains( "data source is closed" );
-    }
-
     private Map< String, Object > parseJson( final String json ) {
         if ( json == null || json.isBlank() ) return Map.of();
         final Map< String, Object > result = GSON.fromJson( json, MAP_TYPE );

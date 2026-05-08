@@ -25,7 +25,6 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.SessionMonitor;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;

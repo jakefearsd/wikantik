@@ -28,10 +28,8 @@ import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.providers.WikiProvider;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.GroupPrincipal;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.parser.MarkupParser;
-import com.wikantik.url.URLConstructor;
 import com.wikantik.util.TextUtil;
 
 import jakarta.servlet.http.HttpServletRequest;

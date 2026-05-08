@@ -24,14 +24,10 @@ import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.providers.WikiProvider;
-import com.wikantik.auth.AuthorizationManager;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
-import com.wikantik.render.RenderingManager;
 import com.wikantik.util.HttpUtil;
 import com.wikantik.util.TextUtil;
-import com.wikantik.variables.VariableManager;
 
 import java.security.Principal;
 import java.util.Map;

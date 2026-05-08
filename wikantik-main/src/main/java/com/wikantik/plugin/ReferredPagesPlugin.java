@@ -26,7 +26,6 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;

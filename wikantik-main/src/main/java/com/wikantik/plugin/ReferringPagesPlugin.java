@@ -25,7 +25,6 @@ import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.plugin.Plugin;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.preferences.Preferences;
 import com.wikantik.api.managers.ReferenceManager;

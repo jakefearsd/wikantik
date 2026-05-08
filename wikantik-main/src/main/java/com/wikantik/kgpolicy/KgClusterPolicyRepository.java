@@ -261,9 +261,4 @@ public class KgClusterPolicyRepository {
         final Timestamp t = rs.getTimestamp( col );
         return t == null ? null : t.toInstant();
     }
-
-    private static Instant ts( final ResultSet rs, final String col ) throws SQLException {
-        final Timestamp t = rs.getTimestamp( col );
-        return t == null ? null : t.toInstant();
-    }
 }

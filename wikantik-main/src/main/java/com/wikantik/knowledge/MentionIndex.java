@@ -80,10 +80,10 @@ public class MentionIndex {
 
     public boolean isMentioned( final UUID nodeId ) {
         if ( nodeId == null ) return false;
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement( EXISTS_SQL ) ) {
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( EXISTS_SQL ) ) {
             ps.setObject( 1, nodeId );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 return rs.next();
             }
         } catch ( final SQLException e ) {
@@ -94,9 +94,9 @@ public class MentionIndex {
 
     public Set< UUID > getMentionedIds() {
         final Set< UUID > out = new HashSet<>();
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement( ALL_MENTIONED_IDS_SQL );
-              final ResultSet rs = ps.executeQuery() ) {
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( ALL_MENTIONED_IDS_SQL );
+              ResultSet rs = ps.executeQuery() ) {
             while ( rs.next() ) {
                 out.add( rs.getObject( 1, UUID.class ) );
             }
@@ -110,10 +110,10 @@ public class MentionIndex {
     public Map< UUID, Integer > getCoMentionCounts( final UUID nodeId ) {
         if ( nodeId == null ) return Map.of();
         final Map< UUID, Integer > counts = new HashMap<>();
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement( COMENTION_COUNTS_SQL ) ) {
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( COMENTION_COUNTS_SQL ) ) {
             ps.setObject( 1, nodeId );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) {
                     counts.put( rs.getObject( 1, UUID.class ), rs.getInt( 2 ) );
                 }
@@ -191,11 +191,11 @@ public class MentionIndex {
           + " ORDER BY shared_count DESC, other_c.page_name ASC "
           + " LIMIT ?";
         final List< RelatedByMention > out = new ArrayList<>();
-        try ( final Connection c = dataSource.getConnection();
-              final PreparedStatement ps = c.prepareStatement( sql ) ) {
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( sql ) ) {
             ps.setString( 1, pageName );
             ps.setInt( 2, limit );
-            try ( final ResultSet rs = ps.executeQuery() ) {
+            try ( ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) {
                     final String otherPage = rs.getString( 1 );
                     final Array arr = rs.getArray( 2 );

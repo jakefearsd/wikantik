@@ -22,7 +22,6 @@ import org.apache.commons.text.StringEscapeUtils;
 import com.wikantik.WikiContext;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.NoSuchVariableException;
-import com.wikantik.variables.VariableManager;
 import org.jdom2.Text;
 
 /**

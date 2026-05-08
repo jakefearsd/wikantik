@@ -27,8 +27,6 @@ import com.wikantik.api.exceptions.PluginException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.plugin.Plugin;
 import com.wikantik.api.search.SearchResult;
-import com.wikantik.render.RenderingManager;
-import com.wikantik.search.SearchManager;
 import com.wikantik.util.TextUtil;
 import com.wikantik.util.XHTML;
 import com.wikantik.util.XhtmlUtil;

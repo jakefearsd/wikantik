@@ -28,8 +28,6 @@ import com.wikantik.api.kgpolicy.PolicyExplanation;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Optional;
@@ -55,8 +53,6 @@ import java.util.concurrent.ConcurrentMap;
  * counts are in the tens, not millions.</p>
  */
 public class DefaultKgInclusionPolicy implements KgInclusionPolicy {
-
-    private static final Logger LOG = LogManager.getLogger( DefaultKgInclusionPolicy.class );
 
     private final SystemPageRegistry systemPages;
     private final StructuralIndexService structural;

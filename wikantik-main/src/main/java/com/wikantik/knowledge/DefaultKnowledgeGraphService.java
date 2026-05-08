@@ -23,7 +23,6 @@ import com.wikantik.api.core.Engine;
 import java.sql.Connection;
 import java.sql.SQLException;
 import com.wikantik.api.core.Session;
-import com.wikantik.api.managers.PageManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -51,6 +50,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     private final KgProposalRepository proposals;
     private final KgRejectionRepository rejections;
     private final javax.sql.DataSource dataSource;
+    @SuppressWarnings("PMD.UnusedPrivateField") // Used in setEngine() setter
     private Engine engine;
     private final com.wikantik.knowledge.judge.KgMaterializationService materialization;
     private final com.wikantik.api.knowledge.KgProposalJudgeService judgeService;

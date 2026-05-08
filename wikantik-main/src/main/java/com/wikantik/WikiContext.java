@@ -31,7 +31,6 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
-import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.permissions.AllPermission;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.context.PageScope;

@@ -34,7 +34,6 @@ import com.wikantik.api.pages.PageLock;
 import com.wikantik.api.pages.PageSorter;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
-import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventManager;

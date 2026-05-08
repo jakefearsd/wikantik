@@ -28,10 +28,8 @@ import com.wikantik.api.plugin.Plugin;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.preferences.Preferences;
-import com.wikantik.render.RenderingManager;
 import com.wikantik.util.HttpUtil;
 import com.wikantik.util.TextUtil;
 

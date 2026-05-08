@@ -28,8 +28,6 @@ import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
 import java.util.*;
@@ -42,8 +40,6 @@ import java.util.*;
  * Ckpt 6 god-class decomposition. Holds the per-tier snapshot cache.
  */
 class KgGraphSnapshotBuilder {
-
-    private static final Logger LOG = LogManager.getLogger( KgGraphSnapshotBuilder.class );
 
     private static final long CACHE_TTL_SECONDS = 60;
 

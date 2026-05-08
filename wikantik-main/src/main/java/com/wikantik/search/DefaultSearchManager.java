@@ -28,7 +28,6 @@ import com.wikantik.api.filters.PageFilter;
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventManager;
 import com.wikantik.event.WikiPageEvent;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.util.ClassUtil;
 import com.wikantik.util.TextUtil;

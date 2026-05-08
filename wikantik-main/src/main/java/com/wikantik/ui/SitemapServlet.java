@@ -299,20 +299,6 @@ public class SitemapServlet extends HttpServlet {
     }
 
     /**
-     * Builds a fully qualified URL from base URL and path.
-     *
-     * @param baseUrl the base URL
-     * @param path the path to append
-     * @return the fully qualified URL
-     */
-    private String buildFullUrl( final String baseUrl, final String path ) {
-        if ( path.startsWith( "/" ) ) {
-            return baseUrl + path;
-        }
-        return baseUrl + "/" + path;
-    }
-
-    /**
      * Writes image:image entries for any image attachments on the page.
      *
      * @param out the PrintWriter to write to

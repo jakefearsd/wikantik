@@ -862,7 +862,16 @@ public class WikiEngine implements Engine {
                     ds, persistenceSubsystem, coreSubsystem, pageSubsystem, luceneMlt );
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Services svcs =
                 com.wikantik.knowledge.subsystem.KnowledgeSubsystemFactory.create( kgDeps );
-            this.knowledgeSubsystem = svcs;
+            // Note: this.knowledgeSubsystem is intentionally assigned at the END
+            // of this method, AFTER all wiring helpers have run. Each helper
+            // calls engine.setManager(...) which invalidates the
+            // knowledgeSubsystem snapshot (so it can be rebuilt on the next
+            // legacy getManager lookup). Assigning the snapshot before the
+            // helpers means it would be wiped to null before initialize()
+            // reaches rebuildKnowledgeSubsystemWithPostConstructionServices,
+            // and the WikiSubsystems stash would be skipped — leaving REST
+            // endpoints to fall through to the synthetic bridge with null
+            // hub-discovery / hub-proposal repositories. (Phase 9 Ckpt 4c-fix.)
 
             if ( svcs.kgService() instanceof DefaultKnowledgeGraphService dkgs ) {
                 dkgs.setEngine( this );
@@ -902,6 +911,10 @@ public class WikiEngine implements Engine {
             com.wikantik.pagegraph.subsystem.PageGraphWiringHelper.wireSpineFilters(
                 props, structuralIndex, coreSubsystem, this );
             filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
+
+            // Assign the typed snapshot ONLY after all helpers have run.
+            // See note above next to the local 'svcs' assignment.
+            this.knowledgeSubsystem = svcs;
 
             LOG.info( "HubProposalService registered (reviewPercentile property='{}')",
                 props.getProperty( HubProposalService.PROP_REVIEW_PERCENTILE, "default" ) );

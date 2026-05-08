@@ -18,11 +18,19 @@
  */
 package com.wikantik.rest;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.util.Locale;
+import java.util.Optional;
 
+import com.wikantik.api.core.Session;
+import com.wikantik.api.spi.Wiki;
+import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.authorize.Group;
+import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.validate.PasswordValidator;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
@@ -90,6 +98,14 @@ public class AdminUserResource extends RestServletBase {
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
 
+        // Dispatch bulk-action BEFORE any other path handling so it doesn't
+        // collide with the {loginName}/lock|unlock subpaths.
+        final String pathInfo = request.getPathInfo();
+        if ( "/bulk-action".equals( pathInfo ) ) {
+            doBulkAction( request, response );
+            return;
+        }
+
         final String pathParam = extractPathParam( request );
 
         if ( pathParam == null ) {
@@ -103,6 +119,228 @@ public class AdminUserResource extends RestServletBase {
         } else {
             sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint" );
         }
+    }
+
+    /**
+     * Handles {@code POST /admin/users/bulk-action}.
+     *
+     * <p>Request body:
+     * {@code { "action": "lock"|"unlock"|"delete"|"add-to-group",
+     *           "ids": ["bob","alice"],
+     *           "group": "editors"   // only for add-to-group
+     * }}
+     *
+     * <p>Loops over {@code ids} without aborting on first failure. Returns the
+     * standard bulk-result envelope:
+     * {@code { "succeeded": [...], "failed": [...], "status": "completed",
+     * "message": "N of M users locked" }}.
+     *
+     * <p>For {@code add-to-group}: {@code group} must be non-empty and the named
+     * group must already exist — if not, the whole call returns 400 (not a per-id
+     * failure) because this is not a per-id condition.
+     *
+     * <p>For {@code delete}: the actor's own login is rejected as a per-id
+     * failure (operators cannot bulk-delete themselves).
+     *
+     * <p>Emits one audit log entry per call.
+     */
+    private void doBulkAction( final HttpServletRequest request,
+            final HttpServletResponse response )
+            throws ServletException, IOException {
+
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
+
+        final String action = getJsonString( body, "action" );
+        if ( action == null || action.isBlank() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "action is required (supported: lock, unlock, delete, add-to-group)" );
+            return;
+        }
+        if ( !"lock".equals( action ) && !"unlock".equals( action )
+                && !"delete".equals( action ) && !"add-to-group".equals( action ) ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "Unsupported action '" + action + "' — supported: lock, unlock, delete, add-to-group" );
+            return;
+        }
+
+        final JsonElement idsEl = body.get( "ids" );
+        if ( idsEl == null || !idsEl.isJsonArray() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "ids is required and must be a JSON array" );
+            return;
+        }
+        final JsonArray idsArr = idsEl.getAsJsonArray();
+        if ( idsArr.isEmpty() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "ids must not be empty" );
+            return;
+        }
+
+        // --- add-to-group pre-validation: resolve group once, bail with 400 if absent ---
+        Group targetGroup = null;
+        Session session = null;
+        if ( "add-to-group".equals( action ) ) {
+            final String groupName = getJsonString( body, "group" );
+            if ( groupName == null || groupName.isBlank() ) {
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                        "group is required for action 'add-to-group'" );
+                return;
+            }
+            try {
+                targetGroup = getSubsystems().auth().groups().getGroup( groupName );
+                session = Wiki.session().find( getEngine(), request );
+            } catch ( final NoSuchPrincipalException e ) {
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                        "Group not found: " + groupName );
+                return;
+            } catch ( final Exception e ) {
+                LOG.warn( "bulk add-to-group: could not resolve group actor={}: {}",
+                        currentLogin( request ), e.getMessage(), e );
+                sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                        "Failed to resolve group" );
+                return;
+            }
+        }
+
+        final String actor = currentLogin( request );
+        final List< String > succeeded = new ArrayList<>();
+        final List< Map< String, Object > > failed = new ArrayList<>();
+
+        for ( final JsonElement idEl : idsArr ) {
+            final String loginName = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
+            if ( loginName == null || loginName.isBlank() ) {
+                final Map< String, Object > f = new LinkedHashMap<>();
+                f.put( "id", idEl.toString() );
+                f.put( "error", "id must be a non-blank string" );
+                failed.add( f );
+                continue;
+            }
+
+            final Optional< String > err;
+            switch ( action ) {
+                case "lock"   -> err = tryLockUser( loginName );
+                case "unlock" -> err = tryUnlockUser( loginName );
+                case "delete" -> err = tryDeleteUser( loginName, actor );
+                case "add-to-group" -> err = tryAddToGroup( loginName, targetGroup, session, actor );
+                default -> err = Optional.of( "Unknown action" );  // unreachable
+            }
+
+            if ( err.isEmpty() ) {
+                succeeded.add( loginName );
+            } else {
+                final Map< String, Object > f = new LinkedHashMap<>();
+                f.put( "id", loginName );
+                f.put( "error", err.get() );
+                failed.add( f );
+            }
+        }
+
+        final String suffix = "add-to-group".equals( action )
+                ? " group=" + getJsonString( body, "group" )
+                : "";
+        LOG.info( "bulk action={} resource=users actor={} attempted={} succeeded={} failed={}{}",
+                action, actor, idsArr.size(), succeeded.size(), failed.size(), suffix );
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "succeeded", succeeded );
+        result.put( "failed", failed );
+        result.put( "status", "completed" );
+        result.put( "message",
+                succeeded.size() + " of " + idsArr.size() + " users " + actionPastTense( action ) );
+        sendJson( response, result );
+    }
+
+    private static String actionPastTense( final String action ) {
+        return switch ( action ) {
+            case "lock"         -> "locked";
+            case "unlock"       -> "unlocked";
+            case "delete"       -> "deleted";
+            case "add-to-group" -> "added to group";
+            default             -> action + "d";
+        };
+    }
+
+    // ---- per-id helpers shared with single-item path ----
+
+    /**
+     * Locks {@code loginName} indefinitely. Returns empty on success, an error
+     * message on failure.
+     */
+    Optional< String > tryLockUser( final String loginName ) {
+        try {
+            final UserDatabase db = getUserDatabase();
+            final UserProfile profile = db.findByLoginName( loginName );
+            profile.setLockExpiry( new Date( Long.MAX_VALUE ) );
+            db.save( profile );
+            return Optional.empty();
+        } catch ( final Exception e ) {
+            LOG.warn( "bulk-lock: failed to lock user={}: {}", loginName, e.getMessage(), e );
+            return Optional.of( e.getMessage() != null ? e.getMessage() : "Failed to lock user" );
+        }
+    }
+
+    /**
+     * Unlocks {@code loginName}. Returns empty on success, error message on
+     * failure.
+     */
+    Optional< String > tryUnlockUser( final String loginName ) {
+        try {
+            final UserDatabase db = getUserDatabase();
+            final UserProfile profile = db.findByLoginName( loginName );
+            profile.setLockExpiry( null );
+            db.save( profile );
+            return Optional.empty();
+        } catch ( final Exception e ) {
+            LOG.warn( "bulk-unlock: failed to unlock user={}: {}", loginName, e.getMessage(), e );
+            return Optional.of( e.getMessage() != null ? e.getMessage() : "Failed to unlock user" );
+        }
+    }
+
+    /**
+     * Deletes {@code loginName}. Rejects the actor's own login as a per-id
+     * failure. Returns empty on success, error message on failure.
+     */
+    Optional< String > tryDeleteUser( final String loginName, final String actor ) {
+        if ( loginName.equals( actor ) ) {
+            return Optional.of( "Cannot delete yourself" );
+        }
+        try {
+            getUserDatabase().deleteByLoginName( loginName );
+            return Optional.empty();
+        } catch ( final Exception e ) {
+            LOG.warn( "bulk-delete: failed to delete user={}: {}", loginName, e.getMessage(), e );
+            return Optional.of( e.getMessage() != null ? e.getMessage() : "User not found" );
+        }
+    }
+
+    /**
+     * Adds {@code loginName} as a member of {@code group}. Returns empty on
+     * success, error message on failure. Verifies the login exists before
+     * adding.
+     */
+    Optional< String > tryAddToGroup( final String loginName, final Group group,
+            final Session session, final String actor ) {
+        try {
+            // Verify the user exists before adding to group
+            getUserDatabase().findByLoginName( loginName );
+            // Add using a login-name principal so the GroupDatabase persists it
+            // in the standard way that matches how members are resolved.
+            final Principal userPrincipal = new com.wikantik.auth.WikiPrincipal(
+                    loginName, com.wikantik.auth.WikiPrincipal.LOGIN_NAME );
+            group.add( userPrincipal );
+            getGroupManager().setGroup( session, group );
+            return Optional.empty();
+        } catch ( final Exception e ) {
+            LOG.warn( "bulk-add-to-group: failed to add user={} actor={}: {}",
+                    loginName, actor, e.getMessage(), e );
+            return Optional.of( e.getMessage() != null ? e.getMessage() : "Failed to add user to group" );
+        }
+    }
+
+    private static String currentLogin( final HttpServletRequest request ) {
+        final Principal p = request.getUserPrincipal();
+        return p != null ? p.getName() : null;
     }
 
     @Override
@@ -311,6 +549,10 @@ public class AdminUserResource extends RestServletBase {
             LOG.error( "Failed to unlock user {}: {}", loginName, e.getMessage() );
             sendNotFound( response, "User not found: " + loginName );
         }
+    }
+
+    private GroupManager getGroupManager() {
+        return getSubsystems().auth().groups();
     }
 
     private Map< String, Object > profileToMap( final UserProfile profile ) {

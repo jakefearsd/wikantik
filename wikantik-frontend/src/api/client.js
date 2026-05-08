@@ -444,6 +444,12 @@ export const api = {
         body: JSON.stringify({ action, ids }),
       }),
 
+    bulkUserAction: (action, ids, opts = {}) =>
+      request('/admin/users/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ action, ids, ...opts }),
+      }),
+
     // Retrieval Quality (Phase 5b)
     listRetrievalRuns: ({ querySetId, mode, limit = 30 } = {}) => {
       const params = new URLSearchParams();

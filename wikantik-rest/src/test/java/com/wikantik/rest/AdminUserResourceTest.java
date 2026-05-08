@@ -572,7 +572,283 @@ class AdminUserResourceTest {
         assertEquals( "changed@example.com", obj.get( "email" ).getAsString() );
     }
 
+    // ----- Bulk action tests -----
+
+    @Test
+    void testBulkLockHappyPath() throws Exception {
+        // Create a user to lock
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", "bulkLockTarget" );
+        createBody.addProperty( "password", "StrongPassword123!" );
+        doPost( null, createBody );
+
+        // Bulk lock
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "lock" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "bulkLockTarget" );
+        body.add( "ids", ids );
+
+        final String json = doBulkAction( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Bulk lock should not return error, got: " + json );
+        assertEquals( "completed", obj.get( "status" ).getAsString() );
+        assertEquals( 1, obj.getAsJsonArray( "succeeded" ).size() );
+        assertEquals( 0, obj.getAsJsonArray( "failed" ).size() );
+        assertEquals( "bulkLockTarget", obj.getAsJsonArray( "succeeded" ).get( 0 ).getAsString() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "1 of 1" ) );
+    }
+
+    @Test
+    void testBulkUnlockHappyPath() throws Exception {
+        // Create a user, then bulk unlock (unlocking an unlocked user is still a no-op success
+        // — tryUnlockUser just sets lockExpiry to null and saves)
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", "bulkUnlockTarget" );
+        createBody.addProperty( "password", "StrongPassword123!" );
+        final String createJson = doPost( null, createBody );
+        final JsonObject createObj = gson.fromJson( createJson, JsonObject.class );
+        assertFalse( createObj.has( "error" ), "User creation should succeed, got: " + createJson );
+
+        // Bulk unlock (user is not locked, but unlock should still succeed)
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "unlock" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "bulkUnlockTarget" );
+        body.add( "ids", ids );
+
+        final String json = doBulkAction( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Bulk unlock should not return error, got: " + json );
+        assertEquals( "completed", obj.get( "status" ).getAsString() );
+        assertEquals( 1, obj.getAsJsonArray( "succeeded" ).size(),
+                "Unlocking an already-unlocked user should succeed: " + json );
+        assertEquals( 0, obj.getAsJsonArray( "failed" ).size() );
+    }
+
+    @Test
+    void testBulkDeleteHappyPath() throws Exception {
+        // Create a user then bulk delete
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", "bulkDeleteTarget" );
+        createBody.addProperty( "password", "StrongPassword123!" );
+        doPost( null, createBody );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "delete" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "bulkDeleteTarget" );
+        body.add( "ids", ids );
+
+        final String json = doBulkAction( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Bulk delete should not return error, got: " + json );
+        assertEquals( "completed", obj.get( "status" ).getAsString() );
+        assertEquals( 1, obj.getAsJsonArray( "succeeded" ).size() );
+        assertEquals( 0, obj.getAsJsonArray( "failed" ).size() );
+    }
+
+    @Test
+    void testBulkDeleteSelfReturnsPerIdFailure() throws Exception {
+        // Create a user and make the servlet request appear to come from that user
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", "selfDeleteAttempt" );
+        createBody.addProperty( "password", "StrongPassword123!" );
+        doPost( null, createBody );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "delete" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "selfDeleteAttempt" );
+        body.add( "ids", ids );
+
+        // Use a request where the principal is "selfDeleteAttempt"
+        final HttpServletRequest request = createBulkActionRequest( "selfDeleteAttempt" );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        servlet.doPost( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        assertFalse( obj.has( "error" ), "Bulk endpoint should return 200 with per-id failure, got: " + sw );
+        assertEquals( "completed", obj.get( "status" ).getAsString() );
+        assertEquals( 0, obj.getAsJsonArray( "succeeded" ).size(),
+                "Self-delete should not succeed" );
+        assertEquals( 1, obj.getAsJsonArray( "failed" ).size(),
+                "Self-delete should appear in failed" );
+        assertTrue( obj.getAsJsonArray( "failed" ).get( 0 ).getAsJsonObject()
+                .get( "error" ).getAsString().contains( "yourself" ) );
+    }
+
+    @Test
+    void testBulkActionMissingAction() throws Exception {
+        final JsonObject body = new JsonObject();
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "someuser" );
+        body.add( "ids", ids );
+
+        final String json = doBulkAction( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "action" ) );
+    }
+
+    @Test
+    void testBulkActionUnknownAction() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "nuke" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "someuser" );
+        body.add( "ids", ids );
+
+        final String json = doBulkAction( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "Unsupported action" ) );
+    }
+
+    @Test
+    void testBulkActionMissingIds() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "lock" );
+
+        final String json = doBulkAction( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "ids" ) );
+    }
+
+    @Test
+    void testBulkActionEmptyIds() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "lock" );
+        body.add( "ids", new com.google.gson.JsonArray() );
+
+        final String json = doBulkAction( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testBulkActionMissingGroupForAddToGroup() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "add-to-group" );
+        // No "group" field
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "someuser" );
+        body.add( "ids", ids );
+
+        final String json = doBulkAction( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "group" ) );
+    }
+
+    @Test
+    void testBulkActionNonExistentGroupIs400() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "add-to-group" );
+        body.addProperty( "group", "nonexistent_group_xyz_99999" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "someuser" );
+        body.add( "ids", ids );
+
+        final String json = doBulkAction( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().toLowerCase().contains( "group" ) );
+    }
+
+    @Test
+    void testBulkLockPartialFailure() throws Exception {
+        // Create one real user; "nonexistentXyz9876" does not exist
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", "bulkPartialLockUser" );
+        createBody.addProperty( "password", "StrongPassword123!" );
+        doPost( null, createBody );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "lock" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "bulkPartialLockUser" );
+        ids.add( "nonexistentXyz9876" );
+        body.add( "ids", ids );
+
+        final String json = doBulkAction( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Partial failure should not be a 4xx: " + json );
+        assertEquals( "completed", obj.get( "status" ).getAsString() );
+        assertEquals( 1, obj.getAsJsonArray( "succeeded" ).size() );
+        assertEquals( 1, obj.getAsJsonArray( "failed" ).size() );
+        assertFalse( obj.getAsJsonArray( "failed" ).get( 0 ).getAsJsonObject()
+                .get( "error" ).getAsString().isBlank() );
+    }
+
+    @Test
+    void testBulkDeletePartialFailure() throws Exception {
+        // Create one user; nonexistent one should fail
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", "bulkPartialDeleteUser" );
+        createBody.addProperty( "password", "StrongPassword123!" );
+        doPost( null, createBody );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "action", "delete" );
+        final com.google.gson.JsonArray ids = new com.google.gson.JsonArray();
+        ids.add( "bulkPartialDeleteUser" );
+        ids.add( "nonexistentXyz9876Delete" );
+        body.add( "ids", ids );
+
+        final String json = doBulkAction( body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Partial failure should not be a 4xx: " + json );
+        assertEquals( "completed", obj.get( "status" ).getAsString() );
+        assertEquals( 1, obj.getAsJsonArray( "succeeded" ).size() );
+        assertEquals( 1, obj.getAsJsonArray( "failed" ).size() );
+    }
+
     // ----- Helper methods -----
+
+    private String doBulkAction( final JsonObject body ) throws Exception {
+        final HttpServletRequest request = createBulkActionRequest( null );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doPost( request, response );
+        return sw.toString();
+    }
+
+    private HttpServletRequest createBulkActionRequest( final String actorLogin ) {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/users/bulk-action" );
+        Mockito.doReturn( "/bulk-action" ).when( request ).getPathInfo();
+        if ( actorLogin != null ) {
+            final java.security.Principal principal = Mockito.mock( java.security.Principal.class );
+            Mockito.doReturn( actorLogin ).when( principal ).getName();
+            Mockito.doReturn( principal ).when( request ).getUserPrincipal();
+        }
+        return request;
+    }
 
     private String doGet( final String pathParam ) throws Exception {
         final HttpServletRequest request = createRequest( pathParam );

@@ -84,12 +84,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 
 /**
@@ -193,6 +196,300 @@ public class WikiEngine implements Engine {
     private final Map< String, Object > attributes = new ConcurrentHashMap<>();
 
     // Ckpt A2: managers Map deleted — all reads/writes go through typed backing fields.
+
+    // -----------------------------------------------------------------------
+    // Phase 11 Ckpt 1: static class→writer/reader maps replace the 75-arm if-chains.
+    // IdentityHashMap gives O(1) reference-equality lookup (Class.hashCode is
+    // identity-based, but IdentityHashMap makes the intent explicit and avoids
+    // equals() dispatch).
+    // -----------------------------------------------------------------------
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    private static final Map<Class<?>, BiConsumer<WikiEngine, Object>> TYPED_FIELD_WRITERS;
+    @SuppressWarnings( { "unchecked", "rawtypes" } )
+    private static final Map<Class<?>, Function<WikiEngine, Object>> TYPED_FIELD_READERS;
+
+    static {
+        final IdentityHashMap<Class<?>, BiConsumer<WikiEngine, Object>> w = new IdentityHashMap<>( 128 );
+        // Auth
+        w.put( com.wikantik.auth.AuthenticationManager.class,      ( e, m ) -> e.mgr_AuthenticationManager      = (com.wikantik.auth.AuthenticationManager) m );
+        w.put( com.wikantik.auth.AuthorizationManager.class,       ( e, m ) -> e.mgr_AuthorizationManager       = (com.wikantik.auth.AuthorizationManager) m );
+        w.put( com.wikantik.auth.UserManager.class,                ( e, m ) -> e.mgr_UserManager                = (com.wikantik.auth.UserManager) m );
+        w.put( com.wikantik.auth.authorize.GroupManager.class,     ( e, m ) -> e.mgr_GroupManager               = (com.wikantik.auth.authorize.GroupManager) m );
+        w.put( com.wikantik.auth.acl.AclManager.class,             ( e, m ) -> e.mgr_AclManager                 = (com.wikantik.auth.acl.AclManager) m );
+        // Page
+        w.put( com.wikantik.api.managers.PageManager.class,        ( e, m ) -> e.mgr_PageManager                = (com.wikantik.api.managers.PageManager) m );
+        w.put( com.wikantik.api.managers.AttachmentManager.class,  ( e, m ) -> e.mgr_AttachmentManager          = (com.wikantik.api.managers.AttachmentManager) m );
+        w.put( com.wikantik.content.PageRenamer.class,             ( e, m ) -> e.mgr_PageRenamer                = (com.wikantik.content.PageRenamer) m );
+        w.put( com.wikantik.api.managers.ReferenceManager.class,   ( e, m ) -> e.mgr_ReferenceManager           = (com.wikantik.api.managers.ReferenceManager) m );
+        // Core
+        w.put( com.wikantik.cache.CachingManager.class,                   ( e, m ) -> e.mgr_CachingManager                   = (com.wikantik.cache.CachingManager) m );
+        w.put( com.wikantik.variables.VariableManager.class,              ( e, m ) -> e.mgr_VariableManager                  = (com.wikantik.variables.VariableManager) m );
+        w.put( com.wikantik.ui.progress.ProgressManager.class,            ( e, m ) -> e.mgr_ProgressManager                  = (com.wikantik.ui.progress.ProgressManager) m );
+        w.put( com.wikantik.ui.CommandResolver.class,                     ( e, m ) -> e.mgr_CommandResolver                  = (com.wikantik.ui.CommandResolver) m );
+        w.put( com.wikantik.url.URLConstructor.class,                     ( e, m ) -> e.mgr_URLConstructor                   = (com.wikantik.url.URLConstructor) m );
+        w.put( com.wikantik.i18n.InternationalizationManager.class,       ( e, m ) -> e.mgr_InternationalizationManager      = (com.wikantik.i18n.InternationalizationManager) m );
+        w.put( com.wikantik.api.managers.SystemPageRegistry.class,        ( e, m ) -> e.mgr_SystemPageRegistry               = (com.wikantik.api.managers.SystemPageRegistry) m );
+        w.put( com.wikantik.content.RecentArticlesManager.class,          ( e, m ) -> e.mgr_RecentArticlesManager            = (com.wikantik.content.RecentArticlesManager) m );
+        w.put( com.wikantik.blog.BlogManager.class,                       ( e, m ) -> e.mgr_BlogManager                      = (com.wikantik.blog.BlogManager) m );
+        // Rendering
+        w.put( com.wikantik.render.RenderingManager.class,         ( e, m ) -> e.mgr_RenderingManager           = (com.wikantik.render.RenderingManager) m );
+        w.put( com.wikantik.plugin.PluginManager.class,            ( e, m ) -> e.mgr_PluginManager              = (com.wikantik.plugin.PluginManager) m );
+        w.put( com.wikantik.filters.FilterManager.class,           ( e, m ) -> e.mgr_FilterManager              = (com.wikantik.filters.FilterManager) m );
+        w.put( com.wikantik.diff.DifferenceManager.class,          ( e, m ) -> e.mgr_DifferenceManager          = (com.wikantik.diff.DifferenceManager) m );
+        w.put( com.wikantik.content.NewsPageGenerator.class,       ( e, m ) -> e.mgr_NewsPageGenerator          = (com.wikantik.content.NewsPageGenerator) m );
+        // Search
+        w.put( com.wikantik.search.SearchManager.class,                                  ( e, m ) -> e.mgr_SearchManager                = (com.wikantik.search.SearchManager) m );
+        w.put( com.wikantik.search.SearchProvider.class,                                 ( e, m ) -> e.mgr_SearchProvider               = (com.wikantik.search.SearchProvider) m );
+        w.put( com.wikantik.search.hybrid.HybridSearchService.class,                     ( e, m ) -> e.mgr_HybridSearchService          = (com.wikantik.search.hybrid.HybridSearchService) m );
+        w.put( com.wikantik.search.hybrid.QueryEmbedder.class,                           ( e, m ) -> e.mgr_QueryEmbedder                = (com.wikantik.search.hybrid.QueryEmbedder) m );
+        w.put( com.wikantik.search.hybrid.QueryEntityResolver.class,                     ( e, m ) -> e.mgr_QueryEntityResolver          = (com.wikantik.search.hybrid.QueryEntityResolver) m );
+        w.put( com.wikantik.search.hybrid.GraphRerankStep.class,                         ( e, m ) -> e.mgr_GraphRerankStep              = (com.wikantik.search.hybrid.GraphRerankStep) m );
+        w.put( com.wikantik.search.hybrid.GraphProximityScorer.class,                    ( e, m ) -> e.mgr_GraphProximityScorer         = (com.wikantik.search.hybrid.GraphProximityScorer) m );
+        w.put( com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class,                ( e, m ) -> e.mgr_InMemoryChunkVectorIndex      = (com.wikantik.search.hybrid.InMemoryChunkVectorIndex) m );
+        w.put( com.wikantik.search.hybrid.ChunkVectorIndex.class,                        ( e, m ) -> e.mgr_ChunkVectorIndex             = (com.wikantik.search.hybrid.ChunkVectorIndex) m );
+        w.put( com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class,              ( e, m ) -> e.mgr_InMemoryGraphNeighborIndex   = (com.wikantik.search.hybrid.InMemoryGraphNeighborIndex) m );
+        w.put( com.wikantik.search.hybrid.GraphNeighborIndex.class,                      ( e, m ) -> e.mgr_GraphNeighborIndex           = (com.wikantik.search.hybrid.GraphNeighborIndex) m );
+        w.put( com.wikantik.search.hybrid.PageMentionsLoader.class,                      ( e, m ) -> e.mgr_PageMentionsLoader           = (com.wikantik.search.hybrid.PageMentionsLoader) m );
+        w.put( com.wikantik.search.embedding.EmbeddingIndexService.class,                ( e, m ) -> e.mgr_EmbeddingIndexService        = (com.wikantik.search.embedding.EmbeddingIndexService) m );
+        w.put( com.wikantik.search.embedding.OllamaEmbeddingClient.class,                ( e, m ) -> e.mgr_OllamaEmbeddingClient        = (com.wikantik.search.embedding.OllamaEmbeddingClient) m );
+        w.put( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class,            ( e, m ) -> e.mgr_BootstrapEmbeddingIndexer    = (com.wikantik.search.embedding.BootstrapEmbeddingIndexer) m );
+        w.put( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class,          ( e, m ) -> e.mgr_AsyncEmbeddingIndexListener  = (com.wikantik.search.embedding.AsyncEmbeddingIndexListener) m );
+        w.put( com.wikantik.search.FrontmatterMetadataCache.class,                       ( e, m ) -> e.mgr_FrontmatterMetadataCache     = (com.wikantik.search.FrontmatterMetadataCache) m );
+        w.put( com.wikantik.search.subsystem.lucene.LuceneIndexer.class,                 ( e, m ) -> e.mgr_LuceneIndexer               = (com.wikantik.search.subsystem.lucene.LuceneIndexer) m );
+        w.put( com.wikantik.search.subsystem.lucene.LuceneSearcher.class,                ( e, m ) -> e.mgr_LuceneSearcher              = (com.wikantik.search.subsystem.lucene.LuceneSearcher) m );
+        w.put( com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle.class,          ( e, m ) -> e.mgr_LuceneIndexLifecycle        = (com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle) m );
+        // Page Graph
+        w.put( com.wikantik.api.pagegraph.StructuralIndexService.class,                  ( e, m ) -> e.mgr_StructuralIndexService       = (com.wikantik.api.pagegraph.StructuralIndexService) m );
+        w.put( com.wikantik.api.pagegraph.PageGraphService.class,                        ( e, m ) -> e.mgr_PageGraphService             = (com.wikantik.api.pagegraph.PageGraphService) m );
+        w.put( com.wikantik.admin.ContentIndexRebuildService.class,                      ( e, m ) -> e.mgr_ContentIndexRebuildService   = (com.wikantik.admin.ContentIndexRebuildService) m );
+        w.put( com.wikantik.pagegraph.spine.PageVerificationDao.class,                   ( e, m ) -> e.mgr_PageVerificationDao          = (com.wikantik.pagegraph.spine.PageVerificationDao) m );
+        w.put( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class,                     ( e, m ) -> e.mgr_TrustedAuthorsDao            = (com.wikantik.pagegraph.spine.TrustedAuthorsDao) m );
+        w.put( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class,          ( e, m ) -> e.mgr_StructuralIndexEventListener = (com.wikantik.pagegraph.spine.StructuralIndexEventListener) m );
+        // Knowledge
+        w.put( com.wikantik.api.knowledge.KnowledgeGraphService.class,                         ( e, m ) -> e.mgr_KnowledgeGraphService              = (com.wikantik.api.knowledge.KnowledgeGraphService) m );
+        w.put( com.wikantik.api.knowledge.KgProposalJudgeService.class,                        ( e, m ) -> e.mgr_KgProposalJudgeService             = (com.wikantik.api.knowledge.KgProposalJudgeService) m );
+        w.put( com.wikantik.knowledge.judge.JudgeRunner.class,                                 ( e, m ) -> e.mgr_JudgeRunner                        = (com.wikantik.knowledge.judge.JudgeRunner) m );
+        w.put( com.wikantik.knowledge.judge.KgMaterializationService.class,                    ( e, m ) -> e.mgr_KgMaterializationService           = (com.wikantik.knowledge.judge.KgMaterializationService) m );
+        w.put( com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class,                    ( e, m ) -> e.mgr_KgJudgeTimeoutRepository           = (com.wikantik.knowledge.judge.KgJudgeTimeoutRepository) m );
+        w.put( com.wikantik.knowledge.HubProposalService.class,                                ( e, m ) -> e.mgr_HubProposalService                 = (com.wikantik.knowledge.HubProposalService) m );
+        w.put( com.wikantik.knowledge.HubDiscoveryService.class,                               ( e, m ) -> e.mgr_HubDiscoveryService                = (com.wikantik.knowledge.HubDiscoveryService) m );
+        w.put( com.wikantik.knowledge.HubOverviewService.class,                                ( e, m ) -> e.mgr_HubOverviewService                 = (com.wikantik.knowledge.HubOverviewService) m );
+        w.put( com.wikantik.knowledge.HubProposalRepository.class,                             ( e, m ) -> e.mgr_HubProposalRepository              = (com.wikantik.knowledge.HubProposalRepository) m );
+        w.put( com.wikantik.knowledge.HubDiscoveryRepository.class,                            ( e, m ) -> e.mgr_HubDiscoveryRepository             = (com.wikantik.knowledge.HubDiscoveryRepository) m );
+        w.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class,                   ( e, m ) -> e.mgr_ContentChunkRepository             = (com.wikantik.knowledge.chunking.ContentChunkRepository) m );
+        w.put( com.wikantik.knowledge.chunking.ChunkProjector.class,                           ( e, m ) -> e.mgr_ChunkProjector                     = (com.wikantik.knowledge.chunking.ChunkProjector) m );
+        w.put( com.wikantik.knowledge.MentionIndex.class,                                      ( e, m ) -> e.mgr_MentionIndex                       = (com.wikantik.knowledge.MentionIndex) m );
+        w.put( com.wikantik.knowledge.embedding.NodeMentionSimilarity.class,                   ( e, m ) -> e.mgr_NodeMentionSimilarity              = (com.wikantik.knowledge.embedding.NodeMentionSimilarity) m );
+        w.put( com.wikantik.knowledge.FrontmatterDefaultsFilter.class,                         ( e, m ) -> e.mgr_FrontmatterDefaultsFilter          = (com.wikantik.knowledge.FrontmatterDefaultsFilter) m );
+        w.put( com.wikantik.knowledge.HubSyncFilter.class,                                     ( e, m ) -> e.mgr_HubSyncFilter                      = (com.wikantik.knowledge.HubSyncFilter) m );
+        w.put( com.wikantik.api.knowledge.ContextRetrievalService.class,                       ( e, m ) -> e.mgr_ContextRetrievalService            = (com.wikantik.api.knowledge.ContextRetrievalService) m );
+        w.put( com.wikantik.api.agent.ForAgentProjectionService.class,                         ( e, m ) -> e.mgr_ForAgentProjectionService          = (com.wikantik.api.agent.ForAgentProjectionService) m );
+        w.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class,       ( e, m ) -> e.mgr_BootstrapEntityExtractionIndexer   = (com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer) m );
+        w.put( com.wikantik.api.kgpolicy.KgInclusionPolicy.class,                              ( e, m ) -> e.mgr_KgInclusionPolicy                  = (com.wikantik.api.kgpolicy.KgInclusionPolicy) m );
+        w.put( com.wikantik.kgpolicy.ReconciliationJobRunner.class,                            ( e, m ) -> e.mgr_ReconciliationJobRunner            = (com.wikantik.kgpolicy.ReconciliationJobRunner) m );
+        w.put( com.wikantik.api.eval.RetrievalQualityRunner.class,                             ( e, m ) -> e.mgr_RetrievalQualityRunner             = (com.wikantik.api.eval.RetrievalQualityRunner) m );
+        w.put( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class,           ( e, m ) -> e.mgr_ChunkEntityMentionRepository       = (com.wikantik.knowledge.extraction.ChunkEntityMentionRepository) m );
+        w.put( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class,          ( e, m ) -> e.mgr_KgAsyncEntityExtractionListener    = (com.wikantik.knowledge.extraction.AsyncEntityExtractionListener) m );
+        w.put( com.wikantik.kgpolicy.KgClusterPolicyRepository.class,                         ( e, m ) -> e.mgr_KgClusterPolicyRepository          = (com.wikantik.kgpolicy.KgClusterPolicyRepository) m );
+        w.put( com.wikantik.kgpolicy.KgExcludedPagesRepository.class,                         ( e, m ) -> e.mgr_KgExcludedPagesRepository          = (com.wikantik.kgpolicy.KgExcludedPagesRepository) m );
+        TYPED_FIELD_WRITERS = w;
+
+        final IdentityHashMap<Class<?>, Function<WikiEngine, Object>> r = new IdentityHashMap<>( 128 );
+        // Auth
+        r.put( com.wikantik.auth.AuthenticationManager.class,      e -> e.mgr_AuthenticationManager );
+        r.put( com.wikantik.auth.AuthorizationManager.class,       e -> e.mgr_AuthorizationManager );
+        r.put( com.wikantik.auth.UserManager.class,                e -> e.mgr_UserManager );
+        r.put( com.wikantik.auth.authorize.GroupManager.class,     e -> e.mgr_GroupManager );
+        r.put( com.wikantik.auth.acl.AclManager.class,             e -> e.mgr_AclManager );
+        // Page
+        r.put( com.wikantik.api.managers.PageManager.class,        e -> e.mgr_PageManager );
+        r.put( com.wikantik.api.managers.AttachmentManager.class,  e -> e.mgr_AttachmentManager );
+        r.put( com.wikantik.content.PageRenamer.class,             e -> e.mgr_PageRenamer );
+        r.put( com.wikantik.api.managers.ReferenceManager.class,   e -> e.mgr_ReferenceManager );
+        // Core
+        r.put( com.wikantik.cache.CachingManager.class,                   e -> e.mgr_CachingManager );
+        r.put( com.wikantik.variables.VariableManager.class,              e -> e.mgr_VariableManager );
+        r.put( com.wikantik.ui.progress.ProgressManager.class,            e -> e.mgr_ProgressManager );
+        r.put( com.wikantik.ui.CommandResolver.class,                     e -> e.mgr_CommandResolver );
+        r.put( com.wikantik.url.URLConstructor.class,                     e -> e.mgr_URLConstructor );
+        r.put( com.wikantik.i18n.InternationalizationManager.class,       e -> e.mgr_InternationalizationManager );
+        r.put( com.wikantik.api.managers.SystemPageRegistry.class,        e -> e.mgr_SystemPageRegistry );
+        r.put( com.wikantik.content.RecentArticlesManager.class,          e -> e.mgr_RecentArticlesManager );
+        r.put( com.wikantik.blog.BlogManager.class,                       e -> e.mgr_BlogManager );
+        // Rendering
+        r.put( com.wikantik.render.RenderingManager.class,         e -> e.mgr_RenderingManager );
+        r.put( com.wikantik.plugin.PluginManager.class,            e -> e.mgr_PluginManager );
+        r.put( com.wikantik.filters.FilterManager.class,           e -> e.mgr_FilterManager );
+        r.put( com.wikantik.diff.DifferenceManager.class,          e -> e.mgr_DifferenceManager );
+        r.put( com.wikantik.content.NewsPageGenerator.class,       e -> e.mgr_NewsPageGenerator );
+        // Search
+        r.put( com.wikantik.search.SearchManager.class,                                  e -> e.mgr_SearchManager );
+        r.put( com.wikantik.search.SearchProvider.class,                                 e -> e.mgr_SearchProvider );
+        r.put( com.wikantik.search.hybrid.HybridSearchService.class,                     e -> e.mgr_HybridSearchService );
+        r.put( com.wikantik.search.hybrid.QueryEmbedder.class,                           e -> e.mgr_QueryEmbedder );
+        r.put( com.wikantik.search.hybrid.QueryEntityResolver.class,                     e -> e.mgr_QueryEntityResolver );
+        r.put( com.wikantik.search.hybrid.GraphRerankStep.class,                         e -> e.mgr_GraphRerankStep );
+        r.put( com.wikantik.search.hybrid.GraphProximityScorer.class,                    e -> e.mgr_GraphProximityScorer );
+        r.put( com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class,                e -> e.mgr_InMemoryChunkVectorIndex );
+        r.put( com.wikantik.search.hybrid.ChunkVectorIndex.class,                        e -> e.mgr_ChunkVectorIndex );
+        r.put( com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class,              e -> e.mgr_InMemoryGraphNeighborIndex );
+        r.put( com.wikantik.search.hybrid.GraphNeighborIndex.class,                      e -> e.mgr_GraphNeighborIndex );
+        r.put( com.wikantik.search.hybrid.PageMentionsLoader.class,                      e -> e.mgr_PageMentionsLoader );
+        r.put( com.wikantik.search.embedding.EmbeddingIndexService.class,                e -> e.mgr_EmbeddingIndexService );
+        r.put( com.wikantik.search.embedding.OllamaEmbeddingClient.class,                e -> e.mgr_OllamaEmbeddingClient );
+        r.put( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class,            e -> e.mgr_BootstrapEmbeddingIndexer );
+        r.put( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class,          e -> e.mgr_AsyncEmbeddingIndexListener );
+        r.put( com.wikantik.search.FrontmatterMetadataCache.class,                       e -> e.mgr_FrontmatterMetadataCache );
+        r.put( com.wikantik.search.subsystem.lucene.LuceneIndexer.class,                 e -> e.mgr_LuceneIndexer );
+        r.put( com.wikantik.search.subsystem.lucene.LuceneSearcher.class,                e -> e.mgr_LuceneSearcher );
+        r.put( com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle.class,          e -> e.mgr_LuceneIndexLifecycle );
+        // Page Graph
+        r.put( com.wikantik.api.pagegraph.StructuralIndexService.class,                  e -> e.mgr_StructuralIndexService );
+        r.put( com.wikantik.api.pagegraph.PageGraphService.class,                        e -> e.mgr_PageGraphService );
+        r.put( com.wikantik.admin.ContentIndexRebuildService.class,                      e -> e.mgr_ContentIndexRebuildService );
+        r.put( com.wikantik.pagegraph.spine.PageVerificationDao.class,                   e -> e.mgr_PageVerificationDao );
+        r.put( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class,                     e -> e.mgr_TrustedAuthorsDao );
+        r.put( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class,          e -> e.mgr_StructuralIndexEventListener );
+        // Knowledge
+        r.put( com.wikantik.api.knowledge.KnowledgeGraphService.class,                         e -> e.mgr_KnowledgeGraphService );
+        r.put( com.wikantik.api.knowledge.KgProposalJudgeService.class,                        e -> e.mgr_KgProposalJudgeService );
+        r.put( com.wikantik.knowledge.judge.JudgeRunner.class,                                 e -> e.mgr_JudgeRunner );
+        r.put( com.wikantik.knowledge.judge.KgMaterializationService.class,                    e -> e.mgr_KgMaterializationService );
+        r.put( com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class,                    e -> e.mgr_KgJudgeTimeoutRepository );
+        r.put( com.wikantik.knowledge.HubProposalService.class,                                e -> e.mgr_HubProposalService );
+        r.put( com.wikantik.knowledge.HubDiscoveryService.class,                               e -> e.mgr_HubDiscoveryService );
+        r.put( com.wikantik.knowledge.HubOverviewService.class,                                e -> e.mgr_HubOverviewService );
+        r.put( com.wikantik.knowledge.HubProposalRepository.class,                             e -> e.mgr_HubProposalRepository );
+        r.put( com.wikantik.knowledge.HubDiscoveryRepository.class,                            e -> e.mgr_HubDiscoveryRepository );
+        r.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class,                   e -> e.mgr_ContentChunkRepository );
+        r.put( com.wikantik.knowledge.chunking.ChunkProjector.class,                           e -> e.mgr_ChunkProjector );
+        r.put( com.wikantik.knowledge.MentionIndex.class,                                      e -> e.mgr_MentionIndex );
+        r.put( com.wikantik.knowledge.embedding.NodeMentionSimilarity.class,                   e -> e.mgr_NodeMentionSimilarity );
+        r.put( com.wikantik.knowledge.FrontmatterDefaultsFilter.class,                         e -> e.mgr_FrontmatterDefaultsFilter );
+        r.put( com.wikantik.knowledge.HubSyncFilter.class,                                     e -> e.mgr_HubSyncFilter );
+        r.put( com.wikantik.api.knowledge.ContextRetrievalService.class,                       e -> e.mgr_ContextRetrievalService );
+        r.put( com.wikantik.api.agent.ForAgentProjectionService.class,                         e -> e.mgr_ForAgentProjectionService );
+        r.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class,       e -> e.mgr_BootstrapEntityExtractionIndexer );
+        r.put( com.wikantik.api.kgpolicy.KgInclusionPolicy.class,                              e -> e.mgr_KgInclusionPolicy );
+        r.put( com.wikantik.kgpolicy.ReconciliationJobRunner.class,                            e -> e.mgr_ReconciliationJobRunner );
+        r.put( com.wikantik.api.eval.RetrievalQualityRunner.class,                             e -> e.mgr_RetrievalQualityRunner );
+        r.put( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class,           e -> e.mgr_ChunkEntityMentionRepository );
+        r.put( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class,          e -> e.mgr_KgAsyncEntityExtractionListener );
+        r.put( com.wikantik.kgpolicy.KgClusterPolicyRepository.class,                         e -> e.mgr_KgClusterPolicyRepository );
+        r.put( com.wikantik.kgpolicy.KgExcludedPagesRepository.class,                         e -> e.mgr_KgExcludedPagesRepository );
+        TYPED_FIELD_READERS = r;
+    }
+
+    /**
+     * Maps each class key to the subsystem-snapshot rebuilder that must run when that
+     * class is hot-swapped via {@link #setManager}.  One entry per class; the lambda
+     * is a no-op if the relevant subsystem snapshot is still null (i.e. during boot).
+     * Populated in the same static block as TYPED_FIELD_WRITERS / TYPED_FIELD_READERS.
+     *
+     * <p>ContextRetrievalService is intentionally absent — see the comment in
+     * {@link #setManager} for the reason.</p>
+     */
+    private static final Map<Class<?>, java.util.function.Consumer<WikiEngine>> SNAPSHOT_REBUILDERS;
+
+    static {
+        final IdentityHashMap<Class<?>, java.util.function.Consumer<WikiEngine>> s = new IdentityHashMap<>( 128 );
+        // Auth
+        java.util.function.Consumer<WikiEngine> rebuildAuth =
+            e -> { if ( e.authSubsystem != null ) e.authSubsystem = com.wikantik.auth.subsystem.AuthSubsystemBridge.rebuildFromManagers( e ); };
+        s.put( com.wikantik.auth.AuthenticationManager.class,      rebuildAuth );
+        s.put( com.wikantik.auth.AuthorizationManager.class,       rebuildAuth );
+        s.put( com.wikantik.auth.UserManager.class,                rebuildAuth );
+        s.put( com.wikantik.auth.authorize.GroupManager.class,     rebuildAuth );
+        s.put( com.wikantik.auth.acl.AclManager.class,             rebuildAuth );
+        // Page
+        java.util.function.Consumer<WikiEngine> rebuildPage =
+            e -> { if ( e.pageSubsystem != null ) e.pageSubsystem = com.wikantik.page.subsystem.PageSubsystemBridge.rebuildFromManagers( e ); };
+        s.put( com.wikantik.api.managers.PageManager.class,        rebuildPage );
+        s.put( com.wikantik.api.managers.AttachmentManager.class,  rebuildPage );
+        s.put( com.wikantik.content.PageRenamer.class,             rebuildPage );
+        s.put( com.wikantik.api.managers.ReferenceManager.class,   e -> {
+            if ( e.pageSubsystem    != null ) e.pageSubsystem    = com.wikantik.page.subsystem.PageSubsystemBridge.rebuildFromManagers( e );
+            if ( e.pageGraphSubsystem != null ) e.pageGraphSubsystem = com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.rebuildFromManagers( e );
+        } );
+        // Core
+        java.util.function.Consumer<WikiEngine> rebuildCore =
+            e -> { if ( e.coreSubsystem != null ) e.coreSubsystem = com.wikantik.core.subsystem.CoreSubsystemBridge.rebuildFromManagers( e ); };
+        s.put( com.wikantik.cache.CachingManager.class,                   rebuildCore );
+        s.put( com.wikantik.variables.VariableManager.class,              rebuildCore );
+        s.put( com.wikantik.ui.progress.ProgressManager.class,            rebuildCore );
+        s.put( com.wikantik.ui.CommandResolver.class,                     rebuildCore );
+        s.put( com.wikantik.url.URLConstructor.class,                     rebuildCore );
+        s.put( com.wikantik.i18n.InternationalizationManager.class,       rebuildCore );
+        // Rendering
+        java.util.function.Consumer<WikiEngine> rebuildRendering =
+            e -> { if ( e.renderingSubsystem != null ) e.renderingSubsystem = com.wikantik.render.subsystem.RenderingSubsystemBridge.rebuildFromManagers( e ); };
+        s.put( com.wikantik.render.RenderingManager.class,         rebuildRendering );
+        s.put( com.wikantik.plugin.PluginManager.class,            rebuildRendering );
+        s.put( com.wikantik.filters.FilterManager.class,           rebuildRendering );
+        s.put( com.wikantik.diff.DifferenceManager.class,          rebuildRendering );
+        s.put( com.wikantik.content.NewsPageGenerator.class,       rebuildRendering );
+        // Search
+        java.util.function.Consumer<WikiEngine> rebuildSearch =
+            e -> { if ( e.searchSubsystem != null ) e.searchSubsystem = com.wikantik.search.subsystem.SearchSubsystemBridge.rebuildFromManagers( e ); };
+        s.put( com.wikantik.search.SearchManager.class,                                  rebuildSearch );
+        s.put( com.wikantik.search.SearchProvider.class,                                 rebuildSearch );
+        s.put( com.wikantik.search.hybrid.HybridSearchService.class,                     rebuildSearch );
+        s.put( com.wikantik.search.hybrid.QueryEmbedder.class,                           rebuildSearch );
+        s.put( com.wikantik.search.hybrid.QueryEntityResolver.class,                     rebuildSearch );
+        s.put( com.wikantik.search.hybrid.GraphRerankStep.class,                         rebuildSearch );
+        s.put( com.wikantik.search.hybrid.GraphProximityScorer.class,                    rebuildSearch );
+        s.put( com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class,                rebuildSearch );
+        s.put( com.wikantik.search.hybrid.ChunkVectorIndex.class,                        rebuildSearch );
+        s.put( com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class,              rebuildSearch );
+        s.put( com.wikantik.search.hybrid.GraphNeighborIndex.class,                      rebuildSearch );
+        s.put( com.wikantik.search.hybrid.PageMentionsLoader.class,                      rebuildSearch );
+        s.put( com.wikantik.search.embedding.EmbeddingIndexService.class,                rebuildSearch );
+        s.put( com.wikantik.search.embedding.OllamaEmbeddingClient.class,                rebuildSearch );
+        s.put( com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class,            rebuildSearch );
+        s.put( com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class,          rebuildSearch );
+        s.put( com.wikantik.search.FrontmatterMetadataCache.class,                       rebuildSearch );
+        s.put( com.wikantik.search.subsystem.lucene.LuceneIndexer.class,                 rebuildSearch );
+        s.put( com.wikantik.search.subsystem.lucene.LuceneSearcher.class,                rebuildSearch );
+        s.put( com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle.class,          rebuildSearch );
+        // Page Graph
+        java.util.function.Consumer<WikiEngine> rebuildPageGraph =
+            e -> { if ( e.pageGraphSubsystem != null ) e.pageGraphSubsystem = com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.rebuildFromManagers( e ); };
+        s.put( com.wikantik.api.pagegraph.StructuralIndexService.class,                  rebuildPageGraph );
+        s.put( com.wikantik.api.pagegraph.PageGraphService.class,                        rebuildPageGraph );
+        s.put( com.wikantik.admin.ContentIndexRebuildService.class,                      rebuildPageGraph );
+        s.put( com.wikantik.pagegraph.spine.PageVerificationDao.class,                   e -> {} ); // no subsystem snapshot
+        s.put( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class,                     e -> {} ); // no subsystem snapshot
+        s.put( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class,          e -> {} ); // no subsystem snapshot
+        // Knowledge (ContextRetrievalService intentionally excluded — see setManager comment)
+        java.util.function.Consumer<WikiEngine> rebuildKnowledge =
+            e -> { if ( e.knowledgeSubsystem != null ) e.knowledgeSubsystem = com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.rebuildFromManagers( e ); };
+        s.put( com.wikantik.api.knowledge.KnowledgeGraphService.class,                         rebuildKnowledge );
+        s.put( com.wikantik.api.knowledge.KgProposalJudgeService.class,                        rebuildKnowledge );
+        s.put( com.wikantik.knowledge.judge.JudgeRunner.class,                                 rebuildKnowledge );
+        s.put( com.wikantik.knowledge.judge.KgMaterializationService.class,                    rebuildKnowledge );
+        s.put( com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class,                    rebuildKnowledge );
+        s.put( com.wikantik.knowledge.HubProposalService.class,                                rebuildKnowledge );
+        s.put( com.wikantik.knowledge.HubDiscoveryService.class,                               rebuildKnowledge );
+        s.put( com.wikantik.knowledge.HubOverviewService.class,                                rebuildKnowledge );
+        s.put( com.wikantik.knowledge.HubProposalRepository.class,                             rebuildKnowledge );
+        s.put( com.wikantik.knowledge.HubDiscoveryRepository.class,                            rebuildKnowledge );
+        s.put( com.wikantik.knowledge.chunking.ContentChunkRepository.class,                   rebuildKnowledge );
+        s.put( com.wikantik.knowledge.chunking.ChunkProjector.class,                           rebuildKnowledge );
+        s.put( com.wikantik.knowledge.MentionIndex.class,                                      rebuildKnowledge );
+        s.put( com.wikantik.knowledge.embedding.NodeMentionSimilarity.class,                   rebuildKnowledge );
+        s.put( com.wikantik.knowledge.FrontmatterDefaultsFilter.class,                         rebuildKnowledge );
+        s.put( com.wikantik.knowledge.HubSyncFilter.class,                                     rebuildKnowledge );
+        s.put( com.wikantik.api.agent.ForAgentProjectionService.class,                         rebuildKnowledge );
+        s.put( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class,       rebuildKnowledge );
+        s.put( com.wikantik.api.kgpolicy.KgInclusionPolicy.class,                              rebuildKnowledge );
+        s.put( com.wikantik.kgpolicy.ReconciliationJobRunner.class,                            rebuildKnowledge );
+        s.put( com.wikantik.api.eval.RetrievalQualityRunner.class,                             rebuildKnowledge );
+        s.put( com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class,           e -> {} ); // no subsystem snapshot
+        s.put( com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class,          e -> {} ); // no subsystem snapshot
+        s.put( com.wikantik.kgpolicy.KgClusterPolicyRepository.class,                         e -> {} ); // no subsystem snapshot
+        s.put( com.wikantik.kgpolicy.KgExcludedPagesRepository.class,                         e -> {} ); // no subsystem snapshot
+        SNAPSHOT_REBUILDERS = s;
+    }
 
     // -----------------------------------------------------------------------
     // Per-class typed backing fields — Phase 10 (Ckpt A1 + A2)
@@ -726,166 +1023,10 @@ public class WikiEngine implements Engine {
      *
      * <p>Unknown class keys are silently ignored — they carry no typed field.</p>
      */
-    @SuppressWarnings( "unchecked" )
     private < T > void writeTypedField( final Class< T > clazz, final T mgr ) {
-        // Auth
-        if ( clazz == AuthenticationManager.class )
-            { mgr_AuthenticationManager = (com.wikantik.auth.AuthenticationManager) mgr; return; }
-        if ( clazz == AuthorizationManager.class )
-            { mgr_AuthorizationManager = (com.wikantik.auth.AuthorizationManager) mgr; return; }
-        if ( clazz == com.wikantik.auth.UserManager.class )
-            { mgr_UserManager = (com.wikantik.auth.UserManager) mgr; return; }
-        if ( clazz == com.wikantik.auth.authorize.GroupManager.class )
-            { mgr_GroupManager = (com.wikantik.auth.authorize.GroupManager) mgr; return; }
-        if ( clazz == com.wikantik.auth.acl.AclManager.class )
-            { mgr_AclManager = (com.wikantik.auth.acl.AclManager) mgr; return; }
-        // Page
-        if ( clazz == PageManager.class )
-            { mgr_PageManager = (com.wikantik.api.managers.PageManager) mgr; return; }
-        if ( clazz == AttachmentManager.class )
-            { mgr_AttachmentManager = (com.wikantik.api.managers.AttachmentManager) mgr; return; }
-        if ( clazz == com.wikantik.content.PageRenamer.class )
-            { mgr_PageRenamer = (com.wikantik.content.PageRenamer) mgr; return; }
-        if ( clazz == ReferenceManager.class )
-            { mgr_ReferenceManager = (com.wikantik.api.managers.ReferenceManager) mgr; return; }
-        // Core
-        if ( clazz == com.wikantik.cache.CachingManager.class )
-            { mgr_CachingManager = (com.wikantik.cache.CachingManager) mgr; return; }
-        if ( clazz == com.wikantik.variables.VariableManager.class )
-            { mgr_VariableManager = (com.wikantik.variables.VariableManager) mgr; return; }
-        if ( clazz == com.wikantik.ui.progress.ProgressManager.class )
-            { mgr_ProgressManager = (com.wikantik.ui.progress.ProgressManager) mgr; return; }
-        if ( clazz == com.wikantik.ui.CommandResolver.class )
-            { mgr_CommandResolver = (com.wikantik.ui.CommandResolver) mgr; return; }
-        if ( clazz == URLConstructor.class )
-            { mgr_URLConstructor = (com.wikantik.url.URLConstructor) mgr; return; }
-        if ( clazz == com.wikantik.i18n.InternationalizationManager.class )
-            { mgr_InternationalizationManager = (com.wikantik.i18n.InternationalizationManager) mgr; return; }
-        if ( clazz == com.wikantik.api.managers.SystemPageRegistry.class )
-            { mgr_SystemPageRegistry = (com.wikantik.api.managers.SystemPageRegistry) mgr; return; }
-        if ( clazz == com.wikantik.content.RecentArticlesManager.class )
-            { mgr_RecentArticlesManager = (com.wikantik.content.RecentArticlesManager) mgr; return; }
-        if ( clazz == com.wikantik.blog.BlogManager.class )
-            { mgr_BlogManager = (com.wikantik.blog.BlogManager) mgr; return; }
-        // Rendering
-        if ( clazz == RenderingManager.class )
-            { mgr_RenderingManager = (com.wikantik.render.RenderingManager) mgr; return; }
-        if ( clazz == PluginManager.class )
-            { mgr_PluginManager = (com.wikantik.plugin.PluginManager) mgr; return; }
-        if ( clazz == FilterManager.class )
-            { mgr_FilterManager = (com.wikantik.filters.FilterManager) mgr; return; }
-        if ( clazz == com.wikantik.diff.DifferenceManager.class )
-            { mgr_DifferenceManager = (com.wikantik.diff.DifferenceManager) mgr; return; }
-        if ( clazz == com.wikantik.content.NewsPageGenerator.class )
-            { mgr_NewsPageGenerator = (com.wikantik.content.NewsPageGenerator) mgr; return; }
-        // Search
-        if ( clazz == SearchManager.class )
-            { mgr_SearchManager = (com.wikantik.search.SearchManager) mgr; return; }
-        if ( clazz == com.wikantik.search.SearchProvider.class )
-            { mgr_SearchProvider = (com.wikantik.search.SearchProvider) mgr; return; }
-        if ( clazz == com.wikantik.search.hybrid.HybridSearchService.class )
-            { mgr_HybridSearchService = (com.wikantik.search.hybrid.HybridSearchService) mgr; return; }
-        if ( clazz == com.wikantik.search.hybrid.QueryEmbedder.class )
-            { mgr_QueryEmbedder = (com.wikantik.search.hybrid.QueryEmbedder) mgr; return; }
-        if ( clazz == com.wikantik.search.hybrid.QueryEntityResolver.class )
-            { mgr_QueryEntityResolver = (com.wikantik.search.hybrid.QueryEntityResolver) mgr; return; }
-        if ( clazz == com.wikantik.search.hybrid.GraphRerankStep.class )
-            { mgr_GraphRerankStep = (com.wikantik.search.hybrid.GraphRerankStep) mgr; return; }
-        if ( clazz == com.wikantik.search.hybrid.GraphProximityScorer.class )
-            { mgr_GraphProximityScorer = (com.wikantik.search.hybrid.GraphProximityScorer) mgr; return; }
-        if ( clazz == com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class )
-            { mgr_InMemoryChunkVectorIndex = (com.wikantik.search.hybrid.InMemoryChunkVectorIndex) mgr; return; }
-        if ( clazz == com.wikantik.search.hybrid.ChunkVectorIndex.class )
-            { mgr_ChunkVectorIndex = (com.wikantik.search.hybrid.ChunkVectorIndex) mgr; return; }
-        if ( clazz == com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class )
-            { mgr_InMemoryGraphNeighborIndex = (com.wikantik.search.hybrid.InMemoryGraphNeighborIndex) mgr; return; }
-        if ( clazz == com.wikantik.search.hybrid.GraphNeighborIndex.class )
-            { mgr_GraphNeighborIndex = (com.wikantik.search.hybrid.GraphNeighborIndex) mgr; return; }
-        if ( clazz == com.wikantik.search.hybrid.PageMentionsLoader.class )
-            { mgr_PageMentionsLoader = (com.wikantik.search.hybrid.PageMentionsLoader) mgr; return; }
-        if ( clazz == com.wikantik.search.embedding.EmbeddingIndexService.class )
-            { mgr_EmbeddingIndexService = (com.wikantik.search.embedding.EmbeddingIndexService) mgr; return; }
-        if ( clazz == com.wikantik.search.embedding.OllamaEmbeddingClient.class )
-            { mgr_OllamaEmbeddingClient = (com.wikantik.search.embedding.OllamaEmbeddingClient) mgr; return; }
-        if ( clazz == com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class )
-            { mgr_BootstrapEmbeddingIndexer = (com.wikantik.search.embedding.BootstrapEmbeddingIndexer) mgr; return; }
-        if ( clazz == com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class )
-            { mgr_AsyncEmbeddingIndexListener = (com.wikantik.search.embedding.AsyncEmbeddingIndexListener) mgr; return; }
-        if ( clazz == com.wikantik.search.FrontmatterMetadataCache.class )
-            { mgr_FrontmatterMetadataCache = (com.wikantik.search.FrontmatterMetadataCache) mgr; return; }
-        if ( clazz == com.wikantik.search.subsystem.lucene.LuceneIndexer.class )
-            { mgr_LuceneIndexer = (com.wikantik.search.subsystem.lucene.LuceneIndexer) mgr; return; }
-        if ( clazz == com.wikantik.search.subsystem.lucene.LuceneSearcher.class )
-            { mgr_LuceneSearcher = (com.wikantik.search.subsystem.lucene.LuceneSearcher) mgr; return; }
-        if ( clazz == com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle.class )
-            { mgr_LuceneIndexLifecycle = (com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle) mgr; return; }
-        // Page Graph
-        if ( clazz == com.wikantik.api.pagegraph.StructuralIndexService.class )
-            { mgr_StructuralIndexService = (com.wikantik.api.pagegraph.StructuralIndexService) mgr; return; }
-        if ( clazz == com.wikantik.api.pagegraph.PageGraphService.class )
-            { mgr_PageGraphService = (com.wikantik.api.pagegraph.PageGraphService) mgr; return; }
-        if ( clazz == com.wikantik.admin.ContentIndexRebuildService.class )
-            { mgr_ContentIndexRebuildService = (com.wikantik.admin.ContentIndexRebuildService) mgr; return; }
-        if ( clazz == com.wikantik.pagegraph.spine.PageVerificationDao.class )
-            { mgr_PageVerificationDao = (com.wikantik.pagegraph.spine.PageVerificationDao) mgr; return; }
-        if ( clazz == com.wikantik.pagegraph.spine.TrustedAuthorsDao.class )
-            { mgr_TrustedAuthorsDao = (com.wikantik.pagegraph.spine.TrustedAuthorsDao) mgr; return; }
-        if ( clazz == com.wikantik.pagegraph.spine.StructuralIndexEventListener.class )
-            { mgr_StructuralIndexEventListener = (com.wikantik.pagegraph.spine.StructuralIndexEventListener) mgr; return; }
-        // Knowledge
-        if ( clazz == com.wikantik.api.knowledge.KnowledgeGraphService.class )
-            { mgr_KnowledgeGraphService = (com.wikantik.api.knowledge.KnowledgeGraphService) mgr; return; }
-        if ( clazz == com.wikantik.api.knowledge.KgProposalJudgeService.class )
-            { mgr_KgProposalJudgeService = (com.wikantik.api.knowledge.KgProposalJudgeService) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.judge.JudgeRunner.class )
-            { mgr_JudgeRunner = (com.wikantik.knowledge.judge.JudgeRunner) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.judge.KgMaterializationService.class )
-            { mgr_KgMaterializationService = (com.wikantik.knowledge.judge.KgMaterializationService) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class )
-            { mgr_KgJudgeTimeoutRepository = (com.wikantik.knowledge.judge.KgJudgeTimeoutRepository) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.HubProposalService.class )
-            { mgr_HubProposalService = (com.wikantik.knowledge.HubProposalService) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.HubDiscoveryService.class )
-            { mgr_HubDiscoveryService = (com.wikantik.knowledge.HubDiscoveryService) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.HubOverviewService.class )
-            { mgr_HubOverviewService = (com.wikantik.knowledge.HubOverviewService) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.HubProposalRepository.class )
-            { mgr_HubProposalRepository = (com.wikantik.knowledge.HubProposalRepository) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.HubDiscoveryRepository.class )
-            { mgr_HubDiscoveryRepository = (com.wikantik.knowledge.HubDiscoveryRepository) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.chunking.ContentChunkRepository.class )
-            { mgr_ContentChunkRepository = (com.wikantik.knowledge.chunking.ContentChunkRepository) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.chunking.ChunkProjector.class )
-            { mgr_ChunkProjector = (com.wikantik.knowledge.chunking.ChunkProjector) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.MentionIndex.class )
-            { mgr_MentionIndex = (com.wikantik.knowledge.MentionIndex) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.embedding.NodeMentionSimilarity.class )
-            { mgr_NodeMentionSimilarity = (com.wikantik.knowledge.embedding.NodeMentionSimilarity) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.FrontmatterDefaultsFilter.class )
-            { mgr_FrontmatterDefaultsFilter = (com.wikantik.knowledge.FrontmatterDefaultsFilter) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.HubSyncFilter.class )
-            { mgr_HubSyncFilter = (com.wikantik.knowledge.HubSyncFilter) mgr; return; }
-        if ( clazz == com.wikantik.api.knowledge.ContextRetrievalService.class )
-            { mgr_ContextRetrievalService = (com.wikantik.api.knowledge.ContextRetrievalService) mgr; return; }
-        if ( clazz == com.wikantik.api.agent.ForAgentProjectionService.class )
-            { mgr_ForAgentProjectionService = (com.wikantik.api.agent.ForAgentProjectionService) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class )
-            { mgr_BootstrapEntityExtractionIndexer = (com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer) mgr; return; }
-        if ( clazz == com.wikantik.api.kgpolicy.KgInclusionPolicy.class )
-            { mgr_KgInclusionPolicy = (com.wikantik.api.kgpolicy.KgInclusionPolicy) mgr; return; }
-        if ( clazz == com.wikantik.kgpolicy.ReconciliationJobRunner.class )
-            { mgr_ReconciliationJobRunner = (com.wikantik.kgpolicy.ReconciliationJobRunner) mgr; return; }
-        if ( clazz == com.wikantik.api.eval.RetrievalQualityRunner.class )
-            { mgr_RetrievalQualityRunner = (com.wikantik.api.eval.RetrievalQualityRunner) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class )
-            { mgr_ChunkEntityMentionRepository = (com.wikantik.knowledge.extraction.ChunkEntityMentionRepository) mgr; return; }
-        if ( clazz == com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class )
-            { mgr_KgAsyncEntityExtractionListener = (com.wikantik.knowledge.extraction.AsyncEntityExtractionListener) mgr; return; }
-        if ( clazz == com.wikantik.kgpolicy.KgClusterPolicyRepository.class )
-            { mgr_KgClusterPolicyRepository = (com.wikantik.kgpolicy.KgClusterPolicyRepository) mgr; return; }
-        if ( clazz == com.wikantik.kgpolicy.KgExcludedPagesRepository.class )
-            { mgr_KgExcludedPagesRepository = (com.wikantik.kgpolicy.KgExcludedPagesRepository) mgr; return; }
-        // Unknown class — map-only, no typed field (expected for plugin-registered components).
+        final BiConsumer<WikiEngine, Object> writer = TYPED_FIELD_WRITERS.get( clazz );
+        if ( writer != null ) writer.accept( this, mgr );
+        // Unknown class: silently skip — matches original switch no-op default.
     }
 
     /**
@@ -895,90 +1036,9 @@ public class WikiEngine implements Engine {
      */
     @SuppressWarnings( "unchecked" )
     private < T > T readTypedField( final Class< T > clazz ) {
-        // Auth
-        if ( clazz == AuthenticationManager.class ) return clazz.cast( mgr_AuthenticationManager );
-        if ( clazz == AuthorizationManager.class ) return clazz.cast( mgr_AuthorizationManager );
-        if ( clazz == com.wikantik.auth.UserManager.class ) return clazz.cast( mgr_UserManager );
-        if ( clazz == com.wikantik.auth.authorize.GroupManager.class ) return clazz.cast( mgr_GroupManager );
-        if ( clazz == com.wikantik.auth.acl.AclManager.class ) return clazz.cast( mgr_AclManager );
-        // Page
-        if ( clazz == PageManager.class ) return clazz.cast( mgr_PageManager );
-        if ( clazz == AttachmentManager.class ) return clazz.cast( mgr_AttachmentManager );
-        if ( clazz == com.wikantik.content.PageRenamer.class ) return clazz.cast( mgr_PageRenamer );
-        if ( clazz == ReferenceManager.class ) return clazz.cast( mgr_ReferenceManager );
-        // Core
-        if ( clazz == com.wikantik.cache.CachingManager.class ) return clazz.cast( mgr_CachingManager );
-        if ( clazz == com.wikantik.variables.VariableManager.class ) return clazz.cast( mgr_VariableManager );
-        if ( clazz == com.wikantik.ui.progress.ProgressManager.class ) return clazz.cast( mgr_ProgressManager );
-        if ( clazz == com.wikantik.ui.CommandResolver.class ) return clazz.cast( mgr_CommandResolver );
-        if ( clazz == URLConstructor.class ) return clazz.cast( mgr_URLConstructor );
-        if ( clazz == com.wikantik.i18n.InternationalizationManager.class ) return clazz.cast( mgr_InternationalizationManager );
-        if ( clazz == com.wikantik.api.managers.SystemPageRegistry.class ) return clazz.cast( mgr_SystemPageRegistry );
-        if ( clazz == com.wikantik.content.RecentArticlesManager.class ) return clazz.cast( mgr_RecentArticlesManager );
-        if ( clazz == com.wikantik.blog.BlogManager.class ) return clazz.cast( mgr_BlogManager );
-        // Rendering
-        if ( clazz == RenderingManager.class ) return clazz.cast( mgr_RenderingManager );
-        if ( clazz == PluginManager.class ) return clazz.cast( mgr_PluginManager );
-        if ( clazz == FilterManager.class ) return clazz.cast( mgr_FilterManager );
-        if ( clazz == com.wikantik.diff.DifferenceManager.class ) return clazz.cast( mgr_DifferenceManager );
-        if ( clazz == com.wikantik.content.NewsPageGenerator.class ) return clazz.cast( mgr_NewsPageGenerator );
-        // Search
-        if ( clazz == SearchManager.class ) return clazz.cast( mgr_SearchManager );
-        if ( clazz == com.wikantik.search.SearchProvider.class ) return clazz.cast( mgr_SearchProvider );
-        if ( clazz == com.wikantik.search.hybrid.HybridSearchService.class ) return clazz.cast( mgr_HybridSearchService );
-        if ( clazz == com.wikantik.search.hybrid.QueryEmbedder.class ) return clazz.cast( mgr_QueryEmbedder );
-        if ( clazz == com.wikantik.search.hybrid.QueryEntityResolver.class ) return clazz.cast( mgr_QueryEntityResolver );
-        if ( clazz == com.wikantik.search.hybrid.GraphRerankStep.class ) return clazz.cast( mgr_GraphRerankStep );
-        if ( clazz == com.wikantik.search.hybrid.GraphProximityScorer.class ) return clazz.cast( mgr_GraphProximityScorer );
-        if ( clazz == com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class ) return clazz.cast( mgr_InMemoryChunkVectorIndex );
-        if ( clazz == com.wikantik.search.hybrid.ChunkVectorIndex.class ) return clazz.cast( mgr_ChunkVectorIndex );
-        if ( clazz == com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class ) return clazz.cast( mgr_InMemoryGraphNeighborIndex );
-        if ( clazz == com.wikantik.search.hybrid.GraphNeighborIndex.class ) return clazz.cast( mgr_GraphNeighborIndex );
-        if ( clazz == com.wikantik.search.hybrid.PageMentionsLoader.class ) return clazz.cast( mgr_PageMentionsLoader );
-        if ( clazz == com.wikantik.search.embedding.EmbeddingIndexService.class ) return clazz.cast( mgr_EmbeddingIndexService );
-        if ( clazz == com.wikantik.search.embedding.OllamaEmbeddingClient.class ) return clazz.cast( mgr_OllamaEmbeddingClient );
-        if ( clazz == com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class ) return clazz.cast( mgr_BootstrapEmbeddingIndexer );
-        if ( clazz == com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class ) return clazz.cast( mgr_AsyncEmbeddingIndexListener );
-        if ( clazz == com.wikantik.search.FrontmatterMetadataCache.class ) return clazz.cast( mgr_FrontmatterMetadataCache );
-        if ( clazz == com.wikantik.search.subsystem.lucene.LuceneIndexer.class ) return clazz.cast( mgr_LuceneIndexer );
-        if ( clazz == com.wikantik.search.subsystem.lucene.LuceneSearcher.class ) return clazz.cast( mgr_LuceneSearcher );
-        if ( clazz == com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle.class ) return clazz.cast( mgr_LuceneIndexLifecycle );
-        // Page Graph
-        if ( clazz == com.wikantik.api.pagegraph.StructuralIndexService.class ) return clazz.cast( mgr_StructuralIndexService );
-        if ( clazz == com.wikantik.api.pagegraph.PageGraphService.class ) return clazz.cast( mgr_PageGraphService );
-        if ( clazz == com.wikantik.admin.ContentIndexRebuildService.class ) return clazz.cast( mgr_ContentIndexRebuildService );
-        if ( clazz == com.wikantik.pagegraph.spine.PageVerificationDao.class ) return clazz.cast( mgr_PageVerificationDao );
-        if ( clazz == com.wikantik.pagegraph.spine.TrustedAuthorsDao.class ) return clazz.cast( mgr_TrustedAuthorsDao );
-        if ( clazz == com.wikantik.pagegraph.spine.StructuralIndexEventListener.class ) return clazz.cast( mgr_StructuralIndexEventListener );
-        // Knowledge
-        if ( clazz == com.wikantik.api.knowledge.KnowledgeGraphService.class ) return clazz.cast( mgr_KnowledgeGraphService );
-        if ( clazz == com.wikantik.api.knowledge.KgProposalJudgeService.class ) return clazz.cast( mgr_KgProposalJudgeService );
-        if ( clazz == com.wikantik.knowledge.judge.JudgeRunner.class ) return clazz.cast( mgr_JudgeRunner );
-        if ( clazz == com.wikantik.knowledge.judge.KgMaterializationService.class ) return clazz.cast( mgr_KgMaterializationService );
-        if ( clazz == com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class ) return clazz.cast( mgr_KgJudgeTimeoutRepository );
-        if ( clazz == com.wikantik.knowledge.HubProposalService.class ) return clazz.cast( mgr_HubProposalService );
-        if ( clazz == com.wikantik.knowledge.HubDiscoveryService.class ) return clazz.cast( mgr_HubDiscoveryService );
-        if ( clazz == com.wikantik.knowledge.HubOverviewService.class ) return clazz.cast( mgr_HubOverviewService );
-        if ( clazz == com.wikantik.knowledge.HubProposalRepository.class ) return clazz.cast( mgr_HubProposalRepository );
-        if ( clazz == com.wikantik.knowledge.HubDiscoveryRepository.class ) return clazz.cast( mgr_HubDiscoveryRepository );
-        if ( clazz == com.wikantik.knowledge.chunking.ContentChunkRepository.class ) return clazz.cast( mgr_ContentChunkRepository );
-        if ( clazz == com.wikantik.knowledge.chunking.ChunkProjector.class ) return clazz.cast( mgr_ChunkProjector );
-        if ( clazz == com.wikantik.knowledge.MentionIndex.class ) return clazz.cast( mgr_MentionIndex );
-        if ( clazz == com.wikantik.knowledge.embedding.NodeMentionSimilarity.class ) return clazz.cast( mgr_NodeMentionSimilarity );
-        if ( clazz == com.wikantik.knowledge.FrontmatterDefaultsFilter.class ) return clazz.cast( mgr_FrontmatterDefaultsFilter );
-        if ( clazz == com.wikantik.knowledge.HubSyncFilter.class ) return clazz.cast( mgr_HubSyncFilter );
-        if ( clazz == com.wikantik.api.knowledge.ContextRetrievalService.class ) return clazz.cast( mgr_ContextRetrievalService );
-        if ( clazz == com.wikantik.api.agent.ForAgentProjectionService.class ) return clazz.cast( mgr_ForAgentProjectionService );
-        if ( clazz == com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class ) return clazz.cast( mgr_BootstrapEntityExtractionIndexer );
-        if ( clazz == com.wikantik.api.kgpolicy.KgInclusionPolicy.class ) return clazz.cast( mgr_KgInclusionPolicy );
-        if ( clazz == com.wikantik.kgpolicy.ReconciliationJobRunner.class ) return clazz.cast( mgr_ReconciliationJobRunner );
-        if ( clazz == com.wikantik.api.eval.RetrievalQualityRunner.class ) return clazz.cast( mgr_RetrievalQualityRunner );
-        if ( clazz == com.wikantik.knowledge.extraction.ChunkEntityMentionRepository.class ) return clazz.cast( mgr_ChunkEntityMentionRepository );
-        if ( clazz == com.wikantik.knowledge.extraction.AsyncEntityExtractionListener.class ) return clazz.cast( mgr_KgAsyncEntityExtractionListener );
-        if ( clazz == com.wikantik.kgpolicy.KgClusterPolicyRepository.class ) return clazz.cast( mgr_KgClusterPolicyRepository );
-        if ( clazz == com.wikantik.kgpolicy.KgExcludedPagesRepository.class ) return clazz.cast( mgr_KgExcludedPagesRepository );
-        // Unknown class — no typed field.
-        return null;
+        final Function<WikiEngine, Object> reader = TYPED_FIELD_READERS.get( clazz );
+        if ( reader == null ) return null;
+        return clazz.cast( reader.apply( this ) );
     }
 
     /** Retrieves the object registered under the given type key. Not part of the {@link Engine} interface. */
@@ -1032,100 +1092,12 @@ public class WikiEngine implements Engine {
         // through the bridge; if a stale snapshot is cached the bridge returns it instead of
         // rebuilding from the now-complete registry, so filterManager stays null forever).
         // The boot path builds each snapshot at the correct moment via *SubsystemFactory.create.
-        if ( clazz == AuthenticationManager.class || clazz == AuthorizationManager.class
-                || clazz == UserManager.class || clazz == GroupManager.class
-                || clazz == com.wikantik.auth.acl.AclManager.class ) {
-            if ( this.authSubsystem != null ) {
-                this.authSubsystem = com.wikantik.auth.subsystem.AuthSubsystemBridge.rebuildFromManagers( this );
-            }
-        }
-        if ( clazz == PageManager.class || clazz == AttachmentManager.class
-                || clazz == PageRenamer.class
-                || clazz == com.wikantik.api.managers.ReferenceManager.class ) {
-            if ( this.pageSubsystem != null ) {
-                this.pageSubsystem = com.wikantik.page.subsystem.PageSubsystemBridge.rebuildFromManagers( this );
-            }
-        }
-        if ( clazz == com.wikantik.cache.CachingManager.class
-                || clazz == com.wikantik.variables.VariableManager.class
-                || clazz == com.wikantik.ui.progress.ProgressManager.class
-                || clazz == com.wikantik.ui.CommandResolver.class
-                || clazz == com.wikantik.url.URLConstructor.class
-                || clazz == com.wikantik.i18n.InternationalizationManager.class ) {
-            if ( this.coreSubsystem != null ) {
-                this.coreSubsystem = com.wikantik.core.subsystem.CoreSubsystemBridge.rebuildFromManagers( this );
-            }
-        }
-        if ( clazz == RenderingManager.class || clazz == PluginManager.class
-                || clazz == FilterManager.class || clazz == DifferenceManager.class
-                || clazz == com.wikantik.content.NewsPageGenerator.class ) {
-            if ( this.renderingSubsystem != null ) {
-                this.renderingSubsystem = com.wikantik.render.subsystem.RenderingSubsystemBridge.rebuildFromManagers( this );
-            }
-        }
-        // Search snapshot covers manager/provider, the three Lucene helpers (post-Phase-7),
-        // hybrid retrieval services, in-memory indexes, and the embedding pipeline. Any of
-        // these can be hot-swapped by a unit test and the snapshot must rebuild.
-        if ( clazz == SearchManager.class || clazz == SearchProvider.class
-                || clazz == com.wikantik.search.subsystem.lucene.LuceneIndexer.class
-                || clazz == com.wikantik.search.subsystem.lucene.LuceneSearcher.class
-                || clazz == com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle.class
-                || clazz == com.wikantik.search.hybrid.HybridSearchService.class
-                || clazz == com.wikantik.search.hybrid.QueryEmbedder.class
-                || clazz == com.wikantik.search.hybrid.QueryEntityResolver.class
-                || clazz == com.wikantik.search.hybrid.GraphRerankStep.class
-                || clazz == com.wikantik.search.hybrid.GraphProximityScorer.class
-                || clazz == com.wikantik.search.hybrid.InMemoryChunkVectorIndex.class
-                || clazz == com.wikantik.search.hybrid.InMemoryGraphNeighborIndex.class
-                || clazz == com.wikantik.search.embedding.EmbeddingIndexService.class
-                || clazz == com.wikantik.search.embedding.OllamaEmbeddingClient.class
-                || clazz == com.wikantik.search.embedding.BootstrapEmbeddingIndexer.class
-                || clazz == com.wikantik.search.embedding.AsyncEmbeddingIndexListener.class
-                || clazz == com.wikantik.search.FrontmatterMetadataCache.class ) {
-            if ( this.searchSubsystem != null ) {
-                this.searchSubsystem = com.wikantik.search.subsystem.SearchSubsystemBridge.rebuildFromManagers( this );
-            }
-        }
-        // Knowledge snapshot covers all KnowledgeSubsystem.Services fields.
-        // ContextRetrievalService is intentionally excluded — it is wired post-boot by
-        // ContextRetrievalServiceInitializer which calls setManager(...) followed
-        // by patchContextRetrievalService(...); rebuilding the snapshot here
-        // would lose the patched ContextRetrievalService before the patch can be re-applied.
-        if ( clazz == com.wikantik.api.knowledge.KnowledgeGraphService.class
-                || clazz == com.wikantik.api.knowledge.KgProposalJudgeService.class
-                || clazz == com.wikantik.knowledge.judge.JudgeRunner.class
-                || clazz == com.wikantik.knowledge.judge.KgMaterializationService.class
-                || clazz == com.wikantik.knowledge.judge.KgJudgeTimeoutRepository.class
-                || clazz == com.wikantik.knowledge.HubProposalService.class
-                || clazz == com.wikantik.knowledge.HubDiscoveryService.class
-                || clazz == com.wikantik.knowledge.HubOverviewService.class
-                || clazz == com.wikantik.knowledge.HubProposalRepository.class
-                || clazz == com.wikantik.knowledge.HubDiscoveryRepository.class
-                || clazz == com.wikantik.knowledge.chunking.ContentChunkRepository.class
-                || clazz == com.wikantik.knowledge.chunking.ChunkProjector.class
-                || clazz == com.wikantik.knowledge.MentionIndex.class
-                || clazz == com.wikantik.knowledge.embedding.NodeMentionSimilarity.class
-                || clazz == com.wikantik.knowledge.FrontmatterDefaultsFilter.class
-                || clazz == com.wikantik.knowledge.HubSyncFilter.class
-                || clazz == com.wikantik.api.agent.ForAgentProjectionService.class
-                || clazz == com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class
-                || clazz == com.wikantik.api.kgpolicy.KgInclusionPolicy.class
-                || clazz == com.wikantik.kgpolicy.ReconciliationJobRunner.class
-                || clazz == com.wikantik.api.eval.RetrievalQualityRunner.class ) {
-            if ( this.knowledgeSubsystem != null ) {
-                this.knowledgeSubsystem = com.wikantik.knowledge.subsystem.KnowledgeSubsystemBridge.rebuildFromManagers( this );
-            }
-        }
-        // Page Graph snapshot covers the four services. Any hot-swap (unit test
-        // installing a mock) must rebuild the snapshot so callers see the new value.
-        if ( clazz == com.wikantik.api.pagegraph.StructuralIndexService.class
-                || clazz == com.wikantik.api.pagegraph.PageGraphService.class
-                || clazz == com.wikantik.api.managers.ReferenceManager.class
-                || clazz == com.wikantik.admin.ContentIndexRebuildService.class ) {
-            if ( this.pageGraphSubsystem != null ) {
-                this.pageGraphSubsystem = com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.rebuildFromManagers( this );
-            }
-        }
+        //
+        // ContextRetrievalService is intentionally absent from SNAPSHOT_REBUILDERS — it is wired
+        // post-boot by ContextRetrievalServiceInitializer; including it would overwrite the
+        // patched service before the patch can be re-applied.
+        final java.util.function.Consumer<WikiEngine> rebuilder = SNAPSHOT_REBUILDERS.get( clazz );
+        if ( rebuilder != null ) rebuilder.accept( this );
     }
 
     // -----------------------------------------------------------------------

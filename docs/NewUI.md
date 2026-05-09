@@ -42,13 +42,15 @@ forwards SPA paths to `/index.html` so the React router can take over.
 | `/wiki/{PageName}` | Article reader |
 | `/edit/{PageName}` | Inline editor (markdown source + live preview) |
 | `/search` | Search results (full-text + frontmatter facets) |
-| `/graph` | Knowledge graph visualiser |
+| `/page-graph` | Page Graph viewer — wikilink edges, clusters, backlinks |
+| `/knowledge-graph` | Knowledge Graph viewer — LLM-extracted entity nodes/edges |
 | `/admin/*` | Admin panel (users, content, security, knowledge) |
+| `/blog/*` | Per-author blog routes (discovery, home, entry, editor) |
 
 The REST API lives under `/api/` (and admin endpoints under `/admin/`), and
-there are two MCP servers: `/wikantik-admin-mcp` (writes + analytics, 16 tools)
-and `/knowledge-mcp` (read-only retrieval + graph, 10 tools). An OpenAPI tool
-server for non-MCP clients lives at `/tools/*`. All are serviced by
+there are two MCP servers: `/wikantik-admin-mcp` (writes + analytics + verification stamping, 18 tools)
+and `/knowledge-mcp` (hybrid retrieval + Knowledge Graph + structural-spine + agent-projection, 15 tools). An OpenAPI tool
+server for non-MCP clients lives at `/tools/*` (`search_wiki`, `get_page`). All are serviced by
 `wikantik-rest`, `wikantik-admin-mcp`, `wikantik-knowledge`, and
 `wikantik-tools` rather than the SPA.
 
@@ -77,7 +79,8 @@ wikantik-frontend/
     │   ├── DiffViewer.jsx
     │   ├── BlogHome.jsx / BlogEntry.jsx / BlogEditor.jsx …
     │   ├── admin/               Admin panel pages + forms
-    │   └── graph/               Knowledge graph viewer (see below)
+    │   ├── pagegraph/           Page Graph viewer (lazy-loaded; see below)
+    │   └── kgraph/              Knowledge Graph viewer (lazy-loaded; see below)
     ├── hooks/
     │   ├── useApi.js            Fetch + auth header plumbing
     │   ├── useAuth.jsx          Login state, current user
@@ -113,31 +116,60 @@ following plugin chain:
 See [MathematicalNotation.md](MathematicalNotation.md) for the full math
 syntax reference.
 
-## Knowledge Graph View
+## Graph Viewers
 
-The `/graph` route renders an interactive, zoomable graph of page
-relationships. Nodes are pages; edges are backlinks, frontmatter relations
-(`related`, `cluster`), and cluster membership. Hubs (nodes above a
-configurable degree threshold) are highlighted; anomalies (restricted pages,
-orphans) can be toggled into view.
+Wikantik ships two distinct, lazy-loaded graph viewers in the SPA. **Don't
+conflate them** — they reflect two separate subsystems (see
+[PageGraphVsKnowledgeGraph](wikantik-pages/PageGraphVsKnowledgeGraph.md)
+for the long form):
+
+### `/page-graph` — Page Graph viewer
+
+Real wikilink edges between pages. Nodes are pages; edges are wikilinks
+parsed from page bodies, with co-resident structural information
+(`canonical_id`, `cluster`) layered in. Hubs (nodes above a configurable
+degree threshold) are highlighted; anomalies (restricted pages, orphans)
+can be toggled into view. Components live under
+`wikantik-frontend/src/components/pagegraph/`:
 
 | Component | Role |
 |-----------|------|
-| `GraphView.jsx` | Top-level container — fetches snapshot, owns state |
+| `PageGraphView.jsx` | Top-level container — fetches snapshot, owns state |
 | `GraphCanvas.jsx` | Cytoscape canvas with CoSE-Bilkent layout |
 | `GraphToolbar.jsx` | Edge-type filters, anomaly toggle, refresh |
 | `GraphZoomSlider.jsx` | Manual zoom control (semantic zoom) |
 | `GraphLegend.jsx` | Hub threshold and edge-type legend |
 | `GraphDetailsDrawer.jsx` | Selected-node details + incident edges |
+| `FilterPanel.jsx` | Per-cluster / tag filtering |
 | `GraphErrorBoundary.jsx` / `GraphErrorState.jsx` | Failure UI |
 | `graph-data.js` | Converts the REST snapshot into Cytoscape elements |
 | `graph-style.js` | Cytoscape stylesheet |
 
-The snapshot comes from `GET /api/knowledge/graph` (served by
-`KnowledgeGraphResource` in `wikantik-rest`, backed by
-`DefaultKnowledgeGraphService` in `wikantik-knowledge`). A `?focus=PageName`
-query parameter auto-centres and selects a node on load — useful for linking
-to the graph from an article.
+Snapshot comes from `PageGraphSnapshotResource` in `wikantik-rest`,
+backed by the Page Graph subsystem (`com.wikantik.pagegraph.*`). A
+`?focus=PageName` query parameter auto-centres and selects a node on
+load — useful for linking to the graph from an article.
+
+### `/knowledge-graph` — Knowledge Graph viewer
+
+Reader-facing visualisation of the LLM-extracted entity graph. Nodes are
+typed entities; edges are co-mention or typed relations between them.
+Includes tier filter, node-type colours, provenance/status badges, and a
+large-graph warning gate that prompts before rendering big subgraphs.
+Components under `wikantik-frontend/src/components/kgraph/`:
+
+| Component | Role |
+|-----------|------|
+| `KnowledgeGraphView.jsx` | Top-level container |
+| `KgGraphToolbar.jsx` | Tier filter, node-type filter, refresh |
+| `KgGraphLegend.jsx` | Node-type colour key |
+| `KgGraphDetailsDrawer.jsx` | Selected-node provenance + incident edges |
+| `KgErrorState.jsx` | Failure UI |
+| `kg-graph-data.js` | Converts the REST snapshot into Cytoscape elements |
+| `kg-graph-style.js` | Cytoscape stylesheet |
+
+Snapshot comes from `KnowledgeGraphResource` in `wikantik-rest`, backed
+by `DefaultKnowledgeGraphService` in `wikantik-knowledge`.
 
 ## Design System
 

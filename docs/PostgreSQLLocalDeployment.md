@@ -26,8 +26,9 @@ What ends up where:
   password edits survive subsequent deploys.
 
 The wiki is served at the **root context** (`/`) — there is no
-`/Wikantik/` prefix. The React SPA lives at `/`, the knowledge-graph
-visualization at `/graph`, and admin tools under `/admin/*`.
+`/Wikantik/` prefix. The React SPA lives at `/`, the Page Graph viewer
+at `/page-graph`, the Knowledge Graph viewer at `/knowledge-graph`, and
+admin tools under `/admin/*`.
 
 ## Prerequisites
 
@@ -69,16 +70,20 @@ You should see a `vector` row.
 
 ## Quick Start (after one-time setup)
 
+For a routine "edit code, see it running" iteration:
+
 ```bash
 # 1. Build (also builds the React frontend via npm)
 mvn clean install -Dmaven.test.skip -T 1C
 
-# 2. Deploy + apply pending migrations + seed dev users
-bin/deploy-local.sh
+# 2. Fast redeploy: shutdown + rotate catalina.out + swap WAR + startup.
+#    Skips template re-materialisation, secrets validation, and DB
+#    migrations — use bin/deploy-local.sh instead when those need to run
+#    (first-time setup, Tomcat upgrade, secrets rotation, new V*.sql).
+bin/redeploy.sh
 
-# 3. Browse to the wiki — Tomcat is started automatically by deploy-local.sh
-#    http://localhost:8080/
-#    Default login: admin / admin123
+# 3. Browse to the wiki at http://localhost:8080/.
+#    Default login: admin / admin123.
 ```
 
 ---
@@ -97,23 +102,29 @@ sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
     bin/db/install-fresh.sh
 ```
 
-This creates the schema currently described by V001 through V019:
+This creates the schema currently described by V001 through V025:
 
 - `users`, `roles`, `groups`, `group_members` (V002)
 - `policy_grants` for database-backed authorization (V003)
 - `kg_nodes`, `kg_edges`, `kg_proposals`, `kg_rejections` + the `vector`
-  extension (V004; the legacy `kg_embeddings`/`kg_content_embeddings` tables
-  were dropped in V019)
+  extension (V004; the legacy `kg_embeddings`/`kg_content_embeddings`
+  tables were dropped in V019)
 - `hub_centroids`, `hub_proposals` (V005)
 - `hub_discovery_proposals` (V006, V007)
 - `kg_content_chunks` (V008), `content_chunk_embeddings` (V009),
   `chunk_entity_mentions` (V011) — the unified Ollama-backed embedding stack
-- `api_keys` (V010); `page_canonical_ids`, `page_slug_history`,
-  `page_relations` (V013); verification + runbook tables (V014); retrieval
-  quality (V016, V017); KG inclusion policy (V018)
+- `api_keys` (V010); `page_canonical_ids`, `page_slug_history` (V013;
+  the typed `page_relations` table was dropped in V023 when typed
+  relations were retired); verification + runbook tables (V014);
+  retrieval quality (V016, V017); KG inclusion policy (V018)
+- `kg_proposals.signature` for dedupe (V020); `kg_node_embeddings`
+  (V021, V022); KG staged validation (V024); KG judge timeout tracking
+  (V025)
 
-A default `admin` user is seeded with password `admin` (SSHA hashed).
-**Change this immediately after first login.**
+A default `admin` user is seeded with password `admin123` by
+`bin/db/seed-users.sql` (SHA-256 hashed). **Change this immediately
+after first login** if you intend to keep the deployment online longer
+than a smoke test.
 
 If your `.pgpass` already authenticates the `postgres` superuser, you
 can drop the `sudo -u postgres` prefix.
@@ -128,7 +139,20 @@ mvn clean install -Dmaven.test.skip -T 1C
 this with the `integration-tests` profile — IT modules share fixed
 ports and require sequential execution.
 
-### Step 3: Deploy
+### Step 3: Configure secrets
+
+Copy `.env.example` to `.env` and set `POSTGRES_PASSWORD` to whatever you
+used for `DB_APP_PASSWORD` in Step 1. `bin/deploy-local.sh` refuses to
+run while the password is still the literal `CHANGEME`, and uses the
+value to materialise `ROOT.xml` from the template — there is no manual
+`ROOT.xml` edit step.
+
+```bash
+cp .env.example .env
+$EDITOR .env  # set POSTGRES_PASSWORD (and any other defaults you want to override)
+```
+
+### Step 4: Deploy
 
 ```bash
 bin/deploy-local.sh
@@ -138,69 +162,82 @@ The script will:
 
 1. Verify `npm` is on PATH (needed for the React frontend build).
 2. Verify `wikantik-war/target/Wikantik.war` exists.
-3. Download Tomcat 11 if `tomcat/tomcat-11/` is missing.
-4. Download the PostgreSQL JDBC driver if missing.
-5. Copy `Wikantik-context.xml.template` → `conf/Catalina/localhost/ROOT.xml`
-   (only if the destination doesn't already exist — your password edits
-   are preserved).
-6. Copy `wikantik-custom-postgresql.properties.template` →
+3. Source `.env` and refuse to proceed if `POSTGRES_PASSWORD` is unset
+   or still `CHANGEME`.
+4. Download Tomcat 11.0.22 if `tomcat/tomcat-11/` is missing (or out of
+   date; pass `--upgrade-tomcat` to perform an in-place upgrade that
+   preserves managed configs and data).
+5. Download the PostgreSQL JDBC driver if missing.
+6. Render `Wikantik-context.xml.template` → `conf/Catalina/localhost/ROOT.xml`
+   with `@@POSTGRES_*@@` tokens substituted from the env. The file is
+   regenerated every deploy — your password lives in `.env`, not the
+   context file.
+7. Render `wikantik-custom-postgresql.properties.template` →
    `lib/wikantik-custom.properties` with `@@REPO_ROOT@@` substituted
    for your project root.
-7. Copy `log4j2-local.xml.template` → `lib/log4j2.xml`.
-8. Stop Tomcat if running, rotate `catalina.out` to `.old`.
-9. Replace `webapps/ROOT/` with the freshly built WAR.
-10. Run `bin/db/migrate.sh` against the database named in `ROOT.xml`
-    (idempotent — re-applies only pending migrations).
-11. Seed dev user accounts via `bin/db/seed-users.sql` (also idempotent).
-12. Start Tomcat.
+8. Copy `Tomcat-context.xml.template` → `conf/context.xml` (adds
+   `<CookieProcessor sameSiteCookies="strict"/>` to the stock file).
+9. Copy `Tomcat-server.xml.template` → `conf/server.xml` (adds the
+   Cloudflare RemoteIpValve and the custom AccessLogValve).
+10. Copy `log4j2-local.xml.template` → `lib/log4j2.xml`.
+11. Stop Tomcat if running, rotate `catalina.out` to `.old`.
+12. Replace `webapps/ROOT/` with the freshly built WAR.
+13. Run `bin/db/migrate.sh` against the database named in the rendered
+    `ROOT.xml` (idempotent — re-applies only pending migrations).
+14. Seed dev user accounts via `bin/db/seed-users.sql` (also idempotent;
+    skips upsert if a wiki_name conflict exists under a different
+    login_name, so existing operator accounts are preserved).
+15. Start Tomcat.
 
-### Step 4: Set the database password in `ROOT.xml`
-
-Edit the JNDI context file and replace the password placeholder:
-
-```bash
-nano tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml
-```
-
-The connection string and password appear inside `<Resource>` elements
-(typically two — one for the application, one for the embedded Lucene
-search index if configured). Match what you used for `DB_APP_PASSWORD`
-in Step 1.
-
-### Step 5: Restart Tomcat after the password edit
+### Step 5: Verify
 
 ```bash
-tomcat/tomcat-11/bin/shutdown.sh
-tomcat/tomcat-11/bin/startup.sh
-
-# Watch the log
 tail -f tomcat/tomcat-11/logs/catalina.out
 ```
 
-### Step 6: Verify
-
 1. Open <http://localhost:8080/> — the React SPA should load.
 2. Log in as `admin` / `admin123`.
-3. Visit <http://localhost:8080/graph> — the knowledge-graph view.
-4. Confirm DB connectivity from the shell:
+3. Visit <http://localhost:8080/page-graph> — Page Graph viewer.
+4. Visit <http://localhost:8080/knowledge-graph> — Knowledge Graph viewer.
+5. Confirm DB connectivity from the shell:
 
    ```bash
    psql -h localhost -U jspwiki -d wikantik -c "SELECT login_name FROM users;"
+   ```
+6. Confirm `/api/health` reports UP for engine + database + searchIndex:
+
+   ```bash
+   curl -s http://localhost:8080/api/health | jq
    ```
 
 ---
 
 ## Subsequent Deployments
 
+For routine "edit code, see it running" iteration — `bin/redeploy.sh`
+is the fast path:
+
+```bash
+mvn clean install -Dmaven.test.skip -T 1C
+bin/redeploy.sh
+```
+
+It only does shutdown + rotate `catalina.out` + swap WAR + startup.
+Use `bin/deploy-local.sh` instead when you need any of:
+
+- a fresh schema migration applied (`migrate.sh` runs every deploy)
+- secrets re-validation against `.env`
+- a Tomcat upgrade (`bin/deploy-local.sh --upgrade-tomcat`)
+- regenerated config templates (rare in a stable working tree)
+
 ```bash
 mvn clean install -Dmaven.test.skip -T 1C
 bin/deploy-local.sh
 ```
 
-`deploy-local.sh` stops Tomcat, redeploys the WAR, applies any new
-migrations, reseeds dev users (idempotent), and starts Tomcat back up.
-Your `ROOT.xml` and `wikantik-custom.properties` are untouched — only
-the WAR and freshly-migrated schema change.
+`deploy-local.sh` stops Tomcat, regenerates every templated config from
+`.env`, redeploys the WAR, applies any new migrations, reseeds dev users
+(idempotent), and starts Tomcat back up.
 
 ### Manual schema migration
 
@@ -292,8 +329,7 @@ sudo tail -f /var/log/postgresql/postgresql-*-main.log
 ```bash
 rm tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml
 rm tomcat/tomcat-11/lib/wikantik-custom.properties
-bin/deploy-local.sh
-# Re-edit ROOT.xml to set the password again
+bin/deploy-local.sh   # regenerates both files from .env-templated values
 ```
 
 ### Resetting the database

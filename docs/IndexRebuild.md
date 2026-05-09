@@ -4,15 +4,54 @@
 
 The Lucene search index must be rebuilt when:
 
-1. **Frontmatter indexing was added** — The index now includes `tags`, `cluster`, and `summary` fields from YAML frontmatter. Pages indexed before this change have no frontmatter fields in the index, so tag/cluster searches won't find them.
+1. **Frontmatter or content fields change** — The index includes `tags`,
+   `cluster`, `summary`, `canonical_id`, `type`, and `audience` from
+   YAML frontmatter. Pages indexed before any one of these fields was
+   added have no value in the index, so faceted/structural searches
+   won't find them. (Note: typed `relations:` frontmatter — `links_to`,
+   `mentions`, `part_of` — was retired 2026-05-02 in V023; if you have
+   an old index with `relations` fields, a rebuild will drop them and
+   that's intentional.)
 
 2. **The index is corrupted** — Search returns no results or throws errors.
 
-3. **The analyzer or field configuration changes** — Any change to how content is tokenized or what fields exist requires a full rebuild.
+3. **The analyzer or field configuration changes** — Any change to how
+   content is tokenized or what fields exist requires a full rebuild.
+
+4. **You're enabling hybrid retrieval for the first time** — A rebuild
+   re-runs the chunker and re-populates `kg_content_chunks`, which is
+   the foundation for `content_chunk_embeddings` and
+   `chunk_entity_mentions`. See
+   [KnowledgeGraphRerank.md](KnowledgeGraphRerank.md) for the full
+   downstream pipeline.
 
 ## How to Rebuild
 
-### Local (bare-metal Tomcat)
+### Live (no Tomcat restart needed)
+
+The fastest path on a running wiki is the `/admin/content/rebuild-indexes`
+endpoint, which Wikantik exposes as a one-click admin operation. Use the
+`bin/trigger-rebuild-indexes.sh` helper:
+
+```bash
+bin/trigger-rebuild-indexes.sh           # kicks off rebuild
+bin/trigger-rebuild-indexes.sh status    # polls /admin/content/index-status
+bin/trigger-rebuild-indexes.sh --help
+```
+
+It logs in as `testbot` (credentials sourced from `test.properties` —
+see CLAUDE.md > Manual Testing Credentials) and POSTs to
+`/admin/content/rebuild-indexes`. The rebuild runs in a background
+thread; search returns 0 results while it's in flight.
+
+For an end-to-end rebuild that *also* re-runs the embedding pipeline
+and re-extracts KG entities, use `bin/kg-rebuild.sh` (which orchestrates
+this rebuild plus `/admin/content/reindex-embeddings` plus
+`bin/kg-extract.sh`).
+
+### Local (bare-metal Tomcat) — full reset
+
+When the live path isn't enough (e.g. a corrupt index), do a full reset:
 
 ```bash
 # 1. Stop Tomcat
@@ -26,24 +65,24 @@ tomcat/tomcat-11/bin/startup.sh
 
 # 4. Wait ~30-60 seconds for the background rebuild to complete
 # Check logs for: "Full Lucene index finished in N milliseconds"
-tail -f tomcat/tomcat-11/logs/jspwiki/jspwiki.log | grep -i lucene
+tail -f tomcat/tomcat-11/logs/wikantik/wikantik.log | grep -i lucene
 ```
 
 ### Docker (production containers)
 
 ```bash
 # 1. Stop the wikantik container
-docker compose -f docker-compose.yml -f docker-compose.prod.yml stop wikantik
+bin/container.sh -e prod down       # or: docker compose ... stop wikantik
 
 # 2. Delete the index from the work volume
 docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm \
   wikantik rm -rf /var/wikantik/work/lucene/
 
 # 3. Start wikantik — index rebuilds automatically
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d wikantik
+bin/container.sh -e prod up -d
 
 # 4. Monitor the rebuild
-docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f wikantik | grep -i lucene
+bin/container.sh -e prod logs -f wikantik | grep -i lucene
 ```
 
 ## What Happens During Rebuild

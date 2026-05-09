@@ -1,5 +1,12 @@
 # Implementing a Sitemap.xml Servlet for Wikantik
 
+> **Status: IMPLEMENTED.** The sitemap servlet shipped — `SitemapServlet`
+> in `wikantik-main/src/main/java/com/wikantik/ui/SitemapServlet.java`,
+> serving `/sitemap.xml`. The Atom feed counterpart is `AtomFeedServlet`.
+> This document is preserved as the implementation specification it
+> was written against; treat it as design-of-record rather than a
+> to-do list.
+
 ## Overview
 
 A sitemap.xml tells search engines about the pages on your wiki, helping them crawl more efficiently. This document provides a detailed breakdown of what needs to be implemented for Google Search Console compliance.

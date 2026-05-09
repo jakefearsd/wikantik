@@ -68,19 +68,39 @@ Key invariants:
 The graph rerank is useful only when there is a graph to rerank against. You
 need all of the following to be operational:
 
-### 1. PostgreSQL with pgvector + V011
+### 1. PostgreSQL with pgvector + the unified embedding stack
 
-The `chunk_entity_mentions` table (schema `V011`) must exist. It is applied
-automatically by `bin/deploy-local.sh` (which calls `bin/db/migrate.sh`). To
-check:
+The full rerank path depends on these migrations being applied (every
+`bin/deploy-local.sh` and every container start runs them via
+`bin/db/migrate.sh`, idempotently):
+
+- **V004** — installs `vector` extension, baseline `kg_*` tables.
+- **V008** — `kg_content_chunks` (per-passage chunking).
+- **V009** — `content_chunk_embeddings` (Ollama dense vectors, BYTEA
+  float32, dimension set by the active `model_code`).
+- **V011** — `chunk_entity_mentions` (links KG nodes to chunks; KG-node
+  centroids are derived from this).
+- **V019** — drops the legacy `kg_embeddings` /
+  `kg_content_embeddings` tables (superseded by V009).
+- **V021, V022** — `kg_node_embeddings` + `model_code` (KG-node-level
+  vectors, used directly when present and as a centroid fallback
+  otherwise).
+- **V020** — `kg_proposals.signature` (extractor-side dedupe).
+- **V024, V025** — KG staged validation + judge timeout tracking
+  (used by the proposal-promotion flow that feeds new nodes into the
+  rerank).
+
+To verify the foundational layer:
 
 ```bash
 PGPASSWORD=… psql -h localhost -U jspwiki -d wikantik \
-  -c "\d chunk_entity_mentions"
+  -c "\d chunk_entity_mentions" \
+  -c "\d kg_node_embeddings" \
+  -c "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 5;"
 ```
 
-Expected columns: `chunk_id`, `node_id`, `confidence`, `extractor`,
-`extracted_at`.
+`chunk_entity_mentions` columns: `chunk_id`, `node_id`, `confidence`,
+`extractor`, `extracted_at`.
 
 ### 2. Content chunks and embeddings
 

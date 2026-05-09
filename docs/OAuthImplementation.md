@@ -1,5 +1,14 @@
 # OAuth SSO Implementation Plan for Google/GitHub Logins
 
+> **Status: SUPERSEDED.** SSO has shipped using pac4j as the OAuth /
+> OpenID Connect client library, not the hand-rolled JAAS approach
+> sketched here. The authoritative implementation lives in
+> `wikantik-main/src/main/java/com/wikantik/auth/sso/`
+> (`SSOLoginModule`, `SSOCallbackServlet`, `SSORedirectServlet`,
+> `SSOConfig`, `SSOAutoProvisionService`) with end-to-end coverage in
+> `wikantik-it-tests/wikantik-it-test-sso/`. This document is kept as
+> a historical record of the original planning analysis.
+
 ## Executive Summary
 
 Wikantik's JAAS-based architecture is **well-suited for OAuth integration**. The key insight is that passwords are optional in the user database, so OAuth users can be created without passwords and never use password-based login.

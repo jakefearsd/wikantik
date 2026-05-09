@@ -78,12 +78,13 @@ From the source code (`JDBCUserDatabase.java` and `JDBCGroupDatabase.java`):
 
 ### Software Requirements
 
-| Component | Minimum Version | Recommended |
-|-----------|----------------|-------------|
-| PostgreSQL | 12.0 | 15.0+ |
-| Java JDK | 11 | 17+ |
-| Apache Tomcat | 9.0 | 11.0 |
-| PostgreSQL JDBC Driver | 42.2.x | 42.7.x |
+| Component | Minimum Version | Notes |
+|-----------|-----------------|-------|
+| PostgreSQL | 15.0 | The schema uses features (default `public` privilege restrictions, `pgvector`) that require 15+ |
+| pgvector extension | 0.5.x | Required for the Knowledge Graph and hybrid retrieval; install via `postgresql-<MAJOR>-pgvector` (apt) or `pgvector_<MAJOR>` (yum). See README.md for the per-platform instructions. |
+| Java JDK | 21 | The build targets Java 21 |
+| Apache Tomcat | 11.0.22 | Pinned by `bin/deploy-local.sh` and the `Dockerfile` |
+| PostgreSQL JDBC Driver | 42.7.x | Auto-downloaded into `tomcat/tomcat-11/lib/` by `bin/deploy-local.sh` |
 
 ### Required Knowledge
 
@@ -197,21 +198,30 @@ sudo systemctl reload postgresql
 
 ## 4. Database Schema Creation
 
-### 4.1 Complete PostgreSQL Schema
-
-**Important:** The schema creation script must be run as a PostgreSQL **superuser** (e.g., `postgres`) because it:
-- Creates/drops the `jspwiki` application user
-- Grants permissions on tables
-
-Connect to the wikantik database as the superuser:
+**The recommended path is `bin/db/install-fresh.sh`** — it creates the
+database, the `jspwiki` application role, installs the `pgvector`
+extension, and runs every migration in `bin/db/migrations/` (V001 through
+V025 as of this writing). Idempotent — safe to re-run against an existing
+database.
 
 ```bash
-# Option 1: Run the DDL file directly
-sudo -u postgres psql -d wikantik -f wikantik-war/src/main/config/db/postgresql.ddl
-
-# Option 2: Connect interactively as superuser
-sudo -u postgres psql -d jspwiki
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
+    DB_APP_PASSWORD='ChangeMe123!' \
+    bin/db/install-fresh.sh
 ```
+
+The legacy `wikantik-war/src/main/config/db/postgresql*.ddl` files are
+historical reference only and should not be applied directly.
+[`docs/DatabaseUpdates.md`](DatabaseUpdates.md) lists every migration
+and what it adds.
+
+### 4.1 Manual schema reference (legacy)
+
+If you need to walk the SQL by hand (e.g. for an external review or to
+adapt the schema for a different RDBMS), the original DDL is reproduced
+below. **Don't apply this directly to a Wikantik database** — use
+`bin/db/install-fresh.sh` so the `schema_migrations` ledger stays in
+sync with what's installed.
 
 Execute the following DDL:
 
@@ -431,12 +441,16 @@ curl -L -o postgresql-42.7.4.jar \
 Copy the JDBC driver to Tomcat's lib directory:
 
 ```bash
-# For the project's bundled Tomcat
-cp postgresql-42.7.4.jar /home/jakefear/source/jspwiki/tomcat/tomcat-11/lib/
+# For the project's bundled Tomcat (relative to repo root)
+cp postgresql-42.7.4.jar tomcat/tomcat-11/lib/
 
 # For a system Tomcat installation
-cp postgresql-42.7.4.jar $CATALINA_HOME/lib/
+cp postgresql-42.7.4.jar "$CATALINA_HOME/lib/"
 ```
+
+**Note:** `bin/deploy-local.sh` already auto-downloads the JDBC driver
+into `tomcat/tomcat-11/lib/` on first run — these steps are only
+needed for a hand-rolled Tomcat install outside `deploy-local.sh`.
 
 **Important:** Restart Tomcat after adding the driver.
 
@@ -546,10 +560,10 @@ Create or edit `WEB-INF/wikantik-custom.properties`:
 # ============================================================================
 
 # Enable JDBC User Database (instead of default XML)
-jspwiki.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
+wikantik.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
 
 # Enable JDBC Group Database (instead of default XML)
-jspwiki.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
+wikantik.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 
 # ============================================================================
 # JNDI DataSource Name
@@ -580,7 +594,7 @@ If using resource-ref declarations, ensure `WEB-INF/web.xml` includes:
 Build Wikantik and deploy to the development Tomcat:
 
 ```bash
-cd /home/jakefear/source/jspwiki
+cd "$REPO_ROOT"  # cd to your project root
 
 # Build the project (skip tests for quick iteration)
 mvn clean install -Dmaven.test.skip
@@ -721,7 +735,7 @@ ORDER BY modified DESC;
 Run the JDBC-related unit tests:
 
 ```bash
-cd /home/jakefear/source/jspwiki
+cd "$REPO_ROOT"  # cd to your project root
 
 # Run JDBCUserDatabase tests
 mvn test -Dtest=JDBCUserDatabaseTest -pl wikantik-main
@@ -995,7 +1009,7 @@ Format: `{ALGORITHM}Base64(hash + salt)`
 Use the `CryptoUtil` command-line tool:
 
 ```bash
-cd /home/jakefear/source/jspwiki
+cd "$REPO_ROOT"  # cd to your project root
 
 # Build the project first
 mvn clean install -Dmaven.test.skip

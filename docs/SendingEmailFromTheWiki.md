@@ -195,7 +195,7 @@ mail.smtp.starttls.enable = true
 | `mail.smtp.starttls.enable` | `true` | Enable TLS encryption |
 | `mail.smtp.timeout` | `5000` | Socket I/O timeout (ms) |
 | `mail.smtp.connectiontimeout` | `5000` | Connection timeout (ms) |
-| `jspwiki.mail.jndiname` | `mail/Session` | JNDI name for container-managed session |
+| `wikantik.mail.jndiname` | `mail/Session` | JNDI name for container-managed session |
 
 ---
 

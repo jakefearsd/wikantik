@@ -65,8 +65,8 @@ Update your `wikantik-custom.properties` file to use the `JDBCUserDatabase` and 
 
 ```properties
 # Use the JDBC user and group databases
-jspwiki.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
-jspwiki.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
+wikantik.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
+wikantik.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
 
 # Shared JNDI DataSource name
 wikantik.datasource = jdbc/WikiDatabase
@@ -151,7 +151,7 @@ While the configuration is similar for both databases, there are a few key diffe
 
 ## 5. Database-Backed Authorization Policy
 
-In addition to users and groups, Wikantik supports storing authorization policy grants in the database via the `policy_grants` table. This replaces the file-based `wikantik.policy` with a database-backed equivalent.
+In addition to users and groups, Wikantik stores authorization policy grants in the database via the `policy_grants` table whenever `wikantik.datasource` is configured (which is the default). The file-based `WEB-INF/wikantik.policy` is a fallback only — out-of-the-box deployments are always database-backed.
 
 ### Database-Backed Policy
 
@@ -192,7 +192,7 @@ CREATE TABLE policy_grants (
 
 ### Admin UI
 
-Groups and policy grants are manageable via the admin UI at `/app/admin/security`.
+Groups and policy grants are manageable via the admin UI at `/admin/security`.
 
 ## 6. Additional Users Table Columns
 

@@ -1,5 +1,11 @@
 # Complete OAuth SSO Implementation Plan for Wikantik
 
+> **Status: SUPERSEDED.** SSO shipped using pac4j (not the hand-rolled
+> JAAS scaffolding sketched in this plan). The implementation lives in
+> `wikantik-main/src/main/java/com/wikantik/auth/sso/` with end-to-end
+> coverage in `wikantik-it-tests/wikantik-it-test-sso/`. This document
+> is retained as a historical reference for the design exploration.
+
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)

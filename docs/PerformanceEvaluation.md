@@ -1,5 +1,15 @@
 # Performance Evaluation
 
+> **Status: Historical analysis (2025).** This was a static-analysis
+> survey of likely bottlenecks at the time. Several have since been
+> mitigated — the rendering and reference-cache paths now run behind
+> EhCache (1-hour TTL, 10K-entry capacity; see `wikantik-cache`), and
+> the search subsystem was extracted in 2026-04 per
+> `docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md`.
+> For current performance data, query the Prometheus endpoint at
+> `/metrics` (IP-restricted) or hit `/api/health` for component-level
+> latency. Treat the rest of this document as a snapshot.
+
 This document outlines the three most likely performance bottlenecks in the Wikantik codebase, based on an in-depth analysis of the project structure and key components.
 
 ## 1. File System I/O in Providers

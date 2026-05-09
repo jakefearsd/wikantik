@@ -145,7 +145,7 @@ $TOMCAT_HOME/bin/startup.sh
 ### Database-Backed Permissions
 
 - **Policy grants in PostgreSQL** — default role permissions stored in `policy_grants` table, manageable via admin UI
-- **Groups in PostgreSQL** — wiki groups manageable via admin UI at `/app/admin/security`
+- **Groups in PostgreSQL** — wiki groups manageable via admin UI at `/admin/security`
 - **Admin group protection** — cannot delete the Admin group or save it with zero members
 - **Bootstrap admin override** — `wikantik.admin.bootstrap` property guarantees admin access during setup
 

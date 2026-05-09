@@ -350,8 +350,12 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 # Check wiki responds
 curl -fsS http://localhost:8080/wiki/Main > /dev/null && echo "Wiki OK"
 
-# Check MCP endpoint
-curl -fsS http://localhost:8080/mcp > /dev/null 2>&1; echo "MCP: $?"  # 400 = OK (Streamable HTTP)
+# Check MCP endpoints (Wikantik exposes two — admin + knowledge)
+curl -fsS http://localhost:8080/wikantik-admin-mcp > /dev/null 2>&1; echo "Admin MCP: $?"  # 400 = OK (Streamable HTTP)
+curl -fsS http://localhost:8080/knowledge-mcp      > /dev/null 2>&1; echo "Knowledge MCP: $?"
+
+# Check /api/health (engine + database + searchIndex)
+curl -fsS http://localhost:8080/api/health | jq
 
 # Check database
 docker compose exec db psql -U wikantik -d wikantik -c "SELECT COUNT(*) FROM users;"

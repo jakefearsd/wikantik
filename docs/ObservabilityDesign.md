@@ -100,8 +100,8 @@ appender.console.layout.eventTemplateUri = classpath:EcsLayout.json
 # Rolling file appender with JSON format
 appender.rolling.type = RollingFile
 appender.rolling.name = RollingFile
-appender.rolling.fileName = /var/log/jspwiki/jspwiki.log
-appender.rolling.filePattern = /var/log/jspwiki/jspwiki-%d{yyyy-MM-dd}-%i.log.gz
+appender.rolling.fileName = /var/log/wikantik/wikantik.log
+appender.rolling.filePattern = /var/log/wikantik/wikantik-%d{yyyy-MM-dd}-%i.log.gz
 appender.rolling.layout.type = JsonTemplateLayout
 appender.rolling.layout.eventTemplateUri = classpath:EcsLayout.json
 appender.rolling.policies.type = Policies

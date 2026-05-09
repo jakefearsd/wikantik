@@ -35,9 +35,10 @@ Key capabilities:
 - **Markdown rendering** with Flexmark — fenced code blocks, tables, footnotes, definition lists, TOC generation, wiki-style internal links, and LaTeX math (see [MathematicalNotation.md](docs/MathematicalNotation.md))
 - **React SPA** served at `/` — editorial magazine aesthetic with dark mode, metadata chips, change history, similar-pages panel, and inline editing
 - **Page Graph** at `/page-graph` — interactive Cytoscape visualisation of the wikilink graph (backlinks, frontmatter, clusters) with semantic zoom, edge-type filtering, and parallel-edge merging
+- **Knowledge Graph viewer** at `/knowledge-graph` — reader-facing visualisation of the LLM-extracted entity graph with tier filter, node-type colours, provenance/status badges, and a large-graph warning gate
 - **REST API** at `/api/` — full CRUD for pages, attachments, search, history, diffs, backlinks, and the Knowledge Graph snapshot, with ACL-based permission enforcement
-- **Admin MCP server** at `/wikantik-admin-mcp` — 16 tools (page writes, Page Graph link analysis, metadata queries, Knowledge Graph proposals, structural audits), 6 resources, 8 prompts, 3 completions. Bearer-token / API-key authenticated.
-- **Knowledge MCP server** at `/knowledge-mcp` — 10 read-only tools for hybrid retrieval (BM25 + dense), Knowledge Graph traversal, schema discovery, and metadata enumeration. Same auth scheme.
+- **Admin MCP server** at `/wikantik-admin-mcp` — 18 tools (page writes, Page Graph link analysis, metadata queries, Knowledge Graph proposals, structural audits, verification stamping), 6 resources, 8 prompts, 3 completions. Bearer-token / API-key authenticated.
+- **Knowledge MCP server** at `/knowledge-mcp` — 15 read-only tools for hybrid retrieval (BM25 + dense + Knowledge Graph rerank), Knowledge Graph traversal, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`), schema discovery, and the agent-grade `get_page_for_agent` projection. Same auth scheme.
 - **OpenAPI tool server** at `/tools/*` — OpenWebUI-compatible OpenAPI 3.1 endpoint exposing `search_wiki` and `get_page` for non-MCP LLM clients
 - **Raw content and change feed** — `GET /wiki/{slug}?format=md|json` and `GET /api/changes?since=…` for search-engine crawlers and RAG ingestion pipelines (see [IndexingSupport.md](IndexingSupport.md))
 - **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60), with Knowledge Graph-aware rerank; fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
@@ -58,6 +59,7 @@ Key capabilities:
 | Node.js + npm | 18+ | Required — WAR build runs `npm install` + `vite build` automatically |
 | PostgreSQL | 15+ | For local deployment; unit tests use in-memory H2 |
 | pgvector | 0.5+ | PostgreSQL extension — required for the Knowledge Graph (see below) |
+| Tomcat | 11.0.22 | Pinned by `bin/deploy-local.sh` and the `Dockerfile`; bare-metal first-time setup downloads it automatically |
 
 ### Installing pgvector
 
@@ -177,22 +179,37 @@ sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
     DB_APP_PASSWORD='ChangeMe123!' \
     bin/db/install-fresh.sh
 
-# 2. Build (includes React frontend via npm)
+# 2. Configure secrets — copy .env.example to .env and set POSTGRES_PASSWORD
+#    (deploy-local.sh refuses to run while it's the literal "CHANGEME").
+cp .env.example .env
+$EDITOR .env
+
+# 3. Build (includes React frontend via npm)
 mvn clean install -Dmaven.test.skip -T 1C
 
-# 3. Bootstrap Tomcat, configure, and deploy. deploy-local.sh runs migrate.sh
+# 4. Bootstrap Tomcat, configure, and deploy. deploy-local.sh downloads
+#    Tomcat 11.0.22 if absent, materialises every config file from
+#    .env-templated values (no manual ROOT.xml edit), and runs migrate.sh
 #    so any pending schema migrations are applied automatically.
 bin/deploy-local.sh
-
-# 4. Set your PostgreSQL password in the context file (path shown by script output)
 
 # 5. Start Tomcat
 tomcat/tomcat-11/bin/startup.sh
 # Access at http://localhost:8080/ — default login: admin / admin123
-# React SPA at http://localhost:8080/, knowledge graph at http://localhost:8080/graph
+# React SPA at http://localhost:8080/
+# Page Graph viewer at http://localhost:8080/page-graph
+# Knowledge Graph viewer at http://localhost:8080/knowledge-graph
 ```
 
-Database schema lives in [`bin/db/migrations/`](bin/db/migrations/README.md).
+For routine "edit code, see it running" iteration after first-time setup:
+
+```bash
+mvn clean install -Dmaven.test.skip -T 1C
+bin/redeploy.sh   # shutdown + rotate catalina.out + swap WAR + startup
+```
+
+Database schema lives in [`bin/db/migrations/`](bin/db/migrations/README.md)
+(currently V001..V025 — applied idempotently via `schema_migrations`).
 To bring an existing database up to date (including production), run
 `bin/db/migrate.sh` with connection env vars set.
 
@@ -200,11 +217,26 @@ See [PostgreSQLLocalDeployment.md](docs/PostgreSQLLocalDeployment.md) for the fu
 
 ## Using Docker
 
+The recommended container path is the `bin/container.sh` wrapper around
+`docker compose`:
+
 ```bash
-docker compose up -d
+cp .env.example .env             # set POSTGRES_PASSWORD, etc.
+bin/container.sh build           # build the wikantik image
+bin/container.sh up -d           # start the dev stack
+bin/container.sh logs -f         # tail wikantik logs
+bin/container.sh psql -- -c '\dt'  # peek at the schema
+bin/container.sh -e prod up -d   # production stack with backup sidecar
+bin/container.sh smoke-test      # ephemeral up/health/down on alt ports
 ```
 
-Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeployment.md) for backups, data persistence, and the full container guide.
+Every subcommand supports `--help`. Underlying compose files
+(`docker-compose{,.dev,.prod,.test}.yml`) and `docker/entrypoint.sh` remain
+the source of truth — `bin/container.sh` is just an ergonomic facade.
+
+Open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeployment.md)
+for backups, data persistence, the bare-metal ↔ container migration
+procedure, and the full container guide.
 
 ## Module Structure
 
@@ -219,8 +251,8 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 | `wikantik-cache-memcached` | Distributed cache adapter for Memcached |
 | `wikantik-http` | Servlet filters — CSRF, CORS, CSP, security headers, SPA routing |
 | `wikantik-rest` | REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`) |
-| `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 16 tools (writes + analytics), 6 resources, 8 prompts, 3 completions |
-| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 10 read-only retrieval + Knowledge Graph tools; also hosts the Knowledge Graph service (pgvector embeddings, co-mention graph, hub discovery) |
+| `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 18 tools (writes + analytics + verification stamping), 6 resources, 8 prompts, 3 completions |
+| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 15 read-only retrieval / Knowledge Graph traversal / structural-spine / agent-projection tools; also hosts the Knowledge Graph service (pgvector embeddings, co-mention graph, hub discovery) |
 | `wikantik-tools` | OpenAPI 3.1 tool server at `/tools/*` — 2 tools for OpenWebUI-compatible non-MCP clients |
 | `wikantik-extract-cli` | Standalone entity-extractor CLI for offline batch extraction |
 | `wikantik-observability` | Health checks, Prometheus metrics, request correlation |
@@ -282,17 +314,17 @@ Then open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeploymen
 
 Wikantik exposes two independent Model Context Protocol servers (both using the Streamable HTTP transport), plus an OpenAPI 3.1 tool server for non-MCP clients:
 
-**`/wikantik-admin-mcp`** — `wikantik-admin-mcp` module. Admin / write surface for AI-assisted wiki operations: structural-verification checks, Page Graph link and backlink analysis, history and diffs, metadata querying, recent changes, an export/import workflow for bulk editing, Knowledge Graph proposals, and page writes. Exposes **16 tools, 6 resources, 8 prompts, 3 completions**. Authoritative tool list: `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java`. Initializer: `com.wikantik.mcp.McpServerInitializer`.
+**`/wikantik-admin-mcp`** — `wikantik-admin-mcp` module. Admin / write surface for AI-assisted wiki operations: structural-verification checks, Page Graph link and backlink analysis, history and diffs, metadata querying, recent changes, an export/import workflow for bulk editing, Knowledge Graph proposals, page writes, and verification stamping. Exposes **18 tools, 6 resources, 8 prompts, 3 completions**. Authoritative tool list: `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java`. Initializer: `com.wikantik.mcp.McpServerInitializer`.
 
-**`/knowledge-mcp`** — `wikantik-knowledge` module. Read-only retrieval surface designed for coding agents consuming the wiki as a knowledge base: hybrid search (BM25 + dense), Knowledge Graph schema discovery, node querying, Knowledge Graph traversal, similarity search, and page/metadata lookup. Exposes **10 tools**. Authoritative tool list: `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/`. Initializer: `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
+**`/knowledge-mcp`** — `wikantik-knowledge` module. Read-only retrieval surface designed for coding agents consuming the wiki as a knowledge base: hybrid search (BM25 + dense + Knowledge-Graph rerank), Knowledge Graph schema discovery, node querying, traversal, similarity search, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`), and the agent-grade `get_page_for_agent` projection. Exposes **15 tools**. Authoritative tool list: `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/`. Initializer: `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 
 **`/tools/*`** — `wikantik-tools` module. OpenAPI 3.1 tool server (OpenWebUI-compatible) exposing two tools (`search_wiki`, `get_page`) for LLM clients that cannot speak MCP.
 
-Both MCP endpoints share the same bearer-token / API-key authentication scheme (`McpAccessFilter`, `KnowledgeMcpAccessFilter`). Tool naming is `snake_case` across all three endpoints. See [docs/wikantik-pages/GoodMcpDesign.md](docs/wikantik-pages/GoodMcpDesign.md) for the design principles these servers follow.
+Both MCP endpoints share the same bearer-token / API-key authentication scheme (`McpAccessFilter`, `KnowledgeMcpAccessFilter`). Tool naming is `snake_case` across all three endpoints. Every tool ships with at least one worked input/output example in its JSON schema (admin/knowledge MCP: per-property on `inputSchema.properties.<name>` plus a top-level `examples` array on `outputSchema`; OpenAPI tool server: `example` keys per OpenAPI 3.1). See [docs/wikantik-pages/GoodMcpDesign.md](docs/wikantik-pages/GoodMcpDesign.md) for the design principles these servers follow.
 
 **Structural spine** (see [docs/wikantik-pages/StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md)): `list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id` — all mirrored at `/api/structure/*`. Part of the Page Graph subsystem; typed `relations:` frontmatter was removed 2026-05-02.
 
-**Planned agent-grade content layer** (see [docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md)): `type: runbook` pages, verification metadata (`verified_at`, `confidence`), a token-optimised `/api/pages/{id}/for-agent` projection, and a scheduled retrieval-quality CI loop using `RetrievalExperimentHarness`.
+**Agent-grade content layer** (shipped 2026-04-25 — see [docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md)): `type: runbook` pages with a six-key schema, verification metadata (`verified_at`, `verified_by`, `confidence`, `audience`), the token-optimised `GET /api/pages/for-agent/{canonical_id}` projection (and matching `get_page_for_agent` MCP tool), nightly retrieval-quality CI (nDCG@5/@10, Recall@20, MRR persisted to `retrieval_runs`, exposed at `/admin/retrieval-quality` and as Prometheus gauges), and worked tool-description examples on every MCP / OpenAPI tool.
 
 ### Research
 

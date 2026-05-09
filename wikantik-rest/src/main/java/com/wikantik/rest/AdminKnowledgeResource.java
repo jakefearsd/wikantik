@@ -18,6 +18,8 @@
  */
 package com.wikantik.rest;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
@@ -362,6 +364,11 @@ public class AdminKnowledgeResource extends RestServletBase {
                                      final HttpServletRequest request,
                                      final HttpServletResponse response,
                                      final String[] segments ) throws IOException {
+        // POST /admin/knowledge-graph/proposals/bulk-action — handled before any per-id dispatch
+        if ( segments.length == 2 && "bulk-action".equals( segments[1] ) ) {
+            doBulkProposalAction( service, request, response );
+            return;
+        }
         // POST /admin/knowledge-graph/proposals — create a new proposal
         if ( segments.length == 1 ) {
             final JsonObject body = parseJsonBody( request, response );
@@ -428,6 +435,174 @@ public class AdminKnowledgeResource extends RestServletBase {
             }
             default -> sendError( response, HttpServletResponse.SC_BAD_REQUEST,
                     "Unknown action: " + action + ". Use 'approve', 'reject', or 'judge'." );
+        }
+    }
+
+    // --- Bulk proposal action ---
+
+    /**
+     * Handles {@code POST /admin/knowledge-graph/proposals/bulk-action}.
+     *
+     * <p>Request body:
+     * {@code { "action": "approve"|"reject"|"judge", "ids": ["uuid1", ...], "reason": "..." }}
+     * (reason required for reject at the request level — missing reason → 400).
+     *
+     * <p>Returns a standard bulk-result envelope:
+     * {@code { "succeeded": [...], "failed": [{id, error}], "status": "completed",
+     * "message": "N of M proposals approved" }}.
+     *
+     * <p>Loops over all ids without aborting on first failure.
+     * Emits a single audit log entry per bulk call.
+     */
+    private void doBulkProposalAction( final KnowledgeGraphService service,
+                                        final HttpServletRequest request,
+                                        final HttpServletResponse response ) throws IOException {
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
+
+        final String action = getJsonString( body, "action" );
+        if ( action == null || action.isBlank() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "action is required (supported: approve, reject, judge)" );
+            return;
+        }
+        if ( !"approve".equals( action ) && !"reject".equals( action ) && !"judge".equals( action ) ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "Unsupported action '" + action + "' — supported: approve, reject, judge" );
+            return;
+        }
+
+        // For reject: require a top-level reason (request-level invariant, not per-id).
+        final String reason;
+        if ( "reject".equals( action ) ) {
+            reason = getJsonString( body, "reason" );
+            if ( reason == null || reason.isBlank() ) {
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                        "reason is required for action 'reject'" );
+                return;
+            }
+        } else {
+            reason = null;
+        }
+
+        final JsonElement idsEl = body.get( "ids" );
+        if ( idsEl == null || !idsEl.isJsonArray() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "ids is required and must be a JSON array" );
+            return;
+        }
+        final JsonArray idsArr = idsEl.getAsJsonArray();
+        if ( idsArr.isEmpty() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "ids must not be empty" );
+            return;
+        }
+
+        final String actor = request.getRemoteUser() != null ? request.getRemoteUser() : "admin";
+        final List< String > succeeded = new ArrayList<>();
+        final List< Map< String, Object > > failed = new ArrayList<>();
+
+        for ( final JsonElement idEl : idsArr ) {
+            final String idStr = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
+            if ( idStr == null || idStr.isBlank() ) {
+                final Map< String, Object > f = new LinkedHashMap<>();
+                f.put( "id", idEl.toString() );
+                f.put( "error", "id must be a non-blank string" );
+                failed.add( f );
+                continue;
+            }
+            final UUID proposalId;
+            try {
+                proposalId = UUID.fromString( idStr );
+            } catch ( final IllegalArgumentException e ) {
+                final Map< String, Object > f = new LinkedHashMap<>();
+                f.put( "id", idStr );
+                f.put( "error", "Invalid UUID: " + idStr );
+                failed.add( f );
+                continue;
+            }
+
+            final java.util.Optional< String > err;
+            switch ( action ) {
+                case "approve" -> err = tryApproveProposal( service, proposalId, actor );
+                case "reject"  -> err = tryRejectProposal( service, proposalId, actor, reason );
+                default        -> err = tryJudgeProposal( service, proposalId, actor );
+            }
+
+            if ( err.isEmpty() ) {
+                succeeded.add( idStr );
+            } else {
+                final Map< String, Object > f = new LinkedHashMap<>();
+                f.put( "id", idStr );
+                f.put( "error", err.get() );
+                failed.add( f );
+            }
+        }
+
+        LOG.info( "bulk action={} resource=kg-proposals actor={} attempted={} succeeded={} failed={}",
+                action, actor, idsArr.size(), succeeded.size(), failed.size() );
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "succeeded", succeeded );
+        result.put( "failed", failed );
+        result.put( "status", "completed" );
+        result.put( "message", succeeded.size() + " of " + idsArr.size() + " proposals " + action + "d" );
+        sendJson( response, result );
+    }
+
+    /**
+     * Tries to approve a single proposal. Returns empty on success or an error message on failure.
+     * Used by both the single-item path and the bulk path to avoid duplicating logic.
+     */
+    private java.util.Optional< String > tryApproveProposal( final KnowledgeGraphService service,
+                                                              final UUID proposalId,
+                                                              final String reviewedBy ) {
+        try {
+            final KgProposal approved = service.approveProposal( proposalId, reviewedBy );
+            if ( approved == null ) {
+                return java.util.Optional.of( "Not found: " + proposalId );
+            }
+            writeFrontmatterIfEdge( approved );
+            return java.util.Optional.empty();
+        } catch ( final Exception e ) {
+            LOG.warn( "tryApproveProposal: proposal={} actor={}: {}", proposalId, reviewedBy, e.getMessage() );
+            return java.util.Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
+        }
+    }
+
+    /**
+     * Tries to reject a single proposal. Returns empty on success or an error message on failure.
+     * Used by both the single-item path and the bulk path to avoid duplicating logic.
+     */
+    private java.util.Optional< String > tryRejectProposal( final KnowledgeGraphService service,
+                                                             final UUID proposalId,
+                                                             final String reviewedBy,
+                                                             final String reason ) {
+        try {
+            final KgProposal rejected = service.rejectProposal( proposalId, reviewedBy, reason );
+            if ( rejected == null ) {
+                return java.util.Optional.of( "Not found: " + proposalId );
+            }
+            return java.util.Optional.empty();
+        } catch ( final Exception e ) {
+            LOG.warn( "tryRejectProposal: proposal={} actor={}: {}", proposalId, reviewedBy, e.getMessage() );
+            return java.util.Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
+        }
+    }
+
+    /**
+     * Tries to judge a single proposal now. Returns empty on success or an error message on failure.
+     * Judge exceptions (e.g. timeout) surface as per-id failures with a LOG.warn per CLAUDE.md.
+     * Used by both the single-item path and the bulk path to avoid duplicating logic.
+     */
+    private java.util.Optional< String > tryJudgeProposal( final KnowledgeGraphService service,
+                                                            final UUID proposalId,
+                                                            final String reviewedBy ) {
+        try {
+            service.judgeNow( proposalId, reviewedBy );
+            return java.util.Optional.empty();
+        } catch ( final Exception e ) {
+            LOG.warn( "tryJudgeProposal: proposal={} actor={}: {}", proposalId, reviewedBy, e.getMessage() );
+            return java.util.Optional.of( e.getMessage() != null ? e.getMessage() : "Judge error" );
         }
     }
 

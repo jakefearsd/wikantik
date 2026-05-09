@@ -578,6 +578,12 @@ export const api = {
         body: JSON.stringify({ reason }),
       }),
 
+    bulkProposalAction: (action, ids, opts = {}) =>
+      request('/admin/knowledge-graph/proposals/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ action, ids, ...opts }),
+      }),
+
     upsertNode: (data) =>
       request('/admin/knowledge-graph/nodes', { method: 'POST', body: JSON.stringify(data) }),
 

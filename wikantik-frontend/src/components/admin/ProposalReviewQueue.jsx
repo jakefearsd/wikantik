@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api/client';
 import PageLink from './PageLink';
+import { AdminTable } from './table';
 
 const FILTERS = [
   { value: 'all',       label: 'All' },
@@ -10,7 +11,85 @@ const FILTERS = [
   { value: 'abstained', label: 'Machine abstained' },
 ];
 
-function VerdictBadge({ status, onHover }) {
+const COLUMNS = [
+  { id: 'proposal_type', label: 'Type' },
+  {
+    id: 'source_page',
+    label: 'Source Page',
+    render: (p) => <PageLink name={p.source_page} />,
+  },
+  {
+    id: 'proposed_data',
+    label: 'Details',
+    render: (p) => (
+      <pre style={{ fontSize: '0.8em', maxWidth: '300px', overflow: 'auto' }}>
+        {JSON.stringify(p.proposed_data, null, 2)}
+      </pre>
+    ),
+  },
+  {
+    id: 'confidence',
+    label: 'Confidence',
+    render: (p) => `${(p.confidence * 100).toFixed(0)}%`,
+  },
+  {
+    id: 'machine_status',
+    label: 'Machine',
+    render: (p) => <VerdictBadge status={p.machine_status} />,
+  },
+  {
+    id: 'reasoning',
+    label: 'Reasoning',
+    render: (p) => (
+      <span
+        className="admin-reasoning"
+        style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}
+      >
+        {p.reasoning}
+      </span>
+    ),
+  },
+];
+
+const BULK_ACTIONS = [
+  {
+    id: 'approve',
+    label: 'Approve',
+    variant: 'primary',
+    confirm: {
+      title: 'Approve Proposals',
+      body: (selected) => (
+        <p>Approve <strong>{selected.length}</strong> proposal{selected.length !== 1 ? 's' : ''}?</p>
+      ),
+      confirmLabel: 'Approve',
+    },
+  },
+  {
+    id: 'reject',
+    label: 'Reject',
+    variant: 'danger',
+    confirm: {
+      title: 'Reject Proposals',
+      body: (selected) => (
+        <p>Reject <strong>{selected.length}</strong> proposal{selected.length !== 1 ? 's' : ''}?</p>
+      ),
+      confirmLabel: 'Reject',
+    },
+    reason: {
+      label: 'Reason for rejection',
+      placeholder: 'e.g. duplicate, low confidence…',
+      required: true,
+    },
+  },
+  {
+    id: 'judge',
+    label: 'Judge',
+    variant: 'default',
+    // No confirm — runs the LLM judge on selected proposals immediately.
+  },
+];
+
+function VerdictBadge({ status }) {
   const map = {
     approved: { glyph: '✓', color: '#2a8d2a', label: 'approved' },
     rejected: { glyph: '✗', color: '#b13a3a', label: 'rejected' },
@@ -19,11 +98,7 @@ function VerdictBadge({ status, onHover }) {
   const info = map[status];
   if (!info) return <span style={{ color: '#aaa' }} title="not yet judged">–</span>;
   return (
-    <span
-      style={{ color: info.color, fontWeight: 600, cursor: 'help' }}
-      title={info.label}
-      onMouseEnter={onHover}
-    >
+    <span style={{ color: info.color, fontWeight: 600, cursor: 'help' }} title={info.label}>
       {info.glyph} {info.label}
     </span>
   );
@@ -34,7 +109,6 @@ export default function ProposalReviewQueue() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
-  const [reviewsCache, setReviewsCache] = useState({});
   const [judgeRunning, setJudgeRunning] = useState(false);
   const [judgeStatus, setJudgeStatus] = useState(null);
   const [polling, setPolling] = useState(false);
@@ -102,12 +176,12 @@ export default function ProposalReviewQueue() {
     }
   };
 
-  const fetchReviews = async (id) => {
-    if (reviewsCache[id]) return;
-    try {
-      const data = await api.knowledge.listProposalReviews(id);
-      setReviewsCache(prev => ({ ...prev, [id]: data.reviews || [] }));
-    } catch (_) { /* keep silent — tooltip is informational */ }
+  const handleBulkAction = async (action, selectedRows, reason) => {
+    const ids = selectedRows.map(p => p.id);
+    const opts = reason ? { reason } : {};
+    const result = await api.knowledge.bulkProposalAction(action.id, ids, opts);
+    await loadProposals();
+    return result;
   };
 
   const filterMatches = (p) => {
@@ -118,7 +192,29 @@ export default function ProposalReviewQueue() {
     if (filter === 'abstained') return p.machine_status === 'abstain';
     return true;
   };
+
   const visible = proposals.filter(filterMatches);
+
+  const rowAction = (p) => [
+    {
+      id: 'approve',
+      label: 'Approve',
+      variant: 'primary',
+      onClick: () => handleApprove(p.id),
+    },
+    {
+      id: 'reject',
+      label: 'Reject',
+      variant: 'danger',
+      onClick: () => handleReject(p.id),
+    },
+    {
+      id: 'judge',
+      label: 'Judge now',
+      variant: 'default',
+      onClick: () => handleJudgeNow(p.id),
+    },
+  ];
 
   if (loading) return <div className="admin-loading">Loading proposals...</div>;
   if (error) return <div className="admin-error">{error}</div>;
@@ -151,55 +247,18 @@ export default function ProposalReviewQueue() {
           {judgeRunning ? 'Running…' : 'Run judge runner'}
         </button>
       </div>
-      {visible.length === 0 ? (
-        <p className="admin-empty">No proposals match the current filter.</p>
-      ) : (
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Source Page</th>
-              <th>Details</th>
-              <th>Confidence</th>
-              <th>Machine</th>
-              <th>Reasoning</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map(p => (
-              <tr key={p.id}>
-                <td>{p.proposal_type}</td>
-                <td><PageLink name={p.source_page} /></td>
-                <td><pre style={{ fontSize: '0.8em', maxWidth: '300px', overflow: 'auto' }}>
-                  {JSON.stringify(p.proposed_data, null, 2)}
-                </pre></td>
-                <td>{(p.confidence * 100).toFixed(0)}%</td>
-                <td
-                  onMouseEnter={() => fetchReviews(p.id)}
-                  title={reviewsCache[p.id]?.find(r => r.reviewer_kind === 'machine')?.rationale || ''}
-                >
-                  <VerdictBadge status={p.machine_status} onHover={() => fetchReviews(p.id)} />
-                </td>
-                <td className="admin-reasoning" style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {p.reasoning}
-                </td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  <button className="btn btn-sm btn-success" onClick={() => handleApprove(p.id)} style={{ marginRight: '4px' }}>
-                    Approve
-                  </button>
-                  <button className="btn btn-sm btn-danger" onClick={() => handleReject(p.id)} style={{ marginRight: '4px' }}>
-                    Reject
-                  </button>
-                  <button className="btn btn-sm" onClick={() => handleJudgeNow(p.id)} title="Run the judge LLM on this proposal now">
-                    Judge now
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+
+      <AdminTable
+        rows={visible}
+        getRowKey={(p) => p.id}
+        columns={COLUMNS}
+        selectable
+        bulkActions={BULK_ACTIONS}
+        onBulkAction={handleBulkAction}
+        emptyMessage="No proposals match the current filter."
+        rowAction={rowAction}
+        density="comfortable"
+      />
     </div>
   );
 }

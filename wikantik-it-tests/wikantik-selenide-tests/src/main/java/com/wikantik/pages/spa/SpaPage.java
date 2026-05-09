@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.pages.haddock;
+package com.wikantik.pages.spa;
 
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
@@ -27,13 +27,10 @@ import java.time.Duration;
 /**
  * Base page trait for the React SPA.
  *
- * <p>Historically named {@code HaddockPage} after the legacy JSP template; the
- * name is retained to minimise churn in the test module while the underlying
- * DOM selectors target React components that expose {@code data-testid}
- * attributes. All selectors in this hierarchy must remain resilient to CSS
- * refactors by preferring {@code data-testid} over class or id lookups.
+ * <p>Selectors in this hierarchy must remain resilient to CSS refactors
+ * by preferring {@code data-testid} over class or id lookups.
  */
-public interface HaddockPage extends Page {
+public interface SpaPage extends Page {
 
     /** Max time to wait for the React SPA to mount a page view. */
     Duration DEFAULT_WAIT = Duration.ofSeconds( 10 );

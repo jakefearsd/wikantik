@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.pages.haddock;
+package com.wikantik.pages.spa;
 
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
@@ -39,7 +39,7 @@ import static com.codeborne.selenide.Selenide.$;
  * {@link #hoverLoginArea()} is retained as a no-op for backward compatibility
  * with existing call sites.
  */
-public class ViewWikiPage implements HaddockPage {
+public class ViewWikiPage implements SpaPage {
 
     /**
      * Open a given page for view.

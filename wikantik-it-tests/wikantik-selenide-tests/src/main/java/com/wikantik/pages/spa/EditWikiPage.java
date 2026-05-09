@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.pages.haddock;
+package com.wikantik.pages.spa;
 
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.SelenideElement;
@@ -36,7 +36,7 @@ import static com.codeborne.selenide.Selenide.$;
  * ({@code [data-testid=editor-textarea]}) and a markdown preview. Save/Cancel
  * buttons are located in the toolbar.
  */
-public class EditWikiPage implements HaddockPage {
+public class EditWikiPage implements SpaPage {
 
     /**
      * Open a given page for edition.

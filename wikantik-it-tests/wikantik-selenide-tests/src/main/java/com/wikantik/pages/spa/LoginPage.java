@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.pages.haddock;
+package com.wikantik.pages.spa;
 
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
@@ -38,7 +38,7 @@ import static com.codeborne.selenide.Selenide.$;
  * assertions that used to check {@code title() == "Wikantik: Login"} or
  * {@code wikiTitle() == "Login"} must be dropped from callers.
  */
-public class LoginPage implements HaddockPage {
+public class LoginPage implements SpaPage {
 
     /**
      * Logs in using Janne's default credentials.
@@ -93,7 +93,7 @@ public class LoginPage implements HaddockPage {
         // is the only thing on screen (e.g. tests opened the login modal
         // before navigating anywhere), return an empty string.
         if ( Selenide.$( "[data-testid=page-view]" ).exists() ) {
-            return HaddockPage.super.wikiTitle();
+            return SpaPage.super.wikiTitle();
         }
         return "";
     }

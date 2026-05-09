@@ -23,7 +23,7 @@ import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.WebDriverRunner;
 import com.wikantik.its.WithIntegrationTestSetup;
 import com.wikantik.its.environment.Env;
-import com.wikantik.pages.haddock.ViewWikiPage;
+import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.support.ui.WebDriverWait;

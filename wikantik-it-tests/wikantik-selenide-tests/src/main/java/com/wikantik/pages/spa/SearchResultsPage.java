@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.pages.haddock;
+package com.wikantik.pages.spa;
 
 import com.codeborne.selenide.CollectionCondition;
 import com.codeborne.selenide.Condition;
@@ -42,7 +42,7 @@ import static com.codeborne.selenide.Selenide.$$;
  * can assert result membership without relying on DOM text which may include
  * snippet highlights.
  */
-public class SearchResultsPage implements HaddockPage {
+public class SearchResultsPage implements SpaPage {
 
     /**
      * Open the search results page with a given query text.

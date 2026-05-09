@@ -202,6 +202,75 @@ class AdminKnowledgeResourceMockTest {
             Mockito.eq( 5 ), Mockito.eq( 1 ) );
     }
 
+    @Test
+    void getProposals_responseIncludesTotalCountFromService() throws Exception {
+        Mockito.when( service.listProposals( any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        Mockito.when( service.countProposals( any(), any(), any(), Mockito.anyBoolean(), any() ) )
+            .thenReturn( 42L );
+        final HttpServletRequest req = request( "/proposals" );
+        Mockito.doReturn( "pending" ).when( req ).getParameter( "status" );
+
+        final JsonObject body = new Gson().fromJson( call( req, "GET" ), JsonObject.class );
+        assertEquals( 42L, body.get( "total_count" ).getAsLong() );
+        assertNotNull( body.get( "proposals" ) );
+        assertNotNull( body.get( "limit" ) );
+        assertNotNull( body.get( "offset" ) );
+    }
+
+    @Test
+    void getProposals_responseEchoesAppliedLimitAndOffset() throws Exception {
+        Mockito.when( service.listProposals( any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        Mockito.when( service.countProposals( any(), any(), any(), Mockito.anyBoolean(), any() ) ).thenReturn( 0L );
+        final HttpServletRequest req = request( "/proposals" );
+        Mockito.doReturn( "25" ).when( req ).getParameter( "limit" );
+        Mockito.doReturn( "75" ).when( req ).getParameter( "offset" );
+
+        final JsonObject body = new Gson().fromJson( call( req, "GET" ), JsonObject.class );
+        assertEquals( 25, body.get( "limit" ).getAsInt() );
+        assertEquals( 75, body.get( "offset" ).getAsInt() );
+    }
+
+    @Test
+    void getProposals_capsLimitAtServerMax() throws Exception {
+        Mockito.when( service.listProposals( any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        Mockito.when( service.countProposals( any(), any(), any(), Mockito.anyBoolean(), any() ) ).thenReturn( 0L );
+        final HttpServletRequest req = request( "/proposals" );
+        Mockito.doReturn( "10000" ).when( req ).getParameter( "limit" );
+
+        final JsonObject body = new Gson().fromJson( call( req, "GET" ), JsonObject.class );
+        // The hard cap is 500; runaway client requests must not be honoured.
+        assertEquals( 500, body.get( "limit" ).getAsInt() );
+        Mockito.verify( service ).listProposals(
+            any(), any(), Mockito.eq( 500 ), Mockito.anyInt() );
+    }
+
+    @Test
+    void getProposals_clampsNegativeOffsetToZero() throws Exception {
+        Mockito.when( service.listProposals( any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        Mockito.when( service.countProposals( any(), any(), any(), Mockito.anyBoolean(), any() ) ).thenReturn( 0L );
+        final HttpServletRequest req = request( "/proposals" );
+        Mockito.doReturn( "-50" ).when( req ).getParameter( "offset" );
+
+        final JsonObject body = new Gson().fromJson( call( req, "GET" ), JsonObject.class );
+        assertEquals( 0, body.get( "offset" ).getAsInt() );
+    }
+
+    @Test
+    void getProposals_extendedFilterReturnsCountFromCountProposals() throws Exception {
+        Mockito.when( service.listProposals( any(), any(), any(), Mockito.anyBoolean(), any(), anyInt(), anyInt() ) )
+            .thenReturn( List.of() );
+        Mockito.when( service.countProposals( Mockito.eq( "rejected" ), Mockito.isNull(),
+                Mockito.eq( "rejected" ), Mockito.eq( true ), Mockito.isNull() ) )
+            .thenReturn( 1465L );
+        final HttpServletRequest req = request( "/proposals" );
+        Mockito.doReturn( "rejected" ).when( req ).getParameter( "status" );
+        Mockito.doReturn( "rejected" ).when( req ).getParameter( "machine_status" );
+        Mockito.doReturn( "true" ).when( req ).getParameter( "include_machine_rejected" );
+
+        final JsonObject body = new Gson().fromJson( call( req, "GET" ), JsonObject.class );
+        assertEquals( 1465L, body.get( "total_count" ).getAsLong() );
+    }
+
     // ---- POST /proposals ----
 
     @Test

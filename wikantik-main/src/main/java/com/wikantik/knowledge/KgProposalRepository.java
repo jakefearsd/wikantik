@@ -50,6 +50,13 @@ public final class KgProposalRepository {
     private static final Gson GSON = new Gson();
     private static final Type MAP_TYPE = new TypeToken< Map< String, Object > >() {}.getType();
 
+    /**
+     * Sentinel value for the {@code machineStatus} filter that maps to
+     * {@code AND machine_status IS NULL}. Used by the "Awaiting machine review"
+     * admin filter so it can paginate server-side accurately.
+     */
+    public static final String MACHINE_STATUS_NULL_SENTINEL = "(null)";
+
     private final DataSource dataSource;
 
     public KgProposalRepository( final DataSource dataSource ) {
@@ -196,13 +203,23 @@ public final class KgProposalRepository {
         if ( status != null ) { sql.append( " AND status = ?" ); params.add( status ); }
         if ( tier != null ) { sql.append( " AND tier = ?" ); params.add( tier ); }
         if ( machineStatus != null ) {
-            sql.append( " AND machine_status = ?" ); params.add( machineStatus );
+            // The "(null)" sentinel maps to IS NULL — used by the admin queue's
+            // "Awaiting machine review" filter, which would otherwise be
+            // forced to filter client-side and break pagination accuracy.
+            if ( MACHINE_STATUS_NULL_SENTINEL.equals( machineStatus ) ) {
+                sql.append( " AND machine_status IS NULL" );
+            } else {
+                sql.append( " AND machine_status = ?" ); params.add( machineStatus );
+            }
         }
         if ( !includeMachineRejected ) {
             sql.append( " AND ( machine_status IS NULL OR machine_status <> 'rejected' )" );
         }
         if ( sourcePage != null ) { sql.append( " AND source_page = ?" ); params.add( sourcePage ); }
-        sql.append( " ORDER BY created DESC LIMIT ? OFFSET ?" );
+        // The id-DESC tiebreak is required for stable pagination — without it
+        // two rows with equal `created` could swap positions across page
+        // boundaries, causing one to appear twice or get skipped entirely.
+        sql.append( " ORDER BY created DESC, id DESC LIMIT ? OFFSET ?" );
         params.add( limit );
         params.add( offset );
 
@@ -218,6 +235,46 @@ public final class KgProposalRepository {
             throw new RuntimeException( "listProposalsFiltered failed: " + e.getMessage(), e );
         }
         return results;
+    }
+
+    /**
+     * Returns the total number of proposals matching the same filter set as
+     * {@link #listProposalsFiltered} ignores the {@code limit}/{@code offset}.
+     * Required for the pagination footer in the admin queue ("Showing X–Y of Z").
+     *
+     * <p>The WHERE clause is intentionally identical to listProposalsFiltered;
+     * a divergence between the two would mis-state totals and silently truncate
+     * pages in the UI. If you change one, change the other.
+     */
+    public long countProposalsFiltered( final String status, final String tier,
+                                         final String machineStatus,
+                                         final boolean includeMachineRejected,
+                                         final String sourcePage ) {
+        final StringBuilder sql = new StringBuilder( "SELECT COUNT(*) FROM kg_proposals WHERE 1=1" );
+        final List< Object > params = new ArrayList<>();
+        if ( status != null ) { sql.append( " AND status = ?" ); params.add( status ); }
+        if ( tier != null ) { sql.append( " AND tier = ?" ); params.add( tier ); }
+        if ( machineStatus != null ) {
+            if ( MACHINE_STATUS_NULL_SENTINEL.equals( machineStatus ) ) {
+                sql.append( " AND machine_status IS NULL" );
+            } else {
+                sql.append( " AND machine_status = ?" ); params.add( machineStatus );
+            }
+        }
+        if ( !includeMachineRejected ) {
+            sql.append( " AND ( machine_status IS NULL OR machine_status <> 'rejected' )" );
+        }
+        if ( sourcePage != null ) { sql.append( " AND source_page = ?" ); params.add( sourcePage ); }
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? rs.getLong( 1 ) : 0L;
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "countProposalsFiltered failed: {}", e.getMessage(), e );
+            throw new RuntimeException( "countProposalsFiltered failed: " + e.getMessage(), e );
+        }
     }
 
     public void updateProposalStatus( final UUID id, final String status, final String reviewedBy ) {

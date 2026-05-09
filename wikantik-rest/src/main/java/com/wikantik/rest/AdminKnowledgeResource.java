@@ -344,19 +344,37 @@ public class AdminKnowledgeResource extends RestServletBase {
         final String machineStatus = request.getParameter( "machine_status" );
         final boolean includeMachineRejected = Boolean.parseBoolean(
             request.getParameter( "include_machine_rejected" ) );
-        final int limit = parseIntParam( request, "limit", 50 );
-        final int offset = parseIntParam( request, "offset", 0 );
+        // Server-enforced upper bound — the UI should never request more than
+        // a few hundred at a time, but the REST surface guards against
+        // pathological queries (single request fetching every proposal).
+        final int rawLimit = parseIntParam( request, "limit", 50 );
+        final int limit = Math.max( 1, Math.min( rawLimit, MAX_PROPOSAL_PAGE_SIZE ) );
+        final int offset = Math.max( 0, parseIntParam( request, "offset", 0 ) );
 
         final List< KgProposal > proposals;
+        final long totalCount;
         if ( tier != null || machineStatus != null || includeMachineRejected ) {
             proposals = service.listProposals( status, tier, machineStatus,
                 includeMachineRejected, sourcePage, limit, offset );
+            totalCount = service.countProposals( status, tier, machineStatus,
+                includeMachineRejected, sourcePage );
         } else {
             proposals = service.listProposals( status, sourcePage, limit, offset );
+            // The simple overload doesn't expose tier / machine_status filtering;
+            // route through the extended count with the equivalent defaults so
+            // the totals add up to what the client filtered on.
+            totalCount = service.countProposals( status, null, null, false, sourcePage );
         }
-        sendJson( response, Map.of( "proposals", proposals.stream()
-                .map( p -> proposalToMap( service, p ) ).toList() ) );
+        sendJson( response, Map.of(
+            "proposals", proposals.stream().map( p -> proposalToMap( service, p ) ).toList(),
+            "total_count", totalCount,
+            "limit", limit,
+            "offset", offset
+        ) );
     }
+
+    /** Hard upper bound on a single page fetch from /admin/knowledge-graph/proposals. */
+    private static final int MAX_PROPOSAL_PAGE_SIZE = 500;
 
     // --- POST handlers ---
 

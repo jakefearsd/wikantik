@@ -327,6 +327,15 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     }
 
     @Override
+    public long countProposals( final String status, final String tier,
+                                final String machineStatus,
+                                final boolean includeMachineRejected,
+                                final String sourcePage ) {
+        return proposals.countProposalsFiltered( status, tier, machineStatus, includeMachineRejected,
+            sourcePage );
+    }
+
+    @Override
     public List< KgProposalReview > listReviews( final UUID proposalId ) {
         return proposals.listReviews( proposalId );
     }

@@ -98,6 +98,14 @@ public interface KnowledgeGraphService {
                                       boolean includeMachineRejected, String sourcePage,
                                       int limit, int offset );
 
+    /**
+     * Returns the total count matching the same filters as {@link #listProposals}
+     * (the extended overload), with {@code limit}/{@code offset} ignored. Used
+     * by the paginated admin queue to render "Showing X–Y of Z".
+     */
+    long countProposals( String status, String tier, String machineStatus,
+                         boolean includeMachineRejected, String sourcePage );
+
     /** Returns the audit history of review actions for a single proposal. */
     List< KgProposalReview > listReviews( UUID proposalId );
 

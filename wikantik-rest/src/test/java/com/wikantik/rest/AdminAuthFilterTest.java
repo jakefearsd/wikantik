@@ -169,14 +169,47 @@ class AdminAuthFilterTest {
         verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
     }
 
+    /**
+     * SPA navigation (browser GET asking for HTML) bypasses the auth check so
+     * the SpaRoutingFilter can serve the React shell. Without this the user
+     * sees the static "Access Denied" HTML on every /admin/* navigation when
+     * the JSESSIONID cookie is stale or absent — kicking them out of the SPA
+     * even though the SPA's own login flow could have recovered.
+     */
     @Test
-    void testBrowserNavigationGetsForbiddenHtml() throws Exception {
+    void testBrowserNavigationPassesThroughForSpaShell() throws Exception {
         final HttpSession anonSession = Mockito.mock( HttpSession.class );
         Mockito.doReturn( "anon-html-test-" + System.nanoTime() ).when( anonSession ).getId();
 
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/knowledge-graph" );
         Mockito.doReturn( "GET" ).when( request ).getMethod();
         Mockito.doReturn( "text/html,application/xhtml+xml" ).when( request ).getHeader( "Accept" );
+        Mockito.doReturn( anonSession ).when( request ).getSession();
+        Mockito.doReturn( anonSession ).when( request ).getSession( Mockito.anyBoolean() );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        filter.doFilter( request, response, chain );
+
+        // Pass-through: chain called, no 403.
+        verify( chain ).doFilter( request, response );
+        verify( response, never() ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+    }
+
+    /**
+     * fetch() / XHR API calls do NOT advertise text/html in Accept, so the
+     * pass-through guard does not apply. The auth check still runs and an
+     * unauthenticated request is denied with the JSON 403 envelope.
+     */
+    @Test
+    void testFetchApiCallStillForbiddenWhenUnauthenticated() throws Exception {
+        final HttpSession anonSession = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( "anon-fetch-test-" + System.nanoTime() ).when( anonSession ).getId();
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/users" );
+        Mockito.doReturn( "GET" ).when( request ).getMethod();
+        Mockito.doReturn( "*/*" ).when( request ).getHeader( "Accept" );
         Mockito.doReturn( anonSession ).when( request ).getSession();
         Mockito.doReturn( anonSession ).when( request ).getSession( Mockito.anyBoolean() );
 
@@ -189,12 +222,32 @@ class AdminAuthFilterTest {
 
         verify( chain, never() ).doFilter( any(), any() );
         verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
-        verify( response ).setContentType( "text/html" );
+        verify( response ).setContentType( "application/json" );
+    }
 
-        final String body = sw.toString();
-        assertTrue( body.contains( "<!doctype html>" ), "Should return HTML document" );
-        assertTrue( body.contains( "/wiki/Main" ), "Should contain home link" );
-        assertTrue( body.contains( "session has expired" ), "Should explain the situation" );
-        assertTrue( body.contains( "Playfair Display" ), "Should use wiki design system fonts" );
+    /**
+     * A non-GET request — even one whose Accept includes text/html — still
+     * gets auth-checked. SPA navigation is GET-only.
+     */
+    @Test
+    void testHtmlAcceptOnPostStillForbidden() throws Exception {
+        final HttpSession anonSession = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( "anon-post-html-test-" + System.nanoTime() ).when( anonSession ).getId();
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/admin/users/bulk-action" );
+        Mockito.doReturn( "POST" ).when( request ).getMethod();
+        Mockito.doReturn( "text/html,application/json" ).when( request ).getHeader( "Accept" );
+        Mockito.doReturn( anonSession ).when( request ).getSession();
+        Mockito.doReturn( anonSession ).when( request ).getSession( Mockito.anyBoolean() );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
     }
 }

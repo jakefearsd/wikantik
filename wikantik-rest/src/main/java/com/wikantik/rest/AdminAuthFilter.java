@@ -113,6 +113,20 @@ public class AdminAuthFilter implements Filter {
             return;
         }
 
+        // SPA navigation (a browser GET asking for an HTML document) bypasses the
+        // permission check so the SpaRoutingFilter further down the chain can serve
+        // the React shell. The shell itself carries no admin data — once it boots
+        // it polls /api/auth/user and routes to the login page if the user isn't
+        // authenticated. Without this guard, a stale or absent JSESSIONID cookie
+        // (e.g. right after a Tomcat redeploy) returns the static "Access Denied"
+        // HTML for every /admin/* navigation, kicking the user out of the SPA.
+        // JSON / XHR API calls still go through the auth check below because
+        // fetch() does not include text/html in Accept by default.
+        if ( isSpaNavigation( req ) ) {
+            chain.doFilter( request, response );
+            return;
+        }
+
         final Session session = Wiki.session().find( engine, req );
         final AllPermission adminPerm = new AllPermission( engine.getApplicationName() );
         final AuthorizationManager authMgr = AuthSubsystemBridge.fromLegacyEngine( engine ).authorization();
@@ -141,6 +155,21 @@ public class AdminAuthFilter implements Filter {
         }
 
         chain.doFilter( request, response );
+    }
+
+    /**
+     * True when the request looks like a browser asking for an HTML document
+     * — a {@code GET} whose {@code Accept} header advertises {@code text/html}.
+     * fetch()/XHR API calls don't include that media type by default, so this
+     * cleanly distinguishes "user navigating in the SPA" from "SPA calling a
+     * JSON endpoint."
+     */
+    static boolean isSpaNavigation( final HttpServletRequest req ) {
+        if ( !"GET".equalsIgnoreCase( req.getMethod() ) ) {
+            return false;
+        }
+        final String accept = req.getHeader( "Accept" );
+        return accept != null && accept.contains( "text/html" );
     }
 
     @Override

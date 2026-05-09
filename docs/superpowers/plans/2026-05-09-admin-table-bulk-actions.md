@@ -1,6 +1,6 @@
 # AdminTable + bulk-action pattern (V1)
 
-**Status:** ready
+**Status:** shipped 2026-05-09 — Ckpt 1 (`f23c29a4b`), coverage tooling (`f8e9b0fb4`), Phase 2A API Keys (`0a6f08eba`), Phase 2B Users (`2a92f252e`), Phase 2A test fix (`ba300e99e`), Phase 2C KG Proposals (`f06f8650c`).
 **Estimated effort:** 1.5–2 days
 
 ## Goal
@@ -260,3 +260,42 @@ Per-row buttons stay on each row for single-item ergonomics.
 - Each bulk endpoint returns the standard envelope on a happy path AND on a mixed-id path.
 - Existing per-row actions on the 3 screens continue to work unchanged.
 - Full IT reactor green.
+
+## V2 follow-up backlog (deferred, not blocking)
+
+The V1 contract was deliberately shaped so each of these can land without rewriting the UI. Pick up only when there's a concrete user need.
+
+### Async / long-running bulk operations
+- **Why:** very large bulk operations (thousands of users, full-corpus re-judge) will exceed reasonable HTTP timeouts at the synchronous layer.
+- **Shape:** server returns `{"status": "queued", "jobId": "..."}` instead of `"completed"`. New `GET /admin/jobs/{id}` endpoint streams progress via SSE or polled JSON. AdminTable already accepts `status: 'pending'` in `BulkResult` — only the dispatcher contract changes.
+- **Trigger:** first time an operator complains about a timeout, or when ProposalReviewQueue judge bulk crosses ~20 items routinely.
+
+### Selection persistence across navigation
+- **Why:** V1 selection is lost on route change. Operators on the Users screen who jump to Groups to pick membership lose their selection.
+- **Shape:** encode selection IDs in the URL search params (`?selected=alice,bob`) read on page mount. Preserve on `<Link>` navigation, drop on hard reload.
+- **Trigger:** any flow that needs to leave the page mid-bulk.
+
+### Type-to-confirm friction scaling
+- **Why:** V1 single confirm modal is the same for 5 deletes and 500 deletes. Above some threshold the modal should require typing a confirmation phrase.
+- **Shape:** new optional `BulkAction.confirm.typeToConfirmThreshold` (default `Infinity`). When `selected.size >= threshold`, modal renders a "type DELETE 47 USERS to continue" input. AdminTable already owns the confirm modal so this is purely a `ConfirmBulkModal` extension.
+- **Trigger:** first near-miss where an operator confirmed a destructive action they regretted.
+
+### Undo affordance
+- **Why:** delete / revoke actions are immediately permanent. Even a 5-second "Undo" toast button would reduce operator anxiety.
+- **Shape:** server returns `{undoToken, undoExpiresAt}` in the envelope; AdminTable's success toast surfaces a Cancel button that POSTs to a new `/admin/.../undo` endpoint within the window. Each resource owner decides what's reversible.
+- **Trigger:** when reads-side operators ask for it; not until.
+
+### Server-side bulk granularity for hot paths
+- **Why:** the V1 bulk endpoints loop in Java and call per-id service methods. For high-cardinality hot paths (e.g. bulk-add 200 users to one group), the loop is N round-trips to the persistence layer.
+- **Shape:** resource-specific batch APIs at the service layer (e.g. `groupManager.addMembers(group, List<userId>)`) called from a single SQL `INSERT … VALUES (...), (...)`. Surface unchanged.
+- **Trigger:** profiling hotspot on real bulk usage.
+
+### `<AdminTable>` adoption breadth
+- **Why:** V1 covers Users, API Keys, KG Proposals. The other admin screens (`AdminKgPolicy*`, `AdminContentPage`, `AdminSecurityPage`, `AdminRetrievalQualityPage`, `AdminKnowledgePage` lists) are still bespoke.
+- **Shape:** swap each list-rendering site for `<AdminTable>` with `selectable: false` initially (same UX, just unified rendering), then add bulk actions where they make sense.
+- **Trigger:** when any of those screens needs a feature already in AdminTable (sort, search, density, keyboard nav, empty-state handling).
+
+### Streaming / virtualised tables
+- **Why:** V1 renders all rows in the DOM. KG proposals can grow to thousands.
+- **Shape:** drop in `react-virtuoso` or `@tanstack/react-virtual` behind the existing `AdminTable` props. No prop changes for the consumer.
+- **Trigger:** any list crossing ~500 rows where scroll feels sluggish.

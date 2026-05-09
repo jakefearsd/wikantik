@@ -273,14 +273,52 @@ if [[ -e "${STALE_JDBC[0]}" ]]; then
     print_status "Removed stale versioned postgresql-*.jar copies"
 fi
 
+# --- Source .env so we can substitute @@POSTGRES_*@@ into the context template ---
+# The .env file is gitignored — copy from .env.example on first install and
+# edit the password (and any other values you want to override). Same .env
+# the container path uses for env_file: directives, so a single edit
+# governs both install paths.
+ENV_FILE="${PROJECT_ROOT}/.env"
+if [[ -f "${ENV_FILE}" ]]; then
+    # shellcheck disable=SC1090
+    set -a; source "${ENV_FILE}"; set +a
+    print_status "Sourced ${ENV_FILE}"
+elif [[ -f "${PROJECT_ROOT}/.env.example" ]]; then
+    print_warning "${ENV_FILE} missing — copying from .env.example. Edit POSTGRES_PASSWORD before re-running."
+    cp "${PROJECT_ROOT}/.env.example" "${ENV_FILE}"
+    set -a; source "${ENV_FILE}"; set +a
+fi
+
+POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
+POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+POSTGRES_DB="${POSTGRES_DB:-wikantik}"
+POSTGRES_USER="${POSTGRES_USER:-wikantik}"
+
+# CHANGEME is the .env.example placeholder. If we still see it after
+# sourcing, the operator hasn't picked a real password yet — surface that
+# loudly rather than silently materialising a Tomcat config with a known
+# default credential.
+if [[ -z "${POSTGRES_PASSWORD:-}" || "${POSTGRES_PASSWORD}" == "CHANGEME" ]]; then
+    print_error "POSTGRES_PASSWORD is unset or still the .env.example placeholder."
+    echo "         Edit ${ENV_FILE} and set POSTGRES_PASSWORD to your real DB password,"
+    echo "         then re-run this script. (The same .env is read by the container path.)"
+    exit 1
+fi
+
 # Create context directory if needed
 mkdir -p "${TOMCAT_DIR}/conf/Catalina/localhost"
 
-# Copy context.xml template if destination doesn't exist
+# Render context.xml template if destination doesn't exist. Token
+# substitution is bash parameter-substitution against env vars sourced
+# from .env above — no hand-edit step.
 if [[ ! -f "${CONTEXT_DEST}" ]]; then
-    cp "${CONFIG_DIR}/Wikantik-context.xml.template" "${CONTEXT_DEST}"
-    print_warning "Created ${CONTEXT_DEST}"
-    echo "         >>> IMPORTANT: Edit this file to set your PostgreSQL password! <<<"
+    sed -e "s|@@POSTGRES_HOST@@|${POSTGRES_HOST}|g" \
+        -e "s|@@POSTGRES_PORT@@|${POSTGRES_PORT}|g" \
+        -e "s|@@POSTGRES_DB@@|${POSTGRES_DB}|g" \
+        -e "s|@@POSTGRES_USER@@|${POSTGRES_USER}|g" \
+        -e "s|@@POSTGRES_PASSWORD@@|${POSTGRES_PASSWORD}|g" \
+        "${CONFIG_DIR}/Wikantik-context.xml.template" > "${CONTEXT_DEST}"
+    print_status "Rendered ${CONTEXT_DEST} from .env"
 else
     print_status "Context file already exists (not overwritten)"
 fi

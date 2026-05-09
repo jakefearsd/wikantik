@@ -19,10 +19,12 @@
   Wikantik Context Configuration for PostgreSQL
 
   This file is copied by deploy-local.sh to:
-    tomcat/tomcat-11/conf/Catalina/localhost/Wikantik.xml
+    tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml
 
-  IMPORTANT: After copying, edit the file to replace YOUR_SECURE_PASSWORD_HERE
-  with your actual PostgreSQL password for the 'wikantik' user.
+  The @@TOKENS@@ below are substituted at copy time with values sourced
+  from the gitignored .env file (copied from .env.example on first install).
+  No hand-editing of the deployed file required — change values in .env and
+  re-run deploy-local.sh.
 -->
 <Context reloadable="true">
 
@@ -32,9 +34,9 @@
               type="javax.sql.DataSource"
               factory="org.apache.tomcat.dbcp.dbcp2.BasicDataSourceFactory"
               driverClassName="org.postgresql.Driver"
-              url="jdbc:postgresql://localhost:5432/wikantik"
-              username="wikantik"
-              password="YOUR_SECURE_PASSWORD_HERE"
+              url="jdbc:postgresql://@@POSTGRES_HOST@@:@@POSTGRES_PORT@@/@@POSTGRES_DB@@"
+              username="@@POSTGRES_USER@@"
+              password="@@POSTGRES_PASSWORD@@"
               maxTotal="30"
               maxIdle="10"
               maxWaitMillis="10000"

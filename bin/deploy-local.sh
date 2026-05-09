@@ -8,8 +8,10 @@
 #   3. Edit tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml to set your password
 #
 # Usage:
-#   bin/deploy-local.sh          # Deploy WAR and configure Tomcat
-#   bin/deploy-local.sh --help   # Show this help
+#   bin/deploy-local.sh                     # Deploy WAR + configure Tomcat
+#   bin/deploy-local.sh --upgrade-tomcat    # In-place upgrade Tomcat to ${TOMCAT_VERSION}
+#                                           #   (preserves all managed configs + data)
+#   bin/deploy-local.sh --help              # Show this help
 #
 
 set -e
@@ -24,9 +26,25 @@ CONTEXT_DEST="${TOMCAT_DIR}/conf/Catalina/localhost/ROOT.xml"
 PROPS_DEST="${TOMCAT_DIR}/lib/wikantik-custom.properties"
 MCP_PROPS_DEST="${TOMCAT_DIR}/lib/wikantik-mcp.properties"
 LOG4J2_DEST="${TOMCAT_DIR}/lib/log4j2.xml"
+TOMCAT_CONTEXT_DEST="${TOMCAT_DIR}/conf/context.xml"
+TOMCAT_SERVER_DEST="${TOMCAT_DIR}/conf/server.xml"
 LOG_DIR="${TOMCAT_DIR}/logs/wikantik"
 JDBC_DRIVER="${TOMCAT_DIR}/lib/postgresql.jar"
 JDBC_URL="https://jdbc.postgresql.org/download/postgresql-42.7.4.jar"
+
+# Files preserved across an --upgrade-tomcat run. The list is the contract
+# between this script and the operator: any path here survives a Tomcat
+# version bump verbatim. Anything else gets replaced from the freshly
+# unpacked tarball (and, where we have a template, from the template).
+PRESERVED_PATHS=(
+    "lib/wikantik-custom.properties"      # DB pool, page provider, custom props
+    "lib/wikantik-mcp.properties"         # MCP rate limits, endpoints
+    "lib/log4j2.xml"                      # logging config
+    "lib/postgresql.jar"                  # JDBC driver
+    "conf/Catalina/localhost/ROOT.xml"    # context with DB password
+    "data"                                 # jspwiki-files / attachments / workdir
+    "logs/wikantik"                        # app logs
+)
 
 # Colors for output
 RED='\033[0;31m'
@@ -51,9 +69,112 @@ show_help() {
     exit 0
 }
 
+# Reads the version of an installed Tomcat from its catalina.jar's
+# ServerInfo.properties. Returns empty if catalina.jar isn't present
+# (fresh checkout — no Tomcat installed yet).
+installed_tomcat_version() {
+    local cat_jar="${TOMCAT_DIR}/lib/catalina.jar"
+    [[ -f "${cat_jar}" ]] || return 0
+    unzip -p "${cat_jar}" org/apache/catalina/util/ServerInfo.properties 2>/dev/null \
+        | awk -F'=' '/^server\.number=/ { print $2 }' \
+        | head -1
+}
+
+# Snapshots PRESERVED_PATHS to ${1}. Used by the upgrade flow to capture
+# user state before the old Tomcat dir is moved aside. Missing paths are
+# silently skipped (e.g. logs/wikantik may not exist on a fresh install).
+#
+# For directories we copy CONTENTS via cp -aT so re-restore into a
+# pre-existing dir of the same name doesn't nest (the
+# download_and_extract_tomcat step pre-creates logs/wikantik + data/
+# subdirs; cp -a src_dir existing_dst would nest src INTO dst as
+# `dst/src_basename`).
+snapshot_preserved() {
+    local snapshot_dir="$1"
+    mkdir -p "${snapshot_dir}"
+    for rel in "${PRESERVED_PATHS[@]}"; do
+        local src="${TOMCAT_DIR}/${rel}"
+        [[ ! -e "${src}" ]] && continue
+        local dst="${snapshot_dir}/${rel}"
+        mkdir -p "$(dirname "${dst}")"
+        if [[ -d "${src}" ]]; then
+            mkdir -p "${dst}"
+            cp -aT "${src}" "${dst}"
+        else
+            cp -a "${src}" "${dst}"
+        fi
+    done
+}
+
+# Restores from a snapshot dir into the current ${TOMCAT_DIR}. New Tomcat
+# install must already be in place. Files copied with -a so timestamps +
+# permissions are preserved. Directory restores use -T to copy CONTENTS,
+# avoiding the `logs/wikantik/wikantik` double-nesting failure mode.
+restore_preserved() {
+    local snapshot_dir="$1"
+    for rel in "${PRESERVED_PATHS[@]}"; do
+        local src="${snapshot_dir}/${rel}"
+        [[ ! -e "${src}" ]] && continue
+        local dst="${TOMCAT_DIR}/${rel}"
+        if [[ -d "${src}" ]]; then
+            mkdir -p "${dst}"
+            cp -aT "${src}" "${dst}"
+        else
+            mkdir -p "$(dirname "${dst}")"
+            cp -a "${src}" "${dst}"
+        fi
+    done
+}
+
+# Performs an in-place Tomcat version upgrade. Snapshots user state, moves
+# the old install aside, downloads the new version, restores user state,
+# and re-applies the conf/ templates. The old Tomcat dir is left at
+# ${TOMCAT_DIR}.bak.${old_version}.${ts} for rollback.
+do_tomcat_upgrade() {
+    local old_version="$1"
+    local new_version="$2"
+    local ts; ts="$(date +%Y%m%d-%H%M%S)"
+    local backup_dir="${TOMCAT_DIR}.bak.${old_version}.${ts}"
+
+    echo ""
+    echo "=== Tomcat upgrade: ${old_version} → ${new_version} ==="
+
+    # Stop running Tomcat first so we can move its dir without conflicts
+    if [[ -f "${TOMCAT_DIR}/bin/shutdown.sh" ]]; then
+        "${TOMCAT_DIR}/bin/shutdown.sh" 2>/dev/null || true
+        sleep 2
+    fi
+
+    print_status "Stopping any running Tomcat (graceful)"
+
+    # Snapshot inside old TOMCAT_DIR via a sibling staging dir, then move
+    # the whole old install out of the way as a backup.
+    local stage; stage="$(mktemp -d "${PROJECT_ROOT}/tomcat/.upgrade-stage-XXXXX")"
+    snapshot_preserved "${stage}"
+    print_status "Snapshotted ${#PRESERVED_PATHS[@]} preserved paths to ${stage}"
+
+    mv "${TOMCAT_DIR}" "${backup_dir}"
+    print_status "Old Tomcat ${old_version} moved aside → ${backup_dir}"
+
+    download_and_extract_tomcat "${new_version}"
+
+    # Restore preserved paths from the staging dir, then drop the stage.
+    restore_preserved "${stage}"
+    rm -rf "${stage}"
+    print_status "Restored preserved paths into fresh ${new_version}"
+
+    echo ""
+    echo "    Rollback: rm -rf ${TOMCAT_DIR} && mv ${backup_dir} ${TOMCAT_DIR}"
+    echo ""
+}
+
 # Parse arguments
+UPGRADE_MODE=0
 if [[ "$1" == "--help" || "$1" == "-h" ]]; then
     show_help
+fi
+if [[ "$1" == "--upgrade-tomcat" ]]; then
+    UPGRADE_MODE=1
 fi
 
 echo "==========================================="
@@ -77,24 +198,58 @@ if [[ ! -f "${WAR_SOURCE}" ]]; then
 fi
 print_status "WAR file found: ${WAR_SOURCE}"
 
-# Download Tomcat 11 if not present
-TOMCAT_VERSION="11.0.18"
-TOMCAT_URL="https://downloads.apache.org/tomcat/tomcat-11/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz"
+# Tomcat target version. Bump this and re-run with --upgrade-tomcat to
+# pick up a new release. Fresh-clone installs always pin to this version.
+TOMCAT_VERSION="11.0.22"
 
-if [[ ! -d "${TOMCAT_DIR}" ]]; then
-    echo "Tomcat not found — downloading Tomcat ${TOMCAT_VERSION}..."
+# Downloads + extracts the requested Tomcat version into ${TOMCAT_DIR}.
+# Tries the live Apache mirror first; falls back to archive.apache.org for
+# versions that have already rotated out of the active mirror. The live
+# mirror typically only carries the most recent few releases.
+download_and_extract_tomcat() {
+    local v="$1"
+    local primary="https://downloads.apache.org/tomcat/tomcat-11/v${v}/bin/apache-tomcat-${v}.tar.gz"
+    local archive="https://archive.apache.org/dist/tomcat/tomcat-11/v${v}/bin/apache-tomcat-${v}.tar.gz"
+
     mkdir -p "$(dirname "${TOMCAT_DIR}")"
-    TMP_TAR=$(mktemp /tmp/tomcat-XXXXXX.tar.gz)
-    curl -fL -o "${TMP_TAR}" "${TOMCAT_URL}"
-    tar -xzf "${TMP_TAR}" -C "$(dirname "${TOMCAT_DIR}")"
-    mv "$(dirname "${TOMCAT_DIR}")/apache-tomcat-${TOMCAT_VERSION}" "${TOMCAT_DIR}"
-    rm -f "${TMP_TAR}"
+    local tmp_tar; tmp_tar="$(mktemp /tmp/tomcat-XXXXXX.tar.gz)"
+
+    echo "Downloading Tomcat ${v}..."
+    if ! curl -fL -o "${tmp_tar}" "${primary}" 2>/dev/null; then
+        echo "  Active mirror miss — falling back to archive.apache.org"
+        curl -fL -o "${tmp_tar}" "${archive}"
+    fi
+    tar -xzf "${tmp_tar}" -C "$(dirname "${TOMCAT_DIR}")"
+    mv "$(dirname "${TOMCAT_DIR}")/apache-tomcat-${v}" "${TOMCAT_DIR}"
+    rm -f "${tmp_tar}"
     chmod +x "${TOMCAT_DIR}"/bin/*.sh
     mkdir -p "${TOMCAT_DIR}/data/jspwiki-files" \
              "${TOMCAT_DIR}/data/attachments"   \
              "${TOMCAT_DIR}/data/workdir"        \
              "${TOMCAT_DIR}/logs/wikantik"
-    print_status "Tomcat ${TOMCAT_VERSION} downloaded and unpacked"
+    print_status "Tomcat ${v} downloaded and unpacked"
+}
+
+# Detect installed version and upgrade if requested.
+if [[ ! -d "${TOMCAT_DIR}" ]]; then
+    echo "Tomcat not found — performing fresh install of ${TOMCAT_VERSION}..."
+    download_and_extract_tomcat "${TOMCAT_VERSION}"
+else
+    INSTALLED_VERSION="$(installed_tomcat_version)"
+    if [[ -n "${INSTALLED_VERSION}" && "${INSTALLED_VERSION}" != "${TOMCAT_VERSION}.0" \
+          && "${INSTALLED_VERSION}" != "${TOMCAT_VERSION}" ]]; then
+        # The .0 suffix in server.number (e.g. 11.0.22.0) is an internal
+        # build counter — strip it before display and comparison.
+        INSTALLED_DISPLAY="${INSTALLED_VERSION%.0}"
+        if [[ "${UPGRADE_MODE}" -eq 1 ]]; then
+            do_tomcat_upgrade "${INSTALLED_DISPLAY}" "${TOMCAT_VERSION}"
+        else
+            print_warning "Installed Tomcat is ${INSTALLED_DISPLAY}; script targets ${TOMCAT_VERSION}."
+            echo "         To perform an in-place upgrade preserving all configs + data, run:"
+            echo "           bin/deploy-local.sh --upgrade-tomcat"
+            echo "         The current ${INSTALLED_DISPLAY} install will continue to be used for this run."
+        fi
+    fi
 fi
 print_status "Tomcat directory found: ${TOMCAT_DIR}"
 
@@ -164,6 +319,41 @@ if [[ ! -f "${MCP_PROPS_DEST}" ]]; then
     print_status "Created ${MCP_PROPS_DEST}"
 else
     print_status "MCP properties file already exists (not overwritten)"
+fi
+
+# Tomcat's own conf/context.xml template — adds the SameSite=strict cookie
+# processor on top of stock. After --upgrade-tomcat the stock file from the
+# new tarball is in place; the customization gets re-applied here.
+if [[ ! -f "${CONFIG_DIR}/Tomcat-context.xml.template" ]]; then
+    print_warning "Tomcat-context.xml.template missing — skipping conf/context.xml customization"
+elif ! diff -q "${TOMCAT_CONTEXT_DEST}" "${CONFIG_DIR}/Tomcat-context.xml.template" >/dev/null 2>&1; then
+    # Either the file was just untar'd from a fresh Tomcat (no customization
+    # yet) or the user has hand-edited it. We only overwrite when the
+    # current contents are clearly the stock file — any other state means
+    # the operator has it the way they want.
+    if grep -q "CookieProcessor sameSiteCookies" "${TOMCAT_CONTEXT_DEST}" 2>/dev/null; then
+        print_status "conf/context.xml already customized (not overwritten)"
+    else
+        cp "${CONFIG_DIR}/Tomcat-context.xml.template" "${TOMCAT_CONTEXT_DEST}"
+        print_status "Applied Tomcat-context.xml.template (CookieProcessor sameSiteCookies=strict)"
+    fi
+else
+    print_status "conf/context.xml already matches template"
+fi
+
+# Tomcat's own conf/server.xml template — adds Cloudflare RemoteIpValve +
+# custom AccessLogValve on top of stock. Same overwrite-only-if-stock guard.
+if [[ ! -f "${CONFIG_DIR}/Tomcat-server.xml.template" ]]; then
+    print_warning "Tomcat-server.xml.template missing — skipping conf/server.xml customization"
+elif ! diff -q "${TOMCAT_SERVER_DEST}" "${CONFIG_DIR}/Tomcat-server.xml.template" >/dev/null 2>&1; then
+    if grep -q "RemoteIpValve" "${TOMCAT_SERVER_DEST}" 2>/dev/null; then
+        print_status "conf/server.xml already customized (not overwritten)"
+    else
+        cp "${CONFIG_DIR}/Tomcat-server.xml.template" "${TOMCAT_SERVER_DEST}"
+        print_status "Applied Tomcat-server.xml.template (RemoteIpValve + custom AccessLogValve)"
+    fi
+else
+    print_status "conf/server.xml already matches template"
 fi
 
 # Create log directory if needed

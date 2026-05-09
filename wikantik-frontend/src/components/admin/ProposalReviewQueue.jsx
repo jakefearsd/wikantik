@@ -49,6 +49,24 @@ const BULK_ACTIONS = [
   },
 ];
 
+/**
+ * Compact relative-time formatter for the judge-rationale disclosure. Returns
+ * one of "just now", "Xm ago", "Xh ago", "Xd ago", or a localized date for
+ * anything older than a month. Pair with a {@code title} attribute carrying
+ * the full {@code toLocaleString()} so hover yields the precise timestamp.
+ */
+export function formatRelativeTime(isoString) {
+  if (!isoString) return '';
+  const ts = new Date(isoString);
+  if (Number.isNaN(ts.getTime())) return '';
+  const diffSec = Math.max(0, Math.floor((Date.now() - ts.getTime()) / 1000));
+  if (diffSec < 60)         return 'just now';
+  if (diffSec < 3600)       return `${Math.floor(diffSec / 60)}m ago`;
+  if (diffSec < 86400)      return `${Math.floor(diffSec / 3600)}h ago`;
+  if (diffSec < 86400 * 30) return `${Math.floor(diffSec / 86400)}d ago`;
+  return ts.toLocaleDateString();
+}
+
 function VerdictBadge({ status, expanded, onToggle }) {
   const map = {
     approved: { glyph: '✓', color: '#2a8d2a', label: 'approved' },
@@ -212,6 +230,14 @@ function MachineCell({ proposal, expandedReviews, onToggleExpand, reviewsCache }
                   <strong>{r.verdict}</strong>
                   {r.confidence != null && ` (${(r.confidence * 100).toFixed(0)}%)`}
                   {r.rationale && <>: {r.rationale}</>}
+                  {r.created && (
+                    <span
+                      style={{ color: 'var(--text-muted, #888)', marginLeft: 6, whiteSpace: 'nowrap' }}
+                      title={new Date(r.created).toLocaleString()}
+                    >
+                      · {formatRelativeTime(r.created)}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

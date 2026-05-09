@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import ProposalReviewQueue from './ProposalReviewQueue';
+import ProposalReviewQueue, { formatRelativeTime } from './ProposalReviewQueue';
 
 // ---------------------------------------------------------------------------
 // Mock api/client
@@ -412,6 +412,45 @@ describe('ProposalReviewQueue — Details column typed renderer', () => {
 });
 
 // ---------------------------------------------------------------------------
+// formatRelativeTime — pure helper
+// ---------------------------------------------------------------------------
+
+describe('formatRelativeTime', () => {
+  it('returns empty string for null/undefined/invalid input', () => {
+    expect(formatRelativeTime(null)).toBe('');
+    expect(formatRelativeTime(undefined)).toBe('');
+    expect(formatRelativeTime('not-a-date')).toBe('');
+  });
+
+  it('returns "just now" within 60 seconds', () => {
+    const now = new Date(Date.now() - 30 * 1000).toISOString();
+    expect(formatRelativeTime(now)).toBe('just now');
+  });
+
+  it('returns Xm ago between 1 and 59 minutes', () => {
+    const ts = new Date(Date.now() - 12 * 60 * 1000).toISOString();
+    expect(formatRelativeTime(ts)).toBe('12m ago');
+  });
+
+  it('returns Xh ago between 1 and 23 hours', () => {
+    const ts = new Date(Date.now() - 5 * 3600 * 1000).toISOString();
+    expect(formatRelativeTime(ts)).toBe('5h ago');
+  });
+
+  it('returns Xd ago between 1 and 29 days', () => {
+    const ts = new Date(Date.now() - 3 * 86400 * 1000).toISOString();
+    expect(formatRelativeTime(ts)).toBe('3d ago');
+  });
+
+  it('falls back to localeDateString for older than 30 days', () => {
+    const ts = new Date(Date.now() - 60 * 86400 * 1000).toISOString();
+    const formatted = formatRelativeTime(ts);
+    expect(formatted).not.toMatch(/ago/);
+    expect(formatted.length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // MACHINE column — clickable badge + reasoning disclosure
 // ---------------------------------------------------------------------------
 
@@ -468,6 +507,39 @@ describe('ProposalReviewQueue — Machine reasoning disclosure', () => {
     );
     await screen.findByText(/duplicate of existing node/);
     expect(badge).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('shows relative timestamp on the rationale line with full timestamp in tooltip', async () => {
+    const now = Date.now();
+    const fiveMinAgoIso = new Date(now - 5 * 60 * 1000).toISOString();
+
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [{
+        id: 'p-time',
+        proposal_type: 'new-node',
+        source_page: 'P.md',
+        proposed_data: { name: 'Z' },
+        confidence: 0.7,
+        reasoning: '',
+        status: 'pending',
+        machine_status: 'rejected',
+      }],
+    });
+    api.knowledge.listProposalReviews.mockResolvedValue({
+      reviews: [{
+        id: 'r-time', reviewer_kind: 'machine', reviewer_id: 'judge',
+        verdict: 'rejected', confidence: 0.9, rationale: 'reason',
+        created: fiveMinAgoIso,
+      }],
+    });
+
+    render(<ProposalReviewQueue />);
+    await screen.findByText('«Z»');
+    fireEvent.click(screen.getByRole('button', { name: /rejected/ }));
+
+    const ago = await screen.findByText(/5m ago/);
+    // Tooltip carries the precise timestamp via toLocaleString().
+    expect(ago).toHaveAttribute('title', new Date(fiveMinAgoIso).toLocaleString());
   });
 
   it('cached reviews — clicking twice does not refetch', async () => {

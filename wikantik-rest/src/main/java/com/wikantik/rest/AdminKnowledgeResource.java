@@ -355,7 +355,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             proposals = service.listProposals( status, sourcePage, limit, offset );
         }
         sendJson( response, Map.of( "proposals", proposals.stream()
-                .map( this::proposalToMap ).toList() ) );
+                .map( p -> proposalToMap( service, p ) ).toList() ) );
     }
 
     // --- POST handlers ---
@@ -880,6 +880,26 @@ public class AdminKnowledgeResource extends RestServletBase {
     }
 
     private Map< String, Object > proposalToMap( final KgProposal p ) {
+        return proposalToMap( null, p );
+    }
+
+    /**
+     * Serialises a proposal for the admin UI. When {@code service} is non-null,
+     * also enriches with two cross-reference flags the queue uses to surface
+     * conflicts before the admin acts:
+     * <ul>
+     *   <li>{@code node_exists} — for {@code new-node} proposals, whether the
+     *       proposed name already resolves to an existing KG node (likely
+     *       duplicate);</li>
+     *   <li>{@code edge_previously_rejected} — for {@code new-edge} proposals,
+     *       whether the same {@code (source, target, relationship)} tuple has
+     *       been rejected before (so the same suggestion is being made
+     *       repeatedly).</li>
+     * </ul>
+     * Both lookups are best-effort — exceptions are logged at WARN and the
+     * flag is omitted rather than failing the whole listing.
+     */
+    private Map< String, Object > proposalToMap( final KnowledgeGraphService service, final KgProposal p ) {
         final Map< String, Object > map = new LinkedHashMap<>();
         map.put( "id", p.id().toString() );
         map.put( "proposal_type", p.proposalType() );
@@ -891,6 +911,31 @@ public class AdminKnowledgeResource extends RestServletBase {
         map.put( "reviewed_by", p.reviewedBy() );
         map.put( "created", p.created() != null ? p.created().toString() : null );
         map.put( "reviewed_at", p.reviewedAt() != null ? p.reviewedAt().toString() : null );
+        map.put( "tier", p.tier() );
+        map.put( "machine_status", p.machineStatus() );
+        map.put( "machine_confidence", p.machineConfidence() );
+        map.put( "machine_judged_at", p.machineJudgedAt() != null ? p.machineJudgedAt().toString() : null );
+        map.put( "machine_model", p.machineModel() );
+
+        if ( service != null && p.proposedData() != null ) {
+            try {
+                if ( "new-node".equals( p.proposalType() ) ) {
+                    final Object name = p.proposedData().get( "name" );
+                    if ( name instanceof String s && !s.isBlank() ) {
+                        map.put( "node_exists", service.getNodeByName( s ) != null );
+                    }
+                } else if ( "new-edge".equals( p.proposalType() ) ) {
+                    final Object src = p.proposedData().get( "source" );
+                    final Object tgt = p.proposedData().get( "target" );
+                    final Object rel = p.proposedData().get( "relationship" );
+                    if ( src instanceof String s && tgt instanceof String t && rel instanceof String r ) {
+                        map.put( "edge_previously_rejected", service.isRejected( s, t, r ) );
+                    }
+                }
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Failed to compute conflict flags for proposal {}: {}", p.id(), e.getMessage() );
+            }
+        }
         return map;
     }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../api/client';
 import PageLink from './PageLink';
 import { AdminTable } from './table';
@@ -9,46 +9,6 @@ const FILTERS = [
   { value: 'approved',  label: 'Machine approved' },
   { value: 'rejected',  label: 'Machine rejected' },
   { value: 'abstained', label: 'Machine abstained' },
-];
-
-const COLUMNS = [
-  { id: 'proposal_type', label: 'Type' },
-  {
-    id: 'source_page',
-    label: 'Source Page',
-    render: (p) => <PageLink name={p.source_page} />,
-  },
-  {
-    id: 'proposed_data',
-    label: 'Details',
-    render: (p) => (
-      <pre style={{ fontSize: '0.8em', maxWidth: '300px', overflow: 'auto' }}>
-        {JSON.stringify(p.proposed_data, null, 2)}
-      </pre>
-    ),
-  },
-  {
-    id: 'confidence',
-    label: 'Confidence',
-    render: (p) => `${(p.confidence * 100).toFixed(0)}%`,
-  },
-  {
-    id: 'machine_status',
-    label: 'Machine',
-    render: (p) => <VerdictBadge status={p.machine_status} />,
-  },
-  {
-    id: 'reasoning',
-    label: 'Reasoning',
-    render: (p) => (
-      <span
-        className="admin-reasoning"
-        style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}
-      >
-        {p.reasoning}
-      </span>
-    ),
-  },
 ];
 
 const BULK_ACTIONS = [
@@ -89,18 +49,176 @@ const BULK_ACTIONS = [
   },
 ];
 
-function VerdictBadge({ status }) {
+function VerdictBadge({ status, expanded, onToggle }) {
   const map = {
     approved: { glyph: '✓', color: '#2a8d2a', label: 'approved' },
     rejected: { glyph: '✗', color: '#b13a3a', label: 'rejected' },
     abstain:  { glyph: '◯', color: '#888',    label: 'abstain'  },
   };
   const info = map[status];
-  if (!info) return <span style={{ color: '#aaa' }} title="not yet judged">–</span>;
+  if (!info) {
+    return <span style={{ color: '#aaa' }} title="LLM judge has not evaluated this proposal yet">–</span>;
+  }
   return (
-    <span style={{ color: info.color, fontWeight: 600, cursor: 'help' }} title={info.label}>
-      {info.glyph} {info.label}
+    <button
+      type="button"
+      onClick={onToggle}
+      title="Click to see judge reasoning"
+      aria-expanded={!!expanded}
+      style={{
+        color: info.color, fontWeight: 600, cursor: 'pointer',
+        background: 'none', border: 'none', padding: 0, font: 'inherit',
+      }}
+    >
+      {info.glyph} {info.label} {expanded ? '▾' : '▸'}
+    </button>
+  );
+}
+
+function ConflictBadge({ kind, title }) {
+  const colors = {
+    conflict:  { bg: '#fff4e6', border: '#e8a04c', fg: '#a35d12', text: 'Conflict' },
+    rejected:  { bg: '#fff0f0', border: '#d88',    fg: '#a33',    text: 'Already rejected' },
+  }[kind];
+  return (
+    <span
+      title={title}
+      style={{
+        display: 'inline-block',
+        marginLeft: 8,
+        padding: '1px 8px',
+        background: colors.bg,
+        border: `1px solid ${colors.border}`,
+        borderRadius: 12,
+        fontSize: '0.75em',
+        color: colors.fg,
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {colors.text}
     </span>
+  );
+}
+
+function PropertyChips({ properties }) {
+  if (!properties || typeof properties !== 'object') return null;
+  const entries = Object.entries(properties);
+  if (entries.length === 0) return null;
+  return (
+    <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+      {entries.map(([k, v]) => (
+        <span
+          key={k}
+          style={{
+            fontSize: '0.75em',
+            background: 'var(--bg-sidebar, #f4f1ec)',
+            padding: '1px 6px',
+            borderRadius: 4,
+            color: 'var(--text-secondary, #666)',
+          }}
+        >
+          {k}={typeof v === 'object' ? JSON.stringify(v) : String(v)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ProposedDataDetails({ proposal }) {
+  const data = proposal.proposed_data || {};
+  const extractor = data.extractor;
+  if (proposal.proposal_type === 'new-node') {
+    const nodeType = data.nodeType || 'Node';
+    return (
+      <div>
+        <div>
+          <span style={{ color: 'var(--text-muted, #888)' }}>+ {nodeType}</span>{' '}
+          <strong>«{data.name || '?'}»</strong>
+          {proposal.node_exists && (
+            <ConflictBadge
+              kind="conflict"
+              title={`A node named «${data.name}» already exists in the Knowledge Graph.`}
+            />
+          )}
+        </div>
+        {extractor && (
+          <div style={{ fontSize: '0.75em', color: 'var(--text-muted, #888)', marginTop: 2 }}>
+            extractor: {extractor}
+          </div>
+        )}
+        <PropertyChips properties={data.properties} />
+      </div>
+    );
+  }
+  if (proposal.proposal_type === 'new-edge') {
+    return (
+      <div>
+        <div>
+          <strong>«{data.source || '?'}»</strong>{' '}
+          <span style={{ color: 'var(--text-muted, #888)' }}>—[{data.relationship || '?'}]→</span>{' '}
+          <strong>«{data.target || '?'}»</strong>
+          {proposal.edge_previously_rejected && (
+            <ConflictBadge
+              kind="rejected"
+              title={`This (source, target, relationship) tuple was rejected previously.`}
+            />
+          )}
+        </div>
+        {extractor && (
+          <div style={{ fontSize: '0.75em', color: 'var(--text-muted, #888)', marginTop: 2 }}>
+            extractor: {extractor}
+          </div>
+        )}
+        <PropertyChips properties={data.properties} />
+      </div>
+    );
+  }
+  // Unknown shape — fall back to compact JSON.
+  return (
+    <pre style={{ fontSize: '0.8em', maxWidth: '300px', overflow: 'auto', margin: 0 }}>
+      {JSON.stringify(data, null, 2)}
+    </pre>
+  );
+}
+
+function MachineCell({ proposal, expandedReviews, onToggleExpand, reviewsCache }) {
+  const expanded = !!expandedReviews[proposal.id];
+  const reviews = reviewsCache[proposal.id];
+  return (
+    <div>
+      <VerdictBadge
+        status={proposal.machine_status}
+        expanded={expanded}
+        onToggle={proposal.machine_status ? () => onToggleExpand(proposal.id) : null}
+      />
+      {expanded && (
+        <div
+          style={{
+            marginTop: 6,
+            padding: 8,
+            background: 'var(--bg-sidebar, #f4f1ec)',
+            borderRadius: 4,
+            fontSize: '0.8em',
+            maxWidth: 320,
+          }}
+        >
+          {reviews === undefined && <em>Loading judge reasoning…</em>}
+          {reviews && reviews.length === 0 && <em>No machine review recorded.</em>}
+          {reviews && reviews.length > 0 && (
+            <ul style={{ margin: 0, paddingLeft: 16 }}>
+              {reviews.filter(r => r.reviewer_kind === 'machine').map(r => (
+                <li key={r.id} style={{ marginBottom: 4 }}>
+                  <strong>{r.verdict}</strong>
+                  {r.confidence != null && ` (${(r.confidence * 100).toFixed(0)}%)`}
+                  {r.rationale && <>: {r.rationale}</>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -112,6 +230,24 @@ export default function ProposalReviewQueue() {
   const [judgeRunning, setJudgeRunning] = useState(false);
   const [judgeStatus, setJudgeStatus] = useState(null);
   const [polling, setPolling] = useState(false);
+  // Per-row "judge reasoning expanded?" toggle + memoised review fetches.
+  const [expandedReviews, setExpandedReviews] = useState({});
+  const [reviewsCache, setReviewsCache] = useState({});
+
+  const handleToggleExpand = useCallback(async (proposalId) => {
+    setExpandedReviews(prev => ({ ...prev, [proposalId]: !prev[proposalId] }));
+    if (!reviewsCache[proposalId]) {
+      try {
+        const data = await api.knowledge.listProposalReviews(proposalId);
+        setReviewsCache(prev => ({ ...prev, [proposalId]: data.reviews || [] }));
+      } catch (err) {
+        // Surface failure inline so the user knows the disclosure didn't load.
+        setReviewsCache(prev => ({ ...prev, [proposalId]: [] }));
+        // eslint-disable-next-line no-console
+        console.warn(`Failed to load reviews for ${proposalId}:`, err.message);
+      }
+    }
+  }, [reviewsCache]);
 
   const loadProposals = useCallback(async () => {
     setLoading(true);
@@ -184,6 +320,49 @@ export default function ProposalReviewQueue() {
     return result;
   };
 
+  const columns = useMemo(() => [
+    { id: 'proposal_type', label: 'Type' },
+    {
+      id: 'source_page',
+      label: 'Source Page',
+      render: (p) => <PageLink name={p.source_page} />,
+    },
+    {
+      id: 'proposed_data',
+      label: 'Details',
+      render: (p) => <ProposedDataDetails proposal={p} />,
+    },
+    {
+      id: 'confidence',
+      label: 'Confidence',
+      render: (p) => `${(p.confidence * 100).toFixed(0)}%`,
+    },
+    {
+      id: 'machine_status',
+      label: 'Machine',
+      render: (p) => (
+        <MachineCell
+          proposal={p}
+          expandedReviews={expandedReviews}
+          onToggleExpand={handleToggleExpand}
+          reviewsCache={reviewsCache}
+        />
+      ),
+    },
+    {
+      id: 'reasoning',
+      label: 'Reasoning',
+      render: (p) => (
+        <span
+          className="admin-reasoning"
+          style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}
+        >
+          {p.reasoning}
+        </span>
+      ),
+    },
+  ], [expandedReviews, reviewsCache, handleToggleExpand]);
+
   const filterMatches = (p) => {
     if (filter === 'all') return true;
     if (filter === 'awaiting') return !p.machine_status;
@@ -251,7 +430,7 @@ export default function ProposalReviewQueue() {
       <AdminTable
         rows={visible}
         getRowKey={(p) => p.id}
-        columns={COLUMNS}
+        columns={columns}
         selectable
         bulkActions={BULK_ACTIONS}
         onBulkAction={handleBulkAction}

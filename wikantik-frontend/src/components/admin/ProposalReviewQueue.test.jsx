@@ -16,6 +16,7 @@ vi.mock('../../api/client', () => ({
       judgeProposal: vi.fn(),
       runJudge: vi.fn(),
       bulkProposalAction: vi.fn(),
+      listProposalReviews: vi.fn(),
     },
   },
 }));
@@ -314,5 +315,187 @@ describe('ProposalReviewQueue — list refresh', () => {
     await waitFor(() =>
       expect(api.knowledge.listProposalsFiltered).toHaveBeenCalledTimes(2)
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Typed Details renderer — replaces the raw JSON dump
+// ---------------------------------------------------------------------------
+
+describe('ProposalReviewQueue — Details column typed renderer', () => {
+  it('new-edge proposal renders source —[rel]→ target with extractor line', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [{
+        id: 'edge-1',
+        proposal_type: 'new-edge',
+        source_page: 'PageA.md',
+        proposed_data: { source: 'Apple', target: 'Fruit', relationship: 'is-a', extractor: 'gemma4-assist' },
+        confidence: 0.9,
+        reasoning: 'mentioned',
+        status: 'pending',
+      }],
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByText('«Apple»');
+    expect(screen.getByText('«Fruit»')).toBeInTheDocument();
+    expect(screen.getByText('—[is-a]→')).toBeInTheDocument();
+    expect(screen.getByText(/extractor: gemma4-assist/)).toBeInTheDocument();
+  });
+
+  it('new-node proposal renders + Type «name»', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [{
+        id: 'node-1',
+        proposal_type: 'new-node',
+        source_page: 'PageB.md',
+        proposed_data: { name: 'Bonds', nodeType: 'Concept', extractor: 'gemma4-assist' },
+        confidence: 0.8,
+        reasoning: 'noun',
+        status: 'pending',
+      }],
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByText('«Bonds»');
+    expect(screen.getByText('+ Concept')).toBeInTheDocument();
+  });
+
+  it('shows Conflict badge when node_exists is true', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [{
+        id: 'node-1',
+        proposal_type: 'new-node',
+        source_page: 'PageB.md',
+        proposed_data: { name: 'Bonds', nodeType: 'Concept' },
+        confidence: 0.8,
+        reasoning: '',
+        status: 'pending',
+        node_exists: true,
+      }],
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByText('Conflict');
+  });
+
+  it('shows Already rejected badge when edge_previously_rejected is true', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [{
+        id: 'edge-1',
+        proposal_type: 'new-edge',
+        source_page: 'PageA.md',
+        proposed_data: { source: 'A', target: 'B', relationship: 'related' },
+        confidence: 0.5,
+        reasoning: '',
+        status: 'pending',
+        edge_previously_rejected: true,
+      }],
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByText('Already rejected');
+  });
+
+  it('renders properties as chips when proposed_data.properties has entries', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [{
+        id: 'node-1',
+        proposal_type: 'new-node',
+        source_page: 'PageB.md',
+        proposed_data: { name: 'Bonds', nodeType: 'Concept', properties: { domain: 'finance', risk: 'low' } },
+        confidence: 0.8,
+        reasoning: '',
+        status: 'pending',
+      }],
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByText('domain=finance');
+    expect(screen.getByText('risk=low')).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MACHINE column — clickable badge + reasoning disclosure
+// ---------------------------------------------------------------------------
+
+describe('ProposalReviewQueue — Machine reasoning disclosure', () => {
+  it('shows dash with title for not-yet-judged proposals', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [{
+        id: 'p1',
+        proposal_type: 'new-node',
+        source_page: 'P.md',
+        proposed_data: { name: 'X' },
+        confidence: 0.5,
+        reasoning: '',
+        status: 'pending',
+        machine_status: null,
+      }],
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByText('«X»');
+    const dash = screen.getAllByText('–').find(el => el.tagName === 'SPAN');
+    expect(dash).toBeTruthy();
+    expect(dash).toHaveAttribute('title', expect.stringMatching(/judge has not evaluated/i));
+  });
+
+  it('clicking the verdict badge fetches reviews and shows rationale', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [{
+        id: 'p2',
+        proposal_type: 'new-node',
+        source_page: 'P.md',
+        proposed_data: { name: 'Y' },
+        confidence: 0.7,
+        reasoning: '',
+        status: 'pending',
+        machine_status: 'rejected',
+      }],
+    });
+    api.knowledge.listProposalReviews.mockResolvedValue({
+      reviews: [{
+        id: 'r1', reviewer_kind: 'machine', reviewer_id: 'judge', verdict: 'rejected',
+        confidence: 0.85, rationale: 'duplicate of existing node', created: '2026-05-09T10:00:00Z',
+      }],
+    });
+
+    render(<ProposalReviewQueue />);
+    await screen.findByText('«Y»');
+
+    const badge = screen.getByRole('button', { name: /rejected/ });
+    expect(badge).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(badge);
+
+    await waitFor(() =>
+      expect(api.knowledge.listProposalReviews).toHaveBeenCalledWith('p2')
+    );
+    await screen.findByText(/duplicate of existing node/);
+    expect(badge).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('cached reviews — clicking twice does not refetch', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [{
+        id: 'p3',
+        proposal_type: 'new-edge',
+        source_page: 'P.md',
+        proposed_data: { source: 'A', target: 'B', relationship: 'r' },
+        confidence: 0.7,
+        reasoning: '',
+        status: 'pending',
+        machine_status: 'approved',
+      }],
+    });
+    api.knowledge.listProposalReviews.mockResolvedValue({
+      reviews: [{ id: 'r1', reviewer_kind: 'machine', verdict: 'approved', confidence: 0.9, rationale: 'ok', created: '' }],
+    });
+
+    render(<ProposalReviewQueue />);
+    await screen.findByText('«A»');
+
+    const badge = screen.getByRole('button', { name: /approved/ });
+    fireEvent.click(badge); // expand
+    await screen.findByText(/ok/);
+    fireEvent.click(badge); // collapse
+    fireEvent.click(badge); // expand again
+
+    await waitFor(() => expect(api.knowledge.listProposalReviews).toHaveBeenCalledTimes(1));
   });
 });

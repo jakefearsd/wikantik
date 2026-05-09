@@ -111,6 +111,8 @@
   padding: var(--space-sm) var(--space-md);
   border-bottom: 1px solid var(--border);
   color: var(--text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .admin-table tbody tr:last-child td {
@@ -675,3 +677,278 @@
 [data-theme="dark"] .version-purge-target {
   background: #2A2020;
 }
+
+/* ============================================================
+   AdminTable — density variants
+   ============================================================ */
+
+/* Variables for selection bar */
+:root {
+  --selection-bar-bg: var(--sage-light, #EAF0EA);
+  --selection-bar-border: var(--sage, #4A7A4A);
+  --selection-bar-text: var(--text, #1a1a1a);
+}
+
+[data-theme="dark"] {
+  --selection-bar-bg: #1e2e1e;
+  --selection-bar-border: #4A7A4A;
+  --selection-bar-text: #e0e0e0;
+}
+
+.admin-table--compact td,
+.admin-table--compact th {
+  height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.admin-table--comfortable td,
+.admin-table--comfortable th {
+  height: 44px;
+  padding-top: var(--space-sm);
+  padding-bottom: var(--space-sm);
+}
+
+/* ============================================================
+   AdminTable — selection bar
+   ============================================================ */
+
+.admin-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+  background: var(--selection-bar-bg);
+  border: 1px solid var(--selection-bar-border);
+  border-radius: var(--radius-md);
+  color: var(--selection-bar-text);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 8px var(--shadow, rgba(0,0,0,0.08));
+}
+
+.admin-selection-bar--floating {
+  box-shadow: 0 4px 16px var(--shadow-strong, rgba(0,0,0,0.15));
+}
+
+.admin-selection-count {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-selection-bar-sep {
+  display: inline-block;
+  width: 1px;
+  height: 1.2em;
+  background: var(--selection-bar-border);
+  opacity: 0.4;
+  margin: 0 var(--space-xs);
+  flex-shrink: 0;
+}
+
+.admin-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: nowrap;
+  flex: 1;
+}
+
+.admin-selection-clear {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   AdminTable — row selected state
+   ============================================================ */
+
+.admin-row--selected {
+  background: var(--sage-light, #EAF0EA) !important;
+}
+
+[data-theme="dark"] .admin-row--selected {
+  background: #1e2e1e !important;
+}
+
+/* ============================================================
+   AdminTable — sortable headers
+   ============================================================ */
+
+.admin-th-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-th-sortable:hover {
+  color: var(--text) !important;
+}
+
+.admin-sort-indicator {
+  font-size: 0.7em;
+  margin-left: 2px;
+  opacity: 0.7;
+}
+
+/* ============================================================
+   AdminTable — indeterminate checkbox visual hint
+   ============================================================ */
+
+.admin-checkbox-indeterminate {
+  /* The indeterminate state is set via JS ref; this class marks it semantically */
+  accent-color: var(--accent);
+}
+
+/* ============================================================
+   AdminTable — row status icons (pending / done / failed)
+   ============================================================ */
+
+.admin-row-status-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.admin-row-status-icon--pending {
+  border: 2px solid var(--text-muted, #aaa);
+  animation: spin 1s linear infinite;
+}
+
+.admin-row-status-icon--done {
+  background: var(--sage, #4A7A4A);
+}
+
+.admin-row-status-icon--failed {
+  background: #C44;
+  cursor: help;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   AdminTable — bulk result banner (inline toast equivalent)
+   ============================================================ */
+
+.admin-bulk-result-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+}
+
+.admin-bulk-result-banner--ok {
+  background: var(--sage-light, #EAF0EA);
+  border-color: var(--sage, #4A7A4A);
+  color: var(--sage, #4A7A4A);
+}
+
+.admin-bulk-result-banner--partial {
+  background: #FEF3CD;
+  border-color: #856404;
+  color: #856404;
+}
+
+[data-theme="dark"] .admin-bulk-result-banner--ok {
+  background: #1e2e1e;
+  border-color: #4A7A4A;
+  color: #8fbc8f;
+}
+
+[data-theme="dark"] .admin-bulk-result-banner--partial {
+  background: #3A3010;
+  border-color: #F0C04A;
+  color: #F0C04A;
+}
+
+.admin-bulk-result-banner .btn {
+  margin-left: auto;
+}
+
+/* ============================================================
+   AdminTable — dispatching overlay
+   ============================================================ */
+
+.admin-bulk-dispatching {
+  text-align: center;
+  padding: var(--space-xs);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   BulkActionMenu — overflow popover
+   ============================================================ */
+
+.bulk-action-menu {
+  display: inline-block;
+}
+
+.bulk-action-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 160px;
+  background: var(--bg-elevated, #fff);
+  border: 1px solid var(--border, #ddd);
+  border-radius: var(--radius-md, 6px);
+  box-shadow: 0 8px 24px var(--shadow-strong, rgba(0,0,0,0.15));
+  z-index: 200;
+  overflow: hidden;
+}
+
+.bulk-action-popover-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  background: none;
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--duration, 150ms) var(--ease, ease);
+}
+
+.bulk-action-popover-item:hover {
+  background: var(--bg-sidebar, #f5f5f5);
+}
+
+.bulk-action-popover-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   ConfirmBulkModal — sample key list
+   ============================================================ */
+
+.confirm-sample-list {
+  color: var(--text-secondary);
+  font-size: 0.85em;
+}
+
+/* ============================================================
+   AdminTable region — focusable container
+   ============================================================ */
+
+.admin-table-region:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+

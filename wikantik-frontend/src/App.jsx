@@ -10,6 +10,7 @@ export default function App() {
   const { user } = useAuth();
   const location = useLocation();
   const isEditorRoute = location.pathname.startsWith('/edit/');
+  const isAdminRoute = location.pathname.startsWith('/admin');
   const isGraphRoute = location.pathname === '/page-graph' || location.pathname === '/knowledge-graph';
 
   // Close mobile sidebar when user successfully authenticates
@@ -54,7 +55,7 @@ export default function App() {
         onMobileOpen={() => setMobileOpen(true)}
       />
       <main className={`app-main ${sidebarCollapsed ? 'expanded' : ''}`}>
-        <div className={`app-content${isEditorRoute ? ' app-content-wide' : ''}${isGraphRoute ? ' app-content-full' : ''}`}>
+        <div className={`app-content${(isEditorRoute || isAdminRoute) ? ' app-content-wide' : ''}${isGraphRoute ? ' app-content-full' : ''}`}>
           <Outlet />
         </div>
       </main>

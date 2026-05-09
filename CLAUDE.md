@@ -31,9 +31,6 @@ mvn clean install -Dmaven.test.skip
 
 # Parallel build for faster execution (unit tests only, NOT integration tests)
 mvn clean install -T 1C -DskipITs
-
-# Build without JavaScript/CSS compression
-mvn clean install -Dmaven.test.skip -Dminimize=false
 ```
 
 ### Manual Testing Credentials
@@ -175,14 +172,6 @@ mvn javadoc:javadoc
 ```
 High test coverage at the line level, above 90% is a goal for this development team,
 and while we recognize it is no a perfect measurement, it is one we choose to pursue.
-### Web Resource Management
-```bash
-# Merge and compress JavaScript/CSS files
-mvn wro4j:run -Dminimize=true
-
-# Only merge JavaScript/CSS files (no compression)
-mvn wro4j:run -Dminimize=false
-```
 
 ## Running the entity extractor
 

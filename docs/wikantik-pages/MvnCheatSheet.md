@@ -47,9 +47,6 @@ under the License.
 | mvn org.codehaus.cargo:cargo-maven3-plugin:run                  | (from main war module) starts Wikantik on a Tomcat9 instance at http://localhost:8080/Wikantik with an attached debugger on port 5005 |
 | mvn clean deploy -Papache-release -Dgpg.passphrase=<passphrase> | deploys generated artifact to a repository. If -Dgpg.passphrase is not given, expects a gpg-agent running                           |
 | mvn clean install -Pintegration-tests                           | performs a build, enabling functional tests execution (best run from the jspwiki-it-tests folder)                                   |
-| mvn wro4j:run -Dminimize=true                                   | merge & compress js & css files                                                                                                     |
-| mvn wro4j:run -Dminimize=false                                  | only merge the js & css files (no compression)                                                                                      |
-| mvn clean install -Dmaven.test.skip -Dminimize=false            | performs a build, skipping the tests and skip compression                                                                           |
 | mvn clean install -Dgenerate-native-launchers=true              | (from portable module) performs a build, regenerating the native executables on the portable build                                  |
 | mvn test -Dtest=MemoryProfiling                                 | (from wikantik-main module) runs a memory profiling test                                                                             |
 

@@ -6,6 +6,14 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-09** — fix(container): apply CookieProcessor sameSiteCookies=strict (A3)
+
+**2026-05-09** — fix(container): align container deploy with bare-metal — drift fixes A1–A4
+
+**2026-05-09** — content: bulk page maintenance — design/coins/immigration/food clusters
+
+**2026-05-09** — fix(deploy): hands-off Tomcat upgrade flow + 2 newly-templated conf files
+
 **2026-05-09** — content: bulk page maintenance — math/ops/PM cluster cleanup
 
 **2026-05-09** — test(kg): IT for proposal pagination contract + judge guard tests

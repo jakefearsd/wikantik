@@ -4,80 +4,68 @@ canonical_id: 01KQ0P44P64FBZ39K8QDZNSNSQ
 title: Cybersecurity
 type: article
 tags:
-- kei
-- protocol
-- secur
-summary: Cybersecurity and Cryptographic Protocols Welcome.
-auto-generated: true
----
-# Cybersecurity and Cryptographic Protocols
-
-Modern cybersecurity depends on the rigorous implementation of cryptographic protocols. These protocols are state machines built atop mathematical assumptions; their security is only as robust as the weakest assumption or implementation detail in the stack.
-
-## I. Cryptographic Primitives
-
-Protocols are synthesized from three core primitives: asymmetry for trust, symmetry for throughput, and hashing for integrity.
-
-### Public-Key Cryptography (PKC)
-PKC facilitates key exchange and digital signatures without prior shared secrets.
-*   **Discrete Logarithm Problem (DLP)**: The foundation for Diffie-Hellman (DH) and Elliptic Curve DH (ECDH). Security relies on the computational difficulty of inversion.
-*   **Quantum Vulnerability**: Shor's algorithm renders standard DLP and ECDLP solvable in polynomial time, necessitating the migration to Post-Quantum Cryptography (PQC).
-
-### Symmetric Primitives
-Symmetric ciphers (AES, ChaCha20) provide high-throughput encryption.
-*   **AEAD (Authenticated Encryption with Associated Data)**: Modern protocols must mandate AEAD modes (e.g., AES-GCM, ChaCha20-Poly1305) to provide confidentiality and integrity simultaneously. Naive modes like ECB are immediate failure points.
-
-### Cryptographic Hashing
-Hash functions (SHA-2, SHA-3, BLAKE3) provide integrity and collision resistance.
-*   **KDF (Key Derivation Functions)**: Functions like HKDF or Argon2 must be used to stretch low-entropy secrets into high-entropy session keys. Raw hashes are insufficient for key derivation.
-
+- mitre-attack
+- defense-in-depth
+- security-architecture
+- cybersecurity
+date: 2025-05-15
+summary: A comprehensive guide to Cybersecurity Architecture, the MITRE ATT&CK framework, and defense-in-depth protocols for resilient systems.
+auto-generated: false
 ---
 
-## II. Protocol Layers
+# Cybersecurity: MITRE ATT&CK and Defense-in-Depth
 
-### Transport Layer Security (TLS 1.3)
-TLS 1.3 is the standard for securing application-layer traffic.
-*   **Forward Secrecy (PFS)**: Mandated via ephemeral key exchanges (ECDHE). Compromise of a long-term server key does not expose historical traffic.
-*   **Handshake Optimization**: The 1-RTT handshake reduces latency and the attack surface window compared to TLS 1.2.
-*   **Downgrade Protection**: Implementations must strictly enforce protocol versions to prevent "rollback" attacks to weaker versions like SSL 3.0 or TLS 1.0.
+Modern cybersecurity has moved beyond simple perimeter defense to a proactive, architecture-centric model. This article explores the **MITRE ATT&CK** framework, the principle of **Defense-in-Depth**, and the protocols required for resilient system design.
 
-### Network Layer Security (IPsec)
-IPsec secures traffic at Layer 3, typically for VPNs and site-to-site tunnels.
-*   **Tunnel vs. Transport Mode**: Tunnel mode encapsulates the entire IP packet, while Transport mode only encrypts the payload.
-*   **IKEv2**: The modern standard for negotiating Security Associations (SAs). It provides better resilience against DoS attacks than IKEv1.
+## I. The MITRE ATT&CK Framework
 
-### Application Layer: SSH
-SSH provides secure remote access and file transfer.
-*   **Public-Key Authentication**: Mandating SSH keys over passwords reduces brute-force vulnerability.
-*   **Host Key Verification**: Strict host key checking is the primary defense against Man-in-the-Middle (MITM) attacks.
+The MITRE ATT&CK (Adversarial Tactics, Techniques, and Common Knowledge) framework is a globally accessible knowledge base of adversary behavior based on real-world observations.
 
----
+### A. Tactics vs. Techniques
+*   **Tactics:** The adversary's technical goals (the "Why"). Examples include Initial Access, Persistence, Privilege Escalation, and Exfiltration.
+*   **Techniques:** The specific methods used to achieve a tactic (the "How"). Examples include Phishing (for Initial Access) or Registry Run Keys (for Persistence).
 
-## III. The Research Frontier
+### B. Utilizing the Matrix
+Security teams use the ATT&CK matrix to:
+1.  **Map Coverage:** Identify which techniques are detectable by current monitoring tools.
+2.  **Red Teaming:** Simulate specific adversary campaigns (e.g., APT29) to test defenses.
+3.  **Threat Hunting:** Proactively search for indicators of specific techniques within the environment.
 
-### Post-Quantum Cryptography (PQC) Migration
-The transition to quantum-resistant algorithms is the most urgent priority in cryptographic engineering.
-*   **Lattice-Based Cryptography**: CRYSTALS-Kyber (KEM) and CRYSTALS-Dilithium (Signatures) are the leading NIST-standardized candidates.
-*   **Implementation Overhead**: PQC often requires larger key and signature sizes, necessitating protocol adjustments to handle increased packet fragmentation.
+## II. Defense-in-Depth Architecture
 
-### Zero Trust Architecture (ZTA)
-ZTA assumes no implicit trust based on network location.
-*   **mTLS (Mutual TLS)**: Every service-to-service interaction is authenticated via bidirectional certificates.
-*   **Continuous Attestation**: Integrating hardware roots of trust (TPMs) to verify device health before granting access.
+Defense-in-Depth is the strategy of using multiple, redundant security controls. If one layer fails, others are in place to prevent a total compromise.
 
-### Hardware Roots of Trust
-*   **HSMs (Hardware Security Modules)**: Mandatory for root key storage; keys never leave the secure boundary in plaintext.
-*   **TPMs (Trusted Platform Modules)**: Used for secure boot and platform identity binding.
+### A. The Layered Model
+1.  **Physical Layer:** Access control to data centers, hardware locks.
+2.  **Network Layer:** Firewalls, IPS/IDS, [NetworkSegmentation](NetworkSegmentation), and VPNs.
+3.  **Host Layer:** Endpoint Detection and Response (EDR), patching, and OS hardening.
+4.  **Application Layer:** WAFs, secure coding practices, and [SecretsManagement](SecretsManagement).
+5.  **Data Layer:** Encryption at rest and in transit, Data Loss Prevention (DLP).
 
----
+### B. Zero Trust Architecture (ZTA)
+ZTA is the logical evolution of Defense-in-Depth. It assumes that the network is always compromised and requires strict verification for every access request, regardless of origin.
+*   **Principle of Least Privilege (PoLP):** Users and services have only the minimum access required for their function.
+*   **Micro-segmentation:** Breaking the network into small, isolated zones to prevent lateral movement.
 
-## IV. Specialized Environments
+## III. Core Security Protocols
 
-### Mobile Ad-Hoc Networks (MANETs)
-In decentralized networks, securing the routing protocol itself is critical. Every route advertisement must be signed, and sequence numbers must be used to prevent replay attacks.
+A resilient architecture relies on standardized protocols to enforce security policies.
 
-### IoT and Resource Constraints
-IoT devices often require lightweight cryptography optimized for low gate counts and minimal power consumption (e.g., ASCON or specialized ECC curves).
+1.  **mTLS (Mutual TLS):** Bidirectional authentication between services, ensuring that both the client and the server are verified.
+2.  **OAuth 2.0 / OIDC:** Secure authorization and identity delegation (see [GoogleSSO](GoogleSSO)).
+3.  **SSH with Public-Key Auth:** Mandatory for remote administrative access; disables password-based entry.
+4.  **IPsec:** Used for securing site-to-site and client-to-site network traffic.
 
-### Decentralized Protocols
-Blockchain and DLTs rely on consensus mechanism security (PoW/PoS) and advanced primitives like Zero-Knowledge Proofs (ZKPs) for privacy-preserving verification.
+## IV. Incident Response and Resilience
+
+Security is not just about prevention; it is about **Resilience**—the ability to detect, contain, and recover from an inevitable breach.
+
+*   **SIEM (Security Information and Event Management):** Aggregates logs from all layers to provide a unified view of the security state.
+*   **SOAR (Security Orchestration, Automation, and Response):** Automates the initial response to common alerts (e.g., automatically isolating a host that shows signs of ransomware).
+*   **Blameless Post-Mortems:** After an incident, focus on the structural failures (process, architecture) rather than individual error.
+
+## V. Conclusion: The Continuous Evolution
+
+Cybersecurity is a dynamic game of measure and countermeasure. By grounding defenses in the MITRE ATT&CK framework and enforcing a rigorous Defense-in-Depth strategy, organizations can build systems that are not just "secure," but fundamentally resilient against sophisticated adversaries.
+
+For specific implementation details, see [SecretsManagement](SecretsManagement) and [ZeroTrustArchitecture](ZeroTrustArchitecture).

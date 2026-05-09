@@ -24,6 +24,11 @@ status: active
 
 This cluster covers the engineering side of data — pipelines, modeling, transformation, and the catalog layer that turns raw data into something usable. The focus is the operational and architectural patterns; modeling and analysis are adjacent topics.
 
+## Strategy and Lifecycle
+
+- [Data Maturity Lifecycle](DataMaturityLifecycle) — A structural roadmap from fragmented silos to Data Mesh.
+- [Shift Left Data Engineering](ShiftLeftDataEngineering) — Moving data quality upstream via contracts.
+
 ## Pipeline design
 
 - [DataPipelineDesign](DataPipelineDesign) — Sources, transforms, sinks; idempotency and observability

@@ -1,91 +1,63 @@
 ---
-canonical_id: 01KQ0P44P8NKQJY36DAC0MM59C
 title: Data Lake Architecture
 type: article
 cluster: data-engineering
 status: active
-date: '2026-05-15'
-tags:
-- data-lake
-- medallion-architecture
-- storage
-- iceberg
-- delta-lake
-summary: Technical implementation of the Medallion Architecture (Bronze/Silver/Gold) on object storage using transactional table formats.
-related:
-- DataLakehouse
-- DataMeshArchitecture
-- ApacheSparkFundamentals
-- ChangeDataCapture
-hubs:
-- DataSystemsHub
+date: 2026-05-20
+summary: Level 3 of the Data Maturity Lifecycle. Focus on storage/compute decoupling and the Medallion Architecture (Bronze/Silver/Gold).
 auto-generated: false
 ---
-# Data Lake Architecture
 
-A modern Data Lake is a scalable repository that stores raw data in its native format and provides a structured pipeline for refinement. The industry standard for organizing this flow is the **Medallion Architecture**, typically implemented on object storage (S3, GCS, ADLS) using transactional table formats like **Apache Iceberg**, **Delta Lake**, or **Apache Hudi**.
+# Data Lake Architecture: Level 3 Maturity
 
-## The Medallion Architecture
+In Level 3 of the [Data Maturity Lifecycle](DataMaturityLifecycle), organizations decouple storage from compute. By moving data into a **Data Lake** (S3, GCS, Azure Blob), they achieve infinite scalability and the ability to store raw, unstructured data.
 
-### 1. Bronze Layer (Raw / Ingestion)
-The landing zone for raw data.
-- **Goal**: Ingestion fidelity. Store everything as-is.
-- **Schema**: Schema-on-read. Data is often JSON, CSV, or Avro.
-- **Retention**: Often immutable and permanent for audit/replayability.
-- **Partitioning**: Primarily by ingestion time (e.g., `year=2024/month=05/day=20`).
+## 1. The "Data Swamp" Failure Mode
+Without a structural framework, a Data Lake quickly becomes a "Data Swamp"—a collection of unidentifiable files with no schema, no ownership, and no quality guarantees. Level 3 maturity is defined by the implementation of the **Medallion Architecture**.
 
-### 2. Silver Layer (Cleansed / Conformed)
-The foundational layer for cross-domain analysis.
-- **Goal**: Data quality and consistency.
-- **Actions**: Filtering nulls, type casting, deduplication, and basic normalization.
-- **Format**: Transactional Parquet (Iceberg/Delta). This is where ACID properties become critical for reliable updates.
-- **Schema**: Enforced.
+## 2. The Medallion Architecture (Bronze/Silver/Gold)
 
-### 3. Gold Layer (Curated / Business)
-High-performance consumption layer for BI and ML.
-- **Goal**: Low-latency, business-aligned views.
-- **Actions**: Aggregation, joining disparate Silver tables, and applying business logic (e.g., CLV calculation).
-- **Structure**: Often modeled as Star Schema (Facts and Dimensions).
+### Bronze (Raw)
+- **State:** Ingestion fidelity.
+- **Goal:** Capture source data as-is (JSON, Avro, Parquet).
+- **Structure:** Partitioned by ingestion date (e.g., `s3://bucket/bronze/orders/year=2026/month=05/`).
 
-## Transactional Table Formats (The "Lakehouse")
-Traditional object storage lacks ACID properties. Transactional formats solve this by layering a metadata log over Parquet files.
-- **ACID Compliance**: Ensures failed writes don't leave partial data.
-- **Time Travel**: Access previous versions of data for debugging or rollbacks.
-- **Schema Evolution**: Add/rename columns without rewriting the entire table.
-- **Data Skipping**: Uses metadata (min/max stats) to skip files during query execution, drastically reducing I/O.
+### Silver (Cleansed)
+- **State:** Conformed and validated.
+- **Goal:** Apply schema enforcement, filter nulls, and deduplicate.
+- **Structure:** Usually stored as Parquet with defined types.
 
-## Concrete Example: Partitioning and File Layout
-Effective partitioning is the difference between a sub-second query and a 10-minute scan.
+### Gold (Curated)
+- **State:** Business-ready aggregations.
+- **Goal:** High-performance tables for BI/ML.
+- **Structure:** Modeled for specific use cases (e.g., `s3://bucket/gold/monthly_revenue/`).
 
-**Scenario**: A clickstream table with billions of events.
-- **Bad Partitioning**: `/clicks/date=2024-05-20/` (One massive folder with 10,000 small files).
-- **Good Partitioning**: `/clicks/event_type/date=2024-05-20/` (Divided by frequent filter criteria).
+## 3. Concrete Example: Pipeline Implementation
+Using Apache Spark to move data from Bronze to Silver:
 
-**Iceberg Partition Evolution Example**:
-In Iceberg, you can change the partitioning strategy without breaking old queries.
-```sql
--- Create a table with daily partitioning
-CREATE TABLE clickstream (
-    user_id bigint,
-    event_time timestamp,
-    event_type string
-)
-USING iceberg
-PARTITIONED BY (days(event_time));
+```python
+# Spark logic for Bronze to Silver transition
+df_raw = spark.read.json("s3://bronze/orders/2026/05/*")
 
--- Later, realize you need to partition by event_type too
-ALTER TABLE clickstream SET IDENTIFIER FIELDS event_type;
-ALTER TABLE clickstream REPLACE PARTITION FIELD days(event_time) WITH event_type;
+# Cleaning: Cast types and filter invalid orders
+df_cleansed = df_raw.select(
+    col("order_id").cast("string"),
+    col("amount").cast("double"),
+    to_timestamp(col("ts")).alias("event_time")
+).filter(col("amount") > 0).dropDuplicates(["order_id"])
+
+# Write to Silver as Parquet
+df_cleansed.write.partitionBy("event_date") \
+    .mode("overwrite") \
+    .parquet("s3://silver/orders/")
 ```
 
-## Storage Optimization Strategies
-1. **Compaction (Small File Problem)**: Frequently merging small files (e.g., 100x 1MB files) into a single large Parquet file (100MB) to reduce metadata overhead and improve scan speed.
-2. **Z-Ordering / Clustering**: Co-locating related data within files. For example, clustering by `user_id` within a time partition speeds up point-lookups for specific users.
-3. **Cold Storage Tiering**: Moving older partitions (e.g., > 2 years) to cheaper storage tiers (S3 Glacier) while keeping metadata available for discovery.
+## 4. The Transition to Level 4
+Level 3 lakes are still "append-only" and lack ACID transactions. Updating a single row requires rewriting an entire partition. To solve this, organizations move to Level 4, the [Data Lakehouse](DataLakehouse).
 
-## Summary of Technical implementation added
-- Defined the **Medallion Architecture** (Bronze, Silver, Gold) with specific technical goals for each layer.
-- Explained the role of **transactional table formats** (Iceberg/Delta) in enabling the "Lakehouse" pattern.
-- Provided a concrete SQL example of **Iceberg Partition Evolution**.
-- Detailed storage optimizations like **Compaction** and **Z-Ordering**.
-- Removed all "AI-sounding" conversational padding.
+---
+**See Also:**
+- [Data Warehouse Design](DataWarehouseDesign) — The predecessor to lakes.
+- [Apache Spark Fundamentals](ApacheSparkFundamentals) — Processing lake data.
+- [Data Lakehouse](DataLakehouse) — Bringing ACID to the lake.
+---

@@ -1,53 +1,69 @@
 ---
-cluster: databases
-canonical_id: 01KQ0P44PBZW9QRFV0S3W9NFA7
 title: Data Warehouse Design
 type: article
-tags:
-- databases
-- data-warehouse
-- dimensional-modeling
-- star-schema
-- snowflake-schema
+cluster: data-engineering
 status: active
-date: 2025-05-15
-summary: Technical analysis of data warehouse schemas. Covers Star vs Snowflake models, Fact/Dimension tables, and SCD Type 2 management.
+date: 2026-05-20
+summary: Level 2 of the Data Maturity Lifecycle. Detailed analysis of Star Schema rigidity and the transition from manual silos to centralized analytical engines.
 auto-generated: false
 ---
 
-# Data Warehouse Design: Dimensional Modeling
+# Data Warehouse Design: Level 2 Maturity
 
-Data warehouses are optimized for high-performance analytical queries (OLAP), prioritizing read speed over write efficiency.
+In the [Data Maturity Lifecycle](DataMaturityLifecycle), Level 2 represents the transition from fragmented spreadsheets to a **Centralized Warehouse**. This stage is characterized by **Schema-on-Write** and high-performance SQL analytics.
 
-## 1. The Star Schema: The Performance Baseline
+## 1. The Centralization Mandate
+The primary goal of Level 2 is to create a "Single Source of Truth." Data is extracted from operational RDBMS (MySQL, Postgres) via ETL and loaded into a specialized analytical engine (Snowflake, BigQuery, Redshift).
 
-The Star Schema is the standard for high-performance analytics.
-*   **Fact Table:** Central table containing quantitative metrics (e.g., `sales_amount`, `quantity`) and foreign keys to dimensions.
-*   **Dimension Tables:** Surrounding tables containing descriptive context (e.g., `CustomerName`, `ProductCategory`).
-*   **Key Advantage:** Minimizes joins. Most queries only require one level of joining between the fact and relevant dimensions.
+## 2. Dimensional Modeling: The Star Schema
+Analytical performance in a warehouse relies on **Dimensional Modeling**.
+*   **Fact Table:** Contains quantitative metrics (e.g., `revenue`, `quantity`) and keys to dimensions.
+*   **Dimension Tables:** Contain descriptive attributes (e.g., `CustomerName`, `Region`).
 
-## 2. The Snowflake Schema: The Normalization Alternative
+### Concrete Example: The Fact Table Grain
+The "Grain" is the most critical decision in warehouse design.
+```sql
+-- Example: Defining the grain at the Line-Item level
+CREATE TABLE fact_sales (
+    order_id UUID,
+    product_id INT,
+    customer_id INT,
+    date_id INT,
+    quantity INT,
+    sale_price DECIMAL(10,2),
+    -- Foreign keys to dimensions
+    CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES dim_customer(customer_id)
+);
+```
+**Rule:** Always store data at the **Atomic Grain**. Aggregating during load (e.g., "Daily Sales") is a Level 1 behavior that prevents future drill-down analysis.
 
-In a Snowflake Schema, dimension tables are normalized into multiple related tables.
-*   **Example:** `DimProduct` links to `DimCategory`, which links to `DimDepartment`.
-*   **Pros:** Reduces data redundancy (storage efficiency).
-*   **Cons:** Increases query complexity and latency due to deep join paths. **Expert Rule:** In modern cloud warehouses (Snowflake, BigQuery), storage is cheap and compute is expensive; favor the **Star Schema** to reduce CPU cycles spent on joins.
-
-## 3. Fact Table Granularity
-
-The "Grain" is the level of detail for a single row in the fact table.
-*   **Atomic Grain:** The lowest possible level (e.g., a single line item on a receipt). 
-*   **Rule:** Always store data at the atomic grain. You can aggregate up later, but you can never "drill down" into data that was aggregated during ingestion.
+## 3. The Performance vs. Rigidity Trade-off
+While the **Star Schema** is optimized for read performance by minimizing joins, it introduces **Rigidity**.
+- **Schema Evolution:** Adding a new dimension often requires re-processing historical data.
+- **Normalization Limits:** The **Snowflake Schema** (normalizing dimensions) reduces storage but dramatically increases query latency. In modern cloud warehouses, storage is cheap; favor the Star Schema.
 
 ## 4. Slowly Changing Dimensions (SCD)
+To maintain historical accuracy, warehouses use SCD patterns.
+- **SCD Type 2:** Adds new rows with versioning.
+```sql
+-- Querying SCD Type 2 for point-in-time accuracy
+SELECT 
+    s.sale_price,
+    c.customer_city
+FROM fact_sales s
+JOIN dim_customer c ON s.customer_id = c.customer_id
+WHERE s.sale_date BETWEEN c.row_start_date AND c.row_end_date;
+```
 
-Dimensions change over time (e.g., a customer moves to a new city).
-*   **SCD Type 1:** Overwrite the old value. (No history).
-*   **SCD Type 2:** Add a new row with `start_date`, `end_date`, and `current_flag`. (Full history).
-*   **Concrete Requirement:** Use SCD Type 2 for any attribute used in longitudinal analysis (e.g., tracking sales growth by region even when regions are reorganized).
+## 5. The Level 2 Bottleneck
+As maturity increases, the centralized warehouse becomes a bottleneck.
+- **Wait Times:** Central data teams are overwhelmed.
+- **Cost:** Scaling compute for massive raw datasets in a warehouse is expensive.
+- **Solution:** Transition to Level 3, the [Data Lake Architecture](DataLakeArchitecture).
 
 ---
 **See Also:**
 - [Normalization And Denormalization](NormalizationAndDenormalization) — Performance trade-offs.
 - [Data Lakehouse](DataLakehouse) — Implementing dimensional models on lakes.
 - [Business Intelligence Fundamentals](BusinessIntelligenceFundamentals) — Consuming the warehouse.
+---

@@ -2,6 +2,12 @@
 -- This runs automatically on first startup when pgdata volume is empty.
 -- The PostgreSQL Docker image creates the user/database from POSTGRES_USER/POSTGRES_DB env vars.
 
+-- pgvector is required by the Knowledge Graph, hybrid retrieval, and Page Graph
+-- subsystems. The base image (pgvector/pgvector:pg17) ships the extension —
+-- this enables it in the freshly-created database. IF NOT EXISTS makes it
+-- safe to re-run.
+CREATE EXTENSION IF NOT EXISTS vector;
+
 -- Drop existing objects if they exist (safe for fresh installs)
 DROP TABLE IF EXISTS group_members;
 DROP TABLE IF EXISTS groups;

@@ -1,0 +1,27 @@
+# Test-only override: alongside the bare-metal Tomcat (port 8080), the
+# DB-port mapping needs an alternate host port too. The wikantik service
+# port is env-templated in the base compose so just setting
+#   WIKANTIK_HOST_PORT=18080
+# in the env file is enough; this override only handles the DB host port.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml \
+#                  -p wikantik-test --env-file ${ENV_FILE} up -d --build
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml \
+#                  -p wikantik-test down -v
+#
+# The `-p wikantik-test` flag namespaces all volumes (becomes
+# `wikantik-test_pgdata`, etc.) so prod / dev state is not touched.
+services:
+  db:
+    # Override the base 5432:5432 by replacing the list. Compose treats
+    # `ports:` as a merge (additive) by default, so we need to explicitly
+    # publish only the alternate mapping here.
+    ports: !override
+      - "15432:5432"
+
+  wikantik:
+    environment:
+      # Test stack opts in to the dev-user seed (admin/admin123 etc).
+      # Production deploys NEVER set this — they manage their own users.
+      WIKANTIK_SEED_DEV_USERS: "true"

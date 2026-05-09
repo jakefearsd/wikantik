@@ -1,6 +1,9 @@
 services:
   db:
-    image: postgres:17-alpine
+    # pgvector/pgvector:pg17 is required — the KG, hybrid retrieval, and
+    # Page Graph subsystems all use the `vector` extension. The plain
+    # postgres:17-alpine image does not ship the extension.
+    image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-wikantik}
@@ -29,8 +32,10 @@ services:
       - wikantik-pages:/var/wikantik/pages
       - wikantik-work:/var/wikantik/work
       - wikantik-logs:/var/wikantik/logs
+    # Host port is env-overridable so the stack can run alongside a
+    # bare-metal Tomcat on 8080 (set WIKANTIK_HOST_PORT=18080 in .env).
     ports:
-      - "8080:8080"
+      - "${WIKANTIK_HOST_PORT:-8080}:8080"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
       interval: 30s

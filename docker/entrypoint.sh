@@ -20,12 +20,13 @@ wikantik.basicAttachmentProvider.storageDir = ${WIKANTIK_ATTACHMENT_DIR:-/var/wi
 
 wikantik.cache.allPagesTTL = 60
 
-# PostgreSQL JDBC user/group database
+# PostgreSQL JDBC user/group database — single shared DataSource named
+# jdbc/WikiDatabase. Matches the canonical bare-metal template; the app
+# reads `wikantik.datasource` and binds JDBCUserDatabase + JDBCGroupDatabase
+# to that one resource.
 wikantik.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
 wikantik.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase
-
-wikantik.userdatabase.datasource = jdbc/UserDatabase
-wikantik.groupdatabase.datasource = jdbc/GroupDatabase
+wikantik.datasource = jdbc/WikiDatabase
 
 wikantik.userdatabase.table = users
 wikantik.userdatabase.uid = uid
@@ -79,7 +80,12 @@ cat > "${CATALINA_HOME}/conf/Catalina/localhost/ROOT.xml" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <Context reloadable="false" cachingAllowed="true">
 
-    <Resource name="jdbc/UserDatabase"
+    <!-- Single shared DataSource. App looks up jdbc/WikiDatabase via the
+         wikantik.datasource property; both JDBCUserDatabase and
+         JDBCGroupDatabase bind to this one connection pool. Matches the
+         shape of the bare-metal Wikantik-context.xml.template so the two
+         install paths use identical JNDI conventions. -->
+    <Resource name="jdbc/WikiDatabase"
               auth="Container"
               type="javax.sql.DataSource"
               factory="org.apache.tomcat.dbcp.dbcp2.BasicDataSourceFactory"
@@ -88,21 +94,7 @@ cat > "${CATALINA_HOME}/conf/Catalina/localhost/ROOT.xml" <<EOF
               username="${POSTGRES_USER}"
               password="${POSTGRES_PASSWORD}"
               maxTotal="20"
-              maxIdle="10"
-              maxWaitMillis="10000"
-              validationQuery="SELECT 1"
-              testOnBorrow="true"/>
-
-    <Resource name="jdbc/GroupDatabase"
-              auth="Container"
-              type="javax.sql.DataSource"
-              factory="org.apache.tomcat.dbcp.dbcp2.BasicDataSourceFactory"
-              driverClassName="org.postgresql.Driver"
-              url="${JDBC_URL}"
-              username="${POSTGRES_USER}"
-              password="${POSTGRES_PASSWORD}"
-              maxTotal="20"
-              maxIdle="10"
+              maxIdle="5"
               maxWaitMillis="10000"
               validationQuery="SELECT 1"
               testOnBorrow="true"/>
@@ -130,6 +122,35 @@ if [ -f /tmp/Wikantik.war ]; then
   rm -rf "${CATALINA_HOME}/webapps/ROOT"
   mkdir -p "${CATALINA_HOME}/webapps/ROOT"
   unzip -q -o -d "${CATALINA_HOME}/webapps/ROOT" /tmp/Wikantik.war
+fi
+
+# --- Apply DB migrations ---
+# Idempotent: schema_migrations table tracks applied versions so re-runs
+# only execute new ones. Failure exits non-zero — Tomcat never starts
+# against an out-of-date schema. Same script + migrations/ that the
+# bare-metal install and CI both use.
+if [ -x /opt/wikantik/db/migrate.sh ]; then
+  echo "Running database migrations..."
+  DB_NAME="${POSTGRES_DB}" \
+  DB_APP_USER="${POSTGRES_USER}" \
+  PGHOST="${POSTGRES_HOST}" \
+  PGPORT="${POSTGRES_PORT}" \
+  PGUSER="${POSTGRES_USER}" \
+  PGPASSWORD="${POSTGRES_PASSWORD}" \
+    /opt/wikantik/db/migrate.sh
+fi
+
+# --- Optional dev-user seeding ---
+# seed-users.sql installs admin/admin123 and a basic user account with
+# known dev-only passwords. Off by default (production deploys must NOT
+# inherit known credentials); the bare-metal deploy script + the test
+# stack opt in via WIKANTIK_SEED_DEV_USERS=true.
+if [ "${WIKANTIK_SEED_DEV_USERS:-false}" = "true" ] && [ -f /opt/wikantik/db/seed-users.sql ]; then
+  echo "Seeding dev user accounts (admin/admin123)..."
+  PGHOST="${POSTGRES_HOST}" PGPORT="${POSTGRES_PORT}" \
+  PGUSER="${POSTGRES_USER}" PGPASSWORD="${POSTGRES_PASSWORD}" \
+    psql -d "${POSTGRES_DB}" -f /opt/wikantik/db/seed-users.sql -q || \
+    echo "WARN: seed-users.sql failed; check /opt/wikantik/db/seed-users.sql"
 fi
 
 exec "$@"

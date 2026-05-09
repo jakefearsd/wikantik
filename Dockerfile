@@ -1,27 +1,31 @@
 # Stage 1: Build WAR with Maven
+#
+# We deliberately use a single `COPY . .` rather than the older per-module
+# pom-copy + dependency:go-offline trick. The reactor module list churns
+# (modules added/renamed several times in the last few months) — keeping a
+# hard-coded list in this Dockerfile bit-rots silently. Tradeoff: every
+# source change invalidates the dependency cache. Still under a minute on
+# warm builds.
 FROM maven:3.9-eclipse-temurin-21 AS build
 
+# wikantik-war's reactor build invokes npm + vite to bundle the React
+# frontend into the WAR. The Maven base image has no Node — pull in
+# Node 20 LTS (matches CLAUDE.md's "Node.js + npm | 18+" requirement).
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /src
-COPY pom.xml .
-COPY wikantik-api/pom.xml wikantik-api/pom.xml
-COPY wikantik-bootstrap/pom.xml wikantik-bootstrap/pom.xml
-COPY wikantik-cache/pom.xml wikantik-cache/pom.xml
-COPY wikantik-event/pom.xml wikantik-event/pom.xml
-COPY wikantik-main/pom.xml wikantik-main/pom.xml
-COPY wikantik-http/pom.xml wikantik-http/pom.xml
-COPY wikantik-mcp/pom.xml wikantik-mcp/pom.xml
-COPY wikantik-util/pom.xml wikantik-util/pom.xml
-COPY wikantik-war/pom.xml wikantik-war/pom.xml
-
-RUN mvn -B dependency:go-offline -pl wikantik-war -am || true
-
 COPY . .
 RUN mvn -B clean package -pl wikantik-war -am -DskipTests
 
 # Stage 2: Tomcat 11 / JDK 21 runtime
-FROM tomcat:11.0-jdk21-temurin
+# Pinned to the same version as bin/deploy-local.sh's TOMCAT_VERSION so the
+# bare-metal and container install paths run on the identical Tomcat patch.
+# Bumping this means bumping deploy-local.sh in lockstep.
+FROM tomcat:11.0.22-jdk21-temurin
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl unzip \
+RUN apt-get update && apt-get install -y --no-install-recommends curl unzip postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Remove default webapps
@@ -42,6 +46,12 @@ COPY docker/config/log4j2-docker.xml ${CATALINA_HOME}/lib/log4j2.xml
 # Copy entrypoint
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# Database migrations bundled with the image so the entrypoint can run
+# them before Tomcat starts. Same migrate.sh + migrations/ used by the
+# bare-metal install and CI — single source of truth.
+COPY bin/db/ /opt/wikantik/db/
+RUN chmod +x /opt/wikantik/db/migrate.sh
 
 # Deploy WAR (unzipped for faster startup)
 COPY --from=build /src/wikantik-war/target/Wikantik.war /tmp/Wikantik.war

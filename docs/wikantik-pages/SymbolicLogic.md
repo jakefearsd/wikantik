@@ -21,246 +21,97 @@ related:
 hubs:
 - MathematicsHub
 ---
-# Symbolic Logic
 
-Symbolic logic is reasoning with formal symbols rather than natural language. Statements are written in precise symbolic notation; rules of inference manipulate the symbols. The result is reasoning that's checkable, mechanizable, and unambiguous.
+# Symbolic Logic: The Geometry of Thought
 
-This page surveys the major branches.
+Symbolic logic is the formalization of reasoning through the manipulation of symbols rather than the interpretation of natural language. By abstracting away the ambiguity of "words," logic reveals the underlying structural mechanics of truth. In the modern era, symbolic logic is the bridge between human philosophy and machine computation.
 
-## Why symbolic
+## 1. Spatial and Geometric Intuition
 
-Natural language is ambiguous:
-- "Every man loves some woman" — same woman for all men, or each man some woman?
-- "Bill married Jane and they had children" — order ambiguous?
+Symbolic logic is often viewed as "linear" strings of characters, but its underlying structure is profoundly geometric.
 
-Symbolic logic forces precision:
-- ∀x (Man(x) → ∃y (Woman(y) ∧ Loves(x, y))) — each man some woman
-- ∃y (Woman(y) ∧ ∀x (Man(x) → Loves(x, y))) — same woman for all
+### 1.1 The Hypercube of Possibilities
+For any system with $n$ atomic propositions, the space of all possible truth assignments can be mapped onto the vertices of an **$n$-dimensional hypercube**.
+- **1 Proposition ($P$):** A 1D line segment. Vertices are $T$ and $F$.
+- **2 Propositions ($P, Q$):** A 2D square. The four vertices $(T,T), (T,F), (F,T), (F,F)$ represent the complete "logical universe."
+- **Inference as Movement:** A logical operation (like negation) is a **reflection** across an axis. A deduction is a **path** from a set of vertices (premises) to a target vertex (conclusion).
 
-Different formulas; different meanings.
+### 1.2 Proof Trees as Topology
+A **Proof Tree** transforms a logical argument into a branching spatial hierarchy.
+- **Branching as Fission:** Each split in the tree represents a divergence into parallel possible worlds.
+- **Spatial Closure:** A proof is "complete" when all branches encounter a contradiction. Visually, this is the "fencing off" of impossible regions of logical space.
 
-## Levels of logic
+### 1.3 Curry-Howard: Proofs as Paths
+Under the **Curry-Howard Isomorphism**, propositions are viewed as **Topological Spaces** and proofs as **Paths** within those spaces.
+- **Normalizing a Proof:** Reducing a proof to its simplest form is analogous to deforming a path in a space to its shortest, "straightest" form (a geodesic).
 
-### Propositional logic
+## 2. Quantitative Foundations: The Complexity Hierarchy
 
-Simplest. Statements are atomic; combined with connectives. See [PropositionalLogic](PropositionalLogic).
+The "strength" of a logic is measured by its expressive power versus its computational cost.
 
-Decidable but limited expressiveness.
+| Logic Level | Expressiveness | Satisfiability Complexity | Decision Status |
+| :--- | :--- | :--- | :--- |
+| **Propositional** | Atomic statements | **NP-complete** | Decidable |
+| **Modal (K, S4)** | Necessity/Possibility | **PSPACE-complete** | Decidable |
+| **Temporal (LTL)** | Linear time | **PSPACE-complete** | Decidable |
+| **Temporal (CTL)** | Branching time | **EXPTIME-complete** | Decidable |
+| **First-Order (FOL)** | Objects & Quantifiers | **Undecidable** | Semi-decidable |
+| **Higher-Order** | Properties of properties | **Highly Undecidable** | Incomplete |
 
-### Predicate logic (first-order)
+## 3. Major Branches and Systems
 
-Adds quantifiers and predicates. Most of mathematics is expressible. See [PredicateLogic](PredicateLogic).
+### 3.1 Propositional and Predicate Logic
+- **Propositional:** The calculus of $P \land Q$. Decidable but lacks internal structure.
+- **First-Order (FOL):** Adds $\forall$ (forall) and $\exists$ (exists). Sufficient for almost all of mathematics (ZFC).
 
-Semi-decidable; rich expressiveness.
+### 3.2 Modal and Non-Classical Logics
+Modal logic introduces the operators $\Box$ (Necessity) and $\Diamond$ (Possibility). 
+- **Epistemic Logic:** Reasoning about "Knowledge" ($K_a \phi$: agent $a$ knows $\phi$).
+- **Deontic Logic:** Reasoning about "Obligation" ($O \phi$: it is obligatory that $\phi$).
 
-### Higher-order logic
+### 3.3 Intuitionistic Logic
+Rejects the **Law of Excluded Middle** ($P \lor \neg P$). In this system, a proof of $P \lor Q$ must explicitly construct either a proof of $P$ or a proof of $Q$. This is the foundation of **Constructive Mathematics** and modern type-theoretic theorem provers like Coq and Lean.
 
-Quantifies over predicates and functions, not just individuals.
+## 4. Real-World Applications
 
-More expressive than first-order; more complex.
+### 4.1 Automated Theorem Proving (ATP)
+Tools like **Z3** (SMT solver) and **Vampire** use symbolic logic to solve massive combinatorial problems.
+- **Application:** Verifying that a cryptographic protocol (like TLS) is immune to "man-in-the-middle" attacks by exhaustively searching the logical state space.
 
-Used in some theorem provers (HOL Light, Isabelle/HOL).
+### 4.2 Hardware and Circuit Design
+Digital circuits are physical realizations of Boolean logic.
+- **Logic Gates:** Transistors arranged to perform AND, OR, and NOT operations.
+- **Verification:** Intel and AMD use **Formal Verification** (specifically Temporal Logic) to prove that a CPU's floating-point unit will never produce an incorrect result (avoiding the "Pentium FDIV" class of errors).
 
-### Modal logic
+### 4.3 Artificial Intelligence: Knowledge Graphs
+Symbolic AI uses logic-based ontologies (like OWL) to allow machines to reason.
+- **Example:** If a KG knows `IsCapitalOf(Paris, France)` and `IsMemberOf(France, EU)`, a symbolic reasoner can infer `IsIn(Paris, EU)` using the transitivity of location.
 
-Adds operators for necessity and possibility. See [ModalLogic](ModalLogic).
+## 5. Formal Proof Systems
 
-Variants: deontic, doxastic, epistemic, temporal.
+A logic is defined by its **Inference Rules**. The most common systems are:
 
-### Temporal logic
+### 5.1 Natural Deduction
+Models human-like reasoning.
+- **Modus Ponens:** From $\phi$ and $\phi \to \psi$, derive $\psi$.
+- **$\land$-Elimination:** From $\phi \land \psi$, derive $\phi$.
 
-Modal logic where modalities are temporal. See [TemporalLogic](TemporalLogic).
+### 5.2 Sequent Calculus
+A more symmetric formalism used in proof theory to study the properties of the logic itself (e.g., **Cut-Elimination**).
 
-Specifically used for verification.
+$$ \frac{\Gamma \vdash \Delta, A \quad A, \Sigma \vdash \Pi}{\Gamma, \Sigma \vdash \Delta, \Pi} \text{ (Cut Rule)} $$
 
-### Type theory
+## 6. Limits of Symbolism: Gödel’s Shadow
 
-Alternative to set theory + logic. Mathematics built from types.
+No discussion of symbolic logic is complete without **Gödel’s Incompleteness Theorems**:
+1. **First Theorem:** In any consistent formal system sufficient for arithmetic, there are true statements that cannot be proven.
+2. **Second Theorem:** A system cannot prove its own consistency.
 
-Used in Coq, Agda, Lean.
-
-## Inference
-
-Rules for deriving conclusions from premises.
-
-### Natural deduction
-
-Introduction and elimination rules for each connective.
-
-For ∧:
-- Intro: from P, Q derive P ∧ Q
-- Elim: from P ∧ Q derive P (or Q)
-
-For →:
-- Intro: from assumption P proving Q, derive P → Q
-- Elim (modus ponens): from P, P → Q derive Q
-
-Closer to mathematical reasoning style.
-
-### Sequent calculus
-
-Manipulates sequents (sequences of formulas). Cleaner formalism for proof theory.
-
-### Resolution
-
-Refutation-based: to prove φ, show that ¬φ is unsatisfiable.
-
-Computationally tractable; basis for automated theorem provers (Vampire, E).
-
-### Tableau methods
-
-Tree-based proof methods. Used in some theorem provers and decision procedures.
-
-## Soundness and completeness
-
-### Soundness
-
-Every theorem is true. The proof system doesn't prove false things.
-
-### Completeness
-
-Every truth is a theorem. The proof system can prove all true statements.
-
-For propositional logic: sound and complete.
-For first-order logic: sound and complete (Gödel).
-For some higher-order logics: incomplete.
-
-## Gödel's incompleteness
-
-Famous result: any sufficiently strong formal system either
-- Is inconsistent (proves contradictions), or
-- Is incomplete (some truths can't be proven within the system)
-
-Specifically applies to systems strong enough to express arithmetic.
-
-Implications:
-- No "complete theory of mathematics" exists
-- Some questions in math are undecidable from any given set of axioms
-- Truth is not the same as provability in formal systems
-
-## Decidability
-
-A logic is decidable if there's an algorithm that determines truth or theoremhood.
-
-- Propositional logic: decidable (truth tables)
-- First-order logic: undecidable (Church)
-- Specific decidable fragments: Presburger arithmetic, monadic predicate logic
-- Modal logics: varies
-
-For undecidable logics, semi-decidability often holds: provable formulas can be found; non-provable can't be confirmed.
-
-## Computer science applications
-
-### Theorem proving
-
-Automated and interactive. Tools include:
-- **Coq**: dependent type theory
-- **Isabelle/HOL**: higher-order logic
-- **Lean**: dependent type theory
-- **Agda**: dependent type theory
-- **Z3**: SMT solver (combines theories)
-- **Vampire, E, SPASS**: first-order resolution provers
-
-### Formal verification
-
-Specifying programs as logical formulas; proving correctness.
-
-Used in:
-- Cryptographic protocols
-- Hardware (CPU verification)
-- Critical software (kernels, compilers)
-
-### Programming languages
-
-- **Prolog**: predicate logic as a programming language
-- **Datalog**: subset for databases
-- **Type systems**: based on logic (Curry-Howard correspondence)
-
-### Knowledge representation
-
-Logic-based ontologies, knowledge graphs, expert systems.
-
-OWL, RDF, RuleML — logical frameworks.
-
-### Database query languages
-
-Relational algebra is logic. SQL is practically logic-based.
-
-## Curry-Howard correspondence
-
-Profound connection: types in programming languages correspond to propositions in logic.
-
-- Type A → B corresponds to proposition A → B
-- A program of type A → B is a proof that A implies B
-- Termination corresponds to proof correctness
-
-This connection underlies modern type-theoretic theorem provers.
-
-## Modal logic variants
-
-### Deontic logic
-
-Obligation, permission, prohibition. Used in legal/ethical reasoning.
-
-### Doxastic / epistemic logic
-
-Belief and knowledge. Used in AI and game theory.
-
-### Dynamic logic
-
-Reasoning about programs as actions. Hoare logic is related.
-
-### Linear logic
-
-Resources and consumption. Used in some programming language theory.
-
-## Specific theorems and results
-
-### Compactness
-
-A first-order theory is satisfiable iff every finite subset is satisfiable.
-
-### Löwenheim-Skolem
-
-A satisfiable first-order theory has a countable model.
-
-These results constrain what first-order logic can express.
-
-### Cut elimination
-
-Proofs can be normalized to cut-free form. Enables decidability and complexity results.
-
-### Soundness of first-order logic
-
-Provable formulas are valid. Verified by Gödel.
-
-## Common failure patterns
-
-### Confusing levels of logic
-
-Propositional, first-order, higher-order, modal — different levels with different properties.
-
-### Treating provability as truth
-
-In Gödel-incomplete systems, truth ≠ provability.
-
-### Naive expressiveness assumptions
-
-Some statements look first-order but require higher-order or modal.
-
-### Ignoring decidability
-
-Some logics are undecidable; algorithms may not terminate.
-
-### Mistaking notation for understanding
-
-Symbolic notation is precise; understanding what the symbols mean is the harder work.
+This implies that **Truth** is a larger concept than **Provability**. Logic is a powerful map, but it can never be the entire territory.
 
 ## Further Reading
-
-- [PropositionalLogic](PropositionalLogic) — Foundations
-- [PredicateLogic](PredicateLogic) — First-order logic
-- [ModalLogic](ModalLogic) — Necessity and possibility
-- [TemporalLogic](TemporalLogic) — Time-based modal logic
-- [SetTheoryLogic](SetTheoryLogic) — Foundational set theory
-- [Mathematics Hub](MathematicsHub) — Cluster index
+- [PropositionalLogic](PropositionalLogic) — The atomic foundation.
+- [PredicateLogic](PredicateLogic) — The logic of quantifiers.
+- [ModalLogic](ModalLogic) — Necessity, knowledge, and belief.
+- [TemporalLogic](TemporalLogic) — Reasoning across time.
+- [MathematicsHub](MathematicsHub) — Central index for mathematical theory.

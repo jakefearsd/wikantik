@@ -21,241 +21,88 @@ related:
 hubs:
 - MathematicsHub
 ---
-# Propositional Logic
 
-Propositional logic is the foundation of formal reasoning. Statements (propositions) combine via logical connectives; truth values follow rigorous rules. From this simple base, much of mathematics, computer science, and digital circuits is built.
+# Propositional Logic: The Architecture of Binary Reasoning
 
-This page covers the practical understanding.
+Propositional logic (also known as sentential logic) is the study of statements that can be either true or false. While it lacks the fine-grained quantification of [Predicate Logic](PredicateLogic), its simplicity makes it the perfect engine for computation, digital hardware, and automated constraint solving.
 
-## Propositions
+## 1. Spatial and Geometric Intuition
 
-A proposition is a statement that's true or false:
+We often view propositional logic as a series of "truth tables," but its structure is fundamentally geometric and topological.
 
-- "It is raining"
-- "2 + 2 = 4"
-- "Socrates is mortal"
+### 1.1 The Boolean Hypercube
+The state space of a system with $n$ variables is a **Hypercube** in $n$-dimensional space.
+- **Variables as Dimensions:** Each proposition (e.g., $P, Q, R$) represents an independent axis.
+- **Valuations as Vertices:** A specific assignment (e.g., $P=T, Q=F$) is a single vertex on the cube.
+- **Edges as Atomic Flips:** Moving along an edge corresponds to changing exactly one variable (a Hamming distance of 1).
+- **Propositions as Volumes:** A formula like $P \land Q$ represents a specific **sub-face** or region of the hypercube.
 
-Symbolized by letters: P, Q, R, ...
+### 1.2 Hasse Diagrams and Lattice Theory
+Spatially, the relationships between all possible logical formulas form a **Distributive Lattice**.
+- **Verticality as Implication:** In a Hasse diagram, we place $1$ (Absolute Truth) at the top and $0$ (Absolute Falsehood) at the bottom.
+- **Logical AND ($\land$):** The "Meet" operation—the highest node that is "below" both inputs.
+- **Logical OR ($\lor$):** The "Join" operation—the lowest node that is "above" both inputs.
 
-## Connectives
+## 2. Quantitative Foundations: The $2^n$ Barrier
 
-Build complex statements from simple ones:
+The central challenge of propositional logic is the exponential explosion of its state space.
 
-- **NOT (¬P)**: P is false
-- **AND (P ∧ Q)**: both P and Q are true
-- **OR (P ∨ Q)**: at least one of P, Q is true
-- **IMPLIES (P → Q)**: if P then Q
-- **IFF (P ↔ Q)**: P if and only if Q (P and Q have the same truth value)
-- **XOR (P ⊕ Q)**: exactly one of P, Q is true
+### 2.1 Complexity Classes
+| Problem | Goal | Complexity |
+| :--- | :--- | :--- |
+| **SAT (Satisfiability)** | Is there *any* row in the truth table that is True? | **NP-complete** |
+| **TAUT (Tautology)** | Is *every* row in the truth table True? | **co-NP-complete** |
+| **Truth Degree** | What ratio ($\tau$) of rows are True? | **#P-complete** |
+| **Model Counting** | How many rows are True? | **#P-complete** |
 
-## Truth tables
+### 2.2 The Cook-Levin Theorem
+The proof that SAT is **NP-complete** was a watershed moment in computer science. It implies that if we can solve propositional satisfiability efficiently, we can solve thousands of other hard problems (like protein folding or traveling salesman) efficiently.
 
-Show truth values of compound statements for all combinations of inputs.
+## 3. Real-World Applications
 
-For P ∧ Q:
+### 3.1 SAT Solvers: The Industrial Workhorse
+Despite being NP-complete, modern **SAT Solvers** (using Conflict-Driven Clause Learning) can handle formulas with millions of variables.
+- **Package Management:** Tools like `conda` or `apt` use SAT solvers to resolve version dependencies.
+- **Bounded Model Checking:** Verifying software by "unrolling" code loops into a massive Boolean formula and checking for violations of safety properties.
 
-| P | Q | P ∧ Q |
-|---|---|-------|
-| T | T | T |
-| T | F | F |
-| F | T | F |
-| F | F | F |
+### 3.2 Digital Circuit Design
+Computers are physical implementations of propositional logic gates.
+- **Logic Gates:** Transistors serve as physical realizations of AND, OR, and NOT.
+- **FPGA Synthesis:** The process of mapping code (Verilog/VHDL) onto hardware is essentially a massive logic-minimization problem.
+- **Karnaugh Maps:** A visualization tool that treats the truth table as a **Toroidal Surface** to find the simplest possible circuit by grouping adjacent "True" cells.
 
-For P → Q:
+### 3.3 Constraint Satisfaction (CSP)
+Logic allows us to solve complex puzzles and scheduling problems.
+- **Example: Sudoku:** A Sudoku puzzle can be encoded as a propositional formula where each cell/value pair is a variable. The rules (no duplicates in rows/cols) become a set of $CNF$ (Conjunctive Normal Form) clauses.
 
-| P | Q | P → Q |
-|---|---|-------|
-| T | T | T |
-| T | F | F |
-| F | T | T |
-| F | F | T |
+## 4. Normal Forms and Canonical Representation
 
-(P → Q is "vacuously true" when P is false.)
+To process logic computationally, we use standardized formats:
 
-## Tautologies, contradictions, contingencies
+### 4.1 Conjunctive Normal Form (CNF)
+A "product of sums" (e.g., $(P \lor \neg Q) \land (R)$). This is the input format for almost all modern SAT solvers.
 
-- **Tautology**: always true (e.g., P ∨ ¬P)
-- **Contradiction**: always false (e.g., P ∧ ¬P)
-- **Contingency**: sometimes true, sometimes false (e.g., P)
+### 4.2 Binary Decision Diagrams (BDDs)
+A graph-based representation that can represent complex Boolean functions compactly. BDDs allow for **Constant Time** equivalence checking if the variable ordering is fixed.
 
-## Logical equivalence
+## 5. Formal Deductive Rules
 
-Two formulas are equivalent if they have the same truth values for all assignments.
+Classical reasoning is governed by the **Calculus of Sequents**:
 
-Important equivalences:
+- **Modus Ponens:** $\{ P, P \to Q \} \vdash Q$
+- **De Morgan’s Laws:** 
+    - $\neg(P \land Q) \iff \neg P \lor \neg Q$
+    - $\neg(P \lor Q) \iff \neg P \land \neg Q$
+- **Law of Excluded Middle:** $P \lor \neg P$ (Fundamental to classical, rejected by intuitionistic logic).
 
-### De Morgan's laws
+## 6. Common Misconceptions
 
-- ¬(P ∧ Q) ↔ (¬P ∨ ¬Q)
-- ¬(P ∨ Q) ↔ (¬P ∧ ¬Q)
-
-### Distribution
-
-- P ∧ (Q ∨ R) ↔ (P ∧ Q) ∨ (P ∧ R)
-- P ∨ (Q ∧ R) ↔ (P ∨ Q) ∧ (P ∨ R)
-
-### Implication
-
-- (P → Q) ↔ (¬P ∨ Q)
-- (P → Q) ↔ (¬Q → ¬P) (contrapositive)
-
-### Double negation
-
-- ¬¬P ↔ P
-
-## Inference rules
-
-Patterns of valid reasoning:
-
-### Modus ponens
-
-P, P → Q ⊢ Q
-
-If P and "P implies Q" are true, then Q is true.
-
-### Modus tollens
-
-P → Q, ¬Q ⊢ ¬P
-
-If "P implies Q" and Q is false, then P is false.
-
-### Hypothetical syllogism
-
-P → Q, Q → R ⊢ P → R
-
-Implication is transitive.
-
-### Disjunctive syllogism
-
-P ∨ Q, ¬P ⊢ Q
-
-If "P or Q" and not P, then Q.
-
-## Normal forms
-
-Canonical ways to write formulas.
-
-### Disjunctive normal form (DNF)
-
-Disjunction of conjunctions:
-(A ∧ ¬B) ∨ (¬A ∧ B) ∨ (¬A ∧ ¬B)
-
-Easy to evaluate; can be huge.
-
-### Conjunctive normal form (CNF)
-
-Conjunction of disjunctions:
-(A ∨ B) ∧ (¬A ∨ ¬B)
-
-Standard form for SAT solvers.
-
-Every formula has a CNF and a DNF (possibly with exponential blow-up).
-
-## Satisfiability (SAT)
-
-Is there an assignment of truth values that makes a formula true?
-
-The SAT problem is NP-complete (Cook-Levin theorem). One of the most-studied problems in computer science.
-
-Modern SAT solvers can handle millions of variables in many real problems despite worst-case exponentiality.
-
-Applications:
-- Circuit verification
-- Hardware design
-- Software testing
-- Constraint satisfaction
-- Cryptography
-
-## Boolean algebra
-
-Algebraic structure with operations like AND, OR, NOT.
-
-Equivalent to propositional logic but algebraic notation.
-
-Boolean variables: 0 (false) and 1 (true).
-- a · b = a AND b
-- a + b = a OR b
-- ā = NOT a
-
-Used in digital circuit design and Boolean optimization.
-
-## Digital circuits
-
-Logical gates implement Boolean functions in hardware:
-- NOT gate
-- AND gate
-- OR gate
-- NAND, NOR (universal gates)
-- XOR
-
-Combinations of gates make complex circuits — adders, multiplexers, CPUs.
-
-Boolean simplification reduces gate count, saving silicon area.
-
-## Decidability
-
-Propositional logic is decidable. Truth-table evaluation always terminates.
-
-But: it can be expensive. With n variables, the truth table has 2^n rows. For 100 variables, that's astronomical.
-
-SAT-solving heuristics work better than brute force in practice.
-
-## Applications in CS
-
-### Verification
-
-Specifying program properties as propositional formulas; verifying.
-
-### Type systems
-
-Type checking can be encoded as logic problems.
-
-### Database queries
-
-Boolean queries over indexed data.
-
-### Circuit minimization
-
-Karnaugh maps, Quine-McCluskey algorithm reduce Boolean expressions.
-
-### Symbolic execution
-
-Programs as logical formulas; SAT solvers explore execution paths.
-
-### Constraint solving
-
-Many constraint problems reduce to SAT.
-
-## Limitations
-
-### Expressiveness
-
-Propositional logic can't express:
-- "All humans are mortal"
-- "There exists a number greater than 5"
-
-These require quantifiers — predicate logic. See [PredicateLogic](PredicateLogic).
-
-### Modality
-
-Can't express necessity, possibility, time, knowledge. See [ModalLogic](ModalLogic).
-
-### Finite scope
-
-Each proposition is atomic. To reason about "P about person X," you'd need separate propositions for each X — combinatorial explosion.
-
-## Common failure patterns
-
-- **Confusing implication direction.** P → Q is not the same as Q → P.
-- **Forgetting "vacuously true" implications.** P → Q is true when P is false, regardless of Q.
-- **Mixing English and formal logic.** Natural language is often ambiguous; formal logic forces precision.
-- **Truth-table explosion.** Tractable for small n; intractable for large.
-- **Confusing satisfiability with validity.** Different concepts.
+1. **"SAT is impossible because it's NP-complete":** While true in the worst case, real-world problems often have "hidden structure" that solvers can exploit.
+2. **Implication as Causality:** In logic, $P \to Q$ is true if $P$ is false, regardless of whether $P$ "causes" $Q$. This is known as **Vacuous Truth**.
+3. **Truth Tables as the Only Tool:** Truth tables are for humans; for machines, we use resolution, tableaux, or local search.
 
 ## Further Reading
-
-- [PredicateLogic](PredicateLogic) — Adding quantifiers
-- [SymbolicLogic](SymbolicLogic) — Broader logic context
-- [ModalLogic](ModalLogic) — Logic of necessity/possibility
-- [SetTheoryLogic](SetTheoryLogic) — Foundational set theory
-- [Mathematics Hub](MathematicsHub) — Cluster index
+- [PredicateLogic](PredicateLogic) — Extending logic with quantifiers.
+- [SymbolicLogic](SymbolicLogic) — The broader formal landscape.
+- [ModalLogic](ModalLogic) — Logic of necessity and possibility.
+- [MathematicsHub](MathematicsHub) — Central index for mathematical theory.

@@ -6,6 +6,16 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-09** — admin-ui: fix Machine-rejected filter to actually load the rejected set
+
+**2026-05-09** — admin-ui: timestamp on each judge-rationale line
+
+**2026-05-09** — kg-judge: branch system prompt by proposal type + pre-flight validator
+
+**2026-05-09** — admin-ui: typed proposal Details + clickable Machine reasoning
+
+**2026-05-09** — content: wiki-page maintenance — frontmatter cleanup + News log + 2 new pages
+
 **2026-05-09** — admin-ui: drop duplicate AdminTable CSS
 
 **2026-05-09** — admin-ui: widen admin layout + allow cell wrap

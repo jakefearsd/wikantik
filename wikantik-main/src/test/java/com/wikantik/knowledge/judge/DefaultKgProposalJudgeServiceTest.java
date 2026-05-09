@@ -220,6 +220,42 @@ class DefaultKgProposalJudgeServiceTest {
         assertTrue( result.get().contains( "new-cluster" ) );
     }
 
+    @Test
+    void validate_flags_null_proposal_type() {
+        final var p = new KgProposal(
+            UUID.randomUUID(), null, "PageA",
+            Map.of(), 0.7, "reason",
+            "pending", null, Instant.now(), null,
+            "none", null, null, null, null );
+        final var result = DefaultKgProposalJudgeService.validateProposalForJudgment( p );
+        assertTrue( result.isPresent() );
+        assertTrue( result.get().contains( "proposal_type" ), result.get() );
+        assertTrue( result.get().startsWith( "missing_data:" ), result.get() );
+    }
+
+    @Test
+    void validate_flags_blank_proposal_type() {
+        final var p = new KgProposal(
+            UUID.randomUUID(), "   ", "PageA",
+            Map.of(), 0.7, "reason",
+            "pending", null, Instant.now(), null,
+            "none", null, null, null, null );
+        final var result = DefaultKgProposalJudgeService.validateProposalForJudgment( p );
+        assertTrue( result.isPresent() );
+        assertTrue( result.get().contains( "proposal_type" ), result.get() );
+    }
+
+    @Test
+    void systemPromptFor_throwsForUnsupportedTypeBypassingValidator() {
+        // Defensive guard — the call is unreachable in production because
+        // validateProposalForJudgment short-circuits unsupported types before
+        // judge() reaches systemPromptFor. Test confirms the guard fires
+        // rather than silently selecting the wrong prompt if a future caller
+        // bypasses validation.
+        assertThrows( IllegalStateException.class,
+            () -> DefaultKgProposalJudgeService.systemPromptFor( "bogus-type" ) );
+    }
+
     // ---------------------------------------------------------------------
     // judge() short-circuits BEFORE making an HTTP call when validation fails.
     // ---------------------------------------------------------------------

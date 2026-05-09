@@ -2,20 +2,24 @@
 #
 # bin/redeploy.sh — fast routine redeploy of the bare-metal Tomcat install.
 #
-# Use this for "edit code, see it running" iteration — it skips the heavier
-# work deploy-local.sh does (template materialisation, Tomcat upgrade snapshot
-# logic, secrets validation) and just:
-#   1. shuts down Tomcat (if running)
+# Use this for "edit code, see it running" iteration. It does:
+#   1. shuts down Tomcat (if running) and waits for port 8080 to release
 #   2. rotates catalina.out so the next run's log starts clean
 #   3. swaps the deployed WAR
-#   4. starts Tomcat
+#   4. runs bin/db/migrate.sh against the database named in ROOT.xml
+#      (idempotent — only applies pending V*.sql; uses PGUSER=migrate
+#      with .pgpass-stored credentials, matching deploy-local.sh's flow)
+#   5. starts Tomcat
+#
+# Skipped (handled by deploy-local.sh): template materialisation, Tomcat
+# upgrade snapshot logic, secrets validation, dev-user seeding.
 #
 # Builds are NOT run — assume the operator has already produced
 # wikantik-war/target/Wikantik.war via `mvn ... package`. That separation is
 # deliberate: a typo at the build step shouldn't leave Tomcat half-stopped.
 #
-# For first-time setup, Tomcat upgrades, or anything that touches templates
-# or DB migrations, run bin/deploy-local.sh instead.
+# For first-time setup, Tomcat upgrades, or anything that touches templates,
+# secrets, or seed users, run bin/deploy-local.sh instead.
 
 set -euo pipefail
 
@@ -29,6 +33,7 @@ esac
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOMCAT_DIR="${REPO_ROOT}/tomcat/tomcat-11"
 WAR_SOURCE="${REPO_ROOT}/wikantik-war/target/Wikantik.war"
+CONTEXT_XML="${TOMCAT_DIR}/conf/Catalina/localhost/ROOT.xml"
 
 if [[ ! -d "${TOMCAT_DIR}" ]]; then
     echo "ERROR: ${TOMCAT_DIR} does not exist." >&2
@@ -46,7 +51,27 @@ fi
 if [[ -f "${TOMCAT_DIR}/bin/shutdown.sh" ]]; then
     echo "Stopping Tomcat..."
     "${TOMCAT_DIR}/bin/shutdown.sh" 2>/dev/null || true
-    sleep 1
+
+    # Wait for port 8080 to actually release. shutdown.sh returns immediately
+    # but the JVM holds the listener for several seconds; starting a new
+    # instance into a still-bound port leaves Tomcat running but unable to
+    # serve requests (silent failure mode that bit us in real life).
+    echo -n "Waiting for port 8080 to release"
+    for _ in $(seq 1 30); do
+        if ! ss -tlnp 2>/dev/null | grep -q ':8080 '; then
+            echo " released."
+            break
+        fi
+        echo -n "."
+        sleep 1
+    done
+    if ss -tlnp 2>/dev/null | grep -q ':8080 '; then
+        echo
+        echo "ERROR: port 8080 still bound after 30s — old Tomcat process didn't exit." >&2
+        echo "       Identify and kill it manually:" >&2
+        echo "         pgrep -af 'org.apache.catalina.startup.Bootstrap'" >&2
+        exit 1
+    fi
 fi
 
 # Rotate catalina.out — bypass aliases / -i prompts.
@@ -63,6 +88,21 @@ if [[ -d "${TOMCAT_DIR}/webapps/ROOT" ]]; then
 fi
 cp "${WAR_SOURCE}" "${TOMCAT_DIR}/webapps/ROOT.war"
 echo "WAR redeployed."
+
+# Apply pending migrations. Idempotent — no-op when there are none. We
+# discover the database name from the rendered ROOT.xml so we never drift
+# from whatever .env the operator deployed against.
+MIGRATE_SH="${REPO_ROOT}/bin/db/migrate.sh"
+if [[ -f "${MIGRATE_SH}" && -f "${CONTEXT_XML}" ]]; then
+    WIKI_DB=$(grep -oE 'jdbc:postgresql://[^/]+/[^"?]+' "${CONTEXT_XML}" \
+                | head -1 | sed 's|.*postgresql://[^/]*/||')
+    WIKI_DB="${WIKI_DB:-wikantik}"
+    echo "Applying any pending migrations to ${WIKI_DB}..."
+    DB_NAME="${WIKI_DB}" PGUSER=migrate "${MIGRATE_SH}" || {
+        echo "ERROR: migrate.sh failed — Tomcat NOT started. Investigate the migration error then re-run." >&2
+        exit 1
+    }
+fi
 
 # Startup
 "${TOMCAT_DIR}/bin/startup.sh"

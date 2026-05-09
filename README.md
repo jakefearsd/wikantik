@@ -352,7 +352,8 @@ procedure, and the full container guide.
 
 ## Documentation
 
-For a chronological view of what's shipped see [CHANGELOG.md](CHANGELOG.md).
+For a chronological view of what's shipped see [CHANGELOG.md](CHANGELOG.md);
+for what's coming next see [ROADMAP.md](ROADMAP.md).
 Migrating from a previous Wikantik install? See
 [migration-1.0-to-1.1.md](docs/migration-1.0-to-1.1.md).
 

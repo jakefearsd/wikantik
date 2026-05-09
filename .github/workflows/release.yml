@@ -1,0 +1,116 @@
+name: Release
+
+# Fires when a tag matching v*.*.* is pushed. Builds the WAR + the
+# multi-stage Docker image, publishes the image to GHCR with the tag
+# version (e.g. ghcr.io/jakefearsd/wikantik:1.0.0 + :latest), and
+# creates a GitHub Release with the WAR attached.
+#
+# To cut a release:
+#   1. mvn versions:set -DnewVersion=1.0.0 -DgenerateBackupPoms=false
+#   2. Update CHANGELOG.md: rename [Unreleased] -> [1.0.0] - YYYY-MM-DD
+#      and start a fresh empty [Unreleased] above it.
+#   3. git commit -am "release: 1.0.0"
+#   4. git tag v1.0.0 && git push origin main v1.0.0
+#   5. After the workflow goes green, bump main back to 1.0.1-SNAPSHOT.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write    # create the GitHub Release
+  packages: write    # push to ghcr.io
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          # v1.0.0 -> 1.0.0
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build WAR (skip tests — we test on every push to main)
+        run: mvn clean package -Dmaven.test.skip -T 1C -B
+
+      - name: Locate WAR
+        id: war
+        run: |
+          war_path=$(ls wikantik-war/target/Wikantik.war)
+          echo "path=${war_path}" >> "$GITHUB_OUTPUT"
+          echo "name=Wikantik-${{ steps.version.outputs.version }}.war" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU (for multi-arch image)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build + push image to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/wikantik:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/wikantik:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          # Pull lines from "## [VERSION]" to the next "## [" header.
+          version="${{ steps.version.outputs.version }}"
+          awk -v v="${version}" '
+              $0 ~ "^## \\[" v "\\]" { capture = 1; next }
+              capture && /^## \[/      { exit }
+              capture                  { print }
+          ' CHANGELOG.md > release-notes.md
+          if [[ ! -s release-notes.md ]]; then
+              echo "No CHANGELOG section found for ${version} — using a fallback note." >&2
+              cat > release-notes.md <<EOF
+          See [CHANGELOG.md](CHANGELOG.md) for details.
+
+          Container image: \`ghcr.io/${{ github.repository_owner }}/wikantik:${version}\`
+          EOF
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Wikantik ${{ steps.version.outputs.version }}
+          body_path: release-notes.md
+          files: |
+            ${{ steps.war.outputs.path }}
+          fail_on_unmatched_files: true
+          # Pre-1.0 tags are flagged as prerelease automatically:
+          prerelease: ${{ startsWith(steps.version.outputs.version, '0.') }}

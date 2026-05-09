@@ -7,15 +7,19 @@ tags:
 - data-warehousing
 - dimensional-modeling
 - star-schema
-- business-intelligence
-- etl
-summary: Technical guide to dimensional modeling for data warehousing, covering fact tables, dimensions, and slowly changing dimensions.
+- obt
+- snowflake
+- bigquery
+summary: Technical guide to dimensional modeling, contrasting the traditional Kimball Star Schema with modern OBT (One Big Table) patterns in columnar warehouses like Snowflake and BigQuery.
 auto-generated: false
+date: 2025-05-15
 ---
 
-# Dimensional Modeling
+# Dimensional Modeling: From Star Schema to OBT
 
-Dimensional modeling is a design technique for data warehouses intended to optimize query performance and usability for business intelligence. It organizes data into two primary table types: Fact tables and Dimension tables.
+Dimensional modeling is a design technique for data warehouses intended to optimize query performance and usability for business intelligence. While the traditional Kimball Star Schema remains foundational, the rise of modern columnar warehouses like Snowflake and BigQuery has popularized a different pattern: **One Big Table (OBT)**.
+
+---
 
 ## 1. The Fact Table
 
@@ -30,7 +34,9 @@ The grain is the fundamental definition of what a single row in the fact table r
 *   **Accumulating Snapshot Fact Tables:** Track the progress of a process with defined milestones (e.g., an order fulfillment lifecycle from submission to delivery).
 
 ### 1.3 Measures and Keys
-Fact tables consist of foreign keys that link to dimension tables and numeric measures. Measures are usually additive (can be summed across all dimensions), semi-additive (can be summed across some dimensions but not others, like account balances over time), or non-additive (ratios).
+Fact tables consist of foreign keys that link to dimension tables and numeric measures. Measures are usually additive (can be summed across all dimensions), semi-additive (can be summed across some dimensions but not others), or non-additive (ratios).
+
+---
 
 ## 2. Dimension Tables
 
@@ -42,36 +48,75 @@ A surrogate key is an internally generated, unique identifier (usually an intege
 ### 2.2 Hierarchies
 Dimensions often contain hierarchies, such as a Product dimension with Category and Sub-category levels, or a Date dimension with Year, Quarter, and Month levels.
 
+---
+
 ## 3. Slowly Changing Dimensions (SCD)
 
 SCD techniques manage how the warehouse handles changes to dimension attributes over time.
 
 *   **SCD Type 1 (Overwrite):** The new value overwrites the old value. No history is maintained.
-*   **SCD Type 2 (Add New Row):** A new record is created with a new surrogate key. This is the most common method for maintaining full historical accuracy. It requires `start_date`, `end_date`, and `current_flag` columns.
-*   **SCD Type 3 (Add New Column):** The old value is moved to a "previous" column, and the new value is stored in the primary column. Only the current and immediate previous states are tracked.
-*   **SCD Type 4 (History Table):** The dimension table stores only current values (Type 1), while all historical changes are moved to a separate history table.
+*   **SCD Type 2 (Add New Row):** A new record is created with a new surrogate key. This is the most common method for maintaining full historical accuracy.
+*   **SCD Type 3 (Add New Column):** Only the current and immediate previous states are tracked.
+*   **SCD Type 4 (History Table):** Current values in the main table, all historical changes in a separate table.
 
-## 4. Schema Geometry
+---
 
-### 4.1 Star Schema
-In a star schema, the fact table is surrounded by a single layer of dimension tables. This design minimizes joins and is highly efficient for columnar databases and OLAP engines.
+## 4. Schema Geometry: Star Schema vs. OBT
 
-### 4.2 Snowflake Schema
-A snowflake schema normalizes dimensions into multiple related tables (e.g., splitting a Product dimension into Product and Category tables). While this reduces data redundancy, it increases query complexity and the number of joins required.
+The architecture of your model depends heavily on the underlying database engine and the consumption patterns of your users.
+
+### 4.1 Star Schema (The Kimball Classic)
+In a star schema, the fact table is surrounded by a single layer of dimension tables.
+*   **Advantages:** 
+    *   **Storage Efficiency:** Data is normalized (mostly), reducing redundancy.
+    *   **Logical Clarity:** Easy for business users to understand the relationship between facts and dimensions.
+    *   **Flexibility:** Dimensions can be reused (conformed) across multiple fact tables.
+*   **Constraint:** Requires joins at query time. In legacy row-based databases, this was the optimal balance.
+
+### 4.2 One Big Table (OBT) / Wide Tables
+OBT is a fully denormalized model where every dimension attribute is flattened directly into the fact table.
+*   **The Columnar Revolution:** Modern warehouses (Snowflake, BigQuery, ClickHouse) are **columnar**. They store each column separately and use aggressive compression (Run-Length Encoding, Dictionary Encoding).
+*   **Advantages:**
+    *   **Maximum Performance:** No joins means no shuffle or broadcast operations during query execution. Data is simply scanned and aggregated.
+    *   **User Simplicity:** End-users (or BI tools) query a single table without needing to understand complex join logic.
+    *   **Storage Paradox:** While OBT has massive redundancy (e.g., repeating the "Customer Region" string millions of times), columnar compression makes the storage footprint almost identical to a Star Schema.
+*   **Disadvantages:**
+    *   **Update Complexity:** Updating a single dimension attribute (e.g., changing a Category name) requires rewriting or updating the entire OBT, which can be computationally expensive.
+    *   **Lack of Conformation:** It is harder to ensure that "Product Name" is identical across three different OBTs compared to a single conformed dimension table.
+
+### 4.3 Summary Comparison
+
+| Feature | Star Schema | One Big Table (OBT) |
+| :--- | :--- | :--- |
+| **Normalization** | Partially Normalized | Fully Denormalized |
+| **Join Cost** | High (Shuffle/Broadcast) | Zero |
+| **Storage Usage** | Low | High (Mitigated by Columnar Compression) |
+| **Maintenance** | Easy (Update Dim Table) | Hard (Full Table Re-materialization) |
+| **Best Engine** | Traditional RDBMS (Postgres, Oracle) | Columnar Warehouses (Snowflake, BQ) |
+
+---
 
 ## 5. Advanced Patterns
 
 ### 5.1 Junk Dimensions
-A junk dimension consolidates disparate, low-cardinality attributes like flags and status codes into a single table. This prevents the fact table from being cluttered with numerous foreign keys for minor indicators.
+Consolidates disparate, low-cardinality attributes like flags and status codes into a single table.
 
 ### 5.2 Bridge Tables
-Bridge tables are used to handle many-to-many relationships, such as a single bank account having multiple owners or a student being enrolled in multiple courses simultaneously.
+Used to handle many-to-many relationships.
 
 ### 5.3 Fact Constellation
-A fact constellation (or galaxy schema) consists of multiple fact tables sharing common dimension tables. This allows for cross-functional analysis (e.g., comparing Sales facts and Inventory facts using the same Date and Product dimensions).
+Multiple fact tables sharing common dimension tables.
+
+---
 
 ## 6. Implementation Considerations
 
-*   **Surrogate Key Generation:** Usually handled during the ETL (Extract, Transform, Load) process.
-*   **Null Handling:** Dimension keys in the fact table should never be null. Instead, they should point to a "Not Applicable" or "Unknown" record in the dimension table.
-*   **Indexing:** Fact table foreign keys and dimension table primary keys should be indexed to optimize join performance, particularly in row-based relational databases.
+*   **Surrogate Key Generation:** Usually handled during the ETL process.
+*   **Null Handling:** Dimension keys should never be null; point to "Unknown" records.
+*   **Modern Strategy:** Most modern teams use **dbt (data build tool)** to maintain a normalized Star Schema as their "Core" or "Silver" layer, and then programmatically generate OBT "Gold" views or tables for BI consumption. This provides the best of both worlds: maintainability and performance.
+
+---
+**See Also:**
+- [Data Warehouse Design](DataWarehouseDesign) — Comparative modeling.
+- [Data Lakehouse](DataLakehouse) — Transactional Big Data.
+- [Normalization And Denormalization](NormalizationAndDenormalization) — Performance trade-offs.

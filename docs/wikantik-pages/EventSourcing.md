@@ -1,98 +1,115 @@
 ---
-cluster: distributed-systems
 canonical_id: 01KQ0P44Q8EETGG6ZT7S0BBB1G
 title: Event Sourcing
 type: article
+cluster: distributed-systems
+status: active
+date: '2026-05-15'
 tags:
 - event-sourcing
 - distributed-systems
-- immutability
 - cqrs
-summary: Architectural deep-dive into Event Sourcing (ES), focusing on immutable logs, deterministic state reconstruction, and projection management.
+- persistence-patterns
+- technical-design
+summary: Detailed implementation guide for Event Sourcing, covering aggregate snapshotting, idempotent projection management, and deterministic state reconstruction.
 auto-generated: false
 ---
 
-Event Sourcing (ES) is an architectural pattern where the state of an entity is not stored as a single mutable record, but as a sequence of immutable, append-only facts called **events**.
+# Event Sourcing
 
-## Core Definitions
+Event Sourcing (ES) is a persistence pattern that treats the history of an entity as the primary source of truth. Unlike traditional CRUD (Create, Read, Update, Delete) where the database stores a snapshot of the current state, ES stores an immutable, append-only log of every state change (events).
 
-1.  **Event:** A fact that occurred in the past (e.g., `OrderPlaced`, `InventoryReserved`). Events are immutable and named in the past tense.
-2.  **Event Store:** A specialized database (e.g., EventStoreDB, Kafka) designed for high-throughput appends and ordered retrieval.
-3.  **State Reconstruction:** The process of deriving current state by replaying events: $S_t = F(e_1, e_2, \dots, e_n)$.
-4.  **Projection:** A materialized view of the events optimized for a specific query use case.
+## The State Reconstruction Equation
 
-## Mathematical Model: The Ledger
+Current state $S$ at time $t$ is the deterministic result of folding an initial state $S_0$ over a chronologically ordered sequence of events $E$:
 
-In traditional CRUD, we store $S_t$ (State at time $t$). In ES, we store the history $H = \{e_1, e_2, \dots, e_n\}$. The state is a fold over the history:
+$$S_t = S_0 \oplus e_1 \oplus e_2 \oplus \dots \oplus e_n$$
 
-$$S_t = \text{fold}(\text{InitialState}, H, \text{apply\_event})$$
+In implementation terms, this means the state is a projection of history. This approach provides a perfect audit trail, the ability to time-travel (reconstruct state at any point in history), and simplified concurrency through append-only semantics.
 
-### Determinism and Ordering
-Integrity depends on **total ordering** within an aggregate. In a distributed environment, this is enforced via:
-- **Optimistic Concurrency:** Every append specifies the `ExpectedVersion`. If the version in the store has moved, the write fails (Conflict).
-- **Partitioning:** Routing all events for an entity (e.g., `AccountID`) to the same physical partition (e.g., Kafka Partition).
+## Aggregate Snapshotting
 
-## Implementation Pattern: The Aggregate Root
+As the event stream grows, replaying $N$ events becomes a performance bottleneck ($O(N)$ reconstruction). Snapshotting introduces a performance shortcut.
 
-The Aggregate Root is the consistency boundary. It consumes commands, validates them against current state, and emits events.
+### Snapshot Strategy
+1.  **Frequency:** Typically every 50-100 events, or based on a calculated replay-time budget.
+2.  **Versioning:** Snapshots must include the `sequence_number` of the last event processed.
+3.  **Storage:** Snapshots are often stored in a key-value store or a specialized table in the event store, separate from the primary log.
 
-**Concrete Example (Pseudo-Java):**
+**Reconstruction Logic with Snapshots:**
 ```java
-public class OrderAggregate {
-    private List<Event> uncommittedEvents = new ArrayList<>();
-    private OrderStatus status;
-    private int version;
-
-    // Command Handler
-    public void shipOrder(ShipOrderCommand cmd) {
-        if (this.status != OrderStatus.PAID) {
-            throw new IllegalStateException("Cannot ship unpaid order");
-        }
-        applyNewEvent(new OrderShipped(cmd.orderId, Instant.now()));
+public OrderAggregate load(String aggregateId) {
+    Snapshot<OrderState> snap = snapshotStore.load(aggregateId);
+    OrderAggregate aggregate = new OrderAggregate(snap.getState());
+    
+    // Resume replay from the event immediately following the snapshot
+    List<Event> events = eventStore.readStream(aggregateId, snap.getVersion() + 1);
+    for (Event e : events) {
+        aggregate.apply(e);
     }
+    return aggregate;
+}
+```
 
-    // State Application (Pure Function)
-    private void apply(Event event) {
-        if (event instanceof OrderShipped) {
-            this.status = OrderStatus.SHIPPED;
+## Read-Model Projections
+
+Projections (Materialized Views) transform the raw event stream into a format optimized for specific query patterns. This is the "Query" side of CQRS.
+
+### Idempotency and At-Least-Once Delivery
+Most event brokers (Kafka, RabbitMQ) guarantee **at-least-once** delivery. Projection handlers must be idempotent to prevent data corruption during retries.
+
+**Implementation Patterns for Idempotent Projections:**
+-   **Database-level Deduplication:** Use the `event_id` or `sequence_number` as a unique constraint in the read-model table.
+-   **Sequence Tracking:** Store the `last_processed_sequence` alongside the read model in the same transaction.
+
+```sql
+-- PostgreSQL Atomic Projection Update
+BEGIN;
+  UPDATE user_account_summary 
+  SET balance = balance + :amount, last_event_id = :event_id
+  WHERE user_id = :user_id AND last_event_id < :event_id;
+COMMIT;
+```
+
+### Projection Replays
+When projection logic changes (e.g., adding a new field or fixing a calculation bug), the read model is "replayed":
+1.  **Shadow Table:** Create a new projection table.
+2.  **Pointer Reset:** Point a new consumer group to the beginning of the event stream.
+3.  **Hydration:** Process events into the shadow table.
+4.  **Cutover:** Atomically swap the query traffic to the new table once the consumer catch-up latency is near zero.
+
+## Event Upcasting: Handling Schema Evolution
+
+Events are immutable, but code is not. If an event schema changes (e.g., `OrderPlaced` gains a `currency` field), you cannot rewrite the history.
+
+**Upcasting Strategies:**
+-   **Lazy Upcasting:** The event store returns the raw JSON; a middleware component transforms it to the current class version before it reaches the Aggregate.
+-   **In-Place Transformation:** The transformation happens within the Aggregate's `apply` method (often leads to "pollution" of the domain model).
+-   **Eager Upcasting (Background):** A background process migrates events to a new stream or version (risky, breaks strict immutability).
+
+**Upcaster Example:**
+```java
+public class OrderPlacedUpcaster implements Upcaster {
+    public JsonNode upcast(JsonNode eventJson) {
+        if (!eventJson.has("currency")) {
+            ((ObjectNode) eventJson).put("currency", "USD"); // Default for legacy events
         }
-        this.version++;
-    }
-
-    private void applyNewEvent(Event event) {
-        apply(event);
-        uncommittedEvents.add(event);
+        return eventJson;
     }
 }
 ```
 
-## Scaling with Snapshots
+## Determinism and Side Effects
 
-Replaying 100,000 events to find a current balance is $O(N)$. **Snapshotting** provides a shortcut. A snapshot $S_{snap}$ is stored every $K$ events. The reconstruction becomes:
-$$S_t = \text{apply}(\text{load}(S_{snap}), \{e_j \mid j > \text{snapshot\_index}\})$$
+**Crucial Rule:** The `apply(Event e)` method in an Aggregate must be a **pure function**. 
+-   ❌ Never call an external API (e.g., Payment Gateway) inside `apply`.
+-   ❌ Never use `Instant.now()` or random numbers inside `apply`.
+-   ✅ Perform side effects in the **Command Handler** before emitting the event, or in an **External Reactor/Saga** after the event is persisted.
 
-## Projections and CQRS
-
-Event Sourcing is almost always paired with **CQRS (Command Query Responsibility Segregation)**. 
-
-| Layer | Responsibility | Persistence |
-|---|---|---|
-| **Command (Write)** | Validation, Consistency, Append fact | Event Store (Append-only) |
-| **Query (Read)** | High-performance lookup, Full-text search | PostgreSQL, Elasticsearch, Redis |
-
-### Projection Divergence and Rebuilds
-Projections are eventually consistent. If the projection logic changes (e.g., a new "Total Discount" field is needed), the projection is **rebuilt**:
-1. Create a new, empty read table.
-2. Replay all events from the event store into the new projection logic.
-3. Once caught up, swap the query traffic to the new table.
-
-## Operational Risks
-
-1. **Schema Evolution:** If `OrderPlaced` V1 is in the log but the code expects V2, you must use **Upcasters**—middleware that transforms V1 JSON to V2 before the aggregate sees it.
-2. **Eventual Consistency:** Users may not see their own changes immediately. Mitigation: Use "Read-Your-Own-Writes" tokens or block on the projection catch-up.
-3. **Data Volume:** Logs grow forever. Use **Compaction** or cold-storage archiving for old streams.
+Failure to follow this rule makes state reconstruction non-deterministic, rendering the event log useless for recovery.
 
 ## Further Reading
 - [CqrsPattern](CqrsPattern)
-- [EventualConsistency](EventualConsistency)
 - [OutboxPattern](OutboxPattern)
+- [EventualConsistency](EventualConsistency)
+- [SagaPattern](SagaPattern)

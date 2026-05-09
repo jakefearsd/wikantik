@@ -4,204 +4,82 @@ title: Federated Knowledge Graphs
 type: article
 cluster: agentic-ai
 status: active
-date: '2026-04-25'
+date: '2026-04-26'
 tags:
-- knowledge-graph
-- federated-data
+- federated-learning
+- data-silos
 - entity-resolution
-- multi-source
-summary: Combining knowledge graphs from multiple sources without merging
-  storage — query federation, entity resolution across sources, and the
-  hard problem of disagreement between sources.
+- distributed-systems
+- knowledge-graph
+summary: Architectural strategies for querying across distributed knowledge silos — resolving entities without centralizing storage and managing multi-source disagreements.
 related:
-- KnowledgeGraphCompletion
-- KnowledgeGraphVsRelationalDatabase
+- KnowledgeGraphsAndGenAIWorkflows
 - EntityResolutionTechniques
-- GraphDatabaseFundamentals
+- SPARQL
+- AgenticWorkflowDesign
 hubs:
 - AgenticAiHub
+auto-generated: false
 ---
+
 # Federated Knowledge Graphs
 
-A federated knowledge graph queries across multiple independent KGs without merging them into a single store. Instead of building one master KG, you query several — each owned by a different team or organisation — and integrate at query time.
+A **Federated Knowledge Graph** allows you to query across multiple, physically distinct knowledge bases as if they were a single graph, without centralizing the data. This is the architectural solution for **Data Silos** — where regulatory, organizational, or technical constraints prevent you from moving everything into one "Master KG."
 
-The pitch is decentralisation: organisations keep ownership of their data; queries combine across sources. The reality is harder than the pitch suggests; entity resolution and disagreement between sources are the load-bearing problems.
+The load-bearing challenges of federation are **Cross-Domain Entity Resolution** and **Query Planning**.
 
-## When federation is worth the cost
+## 1. The Architectural Choice: Virtual vs. Physical Unification
 
-You should consider federation when:
+There are two primary ways to achieve a federated view:
 
-- **Multiple teams own different parts of the data** and you can't move everything into one store (organisational, legal, technical reasons).
-- **Sources have different update cadences** — one is updated daily; another quarterly; merging would require complex sync.
-- **Data sovereignty** — geo-restricted data can't leave its source.
-- **Source-of-truth ambiguity** — different sources are authoritative for different aspects.
+| Strategy | Mechanism | When to use |
+| :--- | :--- | :--- |
+| **Query-Time Federation (Virtual)** | A "Coordinator" decomposes a single query into $N$ sub-queries, executes them against remote sources, and joins the results in memory. | Data sovereignty (data cannot leave the region); high-velocity updates in source systems. |
+| **Pre-computed Unification (Physical)** | An ETL/ELT pipeline periodically pulls data from sources into a centralized "Lakehouse" or Triple Store. | High query volume; complex reasoning tasks that are too slow for remote execution. |
 
-You should not consider federation when:
+**Engineering Recommendation:** Start with **Physical Unification** unless there is a hard legal or scale constraint. Virtual federation is notoriously difficult to optimize and prone to "Cascading Failures" (if one remote source is slow, the entire query times out).
 
-- One team owns all the data — just merge into one KG.
-- Sources change rarely — periodic ETL into a unified KG is simpler.
-- Query patterns are always single-source — federation overhead doesn't pay.
+## 2. The Hard Problem: Cross-Domain Entity Resolution
 
-Federation is operationally heavier than a unified KG. Adopt only when the unified alternative is genuinely worse.
+In a federated graph, `Entity A` in Source 1 and `Entity B` in Source 2 refer to the same person, but they have different IDs (`user_123` vs. `emp_ABC`).
 
-## The hard problem: entity resolution across sources
+### The Federated Mapping Pattern
+You need a central **Identifier Registry** (often implemented as a "SameAs" graph).
+1.  **Ingestion:** When a new entity appears in a source, a "Blocking" service clusters it with existing candidates.
+2.  **Resolution:** An LLM or a rule-based engine confirms the match.
+3.  **Linkage:** A triple is written to the registry: `<Source1:user_123> owl:sameAs <Source2:emp_ABC> .`
+4.  **Querying:** The federated query engine automatically expands the query to include both IDs using the `owl:sameAs` links.
 
-The same entity in different sources rarely has the same identifier. "Anthropic" in one source is `anthropic-01`; in another it's `org-12345`; in a third it's stored only as the string "Anthropic, PBC".
+## 3. Query Planning and "The Join Problem"
 
-Federation requires resolving these to the same logical entity at query time.
+Executing a join across two remote databases (e.g., a SPARQL endpoint in London and a Neo4j instance in New York) is an $O(N \times M)$ operation if done naively.
 
-Approaches:
+### Optimization: Semijoin Reductions
+Instead of pulling all data from both sources, the coordinator:
+1.  Queries Source 1 for the set of IDs that match the filter.
+2.  Sends those IDs to Source 2 as a filter: `SELECT ... WHERE { ?id IN (id1, id2, ...) }`.
+3.  **Result:** Only the relevant overlap is transferred over the network.
 
-### Shared identifier registry
+## 4. Conflict Resolution: When Sources Disagree
 
-A centralised entity registry maps source-specific IDs to canonical IDs:
+In a federation, sources *will* disagree (e.g., Source A says a company was founded in 1999, Source B says 2000).
 
-```
-Canonical: ent-anthropic
-Source A id: anthropic-01
-Source B id: org-12345  
-Source C id: (string match: "Anthropic, PBC")
-```
+### Resolution Strategies
+- **Trust Ranking:** Assign a "Trust Score" to each source for specific predicates. (e.g., "Trust the HR system for name, trust the Finance system for salary").
+- **Provenance-Aware Querying:** Don't pick one. Store both values with metadata (the `graph URI` or `provenance` ID). The LLM or end-user sees both and the source of each.
+- **Consensus Voting:** For high-volume data, use the majority value.
 
-Sources publish to the registry; the registry enforces uniqueness; queries translate via the registry.
+## 5. Standards and Protocols
 
-Works for highly structured data with curatable mappings.
+- **SPARQL Federation (`SERVICE` keyword):** The W3C standard for querying multiple RDF endpoints.
+- **GraphQL Federation (Apollo/Subgraphs):** A popular modern pattern for federating API-based graphs.
+- **Linked Data Fragments (LDF):** A protocol designed to move some of the query processing load from the server to the client, increasing the availability of federated endpoints.
 
-### Probabilistic matching
+## Summary
 
-For entities without explicit cross-source IDs, match on attributes (name, address, founder, etc.) with similarity scoring. Confidence below a threshold = "might be the same"; above = "treat as same."
+Federated Knowledge Graphs are the "final boss" of knowledge engineering. They trade simplicity for **Decentralization**.
 
-Probabilistic matching is fuzzy; can produce false positives (wrong entities merged) and false negatives (same entity treated as different).
+- **Success requires:** A robust `owl:sameAs` mapping layer.
+- **Failure stems from:** Unoptimized query planning and ignoring source provenance.
 
-Fundamental: entity resolution is its own discipline. See [EntityResolutionTechniques]().
-
-### Embedding-based matching
-
-Embed each entity (name + key attributes) into a vector space; nearest-neighbour matching across sources. Works well when sources have descriptive text; fragile when names are ambiguous.
-
-### Hybrid
-
-Most production systems combine: explicit ID mappings where they exist; rule-based matching where attributes match unambiguously; probabilistic / embedding-based fallback.
-
-## Query federation
-
-Three styles:
-
-### Pre-computed unification
-
-Periodically pull from all sources into a unified store. Queries hit only the unified store.
-
-This is "ETL into a master KG." Not really federation; just a unified KG with periodic refresh. Simple operationally; doesn't preserve real-time across sources.
-
-### Query-time federation with a coordinator
-
-A federation engine receives queries; decomposes them per source; queries each source; combines results.
-
-```
-Query: "all Anthropic competitors that produce LLMs"
-
-Coordinator:
-  1. Source A: list Anthropic's competitors.
-  2. Source B: list LLM producers.
-  3. Resolve entities across sources.
-  4. Intersect.
-  5. Return.
-```
-
-Tools: GraphQL Federation (for graph APIs); SPARQL federation (for RDF stores); custom orchestration for property graphs.
-
-Strengths: fresh data; no sync.
-Weaknesses: slow (multiple round-trips); complex (coordinator owns query planning); fragile (any source down breaks queries).
-
-### Hybrid: cache + fall-through
-
-Hot data cached locally (refreshed periodically); cold data fetched live.
-
-Pragmatic approach for most production federations. Cache hits are fast; cache misses fall through to source.
-
-## Disagreement between sources
-
-The hardest federated KG problem: sources disagree.
-
-- Source A says Anthropic was founded in 2021. Source B says 2020.
-- Source A says Dario Amodei is CEO. Source B has him as Chief Scientist.
-- Source A has a relation Source B doesn't. Source B has the inverse.
-
-Resolution strategies:
-
-- **Source ranking.** Trust source A over B for facts about companies; B over A for facts about people. Encode the priorities.
-- **Provenance.** Don't pick one; surface both, with their sources, to the consumer. Let the application decide.
-- **Recency.** Prefer the most recently updated.
-- **Confidence weighting.** Each fact has a confidence; weighted decision.
-
-For agentic / RAG use cases, the "provenance" approach is often cleanest — let the LLM see the conflict and synthesise. For automated decisions, you need a tie-breaking policy.
-
-## Standards: SPARQL, RDF federation
-
-The Semantic Web community spent decades on this. SPARQL has explicit federation:
-
-```sparql
-SELECT ?company ?ceo
-WHERE {
-  ?company rdf:type :Company .
-  SERVICE <https://source-a.example/sparql> {
-    ?company :founded ?date .
-  }
-  SERVICE <https://source-b.example/sparql> {
-    ?company :ceo ?ceo .
-  }
-}
-```
-
-SPARQL federation works for RDF triple stores; less applicable for property graphs (Neo4j-style).
-
-## Practical alternatives to "real" federation
-
-Often, what teams call "federation" is actually one of:
-
-- **API composition** — call a few APIs; merge results in the application. Works for narrow query patterns; doesn't scale to general-purpose queries.
-- **Read-only data lake** — replicate sources into a data lake; query unified. Effectively a unified KG with stale data.
-- **Periodic ETL into central KG** — same as above; more transformation; probably what you actually want.
-
-True query-time federation is rare in production. Most "federated KG" projects evolve into "centralised KG with imports from many sources, refreshed regularly."
-
-## Tools
-
-- **Apache Jena Fuseki** — SPARQL endpoint, supports federation.
-- **Stardog** — graph platform with virtualisation (federation-like access to relational sources).
-- **Anzo** — enterprise graph platform with federation features.
-- **GraphQL Federation (Apollo, others)** — for graph APIs, not necessarily KGs but related shape.
-- **Custom orchestration** — most teams roll their own thin layer over multiple KGs / databases.
-
-The tooling is sparser than the "build your own KG" tooling. Federation is harder; less commodity software exists.
-
-## Failure modes
-
-**Stale entity mappings.** Source A renamed an ID; the registry didn't update; queries miss the entity. Periodic reconciliation jobs.
-
-**Cascading source failures.** Source B is down; coordinator fails open or fails closed? Each option has tradeoffs; explicitly decide.
-
-**Latency unpredictability.** Federated queries depend on the slowest source. P95 / p99 latency is the slowest source's latency; outliers are bad.
-
-**Schema drift across sources.** Source A added a field; consumer doesn't know; queries miss data. Federation requires periodic schema reconciliation.
-
-**Trust boundary leaks.** Federated query exposes entity in source A; source A's access control wasn't enforced. Always enforce ACLs at each source; the federation layer can't substitute.
-
-## A pragmatic recommendation
-
-For most teams considering federation:
-
-1. **Default to centralised.** Even if you must pull from many sources, ETL into one KG is simpler.
-2. **Add federation only where centralisation is genuinely impossible** (data sovereignty, organisational boundaries, scale).
-3. **Even with federation, accept some staleness.** Cache aggressively.
-4. **Invest heavily in entity resolution.** It's the load-bearing problem.
-5. **Make conflicts visible.** Don't paper over disagreement; surface it.
-
-Federation is an advanced pattern. Most teams that think they need it would be served by simpler alternatives.
-
-## Further reading
-
-- [KnowledgeGraphCompletion]() — building each KG
-- [KnowledgeGraphVsRelationalDatabase]() — when to use a graph at all
-- [EntityResolutionTechniques]() — the central problem in federation
-- [GraphDatabaseFundamentals]() — graph DB tooling
+For more on resolving entities across these silos, see [EntityResolutionTechniques]().

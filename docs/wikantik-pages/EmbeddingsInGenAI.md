@@ -1,5 +1,5 @@
 ---
-cluster: generative-ai
+cluster: agentic-ai
 canonical_id: 01KQ0P44Q3M85P40GPRDYZZP5S
 title: Embeddings in Gen AI
 type: article
@@ -10,42 +10,48 @@ tags:
 - semantic-search
 - vector-math
 status: active
-date: 2025-05-15
-summary: Technical analysis of vector embeddings for Large Language Models. Covers cosine similarity, dimensionality, and embedding model selection.
+date: '2026-04-24'
+summary: Technical analysis of vector embeddings for Large Language Models, covering similarity metrics, vector quantization (PQ/SQ), and Matryoshka dimensionality.
 auto-generated: false
 ---
-
 # Embeddings: The Geometry of Meaning
 
-An "Embedding" is a dense, high-dimensional vector representation of a discrete object (word, sentence, or image) that captures its semantic relationships in a continuous space.
+An "Embedding" is a dense, high-dimensional vector representation ($\mathbb{R}^d$) that captures semantic relationships in a continuous space. For Retrieval-Augmented Generation (RAG), the choice of embedding model and distance metric is as critical as the LLM itself.
 
-## 1. Vector Space and Similarity
+## 1. Distance Metrics: Cosine vs. Inner Product
 
-Embeddings map symbols into a space $\mathbb{R}^d$. The "meaning" of a word is defined by its position relative to others.
-*   **Cosine Similarity:** The most common metric for comparing text embeddings. It measures the angle between two vectors, ranging from -1 to 1.
+The performance of your vector search depends on matching the search metric to the model's training objective.
+
+- **Cosine Similarity:** Measures the angle between vectors. Robust to variations in text length but slower to calculate than dot product.
     $$\text{sim}(A, B) = \frac{A \cdot B}{\|A\| \|B\|}$$
-*   **Interpretation:** A similarity of 0.95 between "king" and "queen" indicates high semantic proximity, regardless of the words' literal character overlap.
+- **Inner Product (Dot Product):** Measures both angle and magnitude. Often used for models trained with contrastive learning. If vectors are normalized to unit length, Dot Product is mathematically equivalent to Cosine Similarity and significantly faster to compute.
+- **Euclidean Distance (L2):** Measures the straight-line distance. Sensitive to vector magnitude; less common for pure text search but useful in multi-modal contexts.
 
-## 2. Technical Specifications: Dimensionality
+## 2. Vector Quantization (Compression)
 
-The dimensionality ($d$) of an embedding determines its representational power and its computational cost.
-*   **Small Models:** 384–768 dimensions (e.g., `all-MiniLM-L6-v2`). Fast, suitable for local CPU inference.
-*   **Large Models:** 1536–4096 dimensions (e.g., OpenAI `text-embedding-3-small`). Captured deep nuance but require high-performance vector stores and longer inference times.
+Storing raw `float32` vectors is memory-intensive (e.g., 1 million 1536-dim vectors take ~6GB). Databases use quantization to reduce this footprint:
 
-## 3. The Embedding Pipeline
+- **Scalar Quantization (SQ):** Maps floating point values to a smaller set (e.g., `int8`). Reduces memory by 4x with minimal accuracy loss (~1-2%).
+- **Product Quantization (PQ):** Segments the vector into sub-vectors and clusters them into "codes." This can achieve 10x-50x compression but significantly impacts recall.
+- **Binary Quantization:** Reduces each dimension to a single bit (0 or 1). Extreme compression, best used as a first-pass filter before a high-precision re-ranking step.
 
-1.  **Normalization:** Converting text to lowercase, removing excessive whitespace.
-2.  **Inference:** Passing the text through an Encoder model (e.g., BERT or CLIP).
-3.  **Storage:** Saving the resulting float array in a vector database ([EmbeddingsVectorDB](EmbeddingsVectorDB)).
-4.  **Concrete Tip:** When using embeddings for search, you **must** use the exact same model for indexing the documents and for encoding the user query. Using different models results in mismatched vector spaces and 0% accuracy.
+## 3. Matryoshka Embeddings (Truncation)
 
-## 4. Multi-Modal Embeddings
+Recent models (like OpenAI `text-embedding-3-large` or `nomic-embed-text`) are trained with **Matryoshka Representation Learning**. This allows you to truncate the vector dimensions (e.g., from 3072 down to 256) without a catastrophic loss in performance.
 
-Advanced models (like CLIP) can embed images and text into the *same* vector space.
-*   **Concrete Use Case:** Searching a database of photos for "a sunset over mountains." The text query is converted to a vector, which is then compared against the vectors of the images. The highest similarity results are returned.
+### Concrete Impact: Accuracy vs. Dimensions
+| Dimensions | MTEB Score (Retrieval) | Storage (1M vectors) |
+|---|---|---|
+| 3072 | 54.9 | 12.0 GB |
+| 1024 | 54.1 | 4.0 GB |
+| 256 | 52.0 | 1.0 GB |
 
----
-**See Also:**
-- [Embeddings Vector DB](EmbeddingsVectorDB) — Storing and querying vectors.
-- [Context Window Management](ContextWindowManagement) — Pruning the input space.
-- [Natural Language Processing](NaturalLanguageProcessing) — The linguistic foundation.
+**Practical Rule:** Use 256 or 512 dimensions for initial retrieval to save memory, then use the full vector (if needed) only for the top 50 results.
+
+## 4. The Embedding Pipeline
+
+1.  **Chunking:** Split text into semantic blocks (e.g., 512 tokens with 50-token overlap).
+2.  **Normalization:** Most models require input to be normalized (unit length) for dot product search.
+3.  **Storage:** Save in a [vector database](EmbeddingsVectorDB) using HNSW or IVF indexing.
+
+**Concrete Tip:** Always use a dedicated embedding model (e.g., `BAAI/bge-m3` or `nomic-embed-text`) rather than trying to extract hidden states from a generative model like Llama. Generative models are optimized for prediction, not vector space alignment.

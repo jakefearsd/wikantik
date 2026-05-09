@@ -4,73 +4,83 @@ title: Microservices Architecture
 type: article
 cluster: software-architecture
 status: active
-date: '2026-05-24'
+date: '2026-05-15'
 tags:
 - microservices
-- architecture
-- distributed-systems
-- service-boundaries
-- modular-monolith
-summary: An engineering critique of microservices, focusing on the "Network Tax," service boundary discovery via DDD, and when to favor a modular monolith.
+- distributed-transactions
+- saga-pattern
+- orchestration
+- consistency
+summary: Advanced guide to microservices consistency, focusing on the Saga Pattern (Orchestration vs Choreography) and the "Final Boss" of distributed transactions.
 auto-generated: false
 ---
+
 # Microservices Architecture
 
-Microservices are a solution to an **organizational scaling problem**, not a technical one. They allow 500 engineers to work on the same product without stepping on each other's toes. If you have 5 engineers, microservices are merely a high-latency way to make your life difficult.
+Microservices achieve organizational scalability by decoupling service boundaries. However, this decoupling introduces the most difficult problem in distributed systems: **Cross-Service Consistency**.
 
-## The Microservices Trade-off
+## The "Final Boss": Distributed Transactions
 
-| Aspect | Monolith | Microservices |
-|---|---|---|
-| **Deployment** | Atomic (all or nothing). | Independent (high velocity). |
-| **Transactions** | ACID (simple). | BASE / Sagas (eventual consistency). |
-| **Observability** | Single stack trace. | Distributed tracing (OTel) mandatory. |
-| **State** | Shared Database. | Database-per-service (No joins). |
+In a monolith, a transaction either commits or rolls back across the entire database. In microservices, each service has its own database. If a business process spans three services (e.g., Order → Payment → Inventory), you cannot use a global lock without destroying availability and performance.
 
-## Finding the Boundaries: DDD
+### The Saga Pattern
+A Saga is a sequence of local transactions. Each local transaction updates the database and publishes an event to trigger the next local transaction. If a step fails, the Saga executes **compensating transactions** to undo the preceding steps.
 
-The most common failure in microservices is "Entity-based splitting" (e.g., `UserService`, `OrderService`). This leads to high coupling and "distributed monolith" behavior.
+#### 1. Choreography (Event-Based)
+Services exchange events without a central coordinator.
+-   **Flow:** Order Service (Success) → `OrderCreated` → Payment Service (Success) → `PaymentAuthorized` → Inventory Service.
+-   **Pros:** Highly decoupled, simple to start.
+-   **Cons:** Hard to track the overall state; "Cyclic Dependencies" are common and dangerous.
 
-Use **Domain-Driven Design (DDD)** and **Bounded Contexts**.
-- **Bad Boundary:** Every service calls `UserService` to get a name.
-- **Good Boundary:** `BillingService` owns the user's credit card; `ShippingService` owns the user's address. They share a `user_id` but no other data.
+#### 2. Orchestration (Command-Based)
+A central "Saga Orchestrator" manages the state machine and tells each service what to do.
+-   **Flow:** Orchestrator → `AuthorizePayment` → Payment Service (Success) → Orchestrator → `ReserveInventory` → Inventory Service.
+-   **Pros:** Centralized visibility, easier to debug, no cyclic dependencies.
+-   **Cons:** The Orchestrator itself is a single point of failure (requires [StateManagementPatterns](StateManagementPatterns) for durability).
 
-## The Network Tax
+## Concrete Example: Travel Booking Saga
 
-In a monolith, a function call takes nanoseconds. In microservices, an RPC takes 10-100 milliseconds. 
+A travel booking requires a Hotel and a Flight. If the Flight fails, the Hotel must be cancelled.
 
-**Anti-Pattern: N+1 Service Calls.** 
-If your `FrontendAPI` calls `OrderService` for a list of 50 orders, and then calls `ProductService` 50 times to get the product names, your page will take 5 seconds to load. 
-**Fix:** Bulk endpoints or a **BFF (Backend for Frontend)** that aggregates data on the server side.
+| Step | Service | Transaction | Compensation |
+|---|---|---|---|
+| 1 | Hotel | `bookHotel()` | `cancelHotel()` |
+| 2 | Flight | `bookFlight()` | `cancelFlight()` |
+| 3 | Payment | `chargeCard()` | `refundCard()` |
 
-## The "Database Per Service" Rule
-
-If two services share the same database schema, they are not microservices. They are a distributed monolith. You cannot change the schema in Service A without potentially breaking Service B.
-**Strict Rule:** One service, one database. Communication happens ONLY via APIs or Events.
-
-## Implementation: The Outbox Pattern
-
-To maintain consistency without 2PC (Two-Phase Commit), use the **Transactional Outbox**.
-
-```sql
--- Inside the same transaction as your business logic
-BEGIN;
-  INSERT INTO orders (id, user_id, total) VALUES (123, 456, 99.99);
-  INSERT INTO outbox (event_type, payload) VALUES ('ORDER_CREATED', '{"id": 123}');
-COMMIT;
+**Orchestrator Logic (Pseudo-code):**
+```python
+def travel_saga(request):
+    try:
+        hotel_id = hotel_service.book(request)
+        try:
+            flight_id = flight_service.book(request)
+            try:
+                payment_service.charge(request)
+            except PaymentError:
+                flight_service.cancel(flight_id)
+                hotel_service.cancel(hotel_id)
+        except FlightError:
+            hotel_service.cancel(hotel_id)
+    except HotelError:
+        return "Booking Failed"
 ```
 
-A separate "Relay" process reads the `outbox` table and publishes the events to Kafka. This ensures that the event is *only* published if the database write succeeds.
+## Isolation Challenges (The AC-D in BASE)
+Sagas lack the "Isolation" of ACID. While a Saga is running, other transactions might see the "Intermediate State" (e.g., the Hotel is booked but the Flight isn't yet).
 
-## When to Stay Monolithic
+**Mitigation Strategies:**
+-   **Semantic Lock:** Use an `application-level lock` (e.g., set `status = PENDING`) to prevent other processes from modifying the same data.
+-   **Commutative Updates:** Design operations so the order doesn't matter (e.g., increments/decrements).
+-   **Pessimistic View:** Show users "Pending" states instead of "Success" until the entire Saga completes.
 
-Start with a **Modular Monolith**. Use language-level boundaries (Packages in Java, Namespaces in C#) to keep domains separate. Use a single database but with separate schemas. 
-Only "spin off" a module into a microservice when:
-1. It needs different scaling (e.g., one module needs GPUs, the rest don't).
-2. It has a different deployment cadence (e.g., daily updates vs. weekly).
-3. The team owning it has grown too large to coordinate with the main repo.
+## Observability and the "Golden Signal"
+When a Saga spans 10 services, finding the point of failure is impossible without **Distributed Tracing**.
+-   **Trace Context:** Every request must carry a `trace_id` and `span_id`.
+-   **Log Correlation:** All service logs must include the `trace_id` to allow reconstructing the "Story" of a failed transaction across the entire cluster.
 
 ## Further Reading
-- [[DomainDrivenDesign]] — The prerequisite for drawing boundaries.
-- [[EventDrivenArchitecture]] — How services talk without blocking.
-- [[DistributedTracing]] — Finding where the 5 seconds went.
+- [SagaPattern](SagaPattern)
+- [OutboxPattern](OutboxPattern)
+- [EventSourcing](EventSourcing)
+- [DistributedTracing](DistributedTracing)

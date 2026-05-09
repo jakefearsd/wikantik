@@ -39,6 +39,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -64,21 +65,65 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
     /** Cap on the timeout multiplier applied to base. count=2 already saturates. */
     public static final int MAX_TIMEOUT_MULTIPLIER = 3;
 
-    static final String SYSTEM_PROMPT = """
-        You are a knowledge-graph fact judge. You are given an extracted relationship
-        proposal: a (source, target, relationship) triple, the source page name, the
-        extractor's confidence score, and the extractor's free-text reasoning.
+    /**
+     * Edge proposals: a {@code (source, target, relationship)} triple. The judge
+     * sees only the extractor's rationale &mdash; <strong>not</strong> the page
+     * text &mdash; and decides whether that rationale plausibly supports the
+     * triple as a factual relationship.
+     */
+    static final String SYSTEM_PROMPT_EDGE = """
+        You are a knowledge-graph relationship judge. You will receive a relationship
+        proposal — a (source, target, relationship) triple extracted from a wiki page —
+        plus the source page name, the extractor's confidence, and the extractor's
+        rationale describing why the triple holds on that page.
 
-        Decide whether the proposed triple is well-supported as a factual relationship
-        on the source page. Return STRICT JSON with three keys and nothing else:
+        IMPORTANT: You do NOT have the source page text. Judge ONLY whether the
+        extractor's rationale plausibly supports the triple as a factual relationship.
+        Do not assume facts about the page beyond what the rationale states.
+
+        Return STRICT JSON with three keys and nothing else:
 
           {"verdict":"approved|rejected|abstain","confidence":0.0..1.0,"rationale":"..."}
 
-        - approved: clear factual support; the triple should join the graph.
-        - rejected: clearly unsupported, contradicted, or nonsensical.
-        - abstain:  evidence is ambiguous or insufficient to commit either way.
+        - approved: the rationale gives clear, on-topic support for the triple as a
+                    factual relationship that should join the graph.
+        - rejected: the rationale is contradicted, hand-wavy, off-topic, or describes
+                    a non-factual relationship (opinion, speculation, hypothetical).
+        - abstain:  the rationale is ambiguous or insufficient.
 
         Confidence is YOUR confidence in the verdict, not the relationship strength.
+        Rationale: one or two short sentences. No markdown, no preamble.
+        """;
+
+    /**
+     * Node proposals: a candidate {@code (name, nodeType)} concept. The judge sees
+     * only the extractor's rationale — not the page text — and decides whether the
+     * candidate is a meaningful, well-defined concept worth admitting to the graph.
+     */
+    static final String SYSTEM_PROMPT_NODE = """
+        You are a knowledge-graph node judge. You will receive a node proposal — a
+        candidate concept extracted from a wiki page — including its proposed name,
+        node type, the source page name, the extractor's confidence, and the
+        extractor's rationale describing why this concept is notable on that page.
+
+        IMPORTANT: You do NOT have the source page text. Judge ONLY whether the
+        proposed (name, nodeType) is a meaningful, well-defined concept based on
+        the extractor's rationale. Do not assume facts about the page beyond the
+        rationale.
+
+        Return STRICT JSON with three keys and nothing else:
+
+          {"verdict":"approved|rejected|abstain","confidence":0.0..1.0,"rationale":"..."}
+
+        - approved: the name and type identify a clear, well-defined concept that
+                    the rationale describes as genuinely introduced or discussed
+                    by the source page.
+        - rejected: the name is generic boilerplate, a stop-phrase ("the user",
+                    "this section"), an ambiguous label that names many different
+                    things, or contradicted by its claimed type.
+        - abstain:  the rationale is ambiguous or insufficient.
+
+        Confidence is YOUR confidence in the verdict, not the node's importance.
         Rationale: one or two short sentences. No markdown, no preamble.
         """;
 
@@ -101,7 +146,24 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
 
     @Override
     public JudgeVerdict judge( final KgProposal proposal ) {
-        final String userPrompt = buildUserPrompt( proposal );
+        // Pre-flight: refuse to call the LLM with a payload it can't sensibly
+        // judge. Catches the (huge) class of bug where a node proposal gets
+        // sent through the edge-shaped prompt with null source/target/rel —
+        // which looked like 7300 abstains in the historical data, none of
+        // them carrying any useful signal.
+        final Optional< String > shortCircuit = validateProposalForJudgment( proposal );
+        if ( shortCircuit.isPresent() ) {
+            final String reason = shortCircuit.get();
+            LOG.info( "judge short-circuit for proposal {} ({}): {}",
+                proposal.id(), proposal.proposalType(), reason );
+            Metrics.counter( "wikantik.kg_judge.short_circuit_total",
+                "reason", metricReasonTag( reason ) ).increment();
+            return abstain( reason );
+        }
+
+        final String systemPrompt = systemPromptFor( proposal.proposalType() );
+        final String userPrompt   = buildUserPrompt( proposal );
+
         // keep_alive holds the model resident on the Ollama side longer than
         // the cron interval — without this the model auto-unloads between
         // batches (default 5m) and every batch's first request cold-loads,
@@ -113,7 +175,7 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
             "format", "json",
             "keep_alive", config.keepAlive(),
             "messages", List.of(
-                Map.of( "role", "system", "content", SYSTEM_PROMPT ),
+                Map.of( "role", "system", "content", systemPrompt ),
                 Map.of( "role", "user",   "content", userPrompt )
             )
         );
@@ -216,14 +278,97 @@ public class DefaultKgProposalJudgeService implements KgProposalJudgeService {
         }
     }
 
+    /**
+     * Returns the {@link #SYSTEM_PROMPT_EDGE} or {@link #SYSTEM_PROMPT_NODE} for
+     * the given proposal type. Callers must run {@link #validateProposalForJudgment}
+     * first; an unsupported type would have already short-circuited there, so
+     * any call that reaches this method has a known type.
+     */
+    static String systemPromptFor( final String proposalType ) {
+        return switch ( proposalType ) {
+            case "new-edge" -> SYSTEM_PROMPT_EDGE;
+            case "new-node" -> SYSTEM_PROMPT_NODE;
+            default -> throw new IllegalStateException(
+                "systemPromptFor reached for unsupported type — validate first: " + proposalType );
+        };
+    }
+
     private String buildUserPrompt( final KgProposal p ) {
+        return switch ( p.proposalType() ) {
+            case "new-edge" -> buildEdgeUserPrompt( p );
+            case "new-node" -> buildNodeUserPrompt( p );
+            default -> throw new IllegalStateException(
+                "buildUserPrompt reached for unsupported type — validate first: " + p.proposalType() );
+        };
+    }
+
+    private static String buildEdgeUserPrompt( final KgProposal p ) {
         final Map< String, Object > data = p.proposedData();
         return String.format(
             "PROPOSAL TYPE: %s%nSOURCE PAGE: %s%nSOURCE: %s%nTARGET: %s%nRELATIONSHIP: %s%n" +
-            "EXTRACTOR CONFIDENCE: %.2f%nEXTRACTOR REASONING: %s%n",
+            "EXTRACTOR CONFIDENCE: %.2f%nEXTRACTOR RATIONALE: %s%n",
             p.proposalType(), p.sourcePage(),
             data.get( "source" ), data.get( "target" ), data.get( "relationship" ),
             p.confidence(), p.reasoning() == null ? "" : p.reasoning() );
+    }
+
+    private static String buildNodeUserPrompt( final KgProposal p ) {
+        final Map< String, Object > data = p.proposedData();
+        return String.format(
+            "PROPOSAL TYPE: %s%nSOURCE PAGE: %s%nNAME: %s%nNODE TYPE: %s%n" +
+            "EXTRACTOR CONFIDENCE: %.2f%nEXTRACTOR RATIONALE: %s%n",
+            p.proposalType(), p.sourcePage(),
+            data.get( "name" ), data.get( "nodeType" ),
+            p.confidence(), p.reasoning() == null ? "" : p.reasoning() );
+    }
+
+    /**
+     * Pre-flight check that refuses to send the proposal to the LLM if it lacks
+     * the fields the prompt needs. Returns the abstain rationale to use, or
+     * {@link Optional#empty()} when the proposal is well-formed.
+     *
+     * <p>Synthetic abstain rationales are prefixed {@code "missing_data:"} or
+     * {@code "unsupported_proposal_type:"} so operators can grep for them and
+     * the {@code wikantik.kg_judge.short_circuit_total} metric carries the
+     * same first-token reason as a tag.
+     */
+    static Optional< String > validateProposalForJudgment( final KgProposal p ) {
+        final String type = p.proposalType();
+        if ( type == null || type.isBlank() ) {
+            return Optional.of( "missing_data: proposal_type is null" );
+        }
+        final Map< String, Object > data = p.proposedData() == null ? Map.of() : p.proposedData();
+        final List< String > missing = new ArrayList<>();
+        switch ( type ) {
+            case "new-edge" -> {
+                if ( isBlank( data.get( "source" ) ) )       missing.add( "source" );
+                if ( isBlank( data.get( "target" ) ) )       missing.add( "target" );
+                if ( isBlank( data.get( "relationship" ) ) ) missing.add( "relationship" );
+            }
+            case "new-node" -> {
+                if ( isBlank( data.get( "name" ) ) )     missing.add( "name" );
+                if ( isBlank( data.get( "nodeType" ) ) ) missing.add( "nodeType" );
+            }
+            default -> {
+                return Optional.of( "unsupported_proposal_type: " + type );
+            }
+        }
+        if ( p.reasoning() == null || p.reasoning().isBlank() ) {
+            missing.add( "reasoning" );
+        }
+        if ( missing.isEmpty() ) return Optional.empty();
+        return Optional.of( "missing_data: " + String.join( ",", missing ) );
+    }
+
+    private static boolean isBlank( final Object value ) {
+        return !( value instanceof String s ) || s.isBlank();
+    }
+
+    /** Extracts the leading classifier token from a synthetic-abstain rationale for metric tagging. */
+    private static String metricReasonTag( final String rationale ) {
+        if ( rationale == null ) return "unknown";
+        final int colon = rationale.indexOf( ':' );
+        return colon < 0 ? rationale : rationale.substring( 0, colon );
     }
 
     private JudgeVerdict parseResponse( final String body ) {

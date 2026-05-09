@@ -1,24 +1,20 @@
 # Wikantik
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
+[![PostgreSQL 15+](https://img.shields.io/badge/PostgreSQL-15%2B-336791.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Tomcat 11.0.22](https://img.shields.io/badge/Tomcat-11.0.22-D22128.svg)](https://tomcat.apache.org/)
+[![CodeQL](https://github.com/jakefearsd/wikantik/actions/workflows/codeql.yml/badge.svg)](https://github.com/jakefearsd/wikantik/actions/workflows/codeql.yml)
+[![CI](https://github.com/jakefearsd/wikantik/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/jakefearsd/wikantik/actions/workflows/ci-cd.yml)
+[![Last commit](https://img.shields.io/github/last-commit/jakefearsd/wikantik)](https://github.com/jakefearsd/wikantik/commits/main)
+[![Code of Conduct](https://img.shields.io/badge/Code_of_Conduct-Contributor_Covenant_2.1-blueviolet)](CODE_OF_CONDUCT.md)
 
-       https://www.apache.org/licenses/LICENSE-2.0
+> A Markdown-native knowledge base built for the agent era —
+> hybrid retrieval (BM25 + dense + KG-rerank), two MCP servers for
+> AI assistants, full Tomcat 11 / PostgreSQL + pgvector backend.
 
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
-The license file can be found in LICENSE.
-
+Licensed under the Apache License 2.0 — see [`LICENSE`](LICENSE) and
+[`NOTICE`](NOTICE).
 
 ## What is Wikantik?
 
@@ -49,6 +45,99 @@ Key capabilities:
 - **NIST 800-63B password validation** — blocklist-checked password strength enforcement for account creation
 - **Frontmatter metadata** — YAML frontmatter for type, tags, summary, cluster, status, and related articles, indexed in Lucene for semantic navigation
 
+
+## Why Wikantik?
+
+Most wiki / knowledge-base projects were designed before retrieval-augmented agents existed. Wikantik was rebuilt from the JSPWiki engine specifically to be **agent-grade** — every capability is exposed both to humans and to LLM agents through documented MCP tools, and the search stack assumes embeddings as a first-class index, not a retrofit.
+
+Compared to common alternatives:
+
+| Capability | Wikantik | BookStack | Outline | Wiki.js | MediaWiki | Confluence | Notion |
+|---|---|---|---|---|---|---|---|
+| **License** | Apache 2.0 | MIT | BSL → Apache | AGPL | GPLv2 | Proprietary | Proprietary |
+| **Self-host** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (paid DC) | ❌ |
+| **MCP server(s) for agents** | **2 dedicated** (admin + read-only) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **OpenAPI tool surface** | ✅ (`/tools/*`) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Hybrid retrieval (BM25 + dense)** | ✅ pgvector + Ollama | ❌ | ❌ | ❌ | ❌ | ✅ (recent) | ✅ |
+| **Knowledge-Graph-aware rerank** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **LLM-extracted Knowledge Graph** | ✅ (with reviewer queue) | ❌ | ❌ | ❌ | ❌ | partial | partial |
+| **Page Graph viewer** (real wikilinks) | ✅ Cytoscape, filterable | partial | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Token-budgeted "for-agent" projection** | ✅ `/api/pages/for-agent/{id}` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Runbook page type + verification metadata** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | partial |
+| **Markdown-native (file-tree authoring)** | ✅ | partial | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Stack** | Java 21 / Tomcat 11 / PostgreSQL + pgvector / React | PHP / Laravel | Node.js | Node.js | PHP | JVM | proprietary |
+| **AGPL-style copyleft** | no (Apache 2.0) | no | no | **yes** | no (GPLv2) | n/a | n/a |
+
+**The differentiator** is the agent surface: Wikantik is the only project here that ships two production MCP servers (one for writes, one for read-only retrieval) plus an OpenAPI tool server for clients that can't speak MCP, with the retrieval stack designed around hybrid BM25 + dense + KG-rerank from day one.
+
+Wikantik makes sense for you if:
+
+- You're using AI assistants (Claude Code, Cursor, OpenWebUI, Open Interpreter) and want them to read and write a real institutional knowledge base without a custom integration per tool.
+- You want to keep your knowledge base on infrastructure you control, with a permissive (Apache 2.0) license that lets you fork or relicense your derivatives.
+- You're comfortable on a JVM stack and want PostgreSQL + pgvector as your single data store rather than running a separate vector database.
+
+Wikantik may **not** be for you if:
+
+- You want a SaaS / no-ops setup — there isn't a hosted version yet.
+- You don't have ~512 MB of RAM for Tomcat and ~2 GB for the embedding service (Ollama).
+- You need real-time multi-user collaborative editing à la Notion. The reader is real-time; the editor is single-author per page.
+
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+    subgraph clients [Clients]
+        Browser["Web browser<br/>(React SPA)"]
+        Agent["LLM agents<br/>(Claude Code, Cursor,<br/>OpenWebUI, custom)"]
+        Crawler["Crawlers / RAG<br/>(Googlebot, OpenWebUI,<br/>custom pipelines)"]
+    end
+
+    subgraph tomcat [Tomcat 11.0.22]
+        SPA["/<br/>React SPA shell"]
+        REST["/api/*<br/>REST API"]
+        Admin["/admin/*<br/>Admin REST"]
+        Raw["/wiki/{slug}?format=md|json<br/>Raw content for crawlers"]
+        Changes["/api/changes?since=…<br/>Change feed"]
+        AdminMCP["/wikantik-admin-mcp<br/>18 admin/write tools"]
+        KnowMCP["/knowledge-mcp<br/>15 read-only retrieval tools"]
+        Tools["/tools/*<br/>OpenAPI 3.1<br/>(search_wiki, get_page)"]
+        Health["/api/health<br/>/metrics"]
+    end
+
+    subgraph data [Persistence]
+        PG[("PostgreSQL 15+<br/>+ pgvector<br/>users, KG, embeddings,<br/>schema_migrations")]
+        Pages[("Page tree<br/>Markdown + frontmatter<br/>(versioned)")]
+        Lucene[("Lucene index<br/>(rebuilt at startup)")]
+    end
+
+    Ollama["Ollama<br/>embeddings +<br/>entity extraction"]
+
+    Browser --> SPA
+    Browser --> REST
+    Browser --> Admin
+    Crawler --> Raw
+    Crawler --> Changes
+    Agent --> AdminMCP
+    Agent --> KnowMCP
+    Agent --> Tools
+
+    REST --> PG
+    REST --> Pages
+    REST --> Lucene
+    Admin --> PG
+    AdminMCP --> PG
+    AdminMCP --> Pages
+    KnowMCP --> PG
+    KnowMCP --> Lucene
+    Raw --> Pages
+    Changes --> Pages
+    Tools --> REST
+
+    REST --> Ollama
+    AdminMCP --> Ollama
+```
+
+The reader hot path stays in Lucene + the page filesystem; the agent hot path goes through `/knowledge-mcp` to PostgreSQL + pgvector for hybrid retrieval. The two graph viewers (`/page-graph`, `/knowledge-graph`) hang off the SPA but query different services. Container deploys (`bin/container.sh`) bundle Tomcat + PostgreSQL + pgvector + an optional backup sidecar; bare-metal deploys (`bin/deploy-local.sh`) reuse the host's PostgreSQL.
 
 ## Prerequisites
 

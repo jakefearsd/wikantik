@@ -6,8 +6,6 @@ tags: [microbiology, bacteria, yeast, fungi, metabolism, proteolysis, fermentati
 status: active
 date: 2026-05-08
 summary: The study of microscopic organisms. Focuses on industrial fermentation taxonomy, metabolic pathways (proteolysis/lipolysis), and the 2025 shift toward synthetic microbial consortia.
-relations:
-  - type: part-of
     target: BiochemicalEngineering
   - type: relates-to
     target: CheeseProduction

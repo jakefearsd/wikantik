@@ -6,8 +6,6 @@ tags: [physical-chemistry, molecular-dynamics, synthetic-biology, phase-separati
 status: active
 date: 2026-05-08
 summary: The study of how matter behaves on a molecular and atomic level. Covers AI-driven molecular dynamics, abiotic synthetic cells, and the physical chemistry of liquid-liquid phase separation.
-relations:
-  - type: part-of
     target: LifeSciences
   - type: relates-to
     target: Microbiology

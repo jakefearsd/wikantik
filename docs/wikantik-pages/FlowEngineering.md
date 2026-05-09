@@ -12,7 +12,6 @@ tags:
 - agent-architecture
 - orchestration
 title: Flow Engineering
-relations:
 - type: part-of
   target_id: 01KQEKGD6VT29FGWF8YE9TM671
 - type: prerequisite-for

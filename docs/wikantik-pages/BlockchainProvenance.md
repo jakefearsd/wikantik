@@ -6,8 +6,6 @@ tags: [blockchain, provenance, supply-chain, transparency, digital-product-passp
 status: active
 date: 2026-05-08
 summary: The application of blockchain for immutable product history. Covers Digital Product Passports, EU Battery Regulation (2025) benchmarks, and the technical bridge between IoT and distributed ledgers.
-relations:
-  - type: part-of
     target: SupplyChainAndLogisticsOptimization
   - type: relates-to
     target: EsgInvesting

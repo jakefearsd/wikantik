@@ -13,7 +13,6 @@ tags:
 - inference-scaling
 - reasoning
 title: Test-Time Compute Scaling
-relations:
 - type: part-of
   target_id: 01KQEKGD6VT29FGWF8YE9TM671
 - type: supersedes

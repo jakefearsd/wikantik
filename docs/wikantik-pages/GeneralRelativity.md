@@ -6,8 +6,6 @@ tags: [general-relativity, gravity, spacetime, einstein-field-equations, black-h
 status: active
 date: 2026-05-08
 summary: The geometric theory of gravitation. Covers the Einstein Field Equations, black hole spectroscopy (GW250114), the 38-microsecond GPS offset, and 2025 case studies in Neuro-Relativity.
-relations:
-  - type: part-of
     target: PhysicsEngineering
   - type: implements
     target: DifferentialGeometry

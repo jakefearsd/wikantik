@@ -6,8 +6,6 @@ tags: [programming-languages, fortran, high-performance-computing, scientific-co
 status: active
 date: 2026-05-08
 summary: The first high-level programming language (1957). Remains the gold standard for scientific computing and matrix operations in 2026 due to strict aliasing rules and first-class array support.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: CLanguage

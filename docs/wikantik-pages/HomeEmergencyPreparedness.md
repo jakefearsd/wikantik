@@ -6,8 +6,6 @@ tags: [emergency-prep, resilience-engineering, home-automation, systems-engineer
 status: active
 date: 2025-05-15
 summary: Technical specifications for residential resilience. Covers LiFePO4 battery sizing, water circularity, and immediate shelter-in-place requirements.
-relations:
-  - type: part-of
     target: EmergencyPrepHub
   - type: relates-to
     target: GeopoliticalRisk

@@ -6,8 +6,6 @@ tags: [programming-languages, javascript, v8-engine, web-development, full-stack
 status: active
 date: 2026-05-08
 summary: The 'Engine of the Web' (1995). Created in 10 days by Brendan Eich, it has evolved into the world's most used language, powering both front-end and high-performance server-side runtimes via V8.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: TypeScriptLanguage

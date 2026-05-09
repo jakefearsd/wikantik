@@ -6,8 +6,6 @@ tags: [programming-languages, scala, functional-programming, oop, spark, data-en
 status: active
 date: 2026-05-08
 summary: The bridge between Functional and OOP (2004). Created by Martin Odersky, it powers the world's most critical data pipelines. In 2026, Scala 3 has matured into the standard for high-throughput, type-safe data engineering.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: JavaLanguage

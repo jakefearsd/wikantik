@@ -6,8 +6,6 @@ tags: [programming-languages, lisp, ai, functional-programming, garbage-collecti
 status: active
 date: 2026-05-08
 summary: The second-oldest high-level language (1958) and the father of AI. Pioneered functional programming, homoiconicity (code-as-data), and automated garbage collection.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: PythonLanguage

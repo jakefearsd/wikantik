@@ -12,7 +12,6 @@ date: '2026-05-04'
 status: official
 cluster: wikantik-platform
 title: 'Wikantik: Critique and Market Position'
-relations:
 - target: 01KQTCA4WNJWEPHWKVP4KYJ22Y
   relationship: part-of
 ---

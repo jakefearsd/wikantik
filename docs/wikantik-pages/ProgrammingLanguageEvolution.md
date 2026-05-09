@@ -6,8 +6,6 @@ tags: [programming-languages, computer-history, compilers, type-systems, softwar
 status: active
 date: 2026-05-08
 summary: Central hub for the evolution of programming languages (1950–2026). Traces the shift from manual machine-level management to AI-native 'Vibe Coding' across six distinct technical regimes.
-relations:
-  - type: part-of
     target: MathematicsHub
   - type: relates-to
     target: DeveloperExperience

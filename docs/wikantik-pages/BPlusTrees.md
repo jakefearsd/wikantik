@@ -11,7 +11,6 @@ tags:
 - storage-engines
 - algorithms
 title: B+ Trees
-relations:
 - type: part-of
   target_id: 01KQEKGD9BVAXF6X4HZYKF2513
 - type: prerequisite-for

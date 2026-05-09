@@ -6,8 +6,6 @@ tags: [programming-languages, ada, spark, high-integrity, safety-critical, forma
 status: active
 date: 2026-05-08
 summary: The 'Standard of High-Integrity' (1980). Created for the US Department of Defense, it has evolved into the gold standard for mission-critical systems and 2026 autonomous platforms via its formally verifiable subset, SPARK.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: Pascal

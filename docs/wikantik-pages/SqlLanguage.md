@@ -6,8 +6,6 @@ tags: [programming-languages, sql, databases, relational-model, data-engineering
 status: active
 date: 2026-05-08
 summary: The 'Lingua Franca' of data (1974). Based on Codd's Relational Model, it defines the declarative standard for data management. In 2026, it remains the #3 most used technology globally.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: MasterDataManagement

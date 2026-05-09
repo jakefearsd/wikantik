@@ -6,8 +6,6 @@ tags: [programming-languages, python, ai, data-science, scripting, gil-removal, 
 status: active
 date: 2026-05-08
 summary: The 'Lingua Franca' of AI (1991). Born as executable pseudocode, it has become the #1 language globally in 2026, driven by its status as the primary interface for AI and Data Science.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: Lisp

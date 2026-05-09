@@ -6,8 +6,6 @@ tags: [numismatics, american-history, coinage, engravers, silver, gold, 19th-cen
 status: active
 date: 2026-05-08
 summary: A technical and historical survey of United States coinage from 1792 to 2026. Covers the transition from artisanal silver to industrial base metals and the influence of master engravers.
-relations:
-  - type: part-of
     target: CoinCollectingHub
   - type: relates-to
     target: ArtHistory

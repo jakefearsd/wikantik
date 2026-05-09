@@ -49,7 +49,6 @@ tags:
 ### Relations (Knowledge Graph Edges)
 Explicitly define how this page relates to other entities using their `canonical_id`.
 ```yaml
-relations:
 - target: 01KQ... (ULID)
   relationship: part-of | implements | example-of | prerequisite-for | supersedes
 ```

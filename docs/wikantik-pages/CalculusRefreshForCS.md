@@ -10,7 +10,6 @@ tags:
 - optimization
 - autodiff
 title: Calculus Refresh for CS
-relations:
 - type: part-of
   target_id: 01KQ2P44XMGA8E1E7GAT4AYV43
 - type: prerequisite-for

@@ -6,8 +6,6 @@ tags: [programming-languages, swift, apple, concurrency, arc, memory-safety, sys
 status: active
 date: 2026-05-08
 summary: The 'Standard of Modern Systems' (2014). Created by Apple as a safe, high-performance successor to Objective-C, it has evolved into a multi-platform powerhouse via Swift 6's strict concurrency.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: ObjectiveCLanguage

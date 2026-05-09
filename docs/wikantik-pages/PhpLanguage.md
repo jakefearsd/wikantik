@@ -6,8 +6,6 @@ tags: [programming-languages, php, web-development, wordpress, laravel, frankenp
 status: active
 date: 2026-05-08
 summary: The 'Democratizer of the Web' (1994). Created by Rasmus Lerdorf, it powers ~77% of all websites in 2026. Traces the shift from simple scripting to high-performance architectures via FrankenPHP and Laravel.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: JavaScriptLanguage

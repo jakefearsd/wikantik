@@ -12,7 +12,6 @@ type: article
 date: '2026-05-04'
 cluster: wikantik-platform
 title: Wikantik Search and Retrieval
-relations:
 - target: 01KQTCAKV3BVHYPW20PHSFGXJR
   relationship: part-of
 ---

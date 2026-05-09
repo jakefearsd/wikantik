@@ -6,8 +6,6 @@ tags: [programming-languages, algol, structured-programming, bnf, computer-histo
 status: active
 date: 2026-05-08
 summary: The 'Language of Science' (1958/1960). Introduced block structure, lexical scope, and Backus-Naur Form (BNF). The common ancestor to C, Pascal, and the modern C-family.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: CLanguage

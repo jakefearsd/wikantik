@@ -11,7 +11,6 @@ tags:
 - logic
 - architecture
 title: Binary Arithmetic
-relations:
 - type: part-of
   target_id: 01KQEKGD8QYAS6P09AM61S5E2W
 summary: A foundational guide to binary arithmetic, covering addition, subtraction

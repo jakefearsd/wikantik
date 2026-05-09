@@ -12,7 +12,6 @@ tags:
 - pytorch
 - scipy
 title: Optimization Algorithms
-relations:
 - type: part-of
   target_id: 01KQ2P44XMGA8E1E7GAT4AYV43
 - type: implements

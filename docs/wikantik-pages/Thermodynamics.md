@@ -6,8 +6,6 @@ tags: [thermodynamics, energy, phase-transition, thermal-mass, polymorphism, foo
 status: active
 date: 2026-05-08
 summary: The study of heat, work, and energy. Focuses on phase transition thermodynamics in chocolate tempering and the 'Thermal Flywheel Effect' in passive food storage systems.
-relations:
-  - type: part-of
     target: AppliedMathSurvey
   - type: relates-to
     target: Metallurgy

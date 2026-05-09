@@ -11,7 +11,6 @@ tags:
 - embeddings
 - search
 title: Knowledge Graph Rerank
-relations:
 - type: part-of
   target_id: 01KQ0P44YWV8Q0JMN1H2H5EGDX
 - type: implements

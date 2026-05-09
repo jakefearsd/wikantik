@@ -6,8 +6,6 @@ tags: [programming-languages, mojo, ai, python, heterogeneous-computing, gpu, 20
 status: active
 date: 2026-05-08
 summary: The AI-native superset of Python (2023). Designed to solve the 'Two-Language Problem', Mojo achieves CUDA-level performance with Python-like syntax, serving as the primary infrastructure for 2026 AI systems.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: PythonLanguage

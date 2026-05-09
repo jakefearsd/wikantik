@@ -7,7 +7,6 @@ tags:
 - multi-tenant
 - retirement-planning
 - hub
-relations:
 - type: part-of
   target_id: 01KZHC6PVN4SBQM9R0F3T7K8Y2
 title: Wealthview Hub

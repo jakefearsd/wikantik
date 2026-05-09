@@ -6,8 +6,6 @@ tags: [programming-languages, zig, systems-programming, comptime, memory-managem
 status: active
 date: 2026-05-08
 summary: The 'Successor to C' (2016). Designed for robustness and simplicity, it introduces 'Comptime' and explicit memory management, serving as the primary choice for 2026 low-level systems like Bun.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: CLanguage

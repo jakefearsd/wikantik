@@ -6,8 +6,6 @@ tags: [art-history, industrial-design, photography, numismatics, aesthetics, sec
 status: active
 date: 2026-05-08
 summary: The history of visual culture and industrial design. Focuses on the intersection of numismatic engraving, early metallurgical photography (daguerreotypes), and the security-aesthetic bridge in currency.
-relations:
-  - type: relates-to
     target: Metallurgy
   - type: relates-to
     target: AmericanCoinageInThe1900s

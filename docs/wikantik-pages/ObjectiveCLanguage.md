@@ -6,8 +6,6 @@ tags: [programming-languages, objective-c, oop, apple, ios, macos, message-passi
 status: active
 date: 2026-05-08
 summary: The 'COBOL of the Apple Ecosystem' (1984). A hybrid of C and Smalltalk that powered NeXT and Apple for three decades. In 2026, it remains critical for maintaining legacy financial and medical infrastructure.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: SwiftLanguage

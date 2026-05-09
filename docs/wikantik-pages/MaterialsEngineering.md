@@ -6,8 +6,6 @@ tags: [materials-engineering, phase-diagrams, metallurgy, solid-state, ai-modeli
 status: active
 date: 2026-05-08
 summary: The study of matter and its industrial applications. Covers AI-driven predictive modeling (MS25 dataset), solid-state phase transitions, and NIST additive manufacturing benchmarks.
-relations:
-  - type: part-of
     target: PhysicsEngineering
   - type: relates-to
     target: Metallurgy

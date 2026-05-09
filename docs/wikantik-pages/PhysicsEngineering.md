@@ -6,8 +6,6 @@ tags: [physics-engineering, sensor-design, gravitational-waves, precision-instru
 status: active
 date: 2026-05-08
 summary: The application of physical principles to the design of complex systems. Covers precision sensor engineering for LISA, Physics-Informed Neural Networks (PINNs), and exascale simulation benchmarks.
-relations:
-  - type: part-of
     target: MathematicsHub
   - type: implements
     target: GeneralRelativity

@@ -1,5 +1,4 @@
 ---
-relations:
 - type: part-of
   target_id: 01KQEKGDAZH3G3X2J4VFM9MP88
 - type: implements

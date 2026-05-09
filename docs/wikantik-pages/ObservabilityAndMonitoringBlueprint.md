@@ -13,7 +13,6 @@ tags:
 - health-checks
 - sre
 title: Observability and Monitoring Blueprint
-relations:
 - type: part-of
   target_id: 01KZHC6PVV4SBQM9R0F3T7K8Z8
 - type: implements

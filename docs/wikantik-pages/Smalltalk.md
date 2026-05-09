@@ -6,8 +6,6 @@ tags: [programming-languages, smalltalk, oop, xerox-parc, live-coding, ide, comp
 status: active
 date: 2026-05-08
 summary: The pioneer of 'Pure' Object-Oriented Programming (1972). Created at Xerox PARC, it defined the modern graphical IDE, virtual machines, and the 'Everything is an Object' philosophy.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: JavaLanguage

@@ -6,8 +6,6 @@ tags: [programming-languages, typescript, web-development, static-typing, nodejs
 status: active
 date: 2026-05-08
 summary: The 'Safety Layer' for the web (2012). Created by Anders Hejlsberg at Microsoft, it adds static typing to JavaScript. In 2026, it is the professional standard for web and full-stack development.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: JavaScriptLanguage

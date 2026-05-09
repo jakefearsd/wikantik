@@ -7,7 +7,6 @@ tags:
 - pydantic
 - schema
 - wealthview
-relations:
 - type: part-of
   target_id: 01KQR44WKHVES95QKN9731B09
 - type: implements

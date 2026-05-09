@@ -6,8 +6,6 @@ tags: [numerical-analysis, floating-point, precision, algorithms, mixed-precisio
 status: active
 date: 2026-05-08
 summary: The mathematical foundation of scientific computing. Covers algorithms for numerical approximation, the transition to mixed-precision (FP8/FP4) in 2026, and the impact of hardware acceleration on computational stability.
-relations:
-  - type: part-of
     target: MathematicsHub
   - type: relates-to
     target: Fortran

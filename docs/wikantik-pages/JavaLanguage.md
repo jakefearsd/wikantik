@@ -6,8 +6,6 @@ tags: [programming-languages, java, jvm, oop, enterprise, garbage-collection, 20
 status: active
 date: 2026-05-08
 summary: The 'Undead King' of enterprise (1995). Championed the Virtual Machine (JVM) and 'Write Once, Run Anywhere'. In 2026, it remains the standard for high-throughput backends via Generational ZGC.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: CsharpLanguage

@@ -6,8 +6,6 @@ tags: [programming-languages, c-plus-plus, oop, generic-programming, raii, syste
 status: active
 date: 2026-05-08
 summary: The powerhouse of systems and AI infrastructure (1983). Created by Bjarne Stroustrup to add classes to C, it has evolved into a multi-paradigm language that remains the 2026 benchmark for performance.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: CLanguage

@@ -6,8 +6,6 @@ tags: [programming-languages, pascal, delphi, structured-programming, strong-typ
 status: active
 date: 2026-05-08
 summary: The 'Standard of Safety' (1970). Created by Niklaus Wirth to prioritize data safety and instructional clarity. Experiencing a 2026 'Renaissance' in native cross-platform development.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: CLanguage

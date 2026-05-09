@@ -6,8 +6,6 @@ tags: [programming-languages, golang, cloud-native, concurrency, microservices, 
 status: active
 date: 2026-05-08
 summary: The 'Lingua Franca' of the Cloud (2009). Created at Google for industrial-scale concurrency and simplicity. In 2026, it powers ~100% of the CNCF stack and remains the standard for high-velocity microservices.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: RustLanguage

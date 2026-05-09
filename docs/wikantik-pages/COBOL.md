@@ -6,8 +6,6 @@ tags: [programming-languages, cobol, banking, mainframe, computer-history, 2026-
 status: active
 date: 2026-05-08
 summary: The language of global business (1959). Powers 95% of ATM swipes and 80% of personal banking in 2026. Traces the shift from passive maintenance to AI-driven modernization.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: JavaLanguage

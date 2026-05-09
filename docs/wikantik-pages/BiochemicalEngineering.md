@@ -6,8 +6,6 @@ tags: [biochemical-engineering, bioprocessing, fermentation, kinetics, precision
 status: active
 date: 2026-05-08
 summary: The application of engineering principles to biological systems. Covers fermentation kinetics, bioreactor design, and the 2025 shift toward Digital Twins and Precision Fermentation.
-relations:
-  - type: part-of
     target: AppliedMathSurvey
   - type: relates-to
     target: Microbiology

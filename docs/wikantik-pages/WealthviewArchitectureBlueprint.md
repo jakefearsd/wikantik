@@ -12,7 +12,6 @@ tags:
 - postgresql
 - system-design
 title: Wealthview Architecture Blueprint
-relations:
 - type: part-of
   target_id: 01KQR44WKHVES95QKN9731B09
 - type: derived-from

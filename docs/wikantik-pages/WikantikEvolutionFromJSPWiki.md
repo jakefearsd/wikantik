@@ -12,7 +12,6 @@ date: '2026-05-04'
 type: article
 cluster: wikantik-platform
 title: 'History and Evolution: From JSPWiki to Wikantik'
-relations:
 - target: 01KQTCA4WNJWEPHWKVP4KYJ22Y
   relationship: part-of
 ---

@@ -6,8 +6,6 @@ tags: [economic-history, inflation, monetary-policy, gold-standard, bretton-wood
 status: active
 date: 2026-05-08
 summary: A quantitative survey of global monetary regimes and inflationary epochs from 1900 to 2026. Covers the Gold Standard, Bretton Woods, the Great Moderation, and post-pandemic dynamics.
-relations:
-  - type: part-of
     target: PersonalFinanceHub
   - type: relates-to
     target: GeopoliticalRiskAndInvesting

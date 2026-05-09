@@ -6,8 +6,6 @@ tags: [programming-languages, c-language, systems-programming, pointers, unix, c
 status: active
 date: 2026-05-08
 summary: The 'Lingua Franca' of systems programming (1972). Introduced the pointer-memory model that powers modern operating systems. Remains the baseline for 2026 hardware-level performance.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: CppLanguage

@@ -6,8 +6,6 @@ tags: [crystallization, nucleation, crystal-growth, kinetics, polymorphism, avra
 status: active
 date: 2026-05-08
 summary: The study of the formation and growth of crystalline solids. Covers nucleation kinetics, the Avrami equation, and polymorphism in both metallurgy and food science.
-relations:
-  - type: part-of
     target: MaterialsEngineering
   - type: relates-to
     target: Metallurgy

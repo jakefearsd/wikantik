@@ -6,8 +6,6 @@ tags: [operations-research, optimization, decision-science, analytics, mathemati
 status: active
 date: 2026-05-08
 summary: The discipline of advanced analytical methods for optimal decision-making. Covers mathematical programming, stochastic models, and 2025-2026 AI-OR hybrid benchmarks.
-relations:
-  - type: part-of
     target: MathematicsHub
   - type: implements
     target: SupplyChainAndLogisticsOptimization

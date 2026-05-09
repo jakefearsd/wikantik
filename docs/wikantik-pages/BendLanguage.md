@@ -6,8 +6,6 @@ tags: [programming-languages, bend, parallelism, hvm2, functional-programming, g
 status: active
 date: 2026-05-08
 summary: The 'CUDA for Functional Programmers' (2024). A massively parallel language that scales linearly across thousands of cores without manual thread management, powered by the HVM2 runtime.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: MojoLanguage

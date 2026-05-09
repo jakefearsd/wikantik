@@ -1,15 +1,9 @@
 ---
 canonical_id: 01KQTCA4WNJWEPHWKVP4KYJ22Y
-verified_at: '2026-05-04T20:57:11.590236001Z'
-verified_by: gemini-cli-mcp-client
----
------
-canonical_id: 01KQTCA4WNJWEPHWKVP4KYJ22Y
-summary: The central hub for all Wikantik platform documentation, covering architecture,
-  search, knowledge graph, and history.
+summary: Central hub for Wikantik platform documentation, encompassing system architecture, hybrid search, and knowledge graph engineering.
 type: hub
-date: '2026-05-04'
-status: official
+date: 2026-05-02T00:00:00Z
+status: active
 cluster: wikantik-platform
 title: Wikantik Platform Hub
 related:
@@ -18,34 +12,36 @@ related:
 - 01KQTCBW5GBFJVWYB8V1CP49P5
 - 01KQTCC38PBFSD7TD6ACJFCZZ3
 - 01KQTCCQ3H9K0M9E95ZCK3KHN5
+verified_at: '2026-05-02T00:00:00Z'
+verified_by: jakefear
+auto-generated: false
 ---
+
 # Wikantik Platform Hub
 
-Welcome to the definitive documentation for the **Wikantik Platform**. Wikantik is an "Agentic Wiki" — a modern, full-stack knowledge management system designed for seamless collaboration between human experts and AI agents. 
-
-Born from a radical modernization of Apache JSPWiki in early 2026, Wikantik combines traditional wiki collaboration with cutting-edge AI integration, a property knowledge graph, and a hybrid retrieval pipeline.
+Wikantik is an "Agentic Wiki"—a full-stack knowledge management system designed for synchronous collaboration between human authors and AI agents. It represents a 2026 modernization of the Apache JSPWiki codebase, replacing legacy JSP templates with a React-based SPA and a multi-modal retrieval engine.
 
 ## Core Documentation
 
 ### [System Architecture](WikantikArchitecture)
-An overview of the 18-module Maven structure, the hybrid storage model (Git + PostgreSQL), and the technology stack (React SPA, Tomcat 11, Java 21).
+Covers the 18-module Maven structure, the hybrid storage model (Git-backed files + PostgreSQL), and the primary tech stack (Java 21, Tomcat 11, Guice DI).
 
 ### [Search and Retrieval](WikantikSearchAndRetrieval)
-A deep dive into the hybrid search engine that fuses traditional Lucene BM25, dense vector embeddings (pgvector), and Knowledge Graph co-mention reranking.
+Details the hybrid search pipeline that integrates traditional Lucene (BM25), dense vector embeddings (pgvector), and Knowledge Graph co-mention reranking.
 
 ### [The Knowledge Graph](WikantikKnowledgeGraph)
-How Wikantik turns wiki content into a queryable property graph using frontmatter projection, AI-driven proposals, and a robust provenance model.
+Explains the transformation of wiki content into a queryable property graph using frontmatter projection and AI-driven entity extraction.
 
 ### [History and Evolution](WikantikEvolutionFromJSPWiki)
-The transition from the legacy JSPWiki architecture to the modern Wikantik platform, including what remains of the "ancient history."
+Traces the architectural transition from legacy JSPWiki to the modern Wikantik platform, highlighting major refactoring milestones.
 
 ### [Critique and Market Position](WikantikCritiqueAndMarketPosition)
-A candid assessment of Wikantik's strengths and weaknesses, architectural suggestions for future growth, and how it compares to other open-source and commercial wiki systems.
+A technical assessment of Wikantik's architectural trade-offs, market position relative to Obsidian/Confluence, and future scaling roadmap.
 
-## Key Features
+## Key Platform Features
 
-- **Agent-First Design:** Built-in Model Context Protocol (MCP) servers for autonomous research and editing.
-- **Structural Spine:** Mandatory YAML frontmatter ensuring every page is machine-readable and semantically rich.
-- **Hybrid DI Bridge:** A modern Guice-based dependency injection system transitioning away from legacy Service Locators.
-- **Modern Frontend:** A high-performance React SPA (Vite) replacing legacy JSP templates.
-- **Knowledge Proposals:** A human-in-the-loop workflow for AI-suggested knowledge graph enrichments.
+- **Model Context Protocol (MCP):** Native tool servers allowing agents to perform autonomous research, page creation, and verification.
+- **Structural Spine:** A enforced schema using YAML frontmatter to ensure every page is machine-readable and indexed.
+- **Hybrid DI Bridge:** A transitionary Guice-based injection system that decouples legacy managers from the core engine.
+- **Modern UI:** A high-performance React frontend using Vite, offering real-time previews and rich metadata editing.
+- **Knowledge Proposals:** A human-in-the-loop workflow for reviewing and approving AI-suggested graph relationships.

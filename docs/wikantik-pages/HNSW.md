@@ -11,7 +11,6 @@ tags:
 - proximity-graphs
 - data-structures
 title: HNSW (Hierarchical Navigable Small World)
-relations:
 - type: part-of
   target_id: 01KQEKGD9BVAXF6X4HZYKF2513
 - type: prerequisite-for

@@ -6,8 +6,6 @@ tags: [numismatics, coin-grading, authentication, pcgs, ngc, ai-authentication, 
 status: active
 date: 2026-05-08
 summary: The technical standards for certifying coin quality and authenticity. Covers the Sheldon 1-70 scale, the PCGS vs. NGC market duopoly, and the 2025-2026 shift toward AI-driven grading.
-relations:
-  - type: part-of
     target: CoinCollectingHub
   - type: relates-to
     target: ArtHistory

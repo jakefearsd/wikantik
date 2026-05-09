@@ -6,8 +6,6 @@ tags: [programming-languages, prolog, ai, logic-programming, declarative, neuro-
 status: active
 date: 2026-05-08
 summary: The pioneer of Logic Programming (1972). Based on first-order logic, it defines the 'Declarative' paradigm where programs consist of facts and rules. A foundational component of 2026 Neuro-Symbolic AI.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: Lisp

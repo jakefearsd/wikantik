@@ -6,8 +6,6 @@ tags: [programming-languages, assembly, isa, x86, arm, risc-v, systems-programmi
 status: active
 date: 2026-05-08
 summary: The 'Language of the Machine'. Provides the lowest-level abstraction of hardware instructions. In 2026, it is defined by the 'ISA War' between x86, ARM, and the rapidly ascending RISC-V.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: CLanguage

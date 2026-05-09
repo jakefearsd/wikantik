@@ -6,8 +6,6 @@ tags: [programming-languages, c-sharp, dotnet, enterprise, unity, native-aot, 20
 status: active
 date: 2026-05-08
 summary: The powerhouse of cloud and gaming (2000). A synthesis of Java safety and Delphi productivity, it has evolved into a high-performance, multi-platform language via .NET 9+ and Native AOT.
-relations:
-  - type: part-of
     target: ProgrammingLanguageEvolution
   - type: relates-to
     target: JavaLanguage

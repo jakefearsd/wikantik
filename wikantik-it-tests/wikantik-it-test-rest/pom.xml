@@ -60,10 +60,13 @@
         <configuration>
           <!-- Do NOT scan the selenide tests dependency — this module has its own tests -->
           <dependenciesToScan combine.self="override" />
+          <!-- Discover every *IT.java in this module. The previous explicit
+               whitelist silently skipped any newly-added IT class — including
+               the bulk-action verticals (2A/B/C) which were committed but
+               never actually run in the reactor. Switching to the standard
+               glob means any future *IT.java auto-participates. -->
           <includes>
-            <include>**/RestApiIT.java</include>
-            <include>**/KgPolicyAdminIT.java</include>
-            <include>**/KgStagedValidationIT.java</include>
+            <include>**/*IT.java</include>
           </includes>
           <systemPropertyVariables>
             <it-wikantik.base.url>http://localhost:${it.wikantik.servlet.port}/${it-wikantik.context}</it-wikantik.base.url>

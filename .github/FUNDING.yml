@@ -1,0 +1,22 @@
+# Fill in the platforms you actually want surfaced as "Sponsor" buttons
+# on the GitHub repo. Comment-out / leave blank any you don't use.
+#
+# Quick references:
+#   - github:        list of usernames or single username (custom Sponsor URL)
+#   - patreon:       a single Patreon username
+#   - open_collective: a single OpenCollective name
+#   - ko_fi:         a single Ko-fi username
+#   - tidelift:      "<platform>/<package-name>"  (npm, maven, etc.)
+#   - custom:        list of arbitrary URLs (PayPal, your own donate page, etc.)
+#
+# After filling in, GitHub will render a "Sponsor" button on the repo. The
+# `custom:` field is the easiest first step — point it at a personal donate
+# URL or a hosting/cloud-credits offer.
+
+# github: jakefearsd
+# patreon:
+# open_collective:
+# ko_fi:
+# tidelift:
+# custom:
+#   - "https://www.paypal.com/donate/?hosted_button_id=YOUR_BUTTON_ID"

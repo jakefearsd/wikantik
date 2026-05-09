@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQQ6SGVRSG0BJMX4AKGGF23S
-date: 2026-05-03T00:00:00Z
+date: 2025-02-13T00:00:00Z
 cluster: mathematics
 type: article
 tags:
@@ -8,8 +8,8 @@ tags:
 - information-theory
 - entropy
 - shannon
-- probability
-- coding-theory
+- llm
+- compression
 title: Information Theory
 relations:
 - type: part-of
@@ -18,60 +18,65 @@ relations:
   target_id: 01KQEKGD8QYAS6P09AM61S5E2W
 - type: prerequisite-for
   target_id: 01KQEKGDAZH3G3X2J4VFM9MP88
-summary: A foundational survey of Information Theory, founded by Claude Shannon. Covers
-  the quantification of information via entropy, the limits of data compression, and
-  the fundamental constraints of communication over noisy channels.
+summary: Advanced Information Theory focused on Shannon entropy, token compression math, and the fundamental limits of LLM context windows.
 status: active
+auto-generated: false
 ---
 
-# Information Theory
+# Information Theory: Entropy, Compression, and LLM Economics
 
-Information Theory is the mathematical study of the quantification, storage, and communication of information. Founded by Claude Shannon in his 1948 paper, "A Mathematical Theory of Communication," it provides the formal foundations for everything from data compression (ZIP, MP3) to reliable deep-space communication and modern machine learning.
+Information Theory is the rigorous quantification of uncertainty, storage, and communication. Founded by Claude Shannon in 1948, it provides the mathematical limits for data compression (Source Coding) and transmission (Channel Capacity). In the era of Large Language Models (LLMs), these principles govern tokenization efficiency, KV cache scaling, and the "Information Bottleneck" of neural representations.
 
-## 1. Quantifying Information: Entropy
+## 1. Shannon Entropy ($H$): The Limit of Surprise
 
-At the heart of the theory is **Shannon Entropy ($H$)**, which measures the amount of uncertainty or "surprise" in a random variable.
+Entropy measures the average amount of information produced by a stochastic source. For a discrete random variable $X$ with outcomes $\{x_1, \dots, x_n\}$ and probability mass function $P(X)$, entropy is defined as:
 
-The formula for entropy of a discrete random variable $X$ is:
-$$H(X) = -\sum p(x) \log_b p(x)$$
-Where $p(x)$ is the probability of outcome $x$. If $b=2$, the unit is the **bit**.
+$$H(X) = -\sum_{i=1}^{n} P(x_i) \log_2 P(x_i)$$
 
-- **Entropy = 0**: The outcome is certain (no information gained by observing it).
-- **Maximum Entropy**: All outcomes are equally likely (maximum uncertainty).
+If $P(x_i) = 1$ for some $i$, $H(X) = 0$ (no uncertainty). Maximum entropy occurs when all outcomes are equiprobable ($P(x_i) = 1/n$), yielding $H(X) = \log_2 n$.
 
-### Example: The Biased Coin
-- A **fair coin** ($p=0.5$) has $H = 1$ bit of entropy.
-- A **biased coin** ($p=0.9$ heads) has $H \approx 0.47$ bits. It is more predictable, so each flip carries less "new" information.
+### Concrete Example: LLM Token Prediction
+Consider a vocabulary of 50k tokens. 
+- **Uniform Distribution:** If the next token were selected randomly, entropy would be $\log_2(50,000) \approx 15.6$ bits/token.
+- **Natural Language:** Real-world English is highly redundant. An LLM might predict the next token with high confidence (e.g., after "The capital of France is", the token "Paris" has $P \approx 0.99$).
+- **Surprisal:** The information content of "Paris" in this context is $-\log_2(0.99) \approx 0.014$ bits. If the LLM predicted "Banana" ($P \approx 10^{-6}$), the surprisal would be $\approx 19.9$ bits.
 
-## 2. Mutual Information
+## 2. Token Compression Math
 
-Mutual Information ($I(X; Y)$) measures how much information is shared between two variables. It quantifies the reduction in uncertainty about $X$ that results from knowing $Y$.
+The **Source Coding Theorem** states that the minimum average code length $L$ for a source $X$ satisfies $L \geq H(X)$. In LLMs, this dictates the efficiency of Tokenizers (like BPE or SentencePiece).
 
-$$I(X; Y) = H(X) - H(X|Y)$$
+### The Tokenization Bottleneck
+Tokenizers map raw bytes to integers. If a tokenizer is inefficient (e.g., character-level), the "entropy per token" is low, wasting the LLM's finite context window.
+- **Efficiency Metric:** $\eta = \frac{H(\text{Source})}{\text{Average Bits Per Token}}$.
+- **Compression Gaps:** When an LLM processes code (highly structured) vs. creative writing, the bits-per-character varies. Information Theory allows us to quantify why a 128k context window feels "shorter" for dense technical logs than for prose.
 
-In **Machine Learning**, mutual information is used for feature selection (identifying which input features provide the most information about the target label) and for understanding the "information bottleneck" in deep neural networks.
+## 3. Mutual Information and The Information Bottleneck
 
-## 3. The Limits of Communication
+Mutual Information $I(X; Y)$ quantifies how much information is shared between two variables:
+$$I(X; Y) = H(X) - H(X|Y) = H(Y) - H(Y|X)$$
 
-Shannon's two fundamental theorems define the absolute limits of technology:
+In Deep Learning, the **Information Bottleneck (IB)** theory suggests that a network learns by:
+1. Maximizing $I(X; T)$: Retaining relevant information from input $X$ in hidden representation $T$.
+2. Minimizing $I(T; Y)$: Compressing $T$ to remove noise while preserving the ability to predict $Y$.
 
-### Source Coding Theorem (Compression)
-You cannot compress data into fewer bits than its entropy without losing information. Entropy is the fundamental limit of lossless data compression.
+## 4. Channel Capacity ($C$) and Context Windows
 
-### Noisy-Channel Coding Theorem (Capacity)
-For any given noisy channel, there exists a **Channel Capacity ($C$)**. As long as the rate of information transmission ($R$) is less than $C$, there exists a coding scheme that allows for communication with an arbitrarily small error rate.
+Shannon's Noisy-Channel Coding Theorem defines the maximum rate $C$ at which information can be transmitted with zero error:
+$$C = B \log_2(1 + \text{SNR})$$
 
-$$C = B \log_2(1 + \frac{S}{N})$$
-(Where $B$ is bandwidth, $S$ is signal power, and $N$ is noise power).
+In RAG (Retrieval-Augmented Generation), we can model the retrieval process as a noisy channel. If the "noise" (irrelevant chunks) is too high relative to the "signal" (relevant facts), the LLM's "Channel Capacity" to produce a correct answer collapses.
 
-## Applications in Computing
-- **Computer Science**: Huffman coding, error-correcting codes (ECC memory).
-- **Machine Learning**: Cross-entropy loss functions, decision tree splitting (Information Gain).
-- **Cryptography**: Measuring the "randomness" of keys.
-- **Data Structures**: [[Bloom Filters]], hash function analysis.
+## Summary Table: Compression in Practice
+
+| Format | Entropy Basis | Application |
+| :--- | :--- | :--- |
+| **Huffman Coding** | Frequency-based | Deflate, ZIP |
+| **Arithmetic Coding** | Range-based | H.264, Modern Compression |
+| **BPE Tokenization** | Subword-frequency | GPT-4, Llama-3 |
+| **KV Cache** | Temporal redundancy | Transformer Inference |
 
 ## See Also
 - [[MathematicsHub]]
-- [[ComputerScienceFoundationsHub]]
 - [[ProbabilityTheory]]
 - [[MathematicalFoundationsOfMachineLearning]]
+- [[ContextCompression]]

@@ -6,6 +6,18 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-09** — admin-ui: server-driven pagination on AdminTable + ProposalReviewQueue
+
+**2026-05-09** — fix(kg): pagination contract for /admin/knowledge-graph/proposals
+
+**2026-05-09** — content: bulk page maintenance — title casing + frontmatter cleanup
+
+**2026-05-09** — content: add LangChain / LangGraph trio (agentic-ai cluster)
+
+**2026-05-09** — content(news): backfill May 9 commit log
+
+**2026-05-09** — fix(auth): AdminAuthFilter passes SPA navigation through to the React shell
+
 **2026-05-09** — admin-ui: fix Machine-rejected filter to actually load the rejected set
 
 **2026-05-09** — admin-ui: timestamp on each judge-rationale line

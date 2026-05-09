@@ -49,12 +49,34 @@ const BULK_ACTIONS = [
     },
   },
   {
+    // Speed path: skip the reason field for obvious junk. The audit trail
+    // still records "(no reason given)" so triagers can grep for these
+    // later. The dispatcher rewrites action.id 'reject-quick' → 'reject'
+    // before talking to the server.
+    id: 'reject-quick',
+    label: 'Reject (no reason)',
+    variant: 'danger',
+    confirm: {
+      title: 'Reject Without Reason',
+      body: (selected) => (
+        <p>
+          Reject <strong>{selected.length}</strong> proposal{selected.length !== 1 ? 's' : ''} without
+          recording a reason? The audit trail will show <code>(no reason given)</code>.
+        </p>
+      ),
+      confirmLabel: 'Reject',
+    },
+  },
+  {
     id: 'judge',
     label: 'Judge',
     variant: 'default',
     // No confirm — runs the LLM judge on selected proposals immediately.
   },
 ];
+
+/** Placeholder recorded in the audit trail for quick-reject actions. */
+const QUICK_REJECT_REASON = '(no reason given)';
 
 /**
  * Compact relative-time formatter for the judge-rationale disclosure. Returns
@@ -382,6 +404,13 @@ export default function ProposalReviewQueue() {
     await loadProposals();
   };
 
+  const handleQuickReject = async (id) => {
+    // Speed path: skip the prompt for obvious junk. Audit trail records
+    // QUICK_REJECT_REASON so triagers can identify these later.
+    await api.knowledge.rejectProposal(id, QUICK_REJECT_REASON);
+    await loadProposals();
+  };
+
   const handleJudgeNow = async (id) => {
     await api.knowledge.judgeProposal(id);
     await loadProposals();
@@ -399,8 +428,16 @@ export default function ProposalReviewQueue() {
 
   const handleBulkAction = async (action, selectedRows, reason) => {
     const ids = selectedRows.map(p => p.id);
-    const opts = reason ? { reason } : {};
-    const result = await api.knowledge.bulkProposalAction(action.id, ids, opts);
+    // The "Reject (no reason)" speed-path button has its own action.id
+    // ('reject-quick') so it can render a different confirm modal, but the
+    // server only knows 'approve' / 'reject' / 'judge'. Rewrite to the
+    // canonical 'reject' action and substitute the audit-trail placeholder.
+    const isQuickReject = action.id === 'reject-quick';
+    const serverAction = isQuickReject ? 'reject' : action.id;
+    const opts = isQuickReject
+      ? { reason: QUICK_REJECT_REASON }
+      : (reason ? { reason } : {});
+    const result = await api.knowledge.bulkProposalAction(serverAction, ids, opts);
     await loadProposals();
     return result;
   };
@@ -464,6 +501,12 @@ export default function ProposalReviewQueue() {
       label: 'Reject',
       variant: 'danger',
       onClick: () => handleReject(p.id),
+    },
+    {
+      id: 'reject-quick',
+      label: 'Reject (skip)',
+      variant: 'danger',
+      onClick: () => handleQuickReject(p.id),
     },
     {
       id: 'judge',

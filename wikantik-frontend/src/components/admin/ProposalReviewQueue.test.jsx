@@ -97,6 +97,27 @@ describe('ProposalReviewQueue — rendering', () => {
     const judgeButtons = screen.getAllByRole('button', { name: /Judge now/i });
     expect(judgeButtons.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('per-row "Reject (skip)" dispatches without prompting and uses the placeholder reason', async () => {
+    render(<ProposalReviewQueue />);
+    await screen.findByText('new-edge');
+
+    // No window.prompt — handleQuickReject must not invoke it.
+    const promptSpy = vi.spyOn(window, 'prompt');
+
+    const skipButtons = screen.getAllByRole('button', { name: /^Reject \(skip\)$/i });
+    expect(skipButtons.length).toBeGreaterThanOrEqual(1);
+    fireEvent.click(skipButtons[0]);
+
+    await waitFor(() => {
+      expect(api.knowledge.rejectProposal).toHaveBeenCalledWith(
+        PROPOSALS[0].id,
+        '(no reason given)'
+      );
+    });
+    expect(promptSpy).not.toHaveBeenCalled();
+    promptSpy.mockRestore();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -219,6 +240,32 @@ describe('ProposalReviewQueue — bulk reject', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument()
     );
     expect(api.knowledge.bulkProposalAction).not.toHaveBeenCalled();
+  });
+
+  it('"Reject (no reason)" speed-path dispatches with the audit-trail placeholder', async () => {
+    render(<ProposalReviewQueue />);
+    await screen.findByText('new-edge');
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[1]);
+    await screen.findByText(/1 selected/);
+
+    const toolbar = screen.getByRole('toolbar', { name: /Bulk actions/i });
+    fireEvent.click(within(toolbar).getByRole('button', { name: /^Reject \(no reason\)$/i }));
+
+    // Confirm dialog has no reason input — just confirm.
+    const dialog = await screen.findByRole('dialog', { name: 'Reject Without Reason' });
+    expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Reject$/i }));
+
+    // Server sees action='reject' (NOT 'reject-quick') with the placeholder reason.
+    await waitFor(() => {
+      expect(api.knowledge.bulkProposalAction).toHaveBeenCalledWith(
+        'reject',
+        [PROPOSALS[0].id],
+        { reason: '(no reason given)' }
+      );
+    });
   });
 });
 

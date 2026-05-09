@@ -39,7 +39,6 @@ public class MarkdownSetupEngineLifecycleExtension implements EngineLifecycleExt
         setWikiProperty( properties, "wikantik.renderingManager.markupParser", "com.wikantik.parser.markdown.MarkdownParser" );
         setWikiProperty( properties, "wikantik.renderingManager.renderer", "com.wikantik.render.markdown.MarkdownRenderer" );
         setWikiProperty( properties, "wikantik.renderingManager.renderer.wysiwyg", "com.wikantik.render.markdown.MarkdownRenderer" );
-        setWikiProperty( properties, "wikantik.syntax.plain", "plain/wiki-snips-markdown.js" );
         setWikiProperty( properties, "wikantik.translatorReader.allowHTML", "true" );
     }
 

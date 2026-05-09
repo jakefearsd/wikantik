@@ -32,15 +32,13 @@ class MarkdownSetupEngineLifecycleExtensionTest {
         sut.onInit( properties );
 
         // Markdown is the only supported syntax — properties are always set
-        Assertions.assertEquals( 5, properties.size() );
+        Assertions.assertEquals( 4, properties.size() );
         Assertions.assertEquals( "com.wikantik.parser.markdown.MarkdownParser",
                 properties.getProperty( "wikantik.renderingManager.markupParser" ) );
         Assertions.assertEquals( "com.wikantik.render.markdown.MarkdownRenderer",
                 properties.getProperty( "wikantik.renderingManager.renderer" ) );
         Assertions.assertEquals( "com.wikantik.render.markdown.MarkdownRenderer",
                 properties.getProperty( "wikantik.renderingManager.renderer.wysiwyg" ) );
-        Assertions.assertEquals( "plain/wiki-snips-markdown.js",
-                properties.getProperty( "wikantik.syntax.plain" ) );
         Assertions.assertEquals( "true",
                 properties.getProperty( "wikantik.translatorReader.allowHTML" ) );
     }
@@ -52,6 +50,6 @@ class MarkdownSetupEngineLifecycleExtensionTest {
         final Properties properties = new Properties();
         final MarkdownSetupEngineLifecycleExtension sut = new MarkdownSetupEngineLifecycleExtension();
         sut.onInit( properties );
-        Assertions.assertEquals( 5, properties.size() );
+        Assertions.assertEquals( 4, properties.size() );
     }
 }

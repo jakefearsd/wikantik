@@ -2,49 +2,70 @@
 status: official
 cluster: wikantik-development
 type: article
-title: Hexagonal Architecture
-date: '2026-05-04'
-summary: How Wikantik uses the Hexagonal Architecture pattern to decouple core logic
-  from infrastructure.
+title: "Ports and Adapters: Hexagonal Architecture"
+date: '2026-05-22'
+summary: A deep dive into Hexagonal Architecture (Ports and Adapters) in Wikantik, focusing on decoupling core domain logic from infrastructure and framework leakage.
 canonical_id: 01KQTD4FF0P3V91F9GMSC7XPV6
-verified_at: '2026-05-04T21:10:44.598011331Z'
-verified_by: gemini-cli-mcp-client
+auto-generated: false
 ---
-# Hexagonal Architecture in Wikantik
 
-Wikantik follows the **Hexagonal Architecture** (also known as **Ports and Adapters**) pattern. This architectural style emphasizes the separation of the core business logic (the Domain) from external concerns like databases, user interfaces, and third-party services.
+# Ports and Adapters: The Hexagonal Core
 
-## The Core Philosophy
-The primary goal of Hexagonal Architecture in Wikantik is to ensure that the core wiki logic remains independent of the technologies used to deliver it. This makes the system:
-- **Testable:** The domain can be tested in isolation using stubs.
-- **Replaceable:** The database (Postgres) or frontend (React) could be swapped with minimal impact on the core engine.
-- **Decoupled:** Modules have clear boundaries and responsibilities.
+**Hexagonal Architecture** (also known as **Ports and Adapters**) is an architectural pattern that moves from a layered model to a "centered" model. The goal is to isolate the application's core logic (the Domain) from external concerns—UI, databases, and third-party APIs—by using explicit interfaces (Ports) and implementations (Adapters).
 
-## Structure in Wikantik
+## I. The Core Philosophy: Dependency Inversion
 
-The platform's 18-module Maven structure mirrors the Hexagonal pattern:
+In a traditional layered architecture, the Business layer depends on the Data Access layer. Hexagonal Architecture flips this:
+*   **The Domain is Sovereign:** It defines **Ports** (interfaces) that describe what it needs.
+*   **Infrastructure is an Implementation Detail:** External systems provide **Adapters** that implement those ports.
 
-### 1. The Domain and Ports (`wikantik-api`)
-This is the center of the hexagon. It contains:
-- **Entities:** `WikiPage`, `WikiContext`, `User`.
-- **Ports (Manager Interfaces):** `PageManager`, `ReferenceManager`, `GroupManager`. These define the "contracts" that the core engine needs to function.
+## II. Anatomy of the Hexagon
 
-### 2. The Core Engine (`wikantik-main`)
-Provides the "inside-the-hexagon" implementation of the wiki logic, such as Markdown rendering, link resolution, and the knowledge graph service.
+### 1. The Inside: Domain and Ports
+The core contains only business logic. It has zero dependencies on frameworks (like Spring) or drivers.
+*   **Driving Ports (Inbound):** Interfaces defining what the outside can do to the domain (e.g., `PageService.save()`).
+*   **Driven Ports (Outbound):** Interfaces defining what the domain needs from the outside (e.g., `PageRepository`).
 
-### 3. Adapters (The "Outside" World)
-Adapters connect the hexagon to external systems:
-- **Persistence Adapters:** `VersioningFileProvider` (File system), `JDBCUserDatabase` (PostgreSQL).
-- **Driving Adapters (Input):** `wikantik-rest` (REST API), `wikantik-admin-mcp` (Model Context Protocol).
-- **UI Adapter:** `wikantik-frontend` (React SPA).
+### 2. The Outside: Adapters
+Adapters bridge the gap between the Port and the external technology.
+*   **Primary Adapters (Driving):** The REST API, the CLI, or the Admin UI. They call the Domain's driving ports.
+*   **Secondary Adapters (Driven):** The PostgreSQL implementation of a repository, the MailGun implementation of a notification service.
 
-## Implementation Detail: ADR-001
-The transition to a clean Hexagonal Architecture was solidified by **ADR-001**, which extracted the core manager interfaces into `wikantik-api`. This allowed the MCP modules to depend only on the interfaces (the Ports), rather than the full implementation in `wikantik-main`.
+## III. Concrete Example: Decoupling Page Storage
 
-## Benefits for AI Agents
-For AI agents working on the codebase, this architecture provides a clear map. If an agent needs to understand the "rules" of the system, it looks at `wikantik-api`. If it needs to understand how the system "talks" to the world, it looks at the various adapter modules.
+In Wikantik, the `PageManager` interface is a **Driven Port**. The engine doesn't care if pages are stored in a Git repo, a database, or a cloud bucket.
 
-## See Also
-- [System Architecture](WikantikArchitecture) — The full 18-module breakdown.
-- [Constructor Injection](ConstructorInjection) — The mechanism for wiring adapters to ports.
-- [Design Patterns Overview](DesignPatternsOverview) — Other patterns used in the platform.
+### The Port (`wikantik-api`)
+```java
+public interface PageRepository {
+    void persist(WikiPage page);
+    Optional<WikiPage> fetch(String id);
+}
+```
+
+### The Adapter (`wikantik-main`)
+```java
+public class JdbcPageRepository implements PageRepository {
+    private final JdbcTemplate jdbc; // Implementation detail
+
+    @Override
+    public void persist(WikiPage page) {
+        jdbc.update("INSERT INTO pages...", page.getId(), page.getContent());
+    }
+}
+```
+
+## IV. Technical Integrity: Preventing Leakage
+
+A common failure in "Hexagonal" systems is **Framework Leakage**. If your `WikiPage` entity in the core hexagon contains JPA annotations (`@Entity`, `@Table`), you have leaked infrastructure into the domain.
+
+**The Wikantik Standard:**
+1.  **Pure Entities:** Entities in `wikantik-api` are POJOs or Records with zero annotations.
+2.  **Mapping Layers:** The Adapter is responsible for mapping Domain Entities to Persistence Entities (e.g., mapping a `WikiPage` to a `PageDbo`).
+3.  **No Persistence in Domain:** Domain logic never calls `save()` or `commit()`. It returns events or updated state; the Application Service (the driving port implementation) handles the persistence orchestration.
+
+---
+**See Also:**
+- [Domain Driven Design](DomainDrivenDesign) — How to model the "Inside" of the hexagon.
+- [System Architecture](WikantikArchitecture) — The 18-module breakdown of Wikantik.
+- [Constructor Injection](ConstructorInjection) — Wiring adapters to ports without coupling.

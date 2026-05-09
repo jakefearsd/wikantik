@@ -1,185 +1,106 @@
 ---
 canonical_id: 01KQ0P44RBMJ37JR1J1PXPDC57
-title: Java Records and Sealed Classes
+title: "Java ADTs: Records and Sealed Classes"
 type: article
 cluster: java
 status: active
-date: '2026-04-26'
-summary: Records as immutable data carriers, sealed classes for restricted inheritance,
-  and the combination that gives Java a working sum-type system — when each fits and
-  the patterns that have stuck.
+date: '2026-05-22'
+summary: A practitioner's guide to Algebraic Data Types (ADTs) in Java using Records and Sealed Classes. Covers sum types, product types, and exhaustive pattern matching.
 tags:
 - java
 - records
 - sealed-classes
-- immutability
-- data-modeling
+- adt
+- functional-programming
 related:
 - JavaTwentyOneFeatures
 - JavaCollectionsFramework
 - ImmutableDataPatterns
-- JavaStreamsAndFunctionalProgramming
 - DesignPatternsHub
-hubs:
-- JavaHub
+auto-generated: false
 ---
-# Java Records and Sealed Classes
 
-Records (Java 14+ preview, 16 stable) and sealed classes (Java 17 stable) together added Java's clearest improvements to data modeling in over a decade. Records replace the boilerplate of value classes; sealed classes restrict inheritance; the combination provides effective sum types with pattern matching support.
+# Java ADTs: Records and Sealed Classes
 
-This page is about how each works, when to use them, and the patterns that have stuck.
+The combination of **Records** (Product Types) and **Sealed Classes** (Sum Types) allows Java to support formal **Algebraic Data Types (ADTs)**. This shift enables developers to move domain invariants into the type system, replacing runtime checks with compile-time safety.
 
-## Records
-
-A record is an immutable data class with automatically-generated boilerplate:
+## I. Product Types: Records
+A Record is a **Product Type** because its state space is the product of its components.
+*   **Immutability by Design:** Fields are `final`. Accessors are provided.
+*   **Transparent Data:** Unlike traditional Beans, Records "are" their data. The JVM can optimize them more aggressively (e.g., potential stack allocation in future versions).
 
 ```java
-public record Point(int x, int y) {}
+// Product Type: State space = int * String
+public record User(int id, String name) {}
 ```
 
-This generates:
-- A constructor `Point(int x, int y)`
-- Accessor methods `x()` and `y()` (note: not `getX()` — record style)
-- `equals()`, `hashCode()`, `toString()`
-- Implements `Record` interface
+## II. Sum Types: Sealed Classes
+A Sealed class/interface is a **Sum Type** because its state space is the sum of its permitted subtypes.
+*   **Restricted Hierarchy:** The `permits` clause closes the hierarchy.
+*   **Exhaustiveness:** The compiler can verify that every possible subtype is handled in a `switch` expression.
 
-The fields are `final`. The record is shallowly immutable.
+## III. Concrete Pattern: The Domain State Machine
 
-### When records fit
+Encoding an order lifecycle as an ADT prevents invalid states (e.g., a "Cancelled" order having a "TrackingNumber").
 
-- Data Transfer Objects (DTOs)
-- Value objects in domain modeling
-- Tuples (named, typed multi-value returns)
-- Immutable configuration containers
-- Event payloads
+### The Model
+```java
+public sealed interface OrderState 
+    permits Created, Shipped, Delivered, Cancelled {}
 
-### When records don't fit
+public record Created(Instant timestamp) implements OrderState {}
 
-- Mutable objects (records are final-fields; cannot have setters)
-- Objects with significant behavior beyond data access
-- Inheritance hierarchies (records are implicitly final)
-- Objects requiring null fields with setter access
+public record Shipped(Instant timestamp, String trackingId) implements OrderState {}
 
-### Custom validation in records
+public record Delivered(Instant timestamp, String signedBy) implements OrderState {}
 
-Compact constructor for validation:
+public record Cancelled(Instant timestamp, String reason) implements OrderState {}
+```
+
+### Exhaustive Processing (Java 21)
+```java
+public String getDisplayStatus(OrderState state) {
+    return switch (state) {
+        case Created c -> "Order placed at " + c.timestamp();
+        case Shipped s -> "In transit. Tracking: " + s.trackingId();
+        case Delivered d -> "Delivered to " + d.signedBy();
+        case Cancelled c -> "Cancelled: " + c.reason();
+        // No 'default' needed! Adding a new state will break compilation here.
+    };
+}
+```
+
+## IV. Record Deconstruction and Guards
+
+Java 21 allows deconstructing records directly in the `case` label, including **When Guards**.
 
 ```java
-public record Email(String address) {
-    public Email {
-        if (address == null || !address.contains("@")) {
-            throw new IllegalArgumentException("Invalid email");
-        }
+public void process(OrderState state) {
+    switch (state) {
+        case Shipped(var ts, var id) when id.startsWith("FEDEX") -> 
+            trackViaFedex(id);
+        case Shipped(var ts, var id) -> 
+            trackGeneric(id);
+        default -> {}
     }
 }
 ```
 
-### Records and serialization
+## V. Strategic Guidelines
 
-Records work well with most serialization libraries (Jackson, Gson). The record syntax is recognized; field names are derived from accessor names.
+1.  **Prefer ADTs over the Visitor Pattern:** The Visitor Pattern was a workaround for the lack of sum types. Sealed + Switch is more readable and less boilerplate-intensive.
+2.  **Compact Constructors for Invariants:** Use the compact constructor to enforce business rules.
+    ```java
+    public record PositiveAmount(double value) {
+        public PositiveAmount {
+            if (value <= 0) throw new IllegalArgumentException();
+        }
+    }
+    ```
+3.  **Records are NOT Entities:** Do not use Records as JPA Entities. JPA requires a no-arg constructor and mutable fields. Use Records for DTOs and value objects.
 
-For JPA: records cannot be JPA entities (entities require non-final fields and no-arg constructors). Use records as DTOs, with conversion to entities at the boundary.
-
-## Sealed classes and interfaces
-
-A sealed class or interface restricts which classes can extend it:
-
-```java
-public sealed interface Shape permits Circle, Rectangle, Triangle {}
-
-public record Circle(double radius) implements Shape {}
-public record Rectangle(double width, double height) implements Shape {}
-public record Triangle(double base, double height) implements Shape {}
-```
-
-The `permits` clause names exactly the allowed subclasses. They must be in the same package or module.
-
-### Why sealed matters
-
-Without sealed:
-- Anyone can subclass; the type hierarchy is open-ended
-- Pattern matching cannot be exhaustive
-
-With sealed:
-- The compiler knows all possible subtypes
-- Pattern matching can be exhaustively checked at compile time
-- API contracts are clearer (the document lists the cases)
-
-### Combining sealed + records: sum types
-
-```java
-public sealed interface Result<T, E> {
-    record Ok<T, E>(T value) implements Result<T, E> {}
-    record Err<T, E>(E error) implements Result<T, E> {}
-}
-
-// Usage with pattern matching
-Result<Integer, String> result = parse(input);
-switch (result) {
-    case Result.Ok<Integer, String>(Integer value) -> useValue(value);
-    case Result.Err<Integer, String>(String error) -> handleError(error);
-}
-```
-
-This is Java's version of Rust's `Result` or Haskell's `Either` — explicit success/failure types with exhaustive handling at compile time.
-
-## Patterns that have stuck
-
-### Domain modeling with sealed + records
-
-Domain types as a sealed hierarchy of records:
-
-```java
-public sealed interface OrderState
-    permits Pending, Confirmed, Shipped, Delivered, Cancelled {}
-
-public record Pending(Instant createdAt) implements OrderState {}
-public record Confirmed(Instant confirmedAt) implements OrderState {}
-public record Shipped(Instant shippedAt, String trackingNumber) implements OrderState {}
-public record Delivered(Instant deliveredAt) implements OrderState {}
-public record Cancelled(Instant cancelledAt, String reason) implements OrderState {}
-```
-
-The state machine is encoded in the type system. Pattern matching is exhaustive; adding a state forces the compiler to flag all switches.
-
-### DTO records for serialization boundaries
-
-Replacing handwritten DTO classes with records. Less code, less risk of forgetting equals/hashCode, simpler review.
-
-### Immutable configuration containers
-
-```java
-public record DatabaseConfig(String url, String username, int maxConnections) {}
-```
-
-Configuration that cannot be mutated; validation in compact constructor; clean serialization.
-
-### Result types
-
-Replacing exception-based error handling at internal boundaries:
-
-```java
-public sealed interface ValidationResult {
-    record Valid<T>(T value) implements ValidationResult {}
-    record Invalid(List<String> errors) implements ValidationResult {}
-}
-```
-
-Less ceremony than exceptions; explicit handling required.
-
-## Common failure patterns
-
-- **Treating records as JPA entities.** They aren't; conversion is needed at persistence boundaries.
-- **Mutable wrappers over record fields.** Defeats the immutability.
-- **Adding too much behavior to records.** Records are data; complex behavior usually belongs elsewhere.
-- **Deep inheritance under sealed.** Sealed works for shallow hierarchies; deep nesting becomes confusing.
-- **Forgetting the package/module restriction on sealed permits.** Permitted subclasses must be in the same package or module.
-
-## Further Reading
-
-- [JavaTwentyOneFeatures](JavaTwentyOneFeatures) — The broader 21 feature set
-- [JavaCollectionsFramework](JavaCollectionsFramework) — Pairing records with collections
-- [ImmutableDataPatterns](ImmutableDataPatterns) — Why immutable defaults matter
-- [JavaStreamsAndFunctionalProgramming](JavaStreamsAndFunctionalProgramming) — Records in functional pipelines
-- [Design Patterns Hub](DesignPatternsHub) — Patterns expressible with sealed + records
-- [Java Hub](JavaHub) — Cluster index
+---
+**See Also:**
+- [Java 21 Features](JavaTwentyOneFeatures) — Broader context on pattern matching.
+- [Immutable Data Patterns](ImmutableDataPatterns) — Why ADTs are the foundation of safe systems.
+- [Design Patterns Hub](DesignPatternsHub) — Modernizing GOF patterns with ADTs.

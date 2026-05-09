@@ -1,6 +1,8 @@
 ---
+date: 2026-03-21T00:00:00Z
+status: active
 canonical_id: 01KQ0P44R3DT6V9W45AD06JFRW
-type: hub
+summary: Complete investing framework for building wealth with index funds to retire early, covering costs, allocation, and account strategy
 tags:
 - personal-finance
 - investing
@@ -8,10 +10,8 @@ tags:
 - early-retirement
 - FIRE
 - financial-independence
-date: 2026-03-21
-status: active
+type: hub
 cluster: index-fund-investing
-summary: Complete investing framework for building wealth with index funds to retire early, covering costs, allocation, and account strategy
 related:
 - ExpenseRatioDeepDive
 - AssetAllocationGuide
@@ -22,6 +22,7 @@ related:
 - EarlyRetirementInvestmentPlan
 - RetirementPlanningGuide
 ---
+
 # Index Fund Investing for Early Retirement
 
 This article cluster presents a complete investing framework for building wealth efficiently enough to retire early. The strategy rests on three pillars: keeping costs ruthlessly low through index funds, understanding exactly how expense ratios compound against you over decades, and distributing investments across the right mix of account types so you can actually access your money before age 59.5.
@@ -56,6 +57,7 @@ Most mainstream retirement advice assumes you will work until your mid-60s. If y
 5. **Your savings rate dominates everything.** No amount of portfolio optimisation compensates for spending 90% of your income.
 
 ## Related Existing Articles
+
 
 This cluster builds on and links to existing wiki content:
 - [Expense Ratios and Their Effect on Compounding](ExpenseRatiosAndTheirEffectOnCompounding)

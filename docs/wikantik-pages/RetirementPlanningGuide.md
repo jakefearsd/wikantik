@@ -1,7 +1,7 @@
 ---
-date: 2026-03-21T02:00:00Z
 summary: Strategic decision frameworks for retirement planning — income, taxes, healthcare,
   and how each choice constrains the others
+date: 2026-03-21T02:00:00Z
 cluster: retirement-planning
 related:
 - SocialSecurityClaimingStrategy
@@ -22,9 +22,10 @@ tags:
 - financial-planning
 - decumulation
 - tax-strategy
-status: active
 hubs:
 - PersonalFinanceHub
+- IndexFundInvestingForEarlyRetirement
+status: active
 ---
 
 

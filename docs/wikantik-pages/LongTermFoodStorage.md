@@ -6,60 +6,55 @@ type: article
 tags:
 - emergency-prep
 - food-storage
-- preservation-science
-- supply-chain-resilience
+- preservation
 - logistics
-- thermodynamics
-- microbiology
-summary: A rigorous exploration of long-term food preservation and inventory management, focusing on Predictive Degradation Curves (PDC), the thermodynamics of inert gas flushing (Argon/Nitrogen), and the engineering of self-sustaining supply chains for systemic failure events.
-related:
-- SupplyChainResilience
-- FoodScience
-- HomeEmergencyPreparedness
-- RiskManagement
-- MathematicsHub
+- nutrition
+status: active
+date: 2025-05-15
+summary: Technical guide to archival food preservation. Covers Mylar/OA systems, degradation rates of grains vs fats, and inventory rotation.
+auto-generated: false
 ---
 
-# Long-Term Food Storage: The Engineering of Systemic Resilience
+# Long Term Food Storage: Archival Preservation
 
-In the context of modern risk modeling, the assumption of continuous, predictable supply chains is a statistical fallacy. Therefore, the establishment of self-sustaining food reserves transitions from a contingency plan to a critical infrastructure requirement. Long-term food storage is not merely "canning"; it is the implementation of a complex, multi-variable **Inventory Management System (IMS)** designed to counteract chemical entropy and microbial proliferation over multi-decade timescales.
+Long-term storage requires protecting biological calories from the four primary agents of decay: **Oxygen, Moisture, Light, and Temperature**.
 
-This treatise explores the foundational chemistry of preservation, the mechanics of **Inert Gas Flushing**, and the advanced methodologies required to maintain a dynamic, rotating reserve.
+## 1. The Mylar and Oxygen Absorber (OA) System
 
----
+To achieve a 25-30 year shelf life for dry goods, you must reduce internal oxygen levels to **<0.1%**.
 
-## I. Foundations: The Chemistry of Degradation
+*   **Container:** Use 7-mil thick Mylar bags. Thinner bags (3.5-mil) are permeable to oxygen over 5+ years.
+*   **Absorber:** Use Iron-based Oxygen Absorbers. 
+    *   **Concrete Spec:** For a 1-gallon Mylar bag, use **300cc** to **500cc** of OA. For a 5-gallon bucket, use **2000cc**.
+*   **Process:** Fill the bag, drop the OA, and heat-seal immediately with a flat iron (impulse sealer). The bag will shrink slightly as $O_2$ (21% of air) is removed.
 
-Spoilage is a set of interacting chemical reactions governed by [Thermodynamics](Thermodynamics).
-*   **Oxidation:** The primary enemy, leading to rancidity in lipids and the destruction of essential vitamins.
-*   **Predictive Degradation Curves (PDC):** Drawing from [Mathematics Hub](MathematicsHub), we model the decay rate ($R$) as a function of temperature ($T$) and humidity ($H$):
-    $$R = k \cdot e^{\left(-\frac{E_a}{R_{gas}T}\right)} \cdot f(H)$$
-    This allows for dynamic shelf-life adjustment based on the real-time thermal history of the storage node (see [Home Emergency Preparedness](HomeEmergencyPreparedness)).
+## 2. Selection: Stability vs. Rancidity
 
----
+Not all food is suitable for long-term (10+ year) storage.
 
-## II. Containment Technology: Inert Gas Flushing
+| Food Item | Shelf Life | Constraint |
+| :--- | :--- | :--- |
+| **White Rice** | 30 Years | Low moisture, low oil. |
+| **Hard Red Wheat** | 30+ Years | Extremely stable in Mylar. |
+| **Pinto Beans** | 20-30 Years | Become "hard-to-cook" over time; requires pressure cooker. |
+| **Rolled Oats** | 25 Years | Good calorie/nutrient profile. |
+| **Brown Rice** | 6 Months | High oil content; becomes rancid even in Mylar. |
 
-To minimize $\text{O}_2$ exposure, we utilize advanced containment beyond simple vacuum sealing.
-*   **Argon/Nitrogen Flushing:** Replacing the headspace with a non-reactive gas. Argon is preferred for archival storage due to its higher density, providing a superior "blanket" against micro-leaks in the primary seal.
-*   **BoPET/Aluminum Laminates (Mylar):** Using multi-layered engineered barriers to minimize the **Oxygen Transmission Rate (OTR)** to $< 0.01 \text{cc/m}^2/\text{day}$.
+**Concrete Tip:** Store fats (oil, lard) separately and rotate every 12-24 months. You cannot store fats for 25 years without refrigeration.
 
----
+## 3. Inventory Management: FIFO and PDCs
 
-## III. Logistical Precision: The JIT Drawdown Model
+*   **FIFO (First-In, First-Out):** Always consume the oldest stock first. Label every bucket with the **Pack Date** and **Expiry Date**.
+*   **Predictive Degradation:** For every 18°F (10°C) increase in storage temperature, the shelf life of food is cut in half. **Requirement:** Store food in a "Cool, Dark, Dry" location, ideally <60°F.
 
-Expert rotation moves beyond simple FIFO (First-In, First-Out).
-*   **Stochastic Inventory Management:** Balancing the **Risk of Obsolescence** against the **Cost of Replacement**.
-*   **Just-In-Time (JIT) Drawdown:** Modeling consumption in precise windows (1-3 years) to ensure the oldest viable stock is consumed *before* the next production batch is unsealed, maximizing the cumulative stability of the entire cache.
+## 4. The 3-Layered Pantry
 
-## Conclusion
-
-Long-term food storage is a discipline of archival science applied to biological sustainment. By mastering the dynamics of chemical degradation and implementing rigorous, data-driven [Supply Chain Resilience](SupplyChainResilience) protocols, researchers can ensure that their reserves remain not just caloric, but nutritionally viable through the steepest decline phases of a systemic crisis.
+1.  **Working Pantry (0-3 Months):** Items you eat every day.
+2.  **Short-Term Pantry (3-12 Months):** Canned goods, pasta, spices.
+3.  **Long-Term Cache (1-25 Years):** Mylar-sealed grains, beans, and freeze-dried meals.
 
 ---
 **See Also:**
-- [Supply Chain Resilience](SupplyChainResilience) — Managing external procurement risks.
-- [Food Science](FoodScience) — The biochemistry of flavor and nutrition.
-- [Home Emergency Preparedness](HomeEmergencyPreparedness) — HARDening the storage node.
-- [Risk Management](RiskManagement) — General principles of systemic mitigation.
-- [Mathematics Hub](MathematicsHub) — For the formal logic of degradation modeling.
+- [Road Meal Planning](RoadMealPlanning) — Cooking stored goods on the move.
+- [Home Emergency Preparedness](HomeEmergencyPreparedness) — Storage location hardening.
+- [Self Sufficiency Skills](SelfSufficiencySkills) — Growing your own replacement stock.

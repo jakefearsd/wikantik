@@ -5,221 +5,73 @@ type: article
 cluster: databases
 status: active
 date: '2026-04-26'
-summary: How database replication works — async vs. sync, lag handling, the patterns
-  for scaling reads with replicas, and the trade-offs of each replication topology.
+summary: Technical deep-dive into database replication topologies, consistency trade-offs (RYOW), and replication lag monitoring.
+auto-generated: false
 tags:
 - replication
-- read-replicas
 - databases
-- scaling
+- high-availability
+- scalability
 related:
 - CloudDatabases
 - DatabaseBackupStrategies
 - DatabaseConnectionSecurity
 - TwoPhaseCommitProtocol
 ---
-# Read Replicas and Replication
 
-Replication: maintaining copies of database data across multiple servers. The reasons: availability (failover), read scaling (replicas serve queries), geographic proximity (replicas closer to users), backup (cold replica as snapshot source).
+Database replication is the process of synchronizing data across multiple nodes to achieve high availability, read scalability, and geographic distribution.
 
-This page covers how replication works and the patterns for using it.
+## Replication Models
 
-## Replication models
-
-### Synchronous (sync)
-
-Primary commits only after replicas have applied the change.
-
-Pros: zero data loss on primary failure.
-Cons: every commit waits for replicas; latency increases; replica failure stops primary.
-
-For critical financial data, sometimes worth it. For most applications, async is the right tradeoff.
-
-### Asynchronous (async)
-
-Primary commits independently; replicates to followers afterward.
-
-Pros: fast commits; primary unaffected by replica health.
-Cons: replication lag; potential data loss if primary fails before replication.
-
-Default for most cloud-managed databases.
-
-### Semi-synchronous
-
-Hybrid: at least one replica must acknowledge before commit; others async.
-
-Pros: reduces data loss risk vs. async; faster than full sync.
-Cons: more complex; one replica's slowness affects primary.
-
-### Logical vs. physical
-
-Physical: byte-for-byte replication. Replica is identical to primary.
-Logical: replicates statements or row changes. Allows different schemas, different versions, selective tables.
-
-Cloud-managed databases usually offer both.
-
-## Use cases
-
-### Read scaling
-
-Application reads can go to replicas; writes only to primary. Spreads read load across many machines.
-
-```python
-def get_user(id):
-    return read_replica.fetch("SELECT * FROM users WHERE id = ?", id)
-
-def update_user(id, data):
-    return primary.execute("UPDATE users SET ... WHERE id = ?", id)
-```
-
-For read-heavy workloads, this is the standard scaling path.
-
-### Geographic distribution
-
-Replicas in different regions. Users connect to nearest. Lower latency.
-
-Cross-region replicas are async (latency forces this). Reads return slightly stale data.
-
-### Failover
-
-If primary fails, promote a replica. Application reconnects to new primary.
-
-Some systems do this automatically (RDS Multi-AZ; managed). Some require manual promotion.
-
-### Reporting / analytics
-
-Run heavy analytical queries on replicas. Doesn't affect primary's performance.
-
-### Backup source
-
-Snapshot from a replica to avoid impacting primary.
-
-## Replication lag
-
-The big async caveat. Replicas are behind primary by some amount of time:
-
-- Network latency
-- Replica throughput (can it apply changes as fast as primary produces them?)
-- Long transactions on primary delaying replication
-
-Typical lag: milliseconds to seconds. Spikes during heavy writes.
-
-### Read-after-write consistency
-
-User updates their profile; immediately reads it back. If reading from replica, might see old version.
-
-Patterns:
-- Read writes from primary briefly after write
-- Sticky read for specific user (their reads go to primary for short period)
-- Accept eventual consistency (UI doesn't show stale data)
-
-### Lag monitoring
-
-Critical metric. Alarm on excess lag:
-- Application sees stale data
-- Replica falling behind unrecoverably
-- Eventually replica becomes useless
+1. **Synchronous:** Primary waits for all replicas to acknowledge before confirming the commit.
+   - **Pro:** Zero data loss on failover.
+   - **Con:** Latency equals the slowest replica; primary hangs if a replica fails.
+2. **Asynchronous:** Primary commits immediately and replicates in the background.
+   - **Pro:** Low latency, primary availability decoupled from replicas.
+   - **Con:** **Replication Lag**; data loss risk if primary fails before sync.
+3. **Semi-Synchronous:** Primary waits for at least $N$ replicas to acknowledge. (A common compromise in MySQL/Postgres).
 
 ## Topologies
 
-### Primary-replica (single primary)
+- **Single-Primary (Master-Slave):** All writes go to one node; reads are distributed. The industry standard.
+- **Multi-Primary (Master-Master):** Writes accepted on any node. Requires complex conflict resolution (e.g., LWW or CRDTs).
+- **Cascading Replication:** Primary replicates to a "relay" replica, which then feeds other replicas. Reduces CPU load on the primary.
 
-One primary; multiple replicas. Writes to primary; reads from replicas.
+## Monitoring Replication Lag
 
-Most common topology. Simplest to reason about.
+Replication lag is the time delta between a write on the primary and its appearance on the replica.
 
-### Multi-primary (multi-master)
-
-Multiple primaries; writes accepted at any. Conflict resolution required.
-
-Complex; rarely the right choice. Examples: Galera, MySQL Group Replication.
-
-### Cascading replication
-
-Primary → replica → replica's replica.
-
-Reduces load on primary (only one direct replica). Increases lag for downstream replicas.
-
-### Cross-region
-
-Primary in region A; replica in region B. Async due to latency.
-
-For DR; for geographic users.
-
-### Logical replication for partial copies
-
-Replicate only specific tables to specific replicas. Different schemas. Multi-source replication.
-
-For specialized analytical replicas, audit replicas, etc.
-
-## Cloud-managed replication
-
-### RDS / Aurora
-
-- Multi-AZ: synchronous replica in another AZ; automatic failover
-- Read replicas: async; up to 15 (Aurora) or 5 (RDS)
-- Cross-region read replicas: async; for DR
-
-Aurora separates storage from compute; replicas share storage; very fast replica creation.
-
-### Cloud SQL / Cloud Spanner
-
-GCP equivalents.
-
-### Managed replication is dramatically easier than self-managed
-
-The complexity is real. Cloud-managed handles configuration, monitoring, failover.
-
-## Patterns
-
-### Connection routing
-
-Application logic to route reads vs. writes:
-
-```python
-class DatabasePool:
-    def read(self, query):
-        return self.replicas[hash % len(replicas)].execute(query)
-
-    def write(self, query):
-        return self.primary.execute(query)
+### PostgreSQL Monitoring
+```sql
+-- Run on Primary to see replica lag in bytes and time
+SELECT
+    application_name,
+    client_addr,
+    state,
+    (pg_current_wal_lsn() - replay_lsn) AS lag_bytes,
+    EXTRACT(second FROM (now() - reply_time)) AS lag_seconds
+FROM pg_stat_replication;
 ```
 
-Or use a proxy that does this (PgBouncer, ProxySQL, MaxScale).
+## Consistency Challenges
 
-### Sticky reads
+### Read-Your-Own-Writes (RYOW)
+A user updates their profile (Write to Primary) and immediately refreshes (Read from Replica). If lag is $500\text{ms}$, they see their old profile.
 
-After a write, route reads from the same user/session to primary briefly:
+**Solution Patterns:**
+- **Primary-Pinning:** After a write, pin that user's session to the Primary for $N$ seconds (where $N > \text{Max Lag}$).
+- **Version Tracking:** Include the last known LSN (Log Sequence Number) in the user's session. The replica rejects the read if its own LSN is lower than the user's.
+- **Synchronous Replication:** For the specific transaction, force sync to at least one replica.
 
-```python
-session.set_sticky_to_primary_for(seconds=5)
-# All reads in this session go to primary
-```
+## Failover Mechanics
 
-Avoids the user seeing stale data right after their own write.
+When the primary fails, the system must **Promote** a replica.
+1. **Detection:** Health checks (Consul/Zookeeper) confirm primary failure.
+2. **Fencing:** Ensure the old primary is truly dead (STONITH) to prevent split-brain.
+3. **Promotion:** Pick the replica with the most advanced LSN.
+4. **Reconfiguration:** Update DNS/Load Balancer to point to the new primary.
 
-### Lag-aware queries
-
-For long-running analytical queries, accept stale data. For user-facing reads of just-written data, route to primary.
-
-### Failover detection
-
-If primary stops responding, automatic promotion of a replica. Cloud-managed handles this.
-
-For self-managed: tools like Patroni (PostgreSQL), Orchestrator (MySQL).
-
-## Common failure patterns
-
-- **Reading from replica with high lag.** Stale data; user confusion.
-- **Write to replica.** Some systems silently route to primary; some fail.
-- **No lag monitoring.** Replicas fall behind unnoticed.
-- **Single replica.** No redundancy if it fails.
-- **Cross-region without DR plan.** Replica exists; nothing knows when to failover.
-- **Heavy queries on primary that should be on replica.** Primary unnecessarily loaded.
-
-## Further Reading
-
-- [CloudDatabases](CloudDatabases) — Replication features
-- [DatabaseBackupStrategies](DatabaseBackupStrategies) — Backups + replication
-- [DatabaseConnectionSecurity](DatabaseConnectionSecurity) — Security across replicas
-- [TwoPhaseCommitProtocol](TwoPhaseCommitProtocol) — Distributed transaction protocol
+## Operational Risks
+- **Long-Running Queries:** A heavy `SELECT` on a replica can block the replication applier, causing lag to spike.
+- **Network Asymmetry:** Replicas in different regions must use asynchronous replication to avoid unusable write latency.
+- **Schema Migrations:** Large `ALTER TABLE` operations can saturate the replication stream. Use tools like `gh-ost` or `pt-online-schema-change`.

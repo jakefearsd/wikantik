@@ -1,63 +1,54 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44WYDPSG1PWPCKV74V5C
-title: Persistent Connectivity in Infrastructure-Deprived Zones
+title: Staying Connected in Rural US
 type: article
 tags:
 - van-life
+- connectivity
 - telecommunications
-- rural-connectivity
-- leo-satellite
-- 5g-fwa
-- multi-link-aggregation
-- redundancy-planning
-summary: A rigorous exploration of high-reliability connectivity in rural America, focusing on LEO satellite mechanics, 5G Fixed Wireless Access (FWA) propagation modeling, and the implementation of Multi-Link Aggregation (MLA) for mission-critical field operations.
-related:
-- EmergencyCommunication
-- RemoteGuestEmergencies
-- DistributedSystemsHub
-- MonitoringAndAlerting
-- NumericalMethods
+- cellular
+- starlink
+- networking
+status: active
+date: 2025-05-15
+summary: Technical guide to mobile internet in the US. Covers cellular bands (B12/B71), antenna configurations, Starlink optimization, and bonded networking.
+auto-generated: false
 ---
 
-# Persistent Connectivity: The Engineering of Rural Signal Integrity
+# Staying Connected in Rural US: Technical Implementation
 
-For the field researcher or technical nomad, connectivity is not a service; it is a **Mission-Critical System**. In the vast, infrastructure-deprived zones of the American interior, the assumption of reliable, high-bandwidth access is an operational failure point. The challenge is the orchestration of a heterogeneous stack of radio access technologies designed to survive the compound failure of centralized terrestrial networks. The objective is reaching the **Theoretical Limit of Uptime** through rigorous redundancy and link-budget optimization.
+For the "digital nomad," connectivity is a tiered utility requiring multiple redundant radio access technologies.
 
-This treatise explores the comparative physics of LEO vs. GEO satellites, the mechanics of **Multi-Link Aggregation (MLA)**, and the operationalization of Software-Defined Networking (SDN) for mobile nodes.
+## 1. Cellular Infrastructure: Bands and Propagation
 
----
+Not all cellular signals are equal. In rural areas, "Low-Band" frequencies are essential for range:
 
-## I. Foundations: The Link Budget and Propagation Modeling
+*   **Verizon/AT&T Band 12/13 (700 MHz):** The "Gold Standard" for rural penetration.
+*   **T-Mobile Band 71 (600 MHz):** Provides superior range in Western US canyons and forests.
+*   **Hardware Requirement:** Ensure your modem (LTE Cat 12 or 5G) supports these bands. Use a **Peplink MAX BR1 Pro 5G** or a **GL.iNet GL-X3000** for professional-grade reliability.
 
-Connectivity is governed by the physics of signal attenuation ($\alpha$).
-*   **Terrestrial Constraints:** 5G/LTE propagation in rural areas is limited by **Fresnel Zone Clearance** and signal shadowing from terrain/canopy. We utilize [Numerical Methods](NumericalMethods) to model the **Longley-Rice** path loss, identifying the "Blind Spots" where macro-tower backhaul will inevitably fail.
-*   **Orbital Mechanics:** LEO constellations (Starlink) minimize latency by reducing distance ($RTT \approx 20-60\text{ms}$), but are sensitive to **Orbital Plane Density** and atmospheric rain fade.
+## 2. Antenna Systems: dBi and MIMO
 
----
+Internal router antennas are shielded by the van's metal chassis (a Faraday cage). 
 
-## II. Multi-Link Aggregation (MLA) and Bonding
+*   **MIMO (Multiple Input Multiple Output):** 4x4 MIMO is the current standard for 5G. This requires 4 separate antenna leads.
+*   **Gain (dBi):** A 5-7 dBi external antenna (e.g. Poynting 7-in-1 or Parsec Akita) is often better than a high-gain 12 dBi directional antenna because it doesn't require precise aiming.
+*   **Concrete Tip:** Use **LMR-240 or LMR-400** low-loss coaxial cable for runs over 10 feet. Cheap RG-58 cable can lose 50% of your signal strength before it reaches the router.
 
-Expert-level resilience mandates that no single link is a point of failure.
-*   **Logical Bonding:** Utilizing protocols like **GRE** or specialized bonding algorithms (e.g., Peplink SpeedFusion) to create a single logical pipe from disparate physical links (Starlink + 5G + VSAT).
-*   **Dynamic Jitter Management:** Aggregation must prioritize traffic based on sensitivity—routing real-time telemetry (VoIP/SSH) through the lowest-latency link while shunting bulk data through high-throughput, high-latency satellites.
+## 3. Starlink Optimization
 
----
+*   **Power:** The Starlink V2 (Actuated) draws ~50W-75W. For van use, convert the dish to **12V/48V DC power** using a PoE injector (e.g., DishyPowa or Yaosheng) to bypass the inefficient 120V AC inverter, saving ~20% battery capacity.
+*   **Obstructions:** Download the Starlink app and use the "Check for Obstructions" tool. Even a single tree branch can drop a Zoom call every 2 minutes.
 
-## III. Operationalizing the Mobile Command Center
+## 4. Bonded Networking (SpeedFusion)
 
-The node must function as a self-healing gateway (see [Distributed Systems Hub](DistributedSystemsHub)).
-*   **CBRS and Private LTE:** Deploying localized small cells for high-security, site-wide connectivity when commercial cellular is non-existent.
-*   **Hardware Hardening:** Implementing high-gain **Phased Array** antennas that can electronically steer beams to the strongest available signal source without mechanical movement, essential for maintaining links during mobile transit.
-
-## Conclusion
-
-Rural connectivity is a discipline of persistent, automated failover. By mastering the dynamics of the link budget and implementing rigorous, SDN-driven [Monitoring and Alerting](MonitoringAndAlerting), researchers can transform an "offline" wilderness into a high-fidelity data environment, ensuring that the intellectual output of the mission is never gated by geographical isolation.
+To achieve "99.9% Uptime," use **Network Bonding** rather than simple Failover. 
+*   **How it works:** Software (Peplink SpeedFusion or Speedify) splits your data packets across Starlink and Cellular simultaneously. If one link drops, the session remains active without interruption.
+*   **Concrete Example:** Set Starlink as the "Primary" and a low-bandwidth LTE plan as "Warm Standby." This minimizes data costs while ensuring zero-latency failover during "no-satellite" gaps.
 
 ---
 **See Also:**
-- [Emergency Communication Systems](EmergencyCommunication) — For off-grid mesh protocols.
-- [Remote Guest Emergencies](RemoteGuestEmergencies) — Managing situational awareness through distance.
-- [Distributed Systems Hub](DistributedSystemsHub) — Theoretical context for decentralized coordination.
-- [Monitoring and Alerting](MonitoringAndAlerting) — Telemetry for network health.
-- [Numerical Methods](NumericalMethods) — Techniques for propagation modeling.
+- [Local Network For Nomads](LocalNetworkForNomads) — WiFi security and local storage.
+- [Van Remote Work Setup](VanRemoteWorkSetup) — Ergonomics and power budgeting.
+- [Emergency Communication](EmergencyCommunication) — Radio-based backups (GMRS/Ham).

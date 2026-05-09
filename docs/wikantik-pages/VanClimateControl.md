@@ -1,67 +1,56 @@
 ---
 cluster: van-life
 canonical_id: 01KQ0P44Y8K1YM9DXZ69AD3XP4
-title: "Van Climate Control: Systemic Integration"
+title: "Van Climate Control: Thermal Engineering"
 type: article
 tags:
 - van-life
-- climate-control
-- thermodynamics
 - hvac
-- building-science
-- thermal-bridging
-- heat-transfer
-summary: A rigorous exploration of thermal management in mobile habitats, focusing on the deconstruction of heat transfer vectors, the mitigation of thermal bridging in chassis structures, and the integration of psychrometric monitoring for year-round comfort.
-related:
-- SummerVanCooling
-- HomeHardening
-- HomeEmergencyPreparedness
-- RiskManagement
-- MathematicsHub
-- NumericalMethods
+- thermodynamics
+- diesel-heaters
+- insulation
+- ventilation
+status: active
+date: 2025-05-15
+summary: Technical specifications and calculations for heating, cooling, and moisture management in mobile habitats. Includes BTU load modeling and insulation R-value analysis.
+auto-generated: false
 ---
 
-# Van Climate Control: The Architecture of Thermal Equilibrium
+# Van Climate Control: Thermal Engineering
 
-Thermal comfort in a mobile habitat is not an "appliance selection" problem; it is a **Building Science** problem characterized by extreme surface-area-to-volume ratios and volatile external boundary conditions. For researchers and engineers, the objective is the establishment of a self-regulating micro-environment capable of maintaining **Homeostasis** while minimizing the energy expenditure of active HVAC units. The goal is reaching the **Theoretical Limit of Envelope Efficiency**.
+Managing the thermal envelope of a steel-chassis vehicle requires addressing extreme conductive gains and losses. Steel has a thermal conductivity ($k$) of approx. 45 W/m·K, making the chassis a massive thermal bridge that bypasses insulation if not correctly decoupled.
 
-This treatise explores the simultaneous deconstruction of heat transfer modes, the critical role of psychrometrics, and the engineering of the **Thermal Break**.
+## 1. Heating: BTU Load Calculation
 
----
+A standard 144" WB Sprinter has approximately 350 sq ft of interior surface area. To maintain a 40°F temperature differential ($\Delta T$) with an average R-value of 5:
 
-## I. Foundations: The Tri-Modal Heat Transfer Manifold
+$$Q = \frac{A \times \Delta T}{R} = \frac{350 \times 40}{5} = 2800 \text{ BTU/hr}$$
 
-Comfort is governed by the concurrent management of three vectors. Drawing from [Mathematics Hub](MathematicsHub), we model the total heat flux ($\dot{Q}_{total}$):
+### Heating Hardware Comparison
+| Unit Type | Output (kW) | Output (BTU) | Fuel Consumption | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| **2kW Diesel** | 2.0 | ~6,824 | 0.12 - 0.24 L/hr | Sufficient for most vans down to 0°F. |
+| **5kW Diesel** | 5.0 | ~17,060 | 0.15 - 0.50 L/hr | Overkill; causes "sooting" if run on low. |
+| **Propane (Propex HS2000)** | 1.9 | ~6,500 | 142g/hr | Dry heat, but requires propane infrastructure. |
 
-1.  **Conduction ($\dot{Q}_{cond}$):** Primarily through the chassis ribs. We implement **Thermal Breaks** (e.g., structural cork or closed-cell foam) to disrupt the metallic conductive path, effectively increasing the system's global $R$-value.
-2.  **Convection ($\dot{Q}_{conv}$):** Utilizing [Numerical Methods](NumericalMethods) (CFD) to model the **Stack Effect** for passive venting, ensuring that the Air Change Rate (ACH) matches the metabolic and moisture load of the occupants.
-3.  **Radiation ($\dot{Q}_{rad}$):** Managed via high-albedo coatings and Low-E (Low Emissivity) radiant barriers. In a van, radiation from un-shielded glass remains the primary failure point in [Summer Van Cooling](SummerVanCooling).
+**Concrete Implementation:** For high-altitude operation (>5000ft), Espar/Webasto units require a high-altitude kit (pressure sensor) to adjust the fuel-to-air ratio, preventing carbon buildup. "Chinese Diesel Heaters" often require manual Hz adjustment of the fuel pump.
 
----
+## 2. Cooling: Sensible vs. Latent Loads
 
-## II. Psychrometrics: Dew Point and Condensation Risk
+Cooling a van is significantly harder than heating due to solar radiation. A white roof can be 40°F cooler than a black roof in direct sun.
 
-In a low-volume, highly insulated space, internal moisture generation (respiration/cooking) creates a high risk of **Interstitial Condensation**.
-*   **The Dew Point Boundary:** The interior surface of the chassis skin must be maintained above the dew point ($T_{dp}$) or isolated by a perfect vapor barrier. Failure to manage this leads to "Ghost Condensation" behind the insulation, triggering structural oxidation and mold.
-*   **Vapor Management:** Implementing **Smart Permeable Membranes** that allow seasonal drying of the wall cavity while preventing immediate vapor drive during occupancy.
+*   **12V Air Conditioners:** Dometic RTX 2000 (approx. 6,800 BTU) draws ~19A in Eco mode and ~58A in Boost. 
+*   **Solar Gain Mitigation:** A 3M Thinsulate (SM600L) layer provides an R-value of approx. 5.2. Combining this with a **Thermal Break** (1/4" closed-cell foam strips over the metal ribs) is mandatory to prevent conductive "ghosting" where the heater/AC fights the chassis directly.
 
----
+## 3. Moisture and Psychrometrics
 
-## III. Active Integration: PID and Load Shifting
+An average human exhales ~40g of water vapor per hour while sleeping. In a 300 cu ft van, this quickly reaches the dew point on cold steel surfaces.
 
-Active heating (Diesel/Propane) and cooling (AC) units must be integrated via a **Centralized Control Plane**.
-*   **PID Control:** Moving beyond binary thermostats to Proportional-Integral-Derivative loops that modulate power based on the rate of change of the interior temperature, minimizing overshoot and energy cycling.
-*   **Load Shifting:** Utilizing the vehicle's thermal mass (e.g., water tanks) as a "Thermal Battery," pre-conditioning the mass during windows of high solar yield to reduce the load on the electrical bus during peak hours.
-
-## Conclusion
-
-Mobile climate control is the engineering of habitability within a high-stakes thermodynamic boundary. By mastering the dynamics of the thermal break and implementing rigorous psychrometric monitoring, researchers can build habitats that offer native-level comfort with a fraction of the energy footprint, ensuring resilience across the full spectrum of environmental extremes.
+*   **Critical Detail:** Do not use fiberglass insulation; it traps moisture against the skin, causing rust. Use hydrophobic materials like 3M Thinsulate or treated sheep wool (Havelock).
+*   **Active Venting:** A MaxxAir Fan at 10% speed moves ~100 CFM. For a 300 cu ft van, this provides 20 air changes per hour (ACH), sufficient to keep $T_{dp}$ (Dew Point) below the surface temperature of the walls.
 
 ---
 **See Also:**
-- [Summer Van Cooling](SummerVanCooling) — Advanced management for high solar flux.
-- [Home Hardening](HomeHardening) — Structural resilience against energy spikes.
-- [Home Emergency Preparedness](HomeEmergencyPreparedness) — Redundant life-support systems.
-- [Risk Management](RiskManagement) — Modeling the health impact of extreme thermal load.
-- [Mathematics Hub](MathematicsHub) — For the radiative and thermodynamic equations.
-- [Numerical Methods](NumericalMethods) — Computational techniques for CFD and heat flow.
+- [Van Water Systems](VanWaterSystems) — Managing freeze protection.
+- [Backup Power](BackupPower) — Sizing battery banks for AC loads.
+- [Home Hardening](HomeHardening) — Comparative insulation strategies.

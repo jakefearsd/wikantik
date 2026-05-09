@@ -1,8 +1,19 @@
 ---
-canonical_id: 01KQ0P44Q0D7QA3HR52TFCZ8KF
 summary: Year-by-year blueprint from first invested dollar to early retirement, covering
   savings rates, account filling order, and withdrawal planning
 date: 2026-03-21T00:00:00Z
+cluster: index-fund-investing
+related:
+- IndexFundInvestingForEarlyRetirement
+- IndexFundPortfolioConstruction
+- AccountTypeStrategy
+- CompoundingIntuition
+- ExpenseRatioDeepDive
+- RothConversionLadder
+canonical_id: 01KQ0P44Q0D7QA3HR52TFCZ8KF
+part-of:
+- IndexFundInvestingForEarlyRetirement
+type: article
 tags:
 - personal-finance
 - investing
@@ -11,17 +22,8 @@ tags:
 - financial-independence
 - savings-rate
 - withdrawal-strategy
-related:
-- IndexFundInvestingForEarlyRetirement
-- IndexFundPortfolioConstruction
-- AccountTypeStrategy
-- CompoundingIntuition
-- ExpenseRatioDeepDive
-- RothConversionLadder
-type: article
-cluster: index-fund-investing
 status: active
-part-of:
+hubs:
 - IndexFundInvestingForEarlyRetirement
 ---
 # A Complete Early Retirement Investment Plan

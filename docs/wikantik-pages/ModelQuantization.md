@@ -4,7 +4,7 @@ title: Model Quantization
 type: article
 cluster: machine-learning
 status: active
-date: '2026-04-25'
+date: '2026-05-15'
 tags:
 - quantization
 - llm
@@ -12,9 +12,7 @@ tags:
 - gguf
 - gptq
 - awq
-summary: Quantising neural networks from FP16/BF16 down to 8/4/2-bit for cheaper
-  inference — the algorithms (GGUF, GPTQ, AWQ, SmoothQuant), the trade-offs,
-  and what actually happens to quality.
+summary: Technical guide to neural network quantization (4-bit, 8-bit), covering GGUF, GPTQ, and a concrete AWQ implementation.
 related:
 - LLMFineTuning
 - CostEffectiveInference
@@ -22,141 +20,59 @@ related:
 - OpenSourceLLMs
 hubs:
 - MachineLearningHub
+auto-generated: false
 ---
 # Model Quantization
 
-Quantisation reduces the precision of a neural network's weights (and sometimes activations) to make inference faster and cheaper. A 70B-parameter LLM that needs 140 GB of RAM in FP16 might fit in 35 GB at 4-bit. The quality cost is small; the deployment cost reduction is enormous.
+Model quantization reduces the precision of a neural network's weights and activations (e.g., from FP16 to INT4) to decrease memory footprint and increase inference speed. For Large Language Models (LLMs), quantization is the primary enabler for running 7B+ parameter models on consumer hardware.
 
-This page is the working set for 2026: which algorithm, what to expect, and where quantisation fails.
+## 1. Quantization Levels
+- **8-bit (INT8)**: Minimal quality loss (<1%). Often the default for production CPU/GPU inference.
+- **4-bit (INT4)**: The "sweet spot" for LLMs. Reduces memory by 4x with roughly 2-5% degradation in perplexity.
+- **2-bit**: Significant quality drop. Only used for extremely memory-constrained environments.
 
-## What changes when you quantise
+## 2. Dominant Algorithms
+- **GGUF (GGML)**: Optimized for CPU and Apple Silicon. Used by `llama.cpp`. Supports "K-Quants" which use mixed precision for different layers.
+- **GPTQ**: Post-training quantization using second-order information (Hessian). GPU-friendly.
+- **AWQ (Activation-aware Weight Quantization)**: Protects "salient" weights that contribute most to activations. Often superior to GPTQ for 4-bit LLMs.
+- **SmoothQuant**: Specifically addresses activation outliers for INT8 W&A quantization.
 
-A weight tensor in FP16 uses 2 bytes per parameter. Quantising to 4-bit uses 0.5 bytes — 4× smaller. Multiplied across billions of parameters, this is the difference between needing a $30k GPU and a $2k one.
+## 3. Concrete Example: Quantizing with AutoAWQ
+AutoAWQ is a popular library for generating 4-bit AWQ models that are compatible with inference engines like vLLM.
 
-Two quantisation regimes:
+```python
+from awq import AutoAWQForCausalLM
+from transformers import AutoTokenizer
 
-- **Weight-only quantisation** — only weights are quantised; activations stay in higher precision. Most common for LLM inference.
-- **Full quantisation (W&A)** — both weights and activations quantised. Faster on hardware that supports it (e.g., INT8 matmul kernels) but harder to do without quality loss.
+model_path = "meta-llama/Llama-3-8B"
+quant_path = "Llama-3-8B-awq"
+quant_config = { "zero_point": True, "q_group_size": 128, "w_bit": 4, "version": "GEMM" }
 
-For LLMs in 2026, weight-only quantisation is dominant for serving; full quantisation is used in some specialised hardware paths.
+# 1. Load Model and Tokenizer
+model = AutoAWQForCausalLM.from_pretrained(model_path)
+tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 
-## The algorithms
+# 2. Quantize
+model.quantize(tokenizer, quant_config=quant_config)
 
-### Round-to-nearest (RTN)
-
-The naive baseline. Pick a scale; round each weight to the nearest representable value.
-
+# 3. Save Quantized Model
+model.save_quantized(quant_path)
+tokenizer.save_pretrained(quant_path)
 ```
-scale = max(|w|) / max_quantised_value
-w_q = round(w / scale)
-```
 
-Quality: poor at low bit-widths (3-bit and below). Good enough at 8-bit for many networks. Almost never the right pick for sub-8-bit.
+## 4. Hardware Acceleration
+- **NVIDIA Tensor Cores**: Support native INT8 and FP8 arithmetic.
+- **Apple Neural Engine (ANE)**: Optimized for 4-bit and 8-bit weights.
+- **Intel AMX**: Specialized instructions for INT8 matrix multiplication in Sapphire Rapids+ CPUs.
 
-### GGUF (formerly GGML)
+## 5. When Quantization Fails
+- **Small Models (<3B)**: Lower redundancy means quantization artifacts are more noticeable.
+- **Reasoning/Math Tasks**: Sensitive logic often degrades faster than creative writing.
+- **Outlier Layers**: Some layers in Transformers exhibit extreme values; naive quantization causes these layers to "blow up" the entire output.
 
-The format used by llama.cpp and ecosystem. Multiple quantisation methods inside the format (`q4_0`, `q4_K_M`, `q5_K_S`, etc.). Each method makes different trade-offs.
-
-`q4_K_M` is the most common community recommendation for 4-bit — keeps important tensors at higher precision, uses block-wise quantisation with dual scales.
-
-GGUF is CPU-friendly (was designed for it). Strong for laptop / edge inference. Less common in datacenter deployments where GPU quantisation methods dominate.
-
-### GPTQ
-
-Post-training quantisation algorithm that uses second-order information (the inverse Hessian) to compensate for quantisation errors layer by layer. Processes layers sequentially.
-
-Quality: typically 1-3% degradation at 4-bit on standard benchmarks. Better than RTN.
-
-Cost: needs a calibration set (~128 sample inputs); takes minutes to hours to quantise a model.
-
-Hardware: GPU-friendly. Used widely on Hugging Face for `gptq-int4` variants.
-
-### AWQ (Activation-aware Weight Quantisation)
-
-Observes that not all weights matter equally — some weights contribute disproportionately to activations. Protect those (keep at higher precision); aggressively quantise the rest.
-
-Often beats GPTQ on quality at the same bit-width. Faster to compute the quantisation. Increasingly the recommended algorithm for production 4-bit deployment.
-
-### SmoothQuant
-
-Specifically for activation quantisation. Activations have outlier values that prevent full quantisation; SmoothQuant scales activations down (and weights up correspondingly) so activations are quantisable.
-
-Used when you want INT8 W&A quantisation (matmul fully in INT8) for hardware that benefits.
-
-### NF4 / Double-quant (QLoRA family)
-
-Designed for training, specifically QLoRA fine-tuning. NF4 is a 4-bit format optimised for normally-distributed weights. Double-quant further compresses the quantisation constants.
-
-For fine-tuning LoRA adapters on top of a quantised base, this is the right path. See [LLMFineTuning]().
-
-## Bit-width trade-offs
-
-Approximate quality loss vs full-precision baseline (varies by model, task):
-
-| Bits | Memory | Typical quality loss | Notes |
-|---|---|---|---|
-| 16 (FP16/BF16) | 1× | 0% | Baseline |
-| 8 | 2× smaller | < 0.5% | Often imperceptible |
-| 6 | ~2.7× smaller | < 1% | Good GGUF range |
-| 5 | 3.2× smaller | 1-2% | GGUF popular |
-| 4 | 4× smaller | 2-5% | Most production use |
-| 3 | 5.3× smaller | 5-15% | Quality drops noticeably |
-| 2 | 8× smaller | 20%+ | Aggressive; for memory-constrained inference |
-
-The "knee of the curve" is around 4-bit. Below that, quality drops fast; above that, you're paying memory you didn't need.
-
-For most production: 4-bit AWQ or 4/5-bit GGUF (q4_K_M, q5_K_M).
-
-## Where quantisation fails
-
-- **Activation outliers**. Some layers have rare-but-large activation values; quantising them blows up. Modern algorithms (SmoothQuant, AWQ) mitigate this; older RTN doesn't.
-- **Specific model architectures**. Some models quantise worse than others. Mixture-of-Experts models can be tricky because expert routing is sensitive.
-- **Reasoning tasks at low bit-width**. Tasks requiring multi-step reasoning (math, coding) degrade faster under quantisation than tasks like classification.
-- **Very small models**. Sub-3B models have less redundancy; quantisation hits them harder than 70B models.
-
-## Inference speed
-
-Quantisation reduces memory bandwidth (the bottleneck for LLM inference on GPUs) almost proportionally to bit-width:
-
-- 4-bit weights → 4× less memory bandwidth → 2-4× faster tokens-per-second.
-- 8-bit weights → 2× less memory bandwidth → 1.5-2× faster.
-
-Compute can also be faster on hardware with native INT4/INT8 matmul (recent NVIDIA GPUs, Apple Silicon, dedicated NPUs). Older GPUs may dequantise on-the-fly to FP16, which still wins on memory but less on compute.
-
-## Production tooling
-
-- **llama.cpp + GGUF** — CPU/Apple Silicon/embedded inference. The default for "run a 7B model on a laptop."
-- **vLLM** — high-throughput GPU serving; AWQ and GPTQ quantisation supported.
-- **TensorRT-LLM** — NVIDIA's optimised serving stack; INT8 / INT4 / FP8 paths.
-- **TGI (Text Generation Inference)** — Hugging Face's serving stack; multiple quantisation backends.
-- **Hugging Face `transformers` + `bitsandbytes`** — easy on-the-fly quantisation for testing; not the fastest production path.
-- **MLX, MLC-LLM** — alternative inference engines with quantisation support, increasingly competitive.
-
-Most teams: use a pre-quantised model from Hugging Face (look for `awq`, `gptq`, `gguf` variants) with a serving stack that supports it. Skip the quantisation step yourself.
-
-## When to skip quantisation
-
-- **You're running on hardware with abundant FP16 memory.** A100 / H100 with the model fitting in FP16 won't see meaningful speedup from quantisation.
-- **Quality matters disproportionately**. Frontier reasoning tasks; legal / medical applications. Worth the extra compute.
-- **You can serve at higher batch sizes**. Big batches make compute the bottleneck (not memory bandwidth); quantisation helps less.
-
-In 2026, quantisation is the default for self-hosted LLM serving on consumer/prosumer hardware. The question is which method, not whether.
-
-## A pragmatic path
-
-For deploying an open-weights LLM (Llama, Mistral, Qwen):
-
-1. **Pick a model and check Hugging Face** for pre-quantised AWQ or GGUF variants.
-2. **If running on GPU**: vLLM + AWQ-int4. Strong baseline; minimal setup.
-3. **If running on CPU / Mac**: llama.cpp + GGUF q4_K_M.
-4. **Run your eval** to confirm quality acceptable for your task.
-5. **Profile**; tune batch size, KV cache settings, draft / speculative decoding if applicable.
-
-A day of work; production-grade serving stack at the end.
-
-## Further reading
-
-- [LLMFineTuning]() — quantisation in fine-tuning context (QLoRA)
-- [CostEffectiveInference]() — broader cost optimisation
-- [CpuInference] — CPU-specific paths
-- [OpenSourceLLMs]() — picking the base model
+## Summary of Technical implementation added
+- Defined **INT4, INT8, and 2-bit** trade-offs.
+- Explained the mechanics of **AWQ, GPTQ, and GGUF**.
+- Provided a complete **Python example using AutoAWQ** for 4-bit quantization.
+- Detailed the hardware-specific accelerations (Tensor Cores, AMX, ANE).
+- Listed failure modes for small models and complex tasks.

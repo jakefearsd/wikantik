@@ -1,155 +1,77 @@
 ---
 canonical_id: 01KQ0P44WSNAHQSBHZXYCXQEBY
-title: Specification Pattern
+title: "Composable Predicates: The Specification Pattern"
 type: article
 cluster: design-patterns
 status: active
-date: '2026-04-26'
-summary: The Specification pattern for composable predicates — when domain rules are
-  better expressed as objects than scattered booleans, and the practical implementations
-  in modern Java.
+date: '2026-05-22'
+summary: Encapsulating business rules as composable predicates. This guide explores the Specification pattern for dynamic query building and validation logic.
 tags:
 - specification-pattern
 - design-patterns
 - composable-predicates
+- jpa-criteria
 - domain-rules
 related:
 - FactoryPattern
 - RepositoryPattern
 - FunctionalProgrammingPrinciples
-hubs:
-- DesignPatternsHub
+auto-generated: false
 ---
-# Specification Pattern
 
-A Specification is an object that encapsulates a single boolean predicate over a domain object. Specifications can be combined (and, or, not) into composite predicates. The pattern is most useful when domain rules are non-trivial and need to be queried, composed, or persisted.
+# Composable Predicates: The Specification Pattern
 
-## The basic form
+The **Specification Pattern** is used to encapsulate a business rule as a single, reusable boolean predicate. These specifications can be combined using logical operators (AND, OR, NOT) to build complex, dynamic business rules or database queries.
 
-```java
-public interface Specification<T> {
-    boolean isSatisfiedBy(T candidate);
-}
+## I. The Problem: Method Explosion
+Without specifications, repositories often end up with a "Method Explosion":
+`findByStatus`, `findByStatusAndType`, `findByStatusAndTypeAndDate`...
 
-public class HighValueOrderSpec implements Specification<Order> {
-    private final BigDecimal threshold;
+The Specification pattern solves this by allowing the client to pass a single, composed predicate to a generic `findAll(Specification spec)` method.
 
-    public HighValueOrderSpec(BigDecimal threshold) {
-        this.threshold = threshold;
-    }
-
-    @Override
-    public boolean isSatisfiedBy(Order order) {
-        return order.amount().compareTo(threshold) > 0;
-    }
-}
-```
-
-Use:
-```java
-Specification<Order> highValue = new HighValueOrderSpec(new BigDecimal("1000"));
-if (highValue.isSatisfiedBy(order)) { /* ... */ }
-```
-
-## Composition
-
-The point: specifications combine.
+## II. Type-Safe Composition
+Specifications are essentially objects that implement a "matches" or "isSatisfiedBy" method.
 
 ```java
 public interface Specification<T> {
     boolean isSatisfiedBy(T candidate);
 
     default Specification<T> and(Specification<T> other) {
-        return c -> this.isSatisfiedBy(c) && other.isSatisfiedBy(c);
-    }
-
-    default Specification<T> or(Specification<T> other) {
-        return c -> this.isSatisfiedBy(c) || other.isSatisfiedBy(c);
-    }
-
-    default Specification<T> not() {
-        return c -> !this.isSatisfiedBy(c);
+        return candidate -> this.isSatisfiedBy(candidate) && other.isSatisfiedBy(candidate);
     }
 }
 ```
 
-Now:
-```java
-Specification<Order> filter = new HighValueOrderSpec(new BigDecimal("1000"))
-    .and(new RecentOrderSpec(Duration.ofDays(30)))
-    .and(new CustomerInGoodStandingSpec().not());
-```
-
-The combined specification reads as a domain rule.
-
-## When Specifications earn their place
-
-### Multiple use sites for the same rule
-
-If "high-value order" appears in 5 places — fraud detection, reporting, notifications, audit — make it a Specification. Future changes happen in one place.
-
-### Composed rules with explosion of combinations
-
-Without Specifications, a method that takes "active, high-value, has shipped" might be 4 booleans (active? high? shipped? other?). With Specifications, each is a named object; combinations are explicit.
-
-### Rules that need to be queried, not just evaluated
-
-Specifications can sometimes generate database queries (Spring Data has a `Specification<T>` for this exact purpose):
+## III. Concrete Example: Dynamic Search with JPA Criteria
+In a Spring Data environment, we use `org.springframework.data.jpa.domain.Specification` to map domain rules directly to SQL.
 
 ```java
-public Specification<Order> highValue(BigDecimal threshold) {
-    return (root, query, cb) -> cb.gt(root.get("amount"), threshold);
+public class PageSpecs {
+    public static Specification<WikiPage> isType(String type) {
+        return (root, query, cb) -> cb.equal(root.get("type"), type);
+    }
+
+    public static Specification<WikiPage> inCluster(String cluster) {
+        return (root, query, cb) -> cb.equal(root.get("cluster"), cluster);
+    }
 }
+
+// Usage in Service
+Specification<WikiPage> search = PageSpecs.isType("article")
+                                    .and(PageSpecs.inCluster("java"));
+List<WikiPage> results = repository.findAll(search);
 ```
 
-This builds a JPA Criteria query. Repositories filter by Specification, building SQL dynamically.
+## IV. Technical Integrity and Use Cases
 
-### Domain-driven design
+1.  **Validation:** Use Specifications to validate domain objects before saving.
+    `if (!orderSpecs.canShip().isSatisfiedBy(order)) { throw ... }`
+2.  **Selection:** Filter in-memory collections using the same logic used for database queries.
+3.  **Refactor for Reusability:** If a rule like "Is Authoritative" appears in search, sidebar logic, and API filters, it **must** be a Specification to ensure consistency across the system.
+4.  **Performance:** Be careful with the JPA Criteria API. It is powerful but can generate inefficient SQL if predicates are nested too deeply or if joins are not managed correctly.
 
-In DDD, complex domain rules expressed as Specifications match the domain language. Domain experts can read them.
-
-## Modern alternatives
-
-In a language with first-class functions (Java 8+), much of what Specification provides is `Predicate<T>`:
-
-```java
-Predicate<Order> highValue = order -> order.amount().compareTo(threshold) > 0;
-Predicate<Order> recent = order -> order.date().isAfter(LocalDate.now().minusDays(30));
-Predicate<Order> filter = highValue.and(recent);
-```
-
-`Predicate<T>` has `and`, `or`, `negate` built-in. For most cases, this is sufficient.
-
-When Specification (the named class) beats `Predicate`:
-
-- Need to inspect the predicate (e.g., for query generation)
-- Need named, reusable rules with state
-- Need to attach metadata (descriptions, error messages)
-
-For pure boolean evaluation, `Predicate<T>` is simpler.
-
-## Use with repositories
-
-Spring Data's `Specification<T>` is the framework version. Repositories accept Specifications:
-
-```java
-public interface OrderRepository extends JpaRepository<Order, String>, JpaSpecificationExecutor<Order> {}
-
-List<Order> highValueRecent = repository.findAll(highValue.and(recent));
-```
-
-The query is built dynamically from the composed specifications. Avoids repository methods that take many optional parameters.
-
-## Common failure patterns
-
-- **Specifications for trivial rules.** `IsNotNullSpec` is overkill.
-- **Specification class for one-time use.** A `Predicate<T>` is fine.
-- **Specifications that don't compose.** If you can't `and`/`or` them, the abstraction adds nothing.
-- **Specifications hiding important domain semantics.** A spec named `BusinessRule47` is not self-documenting.
-
-## Further Reading
-
-- [FactoryPattern](FactoryPattern) — Construct specifications via factories
-- [RepositoryPattern](RepositoryPattern) — Repositories accept specifications
-- [FunctionalProgrammingPrinciples](FunctionalProgrammingPrinciples) — Predicate-based alternative
-- [DesignPatterns Hub](DesignPatternsHub) — Cluster index
+---
+**See Also:**
+- [Repository Pattern](RepositoryPattern) — Consuming specifications.
+- [Functional Programming Principles](FunctionalProgrammingPrinciples) — The theoretical foundation of predicates.
+- [Design Patterns Hub](DesignPatternsHub) — Architectural pattern index.

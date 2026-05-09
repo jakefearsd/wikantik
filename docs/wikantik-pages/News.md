@@ -6,6 +6,32 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-09** — admin-ui: drop duplicate AdminTable CSS
+
+**2026-05-09** — admin-ui: widen admin layout + allow cell wrap
+
+**2026-05-09** — plan: AdminTable V1 close-out (Phase 2D) + V2 backlog
+
+**2026-05-09** — admin-ui: KG Proposals bulk-action vertical (Phase 2C)
+
+**2026-05-09** — admin-ui: fix Phase 2A AdminApiKeysPage bulk-revoke happy-path test
+
+**2026-05-09** — admin-ui: Users bulk-action vertical (Phase 2B)
+
+**2026-05-09** — admin-ui: API Keys bulk-revoke vertical (Phase 2A)
+
+**2026-05-09** — admin-ui: AdminTable coverage tooling + branch-coverage fills
+
+**2026-05-09** — admin-ui: AdminTable + selection-bar primitives (Ckpt 1)
+
+**2026-05-09** — plan: AdminTable + bulk-action pattern (V1)
+
+**2026-05-08** — phase 11.5: second static-analysis pass — real bugs + filter tightening + CPD top dedup
+
+**2026-05-08** — fix: pre-release defect sweep — log-noise and observability gaps from manual smoke
+
+**2026-05-08** — content: programming language evolution (1950-2026) & math-physics spine
+
 **2026-05-08** — phase 11 ckpt 8: close-out — static analysis cleanup complete
 
 **2026-05-08** — phase 11 ckpt 7: PMD lint sweep (continued)
@@ -2792,26 +2818,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-11-09** — NOJIRA enables the integration test profile for all our CI jobs, skips selenium based tests on windows
 
 **2025-11-09** — JSPWIKI-1129 adds some more checks for setting cookies server side
-
-**2025-11-08** — JSPWIKI-1129 bumps up the security on all cookies that are set by jspwiki, which is effectively just user preferences. Portable server is now TLS only
-
-**2025-11-08** — JSPWIKI-1220 replaces the sandler library with the rome rss/atom support library JSPWIKI-1223 restores the /atom servlet api's capabilities, restores the ability to create and store weblog entries with the requisite attribute for the atom feed to work JSPWIKI-1225 fixes loading the preloaded data for the portable build JSPWIKI-1224 rss.jsp now sets the filename for download JSPWIKI-1226 related, marks FIXME's for all the rss link generation that needs updating and updates the change log from today
-
-**2025-11-08** — Merge pull request #420 from spyhunter99/github_actions JSPWIKI-1179
-
-**2025-11-08** — disables jdk23 and 24 as they also fail for the same reason as 25
-
-**2025-11-08** — updates the mvn commands
-
-**2025-11-08** — fixes the compile issue and updates the github actions for additional build profiles
-
-**2025-11-08** — Merge remote-tracking branch 'upstream/master' into github_actions
-
-**2025-11-08** — Merge pull request #419 from spyhunter99/master
-
-**2025-11-08** — 3.0.0-git-04 updates the changelog and release file
-
-**2025-11-08** — Merge pull request #414 from spyhunter99/feature/JSPWIKI-1218
-
-**2025-11-08** — Merge pull request #418 from spyhunter99/build/jdomRollback
 

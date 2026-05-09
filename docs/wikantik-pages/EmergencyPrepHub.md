@@ -1,8 +1,6 @@
 ---
 canonical_id: 01KQP4VFRQXA1TA82Y1HTPHYQ8
-summary: Central index for the emergency preparedness cluster — covering community
-  disaster planning, structural home hardening, long-term resource management, and
-  survival systems.
+summary: Central index for the emergency preparedness cluster. Covering structural home hardening, long-term resource management, and off-grid survival systems.
 tags:
 - emergency-prep
 - resilience-engineering
@@ -11,44 +9,46 @@ tags:
 type: hub
 title: Emergency Prep Hub
 cluster: emergency-prep
+status: active
+date: 2025-05-15
+auto-generated: false
 ---
 
-# Emergency Prep Hub: The Architecture of Resilience
+# Emergency Prep Hub: Systems Resilience
 
-Preparedness is not a state of being, but a continuous engineering discipline. At Wikantik, we treat emergency preparedness as **Resilience Engineering**—the design of systems that can absorb shocks and maintain critical functions under duress.
+Preparedness is a continuous engineering discipline focused on designing systems that maintain critical functions under duress.
 
 ---
 
 ## I. Foundations of Resilience
 
-*   **[Modern Prepper](ModernPrepper):** A rigorous exploration of systemic redundancy mapping and resource degradation modeling.
-*   **[Home Emergency Preparedness](HomeEmergencyPreparedness):** Redundant life-support systems (power, water) and strategic resource management.
-*   **[Self-Sufficiency Skills](SelfSufficiencySkills):** Agroecosystem design, energy autonomy, and ecological redundancy.
+*   **[Modern Prepper](ModernPrepper):** Redundancy mapping, resource degradation modeling, and EMP shielding.
+*   **[Home Emergency Preparedness](HomeEmergencyPreparedness):** Redundant life-support systems (power, water, sanitation) and storage scaling.
+*   **[Self-Sufficiency Skills](SelfSufficiencySkills):** Agroecosystem design, aquaponics, and ecological redundancy.
 
 ---
 
 ## II. Systems and Infrastructure
 
 ### 2.1 Physical Hardening
-*   **[Home Hardening and Structural Resilience](HomeHardening):** Multi-vector threat modeling, blast mitigation, and shelter-in-place protocols.
-*   **[Backup Power](BackupPower):** Engineering for infrastructure fragility and continuous electrical supply.
-*   **[Alternative Energy](AlternativeEnergy):** Residential solar and off-grid energy optimization.
+*   **[Home Hardening and Structural Resilience](HomeHardening):** Multi-vector threat modeling, Vulcan vents for wildfire, and blast mitigation.
+*   **[Backup Power](BackupPower):** Sizing LiFePO4 battery banks, pure sine wave inverters, and dual-fuel generators.
+*   **[Alternative Energy](AlternativeEnergy):** Residential solar (grid-tied vs off-grid) and charge controllers (MPPT vs PWM).
 
 ### 2.2 Operational Planning
-*   **[Evacuation Planning and Systems](EvacuationPlanning):** Minimum Viable Survival Systems (MVSS) and specialized CBRN protocols.
-*   **[Emergency Communication Systems](EmergencyCommunication):** Mesh networking, LoRa protocols, and PACE planning for infrastructure collapse.
+*   **[Evacuation Planning and Systems](EvacuationPlanning):** 72-hour bug-out bags (BOBs) and CBRN (Chemical, Biological, Radiological, Nuclear) protocols.
+*   **[Emergency Communication Systems](EmergencyCommunication):** GMRS, Ham Radio (HF/VHF/UHF), and Baofeng programming.
 
 ---
 
 ## III. Specialized Environments
 
-*   **[Community Disaster Planning](CommunityDisasterPlanning):** Decentralized neighborhood networks and communication redundancy.
-*   **[Extreme Weather Prep](ExtremeWeatherPrep):** Climate modeling and disaster risk reduction for extreme events.
-*   **[Winter Preparedness](WinterPreparedness):** Thermodynamics of cold-weather survival and waste heat recovery.
-*   **[Long Term Food Storage](LongTermFoodStorage):** Preservation science, inert gas flushing, and supply chain resilience.
+*   **[Community Disaster Planning](CommunityDisasterPlanning):** Neighborhood mesh networks and CERT (Community Emergency Response Team) implementation.
+*   **[Extreme Weather Prep](ExtremeWeatherPrep):** Snow loads, hurricane straps, and hydrodynamic modeling.
+*   **[Winter Preparedness](WinterPreparedness):** Thermodynamics of cold-weather survival, PEX-A pipe expansion, and indoor propane safety.
+*   **[Long Term Food Storage](LongTermFoodStorage):** Mylar bags, oxygen absorbers, and botulism prevention in canning.
 
 ---
 **See Also:**
 - [Geopolitical Risk](GeopoliticalRisk) — Understanding the external shocks that trigger systemic failure.
 - [Systems Thinking](SystemsThinking) — Theoretical foundation for modeling interdependent loops.
-- [Engineering Leadership Hub](EngineeringLeadershipHub) — Leading teams through crisis.

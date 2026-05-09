@@ -1,10 +1,10 @@
 ---
 canonical_id: 01KQEKGDFEFG0BHM7YDKRAXRAM
-title: Schema Registry And Evolution
+title: Schema Registry and Evolution
 type: article
 cluster: data-engineering
 status: active
-date: '2026-04-25'
+date: '2026-05-24'
 tags:
 - schema
 - avro
@@ -12,199 +12,64 @@ tags:
 - json-schema
 - compatibility
 - kafka
-summary: Schema registries (Confluent, Apicurio, Buf) and the compatibility rules
-  that let producers and consumers evolve independently — Avro vs Protobuf vs
-  JSONSchema, backward / forward / full compatibility, and the migration
-  patterns that actually work.
-related:
-- ApacheKafkaFundamentals
-- EventDrivenArchitecture
-- DatabaseMigrationStrategies
-- ApiDesignBestPractices
-hubs:
-- DataSystemsHub
+summary: Engineering patterns for evolving data schemas in distributed systems without breaking downstream consumers. Covers Avro vs. Protobuf and compatibility modes.
+auto-generated: false
 ---
 # Schema Registry and Evolution
 
-When producers and consumers communicate via schema-typed messages, the question "can I change the schema without breaking consumers" becomes load-bearing. A schema registry codifies the rules: schemas are versioned, compatibility is checked at registration, the contract between producer and consumer is explicit.
+In a decoupled architecture (e.g., Kafka, gRPC), the "contract" between services is the schema. A Schema Registry acts as the single source of truth and the gatekeeper for evolution, ensuring that a producer cannot ship a change that crashes its consumers.
 
-Without a registry, schema evolution happens through tribal knowledge ("we told the team Slack we're adding a field") and, eventually, through outages.
+## The Compatibility Matrix
 
-## What a schema registry does
+When updating a schema, you must select a compatibility mode. This decision dictates whether you update consumers or producers first.
 
-Concretely:
+| Mode | Who can read what? | Update Order |
+|---|---|---|
+| **Backward** | New consumer can read old data. | Consumers first. |
+| **Forward** | Old consumer can read new data. | Producers first. |
+| **Full** | Both are true. | Any order. |
+| **None** | No checks. | Dangerous; requires coordinated downtime. |
 
-- Stores schema versions for each subject (typically per topic / message type).
-- Validates new versions against compatibility rules at registration time.
-- Returns schema by ID for serialisation / deserialisation.
-- Often embeds schema IDs in messages (the message carries a 4-byte schema ID; the consumer fetches the schema from the registry).
+## Practical Evolution Rules (Avro / Protobuf)
 
-The win: producers can't ship breaking changes accidentally. The registry rejects schemas that violate compatibility.
+- **Adding Fields:** Safe if they are optional or have a default value.
+- **Removing Fields:** Safe only in Backward compatibility if the consumers are updated to stop looking for the field before it disappears.
+- **Renaming Fields:** Always a breaking change in Avro (use aliases). Safe in Protobuf if the **Field ID** remains the same.
+- **Changing Types:** Generally breaking. (e.g., `int` to `string` is not compatible).
 
-## The big three serialisation formats
-
-| Format | Wire size | Schema in band | Code generation | Best for |
-|---|---|---|---|---|
-| **Avro** | Compact | Sometimes (with schema ID) | Yes (schema → classes) | Kafka, Hadoop ecosystem; flexible schema evolution |
-| **Protobuf** | Compact | No (schema separate, code generated) | Yes (.proto → classes in many languages) | gRPC, polyglot services |
-| **JSON Schema** | Verbose (JSON) | No (validation only) | Sometimes | REST APIs, debuggable wire formats |
-
-For new messaging systems on Kafka: Avro or Protobuf. Choose based on:
-
-- Avro is more flexible at evolution (default values, named types) but requires the schema for deserialisation.
-- Protobuf is more strict but simpler to use; field numbers replace named lookups.
-
-For internal-only systems where you control all consumers, Protobuf often wins on operational simplicity.
-
-## Compatibility modes
-
-The four standard compatibility rules:
-
-| Mode | Producer evolves; consumers stay | Consumer evolves; producers stay | Use when |
-|---|---|---|---|
-| **Backward** | New schema can read old data | — | Consumers update first; common default |
-| **Forward** | — | Old schema can read new data | Producers update first |
-| **Full** | New schema can read old; old schema can read new | (both) | Both can update independently |
-| **None** | (no checks) | (no checks) | Don't use; defeats the purpose |
-
-For Kafka with central registry, "backward" is the most common default — consumers update to the new schema first; once they all do, producers can publish new-schema messages.
-
-## What changes are compatible
-
-The rules under "backward" compatibility (Avro convention; similar for Protobuf field-numbered):
-
-| Change | Compatible? |
-|---|---|
-| Add a new optional field with default | Yes |
-| Add a new required field | No (consumers don't know how to fill) |
-| Remove a field | Maybe (depends on whether old data has it) |
-| Rename a field | No (Avro looks up by name) |
-| Change a field's type | Sometimes (string → bytes ok; int → string no) |
-| Reorder fields | Yes for Avro; depends for Protobuf |
-| Change default value | Yes for the schema; old data unaffected |
-| Add to an enum | Yes if the consumer handles unknown enum values; depends on lib |
-| Remove from an enum | No |
-| Convert single value to union | Sometimes |
-
-The registry encodes these rules; you don't have to memorise them. But you do need to design schemas with evolution in mind from day one.
-
-## Field numbering (Protobuf specifically)
-
-Protobuf identifies fields by number, not name. Field numbers must:
-
-- Never be reused after a field is removed (reuse causes silent corruption).
-- Never be renumbered.
-- Mark removed fields as `reserved` in the schema to prevent accidental reuse.
+### Protobuf Field ID Discipline
+Protobuf relies on integer tags, not field names. Renaming `user_name` to `username` is fine; changing tag `1` to tag `2` is a catastrophic failure.
 
 ```proto
 message User {
-  reserved 5;  // was 'phone', removed in v2.3
-  reserved "phone";  // also reserve the name
-  
-  string id = 1;
-  string email = 2;
-  string name = 3;
-  // 4 was removed but not yet reserved — fix this
-  string country = 6;
+  // Field 1 was removed in v2.0. DO NOT REUSE THE ID.
+  reserved 1; 
+  reserved "old_field_name";
+
+  string username = 2; // Use ID 2
+  int32 age = 3;
 }
 ```
 
-Field-number discipline is the load-bearing convention in Protobuf evolution. Get it wrong; corrupt data forever.
+## The Schema Registry Workflow
 
-## Schema design for evolution
+1. **Producer** attempts to register `Schema v2`.
+2. **Registry** checks `v2` against `v1` using the configured compatibility rule (e.g., BACKWARD).
+3. **Registry** rejects the schema if it contains a breaking change (e.g., adding a required field without a default).
+4. **Consumer** fetches `v2` from the registry by ID when it encounters a message it doesn't recognize.
 
-Practices that age well:
+## Tooling Landscape
+- **Confluent Schema Registry:** The standard for Kafka/Avro ecosystems.
+- **Apicurio Registry:** Red Hat's open-source alternative; supports Avro, Protobuf, and JSON Schema.
+- **Buf:** The modern standard for Protobuf/gRPC management, focusing on "linting" schemas like code.
 
-- **Make new fields optional with defaults.** Always. Never required.
-- **Don't reuse field numbers.** Reserve.
-- **Don't rename fields** — add new ones; deprecate old ones; remove later.
-- **Use enums with `UNKNOWN = 0` first value.** Lets unknown values default to UNKNOWN rather than failing.
-- **Wrap primitive fields you might want to make optional later.** Protobuf has `google.protobuf.StringValue` for nullable strings.
-- **Avoid required fields.** Even Protobuf 2's `required` is now considered an anti-pattern; Protobuf 3 doesn't support it.
-- **Version explicitly when changes are too big to evolve.** New schema, new topic, new versioned API endpoint.
+## Breaking Changes in Production
+If you MUST make a breaking change:
+1. Create a **new topic** or a new versioned endpoint (e.g., `/v2/`).
+2. Run a "bridge" service that consumes from the old topic, transforms data, and publishes to the new topic.
+3. Gradually migrate consumers to the new topic.
 
-## The expand-contract pattern
-
-For changes that aren't simple add-a-field:
-
-1. **Expand**: add the new field/structure alongside the old. Both work.
-2. **Migrate consumers** to use the new field.
-3. **Migrate producers** to populate only the new field (still tolerating old).
-4. **Contract**: remove the old field once nobody depends on it.
-
-Stages can take weeks to months in large orgs. Each stage is independently safe.
-
-Example:
-
-```proto
-// v1
-message Order {
-  string product_id = 1;
-}
-
-// v2 expand
-message Order {
-  string product_id = 1;
-  string sku = 2;  // new
-}
-
-// Both produced/consumed for migration period
-
-// v3 contract (after consumers migrated)
-message Order {
-  reserved 1;
-  reserved "product_id";
-  string sku = 2;
-}
-```
-
-## Schema-on-read vs schema-on-write
-
-- **Schema-on-write** (Avro, Protobuf) — schema enforced at the producer. Bad data rejected before it lands.
-- **Schema-on-read** (JSON / unstructured) — data lands; consumer interprets. Bad data lands silently.
-
-Schema-on-write requires more upfront discipline; pays back in fewer downstream surprises.
-
-For new systems crossing service boundaries, schema-on-write is almost always right. Schema-on-read makes sense for log-like data where flexibility outweighs validation.
-
-## Tools
-
-- **Confluent Schema Registry** — original; mature; ties to Kafka. Subscription product or community version.
-- **Apicurio Registry** — open source; multi-protocol (Avro, Protobuf, JSON Schema). Good self-hosted option.
-- **Buf Schema Registry** — Protobuf-specific; modern UX; commercial.
-- **AWS Glue Schema Registry** — AWS-native; integrates with Kinesis / Glue / MSK.
-- **Pulsar Schema Registry** — built into Apache Pulsar.
-
-For a team starting with Kafka in 2026: Apicurio (self-hosted) or Confluent (managed). For Protobuf-first orgs: Buf.
-
-## Common failure modes
-
-**No registry.** Producers ship schema changes; consumers break. Track the time-to-detect via incidents.
-
-**Registry but no compatibility checks.** Compatibility set to "none." Registry becomes a documentation tool, not an enforcer.
-
-**Registry but bypass.** Some service writes without checking. Single producer breaks everyone else.
-
-**Schema sprawl.** Hundreds of subjects, no naming convention, no ownership. Audit periodically.
-
-**Wide compatibility but consumers don't actually handle.** Schema says "can add new fields"; consumer code crashes on unknown fields. Test: deserialise with a schema newer than your consumer's; verify graceful handling.
-
-**Pinning consumer to specific schema version.** Now adding a backward-compatible field still requires consumer change. Avoid; consume "latest" or use schema ID embedded in message.
-
-## Beyond messaging
-
-The same principles apply to:
-
-- **Database schemas.** Migrations are schema evolution; rules are similar (add nullable columns, don't rename, etc.). See [DatabaseMigrationStrategies]().
-- **REST API schemas.** OpenAPI specs versioned; backward-compatible changes preferred. See [ApiDesignBestPractices]().
-- **GraphQL schemas.** Strong schema-typing; deprecation cycle for removals.
-- **gRPC services.** Protobuf rules apply.
-
-Wherever you have a producer-consumer contract, the schema-evolution discipline pays off.
-
-## Further reading
-
-- [ApacheKafkaFundamentals]() — Kafka as schema registry's natural habitat
-- [EventDrivenArchitecture]() — events as schema-typed messages
-- [DatabaseMigrationStrategies]() — schema evolution for storage
-- [ApiDesignBestPractices]() — API-level schema design
+## Further Reading
+- [[ApacheKafkaFundamentals]] — The primary transport for schematized data.
+- [[EventDrivenArchitecture]] — Using schemas as events.
+- [[ApiDesignBestPractices]] — Versioning strategies for REST and GraphQL.

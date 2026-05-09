@@ -1,8 +1,21 @@
 ---
-canonical_id: 01KQ0P44GXB0KV6SBXTF1GABZ0
 summary: Why early retirees need taxable brokerage accounts alongside tax-advantaged
   accounts, the optimal funding order, and asset location strategy
 date: '2026-03-14'
+cluster: index-fund-investing
+related:
+- IndexFundInvestingForEarlyRetirement
+- RothConversionLadder
+- ExpenseRatioDeepDive
+- IndexFundPortfolioConstruction
+- TaxBenefitsOfRetirementAccounts
+- TypesofInvestmentAccountsTutorial
+- CompoundInterestAndTaxAdvantagedAccounts
+- MaximizingRetirementAccountContributions
+canonical_id: 01KQ0P44GXB0KV6SBXTF1GABZ0
+part-of:
+- IndexFundInvestingForEarlyRetirement
+type: article
 tags:
 - personal-finance
 - investing
@@ -14,19 +27,8 @@ tags:
 - FIRE
 - asset-location
 - tax-strategy
-related:
-- IndexFundInvestingForEarlyRetirement
-- RothConversionLadder
-- ExpenseRatioDeepDive
-- IndexFundPortfolioConstruction
-- TaxBenefitsOfRetirementAccounts
-- TypesofInvestmentAccountsTutorial
-- CompoundInterestAndTaxAdvantagedAccounts
-- MaximizingRetirementAccountContributions
-type: article
-cluster: index-fund-investing
 status: active
-part-of:
+hubs:
 - IndexFundInvestingForEarlyRetirement
 ---
 # Account Type Strategy for Early Retirement

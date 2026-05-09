@@ -1,152 +1,95 @@
 ---
 cluster: wikantik-development
 canonical_id: 01KQ0P44GFKMNEM5TV6M4VBXQJ
-summary: Comprehensive documentation about this Wikantik instance, its MCP integration,
-  architecture, and the semantic agentic web vision
+summary: The manifesto and technical blueprint of Wikantik — an agent-grade semantic wiki for human-agent collaborative research.
 tags:
 - wiki
 - about
-- jspwiki
-- mcp
 - architecture
+- mcp
+- agentic-ai
 type: reference
 status: active
 related:
 - Main
-- WikantikOnDocker
-- GoodMcpDesign
+- WikantikArchitecture
+- AgentGradeContentDesign
+- StructuralSpineDesign
 ---
-# About This Wiki
+# About Wikantik: The Agent-Grade Knowledge Engine
 
-This wiki is a personal knowledge base powered by [Apache Wikantik](https://wikantik.com/), an open-source wiki engine built on Java and Jakarta EE. It serves as a curated research library where in-depth articles are drafted with AI assistance, reviewed and edited by a human, and published programmatically through the Model Context Protocol (MCP).
+Wikantik is a **Semantic Agentic Wiki** designed as a high-signal research substrate where humans and AI agents collaborate to build a verifiable knowledge base. It is the evolution of traditional wiki software into a machine-readable, programmatically-accessible "Long-Term Memory" for LLM systems.
 
-## What is Wikantik?
+## The Manifesto: Human-Agent Collaboration
 
-Wikantik is a feature-rich wiki engine that has been in active development since the early 2000s as an Apache Software Foundation project. It supports fine-grained access control via JAAS, a plugin architecture for extending functionality, multiple storage backends, full-text search powered by Apache Lucene, and both traditional wiki markup and Markdown syntax.
+The primary mission of Wikantik is to solve the "LLM Slop" problem through a tiered research model:
+
+1.  **Agentic Scaffolding:** Agents (like Gemini CLI) perform the initial "heavy lifting"—researching across the web, retrieving context from the wiki, and drafting structured Markdown pages.
+2.  **The Structural Spine:** Every page is constrained by the **Structural Spine** (Mandatory YAML + CommonMark). This ensures the content is as useful to a retrieval-augmented generation (RAG) system as it is to a human reader.
+3.  **Human Vetting:** The "auto-generated" flag marks content as unverified. A human editor reviews the facts, tightens the prose, and verifies the citations.
+4.  **Verification Stamping:** Once vetted, a page is marked as **Verified** (authoritative). This creates a "Web of Trust" within the knowledge base that agents can prioritize during future research.
+
+## The Architecture: How It Works
+
+Wikantik is a modern Java 21 / Jakarta EE 10 application built on a decoupled, provider-based architecture. It prioritizes **Optimistic Concurrency** over locks, allowing humans and agents to edit the same corpus without blocking.
 
 ### Technical Stack
 
 | Component | Technology |
 |-----------|-----------|
-| **Runtime** | Java 21+, Jakarta Servlet 6.0 |
-| **Application Server** | Apache Tomcat 11 |
-| **Search Engine** | Apache Lucene (full-text indexing) |
-| **Caching** | Ehcache |
-| **Authentication** | JAAS with pluggable providers (LDAP, database, container-managed, OAuth) |
-| **Storage** | File system (VersioningFileProvider) with optional database backends |
-| **Build System** | Apache Maven (multi-module) |
-| **Markup** | Wikantik syntax and Markdown with YAML frontmatter |
-
-### Architecture
-
-Wikantik follows a modular architecture organized around a central `WikiEngine` that orchestrates all subsystems. Key architectural patterns include:
-
-- **Provider Pattern** — Storage is abstracted through provider interfaces (`PageProvider`, `AttachmentProvider`, `SearchProvider`), allowing the wiki to run on flat files, versioned file systems, or database backends without changing application code.
-- **Event-Driven Communication** — Components communicate through a `WikiEvent` system, enabling loose coupling between subsystems. Listeners react to page changes, user actions, search index updates, and more.
-- **Filter Pipeline** — Content passes through a configurable filter chain for pre- and post-processing. Filters handle spam detection, profanity filtering, reference tracking, and custom transformations.
-- **Plugin Architecture** — The wiki is extensible through plugins (dynamic content generation), filters (content processing), custom editors, templates, and storage providers.
-- **[Command Pattern](CommandPattern)** — UI actions are modeled as commands with URL-to-command mapping, cleanly separating user interface concerns from business logic.
+| **Runtime** | Java 21 LTS |
+| **Servlet Container** | Apache Tomcat 11 |
+| **Search & Retrieval** | Apache Lucene (BM25) + `pgvector` (Dense Embeddings) |
+| **Storage** | Versioned File System (Git-like history) |
+| **Integration** | Model Context Protocol (MCP) |
+| **Frontend** | Vite + React (Modern UI) / Legacy JSP (Admin) |
 
 ### Module Structure
 
-The codebase is organized into focused modules:
+The codebase is organized into highly focused modules to maintain clear boundaries:
 
-- **wikantik-api** — Core interfaces and contracts that define the wiki engine's public API
-- **wikantik-main** — Primary implementation of all wiki functionality including page management, rendering, search, entity extraction, and security
-- **wikantik-event** — Event system for decoupled inter-component communication
-- **wikantik-util** — Shared utility classes and helpers
-- **wikantik-cache** — Ehcache-based caching layer for page content and metadata
-- **wikantik-rest** — REST API (`/api/*`) and admin endpoints (`/admin/*`)
-- **wikantik-admin-mcp** — Admin MCP server at `/wikantik-admin-mcp` for writes and analytics (16 tools, 6 resources, 8 prompts, 3 completions)
-- **wikantik-knowledge** — Knowledge MCP server at `/knowledge-mcp` for read-only retrieval and knowledge-graph queries (10 tools); also hosts the knowledge-graph service (pgvector-backed)
-- **wikantik-tools** — OpenAPI 3.1 tool server at `/tools/*` for OpenWebUI-compatible non-MCP clients (2 tools)
-- **wikantik-war** — WAR packaging for deployment to servlet containers
+-   **wikantik-api** — The core contracts and service interfaces.
+-   **wikantik-main** — The central engine, orchestrating security, content rendering, and search.
+-   **wikantik-knowledge** — The RAG-optimized retrieval service and vector-centroid engine.
+-   **wikantik-admin-mcp** — The write surface, exposing the wiki's lifecycle to agents via MCP.
+-   **wikantik-observability** — Structured tracing (OTEL) and audit logging for agent actions.
+-   **wikantik-extract-cli** — Tooling for knowledge graph extraction and Structural Spine validation.
 
-## The MCP Integration
+## The Model Context Protocol (MCP) Interface
 
-The `wikantik-admin-mcp` and `wikantik-knowledge` modules expose this wiki as two independent MCP servers, allowing AI agents to read, write, search, and manage wiki content through the standardized protocol. `/wikantik-admin-mcp` is the write surface (authoring, audits, knowledge-graph proposals); `/knowledge-mcp` is the read surface optimised for retrieval by coding agents. This is the mechanism by which articles on this wiki are researched and published.
+Wikantik exposes two primary MCP servers that act as the "USB-C port" for AI integration. This allows agents to interact with the wiki using standardized tools rather than custom scrapers.
 
-### What is MCP?
+### `/knowledge-mcp` (Retrieval Surface)
+Optimized for read-only retrieval and knowledge graph traversal.
+-   `retrieve_context` — Hybrid search (BM25 + Semantic) for RAG context.
+-   `get_page_by_id` — Stable retrieval using the **Canonical ULID**.
+-   `traverse` — Walk the Knowledge Graph to find related entities and shared chunks.
+-   `discover_schema` — Introspect the LLM-extracted relationship types.
 
-The [Model Context Protocol](https://modelcontextprotocol.io/) is an open standard introduced by Anthropic that provides a universal interface for AI models to interact with external data sources and tools. Think of it as a "USB-C port" for AI integration — instead of building custom connectors for every AI model and data source combination, MCP provides a single standardized protocol.
+### `/wikantik-admin-mcp` (Write Surface)
+The authoritative management interface for the wiki lifecycle.
+-   `update_page` — Edit with **Optimistic Locking** (using `expectedContentHash`).
+-   `write_pages` — Batch-create articles with metadata validation.
+-   `propose_knowledge` — Agents propose new Graph edges for human approval.
+-   `mark_page_verified` — Stamping content as human-vetted and authoritative.
 
-MCP uses a client-server architecture inspired by the Language Server Protocol (LSP):
+## Semantic Integrity: The Structural Spine
 
-- **Host** — The AI application (e.g., Claude Desktop, Claude Code)
-- **Client** — Protocol connector within the host that manages sessions
-- **Server** — The wiki's MCP endpoint that exposes data and tools
-- **Transport** — Streamable HTTP with JSON-RPC messaging
+Content in Wikantik is not "just text." Every page must adhere to the **Structural Spine**, which includes:
 
-### Available MCP Tools
+-   **Canonical ID:** A 26-character ULID that remains stable even if a page is renamed.
+-   **Typed Metadata:** Frontmatter that drives SEO, JSON-LD, and Agentic Discovery.
+-   **Centroid Embedding:** Each page is projected into a vector space based on its content, allowing for "Similar Page" discovery without explicit links.
 
-The wiki exposes 27 tools through its MCP interface:
+---
 
-**Content Management**
-- `read_page` / `write_page` / `delete_page` — Full page lifecycle with YAML frontmatter support
-- `patch_page` / `batch_patch_pages` — Section-level edits without rewriting entire pages
-- `batch_write_pages` — Bulk page creation and updates
-- `update_metadata` — Modify frontmatter fields without touching the page body
-- `rename_page` — Rename with automatic backlink updates across the wiki
+## The Heritage: Evolution from JSPWiki
 
-**Discovery and Search**
-- `search_pages` — Full-text search powered by Lucene
-- `list_pages` — Page listing with prefix filtering
-- `query_metadata` — Find pages by frontmatter field values (type, tags, status, etc.)
-- `list_metadata_values` — Discover what metadata fields and values are in use
-- `recent_changes` — Chronological feed of recent edits with authors and change notes
-- `get_page_history` / `diff_page` — Version history and inter-version diffs
+While Wikantik is now an agent-first system, it honors its heritage as a descendant of **Apache JSPWiki**. It retains the robust security and extensibility patterns that made JSPWiki a staple of the Java ecosystem for over two decades:
 
-**Link Graph**
-- `get_backlinks` / `get_outbound_links` — Navigate the wiki's link graph in both directions
-- `get_broken_links` — Find references to pages that don't exist
-- `get_orphaned_pages` — Find pages with no incoming links
-- `scan_markdown_links` — Classify links as local, external, or anchor
+-   **JAAS Security:** Fine-grained, policy-based access control.
+-   **Provider Pattern:** Flexible storage backends (File, Database, S3).
+-   **Plugin & Filter Pipeline:** A battle-tested mechanism for extending the engine without modifying the core.
+-   **The JSP Origins:** Some admin and editing surfaces still utilize the original JSP templates, providing a bridge between the classic web and the modern agentic API.
 
-**Attachments**
-- `get_attachments` / `upload_attachment` / `read_attachment` / `delete_attachment` — Full attachment lifecycle with base64 encoding
-
-**Concurrency and Health**
-- `lock_page` / `unlock_page` — Edit locking to prevent conflicts
-- `get_wiki_stats` — Dashboard with page counts, broken links, and orphan counts
-
-### Security
-
-The MCP endpoint supports multi-key Bearer token authentication, CIDR-based IP allowlisting, and per-client rate limiting. An audit log records all tool invocations with timestamps, client identifiers, and tool parameters.
-
-## Content Organization
-
-Articles on this wiki are organized using YAML frontmatter metadata. Every page can include structured fields like `type`, `tags`, `date`, `related`, `status`, and `summary`. This metadata enables programmatic discovery through the `query_metadata` tool and supports cross-referencing between articles.
-
-Content is organized into **topic clusters** — groups of interlinked articles that provide comprehensive coverage of a subject. Each cluster has a hub page that introduces the topic and links to detailed sub-articles. Clusters are cross-linked where topics overlap, creating a navigable knowledge graph.
-
-### Current Article Clusters
-
-- **Finance and Retirement** — Index fund investing, retirement planning strategies, EU retirement systems, [safe withdrawal rates](SafeWithdrawalRates), and Monte Carlo simulation
-- **Geopolitics and Conflict** — How major international conflicts shaped global equity markets, from WWI through the Russia-Ukraine war
-- **Technology** — [Generative AI adoption guide](GenerativeAiAdoptionGuide), [Linux for Windows users](LinuxForWindowsUsers), prompt engineering, and local LLM deployment
-- **Immigration** — Complete spousal green card process including petition filing, adjustment of status, consular processing, and interview preparation
-- **Hobbies and Lifestyle** — [Garden Production](GardenProduction) and sustainable living; [American Coinage](AmericanCoinageInThe1900s) and numismatics; and [Van Life](SixMonthAmericanWestLoop) travel planning and photography.
-
-## The Semantic Agentic Vision
-
-This wiki represents an experiment in what we call the "Semantic Agentic Web" — a pragmatic, bottom-up approach where AI agents are taught to read and write existing data through standardized interfaces rather than requiring a complete redesign of the underlying systems.
-
-By exposing the wiki through MCP, it transforms from a static archive into a dynamic participant in the research process. The AI can not only retrieve information but also curate, tag, cross-reference, and expand the knowledge base. YAML frontmatter provides lightweight semantic structure that enables the query_metadata tool to function as a simple but effective knowledge graph query engine.
-
-The combination of structured metadata, full-text search, link graph analysis, and AI-assisted content creation enables a recursive feedback loop: the AI researches topics using web search, synthesizes findings into well-structured articles, publishes them to the wiki with appropriate metadata and cross-references, and then uses the accumulated knowledge base as context for future research.
-
-## Deployment
-
-This instance runs on Apache Tomcat 11 with the VersioningFileProvider for page storage, which maintains full version history of every page edit. The wiki supports both Docker containerized deployment and direct Tomcat deployment.
-
-### Requirements
-
-- Java 21 or later
-- Apache Tomcat 11 (or any Jakarta Servlet 6.0 compatible container)
-- File system storage for pages, attachments, and search indexes
-
-## Open Source
-
-Wikantik is licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0). The source code is available at [https://wikantik.com/](https://wikantik.com/). This fork's enhancements — including the MCP module, Markdown support improvements, and YAML frontmatter — are developed in the open.
-
-For more information about [Wikantik development](WikantikDevelopment), see the [project wiki](https://wiki.wikantik.com/).
+Wikantik is licensed under the **Apache License, Version 2.0**. It is a bridge between the historical stability of Java enterprise software and the future of the Semantic Web.

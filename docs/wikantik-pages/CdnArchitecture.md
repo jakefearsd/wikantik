@@ -5,14 +5,14 @@ type: article
 cluster: cloud-platforms
 status: active
 date: '2026-04-26'
-summary: How CDNs work — edge caching, origin servers, cache invalidation, and the
-  patterns for delivering both static and dynamic content with edge acceleration.
+summary: Technical deep-dive into Content Delivery Network (CDN) mechanics, edge caching strategies, and origin shielding patterns.
+auto-generated: false
 tags:
 - cdn
 - edge-computing
-- cloudfront
-- caching
 - performance
+- caching
+- cloudfront
 related:
 - CloudStorageOptions
 - AwsFundamentals
@@ -21,179 +21,52 @@ related:
 hubs:
 - CloudPlatformsHub
 ---
-# CDN Architecture
 
-A Content Delivery Network (CDN) caches content at edge locations close to users. The result: lower latency, less origin load, better resilience. The major CDNs (CloudFront, Cloudflare, Akamai, Fastly) work similarly; the differences are operational and pricing.
+A Content Delivery Network (CDN) is a distributed network of edge servers that cache and serve content to users based on geographic proximity, reducing latency and origin server load.
 
-This page is about how CDNs work and the patterns for using them.
+## The Edge Caching Model
 
-## The basic model
+When a user requests a resource, the CDN intercepts the request at the nearest **Point of Presence (PoP)**.
+1.  **Cache Hit:** Resource is served from the PoP with sub-$20\text{ms}$ latency.
+2.  **Cache Miss:** PoP fetches from the **Origin**, caches it, and then serves the user.
 
-```
-User → Edge cache (closest to user) → Origin (your servers)
-```
+### Cache-Control Strategy
 
-When a user requests content:
-1. Edge checks if it has the content cached and fresh
-2. If yes: serves immediately (cache hit)
-3. If no: fetches from origin, caches, serves
+The CDN behavior is governed by HTTP response headers from the origin.
 
-A high cache hit ratio means most requests are served from edge — fast and cheap.
+| Header Value | Effect | Use Case |
+|---|---|---|
+| `public, max-age=31536000, immutable` | Cache forever (1yr). Never revalidate. | Versioned assets (JS/CSS). |
+| `public, s-maxage=3600, max-age=60` | Cache at Edge for 1hr, Browser for 1min. | Public API data. |
+| `no-store, private` | Never cache. Pass through to origin. | Personalized dashboards. |
 
-## What benefits from CDN
+## Origin Shielding
 
-### Static assets
+**Origin Shield** is an intermediate caching layer between PoPs and the primary origin.
+- **Topology:** `User --> Edge PoP (Many) --> Origin Shield (One) --> Origin`.
+- **Benefit:** Prevents "Thundering Herd" misses from many PoPs reaching the origin simultaneously. It consolidates requests for the same stale resource into a single origin fetch.
 
-Images, CSS, JavaScript, fonts. These are immutable for their lifetime; cache them aggressively. The hit ratio approaches 100%.
+## Cache Invalidation Patterns
 
-### Public API responses
+1.  **TTL (Time-To-Live):** Automatic expiration. Low complexity, but introduces staleness.
+2.  **Purge by URL:** Explicitly mark a resource as stale via API. High latency ($5\text{min}+$ propagation).
+3.  **Cache-Busting (Recommended):** Fingerprint URLs with content hashes (e.g., `app.v1.2.js` $\rightarrow$ `app.v1.3.js`). Eliminates the need for manual invalidation.
 
-Read-heavy public APIs benefit from edge caching. Product catalogs, pricing pages, public data feeds.
+## Edge Compute
 
-### Video and streaming
+Modern CDNs (Cloudflare Workers, Lambda@Edge) allow execution of code at the PoP.
+- **Dynamic Routing:** A/B testing based on cookies.
+- **Header Manipulation:** Stripping `Set-Cookie` from cacheable responses.
+- **SEO Pre-rendering:** Generating HTML for bot crawlers at the edge.
 
-Video benefits enormously — massive files repeated to many viewers. Specialized streaming CDN features (HLS, DASH).
+## Security at the Edge
 
-### Static websites
+- **DDoS Mitigation:** CDNs act as a massive shock absorber for L3/L4 volumetric attacks.
+- **WAF (Web Application Firewall):** Filtering SQLi/XSS at the edge.
+- **Geo-Fencing:** Blocking traffic based on source country.
 
-S3 + CloudFront is the standard pattern. Fast, cheap, scales infinitely.
-
-### Software downloads
-
-Large files; high concurrency. CDN distributes the load.
-
-## What doesn't benefit (or benefits less)
-
-### Personalized content
-
-If every user gets different content, edge caching is harder. Patterns: cache shared parts; deliver personalized parts via API; assemble client-side.
-
-### Real-time data
-
-Stock tickers, live scores, current state. The TTL needs to be very short, reducing cache effectiveness.
-
-### Heavy POST traffic
-
-CDNs primarily accelerate GET. POSTs go through to origin (with some exceptions).
-
-## Cache control
-
-The CDN respects HTTP cache headers from origin:
-
-```http
-Cache-Control: public, max-age=31536000, immutable
-```
-
-- `public`: cacheable by CDN
-- `max-age=31536000`: cache for 1 year
-- `immutable`: never re-validate (the content can never change)
-
-For mutable content:
-
-```http
-Cache-Control: public, max-age=300, s-maxage=3600
-```
-
-- Cache 5 minutes for browsers
-- Cache 1 hour for CDN
-
-The `s-maxage` is CDN-specific; useful when you want longer CDN caching than browser caching.
-
-## Cache invalidation
-
-When content changes, cached versions are stale. Three approaches:
-
-### TTL expiry
-
-Just wait for the cache to expire. Fine for non-critical content. Long TTLs amplify the staleness problem.
-
-### Explicit invalidation
-
-`POST /distribution/{id}/invalidations` (CloudFront equivalent). Tells the CDN to mark URLs stale.
-
-Pros: immediate.
-Cons: invalidation is slow (5-10 minutes at scale); some CDNs charge per invalidation.
-
-### URL versioning (cache-busting)
-
-Don't invalidate; use new URLs:
-
-```
-/static/main.abc123.css
-/static/main.def456.css  (after change)
-```
-
-The URL itself changes; old URL is left in cache. Build tools (webpack, Vite) handle this. The recommended pattern for static assets.
-
-## Origin patterns
-
-### Single origin
-
-Most apps. CDN points to one origin.
-
-### Multi-origin
-
-Different paths route to different origins. Path-based routing at edge. Useful for split deployments.
-
-### Origin failover
-
-Primary + secondary origin. CDN tries primary first; falls back to secondary on failure. For high availability.
-
-### Origin shield
-
-An intermediate cache between edge and origin. Reduces origin load when many edges miss simultaneously.
-
-## Edge compute
-
-Modern CDNs run code at edge:
-
-- **CloudFront Functions**: small JS for header manipulation
-- **Lambda@Edge**: Lambda functions at CloudFront edges
-- **Cloudflare Workers**: V8 isolates at every edge
-- **Fastly Compute**: WASM-based edge compute
-
-Use cases:
-- A/B testing at edge
-- Authentication at edge
-- Personalization assembly
-- Edge-rendering for SEO
-
-Edge compute is a real shift from "CDN as cache" to "CDN as platform."
-
-## Security at the edge
-
-CDNs typically include:
-- DDoS protection (mitigation at edge before reaching origin)
-- WAF (Web Application Firewall) — see [WebApplicationFirewalls](WebApplicationFirewalls)
-- Rate limiting
-- Bot detection
-- Origin shielding (origin not directly accessible)
-
-## CDN selection
-
-| CDN | Strengths |
-|-----|-----------|
-| **CloudFront** | Tight AWS integration; pay-as-you-go |
-| **Cloudflare** | Strong DDoS protection; generous free tier; edge compute |
-| **Akamai** | Enterprise; comprehensive features |
-| **Fastly** | Real-time logs; powerful VCL config; popular with media |
-| **Bunny.net** | Cheap; simple |
-
-For AWS shops, CloudFront is usually the default. For edge compute or aggressive security, Cloudflare. For ultra-customizable behavior, Fastly.
-
-## Common failure patterns
-
-- **No CDN for static assets.** Slower; more origin load.
-- **Caching personalized content.** User A sees user B's data.
-- **Long TTLs without invalidation strategy.** Stale content during emergencies.
-- **No URL versioning.** Forced to invalidate constantly.
-- **Origin still publicly accessible.** CDN bypass possible.
-- **Caching cookies-aware content.** Privacy issues.
-
-## Further Reading
-
-- [CloudStorageOptions](CloudStorageOptions) — S3 + CloudFront patterns
-- [AwsFundamentals](AwsFundamentals) — AWS context
-- [HttpTwoAndHttpThree](HttpTwoAndHttpThree) — Protocol-level efficiency
-- [WebApplicationFirewalls](WebApplicationFirewalls) — Security at CDN
-- [CloudPlatforms Hub](CloudPlatformsHub) — Cluster index
+## Operational Checklist
+- **[ ] Disable Caching on Set-Cookie:** Ensure responses with session cookies are never cached.
+- **[ ] Configure Default Root Object:** Map `/` to `index.html`.
+- **[ ] Enable HTTP/3:** Use the latest protocol for multiplexed stream performance.
+- **[ ] Monitor Cache Hit Ratio (CHR):** Aim for $>90\%$ for static assets.

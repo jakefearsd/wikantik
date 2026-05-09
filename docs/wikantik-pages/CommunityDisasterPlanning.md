@@ -6,46 +6,54 @@ type: article
 tags:
 - emergency-prep
 - resilience-engineering
-- social-capital
-- disaster-management
 - neighborhood-networks
-summary: A rigorous exploration of community disaster planning through the lens of Resilience Engineering, focusing on decentralized neighborhood networks, communication redundancy modeling, and the operationalization of Resilience Hubs.
+- communications
+- cert
+status: active
+date: 2025-05-15
+summary: Technical guide to neighborhood disaster resilience. Covers LoRa mesh networking, skill mapping, and PACE communications planning.
+auto-generated: false
 ---
 
-# Community Disaster Planning: The Architecture of Neighborhood Resilience
+# Community Disaster Planning: Neighborhood Resilience
 
-When major disasters overwhelm regional infrastructure, the system fails at the edges. Community Disaster Planning is the discipline of **Resilience Engineering** at the hyper-local level. For researchers and practitioners, the neighborhood is a semi-autonomous node in a potentially failing network, requiring a design based on adaptive capacity and systemic redundancy.
+When regional infrastructure fails, the neighborhood must function as a semi-autonomous node. This requires **pre-distributed communications** and **skill-mapping**.
 
-This treatise explores the theoretical foundations of decentralized resilience, the graph-theory modeling of social capital, and the advanced operational protocols for **Resilience Hubs**.
+## 1. Communications: The PACE Model
 
----
+Relying on cellular networks (which fail during power outages or congestion) is an operational failure. Neighborhoods must implement a PACE plan:
 
-## I. Foundations: Resilience as an Emergent Property
+| Tier | Technology | Use Case |
+| :--- | :--- | :--- |
+| **Primary** | WhatsApp / Zello | Day-to-day coordination when internet is active. |
+| **Alternate** | **MeshTastic (LoRa)** | Low-power, off-grid text messaging. 1-5 mile range. |
+| **Contingency** | GMRS / FRS Radio | Voice coordination (Line-of-Sight). Use Channel 20 (standard prep). |
+| **Emergency** | HAM Radio (VHF/UHF) | Reaching external authorities/Repeaters beyond the neighborhood. |
 
-Resilience is more than "bouncing back"; it is the **Adaptive Capacity** to learn and gain from disorder (**Antifragility**). We treat the neighborhood as a **Socio-Technical System (STS)** where social capital (trust) must actively reinforce technical infrastructure (power/comms).
+**Concrete Example:** A neighborhood MeshTastic network using "Lilygo T-Beam" nodes allows for encrypted text coordination across a 2-mile radius for weeks on a single battery, bypassing the need for cellular towers.
 
----
+## 2. Skill and Resource Mapping
 
-## II. Neighborhood Network Architecture
+Resilience is a function of knowing where the "tools" are before the lights go out. 
 
-We model the neighborhood as a graph $G = (V, E)$, where vertices are households/assets and edges are relationships or resource pathways.
-*   **Communication Redundancy:** Layered protocols including Digital (Cellular), Mesh/Ad-Hoc (LoRa), and Analog fallbacks (Runners/Signals).
-*   **Resource Mapping:** Granular, geo-referenced inventory tracking of both physical assets (generators/water) and human skills (medical/mechanical).
+*   **Medical:** Identify RNs, EMTs, and Vets. Maintain a central "Trauma Kit" ([VanFirstAidKit](VanFirstAidKit)).
+*   **Mechanical:** Identify plumbers, electricians, and those with chainsaws for clearing road debris.
+*   **Asset Inventory:** Track who has 500W+ solar, 100+ gallons of stored water, or 4WD vehicles. Use a paper-based or local-only digital ledger (e.g., Syncthing on a local server).
 
----
+## 3. Resilience Hubs
 
-## III. The Resilience Hub (RH)
+A Resilience Hub is a pre-designated household or community center equipped with:
+1. **Power:** 5kWh+ battery storage and 1000W+ solar to charge neighbors' phones and medical devices.
+2. **Water:** A 250-gallon IBC tote or multiple 55-gallon drums with a gravity-fed Sawyer filter.
+3. **Intel:** A whiteboard for tracking "Needs" vs "Gives" and a printed map of the local area with critical infrastructure marked.
 
-The RH is a multi-modal operational center rather than a simple shelter. It must maintain **Default Autonomous Mode (DAM)**, executing pre-agreed decision trees when external communication fails. RHs serve as triages for medical, logistical, and psycho-social support, requiring interoperability with external agencies (see [Risk Management](RiskManagement)).
+## 4. Drills and Protocols
 
-## Conclusion
-
-Building a resilient neighborhood is a **perpetual state of becoming**. By bridging the gap between technical redundancy and human trust, and applying the rigor of [Systems Thinking](SystemsThinking) to social cascades, researchers can build antifragile organisms capable of human adaptation in an increasingly volatile world.
+*   **Radio Net:** Conduct a weekly "check-in" on GMRS/FRS at a set time (e.g., Sunday 7:00 PM) to ensure equipment is functional and operators are proficient.
+*   **The "Go-Signal":** Establish a protocol for what triggers the hub activation (e.g., "Power out for >2 hours" or "Active wildfire within 10 miles").
 
 ---
 **See Also:**
-- [Emergency Prep Hub](EmergencyPrepHub) — Central index for preparedness strategies.
-- [Home Emergency Preparedness](HomeEmergencyPreparedness) — HARDening the individual node.
-- [Risk Management](RiskManagement) — General principles of threat mitigation.
-- [Distributed Systems Hub](DistributedSystemsHub) — Architecture for decentralized networks.
-- [Systems Thinking](SystemsThinking) — Modeling complex social-technical feedback loops.
+- [Emergency Communication](EmergencyCommunication) — Radio programming and protocols.
+- [Home Emergency Preparedness](HomeEmergencyPreparedness) — Hardening your own node.
+- [Staying Connected Rural US](StayingConnectedRuralUS) — Redundant internet for hubs.

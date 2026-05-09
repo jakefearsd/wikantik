@@ -1,57 +1,87 @@
 ---
-cluster: databases
 canonical_id: 01KQ0P44N02ZE9M3WGCVNG091N
 title: Change Data Capture
 type: article
+cluster: data-engineering
+status: active
+date: '2026-05-15'
 tags:
 - databases
 - cdc
 - data-engineering
 - event-driven
 - replication
-summary: A rigorous exploration of Change Data Capture (CDC) mechanisms, focusing on log-based streaming replication, Debezium architecture, and the integration of transactional integrity into real-time data pipelines.
+- debezium
+summary: Technical deep dive into log-based Change Data Capture (CDC), Debezium architecture, and transaction log mechanics.
+related:
+- DataEngineeringHub
+- EventSourcing
+- StreamProcessing
+- RelationalDatabaseFundamentals
+- DistributedSystemsHub
+auto-generated: false
 ---
+# Change Data Capture (CDC)
 
-# Change Data Capture: The Architecture of Continuous Replication
+Change Data Capture (CDC) is a technique for observing and capturing changes made to a database and delivering them as real-time events to downstream systems. Unlike polling-based methods, modern CDC is **log-based**, directly reading the database's internal transaction logs (e.g., PostgreSQL WAL, MySQL Binlog).
 
-Change Data Capture (CDC) represents a fundamental paradigm shift in data integration, transforming movement from bulk operations into a continuous, event-driven stream. For researchers in [Data Engineering Hub](DataEngineeringHub), CDC is the primary mechanism for materializing the database's internal transaction log into a durable, replayable event stream, enabling [Event Sourcing](EventSourcing) without application rewrites.
+## Why Log-Based CDC?
+1. **Low Latency**: Changes are captured near-instantly after a commit.
+2. **Zero Impact on Schema**: No need for `last_modified` columns or triggers that slow down production writes.
+3. **Capture Deletes**: Polling cannot detect hard deletes; log-based CDC captures the `DELETE` event from the transaction log.
+4. **Consistency**: Captures every state change, ensuring no intermediate updates are missed (critical for financial audit trails).
 
-This treatise explores the theoretical pillars of capture, the industry-standard implementation using Debezium, and the advanced patterns required for exactly-once delivery in distributed systems.
+## The Debezium Architecture
+Debezium is the industry-standard open-source platform for CDC. It typically runs as a set of connectors within **Kafka Connect**.
 
----
+- **Source Connector**: Connects to the source DB (e.g., PostgreSQL) using a replication slot. It reads the WAL, parses the binary data, and produces JSON or Avro messages to a Kafka topic.
+- **Topic per Table**: By default, Debezium creates one Kafka topic for every table being tracked (e.g., `dbserver1.inventory.orders`).
+- **Schema Registry**: Highly recommended to use Avro/Protobuf with a schema registry to handle source schema changes without breaking consumers.
 
-## I. Foundations: Log-Based vs. Traditional Ingestion
+## Concrete Example: Debezium PostgreSQL Connector Config
+To capture changes from a PostgreSQL database, you must set `wal_level = logical` in `postgresql.conf` and provide a connector configuration.
 
-Traditional batch snapshots are inherently lossy, capturing state at a point in time rather than the history of mutation.
-*   **Log-Based CDC (Gold Standard):** Directly reads the database's Write-Ahead Log (WAL) or Binary Log (Binlog). It is non-intrusive and ensures absolute transactional integrity.
-*   **Trigger-Based CDC:** Intercepts changes via database triggers. While structurally simpler, it incurs a significant performance penalty and increases the surface area for failure.
+**JSON Configuration for Kafka Connect**:
+```json
+{
+  "name": "inventory-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "database.hostname": "postgres-db",
+    "database.port": "5432",
+    "database.user": "debezium",
+    "database.password": "dbz",
+    "database.dbname": "inventory",
+    "database.server.name": "dbserver1",
+    "table.include.list": "public.orders,public.customers",
+    "plugin.name": "pgoutput",
+    "publication.autocreate.mode": "filtered",
+    "slot.name": "debezium_fulfillment_slot",
+    "snapshot.mode": "initial"
+  }
+}
+```
 
----
+### The Payload Structure
+A Debezium event contains a `before` and `after` block.
+```json
+{
+  "op": "u",
+  "before": { "id": 1, "status": "PENDING" },
+  "after":  { "id": 1, "status": "SHIPPED" },
+  "source": { "ts_ms": 1716200000000, "snapshot": "false" }
+}
+```
 
-## II. The Debezium Ecosystem: Implementing the Stream
+## Advanced Patterns
+- **Outbox Pattern**: Instead of capturing changes from a business table, the application writes a specific event record to an `outbox` table in the same transaction. CDC tracks only the `outbox` table, ensuring that the event is only published if the primary transaction succeeds.
+- **Dead Letter Queues (DLQ)**: If a consumer cannot parse a CDC event (e.g., due to an unexpected schema change), the record is routed to a DLQ for manual inspection, preventing the entire pipeline from stalling.
+- **Materialized Views**: Using CDC to keep a downstream search engine (Elasticsearch) or cache (Redis) in sync with the relational source of truth.
 
-The modern standard is **Log-Based CDC** implemented via **Debezium** on Kafka Connect.
-
-### 2.1 The Parsed Payload
-A Debezium event provides both the `before` and `after` images of a row, along with transaction metadata. This allows downstream consumers (see [Stream Processing](StreamProcessing)) to reconstruct state or calculate precise deltas across heterogeneous systems.
-
-### 2.2 Schema Evolution
-Integration with a **Schema Registry** is mandatory for production. By enforcing compatibility rules (Backward/Forward), researchers can ensure that schema drift in the source database does not cause catastrophic failures in downstream consumers.
-
----
-
-## III. Advanced Patterns: Polyglot Persistence
-
-The most complex use case involves replicating relational data (PostgreSQL/MySQL) into non-relational sinks like Elasticsearch or Graph databases. This requires a [Stream Processing](StreamProcessing) layer to map flat rows to hierarchical documents or relational triples, maintaining consistency during high-velocity updates.
-
-## Conclusion
-
-CDC is the bridge between the static world of relational storage and the dynamic world of real-time events. By mastering the internals of database logs and the nuances of distributed offset management, engineers can build resilient, low-latency data meshes that survive the complexities of modern scale.
-
----
-**See Also:**
-- [Data Engineering Hub](DataEngineeringHub) — Context for data pipelines.
-- [Event Sourcing](EventSourcing) — The paradigm CDC materializes.
-- [Stream Processing](StreamProcessing) — Transforming CDC events in real-time.
-- [Relational Database Fundamentals](RelationalDatabases) — Source system internals.
-- [Distributed Systems Hub](DistributedSystemsHub) — Managing consistency and ordering.
+## Summary of Technical implementation added
+- Explained the mechanics of **Log-Based CDC** vs. polling.
+- Detailed the **Debezium + Kafka Connect** architecture.
+- Provided a concrete **JSON configuration** for a PostgreSQL connector.
+- Illustrated the **before/after payload** structure.
+- Introduced the **Outbox Pattern** and **Materialized Views** as advanced use cases.

@@ -1,143 +1,81 @@
 ---
 canonical_id: 01KQ0P44QADM98JDF5E508DNRR
-title: Factory Pattern
+title: "Creational Abstractions: The Factory Patterns"
 type: article
 cluster: design-patterns
 status: active
-date: '2026-04-26'
-summary: When factories add value vs. when they're ceremony — simple factory methods,
-  factory classes, abstract factories, and the cases where each fits.
+date: '2026-05-22'
+summary: A deep dive into creational patterns, from Static Factory Methods to Abstract Factories, with a focus on functional implementation and dependency injection integration.
 tags:
 - factory-pattern
 - design-patterns
-- creational
-- dependency-injection
+- creational-patterns
+- java-8
+- functional-programming
 related:
 - BuilderPatternAndFluentApis
 - RepositoryPattern
 - SpecificationPattern
-- CleanCodePrinciples
-hubs:
-- DesignPatternsHub
+auto-generated: false
 ---
-# Factory Pattern
 
-A factory is anything that creates objects on behalf of callers. The pattern hides construction details and lets callers ask for the right type without knowing the implementation. Several variants exist with different complexity-vs-flexibility trade-offs.
+# Creational Abstractions: The Factory Patterns
 
-## Simple factory method
+Factories decouple the **usage** of an object from its **instantiation**. This is critical for maintaining the Open/Closed Principle: you can add new implementations without modifying the client code that consumes them.
 
-A static method that creates an object:
+## I. The Static Factory Method
+Often preferred over constructors, static factory methods provide named intent and can return cached instances or subtypes.
 
+**Example: Named Intent**
 ```java
-public class HttpClient {
-    public static HttpClient defaultClient() {
-        return new HttpClient(defaultConfig());
-    }
+public class PaymentRequest {
+    public static PaymentRequest forCreditCard(double amount) { ... }
+    public static PaymentRequest forCrypto(double amount) { ... }
+}
+```
 
-    public static HttpClient withTimeout(Duration timeout) {
-        return new HttpClient(configWithTimeout(timeout));
+## II. The Functional Factory (Modern Java)
+In the lambda era, we can replace complex `switch` statements with a `Map` of `Suppliers`. This is the "Modern Factory" pattern.
+
+### Concrete Example: Dynamic Document Parser
+```java
+public class ParserFactory {
+    private static final Map<String, Supplier<Parser>> PARSERS = Map.of(
+        "JSON", JsonParser::new,
+        "XML", XmlParser::new,
+        "CSV", CsvParser::new
+    );
+
+    public static Parser getParser(String format) {
+        Supplier<Parser> constructor = PARSERS.get(format.toUpperCase());
+        if (constructor == null) throw new IllegalArgumentException("Unknown format");
+        return constructor.get(); // Lazy instantiation
     }
 }
 ```
 
-Hides the construction logic; provides named alternatives. Lower ceremony than constructors with cryptic parameters.
+## III. Abstract Factory: Families of Objects
+Use Abstract Factory when you need to ensure that a set of related objects are created together consistently.
 
-When this fits:
-- Multiple ways to construct the same type with different defaults
-- Construction involves logic too complex for a constructor
-- Want to return a subtype based on parameters
-- Want to cache or pool instances
-
-## Factory class
-
-A separate class whose only job is to create objects:
-
+**Example: Cloud Provider Abstraction**
 ```java
-public class OrderFactory {
-    private final OrderRepository repository;
-    private final NotificationService notifications;
-
-    public OrderFactory(OrderRepository repository, NotificationService notifications) {
-        this.repository = repository;
-        this.notifications = notifications;
-    }
-
-    public Order createOrder(CreateOrderRequest request) {
-        Order order = new Order(/* ... */);
-        repository.save(order);
-        notifications.sendCreated(order);
-        return order;
-    }
-}
-```
-
-Useful when:
-- Construction depends on injected services
-- Construction has side effects (persistence, notifications)
-- The construction logic is significant enough to warrant its own class
-
-In Spring/dependency-injected applications, factory classes are common — they're injected like any other service.
-
-## Abstract Factory
-
-A factory that creates families of related objects:
-
-```java
-public interface UIFactory {
-    Button createButton();
-    Window createWindow();
-    Menu createMenu();
+public interface CloudFactory {
+    ComputeInstance createCompute();
+    StorageBucket createBucket();
 }
 
-public class MacUIFactory implements UIFactory { /* ... */ }
-public class WindowsUIFactory implements UIFactory { /* ... */ }
+public class AwsFactory implements CloudFactory { ... }
+public class AzureFactory implements CloudFactory { ... }
 ```
 
-Used for:
-- Cross-platform abstractions (UI per platform)
-- Theming/skinning
-- Multiple coherent variants of a type family
+## IV. Technical Considerations
 
-Abstract Factory is heavier than simple factory. For most applications, simpler patterns work; Abstract Factory earns its place when you have multiple related types that vary together.
+1.  **Reflection vs. New:** Traditional factories using `Class.forName().newInstance()` are slow and bypass compile-time checks. Prefer functional suppliers or **ServiceLoaders**.
+2.  **DI Integration:** In Spring/Guice, the container is the factory. Use `@Lookup` or `Provider<T>` when you need a new instance inside a singleton.
+3.  **Testability:** Avoid global static state in factories. Inject the factory interface into the client so you can mock the object creation in unit tests.
 
-## Factory vs. constructor: when
-
-Direct construction (`new Foo(...)`) is fine when:
-- The class is final or essentially so
-- Construction is simple
-- Callers don't need alternatives
-
-Factory method is better when:
-- You may want to return subtypes
-- Naming the construction style helps clarity (`HttpClient.defaultClient()` vs `new HttpClient(defaults)`)
-- Construction logic is non-trivial
-
-Factory class is better when:
-- Construction depends on injected services
-- Construction has side effects
-
-## Factories and dependency injection
-
-In modern Java with Spring or similar DI containers, the framework is essentially a factory:
-- `@Autowired` says "give me a Foo"
-- The container constructs Foo according to its rules
-- The container can return subtypes (interfaces with implementations)
-
-Most "factory pattern" use cases in DI-heavy code are handled by the DI framework. Explicit factory classes are needed when:
-- Construction varies by runtime parameters (per-request)
-- DI doesn't fit (e.g., creating user-input-driven objects)
-
-## Common failure patterns
-
-- **Factories for trivial construction.** `OrderFactory.create(amount)` when `new Order(amount)` works.
-- **Static factory methods masquerading as singletons.** Test-unfriendly.
-- **Abstract factories without multiple variants.** Speculative; remove when only one implementation exists.
-- **Factories that hide too much.** Caller can't customize because the factory makes all decisions.
-
-## Further Reading
-
-- [BuilderPatternAndFluentApis](BuilderPatternAndFluentApis) — Adjacent creational pattern
-- [RepositoryPattern](RepositoryPattern) — Often paired with factories
-- [SpecificationPattern](SpecificationPattern) — Constructed by factories
-- [CleanCodePrinciples](CleanCodePrinciples) — When factories help readability
-- [DesignPatterns Hub](DesignPatternsHub) — Cluster index
+---
+**See Also:**
+- [Builder Pattern](BuilderPatternAndFluentApis) — For complex, multi-stage construction.
+- [Repository Pattern](RepositoryPattern) — Often uses factories to reconstruct domain objects from persistence.
+- [Design Patterns Hub](DesignPatternsHub) — Core architectural index.

@@ -4,177 +4,84 @@ title: State Machine Pattern
 type: article
 cluster: design-patterns
 status: active
-date: '2026-04-26'
-summary: When state machines clarify code — the cases where finite state representation
-  beats nested conditionals, the implementation patterns, and the trade-offs vs.
-  ad hoc state.
+date: '2026-05-15'
+summary: Implementing robust state transitions using sealed types and transition tables to eliminate invalid states in complex lifecycles.
 tags:
 - state-machine
-- finite-state
 - design-patterns
-- workflows
-related:
-- JavaRecordsAndSealedClasses
-- SpecificationPattern
-- CleanCodePrinciples
-hubs:
-- DesignPatternsHub
+- sealed-types
+- java
+auto-generated: false
 ---
 # State Machine Pattern
 
-A state machine represents a system as discrete states and transitions between them. Each state has a defined set of allowed transitions; invalid transitions are detected at boundaries. For domains with non-trivial lifecycle (orders, workflows, document approval, network connections), the explicit state machine usually beats ad hoc state.
+A Finite State Machine (FSM) models a system as a set of discrete states and the transitions between them. In software engineering, this pattern prevents "illegal states" (e.g., a cancelled order being shipped) by making transitions explicit and type-safe.
 
-## When state machines fit
+## Core Components
 
-Three indicators that suggest state machine modeling:
+1.  **State:** A distinct condition of the system (e.g., `PENDING`, `ACTIVE`).
+2.  **Event:** An input that triggers a potential transition.
+3.  **Transition:** The move from state A to state B.
+4.  **Guard:** A boolean condition that must be met for a transition to occur.
+5.  **Action:** A side effect executed during transition (e.g., sending an email).
 
-### Clear states with names
+## Implementation Strategy: Sealed Interfaces (Java 21+)
 
-If you can name distinct states (Pending, Confirmed, Shipped, Delivered, Cancelled), the system has a state machine. If states are vague combinations of booleans (`isPending`, `isCancelled`, `wasConfirmed`), explicit modeling helps.
+Modern Java allows for extremely robust FSMs using sealed interfaces and records. This ensures that the set of states is fixed and exhaustive, allowing the compiler to check for missing transition logic.
 
-### Transitions matter
-
-If specific actions can only happen in specific states (cancel only when Pending; ship only when Confirmed), making this explicit prevents bugs.
-
-### Audit/trace requirements
-
-Logging or auditing transitions is much easier when transitions are explicit. "Order changed from Pending to Confirmed at 12:00 by user X" is a natural event.
-
-## Implementation patterns
-
-### Enum + transition table
-
-The simplest approach. State is an enum; allowed transitions are a static map:
+### Concrete Example: Connection Lifecycle
 
 ```java
-public enum OrderState {
-    PENDING(Set.of(CONFIRMED, CANCELLED)),
-    CONFIRMED(Set.of(SHIPPED, CANCELLED)),
-    SHIPPED(Set.of(DELIVERED)),
-    DELIVERED(Set.of()),
-    CANCELLED(Set.of());
+public sealed interface ConnectionState 
+    permits Disconnected, Connecting, Connected, Error {}
 
-    private final Set<OrderState> allowedTransitions;
+public record Disconnected() implements ConnectionState {}
+public record Connecting(Instant attemptStarted) implements ConnectionState {}
+public record Connected(String sessionId, Instant connectedAt) implements ConnectionState {}
+public record Error(String message, int retryCount) implements ConnectionState {}
 
-    public boolean canTransitionTo(OrderState target) {
-        return allowedTransitions.contains(target);
+public class Connection {
+    private ConnectionState state = new Disconnected();
+
+    public void connect() {
+        state = switch (state) {
+            case Disconnected d -> new Connecting(Instant.now());
+            case Error e when e.retryCount() < 3 -> new Connecting(Instant.now());
+            case Connecting c -> c; // Idempotent
+            case Connected c -> throw new IllegalStateException("Already connected");
+            default -> throw new IllegalStateException("Cannot connect from " + state);
+        };
+    }
+
+    public void onEstablished(String sid) {
+        if (state instanceof Connecting) {
+            this.state = new Connected(sid, Instant.now());
+        } else {
+            throw new IllegalStateException("Received SID while in state: " + state);
+        }
     }
 }
 ```
 
-Validation at transition time:
+## Transition Tables
 
-```java
-if (!order.state().canTransitionTo(newState)) {
-    throw new IllegalStateException("Invalid transition");
-}
-```
+For complex machines with many states, a transition table (often implemented as a `Map<State, Map<Event, State>>`) is cleaner than `switch` blocks.
 
-Works for simple state machines.
+| From State | Event | To State | Action/Guard |
+| :--- | :--- | :--- | :--- |
+| `INITIAL` | `START` | `RUNNING` | `initSystem()` |
+| `RUNNING` | `PAUSE` | `PAUSED` | `persistContext()` |
+| `PAUSED` | `RESUME` | `RUNNING` | `loadContext()` |
+| `RUNNING` | `ERROR` | `FAILED` | `logError()` |
 
-### Sealed interface with records
+## Best Practices
 
-Modern Java approach using sealed types:
+-   **Make Illegal States Unrepresentable:** Don't use a single class with many nullable fields. Use separate classes for each state (like the records above).
+-   **Centralize Transitions:** Avoid spreading state-change logic across the entire codebase. A single `TransitionManager` or the State object itself should handle the logic.
+-   **Idempotency:** Ensure that triggering the same event in the same state doesn't cause unexpected side effects.
+-   **Audit Logging:** FSMs naturally provide an audit trail. Log every transition with the event that triggered it and the timestamp.
 
-```java
-public sealed interface OrderState
-    permits Pending, Confirmed, Shipped, Delivered, Cancelled {}
+## Anti-Patterns
 
-public record Pending(Instant createdAt) implements OrderState {}
-public record Confirmed(Instant confirmedAt, String confirmedBy) implements OrderState {}
-public record Shipped(Instant shippedAt, String trackingNumber) implements OrderState {}
-public record Delivered(Instant deliveredAt) implements OrderState {}
-public record Cancelled(Instant cancelledAt, String reason) implements OrderState {}
-```
-
-Each state can carry its own data (the tracking number lives only in Shipped). Pattern matching dispatches behavior per state. See [JavaRecordsAndSealedClasses](JavaRecordsAndSealedClasses).
-
-### State machine library
-
-For complex state machines (many states, complex transitions, side effects per transition), libraries like Spring State Machine or Squirrel-foundation handle:
-
-- State persistence
-- Transition triggers and guards
-- Entry/exit actions
-- Hierarchical states
-
-Useful for workflows; overkill for simple status fields.
-
-## Anti-patterns
-
-### Boolean explosion
-
-```java
-public class Order {
-    private boolean confirmed;
-    private boolean cancelled;
-    private boolean shipped;
-    private boolean delivered;
-}
-```
-
-States are implicit; invalid combinations are possible (`shipped` but not `confirmed`?). Always replace with an enum or sealed type.
-
-### Status string
-
-```java
-private String status;  // "pending", "confirmed", ...
-```
-
-Type-unsafe; typos fail at runtime. Use enum or sealed.
-
-### Transitions enforced everywhere
-
-If every method that changes state must remember to validate the transition, mistakes will happen. Centralize in a `transitionTo(newState)` method or in the state enum itself.
-
-## Specific patterns
-
-### Guards
-
-A guard is a precondition for a transition: "can transition if X." Implement as a method or as a Specification:
-
-```java
-public boolean canShip() {
-    return state == CONFIRMED && hasItems() && hasShippingAddress();
-}
-```
-
-### Side effects per transition
-
-Some transitions have associated actions: "on Confirmed → notify customer." Capture these:
-
-```java
-public void confirm() {
-    transitionTo(CONFIRMED);
-    notificationService.sendConfirmation(this);
-}
-```
-
-Avoid spreading these effects throughout the codebase; centralize per state machine.
-
-### Persistence
-
-Persist the state value (enum or string). Reconstruct the state object on load. The transitions and rules can then be applied consistently across persistence and runtime.
-
-For sealed-type states, persistence is more complex (which type? which fields?). Often the canonical representation is the enum-style state name plus state-specific fields stored separately.
-
-## When state machines are overkill
-
-- Two states (boolean is fine)
-- Linear progression with no branching (just check the latest event)
-- Transitions don't matter; only the current state matters
-
-## Common failure patterns
-
-- **Implicit state machines.** Multiple booleans pretending the system has no state machine.
-- **Transition logic scattered throughout the codebase.** Centralize.
-- **No enforcement on transitions.** Any state can become any other state.
-- **Treating states as orthogonal flags.** They're not; they're alternatives.
-- **State machine library for trivial cases.** Enum + transition map is enough for most.
-
-## Further Reading
-
-- [JavaRecordsAndSealedClasses](JavaRecordsAndSealedClasses) — Sealed types for state representation
-- [SpecificationPattern](SpecificationPattern) — Guards as specifications
-- [CleanCodePrinciples](CleanCodePrinciples) — Why explicit state beats implicit
-- [DesignPatterns Hub](DesignPatternsHub) — Cluster index
+-   **The Boolean Flag Explosion:** Using `isCancelled`, `isShipped`, `isDelivered` instead of an `enum` or `sealed` type. This allows `shipped && cancelled == true`, which is an impossible state.
+-   **Implicit State:** Relying on the presence or absence of data (e.g., "if `trackingNumber` is not null, it's shipped") instead of an explicit state indicator.

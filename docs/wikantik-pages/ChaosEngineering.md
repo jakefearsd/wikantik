@@ -4,139 +4,76 @@ title: Chaos Engineering
 type: article
 cluster: software-architecture
 status: active
-date: '2026-04-25'
+date: '2026-05-24'
 tags:
 - chaos-engineering
 - reliability
 - resilience-testing
-- disaster-recovery
-summary: Practical chaos engineering — what to break, when to break it, and the
-  pre-conditions that distinguish a useful experiment from a self-inflicted
-  outage.
-related:
-- BlamelessPostMortems
-- ServiceLevelAgreements
-- IncidentResponse
-- DistributedTracing
-hubs:
-- SoftwareArchitectureHub
+- saps
+summary: Scientific approach to system reliability through controlled fault injection. Covers blast radius management, hypothesis-driven testing, and the "Game Day" discipline.
+auto-generated: false
 ---
 # Chaos Engineering
 
-The premise: you don't actually know your system is reliable until you break it on purpose. You can read the architecture document, you can stare at the dependency graph, but the only honest way to verify "this fails over within 30 seconds" is to fail it over and time it.
+Chaos Engineering is the discipline of experimenting on a system in order to build confidence in the system's capability to withstand turbulent conditions in production. It is not "breaking things in prod"; it is a **scientific experiment** to verify resilience hypotheses.
 
-Most teams hear "chaos engineering" and imagine Netflix's Chaos Monkey randomly killing prod EC2 instances. That's the headline; the discipline behind it is more careful, more boring, and worth doing.
+## The Four Steps of a Chaos Experiment
 
-## What it is and isn't
+1. **Define the Steady State:** Identify a measurable metric that indicates the system is healthy (e.g., "p99 latency < 200ms" or "HTTP 200 rate > 99.9%").
+2. **Form a Hypothesis:** "If we kill one of the three database replicas, the steady state will not change."
+3. **Introduce a Variable (The Fault):** Inject a failure (e.g., terminate a node, inject 500ms of network latency).
+4. **Try to Disprove the Hypothesis:** If the steady state is affected, you have found a resilience gap.
 
-It is:
+## Blast Radius Management
 
-- **Hypothesis-driven experiments** that test specific failure responses ("when service X is unavailable, the user-facing API should respond within 500ms with a degraded result").
-- **Measured outcomes**, with clear success and abort criteria.
-- **Run in a controlled blast radius**, ideally not in production until you've earned trust.
+Never start with a "Chaos Monkey" that kills random production nodes. Use the **Blast Radius** progression:
+- **Dev/Stage:** Break it here first. If it fails, fix the architecture.
+- **Canary:** Break it for 1% of users.
+- **Production:** Break it for everyone, but only after it has passed the Canary test.
 
-It isn't:
+## Common Chaos Experiments
 
-- Random destruction. "Let's see what happens" is not an experiment; it's a tantrum.
-- A substitute for actual reliability work. Breaking things doesn't fix things; it surfaces what needs fixing.
-- Required for every system. If your team has 3 engineers and a single-region monolith, basic load testing covers what chaos engineering would.
+| Target | Fault | Hypothesis |
+|---|---|---|
+| **Network** | Latency Injection | "The circuit breaker will trip and fall back to cache." |
+| **Storage** | Disk Full | "The application will gracefully degrade to read-only mode." |
+| **Compute** | CPU Hog / OOM | "The load balancer will health-check the node out of rotation." |
+| **DNS** | Resolve Failure | "The secondary DNS provider will take over automatically." |
 
-## Pre-conditions you actually need
+## Implementation: Chaos Mesh (Kubernetes)
 
-Don't run chaos experiments until:
+For teams on K8s, **Chaos Mesh** is the industry standard. It allows you to inject faults via CRDs (Custom Resource Definitions) without changing application code.
 
-- **You have observability.** If you can't tell the difference between "system handled the failure" and "system silently dropped 2% of requests," chaos experiments produce no signal.
-- **You have on-call.** Experiments that produce alerts produce alerts; someone needs to be ready to respond.
-- **You have an SLO.** Experiments need a success criterion; SLOs are usually it. ("Did latency exceed our 99th-percentile target?")
-- **You have rollback.** If the experiment goes wrong, you need a one-button "stop the chaos" mechanism. Faster than figuring out which knob to turn during the incident the experiment caused.
-
-A team that can't articulate its SLO has nothing to learn from chaos experiments. Build that first.
-
-## A useful experiment, structured
-
-Every chaos experiment should be written down with this structure before you run it:
-
-```
-Hypothesis: When the recommendations service returns 5xx for 100% of requests,
-            the homepage will continue to render with no recommendations within
-            500ms p95, error rate < 1%.
-
-Method:     Inject HTTP 503 responses for all recommendations.api/v1/* calls.
-
-Blast radius: 10% of traffic, region us-east-1 only, between 14:00 and 16:00 UTC,
-              for 5 minutes maximum.
-
-Abort if:   - Homepage error rate > 5%
-            - Latency p95 > 2s
-            - Any related downstream service alerts page
-            - On-call requests abort
-
-Owner: ...
-Approver: ...
+```yaml
+# Example: Network latency injection
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-delay
+spec:
+  action: delay
+  mode: one
+  selector:
+    namespaces:
+      - default
+    labelSelectors:
+      'app': 'my-web-app'
+  delay:
+    latency: '200ms'
+    jitter: '50ms'
+  duration: '5m'
 ```
 
-If you can't fill in any of those fields, you're not ready to run the experiment.
+## The "Game Day" Discipline
 
-## What to break, in priority order
+A Game Day is a scheduled 2-4 hour window where the engineering team runs a series of chaos experiments. 
+- **Roles:** One person is the "Chaos Engineer" (injects faults); one is the "Incident Commander" (responds); one is the "Scribe" (records timestamps and metrics).
+- **Goal:** Not just to find technical bugs, but to test the **Human Response**. Does the alert fire? Is the runbook accurate? Does the team know where the dashboard is?
 
-1. **Single-instance failure.** Kill one pod / instance / process. Does the service continue? In Kubernetes-land, this is what `kubectl delete pod` should do uneventfully if your deployment is properly configured.
-2. **Single-AZ failure.** Lose all instances in one availability zone. Does the cluster heal?
-3. **Dependency failure.** A downstream service returns 5xx, hangs, returns slow. Does your service degrade gracefully?
-4. **Network slow.** Add 200ms of latency between services. Do timeouts kick in correctly? Do retries amplify the problem?
-5. **Disk full / out of memory.** Bring a process to OOM. Does the orchestrator restart it? Does the load balancer notice?
-6. **Region failure.** The big one. If your DR plan is "fail over to another region," prove the plan works.
+## Anti-Pattern: Chaos without Observability
+If you inject a fault and your dashboards don't show any change—but your users are complaining on Twitter—you have a **Blind Spot**. Chaos Engineering is as much about testing your monitoring as it is about testing your code.
 
-Most teams stop at #1 or #2. The interesting bugs live at #3 and beyond.
-
-## Tools
-
-- **Chaos Mesh** — Kubernetes-native chaos. Pod kills, network delays, IO faults, time skews. Works without modifying the application.
-- **AWS Fault Injection Simulator** — managed chaos for AWS resources, integrated with their alarms.
-- **Gremlin** — commercial, broad scope, polished UX.
-- **LitmusChaos** — CNCF, Kubernetes-focused, more granular than Chaos Mesh in some ways.
-- **Toxiproxy** — TCP-layer fault injection, good for development and integration tests.
-- **Pumba** — simple Docker-based chaos tool.
-
-For most teams, Chaos Mesh + a handful of bash scripts is enough. Avoid commercial tools until you've outgrown the open-source options, which most teams won't.
-
-## The continuous-chaos hypothesis
-
-Run small chaos experiments continuously rather than rare large ones. Monthly "kill an instance" is more useful than yearly "fail over a region" because:
-
-- Small frequent experiments catch regressions when something breaks (a new pod misconfiguration, a new dependency that doesn't fail over correctly).
-- Engineers stay calibrated; the system stays known.
-- The experiment results compose: a region failover that works is partly a series of instance failures that all work.
-
-Production chaos every weekday lunchtime, blast radius 1% of traffic, with automatic abort: the kind of thing that catches more reliability issues than any other practice short of running the actual disaster.
-
-## What the experiments teach you
-
-Categories of finding:
-
-- **Configuration errors.** Most experiments fail because something was misconfigured (timeout too long, retries set wrong, alerts pointed at the wrong inbox). These fixes are cheap once you've found them.
-- **Cascading dependencies.** "When X is slow, Y eats memory because retries pile up, then Z dies." Surfaces architecture-level issues that are otherwise invisible.
-- **Documentation drift.** The runbook says the alert page goes here. The alert actually goes there. Found out the easy way.
-- **People issues.** No one knows what to do when alarm A fires. The chaos experiment surfaces this; you fix the runbook.
-
-After every experiment, hold a small post-mortem. Record what you learned. Most experiments produce a small but real fix. The cumulative effect is large.
-
-## Anti-patterns
-
-- **Random chaos in production with no plan.** Hostile to your colleagues; produces incidents, not learning.
-- **Experiments without abort criteria.** "We'll just see what happens" — the experiment becomes the incident.
-- **No rollback.** "How do we stop the chaos?" "I don't know" → real outage.
-- **Fixing without retesting.** A chaos experiment surfaced a bug; you fixed it; you didn't run the experiment again to verify the fix. Verify.
-- **One-off experiments.** Run once, never again. The system changes; the experiment's findings stale.
-
-## The reliability dividend
-
-Teams that run chaos engineering well report fewer real incidents (because failures are anticipated and handled gracefully) and shorter MTTR when incidents do happen (because operators have practiced the response). The Netflix data here is anecdotal but consistent across many other organisations.
-
-It is not, however, a free lunch. Chaos engineering takes a meaningful fraction of an SRE-equivalent's time. Budget for it. The ROI is good but the input is real.
-
-## Further reading
-
-- [BlamelessPostMortems]() — how to actually learn from incidents
-- [ServiceLevelAgreements]() — SLO discipline; precondition for useful experiments
-- [IncidentResponse] — the muscle chaos engineering builds
-- [DistributedTracing]() — observability that makes experiments interpretable
+## Further Reading
+- [[BlamelessPostMortems]] — Documenting the findings from a Game Day.
+- [[ServiceLevelAgreements]] — Defining the "Steady State" metrics.
+- [[CircuitBreakerPattern]] — The primary defense against cascading failures.

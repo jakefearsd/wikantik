@@ -1,8 +1,19 @@
 ---
-canonical_id: 01KQ0P44VW76C0E6HNSB8R6EJ8
 summary: Step-by-step mechanics of the Roth conversion ladder, SEPP/72(t), Rule of
   55, and 0% capital gains strategies for accessing retirement funds before 59.5
 date: '2026-03-14'
+cluster: index-fund-investing
+related:
+- IndexFundInvestingForEarlyRetirement
+- AccountTypeStrategy
+- EarlyRetirementInvestmentPlan
+- TaxBenefitsOfRetirementAccounts
+- RetirementAccountWithdrawalRules
+- TaxPlanningForRetirementAccountWithdrawals
+canonical_id: 01KQ0P44VW76C0E6HNSB8R6EJ8
+part-of:
+- IndexFundInvestingForEarlyRetirement
+type: article
 tags:
 - personal-finance
 - investing
@@ -12,17 +23,8 @@ tags:
 - tax-strategy
 - 72t
 - rule-of-55
-related:
-- IndexFundInvestingForEarlyRetirement
-- AccountTypeStrategy
-- EarlyRetirementInvestmentPlan
-- TaxBenefitsOfRetirementAccounts
-- RetirementAccountWithdrawalRules
-- TaxPlanningForRetirementAccountWithdrawals
-type: article
-cluster: index-fund-investing
 status: active
-part-of:
+hubs:
 - IndexFundInvestingForEarlyRetirement
 ---
 # The Roth Conversion Ladder and Other Early Access Strategies

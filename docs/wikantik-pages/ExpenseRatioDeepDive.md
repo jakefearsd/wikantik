@@ -1,8 +1,18 @@
 ---
-canonical_id: 01KQ0P44Q95A79EB4J2GCK28P2
 summary: Deep dive into how expense ratios compound against investors over decades,
   with concrete dollar-amount comparisons and actionable steps to minimize costs
 date: '2026-03-14'
+cluster: index-fund-investing
+related:
+- IndexFundInvestingForEarlyRetirement
+- IndexFundPortfolioConstruction
+- AccountTypeStrategy
+- ExpenseRatiosAndTheirEffectOnCompounding
+- LowCostIndexFundInvesting
+canonical_id: 01KQ0P44Q95A79EB4J2GCK28P2
+part-of:
+- IndexFundInvestingForEarlyRetirement
+type: article
 tags:
 - personal-finance
 - investing
@@ -10,16 +20,8 @@ tags:
 - index-funds
 - FIRE
 - cost-analysis
-related:
-- IndexFundInvestingForEarlyRetirement
-- IndexFundPortfolioConstruction
-- AccountTypeStrategy
-- ExpenseRatiosAndTheirEffectOnCompounding
-- LowCostIndexFundInvesting
-type: article
-cluster: index-fund-investing
 status: active
-part-of:
+hubs:
 - IndexFundInvestingForEarlyRetirement
 ---
 # Why Expense Ratios Are the Investor's Biggest Controllable Cost

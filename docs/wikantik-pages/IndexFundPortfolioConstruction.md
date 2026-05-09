@@ -1,15 +1,8 @@
 ---
-canonical_id: 01KQ0P44R3MBX5A75FD4W19QZD
 summary: How to build a three-fund portfolio with total market, international, and
   bond index funds at the lowest possible cost
 date: 2026-03-21T00:00:00Z
-tags:
-- personal-finance
-- investing
-- index-funds
-- portfolio-construction
-- three-fund-portfolio
-- asset-allocation
+cluster: index-fund-investing
 related:
 - IndexFundInvestingForEarlyRetirement
 - AssetAllocationGuide
@@ -17,10 +10,19 @@ related:
 - InvestingInYourTwenties
 - AccountTypeStrategy
 - EarlyRetirementInvestmentPlan
-type: article
-cluster: index-fund-investing
-status: active
+canonical_id: 01KQ0P44R3MBX5A75FD4W19QZD
 part-of:
+- IndexFundInvestingForEarlyRetirement
+type: article
+tags:
+- personal-finance
+- investing
+- index-funds
+- portfolio-construction
+- three-fund-portfolio
+- asset-allocation
+status: active
+hubs:
 - IndexFundInvestingForEarlyRetirement
 ---
 # Building a Portfolio with Low-Cost Index Funds

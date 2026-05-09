@@ -1,15 +1,9 @@
 ---
-canonical_id: 01KQ0P44M4YMBMM144GMECFYC4
 summary: Practical guide to asset allocation — how to divide your portfolio between
   stocks, bonds, and cash, how that mix should shift over your lifetime, and how to
   think honestly about your risk tolerance
 date: 2026-03-14T00:00:00Z
-tags:
-- personal-finance
-- retirement-planning
-- investing
-- asset-allocation
-- risk-tolerance
+cluster: index-fund-investing
 related:
 - RetirementPlanningGuide
 - IndexFundInvestingForEarlyRetirement
@@ -22,10 +16,18 @@ related:
 - CoastFire
 - AssetAllocation
 - UnderstandingRiskTolerance
-type: article
-cluster: index-fund-investing
-status: active
+canonical_id: 01KQ0P44M4YMBMM144GMECFYC4
 part-of:
+- IndexFundInvestingForEarlyRetirement
+type: article
+tags:
+- personal-finance
+- retirement-planning
+- investing
+- asset-allocation
+- risk-tolerance
+status: active
+hubs:
 - IndexFundInvestingForEarlyRetirement
 ---
 # Asset Allocation Guide

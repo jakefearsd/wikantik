@@ -263,6 +263,10 @@ procedure, and the full container guide.
 
 ## Documentation
 
+For a chronological view of what's shipped see [CHANGELOG.md](CHANGELOG.md).
+Migrating from a previous Wikantik install? See
+[migration-1.0-to-1.1.md](docs/migration-1.0-to-1.1.md).
+
 ### Development Setup
 
 - [PostgreSQLLocalDeployment.md](docs/PostgreSQLLocalDeployment.md) — Local dev environment with PostgreSQL and Tomcat
@@ -276,6 +280,7 @@ procedure, and the full container guide.
 - [DockerDeployment.md](docs/DockerDeployment.md) — Docker Compose setup, backups, and restoration
 - [production-container-architecture.md](docs/production-container-architecture.md) — Production architecture with Cloudflare, Tomcat, and PostgreSQL
 - [ci-cd-step-by-step.md](docs/ci-cd-step-by-step.md) — CI/CD pipeline setup with self-hosted runner
+- [migration-1.0-to-1.1.md](docs/migration-1.0-to-1.1.md) — Step-by-step migration guide for upgrading an existing Wikantik install
 - [SendingEmailFromTheWiki.md](docs/SendingEmailFromTheWiki.md) — SMTP relay setup (Brevo, SendGrid, Mailjet, SES, Resend)
 - [ObservabilityDesign.md](docs/ObservabilityDesign.md) — Grafana, Prometheus, and Loki observability stack
 
@@ -303,6 +308,9 @@ procedure, and the full container guide.
 
 ### Architecture & Design
 
+- [ArchitectureCritique.md](docs/ArchitectureCritique.md) — Self-critical architecture review (strengths and weaknesses, no marketing gloss)
+- [Page Graph vs Knowledge Graph design spec](docs/superpowers/specs/2026-05-02-page-graph-vs-knowledge-graph-design.md) — Engineering rationale for keeping the two graph subsystems distinct (with the migration steps that landed)
+- [wikantik-main decomposition design](docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md) — 11-phase decomposition of the engine module (all phases shipped); shows how the codebase was modernised without breaking the test suite
 - [RefactorToPatterns.md](docs/RefactorToPatterns.md) — GoF design patterns applied across the codebase
 - [PerformanceEvaluation.md](docs/PerformanceEvaluation.md) — I/O, indexing, and rendering bottleneck analysis
 - [complete_markdown_migration.md](docs/complete_markdown_migration.md) — Migration from legacy wiki syntax to Markdown-only rendering

@@ -58,6 +58,9 @@ for arg in "$@"; do
     case "$arg" in
         --apply) APPLY=1 ;;
         --include-edge-abstains) INCLUDE_EDGES=1 ;;
+        -h|--help)
+            awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
+            exit 0 ;;
         *) echo "Unknown arg: $arg" >&2; exit 1 ;;
     esac
 done

@@ -52,6 +52,13 @@
 # system objects too.
 set -euo pipefail
 
+case "${1:-}" in
+    -h|--help)
+        awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
+        exit 0
+        ;;
+esac
+
 DB_NAME="${DB_NAME:-jspwiki}"
 DB_MIGRATE_USER="${DB_MIGRATE_USER:-migrate}"
 DB_APP_USER="${DB_APP_USER:-jspwiki}"

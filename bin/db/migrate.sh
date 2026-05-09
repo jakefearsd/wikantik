@@ -55,7 +55,7 @@ psql_args=(
 )
 
 usage() {
-    sed -n '2,/^set -euo/p' "$0" | sed 's/^# \{0,1\}//' | head -n -1
+    awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
 }
 
 for arg in "$@"; do

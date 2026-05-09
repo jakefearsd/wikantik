@@ -25,6 +25,19 @@
 
 set -euo pipefail
 
+# --help is handled here (without triggering a build). Pass --jar-help to
+# print the underlying Java CLI's full flag set instead.
+case "${1:-}" in
+    -h|--help)
+        awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
+        exit 0
+        ;;
+    --jar-help)
+        shift
+        set -- --help "$@"
+        ;;
+esac
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 JAR="${ROOT_DIR}/wikantik-extract-cli/target/wikantik-extract-cli.jar"

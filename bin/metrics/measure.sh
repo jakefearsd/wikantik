@@ -22,6 +22,9 @@ label="baseline_$(date +%Y_%m_%d)"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --label) label="$2"; shift 2 ;;
+        -h|--help)
+            awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
+            exit 0 ;;
         *) echo "unknown arg: $1" >&2; exit 2 ;;
     esac
 done

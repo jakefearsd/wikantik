@@ -1,5 +1,42 @@
 #!/bin/bash
+#
+# entrypoint.sh — container runtime bootstrap. Materialises
+# wikantik-custom.properties from the surrounding env, runs DB migrations
+# (idempotent via schema_migrations), optionally seeds dev users, then
+# exec's Catalina to start Tomcat.
+#
+# This file is not run interactively in normal use — it's the
+# Dockerfile's CMD. It is included in the image at /opt/wikantik/entrypoint.sh
+# and invoked with whatever arguments the operator passes to the
+# container (default: catalina.sh run).
+#
+# Usage:
+#   entrypoint.sh             # bootstrap + start Tomcat in foreground
+#   entrypoint.sh --help      # show this help
+#   entrypoint.sh /bin/sh     # bypass Tomcat (passes through to exec)
+#
+# Environment variables:
+#   POSTGRES_HOST                PG host (required)
+#   POSTGRES_PORT                PG port (default 5432)
+#   POSTGRES_DB                  PG database (required)
+#   POSTGRES_USER                PG application user (required)
+#   POSTGRES_PASSWORD            PG application password (required)
+#   WIKANTIK_BASE_URL            external base URL (default http://localhost:8080/)
+#   WIKANTIK_PAGE_DIR            page tree mount (default /var/wikantik/pages)
+#   WIKANTIK_WORK_DIR            scratch dir (default /var/wikantik/work)
+#   WIKANTIK_ATTACHMENT_DIR      attachments dir (default /var/wikantik/pages)
+#   WIKANTIK_SEED_DEV_USERS      "true" to insert admin/admin123 + testbot
+#                                via bin/db/seed-users.sql (dev only)
+#   CATALINA_HOME                tomcat root (default /usr/local/tomcat)
+
 set -euo pipefail
+
+case "${1:-}" in
+    -h|--help)
+        awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
+        exit 0
+        ;;
+esac
 
 CATALINA_HOME="${CATALINA_HOME:-/usr/local/tomcat}"
 

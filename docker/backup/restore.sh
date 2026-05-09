@@ -1,40 +1,42 @@
 #!/bin/sh
-set -eu
-
-# =================================================================
-# Wikantik Restore Script
-# =================================================================
 #
-# Restores both the PostgreSQL database AND wiki page files from
-# a backup directory created by backup.sh.
+# restore.sh — Wikantik restore driver. Restores both the PostgreSQL
+# database AND the wiki page tree from a backup directory created by
+# backup.sh.
 #
-# FULL RESTORE PROCEDURE:
+# Usage:
+#   restore.sh /backups/<tier>/<YYYY-MM-DD>     # restore that snapshot
+#   restore.sh --help                           # show this help
 #
+# Full restore procedure (against a docker-compose stack):
 #   1. Stop the wikantik container (prevents writes during restore):
-#      docker compose -f docker-compose.yml -f docker-compose.prod.yml stop wikantik
-#
+#        docker compose -f docker-compose.yml -f docker-compose.prod.yml stop wikantik
 #   2. List available backups:
-#      ls ./backups/daily/
-#
-#   3. Run this restore script via the backup container:
-#      docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-#        exec backup /usr/local/bin/restore.sh /backups/daily/2026-03-21
-#
+#        ls ./backups/daily/
+#   3. Run this script in the backup sidecar:
+#        docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+#          exec backup /usr/local/bin/restore.sh /backups/daily/2026-03-21
 #   4. Start wikantik (Lucene search index rebuilds automatically):
-#      docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d wikantik
-#
+#        docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d wikantik
 #   5. Verify: browse to your wiki and confirm content is restored.
 #
-# WHAT GETS RESTORED:
+# What gets restored:
 #   - PostgreSQL tables: users, roles, groups, group_members
 #   - Wiki pages: all .md files, .properties files, and attachments
 #
-# WHAT REBUILDS AUTOMATICALLY ON STARTUP:
+# What rebuilds automatically on startup:
 #   - Lucene search index (from page files)
 #   - Reference manager cache
 #   - EhCache (in-memory)
-#
-# =================================================================
+
+set -eu
+
+case "${1:-}" in
+    -h|--help)
+        awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
+        exit 0
+        ;;
+esac
 
 BACKUP_PATH="${1:?Usage: restore.sh /backups/<tier>/<date>}"
 

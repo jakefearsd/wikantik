@@ -65,7 +65,7 @@ print_error() {
 }
 
 show_help() {
-    head -20 "$0" | tail -15
+    awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
     exit 0
 }
 

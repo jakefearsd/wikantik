@@ -37,6 +37,13 @@
 
 set -euo pipefail
 
+case "${1:-}" in
+    -h|--help)
+        awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
+        exit 0
+        ;;
+esac
+
 : "${DB_PASSWORD:?set DB_PASSWORD to the jspwiki DB user password}"
 : "${WIKI_USER:?set WIKI_USER (e.g. from test.properties test.user.login)}"
 : "${WIKI_PASSWORD:?set WIKI_PASSWORD (from test.properties test.user.password)}"

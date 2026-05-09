@@ -1,5 +1,40 @@
 #!/bin/sh
+#
+# backup.sh — Wikantik backup sidecar driver. Dumps PostgreSQL via pg_dump
+# and archives the wiki page tree, then prunes outdated entries by tier.
+#
+# Runs inside the docker-compose `backup` container; expects pages/db
+# volumes mounted and POSTGRES_* environment variables provided by compose.
+#
+# Usage:
+#   backup.sh                 # default: daily backup
+#   backup.sh daily           # alias
+#   backup.sh weekly          # weekly tier (12-week retention)
+#   backup.sh monthly         # monthly tier (12-month retention)
+#   backup.sh --help          # show this help
+#
+# Environment variables (provided by docker-compose):
+#   POSTGRES_HOST           PG host
+#   POSTGRES_USER           PG user
+#   POSTGRES_DB             PG database
+#   PGPASSWORD              PG password
+#   BACKUP_RETENTION_DAYS   daily-tier retention (default 30)
+#
+# Output:
+#   /backups/${TIER}/YYYY-MM-DD/db.sql           pg_dump output
+#   /backups/${TIER}/YYYY-MM-DD/pages.tar.gz     wiki page tarball
+#   /backups/${TIER}/YYYY-MM-DD/checksums.sha256 SHA-256 manifest
+#
+# Pair with restore.sh for the inverse operation.
+
 set -eu
+
+case "${1:-}" in
+    -h|--help)
+        awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
+        exit 0
+        ;;
+esac
 
 TIER="${1:-daily}"
 DATE="$(date +%Y-%m-%d)"

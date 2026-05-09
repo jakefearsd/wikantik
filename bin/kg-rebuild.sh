@@ -61,7 +61,7 @@ ASSUME_YES=0
 EXTRACTOR_ARGS=()
 
 usage() {
-    sed -n '2,/^set -euo/p' "$0" | sed 's/^# \?//' | head -n -2
+    awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
 }
 
 while [[ $# -gt 0 ]]; do

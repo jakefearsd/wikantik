@@ -32,7 +32,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            sed -n '2,8p' "$0"
+            awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
             exit 0
             ;;
         *)

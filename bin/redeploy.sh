@@ -19,6 +19,13 @@
 
 set -euo pipefail
 
+case "${1:-}" in
+    -h|--help)
+        awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
+        exit 0
+        ;;
+esac
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOMCAT_DIR="${REPO_ROOT}/tomcat/tomcat-11"
 WAR_SOURCE="${REPO_ROOT}/wikantik-war/target/Wikantik.war"

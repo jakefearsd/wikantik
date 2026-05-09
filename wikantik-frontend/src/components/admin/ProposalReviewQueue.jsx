@@ -1,7 +1,14 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { api } from '../../api/client';
 import PageLink from './PageLink';
 import { AdminTable } from './table';
+
+/**
+ * Page size for the proposal queue. 25 keeps each page comfortably scrollable
+ * even with the typed Details renderer expanding to multiple lines per row.
+ * Server caps at 500 (see AdminKnowledgeResource.MAX_PROPOSAL_PAGE_SIZE).
+ */
+const PAGE_SIZE = 25;
 
 const FILTERS = [
   { value: 'all',       label: 'All' },
@@ -259,6 +266,14 @@ export default function ProposalReviewQueue() {
   // Per-row "judge reasoning expanded?" toggle + memoised review fetches.
   const [expandedReviews, setExpandedReviews] = useState({});
   const [reviewsCache, setReviewsCache] = useState({});
+  // Server-driven pagination state. currentPage is 0-indexed.
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  // Generation counter so out-of-order list-fetch responses (e.g. an in-flight
+  // page-2 fetch resolving after a page-3 fetch the operator just kicked off)
+  // can't overwrite newer state. Each call increments; only the latest gen
+  // commits its result.
+  const requestGen = useRef(0);
 
   const handleToggleExpand = useCallback(async (proposalId) => {
     setExpandedReviews(prev => ({ ...prev, [proposalId]: !prev[proposalId] }));
@@ -276,28 +291,62 @@ export default function ProposalReviewQueue() {
   }, [reviewsCache]);
 
   const loadProposals = useCallback(async () => {
+    const gen = ++requestGen.current;
     setLoading(true);
     setError(null);
     try {
-      // The pending queue auto-promotes machine_status='rejected' proposals to
-      // status='rejected', so the default `status: 'pending'` query never
-      // surfaces them. When the operator selects the "Machine rejected" filter
-      // we have to flip the server query to load that finalized set instead.
-      // includeMachineRejected:true is required even when fetching the rejected
-      // set explicitly — the backend's default-off filter adds an
-      //   `AND (machine_status IS NULL OR machine_status <> 'rejected')`
-      // exclusion clause that would otherwise cancel the explicit
-      // machine_status='rejected' and return zero rows.
-      const opts = filter === 'rejected'
-        ? { status: 'rejected', machineStatus: 'rejected', limit: 100, includeMachineRejected: true }
-        : { status: 'pending', limit: 100, includeMachineRejected: true };
+      // Push every filter to the server so pagination counts are accurate.
+      // Mixing client-side filtering with server pagination would let the
+      // operator land on a "Page 5 of 60" header where every page shows
+      // wildly variable row counts after client-side culling.
+      //
+      // - 'all'       → all pending (incl. machine-rejected stragglers)
+      // - 'awaiting'  → pending AND machine_status IS NULL (sentinel "(null)")
+      // - 'approved'  → pending AND machine_status='approved'
+      // - 'rejected'  → status='rejected', machine_status='rejected'
+      //                 (auto-promoted; needs includeMachineRejected to bypass
+      //                  the backend's default-off rejected-exclusion clause)
+      // - 'abstained' → pending AND machine_status='abstain'
+      const baseOpts = (() => {
+        switch (filter) {
+          case 'rejected':  return { status: 'rejected', machineStatus: 'rejected', includeMachineRejected: true };
+          case 'awaiting':  return { status: 'pending', machineStatus: '(null)' };
+          case 'approved':  return { status: 'pending', machineStatus: 'approved' };
+          case 'abstained': return { status: 'pending', machineStatus: 'abstain' };
+          case 'all':
+          default:          return { status: 'pending', includeMachineRejected: true };
+        }
+      })();
+      const opts = {
+        ...baseOpts,
+        limit: PAGE_SIZE,
+        offset: currentPage * PAGE_SIZE,
+      };
       const data = await api.knowledge.listProposalsFiltered(opts);
+      // Newer request superseded us — drop this result on the floor.
+      if (gen !== requestGen.current) return;
       setProposals(data.proposals || []);
+      const newTotal = typeof data.total_count === 'number' ? data.total_count : 0;
+      setTotalCount(newTotal);
+      // Defensive: if the operator was on page N but the server now says total
+      // is too small for that page (e.g. a bulk-reject just emptied the tail),
+      // step back to a valid page. setCurrentPage re-triggers loadProposals.
+      const lastValidPage = Math.max(0, Math.ceil(newTotal / PAGE_SIZE) - 1);
+      if (currentPage > lastValidPage) {
+        setCurrentPage(lastValidPage);
+      }
     } catch (err) {
+      if (gen !== requestGen.current) return;
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (gen === requestGen.current) setLoading(false);
     }
+  }, [filter, currentPage]);
+
+  // Filter changes always snap back to page 0 — the row counts of the next
+  // filter aren't related to the current page boundary.
+  useEffect(() => {
+    setCurrentPage(0);
   }, [filter]);
 
   const fetchJudgeStatus = useCallback(async () => {
@@ -399,16 +448,9 @@ export default function ProposalReviewQueue() {
     },
   ], [expandedReviews, reviewsCache, handleToggleExpand]);
 
-  const filterMatches = (p) => {
-    if (filter === 'all') return true;
-    if (filter === 'awaiting') return !p.machine_status;
-    if (filter === 'approved') return p.machine_status === 'approved';
-    if (filter === 'rejected') return p.machine_status === 'rejected';
-    if (filter === 'abstained') return p.machine_status === 'abstain';
-    return true;
-  };
-
-  const visible = proposals.filter(filterMatches);
+  // Server-side filtering means `proposals` IS the matching set for the
+  // active filter — no client-side post-filter needed.
+  const visible = proposals;
 
   const rowAction = (p) => [
     {
@@ -453,7 +495,7 @@ export default function ProposalReviewQueue() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
         <h3 style={{ margin: 0 }}>
           {filter === 'rejected' ? 'Machine-Rejected Proposals' : 'Pending Proposals'}
-          {' '}({visible.length}/{proposals.length})
+          {' '}({totalCount.toLocaleString()})
         </h3>
         <label>
           Filter:
@@ -476,6 +518,12 @@ export default function ProposalReviewQueue() {
         emptyMessage="No proposals match the current filter."
         rowAction={rowAction}
         density="comfortable"
+        pagination={{
+          pageSize: PAGE_SIZE,
+          totalCount,
+          currentPage,
+          onPageChange: setCurrentPage,
+        }}
       />
     </div>
   );

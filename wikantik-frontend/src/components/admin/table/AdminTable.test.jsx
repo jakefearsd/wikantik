@@ -614,3 +614,42 @@ describe('AdminTable — action with reason but no confirm', () => {
     );
   });
 });
+
+describe('AdminTable — server-driven pagination', () => {
+  it('renders pagination footer when pagination prop provided', () => {
+    renderTable({
+      pagination: { pageSize: 25, totalCount: 150, currentPage: 0, onPageChange: vi.fn() },
+    });
+    expect(screen.getByRole('navigation', { name: /Pagination/i })).toBeInTheDocument();
+    expect(screen.getByText(/Page 1 of 6/)).toBeInTheDocument();
+  });
+
+  it('does not render pagination footer when prop absent', () => {
+    renderTable();
+    expect(screen.queryByRole('navigation', { name: /Pagination/i })).not.toBeInTheDocument();
+  });
+
+  it('hides client-side search input when paginated even if searchable=true', () => {
+    renderTable({
+      searchable: { placeholder: 'Filter…' },
+      pagination: { pageSize: 25, totalCount: 100, currentPage: 0, onPageChange: vi.fn() },
+    });
+    // Pagination is on, so the search box is suppressed (search would only
+    // filter the visible page, which would mislead the operator).
+    expect(screen.queryByPlaceholderText('Filter…')).not.toBeInTheDocument();
+  });
+
+  it('still shows search input when not paginated', () => {
+    renderTable({ searchable: { placeholder: 'Filter…' } });
+    expect(screen.getByPlaceholderText('Filter…')).toBeInTheDocument();
+  });
+
+  it('clicking Next in the pagination footer fires onPageChange', () => {
+    const onPageChange = vi.fn();
+    renderTable({
+      pagination: { pageSize: 25, totalCount: 100, currentPage: 1, onPageChange },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Next page/i }));
+    expect(onPageChange).toHaveBeenCalledWith(2);
+  });
+});

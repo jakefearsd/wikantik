@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useTableSelection } from './useTableSelection';
 import SelectionBar from './SelectionBar';
 import ConfirmBulkModal from './ConfirmBulkModal';
+import Pagination from './Pagination';
 import '../../../styles/admin.css';
 
 // ---------------------------------------------------------------------------
@@ -112,9 +113,25 @@ export default function AdminTable({
   rowAction,
   onRowClick,
   kindLabel = 'items',
+  // ── Pagination (server-driven, opt-in) ────────────────────────────────────
+  // Provide this prop only when the consumer is fetching one page at a time
+  // from the server. When set:
+  //   - A pagination footer renders below the table.
+  //   - Client-side search is suppressed (it would only filter the current
+  //     page, which is misleading). The consumer can still pass
+  //     `searchable: true` for the small-table case where it makes sense.
+  //   - Client-side header sort still works on the current page only;
+  //     consumers with stable server ordering should pass `sortable: false`
+  //     on each column to avoid that confusion.
+  // Shape: { pageSize, totalCount, currentPage (0-indexed), onPageChange }.
+  pagination,
 }) {
   // ── Search ────────────────────────────────────────────────────────────────
-  const searchCfg = searchable === true ? {} : searchable || null;
+  // Client-side search is incompatible with server-driven pagination — it
+  // would only filter the visible page and silently miss matches on other
+  // pages. When pagination is active we hide the search input.
+  const isPaginated = !!pagination;
+  const searchCfg = !isPaginated && searchable === true ? {} : (!isPaginated && searchable) || null;
   const [query, setQuery] = useState('');
 
   const filteredRows = useMemo(() => {
@@ -451,6 +468,16 @@ export default function AdminTable({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination footer (server-driven, opt-in) */}
+      {isPaginated && (
+        <Pagination
+          currentPage={pagination.currentPage}
+          pageSize={pagination.pageSize}
+          totalCount={pagination.totalCount}
+          onPageChange={pagination.onPageChange}
+        />
+      )}
 
       {/* Confirm modal */}
       {pendingAction && (

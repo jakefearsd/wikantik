@@ -9,6 +9,7 @@ export { useTableSelection } from './useTableSelection';
 export { default as SelectionBar } from './SelectionBar';
 export { default as BulkActionMenu } from './BulkActionMenu';
 export { default as ConfirmBulkModal } from './ConfirmBulkModal';
+export { default as Pagination } from './Pagination';
 
 /**
  * @typedef {{

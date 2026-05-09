@@ -62,7 +62,7 @@ const JUDGE_STATUS_IDLE = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  api.knowledge.listProposalsFiltered.mockResolvedValue({ proposals: PROPOSALS });
+  api.knowledge.listProposalsFiltered.mockResolvedValue({ proposals: PROPOSALS, total_count: PROPOSALS.length });
   api.knowledge.judgeStatus.mockResolvedValue(JUDGE_STATUS_IDLE);
   api.knowledge.bulkProposalAction.mockResolvedValue({
     succeeded: [PROPOSALS[0].id, PROPOSALS[1].id],
@@ -408,6 +408,141 @@ describe('ProposalReviewQueue — Details column typed renderer', () => {
     render(<ProposalReviewQueue />);
     await screen.findByText('domain=finance');
     expect(screen.getByText('risk=low')).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Server-side pagination — page 0 default, prev/next via setCurrentPage,
+// filter changes reset to page 0.
+// ---------------------------------------------------------------------------
+
+describe('ProposalReviewQueue — pagination', () => {
+  it('initial load fetches page 0 with PAGE_SIZE limit and offset=0', async () => {
+    render(<ProposalReviewQueue />);
+    await screen.findByText('new-edge');
+    expect(api.knowledge.listProposalsFiltered).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'pending', limit: 25, offset: 0 })
+    );
+  });
+
+  it('renders pagination footer with the server total count', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: PROPOSALS, total_count: 137,
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByText('new-edge');
+    expect(screen.getByText(/Page 1 of 6/)).toBeInTheDocument();
+    expect(screen.getByText(/of 137/)).toBeInTheDocument();
+  });
+
+  it('clicking Next refetches with offset=PAGE_SIZE', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: PROPOSALS, total_count: 100,
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByText('new-edge');
+
+    fireEvent.click(screen.getByRole('button', { name: /Next page/i }));
+
+    await waitFor(() =>
+      expect(api.knowledge.listProposalsFiltered).toHaveBeenLastCalledWith(
+        expect.objectContaining({ limit: 25, offset: 25 })
+      )
+    );
+  });
+
+  it('changing the filter resets currentPage to 0', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: PROPOSALS, total_count: 200,
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByText('new-edge');
+
+    // Move to page 2
+    fireEvent.click(screen.getByRole('button', { name: /Next page/i }));
+    await waitFor(() =>
+      expect(api.knowledge.listProposalsFiltered).toHaveBeenLastCalledWith(
+        expect.objectContaining({ offset: 25 })
+      )
+    );
+
+    // Change filter — should reload with offset=0 and the awaiting opts
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'awaiting' } });
+    await waitFor(() =>
+      expect(api.knowledge.listProposalsFiltered).toHaveBeenLastCalledWith(
+        expect.objectContaining({ machineStatus: '(null)', offset: 0 })
+      )
+    );
+  });
+
+  it('"awaiting" filter sends the (null) sentinel for IS NULL semantics', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [], total_count: 0,
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByRole('combobox');
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'awaiting' } });
+
+    await waitFor(() =>
+      expect(api.knowledge.listProposalsFiltered).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: 'pending', machineStatus: '(null)' })
+      )
+    );
+  });
+
+  it('"approved" filter sends machineStatus=approved server-side', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [], total_count: 0,
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByRole('combobox');
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'approved' } });
+
+    await waitFor(() =>
+      expect(api.knowledge.listProposalsFiltered).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: 'pending', machineStatus: 'approved' })
+      )
+    );
+  });
+
+  it('"abstained" filter sends machineStatus=abstain server-side', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [], total_count: 0,
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByRole('combobox');
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'abstained' } });
+
+    await waitFor(() =>
+      expect(api.knowledge.listProposalsFiltered).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: 'pending', machineStatus: 'abstain' })
+      )
+    );
+  });
+
+  it('clamps the displayed page when current page is out of range for the new total', async () => {
+    // Start at total=200 (8 pages); navigate to page 1 (offset=25)
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: PROPOSALS, total_count: 200,
+    });
+    render(<ProposalReviewQueue />);
+    await screen.findByText('new-edge');
+    fireEvent.click(screen.getByRole('button', { name: /Next page/i }));
+    await screen.findByText(/Page 2 of 8/);
+
+    // Now the next response returns a tiny total — page 2 (offset=25) is out
+    // of range. Trigger a refetch (filter change is the cleanest trigger) and
+    // confirm the component snaps back to a valid page.
+    api.knowledge.listProposalsFiltered.mockResolvedValue({
+      proposals: [], total_count: 10,
+    });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'awaiting' } });
+
+    // Filter change resets to page 0 — header reflects total=10 (one page).
+    await screen.findByText(/Page 1 of 1/);
   });
 });
 

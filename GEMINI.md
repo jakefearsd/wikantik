@@ -16,8 +16,7 @@ Writing content is a first-class engineering task in Wikantik. Every article mus
 
 *   **Syntax Authority:** Refer to `docs/wikantik-pages/TextFormattingRules.md`. Use CommonMark with Flexmark extensions.
 *   **Frontmatter is Mandatory:** Every page must start with a valid YAML block containing `title`, `type`, `cluster`, `status`, `date`, and `summary`.
-*   **Canonical IDs:** The `canonical_id` (ULID) is stable for the life of the page. It is auto-injected by `StructuralSpinePageFilter` on first save. **Never modify or delete it.**
-*   **Typed Relations:** Use the `relations:` block in frontmatter for knowledge-graph connectivity. Use stable `canonical_id` for targets, not slugs. Valid types: `part-of`, `example-of`, `prerequisite-for`, `supersedes`, `contradicts`, `implements`, `derived-from`.
+*   **Canonical IDs:** The `canonical_id` (ULID) is stable for the life of the page and is the only authoritative linking mechanism. It is auto-injected by `StructuralSpinePageFilter` on first save. **Never modify or delete it.**
 *   **Runbooks:** Pages of `type: runbook` must include a fully populated `runbook:` block (see `TextFormattingRules.md` for schema).
 *   **Verification Metadata:** Use the `mark_page_verified` MCP tool to stamp `verified_at` and `verified_by`.
 *   **KG Inclusion:** Use `kg_include: true|false` to override cluster-level knowledge graph extraction policy.

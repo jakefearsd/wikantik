@@ -20,6 +20,20 @@ export function AuthProvider({ children }) {
 
   useEffect(() => { refresh(); }, []);
 
+  // When a request returns 401/403, /api/auth/user gets re-queried so
+  // RequireAuth can route to login. Debounced via `pending` so a burst of
+  // failing /admin/* fetches doesn't spawn N parallel auth probes.
+  useEffect(() => {
+    let pending = false;
+    const onAuthRequired = () => {
+      if (pending) return;
+      pending = true;
+      Promise.resolve(refresh()).finally(() => { pending = false; });
+    };
+    window.addEventListener('wikantik:auth-required', onAuthRequired);
+    return () => window.removeEventListener('wikantik:auth-required', onAuthRequired);
+  }, []);
+
   const login = async (username, password) => {
     await api.login(username, password);
     await refresh();

@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-09** — content(yaml): repair 66 pages with broken frontmatter + bulk drift
+
 **2026-05-09** — admin-ui(proposals): add "Reject (no reason)" speed path
 
 **2026-05-09** — content: bulk page maintenance — programming languages + assorted

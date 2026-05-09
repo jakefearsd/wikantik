@@ -27,6 +27,19 @@ async function request(path, options = {}) {
 
   if (!resp.ok) {
     const body = await resp.json().catch(() => ({ message: resp.statusText }));
+    // Authenticated session expired or revoked mid-flight. Tell the auth
+    // context so it re-queries /api/auth/user — the SPA's RequireAuth gate
+    // then redirects to login. Without this, the user clicks a button that
+    // 403s and nothing visible happens. Skip for /api/auth/user itself —
+    // that endpoint is the auth probe; re-querying it on its own failure
+    // would loop.
+    if ((resp.status === 401 || resp.status === 403)
+        && typeof window !== 'undefined'
+        && path !== '/api/auth/user') {
+      window.dispatchEvent(new CustomEvent('wikantik:auth-required', {
+        detail: { status: resp.status, path },
+      }));
+    }
     throw Object.assign(new Error(body.message || resp.statusText), { status: resp.status, body });
   }
   // 204 No Content and bodyless 200s are valid successes — don't blow up trying to parse JSON.

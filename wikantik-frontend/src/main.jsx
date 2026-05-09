@@ -4,29 +4,35 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import App from './App';
 import PageView from './components/PageView';
-import PageEditor from './components/PageEditor';
-import SearchResultsPage from './components/SearchResultsPage';
-import AdminLayout from './components/admin/AdminLayout';
-import AdminUsersPage from './components/admin/AdminUsersPage';
-import AdminContentPage from './components/admin/AdminContentPage';
-import AdminSecurityPage from './components/admin/AdminSecurityPage';
-import AdminKnowledgePage from './components/admin/AdminKnowledgePage';
-import AdminApiKeysPage from './components/admin/AdminApiKeysPage';
-import AdminRetrievalQualityPage from './components/admin/AdminRetrievalQualityPage';
-import AdminKgPolicyPage from './components/admin/AdminKgPolicyPage';
-import AdminKgPolicyExplain from './components/admin/AdminKgPolicyExplain';
-import AdminKgPolicyPending from './components/admin/AdminKgPolicyPending';
-import AdminKgPolicyBootstrap from './components/admin/AdminKgPolicyBootstrap';
-import DiffViewer from './components/DiffViewer';
-import UserPreferencesPage from './components/UserPreferencesPage';
-import ResetPasswordPage from './components/ResetPasswordPage';
-import BlogDiscovery from './components/BlogDiscovery';
-import BlogHome from './components/BlogHome';
-import BlogEntry from './components/BlogEntry';
-import CreateBlog from './components/CreateBlog';
-import NewBlogEntry from './components/NewBlogEntry';
-import BlogEditor from './components/BlogEditor';
 import './styles/globals.css';
+
+// Eager: hot-path reader views are kept in the main chunk so the first
+// /wiki/{slug} navigation has no extra round trip. Everything else is
+// code-split — admin pages, editors, blog, graph viewers — so anonymous
+// readers don't pay for them.
+const PageEditor = React.lazy(() => import('./components/PageEditor'));
+const SearchResultsPage = React.lazy(() => import('./components/SearchResultsPage'));
+const DiffViewer = React.lazy(() => import('./components/DiffViewer'));
+const UserPreferencesPage = React.lazy(() => import('./components/UserPreferencesPage'));
+const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage'));
+const BlogDiscovery = React.lazy(() => import('./components/BlogDiscovery'));
+const BlogHome = React.lazy(() => import('./components/BlogHome'));
+const BlogEntry = React.lazy(() => import('./components/BlogEntry'));
+const CreateBlog = React.lazy(() => import('./components/CreateBlog'));
+const NewBlogEntry = React.lazy(() => import('./components/NewBlogEntry'));
+const BlogEditor = React.lazy(() => import('./components/BlogEditor'));
+
+const AdminLayout = React.lazy(() => import('./components/admin/AdminLayout'));
+const AdminUsersPage = React.lazy(() => import('./components/admin/AdminUsersPage'));
+const AdminContentPage = React.lazy(() => import('./components/admin/AdminContentPage'));
+const AdminSecurityPage = React.lazy(() => import('./components/admin/AdminSecurityPage'));
+const AdminKnowledgePage = React.lazy(() => import('./components/admin/AdminKnowledgePage'));
+const AdminApiKeysPage = React.lazy(() => import('./components/admin/AdminApiKeysPage'));
+const AdminRetrievalQualityPage = React.lazy(() => import('./components/admin/AdminRetrievalQualityPage'));
+const AdminKgPolicyPage = React.lazy(() => import('./components/admin/AdminKgPolicyPage'));
+const AdminKgPolicyExplain = React.lazy(() => import('./components/admin/AdminKgPolicyExplain'));
+const AdminKgPolicyPending = React.lazy(() => import('./components/admin/AdminKgPolicyPending'));
+const AdminKgPolicyBootstrap = React.lazy(() => import('./components/admin/AdminKgPolicyBootstrap'));
 
 const PageGraphView = React.lazy(() => import('./components/pagegraph/PageGraphView.jsx'));
 const KnowledgeGraphView = React.lazy(() => import('./components/kgraph/KnowledgeGraphView.jsx'));
@@ -35,6 +41,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
       <BrowserRouter basename={(typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '/'}>
+        <Suspense fallback={<div className="route-loading" aria-busy="true" />}>
         <Routes>
           <Route element={<App />}>
             <Route path="/" element={<Navigate to="/wiki/Main" replace />} />
@@ -76,6 +83,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/blog/:username/:entryName" element={<BlogEntry />} />
           </Route>
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   </React.StrictMode>

@@ -156,12 +156,14 @@ in production — fix mistakes with a follow-up migration.
 #### Routine redeploy (after first-time setup)
 
 ```bash
-tomcat/tomcat-11/bin/shutdown.sh
 mvn clean install -Dmaven.test.skip -T 1C
-rm -rf tomcat/tomcat-11/webapps/ROOT
-cp wikantik-war/target/Wikantik.war tomcat/tomcat-11/webapps/ROOT.war
-tomcat/tomcat-11/bin/startup.sh
+bin/redeploy.sh    # shutdown + rotate catalina.out + swap WAR + startup
 ```
+
+`bin/redeploy.sh` is the fast iteration path — it does **not** re-run
+templates, DB migrations, or secrets validation. For first-time setup,
+Tomcat upgrades, or anything that touches `wikantik-custom.properties` /
+`ROOT.xml`, run `bin/deploy-local.sh` instead.
 
 ### Code Quality
 ```bash

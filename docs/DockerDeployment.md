@@ -182,3 +182,99 @@ To restore your Wikantik instance from a backup:
 Remember to also restore the PostgreSQL database (users, groups, policy
 grants, knowledge-graph tables) from its own backup — file volumes alone are
 not sufficient for a full restore.
+
+## 4. External Services
+
+The bundled `docker-compose.yml` runs PostgreSQL+pgvector inside the stack;
+everything else is **external**:
+
+| Service | Status | Default endpoint |
+|---|---|---|
+| **PostgreSQL + pgvector** | Bundled (compose) | `db:5432` (internal) |
+| **Ollama** (embeddings + judge) | External, optional | `http://localhost:11434` from the host |
+| **Anthropic API** (entity extraction) | External, optional | configured via `ANTHROPIC_API_KEY` env var |
+| **Cloudflare** (TLS termination + CF-Connecting-IP) | External, optional | The bundled server.xml is pre-configured for it |
+
+If `wikantik.search.embedding.backend` and
+`wikantik.knowledge.extractor.backend` are both `disabled` (the install
+default), no LLM endpoints are required. Operators turning on the KG /
+hybrid retrieval features must point at a reachable Ollama or supply an
+Anthropic key.
+
+## 5. Coexisting Bare-Metal and Container Stacks
+
+The two install paths can run side by side on the same machine — useful
+when validating container changes against an existing bare-metal install.
+The base `docker-compose.yml` reads `WIKANTIK_HOST_PORT` (default `8080`),
+and `docker-compose.test.yml` is a ready-made override that publishes on
+`18080:8080` plus `15432:5432`. Bring the test stack up alongside an
+unrelated bare-metal install:
+
+```bash
+WIKANTIK_HOST_PORT=18080 docker compose \
+    -f docker-compose.yml -f docker-compose.test.yml \
+    -p wikantik-test up -d --build
+```
+
+The `-p wikantik-test` project flag namespaces all volumes (becomes
+`wikantik-test_pgdata` etc.) so prod / dev state is untouched. Tear down
+with `... -p wikantik-test down -v`.
+
+## 6. Migrating Data Between Bare-Metal and Container
+
+A one-time procedure for operators who have an existing bare-metal
+install and want to bring its data into a container deploy (or the
+reverse).
+
+### Bare-metal → Container
+
+1. **Stop bare-metal Tomcat.** `tomcat/tomcat-11/bin/shutdown.sh`
+2. **Dump PostgreSQL.** Match the DB name from
+   `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml`:
+   ```bash
+   PGPASSWORD=… pg_dump -h localhost -U <user> -d <db> \
+     --no-owner --no-privileges > /tmp/wikantik-bare.sql
+   ```
+3. **Snapshot pages.** The page provider points at `docs/wikantik-pages/`
+   (or wherever `wikantik.fileSystemProvider.pageDir` resolves to). Tar
+   it up:
+   ```bash
+   tar czf /tmp/wikantik-bare-pages.tar.gz -C docs/wikantik-pages .
+   ```
+4. **Bring up the container stack** (without `-v`, so volumes
+   auto-create):
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+   ```
+   Then immediately stop the wikantik service to avoid writes during
+   restore: `docker compose stop wikantik`.
+5. **Load the SQL dump:**
+   ```bash
+   cat /tmp/wikantik-bare.sql | docker compose exec -T db \
+     psql -U $POSTGRES_USER -d $POSTGRES_DB
+   ```
+6. **Load the pages tarball into the volume:**
+   ```bash
+   docker run --rm -v wikantik_wikantik-pages:/dst \
+     -v /tmp:/src alpine \
+     tar xzf /src/wikantik-bare-pages.tar.gz -C /dst
+   ```
+7. **Restart wikantik:** `docker compose start wikantik`. The Lucene
+   index rebuilds automatically (~30-60 s).
+8. **Verify:** log in, query a known page, run the judge runner against
+   a node proposal.
+
+### Container → Bare-Metal
+
+Reverse procedure: `docker compose exec backup /usr/local/bin/backup.sh
+daily` then copy the resulting `db.sql` and `pages.tar.gz` from
+`./backups/daily/<DATE>/`. Restore via standard `psql`+`tar` against
+the bare-metal install.
+
+### Verification Reference
+
+A clean restore round-trip was exercised on this codebase:
+backup → wipe volumes → restore → log in. The procedure is encoded in
+`docker/backup/backup.sh` and `docker/backup/restore.sh` and runs
+nightly via the prod-compose backup sidecar's crontab (daily / weekly /
+monthly tiers, 30-day daily retention by default).

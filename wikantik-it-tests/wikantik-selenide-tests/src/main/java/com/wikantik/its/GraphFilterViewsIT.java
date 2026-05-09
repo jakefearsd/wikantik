@@ -21,7 +21,7 @@ package com.wikantik.its;
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.WebDriverRunner;
 import com.wikantik.its.environment.Env;
-import com.wikantik.pages.haddock.ViewWikiPage;
+import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;

@@ -20,7 +20,7 @@ package com.wikantik.its;
 
 import com.codeborne.selenide.ElementsCollection;
 import com.codeborne.selenide.SelenideElement;
-import com.wikantik.pages.haddock.ViewWikiPage;
+import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

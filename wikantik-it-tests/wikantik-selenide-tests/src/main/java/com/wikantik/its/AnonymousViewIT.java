@@ -19,7 +19,7 @@
 package com.wikantik.its;
 
 import com.wikantik.pages.Page;
-import com.wikantik.pages.haddock.ViewWikiPage;
+import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

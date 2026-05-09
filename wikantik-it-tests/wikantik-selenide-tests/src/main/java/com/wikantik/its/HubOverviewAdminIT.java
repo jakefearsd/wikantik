@@ -22,7 +22,7 @@ import com.codeborne.selenide.Selenide;
 import com.wikantik.its.environment.Env;
 import com.wikantik.pages.admin.HubDiscoveryAdminPage;
 import com.wikantik.pages.admin.HubOverviewAdminPage;
-import com.wikantik.pages.haddock.ViewWikiPage;
+import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

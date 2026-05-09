@@ -20,8 +20,8 @@ package com.wikantik.its;
 
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
-import com.wikantik.pages.haddock.EditWikiPage;
-import com.wikantik.pages.haddock.ViewWikiPage;
+import com.wikantik.pages.spa.EditWikiPage;
+import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

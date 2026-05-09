@@ -38,10 +38,32 @@ RUN mkdir -p /var/wikantik/pages /var/wikantik/work /var/wikantik/logs
 RUN curl -fsSL -o ${CATALINA_HOME}/lib/postgresql-42.7.4.jar \
     https://jdbc.postgresql.org/download/postgresql-42.7.4.jar
 
-# Copy Tomcat configuration
+# Copy Tomcat configuration.
+#
+# Three groups of files, with intentionally different relationships to the
+# bare-metal install path (bin/deploy-local.sh):
+#
+# 1. server.xml + log4j2 — legitimately divergent between environments.
+#    The container's server.xml is production-hardened (port=-1, xpoweredBy=
+#    false, autoDeploy=false, no ErrorReportValve content). The container's
+#    log4j2 emits ECS JSON for log aggregators (Loki/Promtail). The
+#    bare-metal template prefers dev-friendly defaults: human-readable
+#    console + autoDeploy + DEBUG on providers/auth. Both share the
+#    Cloudflare RemoteIpValve + custom AccessLogValve customizations —
+#    if you change those valves, edit BOTH files.
+#
+# 2. context.xml — single source of truth at
+#    wikantik-war/src/main/config/tomcat/Tomcat-context.xml.template,
+#    consumed by both paths. Carries the CookieProcessor sameSiteCookies=
+#    strict cookie-hardening that applies regardless of environment.
+#
+# 3. catalina.properties — container-specific (jar-scan filter tuning); the
+#    bare-metal install uses Tomcat's stock catalina.properties unchanged.
 COPY docker/config/server.xml ${CATALINA_HOME}/conf/server.xml
 COPY docker/config/catalina.properties ${CATALINA_HOME}/conf/catalina.properties
 COPY docker/config/log4j2-docker.xml ${CATALINA_HOME}/lib/log4j2.xml
+COPY wikantik-war/src/main/config/tomcat/Tomcat-context.xml.template \
+     ${CATALINA_HOME}/conf/context.xml
 
 # Copy entrypoint
 COPY docker/entrypoint.sh /entrypoint.sh

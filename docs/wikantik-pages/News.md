@@ -6,6 +6,12 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-09** — content: bulk page maintenance — math/ops/PM cluster cleanup
+
+**2026-05-09** — test(kg): IT for proposal pagination contract + judge guard tests
+
+**2026-05-09** — fix(it): auto-discover all *IT.java in wikantik-it-test-rest failsafe
+
 **2026-05-09** — admin-ui: server-driven pagination on AdminTable + ProposalReviewQueue
 
 **2026-05-09** — fix(kg): pagination contract for /admin/knowledge-graph/proposals

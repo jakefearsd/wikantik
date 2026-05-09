@@ -6,6 +6,32 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-09** — docs: drop legacy root-level ChangeLog.md + duplicate mvn_cheat-sheet.md
+
+**2026-05-09** — docs(readme): link 5 high-value docs that were previously orphaned
+
+**2026-05-09** — docs: bring README.md + every linked doc up to date with the codebase
+
+**2026-05-09** — fix(scripts): reset_node_judge_verdicts --help works without PGPASSWORD
+
+**2026-05-09** — add bin/container.sh — top-level wrapper around docker compose
+
+**2026-05-09** — docs(scripts): standardise --help across every bin/ + docker/ shell script
+
+**2026-05-09** — fix(it): finish the pages.haddock → pages.spa import migration
+
+**2026-05-09** — cleanup(it-pages): rename pages.haddock package + HaddockPage interface
+
+**2026-05-09** — cleanup(legacy-css-docs): drop haddock-dark.css + fossil JSPWiki docs
+
+**2026-05-09** — cleanup(plain-editor): drop the dead JSPWiki PlainEditor JS pipeline
+
+**2026-05-09** — content: drop CSSBackgroundGradients from the wikipages baseline
+
+**2026-05-09** — db: track V019 migration that was hidden by the broken bin gitignore
+
+**2026-05-09** — release-prep: SPA 401/403 handling + admin code-split + CHANGELOG + redeploy helper
+
 **2026-05-09** — content(yaml): repair 66 pages with broken frontmatter + bulk drift
 
 **2026-05-09** — admin-ui(proposals): add "Reject (no reason)" speed path
@@ -2864,8 +2890,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-11-11** — JSPWIKI-1230   Preconfigured tomcat configurations should disable autoDeploy, unpackWARs, showReport and showServerInfo by default also implements the following security improvements on both the portable build and the docker configuration V-222979 sets tomcat's session timeout to 10 minutes V-223009 tomcat Connector address attribute must be set. V-223005 ENFORCE_ENCODING_IN_GET_WRITER must be set to true. V-223003 RECYCLE_FACADES must be set to true. V-222957 xpoweredBy attribute must be disabled. V-222956 Autodeploy must be disabled. V-222955 The deployXML attribute must be set to false in hosted environments. V-222951 The shutdown port must be disabled. V-222950 Stack tracing must be disabled. V-222977 ErrorReportValve showReport must be set to false. V-222975 ErrorReportValve showServerInfo must be set to false.
 
 **2025-11-11** — bump tomcat tot he latest of v10
-
-**2025-11-09** — NOJIRA enables the integration test profile for all our CI jobs, skips selenium based tests on windows
-
-**2025-11-09** — JSPWIKI-1129 adds some more checks for setting cookies server side
 

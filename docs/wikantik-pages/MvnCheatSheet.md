@@ -44,7 +44,7 @@ under the License.
 | mvn test -Dtest=MarkdownRendererTest                             | run just a single test class                                                                                                        |
 | mvn test -Dtest=MarkdownRendererTest#testMarkupSimpleMarkdown              | run just a single test within a test class                                                                                          |
 | mvn test -Dtest=TestClassName#methodName -Dmaven.surefire.debug | debug a test in Eclipse or IDEA to see why it's failing (see http://www.jroller.com/gmazza/entry/jpa_and_junit#debugging)           |
-| mvn org.codehaus.cargo:cargo-maven3-plugin:run                  | (from main war module) starts Wikantik on a Tomcat9 instance at http://localhost:8080/Wikantik with an attached debugger on port 5005 |
+| mvn org.codehaus.cargo:cargo-maven3-plugin:run                  | (from main war module) starts Wikantik on a Cargo-launched Tomcat 11 instance at http://localhost:8080/Wikantik with an attached debugger on port 5005 |
 | mvn clean deploy -Papache-release -Dgpg.passphrase=<passphrase> | deploys generated artifact to a repository. If -Dgpg.passphrase is not given, expects a gpg-agent running                           |
 | mvn clean install -Pintegration-tests                           | performs a build, enabling functional tests execution (best run from the jspwiki-it-tests folder)                                   |
 | mvn clean install -Dgenerate-native-launchers=true              | (from portable module) performs a build, regenerating the native executables on the portable build                                  |

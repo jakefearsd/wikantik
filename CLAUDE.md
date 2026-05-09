@@ -173,6 +173,42 @@ mvn javadoc:javadoc
 High test coverage at the line level, above 90% is a goal for this development team,
 and while we recognize it is no a perfect measurement, it is one we choose to pursue.
 
+### Container deployment
+
+For container-based deployment (recommended for production), use
+`bin/container.sh` — a top-level wrapper around `docker compose` that
+drives build / up / down / logs / shell / psql / migrate / backup /
+restore / smoke-test against the canonical service set:
+
+```bash
+bin/container.sh --help                         # subcommand list
+bin/container.sh build                          # build the image
+bin/container.sh up -d                          # start the dev stack
+bin/container.sh logs -f                        # tail wikantik
+bin/container.sh psql -- -c '\dt'               # list DB tables
+bin/container.sh -e prod up -d                  # production stack with backup sidecar
+bin/container.sh smoke-test                     # ephemeral up/health/down on test ports
+```
+
+Environments: `dev` (default), `prod`, `test`, `base`. Each subcommand
+also accepts `--help`. Underlying compose files at the repo root
+(`docker-compose{,.dev,.prod,.test}.yml`) and the runtime entrypoint at
+`docker/entrypoint.sh` are still the source of truth — `bin/container.sh`
+is just an ergonomic facade.
+
+### `bin/` script conventions
+
+- Every script under `bin/` and `docker/` responds to `-h` / `--help`
+  with its own header docstring. Use it.
+- For scripts that pass through to a Java jar (`bin/kg-extract.sh`,
+  `bin/kg-judge-experiment.sh`, `bin/kg-policy.sh`,
+  `bin/kg-chunker-stats.sh`), the bash `--help` shows wrapper-level docs
+  without triggering a build. Pass `--jar-help` to forward through and
+  see the jar's full flag list.
+- Credentials are read at runtime from `test.properties` (web logins) and
+  `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml` (DB password). No
+  bin/ script embeds secrets.
+
 ## Running the entity extractor
 
 `bin/kg-extract.sh` runs the per-page entity-extraction pipeline against the

@@ -1,20 +1,10 @@
 ---
 title: Smalltalk
-type: reference
 cluster: computer-science
 tags: [programming-languages, smalltalk, oop, xerox-parc, live-coding, ide, computer-history]
 status: active
 date: 2026-05-08
 summary: The pioneer of 'Pure' Object-Oriented Programming (1972). Created at Xerox PARC, it defined the modern graphical IDE, virtual machines, and the 'Everything is an Object' philosophy.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: JavaLanguage
-  - type: relates-to
-    target: RubyLanguage
-  - type: relates-to
-    target: DeveloperExperience
-  - type: derived-from
-    target: Algol
 ---
 
 # Smalltalk: The Architect of the Modern Environment

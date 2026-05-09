@@ -1,18 +1,10 @@
 ---
 title: Biochemical Engineering
-type: reference
 cluster: life-sciences
 tags: [biochemical-engineering, bioprocessing, fermentation, kinetics, precision-fermentation, 2025-benchmarks]
 status: active
 date: 2026-05-08
 summary: The application of engineering principles to biological systems. Covers fermentation kinetics, bioreactor design, and the 2025 shift toward Digital Twins and Precision Fermentation.
-    target: AppliedMathSurvey
-  - type: relates-to
-    target: Microbiology
-  - type: implements
-    target: CheeseProduction
-  - type: relates-to
-    target: FermentationForGutHealth
 ---
 
 # Biochemical Engineering: The Industrialization of Biology

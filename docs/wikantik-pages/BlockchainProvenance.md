@@ -1,18 +1,10 @@
 ---
 title: Blockchain Provenance
-type: reference
 cluster: supply-chain-logistics
 tags: [blockchain, provenance, supply-chain, transparency, digital-product-passport, ethical-sourcing]
 status: active
 date: 2026-05-08
 summary: The application of blockchain for immutable product history. Covers Digital Product Passports, EU Battery Regulation (2025) benchmarks, and the technical bridge between IoT and distributed ledgers.
-    target: SupplyChainAndLogisticsOptimization
-  - type: relates-to
-    target: EsgInvesting
-  - type: relates-to
-    target: MasterDataManagement
-  - type: example-of
-    target: EventSourcing
 ---
 
 # Blockchain Provenance: Immutability in the Supply Chain

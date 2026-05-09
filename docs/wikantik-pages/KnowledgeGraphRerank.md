@@ -2,7 +2,6 @@
 canonical_id: 01KQPQVYPFSBSGX38YP6XFQPMV
 date: 2026-05-03T00:00:00Z
 cluster: wikantik-development
-type: design
 tags:
 - knowledge-graph
 - retrieval
@@ -11,10 +10,6 @@ tags:
 - embeddings
 - search
 title: Knowledge Graph Rerank
-- type: part-of
-  target_id: 01KQ0P44YWV8Q0JMN1H2H5EGDX
-- type: implements
-  target_id: 01KQEKGDAZH3G3X2J4VFM9MP88
 summary: Technical overview of the graph-aware reranking strategy in Wikantik. Explains
   how the system combines traditional lexical BM25 scores with dense vector similarity
   and Knowledge Graph (KG) co-mention data to improve retrieval precision.

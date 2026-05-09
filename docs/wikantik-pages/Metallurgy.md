@@ -1,18 +1,10 @@
 ---
 title: Metallurgy
-type: reference
 cluster: materials-science
 tags: [metallurgy, silver, coinage, photography, industrial-benchmarks, chemistry]
 status: active
 date: 2026-05-08
 summary: The study of metallic elements and their alloys. Bridges historical coinage debasement, silver halide photography chemistry, and 2026 industrial silver benchmarks for AI and Solar PV.
-    target: AppliedMathSurvey
-  - type: relates-to
-    target: AmericanCoinageInThe1900s
-  - type: relates-to
-    target: EconomicHistory
-  - type: relates-to
-    target: EsgInvesting
 ---
 
 # Metallurgy: The Material Foundation of Value

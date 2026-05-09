@@ -1,18 +1,10 @@
 ---
 title: PHP Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, php, web-development, wordpress, laravel, frankenphp, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The 'Democratizer of the Web' (1994). Created by Rasmus Lerdorf, it powers ~77% of all websites in 2026. Traces the shift from simple scripting to high-performance architectures via FrankenPHP and Laravel.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: JavaScriptLanguage
-  - type: relates-to
-    target: SqlLanguage
-  - type: relates-to
-    target: MasterDataManagement
 ---
 
 # The PHP Language: The Engine of the Open Web

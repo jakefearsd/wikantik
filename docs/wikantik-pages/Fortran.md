@@ -1,18 +1,10 @@
 ---
 title: Fortran
-type: reference
 cluster: computer-science
 tags: [programming-languages, fortran, high-performance-computing, scientific-computing, computer-history]
 status: active
 date: 2026-05-08
 summary: The first high-level programming language (1957). Remains the gold standard for scientific computing and matrix operations in 2026 due to strict aliasing rules and first-class array support.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: CLanguage
-  - type: implements
-    target: NumericalAnalysis
-  - type: derived-from
-    target: AssemblyLanguage
 ---
 
 # Fortran: The Pioneer of High-Performance Computing

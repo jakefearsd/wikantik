@@ -1,18 +1,10 @@
 ---
 title: Physical Chemistry
-type: reference
 cluster: life-sciences
 tags: [physical-chemistry, molecular-dynamics, synthetic-biology, phase-separation, abiotic-cells, 2025-research]
 status: active
 date: 2026-05-08
 summary: The study of how matter behaves on a molecular and atomic level. Covers AI-driven molecular dynamics, abiotic synthetic cells, and the physical chemistry of liquid-liquid phase separation.
-    target: LifeSciences
-  - type: relates-to
-    target: Microbiology
-  - type: relates-to
-    target: BiochemicalEngineering
-  - type: implements
-    target: Thermodynamics
 ---
 
 # Physical Chemistry: The Molecular Foundation of Life

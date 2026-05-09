@@ -1,18 +1,10 @@
 ---
 title: Topology
-type: reference
 cluster: mathematics
 tags: [topology, poincare-conjecture, tda, persistent-homology, manifolds, homeomorphisms]
 status: active
 date: 2026-05-08
 summary: The study of properties preserved under continuous deformation. Covers the Poincaré Conjecture, Perelman's proof, and 2025-2026 benchmarks for Topological Data Analysis (TDA).
-    target: MathematicsHub
-  - type: relates-to
-    target: DifferentialGeometry
-  - type: relates-to
-    target: MLHub
-  - type: example-of
-    target: SetTheory
 ---
 
 # Topology: The Architecture of Connectivity

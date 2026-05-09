@@ -1,20 +1,10 @@
 ---
 title: Zig Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, zig, systems-programming, comptime, memory-management, c-replacement, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The 'Successor to C' (2016). Designed for robustness and simplicity, it introduces 'Comptime' and explicit memory management, serving as the primary choice for 2026 low-level systems like Bun.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: CLanguage
-  - type: relates-to
-    target: RustLanguage
-  - type: implements
-    target: ZeroTrustArchitecture
-  - type: derived-from
-    target: CLanguage
 ---
 
 # The Zig Language: Robustness through Simplicity

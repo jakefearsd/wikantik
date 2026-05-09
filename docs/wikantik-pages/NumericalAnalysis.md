@@ -1,20 +1,10 @@
 ---
 title: Numerical Analysis
-type: reference
 cluster: computer-science
 tags: [numerical-analysis, floating-point, precision, algorithms, mixed-precision, ai-hardware, computational-science]
 status: active
 date: 2026-05-08
 summary: The mathematical foundation of scientific computing. Covers algorithms for numerical approximation, the transition to mixed-precision (FP8/FP4) in 2026, and the impact of hardware acceleration on computational stability.
-    target: MathematicsHub
-  - type: relates-to
-    target: Fortran
-  - type: relates-to
-    target: AssemblyLanguage
-  - type: implements
-    target: PhysicsEngineering
-  - type: derived-from
-    target: MultiVariableCalculus
 ---
 
 # Numerical Analysis: The Math of Approximation

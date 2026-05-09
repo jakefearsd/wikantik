@@ -1,18 +1,10 @@
 ---
 title: Microbiology
-type: reference
 cluster: life-sciences
 tags: [microbiology, bacteria, yeast, fungi, metabolism, proteolysis, fermentation]
 status: active
 date: 2026-05-08
 summary: The study of microscopic organisms. Focuses on industrial fermentation taxonomy, metabolic pathways (proteolysis/lipolysis), and the 2025 shift toward synthetic microbial consortia.
-    target: BiochemicalEngineering
-  - type: relates-to
-    target: CheeseProduction
-  - type: relates-to
-    target: FermentationForGutHealth
-  - type: relates-to
-    target: FoodScience
 ---
 
 # Microbiology: The Industrial Engine

@@ -1,14 +1,18 @@
 ---
-status: official
-cluster: computer-science-foundations
+verified_at: '2026-05-04T21:10:44.598011331Z'
 type: article
-title: Operating Systems (OS) Foundations
+Provides_Environment:
+- Linux
 date: '2026-05-04'
+cluster: computer-science-foundations
+title: Operating Systems (OS) Foundations
 summary: An overview of operating system fundamentals and their critical role in supporting
   the Wikantik platform.
-canonical_id: 01KQTD79Q328S32YWBW5GRKVMB
-verified_at: '2026-05-04T21:10:44.598011331Z'
 verified_by: gemini-cli-mcp-client
+canonical_id: 01KQTD79Q328S32YWBW5GRKVMB
+status: official
+improves performance of:
+- Lucene
 ---
 # Operating Systems (OS) Foundations
 

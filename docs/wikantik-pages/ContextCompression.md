@@ -1,11 +1,4 @@
 ---
-- type: part-of
-  target_id: 01KQEKGDAZH3G3X2J4VFM9MP88
-- type: implements
-  target_id: 01KQ0P44Q1GRZAM50GV1CFTN7B
-- type: derived-from
-  target_id: 01H8G3Z1K6Q5W7P9X2V4R0T8MN
-type: article
 tags:
 - generative-ai
 - llm

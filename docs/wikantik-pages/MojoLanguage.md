@@ -1,20 +1,10 @@
 ---
 title: Mojo Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, mojo, ai, python, heterogeneous-computing, gpu, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The AI-native superset of Python (2023). Designed to solve the 'Two-Language Problem', Mojo achieves CUDA-level performance with Python-like syntax, serving as the primary infrastructure for 2026 AI systems.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: PythonLanguage
-  - type: relates-to
-    target: RustLanguage
-  - type: implements
-    target: MathematicalFoundationsOfMachineLearning
-  - type: derived-from
-    target: PythonLanguage
 ---
 
 # The Mojo Language: The Architecture of Intelligence

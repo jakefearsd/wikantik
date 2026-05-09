@@ -1,7 +1,7 @@
 ---
 cluster: generative-ai
 canonical_id: 01KQ0P44STSMPTY9CENPNM9Y63
-title: Multi-Modal AI: CLIP, SigLIP, and Contrastive Scaling
+title: "Multi-Modal AI: CLIP, SigLIP, and Contrastive Scaling"
 type: article
 tags:
 - generative-ai

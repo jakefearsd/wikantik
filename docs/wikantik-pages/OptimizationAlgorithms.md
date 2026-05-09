@@ -2,7 +2,6 @@
 canonical_id: 01KQQFWARYXY3MG4R8VWRM3CGE
 date: 2026-05-03T00:00:00Z
 cluster: mathematics
-type: article
 tags:
 - optimization
 - machine-learning
@@ -12,12 +11,6 @@ tags:
 - pytorch
 - scipy
 title: Optimization Algorithms
-- type: part-of
-  target_id: 01KQ2P44XMGA8E1E7GAT4AYV43
-- type: implements
-  target_id: 01KQEKGDAZH3G3X2J4VFM9MP88
-- type: derived-from
-  target_id: 01KQ0P44MWAYKY5RFMQHXY6HZX
 summary: A deep dive into the optimization algorithms that drive machine learning
   and operations research. Covers Gradient Descent, Momentum, RMSProp, Adam, and Second-Order
   methods like L-BFGS, with integrations to JAX and PyTorch.

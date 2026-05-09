@@ -1,7 +1,7 @@
 ---
 cluster: mathematics
 canonical_id: 01KQ0P44QSYVNHK8MZ6JFH4C39
-title: Group Theory and Symmetry: From Lagrange to Rubik
+title: "Group Theory and Symmetry: From Lagrange to Rubik"
 type: article
 tags:
 - group-theory

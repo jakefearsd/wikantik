@@ -1,7 +1,7 @@
 ---
 cluster: military-history
 canonical_id: 01KQ0P44SYPKH54N7XTH2SJ2AH
-title: Naval History: From Broadside to Dreadnought
+title: "Naval History: From Broadside to Dreadnought"
 type: article
 tags:
 - naval-history

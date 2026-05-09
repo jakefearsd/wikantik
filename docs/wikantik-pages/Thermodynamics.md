@@ -1,18 +1,10 @@
 ---
 title: Thermodynamics
-type: reference
 cluster: physics-engineering
 tags: [thermodynamics, energy, phase-transition, thermal-mass, polymorphism, food-science]
 status: active
 date: 2026-05-08
 summary: The study of heat, work, and energy. Focuses on phase transition thermodynamics in chocolate tempering and the 'Thermal Flywheel Effect' in passive food storage systems.
-    target: AppliedMathSurvey
-  - type: relates-to
-    target: Metallurgy
-  - type: implements
-    target: ChocolateTempering
-  - type: relates-to
-    target: LongTermFoodStorage
 ---
 
 # Thermodynamics: The Physics of Energy and Phase

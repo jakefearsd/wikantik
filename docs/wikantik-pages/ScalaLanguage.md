@@ -1,20 +1,10 @@
 ---
 title: Scala Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, scala, functional-programming, oop, spark, data-engineering, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The bridge between Functional and OOP (2004). Created by Martin Odersky, it powers the world's most critical data pipelines. In 2026, Scala 3 has matured into the standard for high-throughput, type-safe data engineering.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: JavaLanguage
-  - type: relates-to
-    target: PythonLanguage
-  - type: relates-to
-    target: MathematicalFoundationsOfMachineLearning
-  - type: derived-from
-    target: JavaLanguage
 ---
 
 # The Scala Language: The Synthesis of Power

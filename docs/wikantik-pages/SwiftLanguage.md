@@ -1,20 +1,10 @@
 ---
 title: Swift Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, swift, apple, concurrency, arc, memory-safety, systems-programming, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The 'Standard of Modern Systems' (2014). Created by Apple as a safe, high-performance successor to Objective-C, it has evolved into a multi-platform powerhouse via Swift 6's strict concurrency.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: ObjectiveCLanguage
-  - type: relates-to
-    target: RustLanguage
-  - type: relates-to
-    target: PhysicsEngineering
-  - type: derived-from
-    target: CppLanguage
 ---
 
 # The Swift Language: Safety, Speed, and Ergonomics

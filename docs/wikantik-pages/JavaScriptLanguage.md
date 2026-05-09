@@ -1,20 +1,10 @@
 ---
 title: JavaScript Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, javascript, v8-engine, web-development, full-stack, typescript, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The 'Engine of the Web' (1995). Created in 10 days by Brendan Eich, it has evolved into the world's most used language, powering both front-end and high-performance server-side runtimes via V8.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: TypeScriptLanguage
-  - type: relates-to
-    target: JavaLanguage
-  - type: relates-to
-    target: WebAssembly
-  - type: derived-from
-    target: Smalltalk
 ---
 
 # The JavaScript Language: The Universal Runtime

@@ -1,20 +1,10 @@
 ---
 title: Java Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, java, jvm, oop, enterprise, garbage-collection, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The 'Undead King' of enterprise (1995). Championed the Virtual Machine (JVM) and 'Write Once, Run Anywhere'. In 2026, it remains the standard for high-throughput backends via Generational ZGC.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: CsharpLanguage
-  - type: relates-to
-    target: Smalltalk
-  - type: implements
-    target: MasterDataManagement
-  - type: derived-from
-    target: CLanguage
 ---
 
 # The Java Language: Industrial-Scale Reliability

@@ -2,7 +2,6 @@
 canonical_id: 01KQPQXFJDMBE25NN63K3THWK0
 date: 2026-05-03T00:00:00Z
 cluster: computer-science-foundations
-type: article
 tags:
 - computer-science
 - binary
@@ -11,8 +10,6 @@ tags:
 - logic
 - architecture
 title: Binary Arithmetic
-- type: part-of
-  target_id: 01KQEKGD8QYAS6P09AM61S5E2W
 summary: A foundational guide to binary arithmetic, covering addition, subtraction
   using two's complement, and the fundamental bitwise operations (AND, OR, XOR, NOT,
   shifts). Essential for understanding low-level computer architecture and digital

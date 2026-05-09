@@ -1,20 +1,10 @@
 ---
 title: C++ Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, c-plus-plus, oop, generic-programming, raii, systems-programming, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The powerhouse of systems and AI infrastructure (1983). Created by Bjarne Stroustrup to add classes to C, it has evolved into a multi-paradigm language that remains the 2026 benchmark for performance.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: CLanguage
-  - type: relates-to
-    target: RustLanguage
-  - type: implements
-    target: MathematicalFoundationsOfMachineLearning
-  - type: derived-from
-    target: CLanguage
 ---
 
 # The C++ Language: Multi-Paradigm Mastery

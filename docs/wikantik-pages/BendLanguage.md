@@ -1,20 +1,10 @@
 ---
 title: Bend Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, bend, parallelism, hvm2, functional-programming, gpu, interaction-nets]
 status: active
 date: 2026-05-08
 summary: The 'CUDA for Functional Programmers' (2024). A massively parallel language that scales linearly across thousands of cores without manual thread management, powered by the HVM2 runtime.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: MojoLanguage
-  - type: relates-to
-    target: Lisp
-  - type: implements
-    target: PhysicsEngineering
-  - type: derived-from
-    target: Haskell
 ---
 
 # The Bend Language: Massively Parallel Simplicity

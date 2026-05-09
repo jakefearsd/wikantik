@@ -1,20 +1,10 @@
 ---
 title: Python Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, python, ai, data-science, scripting, gil-removal, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The 'Lingua Franca' of AI (1991). Born as executable pseudocode, it has become the #1 language globally in 2026, driven by its status as the primary interface for AI and Data Science.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: Lisp
-  - type: relates-to
-    target: MojoLanguage
-  - type: implements
-    target: MathematicalFoundationsOfMachineLearning
-  - type: derived-from
-    target: Algol
 ---
 
 # The Python Language: The Interface of Intelligence

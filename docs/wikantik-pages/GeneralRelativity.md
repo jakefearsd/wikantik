@@ -1,18 +1,10 @@
 ---
 title: General Relativity
-type: reference
 cluster: physics-engineering
 tags: [general-relativity, gravity, spacetime, einstein-field-equations, black-holes, precision-cosmology]
 status: active
 date: 2026-05-08
 summary: The geometric theory of gravitation. Covers the Einstein Field Equations, black hole spectroscopy (GW250114), the 38-microsecond GPS offset, and 2025 case studies in Neuro-Relativity.
-    target: PhysicsEngineering
-  - type: implements
-    target: DifferentialGeometry
-  - type: relates-to
-    target: Topology
-  - type: relates-to
-    target: GeopoliticalRisk
 ---
 
 # General Relativity: The Geometry of Spacetime

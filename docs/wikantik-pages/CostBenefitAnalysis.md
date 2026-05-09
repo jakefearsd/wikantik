@@ -1,7 +1,7 @@
 ---
 cluster: warehouse-automation
 canonical_id: 01KQ0P44P1WS7ZYP0CX83XE14M
-title: Cost-Benefit Analysis: NPV and IRR Math
+title: "Cost-Benefit Analysis: NPV and IRR Math"
 type: article
 tags:
 - finance

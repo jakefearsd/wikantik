@@ -1,20 +1,10 @@
 ---
 title: Ruby Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, ruby, rails, developer-experience, yjit, web-development, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The champion of 'Developer Happiness' (1995). Created by Yukihiro Matsumoto to prioritize human needs over machine efficiency. In 2026, it has matured into a high-performance web powerhouse via YJIT and Rails 8.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: PerlLanguage
-  - type: relates-to
-    target: Smalltalk
-  - type: relates-to
-    target: DeveloperExperience
-  - type: derived-from
-    target: Lisp
 ---
 
 # The Ruby Language: The Architecture of Joy

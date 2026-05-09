@@ -1,20 +1,10 @@
 ---
 title: C Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, c-language, systems-programming, pointers, unix, computer-history]
 status: active
 date: 2026-05-08
 summary: The 'Lingua Franca' of systems programming (1972). Introduced the pointer-memory model that powers modern operating systems. Remains the baseline for 2026 hardware-level performance.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: CppLanguage
-  - type: relates-to
-    target: RustLanguage
-  - type: relates-to
-    target: Pascal
-  - type: derived-from
-    target: Algol
 ---
 
 # The C Language: The Portable Assembly

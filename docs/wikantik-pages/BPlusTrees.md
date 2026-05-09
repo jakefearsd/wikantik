@@ -2,7 +2,6 @@
 canonical_id: 01KQQ6YQR91SVAT7J8ZMADXXKT
 date: 2026-05-03T00:00:00Z
 cluster: data-structures
-type: article
 tags:
 - data-structures
 - b-plus-tree
@@ -11,10 +10,6 @@ tags:
 - storage-engines
 - algorithms
 title: B+ Trees
-- type: part-of
-  target_id: 01KQEKGD9BVAXF6X4HZYKF2513
-- type: prerequisite-for
-  target_id: 01KQ0P44PEJG4KBKH84YFQP91Z
 summary: A deep dive into the B+ Tree data structure, the backbone of modern relational
   database indexing. Explains the structural differences from B-Trees, the advantages
   for on-disk storage, and the mechanics of rebalancing via splits and merges.

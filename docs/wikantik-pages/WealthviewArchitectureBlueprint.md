@@ -2,7 +2,6 @@
 canonical_id: 01KQRW1416ME9FTMXTD4WXJRQ9
 date: 2026-05-03T00:00:00Z
 cluster: wealthview
-type: blueprint
 tags:
 - wealthview
 - architecture
@@ -12,10 +11,6 @@ tags:
 - postgresql
 - system-design
 title: Wealthview Architecture Blueprint
-- type: part-of
-  target_id: 01KQR44WKHVES95QKN9731B09
-- type: derived-from
-  target_id: 01KQ0P44WQHVES95QKN9731B08
 summary: A high-density technical blueprint of the Wealthview system architecture.
   Details the Maven multi-module structure, strict dependency rules, and the React/Spring
   Boot/PostgreSQL tech stack for RAG-driven development.

@@ -1,7 +1,7 @@
 ---
 cluster: berlin-history
 canonical_id: 01KQ0P44YVDFD78HN1Z1CPKJN4
-title: Berlin in the Weimar Republic: Crisis and Modernity
+title: "Berlin in the Weimar Republic: Crisis and Modernity"
 type: article
 tags:
 - berlin

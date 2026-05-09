@@ -1,18 +1,10 @@
 ---
 title: Home Emergency Preparedness
-type: reference
 cluster: emergency-prep
 tags: [emergency-prep, resilience-engineering, home-automation, systems-engineering, risk-management]
 status: active
 date: 2025-05-15
 summary: Technical specifications for residential resilience. Covers LiFePO4 battery sizing, water circularity, and immediate shelter-in-place requirements.
-    target: EmergencyPrepHub
-  - type: relates-to
-    target: GeopoliticalRisk
-  - type: implements
-    target: HomeHardening
-  - type: relates-to
-    target: BackupPower
 auto-generated: false
 ---
 

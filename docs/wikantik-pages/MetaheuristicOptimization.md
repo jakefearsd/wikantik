@@ -1,7 +1,7 @@
 ---
 cluster: operations-research
 canonical_id: 01KQ0P44SFQM7F9TZXPEJTWMYG
-title: Metaheuristic Optimization: The Math of SA and GA
+title: "Metaheuristic Optimization: The Math of SA and GA"
 type: article
 tags:
 - optimization

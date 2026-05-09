@@ -6,6 +6,18 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-09** — admin-ui(proposals): add "Reject (no reason)" speed path
+
+**2026-05-09** — content: bulk page maintenance — programming languages + assorted
+
+**2026-05-09** — fit(deploy): clean up the seed-users warning + .env.example clarity
+
+**2026-05-09** — content: bulk page maintenance — data eng / cybersec / cloud clusters
+
+**2026-05-09** — docs(deploy): D13/D14 — data migration + external services
+
+**2026-05-09** — fix(deploy): env-substitute DB password in Wikantik-context.xml.template (C10)
+
 **2026-05-09** — fix(container): apply CookieProcessor sameSiteCookies=strict (A3)
 
 **2026-05-09** — fix(container): align container deploy with bare-metal — drift fixes A1–A4

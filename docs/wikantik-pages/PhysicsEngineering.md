@@ -1,18 +1,10 @@
 ---
 title: Physics Engineering
-type: hub
 cluster: physics-engineering
 tags: [physics-engineering, sensor-design, gravitational-waves, precision-instrumentation, pinns, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The application of physical principles to the design of complex systems. Covers precision sensor engineering for LISA, Physics-Informed Neural Networks (PINNs), and exascale simulation benchmarks.
-    target: MathematicsHub
-  - type: implements
-    target: GeneralRelativity
-  - type: relates-to
-    target: MaterialsEngineering
-  - type: relates-to
-    target: Thermodynamics
 ---
 
 # Physics Engineering: Bridging Theory and Implementation

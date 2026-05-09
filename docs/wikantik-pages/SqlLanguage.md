@@ -1,18 +1,10 @@
 ---
 title: SQL
-type: reference
 cluster: computer-science
 tags: [programming-languages, sql, databases, relational-model, data-engineering, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The 'Lingua Franca' of data (1974). Based on Codd's Relational Model, it defines the declarative standard for data management. In 2026, it remains the #3 most used technology globally.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: MasterDataManagement
-  - type: relates-to
-    target: RelationalUserDatabase
-  - type: derived-from
-    target: SetTheory
 ---
 
 # SQL: The Architecture of Information

@@ -2,7 +2,6 @@
 canonical_id: 01KQQ73TXJJRDPT07BS6ZPXJTT
 date: 2026-05-03T00:00:00Z
 cluster: agentic-ai
-type: article
 tags:
 - agentic-ai
 - test-time-compute
@@ -13,10 +12,6 @@ tags:
 - inference-scaling
 - reasoning
 title: Test-Time Compute Scaling
-- type: part-of
-  target_id: 01KQEKGD6VT29FGWF8YE9TM671
-- type: supersedes
-  target_id: 01KQ0P44PEJG4KBKH84YFQP91B
 summary: A deep exploration of the paradigm shift from pre-training scaling laws to
   inference scaling laws. Details how System 2 agents use Language Agent Tree Search
   (LATS), MCTS, and Process Reward Models (PRMs) to dynamically expand compute on

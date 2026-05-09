@@ -1,18 +1,10 @@
 ---
 title: Algol
-type: reference
 cluster: computer-science
 tags: [programming-languages, algol, structured-programming, bnf, computer-history]
 status: active
 date: 2026-05-08
 summary: The 'Language of Science' (1958/1960). Introduced block structure, lexical scope, and Backus-Naur Form (BNF). The common ancestor to C, Pascal, and the modern C-family.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: CLanguage
-  - type: relates-to
-    target: Pascal
-  - type: derived-from
-    target: Fortran
 ---
 
 # ALGOL: The Architecture of Structure

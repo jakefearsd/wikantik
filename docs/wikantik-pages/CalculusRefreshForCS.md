@@ -2,7 +2,6 @@
 canonical_id: 01KQQFWARA4TQN5A28QPRVCX3V
 date: '2026-05-24'
 cluster: mathematics
-type: article
 tags:
 - calculus
 - computer-science
@@ -10,12 +9,6 @@ tags:
 - optimization
 - autodiff
 title: Calculus Refresh for CS
-- type: part-of
-  target_id: 01KQ2P44XMGA8E1E7GAT4AYV43
-- type: prerequisite-for
-  target_id: 01KQEKGDAZH3G3X2J4VFM9MP88
-- type: derived-from
-  target_id: 01KQ0P44MWAYKY5RFMQHXY6HZX
 summary: The subset of calculus actually required for modern software engineering, focusing on Automatic Differentiation, Jacobians in neural networks, and Hessian-free optimization techniques.
 status: active
 auto-generated: false

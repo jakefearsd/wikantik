@@ -2,7 +2,6 @@
 canonical_id: 01KQQ6SGVRSG0BJMX4AKGGF23S
 date: 2025-02-13T00:00:00Z
 cluster: mathematics
-type: article
 tags:
 - mathematics
 - information-theory
@@ -11,12 +10,6 @@ tags:
 - llm
 - compression
 title: Information Theory
-- type: part-of
-  target_id: 01KQ2P44XMGA8E1E7GAT4AYV43
-- type: prerequisite-for
-  target_id: 01KQEKGD8QYAS6P09AM61S5E2W
-- type: prerequisite-for
-  target_id: 01KQEKGDAZH3G3X2J4VFM9MP88
 summary: Advanced Information Theory focused on Shannon entropy, token compression math, and the fundamental limits of LLM context windows.
 status: active
 auto-generated: false

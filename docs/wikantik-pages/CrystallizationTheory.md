@@ -1,18 +1,10 @@
 ---
 title: Crystallization Theory
-type: reference
 cluster: materials-science
 tags: [crystallization, nucleation, crystal-growth, kinetics, polymorphism, avrami-equation]
 status: active
 date: 2026-05-08
 summary: The study of the formation and growth of crystalline solids. Covers nucleation kinetics, the Avrami equation, and polymorphism in both metallurgy and food science.
-    target: MaterialsEngineering
-  - type: relates-to
-    target: Metallurgy
-  - type: implements
-    target: Thermodynamics
-  - type: relates-to
-    target: ChocolateTempering
 ---
 
 # Crystallization Theory: Nucleation and Growth

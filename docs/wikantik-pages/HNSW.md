@@ -2,7 +2,6 @@
 canonical_id: 01KQQ6YQQWGYMXDHMJX8QZ24X4
 date: '2026-05-15'
 cluster: data-structures
-type: article
 tags:
 - hnsw
 - graph-theory
@@ -11,12 +10,6 @@ tags:
 - proximity-graphs
 - data-structures
 title: HNSW (Hierarchical Navigable Small World)
-- type: part-of
-  target_id: 01KQEKGD9BVAXF6X4HZYKF2513
-- type: prerequisite-for
-  target_id: 01KQEKGDAZH3G3X2J4VFM9MP88
-- type: derived-from
-  target_id: 01H8G3Z1K6Q5W7P9X2V4R0T8MN
 summary: Technical analysis of HNSW graph mechanics, layer-based navigation, and a concrete implementation using FAISS.
 status: active
 auto-generated: false

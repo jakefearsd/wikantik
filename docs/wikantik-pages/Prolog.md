@@ -1,18 +1,10 @@
 ---
 title: Prolog
-type: reference
 cluster: computer-science
 tags: [programming-languages, prolog, ai, logic-programming, declarative, neuro-symbolic, computer-history]
 status: active
 date: 2026-05-08
 summary: The pioneer of Logic Programming (1972). Based on first-order logic, it defines the 'Declarative' paradigm where programs consist of facts and rules. A foundational component of 2026 Neuro-Symbolic AI.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: Lisp
-  - type: relates-to
-    target: SmallLanguageModels
-  - type: implements
-    target: MathematicalFoundationsOfMachineLearning
 ---
 
 # Prolog: The Engine of Logical Inference

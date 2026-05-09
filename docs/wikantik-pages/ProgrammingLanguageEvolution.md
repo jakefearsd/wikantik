@@ -1,18 +1,10 @@
 ---
 title: Programming Language Evolution
-type: hub
 cluster: computer-science
 tags: [programming-languages, computer-history, compilers, type-systems, software-engineering, hub]
 status: active
 date: 2026-05-08
 summary: Central hub for the evolution of programming languages (1950–2026). Traces the shift from manual machine-level management to AI-native 'Vibe Coding' across six distinct technical regimes.
-    target: MathematicsHub
-  - type: relates-to
-    target: DeveloperExperience
-  - type: relates-to
-    target: ZeroTrustArchitecture
-  - type: relates-to
-    target: SmallLanguageModels
 ---
 
 # Programming Language Evolution: The Architecture of Instruction

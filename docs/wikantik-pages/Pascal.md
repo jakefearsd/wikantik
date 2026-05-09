@@ -1,18 +1,10 @@
 ---
 title: Pascal
-type: reference
 cluster: computer-science
 tags: [programming-languages, pascal, delphi, structured-programming, strong-typing, computer-history]
 status: active
 date: 2026-05-08
 summary: The 'Standard of Safety' (1970). Created by Niklaus Wirth to prioritize data safety and instructional clarity. Experiencing a 2026 'Renaissance' in native cross-platform development.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: CLanguage
-  - type: relates-to
-    target: AdaLanguage
-  - type: derived-from
-    target: Algol
 ---
 
 # Pascal: The Architecture of Safety

@@ -1,18 +1,10 @@
 ---
 title: Assembly Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, assembly, isa, x86, arm, risc-v, systems-programming, hardware-software-codesign]
 status: active
 date: 2026-05-08
 summary: The 'Language of the Machine'. Provides the lowest-level abstraction of hardware instructions. In 2026, it is defined by the 'ISA War' between x86, ARM, and the rapidly ascending RISC-V.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: CLanguage
-  - type: relates-to
-    target: Fortran
-  - type: implements
-    target: NumericalAnalysis
 ---
 
 # Assembly Language: The Architecture of Instruction

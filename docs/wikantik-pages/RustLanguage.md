@@ -1,20 +1,10 @@
 ---
 title: Rust Language
-type: reference
 cluster: computer-science
 tags: [programming-languages, rust, systems-programming, memory-safety, ownership, borrowing, 2026-benchmarks]
 status: active
 date: 2026-05-08
 summary: The pioneer of zero-cost memory safety (2010). Created at Mozilla, its 'Ownership & Borrowing' model has virtually eliminated memory vulnerabilities, making it the 2026 standard for secure systems.
-    target: ProgrammingLanguageEvolution
-  - type: relates-to
-    target: CLanguage
-  - type: relates-to
-    target: GoLanguage
-  - type: relates-to
-    target: ZeroTrustArchitecture
-  - type: derived-from
-    target: CppLanguage
 ---
 
 # The Rust Language: Safety Without Compromise

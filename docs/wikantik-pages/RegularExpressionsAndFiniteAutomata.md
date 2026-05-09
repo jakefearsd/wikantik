@@ -1,14 +1,16 @@
 ---
 status: official
-cluster: computer-science-foundations
-type: article
-title: Regular Expressions and Finite Automata
 date: '2026-05-04'
-summary: How the theoretical foundations of regular expressions and finite automata
-  power text processing and link discovery in Wikantik.
-canonical_id: 01KQTD79QGKT9YW3THM0HGHA35
 verified_at: '2026-05-04T21:10:44.598011331Z'
 verified_by: gemini-cli-mcp-client
+summary: How the theoretical foundations of regular expressions and finite automata
+  power text processing and link discovery in Wikantik.
+type: article
+cluster: computer-science-foundations
+canonical_id: 01KQTD79QGKT9YW3THM0HGHA35
+title: Regular Expressions and Finite Automata
+Concept:
+- Finite Automata
 ---
 # Regular Expressions and Finite Automata
 

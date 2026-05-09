@@ -451,16 +451,26 @@ else
     echo "         Run manually: DB_NAME=${WIKI_DB} ${MIGRATE_SH}"
 fi
 
-# Seed dev user accounts (idempotent upsert — safe to run every deploy)
+# Seed dev user accounts (idempotent upsert — safe to run every deploy).
+# Uses the credentials sourced from .env above, so a fresh clone with a
+# correctly-populated .env has zero hand-tuning. Falls back to peer-auth
+# (psql -d) and postgres-superuser (psql -U postgres) for setups that
+# don't keep the password in env.
 echo ""
 echo "Seeding user accounts..."
-if psql -d "${WIKI_DB}" -f "${SEED_SQL}" -q 2>/dev/null; then
+if PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+       -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" \
+       -U "${POSTGRES_USER}" -d "${WIKI_DB}" \
+       -f "${SEED_SQL}" -q 2>/dev/null; then
     print_status "User accounts seeded in ${WIKI_DB} (admin/admin123, jakefear@gmail.com/passw0rd)"
+elif psql -d "${WIKI_DB}" -f "${SEED_SQL}" -q 2>/dev/null; then
+    print_status "User accounts seeded via peer-auth in ${WIKI_DB}"
 elif psql -U postgres -d "${WIKI_DB}" -f "${SEED_SQL}" -q 2>/dev/null; then
-    print_status "User accounts seeded in ${WIKI_DB} (admin/admin123, jakefear@gmail.com/passw0rd)"
+    print_status "User accounts seeded as postgres in ${WIKI_DB}"
 else
     print_warning "Could not seed user accounts automatically."
-    echo "         Run manually: psql -d ${WIKI_DB} -f ${SEED_SQL}"
+    echo "         Run manually: PGPASSWORD=\"\${POSTGRES_PASSWORD}\" \\"
+    echo "             psql -h \${POSTGRES_HOST} -U \${POSTGRES_USER} -d ${WIKI_DB} -f ${SEED_SQL}"
 fi
 
 # Wiki pages now live in docs/wikantik-pages/ (version-controlled)

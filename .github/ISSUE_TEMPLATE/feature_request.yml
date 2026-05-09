@@ -1,0 +1,78 @@
+name: Feature request
+description: Suggest a new feature or enhancement.
+title: "[feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Concrete use cases beat abstract
+        design — the more clearly you describe the problem you're
+        trying to solve, the better the discussion will be.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: |
+        Describe the user-facing problem or limitation you've hit.
+        "I want to do X but I can't because Y."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: |
+        How would you want it to work? URLs, MCP tool names, API
+        shapes, frontmatter fields — be as concrete as you can.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: |
+        What other approaches did you consider, and why did you settle
+        on the one above?
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Affected surface
+      multiple: true
+      options:
+        - React SPA (reader)
+        - React SPA (editor)
+        - React SPA (admin panel)
+        - REST API (/api/*)
+        - Admin REST (/admin/*)
+        - Admin MCP (/wikantik-admin-mcp)
+        - Knowledge MCP (/knowledge-mcp)
+        - OpenAPI tool server (/tools/*)
+        - Page Graph subsystem
+        - Knowledge Graph subsystem
+        - Search / hybrid retrieval
+        - Authentication / authorisation
+        - Deployment scripts (bin/, docker/)
+        - Other / unclear
+    validations:
+      required: true
+
+  - type: textarea
+    id: extras
+    attributes:
+      label: Additional context
+      description: |
+        Mockups, links to similar features in other tools, related
+        issues, performance considerations, security implications.
+
+  - type: checkboxes
+    id: pre_flight
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched existing issues and didn't find a duplicate or related discussion.
+          required: true

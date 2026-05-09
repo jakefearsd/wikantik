@@ -1,0 +1,100 @@
+name: Bug report
+description: Something doesn't work the way it should.
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please complete the
+        sections below — issues with full repro detail get fixed faster.
+
+        For **security vulnerabilities**, do not file a public issue —
+        see [SECURITY.md](../SECURITY.md) for the private reporting
+        channel.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The Wikantik version (release tag) or git SHA you're running.
+      placeholder: "v1.0.0  /  fc556e9ba"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deploy_path
+    attributes:
+      label: Deployment path
+      options:
+        - Bare-metal Tomcat (bin/deploy-local.sh)
+        - Container (bin/container.sh / docker compose)
+        - Other (please describe)
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        OS + version, JDK version (`java -version`), PostgreSQL major
+        version + pgvector version, Node version (only if relevant),
+        anything else specific to your setup.
+      placeholder: |
+        Ubuntu 24.04
+        OpenJDK 21.0.4
+        PostgreSQL 16.3, pgvector 0.7.4
+        Node 20.10
+    validations:
+      required: true
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: A clear description of what went wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: |
+        Numbered steps that another developer can follow on a fresh
+        install. The more deterministic, the better.
+      placeholder: |
+        1. Run `bin/db/install-fresh.sh`
+        2. Run `bin/deploy-local.sh`
+        3. Open http://localhost:8080/wiki/Main
+        4. Observe …
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / stack traces
+      description: |
+        Paste the relevant slice of catalina.out, the wikantik.log,
+        the browser console, or whatever's relevant. Use a fenced code
+        block. Strip secrets first.
+      render: shell
+
+  - type: checkboxes
+    id: searched
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched existing issues and didn't find a duplicate.
+          required: true
+        - label: I confirmed this isn't fixed in `main`.
+          required: false

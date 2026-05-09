@@ -279,16 +279,26 @@ export default function ProposalReviewQueue() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.knowledge.listProposalsFiltered({
-        status: 'pending', limit: 100, includeMachineRejected: true,
-      });
+      // The pending queue auto-promotes machine_status='rejected' proposals to
+      // status='rejected', so the default `status: 'pending'` query never
+      // surfaces them. When the operator selects the "Machine rejected" filter
+      // we have to flip the server query to load that finalized set instead.
+      // includeMachineRejected:true is required even when fetching the rejected
+      // set explicitly — the backend's default-off filter adds an
+      //   `AND (machine_status IS NULL OR machine_status <> 'rejected')`
+      // exclusion clause that would otherwise cancel the explicit
+      // machine_status='rejected' and return zero rows.
+      const opts = filter === 'rejected'
+        ? { status: 'rejected', machineStatus: 'rejected', limit: 100, includeMachineRejected: true }
+        : { status: 'pending', limit: 100, includeMachineRejected: true };
+      const data = await api.knowledge.listProposalsFiltered(opts);
       setProposals(data.proposals || []);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filter]);
 
   const fetchJudgeStatus = useCallback(async () => {
     try {
@@ -441,7 +451,10 @@ export default function ProposalReviewQueue() {
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-        <h3 style={{ margin: 0 }}>Pending Proposals ({visible.length}/{proposals.length})</h3>
+        <h3 style={{ margin: 0 }}>
+          {filter === 'rejected' ? 'Machine-Rejected Proposals' : 'Pending Proposals'}
+          {' '}({visible.length}/{proposals.length})
+        </h3>
         <label>
           Filter:
           <select value={filter} onChange={e => setFilter(e.target.value)} style={{ marginLeft: '6px' }}>

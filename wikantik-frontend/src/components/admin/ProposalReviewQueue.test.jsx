@@ -412,6 +412,62 @@ describe('ProposalReviewQueue — Details column typed renderer', () => {
 });
 
 // ---------------------------------------------------------------------------
+// "Machine rejected" filter — switches the loadProposals API call so the
+// auto-promoted (status='rejected') set actually shows up.
+// ---------------------------------------------------------------------------
+
+describe('ProposalReviewQueue — Machine rejected filter', () => {
+  it('switching to "Machine rejected" loads the rejected set with the right opts', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({ proposals: PROPOSALS });
+    render(<ProposalReviewQueue />);
+    await screen.findByText('new-edge');
+
+    // First call (initial load) was for pending.
+    expect(api.knowledge.listProposalsFiltered).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'pending', includeMachineRejected: true })
+    );
+
+    // Switch to "Machine rejected" filter.
+    api.knowledge.listProposalsFiltered.mockResolvedValueOnce({
+      proposals: [{
+        id: 'rej-1',
+        proposal_type: 'new-node',
+        source_page: 'P.md',
+        proposed_data: { name: 'Junk' },
+        confidence: 0.6,
+        reasoning: '',
+        status: 'rejected',
+        machine_status: 'rejected',
+      }],
+    });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'rejected' } });
+
+    await waitFor(() =>
+      expect(api.knowledge.listProposalsFiltered).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'rejected',
+          machineStatus: 'rejected',
+          includeMachineRejected: true,
+        })
+      )
+    );
+  });
+
+  it('header label says "Machine-Rejected Proposals" when filter is rejected', async () => {
+    api.knowledge.listProposalsFiltered.mockResolvedValue({ proposals: PROPOSALS });
+    render(<ProposalReviewQueue />);
+    await screen.findByText('new-edge');
+
+    expect(screen.getByRole('heading', { name: /Pending Proposals/ })).toBeInTheDocument();
+
+    api.knowledge.listProposalsFiltered.mockResolvedValueOnce({ proposals: [] });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'rejected' } });
+
+    await screen.findByRole('heading', { name: /Machine-Rejected Proposals/ });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // formatRelativeTime — pure helper
 // ---------------------------------------------------------------------------
 

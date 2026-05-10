@@ -35,8 +35,17 @@ import java.util.List;
  * {@link #missingFields} names which fields are absent — agents should weight
  * the response accordingly.</p>
  *
- * <p>{@link #runbook} stays {@code null} until Phase 3 of the Agent-Grade
- * Content design introduces the runbook page type.</p>
+ * <p>{@link #runbook} is non-null only when the page carries a valid
+ * {@code type: runbook} block in its frontmatter (Phase 3 of Agent-Grade
+ * Content, shipped).</p>
+ *
+ * <p>{@link #agentHints} is derived (never authored) by
+ * {@code AgentHintsDeriver} at projection time. A {@code null} value signals
+ * whole-block degradation (the deriver threw); a non-null but empty block
+ * means the page genuinely had no hints to derive.</p>
+ *
+ * <p>{@link #summarySynthesized} is {@code true} iff the hub-overlay step
+ * replaced the authored summary with a synthesized one.</p>
  */
 public record ForAgentProjection(
         String canonicalId,
@@ -55,6 +64,8 @@ public record ForAgentProjection(
         List< RecentChange > recentChanges,
         List< McpToolHint > mcpToolHints,
         Object runbook,
+        AgentHintsBlock agentHints,
+        boolean summarySynthesized,
         String fullBodyUrl,
         String rawMarkdownUrl,
         boolean degraded,

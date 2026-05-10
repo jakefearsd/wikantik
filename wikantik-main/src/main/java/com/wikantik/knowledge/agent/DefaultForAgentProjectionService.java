@@ -217,6 +217,8 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 changes,
                 hints,
                 runbook,
+                null,                                        // agentHints — Task 6 fills this in
+                false,                                       // summarySynthesized — Task 8 sets this
                 "/api/pages/" + d.slug(),
                 "/wiki/" + d.slug() + "?format=md",
                 !missing.isEmpty(),

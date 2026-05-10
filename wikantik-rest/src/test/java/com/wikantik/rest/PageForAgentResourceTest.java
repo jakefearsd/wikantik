@@ -95,6 +95,7 @@ class PageForAgentResourceTest {
                 List.of( new HeadingOutline( 2, "Wiring" ) ),
                 List.of(), List.of(),
                 null,
+                null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
                 false, List.of() );
         when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
@@ -130,6 +131,7 @@ class PageForAgentResourceTest {
                 null, null, null, null,
                 List.of(), List.of(), List.of(), List.of(),
                 null,
+                null, false,
                 "/api/pages/Slug", "/wiki/Slug?format=md",
                 true, List.of( "headings_outline", "key_facts" ) );
         when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );

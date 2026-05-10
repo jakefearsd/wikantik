@@ -77,6 +77,7 @@ class GetPageForAgentToolTest {
                 "Operator reference for hybrid retrieval.",
                 List.of(), List.of(), List.of(), List.of(),
                 null,
+                null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
                 false, List.of() );
         when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );

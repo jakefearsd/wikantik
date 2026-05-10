@@ -229,6 +229,7 @@ class DefaultForAgentProjectionServiceTest {
                 "summary",
                 List.of(), List.of(), List.of(), List.of(),
                 null,
+                null, false,
                 "/api/pages/Slug", "/wiki/Slug?format=md",
                 false, List.of() );
     }

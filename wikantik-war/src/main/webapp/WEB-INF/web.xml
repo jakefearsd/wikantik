@@ -367,6 +367,10 @@
        <servlet-class>com.wikantik.rest.AdminFrontmatterIssuesResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AdminAgentGradeAuditServlet</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminAgentGradeAuditServlet</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminRetrievalQualityResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminRetrievalQualityResource</servlet-class>
    </servlet>
@@ -555,6 +559,10 @@
    <servlet-mapping>
        <servlet-name>AdminFrontmatterIssuesResource</servlet-name>
        <url-pattern>/admin/frontmatter-issues</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminAgentGradeAuditServlet</servlet-name>
+       <url-pattern>/admin/agent-grade-audit</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminRetrievalQualityResource</servlet-name>

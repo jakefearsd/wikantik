@@ -216,6 +216,7 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 LOG.warn( "for-agent: agent_hints derivation threw for {}: {}", d.slug(), e.getMessage() );
                 missing.add( "agent_hints" );
                 agentHints = null;
+                if ( metrics != null ) metrics.incrementHintsDerivationFailures();
             }
         }
 
@@ -230,6 +231,7 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 if ( overlay.isPresent() ) {
                     effectiveSummary = overlay.get();
                     summarySynthesized = true;
+                    if ( metrics != null ) metrics.incrementHubSummarySynthesis();
                 }
             } catch ( final Exception e ) {
                 LOG.warn( "for-agent: hub summary overlay threw for {}: {}", d.slug(), e.getMessage() );

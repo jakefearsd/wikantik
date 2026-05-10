@@ -152,7 +152,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 tools.add( new GetPageTool( ctxService ) );
                 tools.add( new ListPagesTool( ctxService ) );
                 tools.add( new ListMetadataValuesTool( ctxService ) );
-                tools.add( new ReadPagesTool( pageManager ) );
+                tools.add( new ReadPagesTool( pageManager, ReadPagesMetrics.resolveAndBind() ) );
             }
             if ( structuralIndex != null ) {
                 tools.add( new ListClustersTool( structuralIndex ) );

@@ -48,9 +48,11 @@ public class ReadPagesTool implements McpTool {
     private static final int MAX_SLUGS = 20;
 
     private final PageManager pageManager;
+    private final ReadPagesMetrics metrics;
 
-    public ReadPagesTool( final PageManager pageManager ) {
+    public ReadPagesTool( final PageManager pageManager, final ReadPagesMetrics metrics ) {
         this.pageManager = pageManager;
+        this.metrics = metrics;
     }
 
     @Override
@@ -131,6 +133,7 @@ public class ReadPagesTool implements McpTool {
                 if ( page == null ) {
                     entry.put( "content", null );
                     entry.put( "error", "not_found" );
+                    if ( metrics != null ) metrics.recordPartialFailure( "not_found" );
                 } else {
                     final String text = pageManager.getPureText( slug, PageProvider.LATEST_VERSION );
                     entry.put( "content", text == null ? "" : text );
@@ -139,6 +142,7 @@ public class ReadPagesTool implements McpTool {
                 LOG.warn( "read_pages: lookup failed for {}: {}", slug, e.getMessage() );
                 entry.put( "content", null );
                 entry.put( "error", "internal_error" );
+                if ( metrics != null ) metrics.recordPartialFailure( "internal_error" );
             }
             out.add( entry );
         }

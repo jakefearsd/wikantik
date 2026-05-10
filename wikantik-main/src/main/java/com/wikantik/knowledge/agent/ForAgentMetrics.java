@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.agent;
 
 import com.wikantik.api.observability.MeterRegistryHolder;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.logging.log4j.LogManager;
@@ -38,6 +39,8 @@ public final class ForAgentMetrics {
     private static final Logger LOG = LogManager.getLogger( ForAgentMetrics.class );
 
     private DistributionSummary responseBytes;
+    private Counter hintsDerivationFailures;
+    private Counter hubSummarySynthesis;
 
     public void bind( final MeterRegistry registry ) {
         if ( registry == null ) return;
@@ -46,12 +49,26 @@ public final class ForAgentMetrics {
                 .baseUnit( "bytes" )
                 .publishPercentileHistogram()
                 .register( registry );
+        this.hintsDerivationFailures = Counter.builder( "wikantik_agent_hints_derivation_failures_total" )
+                .description( "Whole-block agent_hints derivation failures (deriver exception caught by projection service)" )
+                .register( registry );
+        this.hubSummarySynthesis = Counter.builder( "wikantik_hub_summary_synthesis_total" )
+                .description( "Hub-summary overlay activations (generic summary detected and replaced by Top-3 highlight)" )
+                .register( registry );
     }
 
     public void recordBytes( final int bytes ) {
         if ( responseBytes != null && bytes >= 0 ) {
             responseBytes.record( bytes );
         }
+    }
+
+    public void incrementHintsDerivationFailures() {
+        if ( hintsDerivationFailures != null ) hintsDerivationFailures.increment();
+    }
+
+    public void incrementHubSummarySynthesis() {
+        if ( hubSummarySynthesis != null ) hubSummarySynthesis.increment();
     }
 
     public static ForAgentMetrics resolveAndBind() {

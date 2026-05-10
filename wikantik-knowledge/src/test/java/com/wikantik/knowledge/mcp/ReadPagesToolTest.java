@@ -41,7 +41,7 @@ class ReadPagesToolTest {
     @BeforeEach
     void setUp() {
         pageManager = mock( PageManager.class );
-        tool = new ReadPagesTool( pageManager );
+        tool = new ReadPagesTool( pageManager, null );
     }
 
     @Test

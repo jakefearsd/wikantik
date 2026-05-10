@@ -77,7 +77,7 @@ Throws nothing — returns `AgentHintsBlock(List.of(), List.of())` on any intern
 
 1. Run `McpToolHintsResolver` on the current page → tool name list.
 2. If page has a cluster hub (and hub ≠ self), run resolver on the hub → tool name list.
-3. Concatenate both lists, count occurrences, sort by count descending then alphabetical (deterministic tie-break), take top 5, dedupe.
+3. Concatenate both lists (self first, hub second), count occurrences in a `LinkedHashMap`, sort by count descending; the stable sort preserves insertion order as the tie-break — so when two tools have equal frequency, the one the page itself declares first wins. This matters because `mcp_tool_hints:` frontmatter is *ordered* — authors list tools in priority order, and we should preserve that signal rather than re-alphabetise it. Take top 5, dedupe by name.
 4. Output: `List<String>` of bare tool names (matching the snake_case convention used by `runbook.related_tools`).
 
 #### `prefer_pages` derivation

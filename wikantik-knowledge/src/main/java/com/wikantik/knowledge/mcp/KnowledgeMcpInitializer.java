@@ -32,10 +32,12 @@ import com.wikantik.api.Release;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge;
 import com.wikantik.auth.AbstractJDBCDatabase;
 import com.wikantik.knowledge.MentionIndex;
@@ -93,6 +95,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
         final ContextRetrievalService ctxService = kg.contextRetrievalService();
         final StructuralIndexService structuralIndex = PageGraphSubsystemBridge.fromLegacyEngine( engine ).structuralIndexService();
         final ForAgentProjectionService forAgent = kg.forAgentProjectionService();
+        final PageManager pageManager = PageSubsystemBridge.fromLegacyEngine( engine ).pages();
 
         if ( kgService == null && ctxService == null && structuralIndex == null ) {
             LOG.info( "Neither KnowledgeGraphService, ContextRetrievalService, nor " +
@@ -149,6 +152,7 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 tools.add( new GetPageTool( ctxService ) );
                 tools.add( new ListPagesTool( ctxService ) );
                 tools.add( new ListMetadataValuesTool( ctxService ) );
+                tools.add( new ReadPagesTool( pageManager ) );
             }
             if ( structuralIndex != null ) {
                 tools.add( new ListClustersTool( structuralIndex ) );
@@ -175,8 +179,8 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                     .instructions( "Agent-facing MCP endpoint. For wiki structure (fastest, " +
                         "no full-text search) use list_clusters, list_tags, list_pages_by_filter, " +
                         "or get_page_by_id. For wiki content use retrieve_context " +
-                        "(primary RAG), get_page (pinned fetch), list_pages (browse), or " +
-                        "list_metadata_values (discovery). For Knowledge Graph (LLM-extracted entities) use " +
+                        "(primary RAG), get_page (pinned fetch), read_pages (batched markdown fetch, max 20), " +
+                        "list_pages (browse), or list_metadata_values (discovery). For Knowledge Graph (LLM-extracted entities) use " +
                         "discover_schema, query_nodes, get_node, traverse, search_knowledge, " +
                         "or find_similar." )
                     .capabilities( ServerCapabilities.builder()

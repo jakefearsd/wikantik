@@ -47,13 +47,10 @@ public final class HubSummarySynthesizer {
                 || derivedHints.prefer_pages() == null
                 || derivedHints.prefer_pages().isEmpty() )       return Optional.empty();
 
-        final List< PreferredPage > top = derivedHints.prefer_pages().stream()
+        final List< String > topTitles = derivedHints.prefer_pages().stream()
                 .limit( 3 )
-                .toList();
-        final String titles = top.stream()
                 .map( PreferredPage::title )
-                .reduce( ( a, b ) -> a + ", " + b )
-                .orElse( "" );
-        return Optional.of( "Cluster hub. Highest-signal pages: " + titles + "." );
+                .toList();
+        return Optional.of( "Cluster hub. Highest-signal pages: " + String.join( ", ", topTitles ) + "." );
     }
 }

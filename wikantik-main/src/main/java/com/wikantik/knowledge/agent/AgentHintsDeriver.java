@@ -26,8 +26,10 @@ import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.ClusterDetails;
+import com.wikantik.api.pagegraph.Confidence;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
+import com.wikantik.api.pagegraph.Verification;
 import com.wikantik.api.providers.WikiProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -82,7 +84,7 @@ public final class AgentHintsDeriver {
                     : index.getCluster( self.cluster() );
 
             final List< String > tools = derivePreferTools( self, cluster.orElse( null ) );
-            final List< PreferredPage > pages = List.of();   // Task 5 fills this in
+            final List< PreferredPage > pages = derivePreferPages( self, cluster.orElse( null ) );
 
             return new AgentHintsBlock( tools, pages );
         } catch ( final Exception ex ) {
@@ -139,5 +141,62 @@ public final class AgentHintsDeriver {
         final String trimmed = raw.trim();
         final int lastSlash = trimmed.lastIndexOf( '/' );
         return lastSlash < 0 ? trimmed : trimmed.substring( lastSlash + 1 );
+    }
+
+    /* ------------------------------------------------------------ prefer_pages */
+
+    private List< PreferredPage > derivePreferPages( final PageDescriptor self, final ClusterDetails cluster ) {
+        if ( cluster == null ) return List.of();
+
+        final List< PreferredPage > out = new ArrayList<>();
+        final PageDescriptor hub = cluster.hubPage();
+        if ( hub != null && !hub.slug().equals( self.slug() ) ) {
+            out.add( new PreferredPage( hub.canonicalId(), hub.title(), "cluster_hub" ) );
+        }
+
+        record Scored( PageDescriptor page, double score, boolean authoritative ) {}
+
+        final java.util.Set< String > clusterSlugs = cluster.articles().stream()
+                .map( PageDescriptor::slug )
+                .collect( java.util.stream.Collectors.toSet() );
+
+        final List< Scored > scored = new ArrayList<>();
+        for ( final PageDescriptor cand : cluster.articles() ) {
+            if ( cand.slug().equals( self.slug() ) ) continue;
+            if ( hub != null && cand.slug().equals( hub.slug() ) ) continue;
+
+            int inbound = 0;
+            try {
+                final java.util.Set< String > referrers = refs.findReferrers( cand.slug() );
+                if ( referrers != null ) {
+                    for ( final String r : referrers ) {
+                        if ( clusterSlugs.contains( r ) ) inbound++;
+                    }
+                }
+            } catch ( final Exception e ) {
+                LOG.warn( "agent-hints: findReferrers({}) failed: {}", cand.slug(), e.getMessage() );
+            }
+
+            boolean authoritative = false;
+            try {
+                final Optional< Verification > v = index.verificationOf( cand.canonicalId() );
+                authoritative = v.isPresent() && v.get().confidence() == Confidence.AUTHORITATIVE;
+            } catch ( final Exception e ) {
+                LOG.warn( "agent-hints: verificationOf({}) failed: {}", cand.canonicalId(), e.getMessage() );
+            }
+            final double score = inbound * ( authoritative ? VERIFIED_AUTHORITATIVE_BONUS : 1.0 );
+            scored.add( new Scored( cand, score, authoritative ) );
+        }
+
+        scored.stream()
+              .sorted( Comparator.< Scored >comparingDouble( s -> s.score ).reversed()
+                                 .thenComparing( s -> s.page.title() == null ? "" : s.page.title() ) )
+              .limit( PREFER_PAGES_CAP - out.size() )
+              .forEach( s -> out.add( new PreferredPage(
+                      s.page.canonicalId(),
+                      s.page.title(),
+                      s.authoritative ? "authoritative_reference" : "cluster_member" ) ) );
+
+        return List.copyOf( out );
     }
 }

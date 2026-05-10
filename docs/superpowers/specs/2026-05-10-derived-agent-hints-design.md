@@ -39,19 +39,19 @@ Plus one operator surface:
 
 ### Components
 
-| Component | Module | Purpose |
-|---|---|---|
+| Component                                                                                     | Module                                           | Purpose                                                                                                                                                                      |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AgentHintsBlock` (record: `prefer_tools: List<String>`, `prefer_pages: List<PreferredPage>`) | `wikantik-api` | New typed slot on `ForAgentProjection`. Snake_case Java field names so default Gson serialisation matches the wire form (mirrors `RunbookBlock` convention). |
-| `PreferredPage` (record: `canonical_id`, `title`, `role`) | `wikantik-api` | Each `prefer_pages` entry. `title` included so agents do not need a second projection call to decide whether to fetch. `role` ∈ `cluster_hub | authoritative_reference | cluster_member`. |
+| `PreferredPage` (record: `canonical_id`, `title`, `role`) | `wikantik-api` | Each `prefer_pages` entry. `title` included so agents do not need a second projection call to decide whether to fetch. `role` ∈ {`cluster_hub`, `authoritative_reference`, `cluster_member`}. |
 | `AgentHintsDeriver` | `wikantik-main` (`com.wikantik.knowledge.agent`) | Composes the block from existing signals. Stateless; takes service dependencies via constructor. |
 | `HubSummarySynthesizer` | `wikantik-main` (same package) | Detects generic hub summary; synthesises overlay from `prefer_pages[0..2]`. |
 | New field `AgentHintsBlock agentHints` on `ForAgentProjection` | `wikantik-api` | Typed concretely (unlike `runbook: Object`, which was deferred-typed for forward compat we no longer need). |
 | New field `boolean summarySynthesized` on `ForAgentProjection` | `wikantik-api` | `true` iff the hub overlay fired. Operators and downstream tools can detect synthesis without diffing text. |
 | Wire-up in `DefaultForAgentProjectionService` | `wikantik-main` | Adds the `agent_hints` extractor + summary overlay step. Both wrapped in per-step try/catch, populating `degraded` + `missing_fields` on failure (matches existing pattern). |
-
-**Naming convention reminder:** top-level `ForAgentProjection` record fields are camelCase Java (`agentHints`, `summarySynthesized`) and rely on the projection's existing Gson naming policy to emit snake_case on the wire. Nested records (`AgentHintsBlock`, `PreferredPage`) use snake_case Java fields directly — same trick `RunbookBlock` uses, so default Gson serialisation matches the wire form without a per-instance naming policy. Do not mix the two within a single record.
 | `AgentGradeAuditResource` | `wikantik-rest` | `GET /admin/agent-grade-audit?limit=N&offset=M`, behind `AdminAuthFilter`. |
 | `ReadPagesTool` | `wikantik-knowledge` (`com.wikantik.knowledge.mcp`) | New MCP tool registered by `KnowledgeMcpInitializer`. |
+
+**Naming convention reminder:** top-level `ForAgentProjection` record fields are camelCase Java (`agentHints`, `summarySynthesized`) and rely on the projection's existing Gson naming policy to emit snake_case on the wire. Nested records (`AgentHintsBlock`, `PreferredPage`) use snake_case Java fields directly — same trick `RunbookBlock` uses, so default Gson serialisation matches the wire form without a per-instance naming policy. Do not mix the two within a single record.
 
 ## Detailed Design
 
@@ -223,13 +223,13 @@ Response:
 
 #### Weakness flags
 
-| Flag | Detection |
-|---|---|
-| `no_cluster` | Frontmatter `cluster:` absent or empty. |
+| Flag                       | Detection                                                                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `no_cluster`               | Frontmatter `cluster:` absent or empty.                                                                                              |
 | `no_inbound_cluster_links` | Page graph reports zero inbound wikilinks from same-cluster pages. (Excludes hubs — hubs are *expected* to have outbound > inbound.) |
-| `generic_hub_summary` | `is_hub == true` AND `summary` matches the generic regex used by `HubSummarySynthesizer`. |
-| `no_verified_at` | `page_verification.verified_at` is null. |
-| `stale_verification` | `ConfidenceComputer.compute(...)` returns `STALE`. |
+| `generic_hub_summary`      | `is_hub == true` AND `summary` matches the generic regex used by `HubSummarySynthesizer`.                                            |
+| `no_verified_at`           | `page_verification.verified_at` is null.                                                                                             |
+| `stale_verification`       | `ConfidenceComputer.compute(...)` returns `STALE`.                                                                                   |
 
 Pages with zero flags are not returned. Sort: descending by flag count, then by `canonical_id` for determinism.
 
@@ -249,24 +249,24 @@ The audit endpoint does NOT use the projection cache (it queries the structural 
 
 ## Edge Cases
 
-| Case | Behaviour |
-|---|---|
-| Page has no cluster | `prefer_pages: []`. `prefer_tools` derived from page body alone. No degradation flag. |
-| Cluster has only one page (the current page) | `prefer_pages: []`. No degradation flag. |
-| Cluster hub IS the current page | Skip hub entry; `prefer_pages` = top 5 cluster-mates. |
-| `McpToolHintsResolver` throws on current page | `prefer_tools` derived from hub only (or empty). Whole block still returns. No degradation. |
-| `McpToolHintsResolver` throws on hub | `prefer_tools` derived from current page only. |
-| `PageGraphService` throws | `prefer_pages` empty; `prefer_tools` still derived. No degradation. |
-| `PageVerificationService` throws on a candidate | Treat as `confidence = null`, score with 1.0 multiplier. Continue. |
-| `PageManager.getTitle` returns null for a candidate | Skip that candidate (do not emit a `PreferredPage` with null title). |
-| Whole `AgentHintsDeriver.derive(...)` throws | Caller catches → `agent_hints: null`, `missing_fields += ["agent_hints"]`, `degraded = true`. |
-| Hub has no authored summary | `HubSummarySynthesizer` does not fire (regex doesn't match empty/null). |
-| Hub summary is rich (non-generic) | Synthesizer does not fire. `summarySynthesized: false`. |
-| Hub matches regex but `prefer_pages` empty | Synthesizer does not fire — no signal to synthesise from, leave authored summary intact. |
-| `read_pages` called with empty slug list | MCP `invalid_params` (covered by `minItems: 1`). |
-| `read_pages` called with 21+ slugs | MCP `invalid_params` with explicit cap message. |
-| `read_pages` slug duplicated within batch | Process each occurrence (or dedupe — implementation may pick; deduping is harmless and saves work). |
-| Audit endpoint with no weak pages in corpus | `{total: 0, pages: []}`, 200 OK. |
+| Case                                                | Behaviour                                                                                           |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Page has no cluster                                 | `prefer_pages: []`. `prefer_tools` derived from page body alone. No degradation flag.               |
+| Cluster has only one page (the current page)        | `prefer_pages: []`. No degradation flag.                                                            |
+| Cluster hub IS the current page                     | Skip hub entry; `prefer_pages` = top 5 cluster-mates.                                               |
+| `McpToolHintsResolver` throws on current page       | `prefer_tools` derived from hub only (or empty). Whole block still returns. No degradation.         |
+| `McpToolHintsResolver` throws on hub                | `prefer_tools` derived from current page only.                                                      |
+| `PageGraphService` throws                           | `prefer_pages` empty; `prefer_tools` still derived. No degradation.                                 |
+| `PageVerificationService` throws on a candidate     | Treat as `confidence = null`, score with 1.0 multiplier. Continue.                                  |
+| `PageManager.getTitle` returns null for a candidate | Skip that candidate (do not emit a `PreferredPage` with null title).                                |
+| Whole `AgentHintsDeriver.derive(...)` throws        | Caller catches → `agent_hints: null`, `missing_fields += ["agent_hints"]`, `degraded = true`.       |
+| Hub has no authored summary                         | `HubSummarySynthesizer` does not fire (regex doesn't match empty/null).                             |
+| Hub summary is rich (non-generic)                   | Synthesizer does not fire. `summarySynthesized: false`.                                             |
+| Hub matches regex but `prefer_pages` empty          | Synthesizer does not fire — no signal to synthesise from, leave authored summary intact.            |
+| `read_pages` called with empty slug list            | MCP `invalid_params` (covered by `minItems: 1`).                                                    |
+| `read_pages` called with 21+ slugs                  | MCP `invalid_params` with explicit cap message.                                                     |
+| `read_pages` slug duplicated within batch           | Process each occurrence (or dedupe — implementation may pick; deduping is harmless and saves work). |
+| Audit endpoint with no weak pages in corpus         | `{total: 0, pages: []}`, 200 OK.                                                                    |
 
 ## Observability
 

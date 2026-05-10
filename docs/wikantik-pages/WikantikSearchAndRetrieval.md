@@ -1,19 +1,5 @@
 ---
 canonical_id: 01KQTCB8K3TXN8SKQFJ7WZ7FJC
-verified_at: '2026-05-04T20:57:11.590236001Z'
-verified_by: gemini-cli-mcp-client
----
------
-canonical_id: 01KQTCB8K3TXN8SKQFJ7WZ7FJC
-summary: A deep dive into the hybrid search engine, RRF fusion, and Knowledge Graph
-  reranking.
-status: official
-type: article
-date: '2026-05-04'
-cluster: wikantik-platform
-title: Wikantik Search and Retrieval
-- target: 01KQTCAKV3BVHYPW20PHSFGXJR
-  relationship: part-of
 ---
 # Wikantik Search and Retrieval
 

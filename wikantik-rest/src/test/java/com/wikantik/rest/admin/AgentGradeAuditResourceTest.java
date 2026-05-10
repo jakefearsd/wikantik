@@ -169,4 +169,24 @@ class AgentGradeAuditResourceTest {
         final JsonObject root = JsonParser.parseString( resource.audit( 0, 0 ) ).getAsJsonObject();
         assertEquals( 50, root.get( "limit" ).getAsInt() );
     }
+
+    @Test
+    void staleVerificationFlagFires() {
+        // Page with verifiedAt 100 days ago — past the 90-day default stale window.
+        // The fixture's no-trusted-author predicate keeps it out of AUTHORITATIVE,
+        // and the 100-day age pushes it past STALE.
+        final PageDescriptor p = pd( "p1", "P1", "cx" );
+        when( index.listPagesByFilter( any() ) ).thenReturn( List.of( p ) );
+        when( index.getCluster( "cx" ) ).thenReturn( Optional.empty() );
+        when( index.verificationOf( "p1" ) ).thenReturn( Optional.of(
+                new Verification( Instant.now().minus( java.time.Duration.ofDays( 100 ) ),
+                                  "tester", Confidence.PROVISIONAL, Audience.AGENTS ) ) );
+
+        final String body = resource.audit( 50, 0 );
+        assertTrue( body.contains( "stale_verification" ),
+                    "100-day-old verification should trigger stale_verification flag" );
+        // And NOT no_verified_at — that would be double-flagging.
+        assertFalse( body.contains( "no_verified_at" ),
+                     "stale_verification and no_verified_at should be mutually exclusive" );
+    }
 }

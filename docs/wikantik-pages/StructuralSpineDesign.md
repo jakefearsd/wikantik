@@ -396,6 +396,13 @@ Total: ~1.75 dev-sprints. The structural queries (Phase 1's observe-only mode) a
 1. **ULID vs UUIDv7.** Proposal picks ULID for its URL-safety and sort-friendliness, but UUIDv7 has wider tooling support. Decision: ULID, but store as `CHAR(26)` so migration to UUIDv7 is a column-type change, not a schema rethink.
 2. **Cluster membership: frontmatter `cluster` vs multi-cluster.** Today `cluster: <name>` is a scalar. Multi-cluster membership is not supported — if needed, extend the frontmatter parser to accept `cluster: [name1, name2]` in a follow-up. No relation mechanism needed.
 
+## Structural Index consumers
+
+Code that queries `StructuralIndexService` for cluster or verification data:
+
+- **`AgentHintsDeriver`** (in `wikantik-main`) — uses `StructuralIndexService.getCluster(...)` for hub designation and `verificationOf(...)` for the AUTHORITATIVE confidence bonus. Powers `prefer_pages` on the `/for-agent` projection.
+- **`AgentGradeAuditResource`** (in `wikantik-rest`) — scans the index via `listPagesByFilter` to surface pages with weak agent-grade signals (no cluster, no intra-cluster inbound links, generic hub summary, missing or stale verification). Mounted at `GET /admin/agent-grade-audit`.
+
 ## Related designs
 
 - [AgentGradeContentDesign](AgentGradeContentDesign) — the companion design that consumes this structural spine for agent-shaped page projections and retrieval-quality CI.

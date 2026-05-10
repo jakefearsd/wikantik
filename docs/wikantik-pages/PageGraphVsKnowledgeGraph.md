@@ -66,6 +66,12 @@ strictly the wikilinks graph. If curated typed edges between concepts
 need to come back later, they belong on the Knowledge Graph as
 admin-approved edges, not in page frontmatter.
 
+## Page Graph consumers
+
+Code that reads wikilink or cluster data from the Page Graph subsystem:
+
+- **`AgentHintsDeriver`** (in `wikantik-main`, package `com.wikantik.knowledge.agent`) — uses `ReferenceManager.findReferrers(slug)` to compute intra-cluster inbound link centrality for `prefer_pages` ranking on the `/for-agent` projection. See [docs/superpowers/specs/2026-05-10-derived-agent-hints-design.md](../superpowers/specs/2026-05-10-derived-agent-hints-design.md).
+
 ## See also
 
 - [StructuralSpineDesign](StructuralSpineDesign) — the canonical-id

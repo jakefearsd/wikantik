@@ -85,6 +85,19 @@ Before a page is considered "Agent-Grade," it must pass the following check:
 3.  **Identity Check:** `canonical_id` is present and unique.
 4.  **Audit:** Use the `mark_page_verified` tool to stamp the metadata.
 
+## Phase 7 — Derived agent hints + agent batch reads (2026-05-10)
+
+Tuning of the agent surface based on external-agent feedback (Gemini's report on the discovery → action gap and per-page read tax). Four deliverables landed in one spec:
+
+1. **Derived `agent_hints` on `/for-agent`** — new projection field with `prefer_tools` (ranked from `McpToolHintsResolver` across the page + cluster hub) and `prefer_pages` (cluster hub + intra-cluster wikilink centrality, with a 1.5× bonus for verified-authoritative pages). Computed at projection time by `AgentHintsDeriver` — zero author burden. The original temptation was an authored `agent_hints:` frontmatter block (mirroring `runbook:`), but author burden was judged too high for adoption.
+2. **Hub summary overlay** — when an authored hub summary matches `(?i)^\s*(an?\s+)?index of (pages?|articles?|content)\s+(on|about|covering|for)\b`, `HubSummarySynthesizer` overlays a Top-3 highlight built from the derived `prefer_pages`. Read-only — never writes back to the page body. Signalled to consumers via `summary_synthesized: true`.
+3. **`read_pages` MCP tool on `/knowledge-mcp`** — batched raw-markdown reads (cap 20). Per-page failures (`not_found`, `internal_error`) come back as data on a 200 response; only input validation fails the call. Removes the per-page read tax for cluster-spanning research.
+4. **`/admin/agent-grade-audit` weak-signal report** — operator surface listing pages flagged by `no_cluster`, `no_inbound_cluster_links` (non-hubs only), `generic_hub_summary`, `no_verified_at`, or `stale_verification`. Sorted by flag count then `canonical_id`. The schema-burden alternative (mandatory frontmatter) was rejected; this audit is the operator's compensating tool to find pages worth manual improvement.
+
+Three Prometheus counters land alongside: `wikantik_agent_hints_derivation_failures_total`, `wikantik_hub_summary_synthesis_total`, `wikantik_read_pages_partial_failures_total{reason}`.
+
+Spec: [docs/superpowers/specs/2026-05-10-derived-agent-hints-design.md](../superpowers/specs/2026-05-10-derived-agent-hints-design.md). Implementation plan: [docs/superpowers/plans/2026-05-10-derived-agent-hints.md](../superpowers/plans/2026-05-10-derived-agent-hints.md).
+
 ## Conclusion: The Goal of Structural Integrity
 
 The Structural Spine is not just about formatting; it is about **Epistemic Reliability**. By adhering to these standards, we ensure that Wikantik remains a high-trust repository where agents can navigate complex technical landscapes without hallucinating or losing context.

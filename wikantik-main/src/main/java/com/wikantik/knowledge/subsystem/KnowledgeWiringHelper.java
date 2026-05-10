@@ -24,14 +24,17 @@ import com.wikantik.admin.LuceneReindexQueue;
 import com.wikantik.admin.LuceneSearchProviderAdapter;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.cache.CachingManager;
 import com.wikantik.core.subsystem.CoreSubsystem;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
 import com.wikantik.knowledge.KgRejectionRepository;
+import com.wikantik.knowledge.agent.AgentHintsDeriver;
 import com.wikantik.knowledge.agent.DefaultForAgentProjectionService;
 import com.wikantik.knowledge.agent.ForAgentMetrics;
+import com.wikantik.knowledge.agent.HubSummarySynthesizer;
 import com.wikantik.knowledge.chunking.ChunkProjector;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.chunking.ContentChunker;
@@ -112,6 +115,7 @@ public final class KnowledgeWiringHelper {
             final MeterRegistry meterRegistry,
             final PageManager pageManager,
             final CachingManager cachingManager,
+            final ReferenceManager referenceManager,
             final WikiEngine engine ) {
 
         // KG inclusion policy
@@ -147,12 +151,16 @@ public final class KnowledgeWiringHelper {
 
         // ForAgentProjectionService
         final ForAgentMetrics forAgentMetrics = ForAgentMetrics.resolveAndBind();
+        final AgentHintsDeriver hintsDeriver =
+            new AgentHintsDeriver( structuralIndex, pageManager, referenceManager );
         final DefaultForAgentProjectionService forAgentService =
             new DefaultForAgentProjectionService(
                 structuralIndex,
                 pageManager,
                 cachingManager,
-                forAgentMetrics );
+                forAgentMetrics,
+                hintsDeriver,
+                new HubSummarySynthesizer() );
         engine.registerForAgentProjectionService( forAgentService );
         LOG.info( "ForAgentProjectionService registered" );
 

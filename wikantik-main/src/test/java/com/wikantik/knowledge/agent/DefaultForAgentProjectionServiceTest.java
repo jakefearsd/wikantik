@@ -18,7 +18,9 @@
  */
 package com.wikantik.knowledge.agent;
 
+import com.wikantik.api.agent.AgentHintsBlock;
 import com.wikantik.api.agent.ForAgentProjection;
+import com.wikantik.api.agent.PreferredPage;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.Audience;
@@ -53,7 +55,7 @@ class DefaultForAgentProjectionServiceTest {
         pm = mock( PageManager.class );
         cache = mock( CachingManager.class );
         when( cache.enabled( anyString() ) ).thenReturn( false );
-        svc = new DefaultForAgentProjectionService( idx, pm, cache, new ForAgentMetrics() );
+        svc = new DefaultForAgentProjectionService( idx, pm, cache, new ForAgentMetrics(), null, null );
     }
 
     @Test
@@ -232,5 +234,65 @@ class DefaultForAgentProjectionServiceTest {
                 null, false,
                 "/api/pages/Slug", "/wiki/Slug?format=md",
                 false, List.of() );
+    }
+
+    // ----------------------------------------------------------------- Task 6 tests
+
+    @Test
+    void agentHintsBlockLandsOnProjectionWhenDeriverReturnsHits() {
+        final PageDescriptor d = new PageDescriptor(
+                "01ABC", "HybridRetrieval", "Hybrid Retrieval", PageType.ARTICLE,
+                "wikantik-development", List.of( "retrieval" ),
+                "Operator reference for hybrid retrieval.",
+                Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty() );
+        when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
+        when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
+        when( pm.getPureText( "HybridRetrieval", -1 ) ).thenReturn( "" );
+        when( pm.getVersionHistory( "HybridRetrieval" ) ).thenReturn( List.of() );
+
+        final AgentHintsDeriver stubDeriver = mock( AgentHintsDeriver.class );
+        when( stubDeriver.derive( any( String.class ) ) ).thenReturn(
+                new AgentHintsBlock(
+                        List.of( "search_knowledge", "list_clusters" ),
+                        List.of( new PreferredPage( "hub_x", "Hub X", "cluster_hub" ) ) ) );
+
+        final DefaultForAgentProjectionService testSvc = newServiceUnderTest( stubDeriver, new HubSummarySynthesizer() );
+        final ForAgentProjection p = testSvc.project( "01ABC" ).orElseThrow();
+
+        assertNotNull( p.agentHints() );
+        assertEquals( List.of( "search_knowledge", "list_clusters" ), p.agentHints().prefer_tools() );
+        assertEquals( "hub_x", p.agentHints().prefer_pages().get( 0 ).canonical_id() );
+        assertFalse( p.summarySynthesized(),
+                     "non-hub fixture should not trigger summary overlay" );
+    }
+
+    @Test
+    void agentHintsDegradationLandsInMissingFieldsList() {
+        final PageDescriptor d = new PageDescriptor(
+                "01ABC", "HybridRetrieval", "Hybrid Retrieval", PageType.ARTICLE,
+                "wikantik-development", List.of( "retrieval" ),
+                "Operator reference for hybrid retrieval.",
+                Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty() );
+        when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
+        when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
+        when( pm.getPureText( "HybridRetrieval", -1 ) ).thenReturn( "" );
+        when( pm.getVersionHistory( "HybridRetrieval" ) ).thenReturn( List.of() );
+
+        final AgentHintsDeriver throwingDeriver = mock( AgentHintsDeriver.class );
+        when( throwingDeriver.derive( any() ) ).thenThrow( new RuntimeException( "boom" ) );
+
+        final DefaultForAgentProjectionService testSvc = newServiceUnderTest( throwingDeriver, new HubSummarySynthesizer() );
+        final ForAgentProjection p = testSvc.project( "01ABC" ).orElseThrow();
+
+        assertNull( p.agentHints(), "deriver throw should yield null agent_hints, not an empty block" );
+        assertTrue( p.missingFields().contains( "agent_hints" ) );
+        assertTrue( p.degraded() );
+    }
+
+    /** Helper — each new test can swap the deriver/synth without duplicating wiring. */
+    private DefaultForAgentProjectionService newServiceUnderTest(
+            final AgentHintsDeriver deriver,
+            final HubSummarySynthesizer synth ) {
+        return new DefaultForAgentProjectionService( idx, pm, cache, new ForAgentMetrics(), deriver, synth );
     }
 }

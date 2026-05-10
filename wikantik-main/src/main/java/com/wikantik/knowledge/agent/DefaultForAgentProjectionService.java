@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.agent;
 
+import com.wikantik.api.agent.AgentHintsBlock;
 import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.agent.HeadingOutline;
@@ -67,6 +68,8 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
     private final PageManager pageManager;
     private final CachingManager cache;
     private final ForAgentMetrics metrics;
+    private final AgentHintsDeriver     hintsDeriver;
+    private final HubSummarySynthesizer hubSynth;
 
     private final HeadingsOutlineExtractor headings  = new HeadingsOutlineExtractor();
     private final KeyFactsExtractor        keyFacts  = new KeyFactsExtractor();
@@ -77,12 +80,16 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             final StructuralIndexService index,
             final PageManager pageManager,
             final CachingManager cache,
-            final ForAgentMetrics metrics ) {
+            final ForAgentMetrics metrics,
+            final AgentHintsDeriver hintsDeriver,
+            final HubSummarySynthesizer hubSynth ) {
         this.index = index;
         this.pageManager = pageManager;
         this.cache = cache;
         this.metrics = metrics;
         this.recents = new RecentChangesAdapter( pageManager );
+        this.hintsDeriver = hintsDeriver;
+        this.hubSynth = hubSynth;
     }
 
     @Override
@@ -200,6 +207,35 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             }
         }
 
+        // Derived agent_hints — null on whole-block degradation, empty block on no-signal.
+        AgentHintsBlock agentHints = AgentHintsBlock.empty();
+        if ( hintsDeriver != null ) {
+            try {
+                agentHints = hintsDeriver.derive( d.canonicalId() );
+            } catch ( final Exception e ) {
+                LOG.warn( "for-agent: agent_hints derivation threw for {}: {}", d.slug(), e.getMessage() );
+                missing.add( "agent_hints" );
+                agentHints = null;
+            }
+        }
+
+        // Hub summary overlay — only fires when this page is a cluster hub and the authored
+        // summary matches the generic "Index of pages on…" pattern.
+        String effectiveSummary = d.summary();
+        boolean summarySynthesized = false;
+        if ( agentHints != null && hubSynth != null ) {
+            final boolean isHub = isClusterHub( d );
+            try {
+                final Optional< String > overlay = hubSynth.maybeOverlay( effectiveSummary, agentHints, isHub );
+                if ( overlay.isPresent() ) {
+                    effectiveSummary = overlay.get();
+                    summarySynthesized = true;
+                }
+            } catch ( final Exception e ) {
+                LOG.warn( "for-agent: hub summary overlay threw for {}: {}", d.slug(), e.getMessage() );
+            }
+        }
+
         return new ForAgentProjection(
                 d.canonicalId(),
                 d.slug(),
@@ -211,18 +247,30 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 verification.verifiedAt(),
                 verification.verifiedBy(),
                 d.updated(),
-                d.summary(),
+                effectiveSummary,
                 facts,
                 outline,
                 changes,
                 hints,
                 runbook,
-                null,                                        // agentHints — Task 6 fills this in
-                false,                                       // summarySynthesized — Task 8 sets this
+                agentHints,
+                summarySynthesized,
                 "/api/pages/" + d.slug(),
                 "/wiki/" + d.slug() + "?format=md",
                 !missing.isEmpty(),
                 missing );
+    }
+
+    private boolean isClusterHub( final PageDescriptor d ) {
+        if ( d.cluster() == null ) return false;
+        try {
+            return index.getCluster( d.cluster() )
+                        .map( c -> c.hubPage() != null && c.hubPage().slug().equals( d.slug() ) )
+                        .orElse( false );
+        } catch ( final Exception e ) {
+            LOG.warn( "for-agent: hub lookup failed for {}: {}", d.slug(), e.getMessage() );
+            return false;
+        }
     }
 
     /* ----------------------------------------------------------------- caching */

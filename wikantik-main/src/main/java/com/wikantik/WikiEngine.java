@@ -1412,7 +1412,7 @@ public class WikiEngine implements Engine {
             final com.wikantik.admin.ContentIndexRebuildService rebuildService =
                 com.wikantik.knowledge.subsystem.KnowledgeWiringHelper.wireKgPolicyAndContent(
                     props, structuralIndex, coreSubsystem, persistenceSubsystem,
-                    svcs, searchMgr, meterRegistry, pageManager, cachingManager, this );
+                    svcs, searchMgr, meterRegistry, pageManager, cachingManager, referenceManager, this );
 
             // Wire hybrid retrieval (SearchWiringHelper).
             com.wikantik.search.subsystem.SearchWiringHelper.wireHybridRetrieval(

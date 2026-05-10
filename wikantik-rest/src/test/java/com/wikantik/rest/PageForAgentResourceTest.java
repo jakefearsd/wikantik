@@ -124,6 +124,43 @@ class PageForAgentResourceTest {
     }
 
     @Test
+    void wire_shape_includes_agent_hints_and_summary_synthesized() throws Exception {
+        // Fixture passes agentHints=null, summarySynthesized=false (the null-serialisation path).
+        final ForAgentProjection p = new ForAgentProjection(
+                "01ABC", "HybridRetrieval", "Hybrid Retrieval", "article",
+                "wikantik-development",
+                Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE,
+                null, null, null,
+                "Operator reference for hybrid retrieval.",
+                List.of(), List.of(), List.of(), List.of(),
+                null,
+                null, false,
+                "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
+                false, List.of() );
+        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getPathInfo() ).thenReturn( "/01ABC" );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resource.doGet( req, resp );
+
+        final JsonObject data = JsonParser.parseString( sw.toString() )
+                .getAsJsonObject().getAsJsonObject( "data" );
+
+        assertTrue( data.has( "agent_hints" ),
+                "agent_hints field expected on /for-agent response" );
+        assertTrue( data.has( "summary_synthesized" ),
+                "summary_synthesized field expected on /for-agent response" );
+        // Fixture passes agentHints=null — should serialise as JSON null, not be absent.
+        assertTrue( data.get( "agent_hints" ).isJsonNull(),
+                "fixture passes agentHints=null which should serialise as JSON null" );
+        assertEquals( false, data.get( "summary_synthesized" ).getAsBoolean() );
+    }
+
+    @Test
     void degraded_flag_propagates() throws Exception {
         final ForAgentProjection p = new ForAgentProjection(
                 "01ABC", "Slug", "Title", "article", null,

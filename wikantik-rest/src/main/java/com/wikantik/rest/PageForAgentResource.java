@@ -158,6 +158,9 @@ public class PageForAgentResource extends RestServletBase {
 
         d.add( "runbook", p.runbook() == null ? JsonNull.INSTANCE
                 : AGENT_GSON.toJsonTree( p.runbook() ) );
+        d.add( "agent_hints", p.agentHints() == null ? JsonNull.INSTANCE
+                : AGENT_GSON.toJsonTree( p.agentHints() ) );
+        d.addProperty( "summary_synthesized", p.summarySynthesized() );
         d.addProperty( "full_body_url",    p.fullBodyUrl() );
         d.addProperty( "raw_markdown_url", p.rawMarkdownUrl() );
         d.addProperty( "degraded",         p.degraded() );

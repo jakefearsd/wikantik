@@ -18,6 +18,13 @@
  */
 package com.wikantik.knowledge.mcp;
 
+import com.google.gson.FieldNamingPolicy;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
+import com.google.gson.stream.JsonWriter;
 import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.mcp.tools.McpTool;
@@ -26,6 +33,8 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +50,33 @@ public class GetPageForAgentTool implements McpTool {
 
     private static final Logger LOG = LogManager.getLogger( GetPageForAgentTool.class );
     public static final String TOOL_NAME = "get_page_for_agent";
+
+    /**
+     * Projection-specific Gson: snake_case naming + serializeNulls so that
+     * {@code agentHints=null} appears as {@code "agent_hints": null} rather
+     * than being silently omitted, and all camelCase record fields map to
+     * their snake_case wire names (e.g. {@code agentHints} → {@code agent_hints}).
+     *
+     * <p>Registers a custom {@link Instant} adapter (same logic as
+     * {@link KnowledgeMcpUtils}) because {@code java.time} is not open to
+     * Gson's reflective serialiser in Java 21 modules.</p>
+     */
+    private static final Gson PROJECTION_GSON = new GsonBuilder()
+            .setFieldNamingPolicy( FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES )
+            .serializeNulls()
+            .registerTypeAdapter( Instant.class, new TypeAdapter< Instant >() {
+                @Override
+                public void write( final JsonWriter out, final Instant value ) throws IOException {
+                    if ( value == null ) out.nullValue();
+                    else                out.value( value.toString() );
+                }
+                @Override
+                public Instant read( final JsonReader in ) throws IOException {
+                    if ( in.peek() == JsonToken.NULL ) { in.nextNull(); return null; }
+                    return Instant.parse( in.nextString() );
+                }
+            } )
+            .create();
 
     private final ForAgentProjectionService service;
 
@@ -122,7 +158,7 @@ public class GetPageForAgentTool implements McpTool {
                 return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                         "no page for canonical_id " + s );
             }
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, maybe.get() );
+            return McpToolUtils.jsonResult( PROJECTION_GSON, maybe.get() );
         } catch ( final Exception e ) {
             LOG.error( "get_page_for_agent failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );

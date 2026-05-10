@@ -18,6 +18,8 @@
  */
 package com.wikantik.knowledge.mcp;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.pagegraph.Audience;
@@ -87,5 +89,37 @@ class GetPageForAgentToolTest {
         assertFalse( result.isError() );
         assertFalse( result.content().isEmpty() );
         assertTrue( result.content().toString().contains( "HybridRetrieval" ) );
+    }
+
+    @Test
+    void wire_shape_includes_agent_hints_and_summary_synthesized() {
+        // Fixture passes agentHints=null, summarySynthesized=false (the null-serialisation path).
+        final ForAgentProjection p = new ForAgentProjection(
+                "01ABC", "HybridRetrieval", "Hybrid Retrieval", "article",
+                "wikantik-development",
+                Audience.HUMANS_AND_AGENTS, Confidence.AUTHORITATIVE,
+                null, null, null,
+                "Operator reference for hybrid retrieval.",
+                List.of(), List.of(), List.of(), List.of(),
+                null,
+                null, false,
+                "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
+                false, List.of() );
+        when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "canonical_id", "01ABC" ) );
+
+        assertFalse( result.isError() );
+        final String json = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        final JsonObject body = JsonParser.parseString( json ).getAsJsonObject();
+
+        assertTrue( body.has( "agent_hints" ),
+                "agent_hints field expected on MCP get_page_for_agent response" );
+        assertTrue( body.has( "summary_synthesized" ),
+                "summary_synthesized field expected on MCP get_page_for_agent response" );
+        // Fixture passes agentHints=null — should serialise as JSON null, not be absent.
+        assertTrue( body.get( "agent_hints" ).isJsonNull(),
+                "fixture passes agentHints=null which should serialise as JSON null" );
+        assertEquals( false, body.get( "summary_synthesized" ).getAsBoolean() );
     }
 }

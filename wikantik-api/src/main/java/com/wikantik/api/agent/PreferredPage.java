@@ -27,6 +27,12 @@ package com.wikantik.api.agent;
  * or {@code cluster_member}. Snake_case Java field names so default Gson
  * serialisation matches the wire form (mirrors {@link RunbookBlock} convention).
  * </p>
+ *
+ * <p>Identity fields ({@code canonical_id}, {@code title}) reject null/blank —
+ * an entry without identity is meaningless and indicates an upstream bug.
+ * {@code role} is a presentation hint, not identity, so null/blank defaults to
+ * {@code cluster_member} — that lets {@code AgentHintsDeriver} emit entries
+ * without picking a role at every call site.</p>
  */
 @SuppressWarnings( "checkstyle:MemberName" )
 public record PreferredPage( String canonical_id, String title, String role ) {

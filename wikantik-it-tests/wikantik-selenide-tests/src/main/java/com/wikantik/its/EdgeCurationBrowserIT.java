@@ -101,8 +101,13 @@ public class EdgeCurationBrowserIT extends WithIntegrationTestSetup {
         $( "table.admin-table" )
             .shouldHave( text( SRC ), Duration.ofSeconds( 10 ) );
 
-        // Click the row to select it and open the EdgeDetail panel.
-        $$( "tr" ).findBy( text( SRC ) ).click();
+        // Click the source-name link to select the row and open the EdgeDetail
+        // panel. AdminTable suppresses <tr>-level onRowClick when selectable=true
+        // so the row's onClick is a no-op; the column-cell renders a btn-link
+        // button explicitly for this navigation.
+        $$( "button.btn-link" ).findBy( text( SRC ) )
+            .shouldBe( visible, Duration.ofSeconds( 5 ) )
+            .click();
 
         // The EdgeDetail panel renders the "Delete + Prevent" button once
         // node details have loaded (button is guarded by !loading).

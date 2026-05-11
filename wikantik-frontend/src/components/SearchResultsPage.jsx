@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 
@@ -60,6 +62,44 @@ export default function SearchResultsPage() {
     </div>
   );
 }
+
+// Tight, inline-friendly overrides for ReactMarkdown when rendering preview
+// snippets. The snippet container is small; default block margins/font sizes
+// would overflow the card. Empty-href wikilinks (Lucene emits these for bare
+// `[Page]()` fragments) render as plain text to avoid dead anchor styling.
+const SNIPPET_COMPONENTS = {
+  p:  ({ children }) => <p  style={{ margin: 0, display: 'inline' }}>{children}</p>,
+  pre: ({ children }) => (
+    <pre style={{
+      margin: '4px 0',
+      padding: '4px 8px',
+      background: 'var(--code-bg)',
+      borderRadius: 'var(--radius-sm)',
+      fontSize: '0.78rem',
+      overflowX: 'auto',
+      whiteSpace: 'pre-wrap',
+    }}>{children}</pre>
+  ),
+  code: ({ inline, children }) => inline
+    ? <code style={{
+        background: 'var(--code-bg)',
+        padding: '0 4px',
+        borderRadius: '3px',
+        fontFamily: 'var(--font-mono)',
+        fontSize: '0.85em',
+      }}>{children}</code>
+    : <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85em' }}>{children}</code>,
+  ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: '1.4em' }}>{children}</ul>,
+  ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: '1.4em' }}>{children}</ol>,
+  li: ({ children }) => <li style={{ margin: 0 }}>{children}</li>,
+  h1: ({ children }) => <strong>{children}</strong>,
+  h2: ({ children }) => <strong>{children}</strong>,
+  h3: ({ children }) => <strong>{children}</strong>,
+  h4: ({ children }) => <strong>{children}</strong>,
+  h5: ({ children }) => <strong>{children}</strong>,
+  h6: ({ children }) => <strong>{children}</strong>,
+  a:  ({ href, children }) => (href ? <a href={href}>{children}</a> : <span>{children}</span>),
+};
 
 function SearchResultCard({ result }) {
   const date = result.lastModified
@@ -122,9 +162,13 @@ function SearchResultCard({ result }) {
         </p>
       )}
 
-      {/* Context snippets — highlighted match fragments from Lucene */}
+      {/* Context snippets — Markdown match fragments from the search engine.
+          Rendered via react-markdown (same toolchain as the article view) so list
+          items, code fences, links, etc. render as readable preview rather than
+          raw markup. Fragments may start mid-element; react-markdown is forgiving
+          enough to make sense of partial trees. */}
       {result.contexts && result.contexts.length > 0 && (
-        <div style={{
+        <div className="search-snippet" style={{
           marginTop: 'var(--space-sm)',
           padding: 'var(--space-sm) var(--space-md)',
           background: 'var(--bg-sidebar)',
@@ -135,7 +179,16 @@ function SearchResultCard({ result }) {
           lineHeight: 1.6,
         }}>
           {result.contexts.slice(0, 2).map((ctx, i) => (
-            <span key={i} dangerouslySetInnerHTML={{ __html: '…' + ctx + '…' }} />
+            <div key={i} style={{ marginTop: i === 0 ? 0 : 'var(--space-xs)' }}>
+              <span style={{ color: 'var(--text-muted)' }}>…</span>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={SNIPPET_COMPONENTS}
+              >
+                {ctx}
+              </ReactMarkdown>
+              <span style={{ color: 'var(--text-muted)' }}>…</span>
+            </div>
           ))}
         </div>
       )}

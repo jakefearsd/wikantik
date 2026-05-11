@@ -36,7 +36,17 @@ public enum RetrievalMode {
     HYBRID( "hybrid" ),
 
     /** Hybrid plus the entity-co-mention graph rerank step. */
-    HYBRID_GRAPH( "hybrid_graph" );
+    HYBRID_GRAPH( "hybrid_graph" ),
+
+    /**
+     * HYBRID_GRAPH variant that weights graph traversal by per-edge tier
+     * ({@code kg_edges.tier}) and per-mention confidence
+     * ({@code chunk_entity_mentions.confidence}). Cheap human-tier edges
+     * accumulate distance at face value; machine-tier edges accumulate at a
+     * configurable multiple. Provisional/probe-mode variant — see the
+     * provenance-weighted rerank value-probe doc for the experiment context.
+     */
+    HYBRID_GRAPH_WEIGHTED( "hybrid_graph_weighted" );
 
     private final String wireName;
 

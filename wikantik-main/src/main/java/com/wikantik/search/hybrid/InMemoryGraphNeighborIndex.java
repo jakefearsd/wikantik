@@ -52,22 +52,45 @@ public final class InMemoryGraphNeighborIndex implements GraphNeighborIndex {
     private static final Logger LOG = LogManager.getLogger( InMemoryGraphNeighborIndex.class );
 
     private static final String LOAD_SQL =
-            "SELECT e.source_id, e.target_id FROM kg_edges e"
+            "SELECT e.source_id, e.target_id, e.tier FROM kg_edges e"
             + KgInclusionFilter.EDGE_FILTER_JOIN
             + "WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE;
     private static final String COUNT_SQL = "SELECT COUNT(*) FROM kg_edges";
 
     private final DataSource dataSource;
     private final int maxEdges;
+    private final Map< String, Double > tierWeights;
 
     private volatile Snapshot snapshot = Snapshot.EMPTY;
     private volatile long lastRefreshMillis;
 
+    /**
+     * Construct an unweighted index — every edge gets weight {@code 1.0}, so
+     * the weighted scorer collapses to the unweighted BFS variant. The
+     * tier column is still loaded so callers can flip on weighting without a
+     * reload by switching to {@link #InMemoryGraphNeighborIndex(DataSource, int, Map)}.
+     */
     public InMemoryGraphNeighborIndex( final DataSource dataSource, final int maxEdges ) {
+        this( dataSource, maxEdges, Map.of() );
+    }
+
+    /**
+     * Construct a weighted index. {@code tierWeights} maps {@code kg_edges.tier}
+     * values (typically {@code "human"} and {@code "machine"}) to a multiplier
+     * in {@code (0, 1]}. Edges whose tier is not in the map fall back to
+     * {@code 1.0}. The map is consulted once per edge at load time and the
+     * resulting per-edge weight is baked into the snapshot, so subsequent
+     * reads are O(1).
+     */
+    public InMemoryGraphNeighborIndex( final DataSource dataSource,
+                                       final int maxEdges,
+                                       final Map< String, Double > tierWeights ) {
         if( dataSource == null ) throw new IllegalArgumentException( "dataSource must not be null" );
         if( maxEdges < 1 ) throw new IllegalArgumentException( "maxEdges must be >= 1, got: " + maxEdges );
+        if( tierWeights == null ) throw new IllegalArgumentException( "tierWeights must not be null (use Map.of() for unweighted)" );
         this.dataSource = dataSource;
         this.maxEdges = maxEdges;
+        this.tierWeights = Map.copyOf( tierWeights );
         reload();
     }
 
@@ -119,6 +142,15 @@ public final class InMemoryGraphNeighborIndex implements GraphNeighborIndex {
         return snapshot.nodeCount();
     }
 
+    @Override
+    public double edgeWeight( final UUID src, final UUID tgt ) {
+        if( src == null || tgt == null ) return 1.0;
+        final Map< UUID, Double > row = snapshot.weights.get( src );
+        if( row == null ) return 1.0;
+        final Double w = row.get( tgt );
+        return w == null ? 1.0 : w;
+    }
+
     /** Wall-clock millis of the most recent {@link #reload()}. */
     public long lastRefreshMillis() {
         return lastRefreshMillis;
@@ -136,6 +168,8 @@ public final class InMemoryGraphNeighborIndex implements GraphNeighborIndex {
 
     private Snapshot loadSnapshot() throws SQLException {
         final Map< UUID, Set< UUID > > adj = new HashMap<>();
+        final Map< UUID, Map< UUID, Double > > weights = new HashMap<>();
+        final boolean weighted = !tierWeights.isEmpty();
         try( Connection c = dataSource.getConnection();
              PreparedStatement ps = c.prepareStatement( LOAD_SQL ) ) {
             ps.setFetchSize( 1_000 );
@@ -143,27 +177,45 @@ public final class InMemoryGraphNeighborIndex implements GraphNeighborIndex {
                 while( rs.next() ) {
                     final UUID src = rs.getObject( 1, UUID.class );
                     final UUID tgt = rs.getObject( 2, UUID.class );
+                    final String tier = rs.getString( 3 );
                     if( src == null || tgt == null || src.equals( tgt ) ) continue;
                     adj.computeIfAbsent( src, k -> new HashSet<>() ).add( tgt );
                     adj.computeIfAbsent( tgt, k -> new HashSet<>() ).add( src );
+                    if( weighted ) {
+                        final double w = tierWeights.getOrDefault( tier, 1.0 );
+                        weights.computeIfAbsent( src, k -> new HashMap<>() ).put( tgt, w );
+                        weights.computeIfAbsent( tgt, k -> new HashMap<>() ).put( src, w );
+                    }
                 }
             }
         }
         // Freeze each neighbor set so callers cannot mutate shared state.
-        final Map< UUID, Set< UUID > > frozen = new HashMap<>( adj.size() * 2 );
+        final Map< UUID, Set< UUID > > frozenAdj = new HashMap<>( adj.size() * 2 );
         for( final Map.Entry< UUID, Set< UUID > > e : adj.entrySet() ) {
-            frozen.put( e.getKey(), Set.copyOf( e.getValue() ) );
+            frozenAdj.put( e.getKey(), Set.copyOf( e.getValue() ) );
         }
-        return new Snapshot( frozen );
+        final Map< UUID, Map< UUID, Double > > frozenWeights;
+        if( weighted ) {
+            frozenWeights = new HashMap<>( weights.size() * 2 );
+            for( final Map.Entry< UUID, Map< UUID, Double > > e : weights.entrySet() ) {
+                frozenWeights.put( e.getKey(), Map.copyOf( e.getValue() ) );
+            }
+        } else {
+            frozenWeights = Map.of();
+        }
+        return new Snapshot( frozenAdj, frozenWeights );
     }
 
     private static final class Snapshot {
-        static final Snapshot EMPTY = new Snapshot( Map.of() );
+        static final Snapshot EMPTY = new Snapshot( Map.of(), Map.of() );
 
         final Map< UUID, Set< UUID > > adjacency;
+        final Map< UUID, Map< UUID, Double > > weights;
 
-        Snapshot( final Map< UUID, Set< UUID > > adjacency ) {
+        Snapshot( final Map< UUID, Set< UUID > > adjacency,
+                  final Map< UUID, Map< UUID, Double > > weights ) {
             this.adjacency = adjacency;
+            this.weights = weights;
         }
 
         int nodeCount() { return adjacency.size(); }

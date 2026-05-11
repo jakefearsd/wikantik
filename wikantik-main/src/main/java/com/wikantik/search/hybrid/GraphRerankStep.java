@@ -114,6 +114,56 @@ public final class GraphRerankStep {
     }
 
     /**
+     * Provenance-weighted variant of {@link #rerank}. Same input/output contract
+     * and fail-closed semantics — the only differences are: (1) edge traversal
+     * runs through {@link GraphProximityScorer#scoreWeighted} with a
+     * weighted-distance budget derived from
+     * {@code config.maxHops() / min(tierHumanWeight, tierMachineWeight)}, and
+     * (2) per-page proximity is multiplied by the page's max mention confidence
+     * (clamped to {@code mentionConfidenceFloor}). The {@link GraphNeighborIndex}
+     * is expected to supply per-edge weights — an index built with empty tier
+     * weights falls back to {@code 1.0} for every edge, in which case this
+     * method is mathematically equivalent to {@link #rerank} with the mention
+     * confidence multiplier applied on top.
+     */
+    public List< String > rerankWeighted( final String query, final List< String > fusedPageNames ) {
+        if( fusedPageNames == null || fusedPageNames.isEmpty() ) {
+            return fusedPageNames == null ? List.of() : fusedPageNames;
+        }
+        if( !config.enabled() ) return fusedPageNames;
+        if( !neighborIndex.isReady() ) return fusedPageNames;
+        if( query == null || query.isBlank() ) return fusedPageNames;
+
+        final Set< UUID > queryEntities;
+        try {
+            queryEntities = resolver.resolve( query );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Graph rerank (weighted): query entity resolution failed; falling back to fused order: {}",
+                e.getMessage(), e );
+            return fusedPageNames;
+        }
+        if( queryEntities.isEmpty() ) return fusedPageNames;
+
+        final Map< String, Map< UUID, Double > > pageMentions;
+        try {
+            pageMentions = mentionsLoader.loadForWithConfidence( fusedPageNames );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Graph rerank (weighted): mentions load failed; falling back to fused order: {}",
+                e.getMessage(), e );
+            return fusedPageNames;
+        }
+        if( pageMentions.isEmpty() ) return fusedPageNames;
+
+        final double minWeight = Math.min( config.tierHumanWeight(), config.tierMachineWeight() );
+        final double maxDistance = config.maxHops() / Math.max( minWeight, 1e-9 );
+        final Map< String, Double > proximity =
+            scorer.scoreWeighted( queryEntities, pageMentions, maxDistance, config.mentionConfidenceFloor() );
+        if( proximity.isEmpty() ) return fusedPageNames;
+
+        return applyBoost( fusedPageNames, proximity, config.boost() );
+    }
+
+    /**
      * Sort stability guarantee: when {@code proximity} is empty for every
      * candidate the base scores come out in strictly decreasing order so the
      * output equals the input. This is load-bearing for the Phase 3

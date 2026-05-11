@@ -29,6 +29,24 @@ class PageExtractionPromptBuilderTest {
     }
 
     @Test
+    void systemPromptDeclaresClosedRelationVocabulary() {
+        // Predicate is now an enum, not a free-form str — see V027 CHECK
+        // constraint. The DB will reject anything not in this list, so the
+        // prompt must enumerate the same 20 values.
+        assertTrue(PageExtractionPromptBuilder.SYSTEM_PROMPT.contains("\"predicate\": ENUM"),
+                   "predicate field must be declared as ENUM, not free-form str");
+        assertFalse(PageExtractionPromptBuilder.SYSTEM_PROMPT.contains("\"predicate\": str"),
+                    "predicate field must no longer be declared as free-form str");
+        for (String t : List.of("related_to", "part_of", "contains", "is_a", "instance_of",
+                                "requires", "enables", "uses", "produces", "replaces",
+                                "precedes", "extends", "implements", "alternative_to", "contrasts_with",
+                                "compatible_with", "mitigates", "defines", "applies_to", "located_in")) {
+            assertTrue(PageExtractionPromptBuilder.SYSTEM_PROMPT.contains(t),
+                       "system prompt missing closed-vocab predicate: " + t);
+        }
+    }
+
+    @Test
     void userPromptIncludesPageDictionaryAndBody() {
         Page page = new Page("Kafka", null, "Kafka is a streaming platform.", "summary",
                              List.of("Overview"));

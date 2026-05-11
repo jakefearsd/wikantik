@@ -54,6 +54,12 @@ public class PageMentionsLoader {
       + "  JOIN chunk_entity_mentions m ON m.chunk_id = c.id "
       + " WHERE c.page_name = ANY( ? )";
 
+    private static final String SELECT_WITH_CONFIDENCE_SQL =
+        "SELECT c.page_name, m.node_id, m.confidence "
+      + "  FROM kg_content_chunks c "
+      + "  JOIN chunk_entity_mentions m ON m.chunk_id = c.id "
+      + " WHERE c.page_name = ANY( ? )";
+
     private final DataSource dataSource;
 
     public PageMentionsLoader( final DataSource dataSource ) {
@@ -85,6 +91,41 @@ public class PageMentionsLoader {
             }
         } catch( final SQLException e ) {
             LOG.warn( "PageMentionsLoader failed for {} pages: {}", nameArr.length, e.getMessage(), e );
+            return Map.of();
+        }
+        return out;
+    }
+
+    /**
+     * Confidence-aware variant for the weighted rerank: returns
+     * {@code pageName -> (nodeId -> max mention confidence)}. When the same
+     * node appears multiple times for one page (multiple chunks), the highest
+     * confidence wins — matches the {@code max} aggregation the scorer
+     * already applies across mentioned entities. Failure semantics match
+     * {@link #loadFor}: a SQL error degrades to an empty map.
+     */
+    public Map< String, Map< UUID, Double > > loadForWithConfidence( final Collection< String > pageNames ) {
+        if( pageNames == null || pageNames.isEmpty() ) return Map.of();
+
+        final String[] nameArr = pageNames.toArray( new String[ 0 ] );
+        final Map< String, Map< UUID, Double > > out = new HashMap<>( nameArr.length * 2 );
+        try( Connection c = dataSource.getConnection();
+             PreparedStatement ps = c.prepareStatement( SELECT_WITH_CONFIDENCE_SQL ) ) {
+            ps.setArray( 1, c.createArrayOf( "text", nameArr ) );
+            try( ResultSet rs = ps.executeQuery() ) {
+                while( rs.next() ) {
+                    final String page = rs.getString( 1 );
+                    final UUID node = rs.getObject( 2, UUID.class );
+                    final double conf = rs.getDouble( 3 );
+                    if( page == null || node == null ) continue;
+                    final Map< UUID, Double > row = out.computeIfAbsent( page, k -> new HashMap<>() );
+                    final Double prior = row.get( node );
+                    if( prior == null || conf > prior ) row.put( node, conf );
+                }
+            }
+        } catch( final SQLException e ) {
+            LOG.warn( "PageMentionsLoader.loadForWithConfidence failed for {} pages: {}",
+                nameArr.length, e.getMessage(), e );
             return Map.of();
         }
         return out;

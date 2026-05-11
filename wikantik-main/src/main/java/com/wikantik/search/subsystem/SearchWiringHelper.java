@@ -208,7 +208,13 @@ public final class SearchWiringHelper {
         }
         final InMemoryGraphNeighborIndex neighborIndex;
         try {
-            neighborIndex = new InMemoryGraphNeighborIndex( ds, cfg.neighborIndexMaxEdges() );
+            // Always build a weighted index — the unweighted BFS used by HYBRID_GRAPH
+            // ignores per-edge weights, while HYBRID_GRAPH_WEIGHTED consults them.
+            final java.util.Map< String, Double > tierWeights = java.util.Map.of(
+                "human",   cfg.tierHumanWeight(),
+                "machine", cfg.tierMachineWeight()
+            );
+            neighborIndex = new InMemoryGraphNeighborIndex( ds, cfg.neighborIndexMaxEdges(), tierWeights );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Graph neighbor index failed to initialize; graph rerank disabled: {}", e.getMessage(), e );
             return;
@@ -321,6 +327,11 @@ public final class SearchWiringHelper {
                     final List< String > fused =
                         hybridSearch == null ? bm25Names : hybridSearch.rerank( query, bm25Names );
                     return graphRerankStep == null ? fused : graphRerankStep.rerank( query, fused );
+                }
+                case HYBRID_GRAPH_WEIGHTED: {
+                    final List< String > fused =
+                        hybridSearch == null ? bm25Names : hybridSearch.rerank( query, bm25Names );
+                    return graphRerankStep == null ? fused : graphRerankStep.rerankWeighted( query, fused );
                 }
                 default:
                     return bm25Names;

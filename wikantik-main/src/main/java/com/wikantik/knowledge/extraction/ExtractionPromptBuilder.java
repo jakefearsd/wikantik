@@ -40,17 +40,54 @@ public final class ExtractionPromptBuilder {
      * hard constraints. Kept identical across requests so prompt caching on
      * Claude actually hits.
      */
+    /**
+     * Closed relation-type vocabulary, kept in sync with the
+     * {@code kg_edges_relationship_type_check} CHECK constraint added in
+     * V027. Editing this list requires editing the constraint and re-running
+     * {@code bin/db/normalize-relationship-types.sql} on existing data.
+     */
+    public static final String[] RELATION_TYPES = {
+        "related_to", "part_of", "contains", "is_a", "instance_of",
+        "requires",   "enables", "uses",     "produces", "replaces",
+        "precedes",   "extends", "implements", "alternative_to", "contrasts_with",
+        "compatible_with", "mitigates", "defines", "applies_to", "located_in"
+    };
+
     public static final String SYSTEM_PROMPT =
         "You extract named entities and relationships from wiki content. Output STRICT JSON only — no prose, "
       + "no markdown fence, no commentary. The JSON MUST match this schema exactly:\n"
       + "{\n"
       + "  \"entities\": [ { \"name\": string, \"type\": string, \"confidence\": number in [0,1], \"reasoning\": string } ],\n"
-      + "  \"relations\": [ { \"source\": string, \"target\": string, \"type\": string, \"confidence\": number in [0,1], \"reasoning\": string } ]\n"
+      + "  \"relations\": [ { \"source\": string, \"target\": string, \"type\": ENUM, \"confidence\": number in [0,1], \"reasoning\": string } ]\n"
       + "}\n"
       + "Rules:\n"
       + "- Only include entities that are explicitly named in the chunk. No pronouns, no generic nouns, no dates.\n"
-      + "- `type` is a short capitalized noun (Person, Organization, Place, Event, Product, Concept, Project, Version).\n"
+      + "- Entity `type` is a short capitalized noun (Person, Organization, Place, Event, Product, Concept, Project, Version).\n"
       + "- Relations are factual, directional, and grounded in the chunk text. `source` and `target` must appear in `entities`.\n"
+      + "- Relation `type` MUST be EXACTLY one of the closed vocabulary below. Pick the closest match. "
+      +   "Do NOT invent new types, do NOT vary the casing or separators, and do NOT emit free-form phrases. "
+      +   "If no listed type captures the relation cleanly, OMIT the relation entirely — quality over quantity.\n"
+      + "  Closed vocabulary (direction is source → target):\n"
+      + "    related_to        — generic association; use only when no more specific type fits\n"
+      + "    part_of           — A is a part/component of B\n"
+      + "    contains          — A contains/includes B (directional emphasis on container)\n"
+      + "    is_a              — A is a subtype/kind of B\n"
+      + "    instance_of       — A is a concrete example/instance of B\n"
+      + "    requires          — A requires/depends on B\n"
+      + "    enables           — A enables/allows/supports B\n"
+      + "    uses              — A uses/invokes/operates on B\n"
+      + "    produces          — A produces/emits/generates B\n"
+      + "    replaces          — A replaces/supersedes B\n"
+      + "    precedes          — A precedes B in time/sequence\n"
+      + "    extends           — A extends/builds on B (specialization)\n"
+      + "    implements        — A is a concrete implementation of B\n"
+      + "    alternative_to    — A is a substitute for B (peer alternatives)\n"
+      + "    contrasts_with    — A and B are explicitly differentiated/compared\n"
+      + "    compatible_with   — A interoperates with B\n"
+      + "    mitigates         — A reduces the harm/risk of B\n"
+      + "    defines           — A defines/specifies/describes B\n"
+      + "    applies_to        — A is relevant within the scope of B\n"
+      + "    located_in        — A is spatially within B\n"
       + "- `confidence` is your calibrated certainty, not a popularity estimate.\n"
       + "- Every `reasoning` value MUST be 15 words or fewer. No multi-sentence explanations.\n"
       + "- REUSE names from the provided dictionary verbatim whenever the chunk refers to an entity that is already known. "

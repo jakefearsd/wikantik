@@ -62,7 +62,9 @@ public class KgStagedValidationIT {
     /** Source unique enough to avoid collision with seeded data. */
     private static final String IT_SRC = "ITStagedSrc-" + UUID.randomUUID();
     private static final String IT_TGT = "ITStagedTgt-" + UUID.randomUUID();
-    private static final String IT_REL = "it_staged_rel";
+    // Must be drawn from the closed vocabulary enforced by V027's CHECK constraint
+    // on kg_edges.relationship_type — non-vocabulary values fail acceptance with 500.
+    private static final String IT_REL = "related_to";
 
     private static final Gson GSON = new Gson();
 

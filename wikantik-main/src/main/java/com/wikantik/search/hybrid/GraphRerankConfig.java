@@ -35,7 +35,10 @@ public record GraphRerankConfig(
     int maxHops,
     int queryEntityCacheTtlSeconds,
     int queryEntityCacheMax,
-    int neighborIndexMaxEdges
+    int neighborIndexMaxEdges,
+    double tierHumanWeight,
+    double tierMachineWeight,
+    double mentionConfidenceFloor
 ) {
 
     public static final String PROP_BOOST                    = "wikantik.search.graph.boost";
@@ -43,12 +46,30 @@ public record GraphRerankConfig(
     public static final String PROP_QUERY_ENTITY_CACHE_TTL   = "wikantik.search.graph.query-entity.cache.ttl-seconds";
     public static final String PROP_QUERY_ENTITY_CACHE_MAX   = "wikantik.search.graph.query-entity.cache.max-entries";
     public static final String PROP_NEIGHBOR_INDEX_MAX_EDGES = "wikantik.search.graph.neighbor-index.max-edges";
+    public static final String PROP_TIER_HUMAN_WEIGHT        = "wikantik.search.graph.weight.tier.human";
+    public static final String PROP_TIER_MACHINE_WEIGHT      = "wikantik.search.graph.weight.tier.machine";
+    public static final String PROP_MENTION_CONFIDENCE_FLOOR = "wikantik.search.graph.weight.mention.floor";
 
     public static final double DEFAULT_BOOST                    = 0.2;
     public static final int    DEFAULT_MAX_HOPS                 = 2;
     public static final int    DEFAULT_QUERY_ENTITY_CACHE_TTL   = 300;
     public static final int    DEFAULT_QUERY_ENTITY_CACHE_MAX   = 1000;
     public static final int    DEFAULT_NEIGHBOR_INDEX_MAX_EDGES = 500_000;
+    /** Human-tier edge weight: 1.0 means the edge counts as one hop. */
+    public static final double DEFAULT_TIER_HUMAN_WEIGHT        = 1.0;
+    /**
+     * Machine-tier edge weight: 0.5 means the edge counts as two hops in the
+     * weighted Dijkstra. Pulled from the Phase 1 distribution measurement
+     * (~46% of edges are machine-tier, so the axis carries real signal).
+     */
+    public static final double DEFAULT_TIER_MACHINE_WEIGHT      = 0.5;
+    /**
+     * Lower bound applied to {@code chunk_entity_mentions.confidence} before
+     * it multiplies the proximity score. Confidences below this clamp up so
+     * a single low-confidence mention does not tank an otherwise strong
+     * graph signal.
+     */
+    public static final double DEFAULT_MENTION_CONFIDENCE_FLOOR = 0.5;
 
     public GraphRerankConfig {
         if( Double.isNaN( boost ) || Double.isInfinite( boost ) || boost < 0.0 ) {
@@ -66,6 +87,15 @@ public record GraphRerankConfig(
         if( neighborIndexMaxEdges < 1 ) {
             throw new IllegalArgumentException( PROP_NEIGHBOR_INDEX_MAX_EDGES + " must be >= 1, got: " + neighborIndexMaxEdges );
         }
+        if( !isFiniteAndInUnitRange( tierHumanWeight ) ) {
+            throw new IllegalArgumentException( PROP_TIER_HUMAN_WEIGHT + " must be a finite number in (0, 1], got: " + tierHumanWeight );
+        }
+        if( !isFiniteAndInUnitRange( tierMachineWeight ) ) {
+            throw new IllegalArgumentException( PROP_TIER_MACHINE_WEIGHT + " must be a finite number in (0, 1], got: " + tierMachineWeight );
+        }
+        if( Double.isNaN( mentionConfidenceFloor ) || mentionConfidenceFloor < 0.0 || mentionConfidenceFloor > 1.0 ) {
+            throw new IllegalArgumentException( PROP_MENTION_CONFIDENCE_FLOOR + " must be in [0, 1], got: " + mentionConfidenceFloor );
+        }
     }
 
     /** {@code true} when the rerank step should actually run; {@code false} with {@code boost == 0.0}. */
@@ -79,8 +109,15 @@ public record GraphRerankConfig(
             intProp   ( p, PROP_MAX_HOPS,                 DEFAULT_MAX_HOPS,                 1, Integer.MAX_VALUE ),
             intProp   ( p, PROP_QUERY_ENTITY_CACHE_TTL,   DEFAULT_QUERY_ENTITY_CACHE_TTL,   1, Integer.MAX_VALUE ),
             intProp   ( p, PROP_QUERY_ENTITY_CACHE_MAX,   DEFAULT_QUERY_ENTITY_CACHE_MAX,   1, Integer.MAX_VALUE ),
-            intProp   ( p, PROP_NEIGHBOR_INDEX_MAX_EDGES, DEFAULT_NEIGHBOR_INDEX_MAX_EDGES, 1, Integer.MAX_VALUE )
+            intProp   ( p, PROP_NEIGHBOR_INDEX_MAX_EDGES, DEFAULT_NEIGHBOR_INDEX_MAX_EDGES, 1, Integer.MAX_VALUE ),
+            doubleProp( p, PROP_TIER_HUMAN_WEIGHT,        DEFAULT_TIER_HUMAN_WEIGHT ),
+            doubleProp( p, PROP_TIER_MACHINE_WEIGHT,      DEFAULT_TIER_MACHINE_WEIGHT ),
+            doubleProp( p, PROP_MENTION_CONFIDENCE_FLOOR, DEFAULT_MENTION_CONFIDENCE_FLOOR )
         );
+    }
+
+    private static boolean isFiniteAndInUnitRange( final double v ) {
+        return !Double.isNaN( v ) && !Double.isInfinite( v ) && v > 0.0 && v <= 1.0;
     }
 
     private static double doubleProp( final Properties p, final String key, final double def ) {

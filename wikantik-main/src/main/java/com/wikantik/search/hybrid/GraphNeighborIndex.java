@@ -45,4 +45,15 @@ public interface GraphNeighborIndex {
 
     /** Approximate number of distinct nodes covered. Intended for metrics/logging. */
     int nodeCount();
+
+    /**
+     * Per-edge multiplicative weight in {@code (0, 1]}, used by the
+     * weighted-Dijkstra variant of the rerank to charge higher hop cost to
+     * lower-trust edges (effective hop = {@code 1 / weight}). Default
+     * implementation returns {@code 1.0} for every edge so test doubles and
+     * the unweighted scorer remain bit-identical to the original BFS.
+     */
+    default double edgeWeight( final UUID src, final UUID tgt ) {
+        return 1.0;
+    }
 }

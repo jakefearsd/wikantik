@@ -332,4 +332,104 @@ public final class KgEdgeRepository extends KgJdbcSupport {
             throw new RuntimeException( e );
         }
     }
+
+    /**
+     * Deletes all edges matching the same filter that {@link #queryEdgesWithNames}
+     * applies (relationship_type, name search). Runs in a single statement; the
+     * inner SELECT is wrapped to share the JOIN/WHERE machinery without an INNER
+     * subquery alias that PostgreSQL would otherwise need.
+     *
+     * @return number of rows deleted
+     */
+    public int bulkDeleteByFilter( final String relationshipType, final String searchName ) {
+        final StringBuilder sql = new StringBuilder(
+                "DELETE FROM kg_edges WHERE id IN ("
+              + " SELECT e.id FROM kg_edges e "
+              + " JOIN kg_nodes sn ON e.source_id = sn.id "
+              + " JOIN kg_nodes tn ON e.target_id = tn.id"
+              + KgInclusionFilter.EDGE_FILTER_JOIN
+              + " WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE );
+        final List< Object > params = new ArrayList<>();
+
+        if ( relationshipType != null && !relationshipType.isBlank() ) {
+            sql.append( " AND e.relationship_type = ?" );
+            params.add( relationshipType );
+        }
+        if ( searchName != null && !searchName.isBlank() ) {
+            sql.append( " AND ( LOWER( sn.name ) LIKE ? OR LOWER( tn.name ) LIKE ? )" );
+            final String pattern = "%" + searchName.toLowerCase( java.util.Locale.ROOT ) + "%";
+            params.add( pattern );
+            params.add( pattern );
+        }
+        sql.append( " )" );
+
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
+            return ps.executeUpdate();
+        } catch ( final SQLException e ) {
+            LOG.warn( "bulkDeleteByFilter failed: {}", e.getMessage(), e );
+            throw new RuntimeException( "bulkDeleteByFilter failed: " + e.getMessage(), e );
+        }
+    }
+
+    /**
+     * In one transaction: looks up source/target node names from the edge, deletes
+     * the edge, and inserts a kg_rejections row with the same triple. The rejection
+     * insert uses ON CONFLICT DO NOTHING so re-rejection is a safe no-op.
+     */
+    public void deleteEdgeAndRecordRejection( final UUID edgeId, final String actor, final String reason ) {
+        final String lookupSql = "SELECT sn.name AS s_name, tn.name AS t_name, e.relationship_type "
+                               + "FROM kg_edges e "
+                               + "JOIN kg_nodes sn ON e.source_id = sn.id "
+                               + "JOIN kg_nodes tn ON e.target_id = tn.id "
+                               + "WHERE e.id = ?";
+        final String deleteSql = "DELETE FROM kg_edges WHERE id = ?";
+        final String rejectSql = "INSERT INTO kg_rejections "
+                               + "( proposed_source, proposed_target, proposed_relationship, rejected_by, reason ) "
+                               + "VALUES ( ?, ?, ?, ?, ? ) "
+                               + "ON CONFLICT ( proposed_source, proposed_target, proposed_relationship ) DO NOTHING";
+
+        try ( Connection conn = dataSource.getConnection() ) {
+            conn.setAutoCommit( false );
+            try {
+                final String sourceName, targetName, relType;
+                try ( PreparedStatement ps = conn.prepareStatement( lookupSql ) ) {
+                    ps.setObject( 1, edgeId );
+                    try ( ResultSet rs = ps.executeQuery() ) {
+                        if ( !rs.next() ) {
+                            conn.rollback();
+                            throw new IllegalArgumentException( "Edge not found: " + edgeId );
+                        }
+                        sourceName = rs.getString( "s_name" );
+                        targetName = rs.getString( "t_name" );
+                        relType    = rs.getString( "relationship_type" );
+                    }
+                }
+                try ( PreparedStatement ps = conn.prepareStatement( deleteSql ) ) {
+                    ps.setObject( 1, edgeId );
+                    ps.executeUpdate();
+                }
+                try ( PreparedStatement ps = conn.prepareStatement( rejectSql ) ) {
+                    ps.setString( 1, sourceName );
+                    ps.setString( 2, targetName );
+                    ps.setString( 3, relType );
+                    ps.setString( 4, actor );
+                    ps.setString( 5, reason );
+                    ps.executeUpdate();
+                }
+                conn.commit();
+            } catch ( final SQLException inner ) {
+                conn.rollback();
+                LOG.warn( "deleteEdgeAndRecordRejection({}) rolled back: {}",
+                        edgeId, inner.getMessage(), inner );
+                throw new RuntimeException( "deleteEdgeAndRecordRejection failed", inner );
+            } finally {
+                conn.setAutoCommit( true );
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "deleteEdgeAndRecordRejection({}) failed: {}", edgeId, e.getMessage(), e );
+            throw new RuntimeException( "deleteEdgeAndRecordRejection failed", e );
+        }
+    }
 }

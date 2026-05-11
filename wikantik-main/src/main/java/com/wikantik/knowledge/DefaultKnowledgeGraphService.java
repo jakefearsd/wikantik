@@ -231,6 +231,12 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         return nodes.queryNodes( filters, provenanceFilter, limit, offset );
     }
 
+    @Override
+    public long countNodes( final Map< String, Object > filters,
+                             final Set< Provenance > provenanceFilter ) {
+        return nodes.countNodesWithFilter( filters, provenanceFilter );
+    }
+
     // --- Edge operations ---
 
     @Override

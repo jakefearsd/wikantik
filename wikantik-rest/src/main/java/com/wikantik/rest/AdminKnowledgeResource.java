@@ -291,7 +291,11 @@ public class AdminKnowledgeResource extends RestServletBase {
             final int limit = parseIntParam( request, "limit", 50 );
             final int offset = parseIntParam( request, "offset", 0 );
             final List< KgNode > nodes = service.queryNodes( filters, null, limit, offset );
-            sendJson( response, Map.of( "nodes", nodes.stream().map( this::nodeToMap ).toList() ) );
+            final long total = service.countNodes( filters, null );
+            final Map< String, Object > result = new LinkedHashMap<>();
+            result.put( "nodes", nodes.stream().map( this::nodeToMap ).toList() );
+            result.put( "total", total );
+            sendJson( response, result );
         }
     }
 

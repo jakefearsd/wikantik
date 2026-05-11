@@ -362,6 +362,60 @@ public final class KgNodeRepository extends KgJdbcSupport {
         return queryCount( "SELECT COUNT(*) FROM kg_nodes" );
     }
 
+    /**
+     * Counts nodes that would be returned by {@link #queryNodes(Map, Set, int, int)}
+     * with the same filter arguments. Used by the admin UI for the table footer
+     * total alongside the paginated list. Mirrors queryNodes's filter machinery byte
+     * for byte so the count cannot drift from the listing.
+     */
+    public long countNodesWithFilter( final Map< String, Object > filters,
+                                       final Set< Provenance > provenanceFilter ) {
+        final StringBuilder sql = new StringBuilder( "SELECT COUNT(*) FROM kg_nodes n" )
+                .append( KgInclusionFilter.NODE_FILTER_JOIN )
+                .append( "WHERE" ).append( KgInclusionFilter.NODE_FILTER_WHERE );
+        final List< Object > params = new ArrayList<>();
+
+        if ( filters != null ) {
+            if ( filters.containsKey( "node_type" ) ) {
+                sql.append( " AND n.node_type = ?" );
+                params.add( filters.get( "node_type" ) );
+            }
+            if ( filters.containsKey( "source_page" ) ) {
+                sql.append( " AND n.source_page = ?" );
+                params.add( filters.get( "source_page" ) );
+            }
+            if ( filters.containsKey( "name" ) ) {
+                sql.append( " AND LOWER( n.name ) LIKE ?" );
+                params.add( "%" + filters.get( "name" ).toString().toLowerCase( Locale.ROOT ) + "%" );
+            }
+            if ( filters.containsKey( "status" ) ) {
+                sql.append( " AND n.properties->>'status' = ?" );
+                params.add( filters.get( "status" ) );
+            }
+        }
+
+        if ( provenanceFilter != null && !provenanceFilter.isEmpty() ) {
+            sql.append( " AND n.provenance IN (" );
+            final StringJoiner sj = new StringJoiner( ", " );
+            for ( final Provenance p : provenanceFilter ) {
+                sj.add( "?" );
+                params.add( p.value() );
+            }
+            sql.append( sj.toString() ).append( ")" );
+        }
+
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? rs.getLong( 1 ) : 0L;
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "countNodesWithFilter failed: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
+    }
+
     public Map< UUID, String > getNodeNames( final Collection< UUID > ids ) {
         if ( ids == null || ids.isEmpty() ) return Map.of();
         final String placeholders = String.join( ", ", Collections.nCopies( ids.size(), "?" ) );

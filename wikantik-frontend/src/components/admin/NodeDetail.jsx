@@ -3,7 +3,7 @@ import { api } from '../../api/client';
 import ProvenanceBadge from './ProvenanceBadge';
 import PageLink from './PageLink';
 
-export default function NodeDetail({ node, onNavigate }) {
+export default function NodeDetail({ node, onNavigate, onDeleted }) {
   const [similar, setSimilar] = useState([]);
 
   useEffect(() => {
@@ -21,11 +21,19 @@ export default function NodeDetail({ node, onNavigate }) {
   const handleDelete = async () => {
     if (!confirm(`Delete node "${node.name}"? This will also remove all its edges.`)) return;
     await api.knowledge.deleteNode(node.id);
-    window.location.reload();
+    // Refresh the parent list in place instead of a full window reload, which
+    // would lose the admin tab state and bounce the user back to the default
+    // (Proposals) tab.
+    if (onDeleted) onDeleted();
   };
 
   return (
-    <div style={{ padding: 'var(--space-md)', background: 'var(--surface-secondary)', borderRadius: 'var(--radius-md)' }}>
+    <div style={{
+      padding: 'var(--space-md)',
+      background: 'var(--bg-elevated)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-md)',
+    }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-sm)' }}>
         <h3 style={{ margin: 0 }}>{node.name}</h3>
         <button className="btn btn-sm btn-danger" onClick={handleDelete}>Delete</button>
@@ -39,7 +47,7 @@ export default function NodeDetail({ node, onNavigate }) {
             <PageLink name={node.source_page} />
           </div>
         )}
-        {node.is_stub && <div style={{ color: 'var(--warning)', fontStyle: 'italic' }}>Stub node (no wiki page yet)</div>}
+        {node.is_stub && <div style={{ color: 'var(--accent)', fontStyle: 'italic' }}>Stub node (no wiki page yet)</div>}
       </div>
 
       {node.properties && Object.keys(node.properties).length > 0 && (

@@ -34,6 +34,13 @@ public interface KnowledgeGraphService {
     List< KgNode > queryNodes( Map< String, Object > filters, Set< Provenance > provenanceFilter,
                                int limit, int offset );
 
+    /**
+     * Counts nodes that would be returned by {@link #queryNodes} with the same filters.
+     * Used by the admin Node Explorer footer; the AdminTable bulk-delete confirm reads
+     * the total alongside the visible page to give the operator the actual scope.
+     */
+    long countNodes( Map< String, Object > filters, Set< Provenance > provenanceFilter );
+
     // --- Edge operations ---
 
     KgEdge upsertEdge( UUID sourceId, UUID targetId, String relationshipType,

@@ -55,6 +55,8 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     private final com.wikantik.knowledge.judge.KgMaterializationService materialization;
     private final com.wikantik.api.knowledge.KgProposalJudgeService judgeService;
 
+    private final KgEdgeAuditRepository edgeAudit;
+
     // Composed helpers (Phase 11 Ckpt 6)
     private final KgGraphTraversal       traversal;
     private final KgGraphSnapshotBuilder snapshotBuilder;
@@ -103,6 +105,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         this.engine          = engine;
         this.materialization = materialization;
         this.judgeService    = judgeService;
+        this.edgeAudit       = new KgEdgeAuditRepository( dataSource );
         this.traversal       = new KgGraphTraversal( nodes, edges, mentionIndex );
         this.snapshotBuilder = new KgGraphSnapshotBuilder( nodes, edges, engine );
     }
@@ -243,6 +246,46 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                                                       final int limit, final int offset ) {
         return edges.queryEdgesWithNames( relationshipType, searchName, limit, offset );
     }
+
+    @Override
+    public long countEdges( final String relationshipType, final String searchName ) {
+        return edges.countEdgesWithFilter( relationshipType, searchName );
+    }
+
+    @Override
+    public KgEdge getEdge( final UUID id ) {
+        return edges.findById( id );
+    }
+
+    @Override
+    public void deleteEdgeAndRecordRejection( final UUID edgeId, final String actor, final String reason ) {
+        edges.deleteEdgeAndRecordRejection( edgeId, actor, reason );
+        snapshotBuilder.invalidateCache();
+    }
+
+    @Override
+    public int bulkDeleteEdges( final String relationshipType, final String searchName,
+                                final int expectedCount ) {
+        final long actual = edges.countEdgesWithFilter( relationshipType, searchName );
+        if ( actual != expectedCount ) {
+            throw new IllegalStateException( "expected " + expectedCount
+                    + " rows, found " + actual + " — re-confirm before retrying" );
+        }
+        final int deleted = edges.bulkDeleteByFilter( relationshipType, searchName );
+        snapshotBuilder.invalidateCache();
+        return deleted;
+    }
+
+    @Override
+    public List< Map< String, Object > > getEdgeAudit( final UUID edgeId, final int limit ) {
+        return edgeAudit.findByEdgeId( edgeId, limit );
+    }
+
+    /**
+     * Package-private accessor for the edge audit repository. Used by the admin resource
+     * layer to write audit rows directly via the same repo instance.
+     */
+    KgEdgeAuditRepository getEdgeAuditRepository() { return edgeAudit; }
 
     @Override
     public Map< UUID, String > getNodeNames( final Collection< UUID > ids ) {

@@ -301,6 +301,20 @@ public final class KgEdgeRepository extends KgJdbcSupport {
         return queryCount( "SELECT COUNT(*) FROM kg_edges" );
     }
 
+    public KgEdge findById( final UUID id ) {
+        final String sql = "SELECT * FROM kg_edges WHERE id = ?";
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setObject( 1, id );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? mapEdge( rs ) : null;
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "findById({}) failed: {}", id, e.getMessage(), e );
+            throw new RuntimeException( "findById failed", e );
+        }
+    }
+
     public long countEdgesWithFilter( final String relationshipType, final String searchName ) {
         final StringBuilder sql = new StringBuilder(
                 "SELECT COUNT(*) FROM kg_edges e "

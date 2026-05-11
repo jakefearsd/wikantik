@@ -50,6 +50,41 @@ public interface KnowledgeGraphService {
     List< Map< String, Object > > queryEdges( String relationshipType, String searchName,
                                                int limit, int offset );
 
+    /**
+     * Counts edges that would be returned by {@link #queryEdges} with the same filter
+     * arguments. Used by the admin UI to render a total alongside the paginated list.
+     */
+    long countEdges( String relationshipType, String searchName );
+
+    /**
+     * Returns a single edge by id, or null if missing. Used for audit before-state
+     * capture in the admin curation flow.
+     */
+    KgEdge getEdge( UUID id );
+
+    /**
+     * Deletes an edge and, in the same transaction, inserts a kg_rejections row so
+     * a future re-extraction proposing the same triple will be auto-rejected.
+     * Idempotent on the rejection insert.
+     */
+    void deleteEdgeAndRecordRejection( UUID edgeId, String actor, String reason );
+
+    /**
+     * Bulk-deletes every edge matching the same filter that {@link #queryEdges} applies.
+     * The caller's {@code expectedCount} is compared with the actual matched-row count
+     * before deletion; a mismatch raises {@link IllegalStateException} to signal snapshot
+     * drift back to the operator.
+     *
+     * @return the number of rows deleted
+     */
+    int bulkDeleteEdges( String relationshipType, String searchName, int expectedCount );
+
+    /**
+     * Returns up to {@code limit} audit rows for the given edge id, newest first.
+     * Empty list if the edge has no audit history (or never existed).
+     */
+    List< Map< String, Object > > getEdgeAudit( UUID edgeId, int limit );
+
     /** Resolve node UUIDs to names in bulk. */
     Map< UUID, String > getNodeNames( Collection< UUID > ids );
 

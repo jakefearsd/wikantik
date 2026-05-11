@@ -162,12 +162,26 @@ class AdminKnowledgeResourceMockTest {
 
     @Test
     void getEdges_listingForwardsRelationshipTypeFilter() throws Exception {
-        Mockito.when( service.queryEdges( any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        Mockito.when( service.queryEdges( any(), any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
         final HttpServletRequest req = request( "/edges" );
         Mockito.doReturn( "related" ).when( req ).getParameter( "relationship_type" );
         Mockito.doReturn( "Al" ).when( req ).getParameter( "search" );
         call( req, "GET" );
-        Mockito.verify( service ).queryEdges( Mockito.eq( "related" ), Mockito.eq( "Al" ), anyInt(), anyInt() );
+        Mockito.verify( service ).queryEdges(
+                Mockito.eq( "related" ), Mockito.eq( "Al" ), Mockito.isNull(),
+                anyInt(), anyInt() );
+    }
+
+    @Test
+    void getEdges_forwardsEndpointKindFilter() throws Exception {
+        Mockito.when( service.queryEdges( any(), any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        final HttpServletRequest req = request( "/edges" );
+        Mockito.doReturn( "page" ).when( req ).getParameter( "endpoint_kind" );
+        call( req, "GET" );
+        Mockito.verify( service ).queryEdges(
+                Mockito.isNull(), Mockito.isNull(), Mockito.eq( "page" ),
+                anyInt(), anyInt() );
+        Mockito.verify( service ).countEdges( Mockito.isNull(), Mockito.isNull(), Mockito.eq( "page" ) );
     }
 
     @Test

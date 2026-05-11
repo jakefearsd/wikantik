@@ -45,6 +45,18 @@ describe('EdgeExplorer', () => {
     await waitFor(() => screen.getByText(/950 total/i));
   });
 
+  it('endpoint-kind dropdown threads through to queryEdges as endpoint_kind', async () => {
+    render(<EdgeExplorer />);
+    await waitFor(() => screen.getByText('A'));
+    api.knowledge.queryEdges.mockClear();
+    fireEvent.change(screen.getByLabelText(/endpoint kind/i), { target: { value: 'page' } });
+    await waitFor(() =>
+      expect(api.knowledge.queryEdges).toHaveBeenCalledWith(
+        expect.objectContaining({ endpoint_kind: 'page' }),
+      ),
+    );
+  });
+
   it('shows New edge button that opens the modal', async () => {
     render(<EdgeExplorer />);
     await waitFor(() => screen.getByText('A'));

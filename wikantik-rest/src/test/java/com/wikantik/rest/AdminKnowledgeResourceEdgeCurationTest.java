@@ -93,8 +93,8 @@ class AdminKnowledgeResourceEdgeCurationTest {
 
     @Test
     void getEdges_includesTotal() throws Exception {
-        Mockito.when( service.queryEdges( any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
-        Mockito.when( service.countEdges( any(), any() ) ).thenReturn( 42L );
+        Mockito.when( service.queryEdges( any(), any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        Mockito.when( service.countEdges( any(), any(), any() ) ).thenReturn( 42L );
 
         final JsonObject obj = call( request( "/edges" ), "GET" );
         assertTrue( obj.has( "edges" ), "response must have 'edges' key" );
@@ -155,8 +155,8 @@ class AdminKnowledgeResourceEdgeCurationTest {
     @Test
     void postEdge_bulkDelete_returns409OnCountDrift() throws Exception {
         // snapshot returns 5 rows but service throws on the mismatch
-        Mockito.when( service.queryEdges( any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
-        Mockito.when( service.bulkDeleteEdges( any(), any(), anyInt() ) )
+        Mockito.when( service.queryEdges( any(), any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        Mockito.when( service.bulkDeleteEdges( any(), any(), any(), anyInt() ) )
             .thenThrow( new IllegalStateException( "Count drift: expected 3 but found 5" ) );
 
         final JsonObject body = new JsonObject();

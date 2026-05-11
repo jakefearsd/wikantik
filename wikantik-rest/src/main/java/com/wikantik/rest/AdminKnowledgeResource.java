@@ -303,11 +303,12 @@ public class AdminKnowledgeResource extends RestServletBase {
             // GET /admin/knowledge-graph/edges — list all edges (paginated, with names)
             final String relType = request.getParameter( "relationship_type" );
             final String search = request.getParameter( "search" );
+            final String endpointKind = request.getParameter( "endpoint_kind" );
             final int limit = parseIntParam( request, "limit", 50 );
             final int offset = parseIntParam( request, "offset", 0 );
-            final long total = service.countEdges( relType, search );
+            final long total = service.countEdges( relType, search, endpointKind );
             final Map< String, Object > result = new LinkedHashMap<>();
-            result.put( "edges", service.queryEdges( relType, search, limit, offset ) );
+            result.put( "edges", service.queryEdges( relType, search, endpointKind, limit, offset ) );
             result.put( "total", total );
             sendJson( response, result );
             return;
@@ -785,24 +786,26 @@ public class AdminKnowledgeResource extends RestServletBase {
         final String relType = body.has( "relationship_type" )
             ? body.get( "relationship_type" ).getAsString() : null;
         final String search = body.has( "search" ) ? body.get( "search" ).getAsString() : null;
+        final String endpointKind = body.has( "endpoint_kind" )
+            ? body.get( "endpoint_kind" ).getAsString() : null;
         final int expectedCount = body.get( "expected_count" ).getAsInt();
 
         // Snapshot before delete for per-row audit
         List< Map< String, Object > > snapshot;
         try {
-            snapshot = service.queryEdges( relType, search, expectedCount + 1, 0 );
+            snapshot = service.queryEdges( relType, search, endpointKind, expectedCount + 1, 0 );
         } catch ( final RuntimeException e ) {
-            LOG.warn( "handlePostEdgeBulkDelete: failed to snapshot edges (relType={}, search={}): {}",
-                relType, search, e.getMessage() );
+            LOG.warn( "handlePostEdgeBulkDelete: failed to snapshot edges (relType={}, search={}, endpointKind={}): {}",
+                relType, search, endpointKind, e.getMessage() );
             snapshot = List.of();
         }
 
         final int deleted;
         try {
-            deleted = service.bulkDeleteEdges( relType, search, expectedCount );
+            deleted = service.bulkDeleteEdges( relType, search, endpointKind, expectedCount );
         } catch ( final IllegalStateException e ) {
-            LOG.warn( "handlePostEdgeBulkDelete: count drift (relType={}, search={}, expected={}): {}",
-                relType, search, expectedCount, e.getMessage() );
+            LOG.warn( "handlePostEdgeBulkDelete: count drift (relType={}, search={}, endpointKind={}, expected={}): {}",
+                relType, search, endpointKind, expectedCount, e.getMessage() );
             sendError( response, HttpServletResponse.SC_CONFLICT, e.getMessage() );
             return;
         }

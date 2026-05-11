@@ -549,10 +549,11 @@ export const api = {
     getEdges: (nodeId, direction = 'both') =>
       request(`/admin/knowledge-graph/edges/${nodeId}?direction=${direction}`),
 
-    queryEdges: ({ relationship_type, search, limit = 50, offset = 0 } = {}) => {
+    queryEdges: ({ relationship_type, search, endpoint_kind, limit = 50, offset = 0 } = {}) => {
       const params = new URLSearchParams({ limit, offset });
       if (relationship_type) params.set('relationship_type', relationship_type);
       if (search) params.set('search', search);
+      if (endpoint_kind) params.set('endpoint_kind', endpoint_kind);
       return request(`/admin/knowledge-graph/edges?${params}`);
     },
 

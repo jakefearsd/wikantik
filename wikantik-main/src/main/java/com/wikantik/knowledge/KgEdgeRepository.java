@@ -40,6 +40,31 @@ public final class KgEdgeRepository extends KgJdbcSupport {
 
     private static final Logger LOG = LogManager.getLogger( KgEdgeRepository.class );
 
+    /**
+     * Endpoint-kind filter for Edge Explorer queries. The Knowledge Graph stores both
+     * wiki-page nodes (node_type ∈ article/hub/implementation-plan/…) and LLM-extracted
+     * concept nodes (node_type = 'concept'). The admin UI lets operators filter the
+     * edge list to view only one category or the union (default).
+     *
+     * <p>{@code "page"}   — both endpoints are wiki-page-like (node_type != 'concept').<br>
+     * {@code "entity"} — both endpoints are LLM-extracted concepts (node_type = 'concept').<br>
+     * any other / null — no filter; the union is returned.</p>
+     *
+     * <p>Mixed-endpoint edges (one page, one concept) only appear in the no-filter
+     * view; "page" and "entity" filters require <em>both</em> endpoints to match.
+     * Nodes with NULL {@code node_type} (legacy/bugged data) are excluded from both
+     * the "page" and "entity" filters by the SQL semantics of {@code != 'concept'}.</p>
+     */
+    private static String endpointKindClause( final String endpointKind ) {
+        if ( endpointKind == null || endpointKind.isBlank() ) return "";
+        return switch ( endpointKind ) {
+            case "page"   -> " AND sn.node_type IS NOT NULL AND sn.node_type != 'concept'"
+                           + " AND tn.node_type IS NOT NULL AND tn.node_type != 'concept'";
+            case "entity" -> " AND sn.node_type = 'concept' AND tn.node_type = 'concept'";
+            default       -> "";
+        };
+    }
+
     public KgEdgeRepository( final DataSource dataSource ) {
         super( dataSource );
     }
@@ -241,6 +266,13 @@ public final class KgEdgeRepository extends KgJdbcSupport {
     public List< Map< String, Object > > queryEdgesWithNames( final String relationshipType,
                                                                final String searchName,
                                                                final int limit, final int offset ) {
+        return queryEdgesWithNames( relationshipType, searchName, null, limit, offset );
+    }
+
+    public List< Map< String, Object > > queryEdgesWithNames( final String relationshipType,
+                                                               final String searchName,
+                                                               final String endpointKind,
+                                                               final int limit, final int offset ) {
         final StringBuilder sql = new StringBuilder(
                 "SELECT e.*, sn.name AS source_name, tn.name AS target_name "
               + "FROM kg_edges e "
@@ -260,6 +292,7 @@ public final class KgEdgeRepository extends KgJdbcSupport {
             params.add( pattern );
             params.add( pattern );
         }
+        sql.append( endpointKindClause( endpointKind ) );
         sql.append( " ORDER BY sn.name, e.relationship_type LIMIT ? OFFSET ?" );
         params.add( limit );
         params.add( offset );
@@ -316,6 +349,11 @@ public final class KgEdgeRepository extends KgJdbcSupport {
     }
 
     public long countEdgesWithFilter( final String relationshipType, final String searchName ) {
+        return countEdgesWithFilter( relationshipType, searchName, null );
+    }
+
+    public long countEdgesWithFilter( final String relationshipType, final String searchName,
+                                       final String endpointKind ) {
         final StringBuilder sql = new StringBuilder(
                 "SELECT COUNT(*) FROM kg_edges e "
               + "JOIN kg_nodes sn ON e.source_id = sn.id "
@@ -334,6 +372,7 @@ public final class KgEdgeRepository extends KgJdbcSupport {
             params.add( pattern );
             params.add( pattern );
         }
+        sql.append( endpointKindClause( endpointKind ) );
 
         try ( Connection conn = dataSource.getConnection();
               PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
@@ -356,6 +395,11 @@ public final class KgEdgeRepository extends KgJdbcSupport {
      * @return number of rows deleted
      */
     public int bulkDeleteByFilter( final String relationshipType, final String searchName ) {
+        return bulkDeleteByFilter( relationshipType, searchName, null );
+    }
+
+    public int bulkDeleteByFilter( final String relationshipType, final String searchName,
+                                    final String endpointKind ) {
         final StringBuilder sql = new StringBuilder(
                 "DELETE FROM kg_edges WHERE id IN ("
               + " SELECT e.id FROM kg_edges e "
@@ -375,6 +419,7 @@ public final class KgEdgeRepository extends KgJdbcSupport {
             params.add( pattern );
             params.add( pattern );
         }
+        sql.append( endpointKindClause( endpointKind ) );
         sql.append( " )" );
 
         try ( Connection conn = dataSource.getConnection();

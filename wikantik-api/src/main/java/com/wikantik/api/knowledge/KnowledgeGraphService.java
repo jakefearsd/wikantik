@@ -51,10 +51,22 @@ public interface KnowledgeGraphService {
                                                int limit, int offset );
 
     /**
+     * Same as {@link #queryEdges(String, String, int, int)} but with an additional
+     * {@code endpointKind} filter: {@code "page"} keeps only edges whose endpoints
+     * are both wiki-page-like (node_type != 'concept'), {@code "entity"} keeps only
+     * edges between LLM-extracted concepts, anything else (or null) returns the union.
+     */
+    List< Map< String, Object > > queryEdges( String relationshipType, String searchName,
+                                               String endpointKind, int limit, int offset );
+
+    /**
      * Counts edges that would be returned by {@link #queryEdges} with the same filter
      * arguments. Used by the admin UI to render a total alongside the paginated list.
      */
     long countEdges( String relationshipType, String searchName );
+
+    /** Counts edges with the same semantics as {@link #queryEdges(String, String, String, int, int)}. */
+    long countEdges( String relationshipType, String searchName, String endpointKind );
 
     /**
      * Returns a single edge by id, or null if missing. Used for audit before-state
@@ -78,6 +90,9 @@ public interface KnowledgeGraphService {
      * @return the number of rows deleted
      */
     int bulkDeleteEdges( String relationshipType, String searchName, int expectedCount );
+
+    /** Bulk-deletes edges with the same semantics as {@link #queryEdges(String, String, String, int, int)}. */
+    int bulkDeleteEdges( String relationshipType, String searchName, String endpointKind, int expectedCount );
 
     /**
      * Returns up to {@code limit} audit rows for the given edge id, newest first.

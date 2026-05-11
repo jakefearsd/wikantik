@@ -249,6 +249,7 @@ export default function EdgeExplorer() {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [relTypeFilter, setRelTypeFilter] = useState('');
+  const [endpointKindFilter, setEndpointKindFilter] = useState(''); // '' | 'page' | 'entity'
   const [relTypes, setRelTypes] = useState([]);
   const [page, setPage] = useState(0);
   const [selectedEdge, setSelectedEdge] = useState(null);
@@ -264,6 +265,7 @@ export default function EdgeExplorer() {
         const data = await api.knowledge.queryEdges({
           relationship_type: relTypeFilter || undefined,
           search: search || undefined,
+          endpoint_kind: endpointKindFilter || undefined,
           limit: PAGE_SIZE,
           offset: currentPage * PAGE_SIZE,
         });
@@ -274,7 +276,7 @@ export default function EdgeExplorer() {
         setError(err.message);
       }
     },
-    [relTypeFilter, search],
+    [relTypeFilter, search, endpointKindFilter],
   );
 
   useEffect(() => {
@@ -527,10 +529,21 @@ export default function EdgeExplorer() {
             aria-label="Search by node name"
           />
           <select
+            value={endpointKindFilter}
+            onChange={(e) => setEndpointKindFilter(e.target.value)}
+            className="form-input"
+            style={{ width: '160px' }}
+            aria-label="Endpoint kind filter"
+          >
+            <option value="">Pages + Entities</option>
+            <option value="page">Pages only</option>
+            <option value="entity">Entities only</option>
+          </select>
+          <select
             value={relTypeFilter}
             onChange={(e) => setRelTypeFilter(e.target.value)}
             className="form-input"
-            style={{ width: '220px' }}
+            style={{ width: '200px' }}
             aria-label="Relationship type filter"
           >
             <option value="">All relationship types</option>

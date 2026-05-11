@@ -263,12 +263,26 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     public List< Map< String, Object > > queryEdges( final String relationshipType,
                                                       final String searchName,
                                                       final int limit, final int offset ) {
-        return edges.queryEdgesWithNames( relationshipType, searchName, limit, offset );
+        return queryEdges( relationshipType, searchName, null, limit, offset );
+    }
+
+    @Override
+    public List< Map< String, Object > > queryEdges( final String relationshipType,
+                                                      final String searchName,
+                                                      final String endpointKind,
+                                                      final int limit, final int offset ) {
+        return edges.queryEdgesWithNames( relationshipType, searchName, endpointKind, limit, offset );
     }
 
     @Override
     public long countEdges( final String relationshipType, final String searchName ) {
-        return edges.countEdgesWithFilter( relationshipType, searchName );
+        return countEdges( relationshipType, searchName, null );
+    }
+
+    @Override
+    public long countEdges( final String relationshipType, final String searchName,
+                             final String endpointKind ) {
+        return edges.countEdgesWithFilter( relationshipType, searchName, endpointKind );
     }
 
     @Override
@@ -285,12 +299,18 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     @Override
     public int bulkDeleteEdges( final String relationshipType, final String searchName,
                                 final int expectedCount ) {
-        final long actual = edges.countEdgesWithFilter( relationshipType, searchName );
+        return bulkDeleteEdges( relationshipType, searchName, null, expectedCount );
+    }
+
+    @Override
+    public int bulkDeleteEdges( final String relationshipType, final String searchName,
+                                final String endpointKind, final int expectedCount ) {
+        final long actual = edges.countEdgesWithFilter( relationshipType, searchName, endpointKind );
         if ( actual != expectedCount ) {
             throw new IllegalStateException( "expected " + expectedCount
                     + " rows, found " + actual + " — re-confirm before retrying" );
         }
-        final int deleted = edges.bulkDeleteByFilter( relationshipType, searchName );
+        final int deleted = edges.bulkDeleteByFilter( relationshipType, searchName, endpointKind );
         snapshotBuilder.invalidateCache();
         return deleted;
     }

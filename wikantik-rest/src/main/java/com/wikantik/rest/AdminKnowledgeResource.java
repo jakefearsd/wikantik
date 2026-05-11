@@ -1098,6 +1098,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         map.put( "target_id", edge.targetId().toString() );
         map.put( "relationship_type", edge.relationshipType() );
         map.put( "provenance", edge.provenance().value() );
+        map.put( "tier", edge.tier() );
         map.put( "properties", edge.properties() );
         map.put( "created", edge.created() != null ? edge.created().toString() : null );
         map.put( "modified", edge.modified() != null ? edge.modified().toString() : null );

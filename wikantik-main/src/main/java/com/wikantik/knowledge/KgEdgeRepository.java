@@ -300,4 +300,36 @@ public final class KgEdgeRepository extends KgJdbcSupport {
     public long countEdges() {
         return queryCount( "SELECT COUNT(*) FROM kg_edges" );
     }
+
+    public long countEdgesWithFilter( final String relationshipType, final String searchName ) {
+        final StringBuilder sql = new StringBuilder(
+                "SELECT COUNT(*) FROM kg_edges e "
+              + "JOIN kg_nodes sn ON e.source_id = sn.id "
+              + "JOIN kg_nodes tn ON e.target_id = tn.id"
+              + KgInclusionFilter.EDGE_FILTER_JOIN
+              + "WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE );
+        final List< Object > params = new ArrayList<>();
+
+        if ( relationshipType != null && !relationshipType.isBlank() ) {
+            sql.append( " AND e.relationship_type = ?" );
+            params.add( relationshipType );
+        }
+        if ( searchName != null && !searchName.isBlank() ) {
+            sql.append( " AND ( LOWER( sn.name ) LIKE ? OR LOWER( tn.name ) LIKE ? )" );
+            final String pattern = "%" + searchName.toLowerCase( java.util.Locale.ROOT ) + "%";
+            params.add( pattern );
+            params.add( pattern );
+        }
+
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? rs.getLong( 1 ) : 0L;
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "countEdgesWithFilter failed: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
+    }
 }

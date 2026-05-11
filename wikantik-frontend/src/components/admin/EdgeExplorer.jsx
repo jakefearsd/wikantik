@@ -1,15 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../api/client';
 import ProvenanceBadge from './ProvenanceBadge';
 import PageLink from './PageLink';
 import EdgeFormModal from './EdgeFormModal';
+import { AdminTable } from './table';
 
-const LIMIT = 50;
+const PAGE_SIZE = 50;
 
-function ConfirmModal({ title, body, requireText, onConfirm, onCancel, extraField }) {
-  const [typed, setTyped] = useState('');
+function ConfirmModal({ title, body, onConfirm, onCancel, extraField }) {
   const [extraValue, setExtraValue] = useState('');
-  const canConfirm = requireText ? typed === requireText : true;
   return (
     <div
       className="modal-overlay"
@@ -25,19 +24,6 @@ function ConfirmModal({ title, body, requireText, onConfirm, onCancel, extraFiel
           {title}
         </h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-md)' }}>{body}</p>
-        {requireText && (
-          <div className="form-field">
-            <label>
-              Type the count <code>{requireText}</code> to confirm
-            </label>
-            <input
-              type="text"
-              aria-label="type the count"
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-            />
-          </div>
-        )}
         {extraField && (
           <div className="form-field">
             <label>{extraField.label}</label>
@@ -55,8 +41,7 @@ function ConfirmModal({ title, body, requireText, onConfirm, onCancel, extraFiel
           </button>
           <button
             type="button"
-            className="btn btn-primary"
-            disabled={!canConfirm}
+            className="btn btn-primary btn-danger"
             onClick={() => onConfirm(extraValue)}
           >
             Confirm
@@ -148,6 +133,7 @@ function EdgeDetail({
         style={{
           padding: 'var(--space-sm)',
           background: 'var(--bg-elevated)',
+          border: '1px solid var(--border)',
           borderRadius: 'var(--radius-md)',
           marginBottom: 'var(--space-sm)',
         }}
@@ -260,26 +246,26 @@ export default function EdgeExplorer() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [relTypeFilter, setRelTypeFilter] = useState('');
   const [relTypes, setRelTypes] = useState([]);
-  const [offset, setOffset] = useState(0);
+  const [page, setPage] = useState(0);
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [sourceNode, setSourceNode] = useState(null);
   const [targetNode, setTargetNode] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [formMode, setFormMode] = useState(null); // null | 'create' | 'edit'
-  const [confirmMode, setConfirmMode] = useState(null); // null | 'plain' | 'reject' | 'bulk'
-  const debounceRef = useRef(null);
+  const [confirmMode, setConfirmMode] = useState(null); // null | 'plain' | 'reject'
 
   const loadEdges = useCallback(
-    async (currentOffset) => {
+    async (currentPage) => {
       try {
         const data = await api.knowledge.queryEdges({
           relationship_type: relTypeFilter || undefined,
           search: search || undefined,
-          limit: LIMIT,
-          offset: currentOffset,
+          limit: PAGE_SIZE,
+          offset: currentPage * PAGE_SIZE,
         });
         setEdges(data.edges || []);
         setTotal(typeof data.total === 'number' ? data.total : data.edges?.length || 0);
@@ -302,20 +288,22 @@ export default function EdgeExplorer() {
     })();
   }, []);
 
+  // Reset to page 0 whenever a filter changes, then reload.
   useEffect(() => {
-    setOffset(0);
+    setPage(0);
     loadEdges(0).finally(() => setLoading(false));
   }, [loadEdges]);
 
+  // Reload when paginating.
   useEffect(() => {
-    if (offset > 0) loadEdges(offset);
-  }, [offset, loadEdges]);
+    if (page > 0) loadEdges(page);
+  }, [page, loadEdges]);
 
-  const handleSearchChange = (e) => {
-    const value = e.target.value;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setSearch(value), 300);
-  };
+  // Debounce the search input → search state.
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const handleEdgeClick = async (edge) => {
     setSelectedEdge(edge);
@@ -356,7 +344,7 @@ export default function EdgeExplorer() {
   const refreshAndClose = async () => {
     setFormMode(null);
     setConfirmMode(null);
-    await loadEdges(offset);
+    await loadEdges(page);
   };
 
   const onConfirmPlainDelete = async () => {
@@ -383,23 +371,125 @@ export default function EdgeExplorer() {
     }
   };
 
-  const onConfirmBulkDelete = async () => {
-    try {
-      await api.knowledge.bulkDeleteEdges({
-        relationship_type: relTypeFilter || undefined,
-        search: search || undefined,
-        expected_count: total,
-      });
-      setSelectedEdge(null);
-      await refreshAndClose();
-    } catch (e) {
-      setError(e.message);
-      setConfirmMode(null);
-    }
-  };
+  // ---- AdminTable wiring ---------------------------------------------------
 
-  const handlePrev = () => setOffset(Math.max(0, offset - LIMIT));
-  const handleNext = () => setOffset(offset + LIMIT);
+  const columns = useMemo(
+    () => [
+      {
+        id: 'source_name',
+        label: 'Source',
+        render: (e) => (
+          <button
+            type="button"
+            className="btn-link"
+            onClick={(ev) => {
+              ev.stopPropagation();
+              handleEdgeClick(e);
+            }}
+            style={{ fontWeight: 500 }}
+          >
+            {e.source_name || e.source_id}
+          </button>
+        ),
+      },
+      {
+        id: 'relationship_type',
+        label: 'Relationship',
+        render: (e) => <span style={{ whiteSpace: 'nowrap' }}>{e.relationship_type}</span>,
+      },
+      {
+        id: 'target_name',
+        label: 'Target',
+        render: (e) => (
+          <button
+            type="button"
+            className="btn-link"
+            onClick={(ev) => {
+              ev.stopPropagation();
+              handleEdgeClick(e);
+            }}
+            style={{ fontWeight: 500 }}
+          >
+            {e.target_name || e.target_id}
+          </button>
+        ),
+      },
+      {
+        id: 'provenance',
+        label: 'Provenance',
+        render: (e) => <ProvenanceBadge value={e.provenance} />,
+      },
+    ],
+    [],
+  );
+
+  const bulkActions = useMemo(
+    () => [
+      {
+        id: 'delete',
+        label: 'Delete',
+        variant: 'danger',
+        confirm: {
+          title: 'Delete selected edges',
+          body: (rows) => (
+            <p>
+              Delete {rows.length} edge{rows.length !== 1 ? 's' : ''}? Re-extraction may
+              re-propose them. Use <strong>Delete + Prevent</strong> if you want to keep them
+              out for good.
+            </p>
+          ),
+          confirmLabel: 'Delete',
+        },
+      },
+      {
+        id: 'reject',
+        label: 'Delete + Prevent',
+        variant: 'danger',
+        confirm: {
+          title: 'Delete selected and prevent re-proposal',
+          body: (rows) => (
+            <p>
+              Delete {rows.length} edge{rows.length !== 1 ? 's' : ''} AND insert a rejection
+              row for each so the next extraction run cannot re-add them.
+            </p>
+          ),
+          confirmLabel: 'Delete + Prevent',
+        },
+        reason: { label: 'Reason', placeholder: 'Why are these wrong?', required: true },
+      },
+    ],
+    [],
+  );
+
+  const handleBulkAction = useCallback(
+    async (action, selectedRows, reason) => {
+      const ids = selectedRows.map((e) => e.id).filter(Boolean);
+      const succeeded = [];
+      const failed = [];
+
+      for (const id of ids) {
+        try {
+          if (action.id === 'delete') {
+            await api.knowledge.deleteEdge(id);
+          } else if (action.id === 'reject') {
+            await api.knowledge.deleteAndRejectEdge(id, reason);
+          }
+          succeeded.push(id);
+        } catch (e) {
+          failed.push({ id, error: e?.message || String(e) });
+        }
+      }
+
+      // Clear the detail pane if its edge was part of the deleted set.
+      if (selectedEdge?.id && ids.includes(selectedEdge.id) && failed.every((f) => f.id !== selectedEdge.id)) {
+        setSelectedEdge(null);
+      }
+      await loadEdges(page);
+
+      return { succeeded, failed, status: 'completed' };
+    },
+    [loadEdges, page, selectedEdge],
+  );
 
   if (loading) return <div className="admin-loading">Loading edges...</div>;
   if (error) return <div className="admin-error">{error}</div>;
@@ -407,20 +497,41 @@ export default function EdgeExplorer() {
   return (
     <div style={{ display: 'flex', gap: 'var(--space-lg)', minHeight: '400px' }}>
       <div style={{ flex: '1 1 50%' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 'var(--space-sm)',
+            gap: 'var(--space-md)',
+          }}
+        >
+          <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.1rem' }}>
+            Edges <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+              · {total.toLocaleString()} total
+            </span>
+          </h3>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setFormMode('create')}>
+            New edge
+          </button>
+        </div>
+
         <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-sm)' }}>
           <input
             type="text"
-            placeholder="Search by node name..."
-            defaultValue={search}
-            onChange={handleSearchChange}
+            placeholder="Search by node name…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="form-input"
             style={{ flex: 1 }}
+            aria-label="Search by node name"
           />
           <select
             value={relTypeFilter}
             onChange={(e) => setRelTypeFilter(e.target.value)}
             className="form-input"
-            style={{ width: '200px' }}
+            style={{ width: '220px' }}
+            aria-label="Relationship type filter"
           >
             <option value="">All relationship types</option>
             {relTypes.map((t) => (
@@ -429,74 +540,24 @@ export default function EdgeExplorer() {
               </option>
             ))}
           </select>
-          <button type="button" className="btn btn-primary" onClick={() => setFormMode('create')}>
-            New edge
-          </button>
         </div>
 
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Source</th>
-              <th>Relationship</th>
-              <th>Target</th>
-              <th>Provenance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {edges.map((e) => (
-              <tr
-                key={e.id}
-                onClick={() => handleEdgeClick(e)}
-                style={{ cursor: 'pointer' }}
-                className={selectedEdge?.id === e.id ? 'admin-row-selected' : ''}
-              >
-                <td>{e.source_name || e.source_id}</td>
-                <td style={{ whiteSpace: 'nowrap' }}>{e.relationship_type}</td>
-                <td>{e.target_name || e.target_id}</td>
-                <td>
-                  <ProvenanceBadge value={e.provenance} />
-                </td>
-              </tr>
-            ))}
-            {edges.length === 0 && (
-              <tr>
-                <td colSpan={4} style={{ textAlign: 'center' }}>
-                  No edges found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: 'var(--space-sm)',
-            fontSize: '0.85em',
+        <AdminTable
+          rows={edges}
+          getRowKey={(e) => e.id}
+          columns={columns}
+          selectable
+          bulkActions={bulkActions}
+          onBulkAction={handleBulkAction}
+          emptyMessage="No edges found."
+          kindLabel="edge"
+          pagination={{
+            pageSize: PAGE_SIZE,
+            totalCount: total,
+            currentPage: page,
+            onPageChange: setPage,
           }}
-        >
-          <button className="btn btn-sm" onClick={handlePrev} disabled={offset === 0}>
-            Prev
-          </button>
-          <span>
-            Showing {offset + 1}–{offset + edges.length} of {total}
-          </span>
-          <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-            <button
-              className="btn btn-sm btn-danger"
-              disabled={total === 0}
-              onClick={() => setConfirmMode('bulk')}
-            >
-              Delete filtered ({total})
-            </button>
-            <button className="btn btn-sm" onClick={handleNext} disabled={edges.length < LIMIT}>
-              Next
-            </button>
-          </div>
-        </div>
+        />
       </div>
 
       <div style={{ flex: '1 1 50%' }}>
@@ -547,15 +608,6 @@ export default function EdgeExplorer() {
           body="This will delete the edge AND insert a rejection so the next extraction run cannot re-add it."
           extraField={{ label: 'Reason' }}
           onConfirm={onConfirmDeleteAndReject}
-          onCancel={() => setConfirmMode(null)}
-        />
-      )}
-      {confirmMode === 'bulk' && (
-        <ConfirmModal
-          title={`Delete ${total} filtered edges?`}
-          body="This deletes every edge matching the current filter, including pages beyond the current view."
-          requireText={String(total)}
-          onConfirm={onConfirmBulkDelete}
           onCancel={() => setConfirmMode(null)}
         />
       )}

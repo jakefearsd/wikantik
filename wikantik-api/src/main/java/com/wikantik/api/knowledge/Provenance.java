@@ -2,6 +2,7 @@ package com.wikantik.api.knowledge;
 
 public enum Provenance {
     HUMAN_AUTHORED( "human-authored" ),
+    HUMAN_CURATED( "human-curated" ),
     AI_INFERRED( "ai-inferred" ),
     AI_REVIEWED( "ai-reviewed" );
 

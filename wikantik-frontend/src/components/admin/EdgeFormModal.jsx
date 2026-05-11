@@ -31,15 +31,13 @@ function NodeAutocomplete({ label, value, onSelect, disabled }) {
   };
 
   return (
-    <div style={{ display: 'block', marginBottom: 'var(--space-sm)' }}>
-      <span style={{ display: 'block', fontWeight: 500, marginBottom: '4px' }}>{label}</span>
+    <div className="form-field" style={{ position: 'relative' }}>
+      <label>{label}</label>
       <input
         type="text"
         value={query}
         onChange={onChange}
         disabled={disabled}
-        className="form-input"
-        style={{ width: '100%' }}
         aria-label={label}
       />
       {open && results.length > 0 && (
@@ -47,10 +45,17 @@ function NodeAutocomplete({ label, value, onSelect, disabled }) {
           style={{
             listStyle: 'none',
             padding: 0,
-            margin: 0,
+            margin: '4px 0 0 0',
             border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--bg-elevated)',
             maxHeight: '180px',
             overflowY: 'auto',
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            zIndex: 1,
+            boxShadow: '0 4px 12px var(--shadow)',
           }}
         >
           {results.map((n) => (
@@ -62,7 +67,9 @@ function NodeAutocomplete({ label, value, onSelect, disabled }) {
                   display: 'block',
                   width: '100%',
                   textAlign: 'left',
-                  padding: '6px 8px',
+                  padding: 'var(--space-sm) var(--space-md)',
+                  fontFamily: 'var(--font-ui)',
+                  fontSize: '0.9rem',
                 }}
                 onClick={() => {
                   onSelect(n);
@@ -112,7 +119,9 @@ export default function EdgeFormModal({
 
   const canSave = !!source && !!target && !!relType && propsValid && !saving;
 
-  const onSave = async () => {
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    if (!canSave) return;
     setSaving(true);
     setError(null);
     try {
@@ -125,9 +134,9 @@ export default function EdgeFormModal({
       if (mode === 'edit' && initialEdge?.id) body.id = initialEdge.id;
       await api.knowledge.upsertEdge(body);
       onSaved();
-    } catch (e) {
-      if (e?.status === 409) setError(e.message || 'This edge already exists.');
-      else setError(e?.message || 'Save failed.');
+    } catch (e2) {
+      if (e2?.status === 409) setError(e2.message || 'This edge already exists.');
+      else setError(e2?.message || 'Save failed.');
     } finally {
       setSaving(false);
     }
@@ -141,71 +150,69 @@ export default function EdgeFormModal({
       style={{ alignItems: 'center', paddingTop: 0, zIndex: 1000 }}
     >
       <div
-        className="modal-content"
-        style={{ minWidth: '480px', maxWidth: '640px' }}
+        className="modal-content admin-modal"
+        style={{ maxWidth: '560px' }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <h3>{mode === 'edit' ? 'Edit edge' : 'New edge'}</h3>
-        <NodeAutocomplete
-          label="Source"
-          value={source}
-          onSelect={setSource}
-          disabled={mode === 'edit'}
-        />
-        <NodeAutocomplete
-          label="Target"
-          value={target}
-          onSelect={setTarget}
-          disabled={mode === 'edit'}
-        />
-        <div style={{ display: 'block', marginBottom: 'var(--space-sm)' }}>
-          <span style={{ display: 'block', fontWeight: 500, marginBottom: '4px' }}>Relationship</span>
-          <select
-            className="form-input"
-            value={relType}
-            onChange={(e) => setRelType(e.target.value)}
-            style={{ width: '100%' }}
-            aria-label="Relationship"
-          >
-            <option value="">— pick a type —</option>
-            {relTypes.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div style={{ display: 'block', marginBottom: 'var(--space-sm)' }}>
-          <span style={{ display: 'block', fontWeight: 500, marginBottom: '4px' }}>Properties (JSON)</span>
-          <textarea
-            className="form-input"
-            value={propsText}
-            onChange={(e) => setPropsText(e.target.value)}
-            rows={5}
-            style={{ width: '100%', fontFamily: 'monospace' }}
-            aria-label="Properties"
+        <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: 'var(--space-lg)' }}>
+          {mode === 'edit' ? 'Edit edge' : 'New edge'}
+        </h2>
+
+        {error && <div className="error-banner">{error}</div>}
+
+        <form onSubmit={onSubmit}>
+          <NodeAutocomplete
+            label="Source"
+            value={source}
+            onSelect={setSource}
+            disabled={mode === 'edit'}
           />
-          {!propsValid && (
-            <small style={{ color: 'var(--error, #c0392b)' }}>Invalid JSON object.</small>
-          )}
-        </div>
-        {error && (
-          <div className="admin-error" style={{ marginBottom: 'var(--space-sm)' }}>
-            {error}
+          <NodeAutocomplete
+            label="Target"
+            value={target}
+            onSelect={setTarget}
+            disabled={mode === 'edit'}
+          />
+          <div className="form-field">
+            <label>Relationship</label>
+            <select
+              value={relType}
+              onChange={(e) => setRelType(e.target.value)}
+              aria-label="Relationship"
+            >
+              <option value="">— pick a type —</option>
+              {relTypes.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
-        <div style={{ display: 'flex', gap: 'var(--space-sm)', justifyContent: 'flex-end' }}>
-          <button type="button" className="btn" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!canSave}
-            onClick={onSave}
-          >
-            Save
-          </button>
-        </div>
+          <div className="form-field">
+            <label>Properties (JSON)</label>
+            <textarea
+              value={propsText}
+              onChange={(e) => setPropsText(e.target.value)}
+              rows={5}
+              aria-label="Properties"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            />
+            {!propsValid && (
+              <p className="form-hint" style={{ color: 'var(--error, #c0392b)' }}>
+                Invalid JSON object.
+              </p>
+            )}
+          </div>
+
+          <div className="modal-actions">
+            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={!canSave}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

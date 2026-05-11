@@ -17,39 +17,40 @@ function ConfirmModal({ title, body, requireText, onConfirm, onCancel, extraFiel
       style={{ alignItems: 'center', paddingTop: 0, zIndex: 1000 }}
     >
       <div
-        className="modal-content"
-        style={{ minWidth: '380px', maxWidth: '520px' }}
+        className="modal-content admin-modal"
+        style={{ maxWidth: '520px' }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <h3>{title}</h3>
-        <p>{body}</p>
+        <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: 'var(--space-sm)' }}>
+          {title}
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-md)' }}>{body}</p>
         {requireText && (
-          <div style={{ marginBottom: 'var(--space-sm)' }}>
-            <span style={{ display: 'block', marginBottom: '4px' }}>
-              Type the count <code>{requireText}</code> to confirm:
-            </span>
+          <div className="form-field">
+            <label>
+              Type the count <code>{requireText}</code> to confirm
+            </label>
             <input
-              className="form-input"
+              type="text"
               aria-label="type the count"
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
-              style={{ width: '100%' }}
             />
           </div>
         )}
         {extraField && (
-          <div style={{ marginBottom: 'var(--space-sm)' }}>
-            <span style={{ display: 'block', marginBottom: '4px' }}>{extraField.label}</span>
+          <div className="form-field">
+            <label>{extraField.label}</label>
             <input
-              className="form-input"
+              type="text"
               aria-label={extraField.label.toLowerCase()}
               value={extraValue}
               onChange={(e) => setExtraValue(e.target.value)}
-              style={{ width: '100%' }}
             />
           </div>
         )}
-        <div style={{ display: 'flex', gap: 'var(--space-sm)', justifyContent: 'flex-end' }}>
-          <button type="button" className="btn" onClick={onCancel}>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onCancel}>
             Cancel
           </button>
           <button

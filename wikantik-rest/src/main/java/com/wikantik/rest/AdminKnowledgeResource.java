@@ -75,7 +75,10 @@ import java.util.stream.Collectors;
  *   <li>{@code POST /admin/knowledge-graph/nodes} — upsert node (manual curation)</li>
  *   <li>{@code DELETE /admin/knowledge-graph/nodes/{id}} — delete a node</li>
  *   <li>{@code POST /admin/knowledge-graph/nodes/merge} — merge two nodes (body: {sourceId, targetId})</li>
- *   <li>{@code POST /admin/knowledge-graph/edges} — upsert edge (manual curation)</li>
+ *   <li>{@code POST /admin/knowledge-graph/edges} — upsert edge (manual curation, stamps HUMAN_CURATED)</li>
+ *   <li>{@code POST /admin/knowledge-graph/edges/bulk-delete} — bulk delete by filter</li>
+ *   <li>{@code POST /admin/knowledge-graph/edges/{id}/delete-and-reject} — delete + write rejection</li>
+ *   <li>{@code GET  /admin/knowledge-graph/edges/{id}/audit} — list edge audit rows</li>
  *   <li>{@code DELETE /admin/knowledge-graph/edges/{id}} — delete an edge</li>
  *   <li>{@code GET  /admin/knowledge-graph/judge-timeouts} — list chronic-timeout proposals (?limit=50)</li>
  *   <li>{@code DELETE /admin/knowledge-graph/judge-timeouts/{proposal_id}} — clear a tracked timeout</li>
@@ -139,8 +142,8 @@ public class AdminKnowledgeResource extends RestServletBase {
                 ( svc, req, resp, seg ) -> handleDeleteNode( svc, resp, seg[ 1 ] ) ) );
         m.put( "edges", new Resource(
                 this::handleGetEdges,
-                ( svc, req, resp, seg ) -> handlePostEdge( svc, req, resp ),
-                ( svc, req, resp, seg ) -> handleDeleteEdge( svc, resp, seg[ 1 ] ) ) );
+                this::handlePostEdgeDispatch,
+                ( svc, req, resp, seg ) -> handleDeleteEdge( svc, req, resp, seg[ 1 ] ) ) );
         m.put( "proposals", new Resource(
                 ( svc, req, resp, seg ) -> handleGetProposals( svc, req, resp, seg ),
                 this::handlePostProposal,
@@ -302,7 +305,16 @@ public class AdminKnowledgeResource extends RestServletBase {
             final String search = request.getParameter( "search" );
             final int limit = parseIntParam( request, "limit", 50 );
             final int offset = parseIntParam( request, "offset", 0 );
-            sendJson( response, Map.of( "edges", service.queryEdges( relType, search, limit, offset ) ) );
+            final long total = service.countEdges( relType, search );
+            final Map< String, Object > result = new LinkedHashMap<>();
+            result.put( "edges", service.queryEdges( relType, search, limit, offset ) );
+            result.put( "total", total );
+            sendJson( response, result );
+            return;
+        }
+        // GET /admin/knowledge-graph/edges/{id}/audit
+        if ( segments.length >= 3 && "audit".equals( segments[2] ) ) {
+            handleGetEdgeAudit( service, request, response, segments );
             return;
         }
         final UUID nodeId = parseUuid( segments[1], response );
@@ -313,6 +325,16 @@ public class AdminKnowledgeResource extends RestServletBase {
         final List< KgEdge > edges = service.getEdgesForNode( nodeId, direction );
         final Map< UUID, String > nameMap = resolveEdgeNames( service, edges );
         sendJson( response, Map.of( "edges", edges.stream().map( e -> enrichEdge( e, nameMap ) ).toList() ) );
+    }
+
+    private void handleGetEdgeAudit( final KnowledgeGraphService service,
+                                     final HttpServletRequest request,
+                                     final HttpServletResponse response,
+                                     final String[] segments ) throws IOException {
+        final UUID id = parseUuid( segments[1], response );
+        if ( id == null ) return;
+        final int limit = parseIntParam( request, "limit", 20 );
+        sendJson( response, Map.of( "audit", service.getEdgeAudit( id, limit ) ) );
     }
 
     private void handleGetProposals( final KnowledgeGraphService service,
@@ -671,9 +693,24 @@ public class AdminKnowledgeResource extends RestServletBase {
         }
     }
 
-    private void handlePostEdge( final KnowledgeGraphService service,
-                                 final HttpServletRequest request,
-                                 final HttpServletResponse response ) throws IOException {
+    private void handlePostEdgeDispatch( final KnowledgeGraphService service,
+                                         final HttpServletRequest request,
+                                         final HttpServletResponse response,
+                                         final String[] segments ) throws IOException {
+        if ( segments.length >= 2 && "bulk-delete".equals( segments[1] ) ) {
+            handlePostEdgeBulkDelete( service, request, response );
+            return;
+        }
+        if ( segments.length >= 3 && "delete-and-reject".equals( segments[2] ) ) {
+            handlePostEdgeDeleteAndReject( service, request, response, segments );
+            return;
+        }
+        handlePostEdgeUpsert( service, request, response );
+    }
+
+    private void handlePostEdgeUpsert( final KnowledgeGraphService service,
+                                       final HttpServletRequest request,
+                                       final HttpServletResponse response ) throws IOException {
         final JsonObject body = parseJsonBody( request, response );
         if ( body == null ) return;
         final UUID sourceId = UUID.fromString( body.get( "source_id" ).getAsString() );
@@ -681,9 +718,155 @@ public class AdminKnowledgeResource extends RestServletBase {
         final String relType = body.get( "relationship_type" ).getAsString();
         final Map< String, Object > properties = body.has( "properties" )
                 ? GSON.fromJson( body.get( "properties" ), MAP_TYPE ) : Map.of();
-        final KgEdge edge = service.upsertEdge( sourceId, targetId, relType,
-                Provenance.HUMAN_AUTHORED, properties );
+
+        // Capture before-state for audit (find existing edge at this triple, if any)
+        Map< String, Object > before = null;
+        try {
+            final List< KgEdge > outbound = service.getEdgesForNode( sourceId, "outbound" );
+            for ( final KgEdge e : outbound ) {
+                if ( e.targetId().equals( targetId ) && relType.equals( e.relationshipType() ) ) {
+                    before = edgeToMap( e );
+                    break;
+                }
+            }
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "handlePostEdgeUpsert: failed to fetch before-state for audit (src={}, tgt={}, rel={}): {}",
+                sourceId, targetId, relType, e.getMessage() );
+        }
+
+        final KgEdge edge;
+        try {
+            // Always stamp HUMAN_CURATED regardless of any provenance value in the body
+            edge = service.upsertEdge( sourceId, targetId, relType,
+                    Provenance.HUMAN_CURATED, properties );
+        } catch ( final RuntimeException e ) {
+            // Walk the cause chain for a duplicate key violation
+            Throwable cause = e;
+            while ( cause != null ) {
+                if ( cause.getMessage() != null
+                        && cause.getMessage().toLowerCase( java.util.Locale.ROOT ).contains( "duplicate key" ) ) {
+                    LOG.warn( "handlePostEdgeUpsert: duplicate key for ({}, {}, {}): {}",
+                        sourceId, targetId, relType, e.getMessage() );
+                    sendError( response, HttpServletResponse.SC_CONFLICT,
+                        "Edge already exists: " + sourceId + " -[" + relType + "]-> " + targetId );
+                    return;
+                }
+                cause = cause.getCause();
+            }
+            throw e;
+        }
+
+        // Write audit row (best-effort)
+        final var audit = getAuditRepo( service );
+        if ( audit != null ) {
+            final String action = before == null ? "CREATE" : "UPDATE";
+            final Map< String, Object > after = edgeToMap( edge );
+            try {
+                audit.insert( edge.id(), action, before, after, actor( request ), null );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "handlePostEdgeUpsert: audit insert failed for edge {}: {}", edge.id(), e.getMessage() );
+            }
+        }
+
         sendJson( response, edgeToMap( edge ) );
+    }
+
+    private void handlePostEdgeBulkDelete( final KnowledgeGraphService service,
+                                           final HttpServletRequest request,
+                                           final HttpServletResponse response ) throws IOException {
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
+
+        if ( !body.has( "expected_count" ) ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                "expected_count is required for bulk-delete" );
+            return;
+        }
+        final String relType = body.has( "relationship_type" )
+            ? body.get( "relationship_type" ).getAsString() : null;
+        final String search = body.has( "search" ) ? body.get( "search" ).getAsString() : null;
+        final int expectedCount = body.get( "expected_count" ).getAsInt();
+
+        // Snapshot before delete for per-row audit
+        List< Map< String, Object > > snapshot;
+        try {
+            snapshot = service.queryEdges( relType, search, expectedCount + 1, 0 );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "handlePostEdgeBulkDelete: failed to snapshot edges (relType={}, search={}): {}",
+                relType, search, e.getMessage() );
+            snapshot = List.of();
+        }
+
+        final int deleted;
+        try {
+            deleted = service.bulkDeleteEdges( relType, search, expectedCount );
+        } catch ( final IllegalStateException e ) {
+            LOG.warn( "handlePostEdgeBulkDelete: count drift (relType={}, search={}, expected={}): {}",
+                relType, search, expectedCount, e.getMessage() );
+            sendError( response, HttpServletResponse.SC_CONFLICT, e.getMessage() );
+            return;
+        }
+
+        // Write one DELETE audit row per snapshot row (best-effort)
+        final var audit = getAuditRepo( service );
+        if ( audit != null ) {
+            final String reason = "bulk delete via filter: relationship_type="
+                + relType + ", search=" + search;
+            final String actorVal = actor( request );
+            for ( final Map< String, Object > row : snapshot ) {
+                try {
+                    final Object idObj = row.get( "id" );
+                    if ( idObj instanceof String idStr ) {
+                        audit.insert( UUID.fromString( idStr ), "DELETE", row, null, actorVal, reason );
+                    }
+                } catch ( final RuntimeException e ) {
+                    LOG.warn( "handlePostEdgeBulkDelete: audit insert failed: {}", e.getMessage() );
+                }
+            }
+        }
+
+        sendJson( response, Map.of( "deleted", deleted ) );
+    }
+
+    private void handlePostEdgeDeleteAndReject( final KnowledgeGraphService service,
+                                                final HttpServletRequest request,
+                                                final HttpServletResponse response,
+                                                final String[] segments ) throws IOException {
+        final UUID id = parseUuid( segments[1], response );
+        if ( id == null ) return;
+
+        final KgEdge existing = service.getEdge( id );
+        if ( existing == null ) {
+            sendNotFound( response, "Edge not found: " + id );
+            return;
+        }
+
+        String reason = null;
+        try {
+            final JsonObject body = parseJsonBody( request, response );
+            if ( body == null ) return;
+            reason = body.has( "reason" ) ? body.get( "reason" ).getAsString() : null;
+        } catch ( final RuntimeException e ) {
+            // Body is optional — proceed with null reason if parsing fails
+            LOG.warn( "handlePostEdgeDeleteAndReject: could not parse body (edge={}): {}", id, e.getMessage() );
+        }
+
+        final String actorVal = actor( request );
+        service.deleteEdgeAndRecordRejection( id, actorVal, reason );
+
+        // Write audit row (best-effort)
+        final var audit = getAuditRepo( service );
+        if ( audit != null ) {
+            try {
+                audit.insert( id, "DELETE", edgeToMap( existing ),
+                    Map.of( "rejected", true ), actorVal, reason );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "handlePostEdgeDeleteAndReject: audit insert failed for edge {}: {}",
+                    id, e.getMessage() );
+            }
+        }
+
+        sendJson( response, Map.of( "deleted", true, "rejected", true ) );
     }
 
     private void handleClearAll( final KnowledgeGraphService service,
@@ -713,12 +896,36 @@ public class AdminKnowledgeResource extends RestServletBase {
     }
 
     private void handleDeleteEdge( final KnowledgeGraphService service,
+                                   final HttpServletRequest request,
                                    final HttpServletResponse response,
                                    final String idStr ) throws IOException {
         final UUID id = parseUuid( idStr, response );
         if ( id == null ) return;
+
+        // Capture before-state for audit
+        Map< String, Object > before = null;
+        try {
+            final KgEdge existing = service.getEdge( id );
+            if ( existing != null ) {
+                before = edgeToMap( existing );
+            }
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "handleDeleteEdge: failed to fetch before-state for audit (id={}): {}", id, e.getMessage() );
+        }
+
         service.deleteEdge( id );
         LOG.info( "Knowledge graph edge deleted: {}", id );
+
+        // Write audit row (best-effort)
+        final var audit = getAuditRepo( service );
+        if ( audit != null && before != null ) {
+            try {
+                audit.insert( id, "DELETE", before, null, actor( request ), null );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "handleDeleteEdge: audit insert failed for edge {}: {}", id, e.getMessage() );
+            }
+        }
+
         sendJson( response, Map.of( "deleted", true ) );
     }
 
@@ -1069,6 +1276,26 @@ public class AdminKnowledgeResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid UUID: " + str );
             return null;
         }
+    }
+
+    /**
+     * Returns the audit repository accessor from the service impl, or null when
+     * the service is a non-impl (e.g. Mockito mock). All audit writes are
+     * best-effort and must not blow the user-facing response on failure.
+     */
+    private com.wikantik.knowledge.KgEdgeAuditRepository getAuditRepo(
+            final KnowledgeGraphService service ) {
+        return service instanceof com.wikantik.knowledge.DefaultKnowledgeGraphService impl
+                ? impl.getEdgeAuditRepository() : null;
+    }
+
+    /**
+     * Derives the name of the acting admin user from the request.
+     * Falls back to {@code "admin"} if the container has not set a remote user.
+     */
+    private String actor( final HttpServletRequest request ) {
+        final String remoteUser = request.getRemoteUser();
+        return remoteUser != null ? remoteUser : "admin";
     }
 
     // --- Hub Proposals ---

@@ -360,9 +360,12 @@ class AdminKnowledgeResourceMockTest {
         final UUID src = UUID.randomUUID();
         final UUID tgt = UUID.randomUUID();
         final UUID eId = UUID.randomUUID();
+        // Edge upsert always stamps HUMAN_CURATED regardless of body provenance.
         Mockito.when( service.upsertEdge( Mockito.eq( src ), Mockito.eq( tgt ),
-                Mockito.eq( "related" ), Mockito.eq( Provenance.HUMAN_AUTHORED ), any() ) )
+                Mockito.eq( "related" ), Mockito.eq( Provenance.HUMAN_CURATED ), any() ) )
             .thenReturn( edge( eId, src, tgt ) );
+        // Before-state lookup for audit
+        Mockito.when( service.getEdgesForNode( Mockito.eq( src ), anyString() ) ).thenReturn( List.of() );
 
         final JsonObject body = new JsonObject();
         body.addProperty( "source_id", src.toString() );

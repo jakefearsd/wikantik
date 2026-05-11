@@ -285,7 +285,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
      * Package-private accessor for the edge audit repository. Used by the admin resource
      * layer to write audit rows directly via the same repo instance.
      */
-    KgEdgeAuditRepository getEdgeAuditRepository() { return edgeAudit; }
+    public KgEdgeAuditRepository getEdgeAuditRepository() { return edgeAudit; }
 
     @Override
     public Map< UUID, String > getNodeNames( final Collection< UUID > ids ) {

@@ -449,3 +449,18 @@ CREATE INDEX IF NOT EXISTS kg_judge_timeouts_count_idx
     ON kg_judge_timeouts (timeout_count DESC, last_seen DESC);
 CREATE INDEX IF NOT EXISTS kg_judge_timeouts_content_sha_idx
     ON kg_judge_timeouts (content_sha256);
+
+-- V028: kg_edge_audit — append-only audit trail for admin-UI-driven kg_edges mutations.
+CREATE TABLE IF NOT EXISTS kg_edge_audit (
+    id        UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    edge_id   UUID         NOT NULL,
+    action    VARCHAR(10)  NOT NULL CHECK (action IN ('CREATE','UPDATE','DELETE')),
+    before    JSONB,
+    after     JSONB,
+    actor     VARCHAR(100) NOT NULL,
+    reason    TEXT,
+    created   TIMESTAMP    NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_kg_edge_audit_edge_created
+    ON kg_edge_audit (edge_id, created DESC);

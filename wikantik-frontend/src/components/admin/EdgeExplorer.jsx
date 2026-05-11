@@ -2,66 +2,227 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../api/client';
 import ProvenanceBadge from './ProvenanceBadge';
 import PageLink from './PageLink';
+import EdgeFormModal from './EdgeFormModal';
 
 const LIMIT = 50;
 
-function EdgeDetail({ edge, sourceNode, targetNode, loading, onNavigateNode }) {
-  if (!edge) return null;
+function ConfirmModal({ title, body, requireText, onConfirm, onCancel, extraField }) {
+  const [typed, setTyped] = useState('');
+  const [extraValue, setExtraValue] = useState('');
+  const canConfirm = requireText ? typed === requireText : true;
+  return (
+    <div
+      role="dialog"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+      }}
+    >
+      <div
+        style={{
+          background: 'var(--surface-primary)',
+          padding: 'var(--space-lg)',
+          borderRadius: 'var(--radius-md)',
+          minWidth: '380px',
+          maxWidth: '520px',
+        }}
+      >
+        <h3>{title}</h3>
+        <p>{body}</p>
+        {requireText && (
+          <div style={{ marginBottom: 'var(--space-sm)' }}>
+            <span style={{ display: 'block', marginBottom: '4px' }}>
+              Type the count <code>{requireText}</code> to confirm:
+            </span>
+            <input
+              className="form-input"
+              aria-label="type the count"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              style={{ width: '100%' }}
+            />
+          </div>
+        )}
+        {extraField && (
+          <div style={{ marginBottom: 'var(--space-sm)' }}>
+            <span style={{ display: 'block', marginBottom: '4px' }}>{extraField.label}</span>
+            <input
+              className="form-input"
+              aria-label={extraField.label.toLowerCase()}
+              value={extraValue}
+              onChange={(e) => setExtraValue(e.target.value)}
+              style={{ width: '100%' }}
+            />
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 'var(--space-sm)', justifyContent: 'flex-end' }}>
+          <button type="button" className="btn" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!canConfirm}
+            onClick={() => onConfirm(extraValue)}
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
+function EdgeHistory({ edgeId }) {
+  const [rows, setRows] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState(null);
+
+  const onToggle = async () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if (rows == null) {
+      try {
+        const data = await api.knowledge.getEdgeAudit(edgeId);
+        setRows(data.audit || []);
+      } catch (e) {
+        setError(e.message || 'Failed to load history');
+      }
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 'var(--space-md)' }}>
+      <button type="button" className="btn-link" onClick={onToggle}>
+        {open ? '▾' : '▸'} History
+      </button>
+      {open && (
+        <div style={{ marginTop: 'var(--space-sm)' }}>
+          {error && <div className="admin-error">{error}</div>}
+          {rows && rows.length === 0 && (
+            <div style={{ color: 'var(--text-muted)' }}>No audit entries.</div>
+          )}
+          {rows && rows.length > 0 && (
+            <table className="admin-table" style={{ fontSize: '0.85em' }}>
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Action</th>
+                  <th>Actor</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id || `${r.created}-${r.action}`}>
+                    <td style={{ whiteSpace: 'nowrap' }}>{r.created}</td>
+                    <td>{r.action}</td>
+                    <td>{r.actor}</td>
+                    <td>{r.reason || ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EdgeDetail({
+  edge,
+  sourceNode,
+  targetNode,
+  loading,
+  onNavigateNode,
+  onEdit,
+  onDelete,
+  onDeleteAndReject,
+}) {
+  if (!edge) return null;
   const renderNodeCard = (label, node) => {
-    if (!node) return <div style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Not found</div>;
+    if (!node)
+      return (
+        <div style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Not found</div>
+      );
     return (
-      <div style={{ padding: 'var(--space-sm)', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-sm)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+      <div
+        style={{
+          padding: 'var(--space-sm)',
+          background: 'var(--bg-elevated)',
+          borderRadius: 'var(--radius-md)',
+          marginBottom: 'var(--space-sm)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '4px',
+          }}
+        >
           <strong style={{ fontSize: '0.95em' }}>
-            <button className="btn-link" onClick={() => onNavigateNode(node.name)} style={{ fontWeight: 600 }}>
+            <button
+              className="btn-link"
+              onClick={() => onNavigateNode(node.name)}
+              style={{ fontWeight: 600 }}
+            >
               {node.name}
             </button>
           </strong>
           <span style={{ fontSize: '0.8em', color: 'var(--text-muted)' }}>{label}</span>
         </div>
-        <div style={{ fontSize: '0.85em', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-xs) var(--space-md)' }}>
-          <span><strong>Type:</strong> {node.node_type || '-'}</span>
-          <span><strong>Provenance:</strong> <ProvenanceBadge value={node.provenance} /></span>
-          {node.properties?.status && <span><strong>Status:</strong> {node.properties.status}</span>}
-          {node.is_stub && <span style={{ color: 'var(--warning)', fontStyle: 'italic' }}>Stub</span>}
+        <div style={{ fontSize: '0.85em' }}>
+          <span>
+            <strong>Type:</strong> {node.node_type || '-'}
+          </span>
+          {' · '}
+          <strong>Provenance:</strong> <ProvenanceBadge value={node.provenance} />
         </div>
         {node.source_page && (
-          <div style={{ fontSize: '0.85em', marginTop: '2px' }}>
-            <strong>Source page:</strong>{' '}
-            <PageLink name={node.source_page} />
+          <div style={{ fontSize: '0.85em' }}>
+            <strong>Source page:</strong> <PageLink name={node.source_page} />
           </div>
-        )}
-        {node.properties && Object.keys(node.properties).filter(k => k !== 'status').length > 0 && (
-          <details style={{ fontSize: '0.85em', marginTop: '4px' }}>
-            <summary style={{ cursor: 'pointer', color: 'var(--text-muted)' }}>Properties</summary>
-            <table className="admin-table" style={{ fontSize: '0.85em', marginTop: '4px' }}>
-              <tbody>
-                {Object.entries(node.properties).filter(([k]) => k !== 'status').map(([k, v]) => (
-                  <tr key={k}>
-                    <td style={{ fontWeight: 500 }}>{k}</td>
-                    <td>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </details>
         )}
       </div>
     );
   };
 
   return (
-    <div style={{ padding: 'var(--space-md)', background: 'var(--surface-secondary)', borderRadius: 'var(--radius-md)' }}>
+    <div
+      style={{
+        padding: 'var(--space-md)',
+        background: 'var(--surface-secondary)',
+        borderRadius: 'var(--radius-md)',
+      }}
+    >
       <div style={{ textAlign: 'center', marginBottom: 'var(--space-md)' }}>
-        <div style={{ fontSize: '0.8em', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+        <div
+          style={{
+            fontSize: '0.8em',
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            marginBottom: '4px',
+          }}
+        >
           Relationship
         </div>
         <div style={{ fontSize: '1.1em', fontWeight: 600 }}>
           {edge.source_name || edge.source_id}
-          <span style={{ margin: '0 8px', color: 'var(--text-muted)' }}>&rarr;</span>
+          <span style={{ margin: '0 8px', color: 'var(--text-muted)' }}>→</span>
           <span style={{ whiteSpace: 'nowrap' }}>{edge.relationship_type}</span>
-          <span style={{ margin: '0 8px', color: 'var(--text-muted)' }}>&rarr;</span>
+          <span style={{ margin: '0 8px', color: 'var(--text-muted)' }}>→</span>
           {edge.target_name || edge.target_id}
         </div>
         <div style={{ marginTop: '4px' }}>
@@ -69,20 +230,44 @@ function EdgeDetail({ edge, sourceNode, targetNode, loading, onNavigateNode }) {
         </div>
       </div>
 
+      {!loading && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 'var(--space-sm)',
+            marginBottom: 'var(--space-md)',
+            justifyContent: 'center',
+          }}
+        >
+          <button type="button" className="btn btn-sm" onClick={onEdit}>
+            Edit
+          </button>
+          <button type="button" className="btn btn-sm" onClick={onDelete}>
+            Delete
+          </button>
+          <button type="button" className="btn btn-sm btn-warning" onClick={onDeleteAndReject}>
+            Delete + Prevent
+          </button>
+        </div>
+      )}
+
       {loading ? (
-        <div className="admin-loading" style={{ padding: 'var(--space-md)' }}>Loading node details...</div>
+        <div className="admin-loading">Loading node details...</div>
       ) : (
         <>
           {renderNodeCard('Source', sourceNode)}
           {renderNodeCard('Target', targetNode)}
         </>
       )}
+
+      {edge.id && <EdgeHistory edgeId={edge.id} />}
     </div>
   );
 }
 
 export default function EdgeExplorer() {
   const [edges, setEdges] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -93,22 +278,28 @@ export default function EdgeExplorer() {
   const [sourceNode, setSourceNode] = useState(null);
   const [targetNode, setTargetNode] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [formMode, setFormMode] = useState(null); // null | 'create' | 'edit'
+  const [confirmMode, setConfirmMode] = useState(null); // null | 'plain' | 'reject' | 'bulk'
   const debounceRef = useRef(null);
 
-  const loadEdges = useCallback(async (currentOffset) => {
-    try {
-      const data = await api.knowledge.queryEdges({
-        relationship_type: relTypeFilter || undefined,
-        search: search || undefined,
-        limit: LIMIT,
-        offset: currentOffset,
-      });
-      setEdges(data.edges || []);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    }
-  }, [relTypeFilter, search]);
+  const loadEdges = useCallback(
+    async (currentOffset) => {
+      try {
+        const data = await api.knowledge.queryEdges({
+          relationship_type: relTypeFilter || undefined,
+          search: search || undefined,
+          limit: LIMIT,
+          offset: currentOffset,
+        });
+        setEdges(data.edges || []);
+        setTotal(typeof data.total === 'number' ? data.total : data.edges?.length || 0);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+      }
+    },
+    [relTypeFilter, search],
+  );
 
   useEffect(() => {
     (async () => {
@@ -127,9 +318,7 @@ export default function EdgeExplorer() {
   }, [loadEdges]);
 
   useEffect(() => {
-    if (offset > 0) {
-      loadEdges(offset);
-    }
+    if (offset > 0) loadEdges(offset);
   }, [offset, loadEdges]);
 
   const handleSearchChange = (e) => {
@@ -156,15 +345,10 @@ export default function EdgeExplorer() {
   };
 
   const handleNavigateNode = async (name) => {
-    // Find an edge that involves this node and select it, or just update the detail panel
-    // For simplicity, navigate to the Node Explorer tab by dispatching a custom event
-    // But since we don't control the parent tabs, we'll just show that node's info
-    // by fetching it as a "source" with no target
     setDetailLoading(true);
     try {
       const node = await api.knowledge.getNode(name);
       if (node) {
-        // Show this node as both source context
         setSourceNode(node);
         setTargetNode(null);
         setSelectedEdge({
@@ -176,6 +360,51 @@ export default function EdgeExplorer() {
       }
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const refreshAndClose = async () => {
+    setFormMode(null);
+    setConfirmMode(null);
+    await loadEdges(offset);
+  };
+
+  const onConfirmPlainDelete = async () => {
+    if (!selectedEdge?.id) return;
+    try {
+      await api.knowledge.deleteEdge(selectedEdge.id);
+      setSelectedEdge(null);
+      await refreshAndClose();
+    } catch (e) {
+      setError(e.message);
+      setConfirmMode(null);
+    }
+  };
+
+  const onConfirmDeleteAndReject = async (reason) => {
+    if (!selectedEdge?.id) return;
+    try {
+      await api.knowledge.deleteAndRejectEdge(selectedEdge.id, reason);
+      setSelectedEdge(null);
+      await refreshAndClose();
+    } catch (e) {
+      setError(e.message);
+      setConfirmMode(null);
+    }
+  };
+
+  const onConfirmBulkDelete = async () => {
+    try {
+      await api.knowledge.bulkDeleteEdges({
+        relationship_type: relTypeFilter || undefined,
+        search: search || undefined,
+        expected_count: total,
+      });
+      setSelectedEdge(null);
+      await refreshAndClose();
+    } catch (e) {
+      setError(e.message);
+      setConfirmMode(null);
     }
   };
 
@@ -199,15 +428,20 @@ export default function EdgeExplorer() {
           />
           <select
             value={relTypeFilter}
-            onChange={e => setRelTypeFilter(e.target.value)}
+            onChange={(e) => setRelTypeFilter(e.target.value)}
             className="form-input"
             style={{ width: '200px' }}
           >
             <option value="">All relationship types</option>
-            {relTypes.map(t => (
-              <option key={t} value={t}>{t}</option>
+            {relTypes.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
             ))}
           </select>
+          <button type="button" className="btn btn-primary" onClick={() => setFormMode('create')}>
+            New edge
+          </button>
         </div>
 
         <table className="admin-table">
@@ -220,7 +454,7 @@ export default function EdgeExplorer() {
             </tr>
           </thead>
           <tbody>
-            {edges.map(e => (
+            {edges.map((e) => (
               <tr
                 key={e.id}
                 onClick={() => handleEdgeClick(e)}
@@ -230,19 +464,48 @@ export default function EdgeExplorer() {
                 <td>{e.source_name || e.source_id}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>{e.relationship_type}</td>
                 <td>{e.target_name || e.target_id}</td>
-                <td style={{ whiteSpace: 'nowrap' }}><ProvenanceBadge value={e.provenance} /></td>
+                <td>
+                  <ProvenanceBadge value={e.provenance} />
+                </td>
               </tr>
             ))}
             {edges.length === 0 && (
-              <tr><td colSpan={4} style={{ textAlign: 'center' }}>No edges found.</td></tr>
+              <tr>
+                <td colSpan={4} style={{ textAlign: 'center' }}>
+                  No edges found.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'var(--space-sm)', fontSize: '0.85em' }}>
-          <button className="btn btn-sm" onClick={handlePrev} disabled={offset === 0}>Prev</button>
-          <span>Showing {offset + 1}–{offset + edges.length}</span>
-          <button className="btn btn-sm" onClick={handleNext} disabled={edges.length < LIMIT}>Next</button>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: 'var(--space-sm)',
+            fontSize: '0.85em',
+          }}
+        >
+          <button className="btn btn-sm" onClick={handlePrev} disabled={offset === 0}>
+            Prev
+          </button>
+          <span>
+            Showing {offset + 1}–{offset + edges.length} of {total}
+          </span>
+          <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+            <button
+              className="btn btn-sm btn-warning"
+              disabled={total === 0}
+              onClick={() => setConfirmMode('bulk')}
+            >
+              Delete filtered ({total})
+            </button>
+            <button className="btn btn-sm" onClick={handleNext} disabled={edges.length < LIMIT}>
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
@@ -254,13 +517,58 @@ export default function EdgeExplorer() {
             targetNode={targetNode}
             loading={detailLoading}
             onNavigateNode={handleNavigateNode}
+            onEdit={() => setFormMode('edit')}
+            onDelete={() => setConfirmMode('plain')}
+            onDeleteAndReject={() => setConfirmMode('reject')}
           />
         ) : (
-          <div className="admin-empty" style={{ padding: 'var(--space-lg)', textAlign: 'center' }}>
+          <div
+            className="admin-empty"
+            style={{ padding: 'var(--space-lg)', textAlign: 'center' }}
+          >
             Select an edge to view details.
           </div>
         )}
       </div>
+
+      {formMode && (
+        <EdgeFormModal
+          mode={formMode}
+          relTypes={relTypes}
+          initialEdge={formMode === 'edit' ? selectedEdge : null}
+          initialSource={formMode === 'edit' ? sourceNode : null}
+          initialTarget={formMode === 'edit' ? targetNode : null}
+          onClose={() => setFormMode(null)}
+          onSaved={refreshAndClose}
+        />
+      )}
+
+      {confirmMode === 'plain' && (
+        <ConfirmModal
+          title="Delete this edge?"
+          body="Re-extraction may re-propose it. Use Delete + Prevent if you want to keep it out."
+          onConfirm={onConfirmPlainDelete}
+          onCancel={() => setConfirmMode(null)}
+        />
+      )}
+      {confirmMode === 'reject' && (
+        <ConfirmModal
+          title="Delete and prevent re-proposal"
+          body="This will delete the edge AND insert a rejection so the next extraction run cannot re-add it."
+          extraField={{ label: 'Reason' }}
+          onConfirm={onConfirmDeleteAndReject}
+          onCancel={() => setConfirmMode(null)}
+        />
+      )}
+      {confirmMode === 'bulk' && (
+        <ConfirmModal
+          title={`Delete ${total} filtered edges?`}
+          body="This deletes every edge matching the current filter, including pages beyond the current view."
+          requireText={String(total)}
+          onConfirm={onConfirmBulkDelete}
+          onCancel={() => setConfirmMode(null)}
+        />
+      )}
     </div>
   );
 }

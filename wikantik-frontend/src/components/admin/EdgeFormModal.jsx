@@ -136,7 +136,7 @@ export default function EdgeFormModal({
   return (
     <div
       role="dialog"
-      aria-label={mode === 'edit' ? 'Edit edge' : 'Create edge'}
+      aria-label={mode === 'edit' ? 'Edit edge' : 'New edge'}
       style={{
         position: 'fixed',
         inset: 0,

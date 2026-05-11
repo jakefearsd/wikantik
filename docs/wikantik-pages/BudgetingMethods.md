@@ -1,27 +1,28 @@
 ---
-canonical_id: 01KQ0P44MQBVGP308R5025Z953
-title: Budgeting Methods
-type: article
-cluster: personal-finance
-status: active
-date: '2026-04-26'
 summary: A working comparison of budgeting frameworks — zero-based, 50/30/20, envelope,
   pay-yourself-first, and the anti-budget — with honest assessment of which one fits
   which kind of household.
-tags:
-- budgeting
-- personal-finance
-- cash-flow
-- spending
-- household-finance
+date: '2026-04-26'
+cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - EmergencyFundStrategies
 - DebtPayoffStrategies
 - NetWorthTracking
 - FirstJobFinancialChecklist
+canonical_id: 01KQ0P44MQBVGP308R5025Z953
+type: article
+title: Budgeting Methods
+tags:
+- budgeting
+- personal-finance
+- cash-flow
+- spending
+- household-finance
+status: active
 hubs:
 - PersonalFinanceHub
+- DebtPayoffStrategies Hub
 ---
 # Budgeting Methods
 

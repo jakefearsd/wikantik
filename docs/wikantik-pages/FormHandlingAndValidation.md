@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44QFARR7S5MQK7V03BK2
-title: Form Handling and Validation
-type: article
-cluster: frontend-development
-status: active
-date: '2026-04-26'
 summary: How to build forms that work — client-side and server-side validation, error
   states, submission patterns, and the form libraries that have aged well.
+date: '2026-04-26'
+cluster: frontend-development
+related:
+- WebAccessibilityGuide
+- TypeScriptFundamentals
+- IdempotencyPatterns
+canonical_id: 01KQ0P44QFARR7S5MQK7V03BK2
+type: article
+title: Form Handling and Validation
 tags:
 - forms
 - validation
 - frontend
 - ux
 - accessibility
-related:
-- WebAccessibilityGuide
-- TypeScriptFundamentals
-- IdempotencyPatterns
+status: active
 hubs:
 - FrontendDevelopmentHub
+- WebComponents Hub
 ---
 # Form Handling and Validation
 

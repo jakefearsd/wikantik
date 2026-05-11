@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44S9XYAYZ5WF57AQ9EWM
-title: Master Data Management
-type: article
-cluster: data-engineering
-status: active
-date: '2026-04-26'
 summary: MDM as the discipline of maintaining canonical entity records across systems
   — what it actually requires, why it's hard, and the patterns that work in practice
   vs. the heavy MDM platforms that often don't.
+date: '2026-04-26'
+cluster: data-engineering
+related:
+- DataModelingFundamentals
+- DataCatalogTools
+- DataPipelineDesign
+canonical_id: 01KQ0P44S9XYAYZ5WF57AQ9EWM
+type: article
+title: Master Data Management
 tags:
 - master-data-management
 - mdm
 - data-quality
 - data-governance
-related:
-- DataModelingFundamentals
-- DataCatalogTools
-- DataPipelineDesign
+status: active
 hubs:
 - DataEngineeringHub
+- DataModelingFundamentals Hub
 ---
 # Master Data Management
 

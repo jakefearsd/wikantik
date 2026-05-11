@@ -1,24 +1,26 @@
 ---
+summary: Technical guide to sentiment analysis, covering lexicons, classical ML, and
+  a concrete BERT fine-tuning implementation.
+date: '2026-05-15'
+cluster: machine-learning
+related:
+- DataScienceNLP
+- NLPOverview
+- TransformerArchitecture
+auto-generated: false
 canonical_id: 01KQ0P44W86812BJ406PFT3WNP
 title: Sentiment Analysis with Machine Learning
 type: article
-cluster: machine-learning
-status: active
-date: '2026-05-15'
+hubs:
+- MachineLearningHub
+- AnomalyDetectionTechniques Hub
 tags:
 - sentiment-analysis
 - nlp
 - machine-learning
 - classification
 - transformers
-summary: Technical guide to sentiment analysis, covering lexicons, classical ML, and a concrete BERT fine-tuning implementation.
-related:
-- DataScienceNLP
-- NLPOverview
-- TransformerArchitecture
-hubs:
-- MachineLearningHub
-auto-generated: false
+status: active
 ---
 # Sentiment Analysis with Machine Learning
 

@@ -1,10 +1,12 @@
 ---
-cluster: cloud-platforms
+summary: Professional Wikantik Deployment with Docker
 canonical_id: 01KQ0P44PWCCMS8D7BBBM6HEZ5
+cluster: cloud-platforms
 type: article
 tags:
 - uncategorized
-summary: Professional Wikantik Deployment with Docker
+hubs:
+- ContainerSecurity Hub
 ---
 # Professional Wikantik Deployment with Docker
 

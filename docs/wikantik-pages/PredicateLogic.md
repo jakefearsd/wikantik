@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44TQZK0A9NCE9GSMSDCM
-title: Predicate Logic
-type: article
-cluster: mathematics
-status: active
-date: '2026-04-26'
 summary: First-order logic — predicates, quantifiers, models, and the formal language
   underlying mathematics, automated reasoning, and computer science theory.
-tags:
-- predicate-logic
-- first-order-logic
-- mathematics
-- formal-logic
+date: '2026-04-26'
+cluster: mathematics
 related:
 - PropositionalLogic
 - ModalLogic
 - SetTheoryLogic
 - SymbolicLogic
+canonical_id: 01KQ0P44TQZK0A9NCE9GSMSDCM
+type: article
+title: Predicate Logic
+tags:
+- predicate-logic
+- first-order-logic
+- mathematics
+- formal-logic
+status: active
 hubs:
 - MathematicsHub
+- PredicateLogic Hub
 ---
 
 # Predicate Logic: The Language of Structure and Quantification

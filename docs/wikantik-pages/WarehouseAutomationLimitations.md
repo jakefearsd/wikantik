@@ -24,6 +24,7 @@ tags:
 status: active
 hubs:
 - WarehouseAutomationHub
+- AutomatedStorageAndRetrieval Hub
 ---
 # Warehouse Automation Limitations
 

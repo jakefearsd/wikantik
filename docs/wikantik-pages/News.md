@@ -6,6 +6,72 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-10** — docs(retrieval): clarify KG-rerank uses untyped co-mention proximity
+
+**2026-05-10** — docs(retrieval): clean up corrupt frontmatter on WikantikSearchAndRetrieval.md
+
+**2026-05-10** — docs+memory: agent-grade Phase 7 + page/spine consumer notes
+
+**2026-05-10** — docs: bump /knowledge-mcp count to 16 + describe agent_hints surface
+
+**2026-05-10** — test(agent-hints): IT for /for-agent fields, read_pages batch, audit endpoint
+
+**2026-05-10** — test(agent-hints): wire-shape assertions for new projection fields
+
+**2026-05-10** — feat(agent-hints): Prometheus counters for derivation, hub overlay, read_pages
+
+**2026-05-10** — feat(agent-grade): wire /admin/agent-grade-audit into REST application
+
+**2026-05-10** — test(agent-grade): add explicit coverage for stale_verification flag
+
+**2026-05-10** — feat(agent-grade): add /admin/agent-grade-audit weak-signal report
+
+**2026-05-10** — feat(agent-batch): register read_pages on /knowledge-mcp
+
+**2026-05-10** — feat(agent-batch): add read_pages MCP tool — batched markdown reads
+
+**2026-05-10** — feat(agent-hints): wire AgentHintsDeriver + HubSummarySynthesizer into projection
+
+**2026-05-10** — feat(agent-hints): AgentHintsDeriver prefer_pages — cluster-centrality ranking
+
+**2026-05-10** — docs(spec): tie-break is insertion order, not alphabetical
+
+**2026-05-10** — feat(agent-hints): AgentHintsDeriver skeleton + prefer_tools derivation
+
+**2026-05-10** — refactor(agent-hints): use String.join for top-3 title concatenation
+
+**2026-05-10** — feat(agent-hints): add HubSummarySynthesizer for projection-time hub overlay
+
+**2026-05-10** — feat(agent-hints): extend ForAgentProjection with agentHints + summarySynthesized
+
+**2026-05-10** — docs(agent-hints): document why PreferredPage.role defaults instead of throws
+
+**2026-05-10** — feat(agent-hints): add AgentHintsBlock and PreferredPage records
+
+**2026-05-10** — docs(plan): implementation plan for derived agent hints + read_pages
+
+**2026-05-10** — docs(spec): repair components table layout in agent-hints spec
+
+**2026-05-10** — docs(spec): derived agent hints + read_pages batch tool design
+
+**2026-05-10** — docs: overhaul mathematics cluster with exhaustive depth and spatial intuition
+
+**2026-05-09** — fix(kg-judge): properties file pinned timeout to 30s, defeating Java's 120s default
+
+**2026-05-09** — chore: gitignore /TODO.md (personal working file)
+
+**2026-05-09** — release: add release-on-tag workflow + ROADMAP.md
+
+**2026-05-09** — chore(github): add issue + pull-request templates
+
+**2026-05-09** — docs(readme): badges + Why-Wikantik comparison + Mermaid architecture diagram
+
+**2026-05-09** — docs(community): add CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, FUNDING.yml
+
+**2026-05-09** — docs: add definitive WikantikOperations.md handbook
+
+**2026-05-09** — content: blockchain-tech cluster + Tomcat 11 wiki-page mirror + News trim
+
 **2026-05-09** — docs: drop legacy root-level ChangeLog.md + duplicate mvn_cheat-sheet.md
 
 **2026-05-09** — docs(readme): link 5 high-value docs that were previously orphaned
@@ -2884,10 +2950,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-11-11** — fixes the build, typo
 
 **2025-11-11** — Merge pull request #423 from spyhunter99/build/enableItnegrationTests
-
-**2025-11-11** — Merge pull request #427 from spyhunter99/feature/updateTomcat
-
-**2025-11-11** — JSPWIKI-1230   Preconfigured tomcat configurations should disable autoDeploy, unpackWARs, showReport and showServerInfo by default also implements the following security improvements on both the portable build and the docker configuration V-222979 sets tomcat's session timeout to 10 minutes V-223009 tomcat Connector address attribute must be set. V-223005 ENFORCE_ENCODING_IN_GET_WRITER must be set to true. V-223003 RECYCLE_FACADES must be set to true. V-222957 xpoweredBy attribute must be disabled. V-222956 Autodeploy must be disabled. V-222955 The deployXML attribute must be set to false in hosted environments. V-222951 The shutdown port must be disabled. V-222950 Stack tracing must be disabled. V-222977 ErrorReportValve showReport must be set to false. V-222975 ErrorReportValve showServerInfo must be set to false.
-
-**2025-11-11** — bump tomcat tot he latest of v10
 

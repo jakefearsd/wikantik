@@ -1,12 +1,21 @@
 ---
+summary: Technical guide to Warehouse Labor Management focusing on Engineered Labor
+  Standards (ELS), throughput modeling via Little’s Law, and real-time performance
+  tracking.
+date: 2025-05-15T00:00:00Z
 cluster: warehouse-automation
+auto-generated: false
 canonical_id: 01KQ0P44YMWKH0R3KSGNSPWJ2H
 title: Warehouse Labor Management
 type: article
-tags: [els, throughput, lms, industrial-engineering, logistics]
-summary: Technical guide to Warehouse Labor Management focusing on Engineered Labor Standards (ELS), throughput modeling via Little’s Law, and real-time performance tracking.
-auto-generated: false
-date: 2025-05-15
+tags:
+- els
+- throughput
+- lms
+- industrial-engineering
+- logistics
+hubs:
+- LeanManufacturingPrinciples Hub
 ---
 
 # Warehouse Labor Management (WLM)

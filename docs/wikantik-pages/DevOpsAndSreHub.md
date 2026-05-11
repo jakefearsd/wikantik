@@ -1,27 +1,28 @@
 ---
+summary: Index of pages on DevOps and SRE practices — CI/CD, deployment patterns,
+  feature flags, on-call discipline, incident response, and the operational disciplines
+  that keep production running.
+date: '2026-04-26'
+cluster: devops-sre
+related:
+- CloudPlatformsHub
+- SoftwareEngineeringPracticesHub
+- WebServicesAndApisHub
+canonical_id: 01KZHC6PVV4SBQM9R0F3T7K8Z8
+type: hub
+title: DevOpsAndSreHub
 tags:
 - devops
 - sre
 - ci-cd
 - hub
 - operations
-date: '2026-04-26'
-title: DevOpsAndSreHub
-cluster: devops-sre
+status: active
 hubs:
 - NetworkingHub
 - SoftwareEngineeringPracticesHub
 - DataEngineeringHub
-type: hub
-status: active
-canonical_id: 01KZHC6PVV4SBQM9R0F3T7K8Z8
-related:
 - CloudPlatformsHub
-- SoftwareEngineeringPracticesHub
-- WebServicesAndApisHub
-summary: Index of pages on DevOps and SRE practices — CI/CD, deployment patterns,
-  feature flags, on-call discipline, incident response, and the operational disciplines
-  that keep production running.
 ---
 # DevOpsAndSre Hub
 

@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ0P44YQNR6NWP1MB9111W9Q
-title: Web Accessibility Guide
-type: article
-cluster: frontend-development
-status: active
-date: '2026-04-26'
 summary: WCAG basics, ARIA when needed, keyboard navigation, screen reader patterns
   — the foundations of building accessible web UIs and the testing practices that
   keep them that way.
+date: '2026-04-26'
+cluster: frontend-development
+related:
+- ResponsiveDesignPrinciples
+- FormHandlingAndValidation
+- WebComponents
+canonical_id: 01KQ0P44YQNR6NWP1MB9111W9Q
+type: article
+title: Web Accessibility Guide
 tags:
 - accessibility
 - a11y
 - wcag
 - aria
 - keyboard-navigation
-related:
-- ResponsiveDesignPrinciples
-- FormHandlingAndValidation
-- WebComponents
+status: active
 hubs:
 - FrontendDevelopmentHub
+- WebComponents Hub
 ---
 # Web Accessibility Guide
 

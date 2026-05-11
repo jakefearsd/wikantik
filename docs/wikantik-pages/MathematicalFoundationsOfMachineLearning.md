@@ -1,6 +1,9 @@
 ---
+summary: The mathematical foundations that underpin machine learning — linear algebra,
+  calculus, probability, optimization, and information theory — with concrete examples
+  of how each concept drives real ML techniques
 date: Mar 17, 2026, 1:00:00 AM
-type: article
+cluster: machine-learning
 related:
 - MachineLearning
 - TheFutureOfMachineLearning
@@ -9,7 +12,9 @@ related:
 - ArtificialIntelligence
 - CalculusRefreshForCS
 - OptimizationAlgorithms
-cluster: machine-learning
+canonical_id: 01KQ0P44SAH60A7F88VHYD18BP
+type: article
+status: active
 tags:
 - ai
 - machine-learning
@@ -18,11 +23,8 @@ tags:
 - calculus
 - probability
 - technology
-canonical_id: 01KQ0P44SAH60A7F88VHYD18BP
-summary: The mathematical foundations that underpin machine learning — linear algebra,
-  calculus, probability, optimization, and information theory — with concrete examples
-  of how each concept drives real ML techniques
-status: active
+hubs:
+- ChaosDynamical Hub
 ---
 
 # Mathematical Foundations of Machine Learning

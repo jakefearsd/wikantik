@@ -1,8 +1,12 @@
 ---
+date: 2025-05-15T00:00:00Z
+summary: Technical guide to LLM fine-tuning strategies. Covers Full Fine-Tuning, LoRA/QLoRA,
+  and instruction dataset curation.
 cluster: machine-learning
+auto-generated: false
 canonical_id: 01KQ0P44QDNYW8AESQS6MKEEZJ
-title: Fine Tuning Large Language Models
 type: article
+title: Fine Tuning Large Language Models
 tags:
 - generative-ai
 - llm
@@ -10,9 +14,8 @@ tags:
 - lora
 - machine-learning
 status: active
-date: 2025-05-15
-summary: Technical guide to LLM fine-tuning strategies. Covers Full Fine-Tuning, LoRA/QLoRA, and instruction dataset curation.
-auto-generated: false
+hubs:
+- FineTuningLargeLanguageModels Hub
 ---
 
 # Fine Tuning Large Language Models: Domain Adaptation

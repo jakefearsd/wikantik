@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ0P44W9ND8RXB81QG5QXDJ8
-title: Server-Side Rendering
-type: article
-cluster: frontend-development
-status: active
-date: '2026-04-26'
 summary: When SSR is right vs. CSR vs. SSG vs. ISR — the modern rendering landscape,
   the trade-offs each pattern makes, and the cases where each fits.
+date: '2026-04-26'
+cluster: frontend-development
+related:
+- ProgressiveWebApps
+- WebComponents
+- ModernBundlersAndBuildTools
+- CdnArchitecture
+canonical_id: 01KQ0P44W9ND8RXB81QG5QXDJ8
+type: article
+title: Server-Side Rendering
 tags:
 - ssr
 - server-side-rendering
 - frontend
 - nextjs
 - rendering
-related:
-- ProgressiveWebApps
-- WebComponents
-- ModernBundlersAndBuildTools
-- CdnArchitecture
+status: active
 hubs:
 - FrontendDevelopmentHub
+- WebComponents Hub
 ---
 # Server-Side Rendering
 

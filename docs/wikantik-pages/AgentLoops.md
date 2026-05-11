@@ -1,18 +1,8 @@
 ---
-canonical_id: 01KQ12YDR96H86F5DJH6W9035G
-title: Agent Loops
-type: article
-cluster: agentic-ai
-status: active
-date: '2026-04-24'
-tags:
-- agent
-- agent-loop
-- failure-modes
-- reliability
-- llm-orchestration
 summary: A working catalogue of how the observe-reason-act loop in an LLM agent breaks
   in production, and the minimum defences each failure mode needs.
+date: '2026-04-24'
+cluster: agentic-ai
 related:
 - AgenticWorkflowDesign
 - AgentPlanning
@@ -21,8 +11,19 @@ related:
 - AgentTesting
 - AgentObservability
 - ToolUse
+canonical_id: 01KQ12YDR96H86F5DJH6W9035G
+type: article
+title: Agent Loops
+tags:
+- agent
+- agent-loop
+- failure-modes
+- reliability
+- llm-orchestration
+status: active
 hubs:
 - AgenticAiHub
+- AgentLoops Hub
 ---
 # Agent Loops
 

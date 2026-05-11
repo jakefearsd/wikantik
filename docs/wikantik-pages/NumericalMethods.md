@@ -1,17 +1,20 @@
 ---
-status: active
+summary: Numerical methods bridge the gap between continuous mathematics and silicon-based
+  logic, focusing on the rigorous control of error, stability, and geometric distortion.
 date: '2026-05-03'
 cluster: mathematics
+canonical_id: 01KQ0P44T5ZKEYXVTKY9BSMKRP
+title: Numerical Methods
 type: article
+status: active
 tags:
 - numerical-analysis
 - scientific-computing
 - error-analysis
 - ode-solvers
 - pde-discretization
-title: Numerical Methods
-canonical_id: 01KQ0P44T5ZKEYXVTKY9BSMKRP
-summary: "Numerical methods bridge the gap between continuous mathematics and silicon-based logic, focusing on the rigorous control of error, stability, and geometric distortion."
+hubs:
+- ChaosDynamical Hub
 ---
 
 # Numerical Methods: Solving the Continuous on the Discrete

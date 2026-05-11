@@ -1,25 +1,25 @@
 ---
-canonical_id: 01KQEKGDC3JXPVYFJ3P85YWA8P
-title: Jsonb In Postgresql
-type: article
-cluster: databases
-status: active
+summary: JSONB in Postgres for flexible schema — query operators, indexing strategies
+  (GIN, functional, covering), and when JSONB beats EAV / a separate document database.
 date: '2026-04-25'
-tags:
-- postgresql
-- jsonb
-- semi-structured
-- gin-index
-summary: JSONB in Postgres for flexible schema — query operators, indexing
-  strategies (GIN, functional, covering), and when JSONB beats EAV / a
-  separate document database.
+cluster: databases
 related:
 - PostgresqlAdvancedFeatures
 - DatabaseDesign
 - DatabaseIndexingStrategies
 - NoSqlDatabaseTypes
+canonical_id: 01KQEKGDC3JXPVYFJ3P85YWA8P
+type: article
+title: Jsonb In Postgresql
+tags:
+- postgresql
+- jsonb
+- semi-structured
+- gin-index
+status: active
 hubs:
 - DatabasesHub
+- DataModelingFundamentals Hub
 ---
 # JSONB in PostgreSQL
 

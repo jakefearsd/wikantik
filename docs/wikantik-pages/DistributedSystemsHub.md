@@ -21,6 +21,7 @@ tags:
 status: active
 hubs:
 - DataStructuresHub
+- CloudPlatformsHub
 ---
 # Distributed Systems Hub
 
@@ -62,8 +63,11 @@ Managing shared state across space and time.
 Practical architectures for scalable systems.
 
 - [Distributed Computing Algorithms](DistributedComputingAlgorithms) — Specialized algorithms for sharding, partitioning, and load balancing
+- [Kent Beck's Distributed Patterns](KentBeckDistributedPatterns) — Evolutionary architecture, the 3X Framework, and fractal design principles
 - [Concurrency in Distributed Systems](ConcurrencyDistributed) — Managing parallel execution and race conditions at scale
 - [Actor Model Programming](ActorModelProgramming) — Using isolated actors and message passing to simplify concurrency
+- [Erlang Programming Language](ErlangProgrammingLanguage) — The canonical implementation of the actor model for fault-tolerant systems
+- [LISP Programming Language](LispProgrammingLanguage) — The historical foundation for symbolic AI and the evolution of memory architectures
 - [Event Sourcing](EventSourcing) — Representing state as a sequence of immutable events
 - [Database Sharding](DatabaseSharding) — Horizontal partitioning of data across multiple database instances
 

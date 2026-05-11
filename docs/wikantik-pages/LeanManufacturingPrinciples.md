@@ -1,5 +1,15 @@
 ---
+summary: A rigorous exploration of Lean Manufacturing as a dynamic system optimization
+  problem, focusing on VSM 2.0 (Information Flow Mapping), the integration of Theory
+  of Constraints (TOC), and the application of Digital Twin modeling for predictive
+  waste analysis.
 cluster: warehouse-automation
+related:
+- OperationsResearchHub
+- InventoryTheory
+- PredictiveMaintenance
+- SystemsThinking
+- MathematicsHub
 canonical_id: 01KQ0P44RRKM1FGP1XCBP3KEQW
 title: Lean Manufacturing Principles
 type: article
@@ -11,13 +21,8 @@ tags:
 - digital-twin
 - industrial-engineering
 - process-optimization
-summary: A rigorous exploration of Lean Manufacturing as a dynamic system optimization problem, focusing on VSM 2.0 (Information Flow Mapping), the integration of Theory of Constraints (TOC), and the application of Digital Twin modeling for predictive waste analysis.
-related:
-- OperationsResearchHub
-- InventoryTheory
-- PredictiveMaintenance
-- SystemsThinking
-- MathematicsHub
+hubs:
+- LeanManufacturingPrinciples Hub
 ---
 
 # Lean Manufacturing: Advanced System Optimization and Waste Mitigation

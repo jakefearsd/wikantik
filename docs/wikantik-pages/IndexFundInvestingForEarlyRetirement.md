@@ -1,5 +1,4 @@
 ---
-date: 2026-03-21T00:00:00Z
 status: active
 canonical_id: 01KQ0P44R3DT6V9W45AD06JFRW
 summary: Complete investing framework for building wealth with index funds to retire early, covering costs, allocation, and account strategy
@@ -21,7 +20,9 @@ related:
 - RothConversionLadder
 - EarlyRetirementInvestmentPlan
 - RetirementPlanningGuide
+date: 2026-03-21T00:00:00Z
 ---
+
 
 # Index Fund Investing for Early Retirement
 

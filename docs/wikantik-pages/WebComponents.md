@@ -1,25 +1,25 @@
 ---
-canonical_id: 01KQ0P44YRV3CYD5BFYA8W1TTW
-title: Web Components
-type: article
-cluster: frontend-development
-status: active
-date: '2026-04-26'
 summary: What Web Components actually are — custom elements, shadow DOM, templates
-  — and the cases where they fit vs. where framework components remain the right
-  answer.
-tags:
-- web-components
-- custom-elements
-- shadow-dom
-- frontend
+  — and the cases where they fit vs. where framework components remain the right answer.
+date: '2026-04-26'
+cluster: frontend-development
 related:
 - ResponsiveDesignPrinciples
 - TypeScriptFundamentals
 - ServerSideRendering
 - CssArchitecturePatterns
+canonical_id: 01KQ0P44YRV3CYD5BFYA8W1TTW
+type: article
+title: Web Components
+tags:
+- web-components
+- custom-elements
+- shadow-dom
+- frontend
+status: active
 hubs:
 - FrontendDevelopmentHub
+- WebComponents Hub
 ---
 # Web Components
 

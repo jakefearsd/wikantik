@@ -1,26 +1,27 @@
 ---
-canonical_id: 01KQ12YDRCXJHHTSSSDRY6JTWR
-title: Agent Observability
-type: article
-cluster: agentic-ai
-status: active
+summary: What to instrument in an LLM agent, how the trace model differs from HTTP
+  services, and the tools that earn their keep (LangSmith, Langfuse, OpenLLMetry).
 date: '2026-04-24'
-tags:
-- agent
-- observability
-- tracing
-- llm-monitoring
-- evaluation
-summary: What to instrument in an LLM agent, how the trace model differs from
-  HTTP services, and the tools that earn their keep (LangSmith, Langfuse, OpenLLMetry).
+cluster: agentic-ai
 related:
 - AgenticWorkflowDesign
 - AgentTesting
 - AgentLoops
 - DistributedTracing
 - LlmTokenEconomicsAndPricing
+canonical_id: 01KQ12YDRCXJHHTSSSDRY6JTWR
+type: article
+title: Agent Observability
+tags:
+- agent
+- observability
+- tracing
+- llm-monitoring
+- evaluation
+status: active
 hubs:
 - AgenticAiHub
+- AgentLoops Hub
 ---
 # Agent Observability
 

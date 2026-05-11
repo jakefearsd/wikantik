@@ -1,22 +1,22 @@
 ---
-canonical_id: 01KQ0P44MFPCNAVMXA25W7T3GS
-type: hub
 status: active
+type: hub
 cluster: berlin-history
+related:
+- BerlinsTransformationFromMargraviateToCapitalCity
+- ReformationAndUrbanDevelopmentInBerlin
+- ReformationEraInBerlin
 tags:
 - history
 - berlin
 - germany
 - geopolitics
 - cold-war
-summary: Comprehensive overview of Berlin's history from medieval founding through
-  Cold War division to modern reunified capital, covering its political, cultural,
-  and economic significance
-related:
-- BerlinsTransformationFromMargraviateToCapitalCity
-- ReformationAndUrbanDevelopmentInBerlin
-- ReformationEraInBerlin
+canonical_id: 01KQ0P44MFPCNAVMXA25W7T3GS
+summary: Comprehensive overview of Berlin's history from medieval founding through Cold War division to modern reunified capital, covering its political, cultural, and economic significance
 ---
+
+
 # Berlin
 
 Berlin is the capital and largest city of Germany, with a population of approximately 3.8 million within its city limits and over 6 million in its wider metropolitan area. Situated on the banks of the River Spree in northeastern Germany, Berlin has served as a crucible of European history — from its medieval origins as a trading post to its role as the capital of Prussia, the German Empire, the Weimar Republic, Nazi Germany, and reunified modern Germany. Few cities anywhere have experienced such dramatic cycles of destruction and reinvention.

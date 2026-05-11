@@ -1,19 +1,9 @@
 ---
-canonical_id: 01KQ0P44Q40E32SYBC8FB5YR1N
-title: Emergency Fund Strategies
-type: article
-cluster: personal-finance
-status: active
-date: '2026-04-26'
 summary: How to size, structure, and hold an emergency fund — the staged approach
   from starter buffer to full reserve, where to keep it, what counts as an emergency,
   and how to rebuild after deployment.
-tags:
-- emergency-fund
-- personal-finance
-- liquidity
-- savings
-- financial-resilience
+date: '2026-04-26'
+cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - BudgetingMethods
@@ -21,8 +11,19 @@ related:
 - FinancialResilience
 - IBondsAndTreasuries
 - HighYieldSavingsAccounts
+canonical_id: 01KQ0P44Q40E32SYBC8FB5YR1N
+type: article
+title: Emergency Fund Strategies
+tags:
+- emergency-fund
+- personal-finance
+- liquidity
+- savings
+- financial-resilience
+status: active
 hubs:
 - PersonalFinanceHub
+- DebtPayoffStrategies Hub
 ---
 # Emergency Fund Strategies
 

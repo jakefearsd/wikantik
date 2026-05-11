@@ -1,56 +1,48 @@
 ---
-canonical_id: 01KQ0P44NVFH6WVSSJ39P1PVPB
-title: ConflictMarketPatternsHub
-type: hub
-cluster: conflicts-equity-markets
 status: active
-date: '2026-04-26'
-summary: Index of pages on how conflicts affect financial markets — historical war
-  patterns, sector-specific responses, and the portfolio strategies that handle geopolitical
-  uncertainty.
+canonical_id: 01KQ0P44NVFH6WVSSJ39P1PVPB
+summary: Index of pages on how conflicts affect financial markets — featuring the
+  2026 Iran War shock, historical recovery factor analysis, and the AI supercycle's
+  impact on market resilience.
+title: Conflicts and Equity Markets Hub
 tags:
 - conflict-investing
 - markets
 - hub
 - geopolitics
-related:
-- ConflictMarketPatterns
-- ConflictsAndEquityMarkets
-- ConflictResilientPortfolios
+- recovery-factor
+type: hub
+cluster: conflicts-equity-markets
+date: '2026-05-10'
 ---
-# ConflictMarketPatterns Hub
+# Conflicts and Equity Markets Hub
 
-Conflicts affect markets in patterns that emerge across history. Wars create initial drops; recoveries often follow; specific sectors gain or lose; sovereign debt diverges from equity. Understanding the patterns helps investors handle geopolitical uncertainty without panicking or speculating.
+This cluster analyzes the **intersection of kinetic warfare and capital markets**. It provides a rigorous framework for understanding how geopolitical shocks (1929, 2008, 2026) are absorbed by global supply chains and equity indices.
 
-This cluster covers both the historical patterns and the modern frameworks for investing through them.
+## Ⅰ. Historical Super-Cycles & Patterns
 
-## Foundations
+- [ConflictsAndEquityMarkets](ConflictsAndEquityMarkets) — How equity markets respond to geopolitical shocks.
+- [ConflictMarketPatterns](ConflictMarketPatterns) — Analysis of recovery speeds across 100 years of data.
+- [MarketRecoveryCoefficients](MarketRecoveryCoefficients) — **Draft**: Mathematical comparison of 1929, 2008, and 2026 resilience.
 
-- [ConflictsAndEquityMarkets](ConflictsAndEquityMarkets) — Canonical entry: how equity markets respond to conflicts
-- [ConflictMarketPatterns](ConflictMarketPatterns) — Pattern analysis across historical conflicts
-- [ConflictResilientPortfolios](ConflictResilientPortfolios) — Portfolio construction for geopolitical uncertainty
+## Ⅱ. Modern Conflict Case Studies (2020–2026)
 
-## Historical case studies
+- [IranWar2026EconomicImpact](IranWar2026EconomicImpact) — **New**: The "Hormuz Shock," the Helium crisis, and the 40% PCB resin surge.
+- [RussiaUkraineWarMarkets](RussiaUkraineWarMarkets) — Persistent energy and agricultural background risks.
+- [2026IranWar](2026IranWar) — Primary tactical entry for the Middle East conflict.
 
-- [WorldWarOneMarkets](WorldWarOneMarkets) — WWI market behavior
-- [WorldWarTwoMarkets](WorldWarTwoMarkets) — WWII market behavior, including bond markets
-- [ColdWarMarkets](ColdWarMarkets) — Cold War-era market patterns
-- [GulfWarMarkets](GulfWarMarkets) — 1990-91 Gulf War effects
-- [WarOnTerrorMarkets](WarOnTerrorMarkets) — Post-9/11 market patterns
-- [RussiaUkraineWarMarkets](RussiaUkraineWarMarkets) — 2022 Russia-Ukraine war
-- [2026IranWar](2026IranWar) — Recent regional conflict
+## Ⅲ. Sector & Supply Chain Vulnerabilities
 
-## Sector and instrument analysis
+- [DefenseSectorInvesting](DefenseSectorInvesting) — Long-cycle dynamics of defense-sector semiconductors.
+- [EnergySecurityGeopolitics](EnergySecurityGeopolitics) — **Draft**: The physical chokepoints (Hormuz, Malacca, Suez) vs. digital energy.
+- [WarBondsAndGovernmentDebt](WarBondsAndGovernmentDebt) — Debt markets during systemic regional wars.
 
-- [DefenseSectorInvesting](DefenseSectorInvesting) — How defense stocks behave; long-cycle nature
-- [WarBondsAndGovernmentDebt](WarBondsAndGovernmentDebt) — Government debt during wars; war bonds historical and modern
-- [PostConflictReconstructionInvesting](PostConflictReconstructionInvesting) — Investing in rebuilding economies
+## Ⅳ. Risk Frameworks for the 2026 Investor
 
-## Risk frameworks
+- [ConflictResilientPortfolios](ConflictResilientPortfolios) — Portfolio construction for the "Higher-for-Longer" energy regime.
+- [GeopoliticalRiskAndInvesting](GeopoliticalRiskAndInvesting) — Classifying risks: Direct military vs. semantic/cyber warfare.
 
-- [GeopoliticalRiskAndInvesting](GeopoliticalRiskAndInvesting) — Categories of risk; investing strategies that handle uncertainty
-
-## Adjacent
-
-- [LowCostIndexFundInvesting Hub](LowCostIndexFundInvestingHub) — Default investment philosophy that holds through conflicts
-- [Retirement Planning Guide](RetirementPlanningGuide) — Where conflict resilience matters for retirees
+## See Also
+- [[CloudRoiFramework]] — For the impact of AI capex on market resilience.
+- [[CoinCollectingHub]] — Precious metals as the ultimate conflict hedge.
+- [[LogisticsHub]] — The intermodal foundations of trade coin and military supply.

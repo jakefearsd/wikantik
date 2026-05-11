@@ -1,17 +1,21 @@
 ---
-canonical_id: 01KQQFWARA4TQN5A28QPRVCX3V
+summary: An exhaustive deep-dive into the calculus foundations of modern computer
+  science, focusing on Automatic Differentiation, Hessian-free optimization, and geometric
+  intuition for neural networks.
 date: '2026-05-24'
 cluster: mathematics
+auto-generated: false
+canonical_id: 01KQQFWARA4TQN5A28QPRVCX3V
+title: Calculus Refresh for CS
+status: active
 tags:
 - calculus
 - computer-science
 - machine-learning
 - optimization
 - autodiff
-title: Calculus Refresh for CS
-summary: An exhaustive deep-dive into the calculus foundations of modern computer science, focusing on Automatic Differentiation, Hessian-free optimization, and geometric intuition for neural networks.
-status: active
-auto-generated: false
+hubs:
+- ChaosDynamical Hub
 ---
 
 # Calculus Refresh for Computer Science

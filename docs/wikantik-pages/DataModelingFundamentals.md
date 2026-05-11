@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ0P44P9WDGC8990M3AQS80V
-title: Data Modeling Fundamentals
-type: article
-cluster: data-engineering
-status: active
-date: '2026-04-26'
 summary: The basics of data modeling — fact and dimension tables, star and snowflake
   schemas, normalization vs. denormalization, and the choices for OLTP vs. OLAP workloads.
+date: '2026-04-26'
+cluster: data-engineering
+related:
+- EtlVsElt
+- DbtAndAnalyticsEngineering
+- DataPipelineDesign
+- JpaAndHibernatePatterns
+canonical_id: 01KQ0P44P9WDGC8990M3AQS80V
+type: article
+title: Data Modeling Fundamentals
 tags:
 - data-modeling
 - star-schema
 - dimensional-modeling
 - olap
 - oltp
-related:
-- EtlVsElt
-- DbtAndAnalyticsEngineering
-- DataPipelineDesign
-- JpaAndHibernatePatterns
+status: active
 hubs:
 - DataEngineeringHub
+- DataModelingFundamentals Hub
 ---
 # Data Modeling Fundamentals
 

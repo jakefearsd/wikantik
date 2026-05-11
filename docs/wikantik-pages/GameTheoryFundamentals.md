@@ -1,5 +1,10 @@
 ---
+summary: Game theory provides the mathematical framework for modeling interactions
+  between rational agents, from the prisoner's dilemma to the coordination of autonomous
+  AI swarms in 2025.
+date: 2025-02-13T00:00:00Z
 cluster: mathematics
+auto-generated: false
 canonical_id: 01KQ0P44QMR81PS8MA9FB4MF59
 title: Game Theory Fundamentals
 type: article
@@ -9,9 +14,8 @@ tags:
 - nash-equilibrium
 - agents
 - multi-agent-systems
-summary: "Game theory provides the mathematical framework for modeling interactions between rational agents, from the prisoner's dilemma to the coordination of autonomous AI swarms in 2025."
-auto-generated: false
-date: 2025-02-13T00:00:00Z
+hubs:
+- ChaosDynamical Hub
 ---
 
 # Game Theory: The Logic of Strategic Interaction

@@ -1,26 +1,27 @@
 ---
-canonical_id: 01KQ0P44NSVGZ41KK1TFWTPJF1
-title: Computer Vision Fundamentals
-type: article
-cluster: machine-learning
-status: active
+summary: The fundamentals of computer vision — image representation, classical techniques,
+  deep learning approaches, and the practical tradeoffs between speed, accuracy, and
+  deployment constraints.
 date: '2026-04-26'
-summary: The fundamentals of computer vision — image representation, classical
-  techniques, deep learning approaches, and the practical tradeoffs between speed,
-  accuracy, and deployment constraints.
+cluster: machine-learning
+related:
+- ComputerVisionFundamentals
+- TransformerArchitecture
+- MlModelDeployment
+- InferenceServing
+canonical_id: 01KQ0P44NSVGZ41KK1TFWTPJF1
+type: article
+title: Computer Vision Fundamentals
 tags:
 - computer-vision
 - machine-learning
 - deep-learning
 - cnn
 - image-processing
-related:
-- ComputerVisionFundamentals
-- TransformerArchitecture
-- MlModelDeployment
-- InferenceServing
+status: active
 hubs:
 - MLHub
+- AnomalyDetectionTechniques Hub
 ---
 # Computer Vision Fundamentals
 

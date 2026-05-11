@@ -1,12 +1,20 @@
 ---
+summary: Technical guide to warehouse safety and ergonomics focusing on the NIOSH
+  lifting equation, OSHA rack safety standards, and structural integrity audits.
+date: 2025-05-15T00:00:00Z
 cluster: warehouse-automation
+auto-generated: false
 canonical_id: 01KQ0P44YP5AJGX29ZDV6HEAF8
 title: Warehouse Safety And Ergonomics
 type: article
-tags: [niosh, osha, ergonomics, safety, rack-safety]
-summary: Technical guide to warehouse safety and ergonomics focusing on the NIOSH lifting equation, OSHA rack safety standards, and structural integrity audits.
-auto-generated: false
-date: 2025-05-15
+tags:
+- niosh
+- osha
+- ergonomics
+- safety
+- rack-safety
+hubs:
+- LeanManufacturingPrinciples Hub
 ---
 
 # Warehouse Safety and Ergonomics

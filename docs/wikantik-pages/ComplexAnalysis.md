@@ -1,23 +1,26 @@
 ---
-canonical_id: 01KQ0P44NQE9W6EZ70M8AYY95Z
-title: Complex Analysis
-type: article
-cluster: mathematics
-status: active
+summary: A graduate-level deep dive into Complex Analysis, focusing on the rigid geometry
+  of analytic functions, residue-based integration, and conformal mapping in aerospace
+  engineering.
 date: '2026-04-26'
-summary: A graduate-level deep dive into Complex Analysis, focusing on the rigid geometry of analytic functions, residue-based integration, and conformal mapping in aerospace engineering.
+cluster: mathematics
+related:
+- AppliedMathSurvey
+- CalculusRefreshForCS
+- TopologyMathematics
+canonical_id: 01KQ0P44NQE9W6EZ70M8AYY95Z
+type: article
+title: Complex Analysis
 tags:
 - complex-analysis
 - mathematics
 - calculus
 - analytic-functions
 - conformal-mapping
-related:
-- AppliedMathSurvey
-- CalculusRefreshForCS
-- TopologyMathematics
+status: active
 hubs:
 - MathematicsHub
+- ChaosDynamical Hub
 ---
 
 # Complex Analysis: The Geometry of Analyticity

@@ -1,5 +1,9 @@
 ---
-canonical_id: 01KQ12YDRBZ9RPVCT0GCH9HG6Y
+summary: How to keep LLM agents from forgetting what matters and remembering what
+  doesn't — four state channels, their storage substrates, and the patterns that survive
+  long-running loops.
+date: '2026-04-24'
+cluster: agentic-ai
 related:
 - AiMemoryAndPersistence
 - AgenticWorkflowDesign
@@ -7,20 +11,19 @@ related:
 - ContextWindowManagement
 - ContextCompression
 - VectorDatabases
-summary: How to keep LLM agents from forgetting what matters and remembering what doesn't — four state channels, their storage substrates, and the patterns that survive long-running loops.
+canonical_id: 01KQ12YDRBZ9RPVCT0GCH9HG6Y
+type: article
+title: Agent Memory
 tags:
 - agent
 - memory
 - context-window
 - vector-memory
 - state-management
+status: active
 hubs:
 - AgenticAiHub
-title: Agent Memory
-date: '2026-04-24'
-cluster: agentic-ai
-status: active
-type: article
+- AgentLoops Hub
 ---
 
 # Agent Memory: State Management and Storage Substrates

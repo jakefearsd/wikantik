@@ -1,13 +1,18 @@
 ---
-canonical_id: 01KQ0P44PFGXMXZFX7QK91YH2K
-title: Debt Payoff Strategies
-type: article
-cluster: personal-finance
-status: active
-date: '2026-04-26'
 summary: Avalanche vs. snowball, the 5–7% rule for invest-vs-payoff, the cases where
   consolidation helps and the cases where it traps, and the math that tells you which
   approach is right.
+date: '2026-04-26'
+cluster: personal-finance
+related:
+- PersonalFinanceGuide
+- EmergencyFundStrategies
+- BudgetingMethods
+- CreditScoreOptimization
+- MortgageStrategies
+canonical_id: 01KQ0P44PFGXMXZFX7QK91YH2K
+type: article
+title: Debt Payoff Strategies
 tags:
 - debt
 - debt-payoff
@@ -15,14 +20,10 @@ tags:
 - avalanche
 - snowball
 - consolidation
-related:
-- PersonalFinanceGuide
-- EmergencyFundStrategies
-- BudgetingMethods
-- CreditScoreOptimization
-- MortgageStrategies
+status: active
 hubs:
 - PersonalFinanceHub
+- DebtPayoffStrategies Hub
 ---
 # Debt Payoff Strategies
 

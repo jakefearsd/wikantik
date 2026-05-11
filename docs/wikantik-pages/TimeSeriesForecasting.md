@@ -1,25 +1,27 @@
 ---
+summary: Technical analysis of time series forecasting, covering signal decomposition,
+  classical statistical models, and a concrete XGBoost implementation with lag features.
+date: '2026-05-15'
+cluster: machine-learning
+related:
+- MachineLearning
+- FeatureEngineering
+- DeepLearningFundamentals
+- TransformerArchitecture
+auto-generated: false
 canonical_id: 01KQ0P44XQ9WWFHYKFSFVMCEYF
 title: Time Series Forecasting
 type: article
-cluster: machine-learning
-status: active
-date: '2026-05-15'
+hubs:
+- MachineLearningHub
+- AnomalyDetectionTechniques Hub
 tags:
 - time-series
 - forecasting
 - xgboost
 - arima
 - lstm
-summary: Technical analysis of time series forecasting, covering signal decomposition, classical statistical models, and a concrete XGBoost implementation with lag features.
-related:
-- MachineLearning
-- FeatureEngineering
-- DeepLearningFundamentals
-- TransformerArchitecture
-hubs:
-- MachineLearningHub
-auto-generated: false
+status: active
 ---
 # Time Series Forecasting
 

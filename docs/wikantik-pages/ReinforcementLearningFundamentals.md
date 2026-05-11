@@ -1,23 +1,24 @@
 ---
-canonical_id: 01KQ0P44VCJ2Q4A951GEM64S3A
-title: Reinforcement Learning Fundamentals
-type: article
-cluster: machine-learning
-status: active
-date: '2026-04-26'
 summary: The foundations of reinforcement learning — agents, environments, rewards,
   value functions, policy methods — and the practical challenges that distinguish
   RL from supervised learning.
+date: '2026-04-26'
+cluster: machine-learning
+related:
+- TreeBasedModels
+- TransformerArchitecture
+canonical_id: 01KQ0P44VCJ2Q4A951GEM64S3A
+type: article
+title: Reinforcement Learning Fundamentals
 tags:
 - reinforcement-learning
 - machine-learning
 - rl
 - agents
-related:
-- TreeBasedModels
-- TransformerArchitecture
+status: active
 hubs:
 - MLHub
+- AnomalyDetectionTechniques Hub
 ---
 # Reinforcement Learning Fundamentals
 

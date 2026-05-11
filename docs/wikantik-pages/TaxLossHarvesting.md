@@ -1,27 +1,28 @@
 ---
-canonical_id: 01KQ0P44XA408GF7WX6V7N1832
-title: Tax Loss Harvesting
-type: article
-cluster: index-fund-investing
-status: active
-date: '2026-04-26'
 summary: How tax-loss harvesting works, the wash-sale rule that catches most retail
   investors, the cases where it actually pays meaningful money, and the systematic
   approach that captures the benefit without the common pitfalls.
-tags:
-- tax-loss-harvesting
-- TLH
-- taxes
-- index-funds
-- wash-sale
+date: '2026-04-26'
+cluster: index-fund-investing
 related:
 - LowCostIndexFundInvesting
 - TaxPlanningFundamentals
 - IndexFundPortfolioConstruction
 - RoboAdvisorComparison
 - RebalancingStrategies
+canonical_id: 01KQ0P44XA408GF7WX6V7N1832
+type: article
+title: Tax Loss Harvesting
+tags:
+- tax-loss-harvesting
+- TLH
+- taxes
+- index-funds
+- wash-sale
+status: active
 hubs:
 - LowCostIndexFundInvestingHub
+- RebalancingStrategies Hub
 ---
 # Tax Loss Harvesting
 

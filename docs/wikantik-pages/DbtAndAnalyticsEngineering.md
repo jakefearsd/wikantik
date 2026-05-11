@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ0P44PFK6PNPFVF9E9ZV4V5
-title: dbt and Analytics Engineering
-type: article
-cluster: data-engineering
-status: active
-date: '2026-04-26'
 summary: How dbt works as a transformation tool, what "analytics engineering" actually
   means, and the patterns for building maintainable warehouse transformations.
+date: '2026-04-26'
+cluster: data-engineering
+related:
+- EtlVsElt
+- DataPipelineDesign
+- DataModelingFundamentals
+- CleanCodePrinciples
+canonical_id: 01KQ0P44PFK6PNPFVF9E9ZV4V5
+type: article
+title: dbt and Analytics Engineering
 tags:
 - dbt
 - analytics-engineering
 - data-warehouse
 - sql
 - transformations
-related:
-- EtlVsElt
-- DataPipelineDesign
-- DataModelingFundamentals
-- CleanCodePrinciples
+status: active
 hubs:
 - DataEngineeringHub
+- DataModelingFundamentals Hub
 ---
 # dbt and Analytics Engineering
 

@@ -1,27 +1,28 @@
 ---
-canonical_id: 01KQ0P44V7EMBWXNQBPDAFJM8A
-title: Rebalancing Strategies
-type: article
-cluster: index-fund-investing
-status: active
-date: '2026-04-26'
 summary: When to rebalance, how often, and which method (calendar vs. threshold) actually
   matters — plus the tax-aware approach for taxable accounts and the rebalancing-via-contributions
   trick that avoids most sales.
-tags:
-- rebalancing
-- portfolio-management
-- asset-allocation
-- index-funds
-- tax-efficient-investing
+date: '2026-04-26'
+cluster: index-fund-investing
 related:
 - LowCostIndexFundInvesting
 - AssetAllocationGuide
 - IndexFundPortfolioConstruction
 - InvestmentPolicyStatement
 - TaxLossHarvesting
+canonical_id: 01KQ0P44V7EMBWXNQBPDAFJM8A
+type: article
+title: Rebalancing Strategies
+tags:
+- rebalancing
+- portfolio-management
+- asset-allocation
+- index-funds
+- tax-efficient-investing
+status: active
 hubs:
 - LowCostIndexFundInvestingHub
+- RebalancingStrategies Hub
 ---
 # Rebalancing Strategies
 

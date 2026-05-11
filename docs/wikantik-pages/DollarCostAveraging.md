@@ -1,27 +1,28 @@
 ---
-canonical_id: 01KQ0P44PXG39QNES88DP629S9
-title: Dollar Cost Averaging
-type: article
-cluster: index-fund-investing
-status: active
-date: '2026-04-26'
 summary: How DCA actually works, the cases where lump-sum investing beats it on expected
   value, and the behavioral cases where DCA still wins despite being mathematically
   inferior.
-tags:
-- dollar-cost-averaging
-- DCA
-- lump-sum
-- index-funds
-- behavioral-finance
+date: '2026-04-26'
+cluster: index-fund-investing
 related:
 - LowCostIndexFundInvesting
 - IndexFundPortfolioConstruction
 - BehavioralFinanceForInvestors
 - TheCaseAgainstMarketTiming
 - InvestmentPolicyStatement
+canonical_id: 01KQ0P44PXG39QNES88DP629S9
+type: article
+title: Dollar Cost Averaging
+tags:
+- dollar-cost-averaging
+- DCA
+- lump-sum
+- index-funds
+- behavioral-finance
+status: active
 hubs:
 - LowCostIndexFundInvestingHub
+- RebalancingStrategies Hub
 ---
 # Dollar Cost Averaging
 

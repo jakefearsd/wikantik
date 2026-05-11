@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44P40EG8EYKE2B4EXE0C
-title: CSS Architecture Patterns
-type: article
-cluster: frontend-development
-status: active
-date: '2026-04-26'
 summary: BEM, atomic CSS, CSS-in-JS, CSS Modules — the patterns for organizing CSS
   at scale, the trade-offs each makes, and the modern approach that has won out.
+date: '2026-04-26'
+cluster: frontend-development
+related:
+- ResponsiveDesignPrinciples
+- WebComponents
+- ServerSideRendering
+canonical_id: 01KQ0P44P40EG8EYKE2B4EXE0C
+type: article
+title: CSS Architecture Patterns
 tags:
 - css
 - bem
 - atomic-css
 - css-in-js
 - tailwind
-related:
-- ResponsiveDesignPrinciples
-- WebComponents
-- ServerSideRendering
+status: active
 hubs:
 - FrontendDevelopmentHub
+- WebComponents Hub
 ---
 # CSS Architecture Patterns
 

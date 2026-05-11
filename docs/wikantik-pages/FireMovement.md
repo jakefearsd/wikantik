@@ -1,12 +1,29 @@
 ---
+summary: Financial Independence Retire Early — philosophy, methodology, variants (LeanFIRE,
+  FatFIRE, BaristaFIRE, CoastFIRE), and substantive criticisms
+date: 2026-03-21T00:00:00Z
+cluster: retirement-planning
+related:
+- CoastFire
+- SafeWithdrawalRates
+- GuardrailsSpendingStrategy
+- HistoryOfTheFourPercentRule
+- RothConversionLadder
+- MedicarePlanningAndHealthcare
+- SocialSecurityClaimingStrategy
+- IndexFundInvestingForEarlyRetirement
+- RetirementPlanningGuide
 canonical_id: 01KQ0P44QEQ7X0P00N8H1J65AA
 type: article
-tags: [retirement, FIRE, financial-independence, early-retirement, index-funds]
-date: 2026-03-21
 status: active
-cluster: retirement-planning
-summary: Financial Independence Retire Early — philosophy, methodology, variants (LeanFIRE, FatFIRE, BaristaFIRE, CoastFIRE), and substantive criticisms
-related: [CoastFire, SafeWithdrawalRates, GuardrailsSpendingStrategy, HistoryOfTheFourPercentRule, RothConversionLadder, MedicarePlanningAndHealthcare, SocialSecurityClaimingStrategy, IndexFundInvestingForEarlyRetirement, RetirementPlanningGuide]
+tags:
+- retirement
+- FIRE
+- financial-independence
+- early-retirement
+- index-funds
+hubs:
+- RebalancingStrategies Hub
 ---
 # The FIRE Movement
 

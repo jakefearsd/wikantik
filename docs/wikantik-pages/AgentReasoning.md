@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ12YDRF456K824EWF9801KS
-title: Agent Reasoning
-type: article
-cluster: agentic-ai
-status: active
+summary: When chain-of-thought helps, when reflection pays off, and when the extended-reasoning
+  mode in a frontier model just replaces all of the above.
 date: '2026-04-24'
+cluster: agentic-ai
+related:
+- AgenticWorkflowDesign
+- AgentPlanning
+- AgentLoops
+- ChainOfThoughtReasoning
+canonical_id: 01KQ12YDRF456K824EWF9801KS
+type: article
+title: Agent Reasoning
 tags:
 - agent
 - reasoning
 - chain-of-thought
 - tree-of-thought
 - reflection
-summary: When chain-of-thought helps, when reflection pays off, and when the
-  extended-reasoning mode in a frontier model just replaces all of the above.
-related:
-- AgenticWorkflowDesign
-- AgentPlanning
-- AgentLoops
-- ChainOfThoughtReasoning
+status: active
 hubs:
 - AgenticAiHub
+- AgentLoops Hub
 ---
 # Agent Reasoning
 

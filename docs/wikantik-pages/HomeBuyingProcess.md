@@ -1,27 +1,28 @@
 ---
-canonical_id: 01KQ0P44QXNTT0VG6XTEFFP2XQ
-title: Home Buying Process
-type: article
-cluster: personal-finance
-status: active
-date: '2026-04-26'
 summary: Step-by-step for the largest single transaction most households make — financial
   prep, agent selection, offer mechanics, inspections, closing, and the common mistakes
   that cost real money at each stage.
-tags:
-- home-buying
-- real-estate
-- personal-finance
-- mortgages
-- housing
+date: '2026-04-26'
+cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - MortgageStrategies
 - CreditScoreOptimization
 - EmergencyFundStrategies
 - RealEstateInvestingBasics
+canonical_id: 01KQ0P44QXNTT0VG6XTEFFP2XQ
+type: article
+title: Home Buying Process
+tags:
+- home-buying
+- real-estate
+- personal-finance
+- mortgages
+- housing
+status: active
 hubs:
 - PersonalFinanceHub
+- DebtPayoffStrategies Hub
 ---
 # Home Buying Process
 

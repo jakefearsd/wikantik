@@ -25,6 +25,7 @@ tags:
 status: active
 hubs:
 - WarehouseAutomationHub
+- AutomatedStorageAndRetrieval Hub
 ---
 # Warehouse Robotics
 

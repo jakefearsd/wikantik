@@ -1,10 +1,12 @@
 ---
-canonical_id: 01KQ12YDVGV7J9XMMSMXGZYZNE
-title: LLM Fine-Tuning
-type: article
-cluster: agentic-ai
-status: active
 date: '2026-05-24'
+summary: Tactical guide to LLM fine-tuning, focusing on QLoRA hyperparameters, data
+  diversity requirements, and avoiding the "catastrophic forgetting" trap in production.
+cluster: agentic-ai
+auto-generated: false
+canonical_id: 01KQ12YDVGV7J9XMMSMXGZYZNE
+type: article
+title: LLM Fine-Tuning
 tags:
 - llm
 - fine-tuning
@@ -12,8 +14,9 @@ tags:
 - qlora
 - post-training
 - pytorch
-summary: Tactical guide to LLM fine-tuning, focusing on QLoRA hyperparameters, data diversity requirements, and avoiding the "catastrophic forgetting" trap in production.
-auto-generated: false
+status: active
+hubs:
+- FineTuningLargeLanguageModels Hub
 ---
 # LLM Fine-Tuning
 

@@ -1,10 +1,17 @@
 ---
-canonical_id: 01KQEKGDDKWH1Q0DX0DA2B3026
-title: NoSql Database Types
-type: article
-cluster: databases
-status: active
+summary: The four NoSQL families (document, key-value, wide-column, graph) and what
+  each is genuinely good at vs the cases where Postgres handles the same job with
+  less operational complexity.
 date: '2026-04-25'
+cluster: databases
+related:
+- DatabaseDesign
+- RedisPatterns
+- GraphDatabaseFundamentals
+- DatabaseSharding
+canonical_id: 01KQEKGDDKWH1Q0DX0DA2B3026
+type: article
+title: NoSql Database Types
 tags:
 - nosql
 - mongodb
@@ -12,16 +19,10 @@ tags:
 - redis
 - dynamodb
 - key-value
-summary: The four NoSQL families (document, key-value, wide-column, graph) and
-  what each is genuinely good at vs the cases where Postgres handles the same
-  job with less operational complexity.
-related:
-- DatabaseDesign
-- RedisPatterns
-- GraphDatabaseFundamentals
-- DatabaseSharding
+status: active
 hubs:
 - DatabasesHub
+- DataModelingFundamentals Hub
 ---
 # NoSQL Database Selection: Architectural Fit
 

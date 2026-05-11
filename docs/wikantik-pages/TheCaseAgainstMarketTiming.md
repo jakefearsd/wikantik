@@ -1,27 +1,28 @@
 ---
-canonical_id: 01KQ0P44XM8Z6HYS4KX4MR6DE0
-title: The Case Against Market Timing
-type: article
-cluster: index-fund-investing
-status: active
-date: '2026-04-26'
 summary: Why market timing systematically destroys returns for retail investors —
   the math, the behavioral evidence, and the specific patterns that catch even sophisticated
   investors. The single most-violated principle in personal investing.
-tags:
-- market-timing
-- behavioral-finance
-- index-funds
-- buy-and-hold
-- investor-psychology
+date: '2026-04-26'
+cluster: index-fund-investing
 related:
 - LowCostIndexFundInvesting
 - DollarCostAveraging
 - BehavioralFinanceForInvestors
 - InvestmentPolicyStatement
 - RebalancingStrategies
+canonical_id: 01KQ0P44XM8Z6HYS4KX4MR6DE0
+type: article
+title: The Case Against Market Timing
+tags:
+- market-timing
+- behavioral-finance
+- index-funds
+- buy-and-hold
+- investor-psychology
+status: active
 hubs:
 - LowCostIndexFundInvestingHub
+- RebalancingStrategies Hub
 ---
 # The Case Against Market Timing
 

@@ -1,19 +1,9 @@
 ---
-canonical_id: 01KQ0P44QD77APRYM52QSQ1FT3
-title: Financial Resilience
-type: article
-cluster: personal-finance
-status: active
-date: '2026-04-26'
 summary: The architecture of a household balance sheet that survives a bad year —
   income redundancy, expense flexibility, asset liquidity, insurance layering, and
   the stress tests that reveal whether your plan actually holds.
-tags:
-- financial-resilience
-- personal-finance
-- risk-management
-- household-finance
-- stress-testing
+date: '2026-04-26'
+cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - EmergencyFundStrategies
@@ -21,8 +11,19 @@ related:
 - BudgetingMethods
 - DebtPayoffStrategies
 - NetWorthTracking
+canonical_id: 01KQ0P44QD77APRYM52QSQ1FT3
+type: article
+title: Financial Resilience
+tags:
+- financial-resilience
+- personal-finance
+- risk-management
+- household-finance
+- stress-testing
+status: active
 hubs:
 - PersonalFinanceHub
+- DebtPayoffStrategies Hub
 ---
 # Financial Resilience
 

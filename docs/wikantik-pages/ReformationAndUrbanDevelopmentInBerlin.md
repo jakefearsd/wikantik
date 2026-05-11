@@ -1,22 +1,24 @@
 ---
-canonical_id: 01KQ0P44VAVVB7875BT5M7GK9P
+summary: How the Protestant Reformation shaped Berlin's growth through church property
+  redistribution, religious refugee immigration, and the development of a culture
+  of religious tolerance
 cluster: berlin-history
+related:
+- Berlin
+- BerlinsTransformationFromMargraviateToCapitalCity
+- ReformationEraInBerlin
+canonical_id: 01KQ0P44VAVVB7875BT5M7GK9P
+part-of:
+- Berlin
+type: article
 tags:
 - history
 - berlin
 - reformation
 - protestantism
 - urban-development
-type: article
 status: active
-summary: How the Protestant Reformation shaped Berlin's growth through church property
-  redistribution, religious refugee immigration, and the development of a culture
-  of religious tolerance
-related:
-- Berlin
-- BerlinsTransformationFromMargraviateToCapitalCity
-- ReformationEraInBerlin
-part-of:
+hubs:
 - Berlin
 ---
 # Reformation and Urban Development in Berlin

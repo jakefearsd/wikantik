@@ -1,18 +1,8 @@
 ---
-tags:
-- mathematics
-- applied-math
-- calculus
-- linear-algebra
-- optimization
-cluster: mathematics
-title: Applied Math Survey
+summary: Applied mathematics is the intellectual infrastructure of the 21st century,
+  bridging abstract logic and physical reality across robotics, AI, and finance.
 date: '2026-04-26'
-hubs:
-- MathematicsHub
-type: article
-status: active
-canonical_id: 01KQ0P44KZWNJPTF8W2F7NTRFR
+cluster: mathematics
 related:
 - CalculusRefreshForCS
 - ProbabilityTheory
@@ -21,7 +11,19 @@ related:
 - TopologyMathematics
 - DifferentialGeometry
 - OptimizationAlgorithms
-summary: "Applied mathematics is the intellectual infrastructure of the 21st century, bridging abstract logic and physical reality across robotics, AI, and finance."
+canonical_id: 01KQ0P44KZWNJPTF8W2F7NTRFR
+type: article
+title: Applied Math Survey
+tags:
+- mathematics
+- applied-math
+- calculus
+- linear-algebra
+- optimization
+status: active
+hubs:
+- MathematicsHub
+- ChaosDynamical Hub
 ---
 
 # Applied Math Survey: The Intellectual Infrastructure of the Modern World

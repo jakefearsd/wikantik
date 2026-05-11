@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ0P44VK4FG0J29X4THBNXPZ
-title: Responsive Design Principles
-type: article
-cluster: frontend-development
-status: active
-date: '2026-04-26'
 summary: Mobile-first design, fluid typography, container queries, and the modern
   CSS techniques that produce layouts that work across screen sizes without per-breakpoint
   hacks.
+date: '2026-04-26'
+cluster: frontend-development
+related:
+- CssArchitecturePatterns
+- WebAccessibilityGuide
+- WebComponents
+canonical_id: 01KQ0P44VK4FG0J29X4THBNXPZ
+type: article
+title: Responsive Design Principles
 tags:
 - responsive-design
 - mobile-first
 - css
 - container-queries
 - fluid-typography
-related:
-- CssArchitecturePatterns
-- WebAccessibilityGuide
-- WebComponents
+status: active
 hubs:
 - FrontendDevelopmentHub
+- WebComponents Hub
 ---
 # Responsive Design Principles
 

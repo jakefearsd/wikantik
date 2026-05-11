@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ0P44Q7XSTJT11T5EQ84PG0
-title: ETL vs. ELT
-type: article
-cluster: data-engineering
-status: active
-date: '2026-04-26'
 summary: The shift from ETL to ELT — what changed, why modern data warehouses enabled
   it, and the cases where each paradigm fits.
+date: '2026-04-26'
+cluster: data-engineering
+related:
+- DataPipelineDesign
+- DbtAndAnalyticsEngineering
+- DataModelingFundamentals
+- CloudDatabases
+canonical_id: 01KQ0P44Q7XSTJT11T5EQ84PG0
+type: article
+title: ETL vs. ELT
 tags:
 - etl
 - elt
 - data-warehouse
 - data-engineering
 - transformation
-related:
-- DataPipelineDesign
-- DbtAndAnalyticsEngineering
-- DataModelingFundamentals
-- CloudDatabases
+status: active
 hubs:
 - DataEngineeringHub
+- DataModelingFundamentals Hub
 ---
 # ETL vs. ELT
 

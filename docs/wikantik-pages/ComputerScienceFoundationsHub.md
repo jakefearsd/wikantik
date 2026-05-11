@@ -54,7 +54,15 @@ The physical and logical structure of the machines that execute computation.
 The bridge between human-readable code and machine-executable instructions.
 
 - [Compiler Design Basics](CompilerDesignBasics) — Lexing, parsing, semantic analysis, and the pipeline that transforms source into executable
+- [Dependency Injection: Evolution and 2026 Trends](DependencyInjectionEvolution) — From XML-based reflection to zero-overhead compile-time resolution
+- [Erlang Programming Language](ErlangProgrammingLanguage) — A functional, concurrent language demonstrating the power of the actor model and fault tolerance
+- [Functional Programming Foundations](FunctionalProgrammingFoundations) — Deep-dive into Lambda Calculus, Category Theory, and paradigm utility
+- [Gang of Four Patterns: 2026 Utility](GangOfFourPatternsUtility) — Re-evaluating the 23 design patterns for modern hardware and paradigms
+- [Groovy: The Enterprise Java Enhancer](GroovyLanguageArchitecture) — DevOps scripting, Spock testing, and the Apache Grails revitalization
+- [LISP Programming Language](LispProgrammingLanguage) — The foundational language for symbolic computing, functional programming, and homoiconicity
+- [Python: The Universal AI Operating System](PythonLanguageArchitecture) — PEP 703 (No-GIL), Tiered JIT, and agentic AI orchestration
 - [Regular Expressions and Finite Automata](RegularExpressionsAndFiniteAutomata) — (Placeholder) The practical application of automata theory in text processing
+- [Ruby: Performance Maturity and Infrastructure Autonomy](RubyLanguageArchitecture) — YJIT breakthroughs, Rails 8 (Solid Trifecta), and AI rapid prototyping
 
 ## Emerging and Specialized Foundations
 

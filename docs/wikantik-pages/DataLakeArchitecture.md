@@ -1,11 +1,15 @@
 ---
-title: Data Lake Architecture
-type: article
-cluster: data-engineering
-status: active
-date: 2026-05-20
-summary: Level 3 of the Data Maturity Lifecycle. Focus on storage/compute decoupling and the Medallion Architecture (Bronze/Silver/Gold).
+canonical_id: 01KR79P6AQC7G4C6SV8WJ520AA
+hubs:
+- DataModelingFundamentals Hub
 auto-generated: false
+status: active
+summary: Level 3 of the Data Maturity Lifecycle. Focus on storage/compute decoupling
+  and the Medallion Architecture (Bronze/Silver/Gold).
+title: Data Lake Architecture
+cluster: data-engineering
+type: article
+date: 2026-05-20T00:00:00Z
 ---
 
 # Data Lake Architecture: Level 3 Maturity

@@ -1,27 +1,28 @@
 ---
-canonical_id: 01KQ0P44SS21YT1S42ATRD7VWA
-title: Mortgage Strategies
-type: article
-cluster: personal-finance
-status: active
-date: '2026-04-26'
 summary: 15 vs. 30, points and ARMs, recasts and refinances, the case for and against
   paying ahead — the math behind each mortgage decision and which inputs actually
   move the answer.
-tags:
-- mortgage
-- housing
-- personal-finance
-- home-financing
-- refinancing
+date: '2026-04-26'
+cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - HomeBuyingProcess
 - DebtPayoffStrategies
 - RealEstateInvestingBasics
 - FinancialResilience
+canonical_id: 01KQ0P44SS21YT1S42ATRD7VWA
+type: article
+title: Mortgage Strategies
+tags:
+- mortgage
+- housing
+- personal-finance
+- home-financing
+- refinancing
+status: active
 hubs:
 - PersonalFinanceHub
+- DebtPayoffStrategies Hub
 ---
 # Mortgage Strategies
 

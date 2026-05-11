@@ -1,19 +1,4 @@
 ---
-summary: Year-by-year blueprint from first invested dollar to early retirement, covering
-  savings rates, account filling order, and withdrawal planning
-date: 2026-03-21T00:00:00Z
-cluster: index-fund-investing
-related:
-- IndexFundInvestingForEarlyRetirement
-- IndexFundPortfolioConstruction
-- AccountTypeStrategy
-- CompoundingIntuition
-- ExpenseRatioDeepDive
-- RothConversionLadder
-canonical_id: 01KQ0P44Q0D7QA3HR52TFCZ8KF
-part-of:
-- IndexFundInvestingForEarlyRetirement
-type: article
 tags:
 - personal-finance
 - investing
@@ -22,10 +7,25 @@ tags:
 - financial-independence
 - savings-rate
 - withdrawal-strategy
+summary: Year-by-year blueprint from first invested dollar to early retirement, covering savings rates, account filling order, and withdrawal planning
+related:
+- IndexFundInvestingForEarlyRetirement
+- IndexFundPortfolioConstruction
+- AccountTypeStrategy
+- CompoundingIntuition
+- ExpenseRatioDeepDive
+- RothConversionLadder
+canonical_id: 01KQ0P44Q0D7QA3HR52TFCZ8KF
+type: article
 status: active
+part-of:
+- IndexFundInvestingForEarlyRetirement
+date: 2026-03-21T00:00:00Z
+cluster: index-fund-investing
 hubs:
 - IndexFundInvestingForEarlyRetirement
 ---
+
 # A Complete Early Retirement Investment Plan
 
 This article synthesises everything from the [Index Fund Investing for Early Retirement](IndexFundInvestingForEarlyRetirement) cluster into a single actionable plan. It covers the full arc: from your first invested dollar to the day you stop working.

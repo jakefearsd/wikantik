@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ0P44TVBE770R5QS2YNS9FM
-title: Progressive Web Apps
-type: article
-cluster: frontend-development
-status: active
-date: '2026-04-26'
 summary: What PWAs actually are — service workers, manifests, offline support, push
-  notifications — and the cases where the PWA pattern fits vs. where native apps
-  remain the answer.
+  notifications — and the cases where the PWA pattern fits vs. where native apps remain
+  the answer.
+date: '2026-04-26'
+cluster: frontend-development
+related:
+- ServerSideRendering
+- WebComponents
+- FormHandlingAndValidation
+canonical_id: 01KQ0P44TVBE770R5QS2YNS9FM
+type: article
+title: Progressive Web Apps
 tags:
 - pwa
 - progressive-web-apps
 - service-workers
 - offline
 - frontend
-related:
-- ServerSideRendering
-- WebComponents
-- FormHandlingAndValidation
+status: active
 hubs:
 - FrontendDevelopmentHub
+- WebComponents Hub
 ---
 # Progressive Web Apps
 

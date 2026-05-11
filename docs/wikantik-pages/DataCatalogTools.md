@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44P7T3G6ETQ74NMSK736
-title: Data Catalog Tools
-type: article
-cluster: data-engineering
-status: active
-date: '2026-04-26'
 summary: What data catalogs actually do — DataHub, Amundsen, Atlan, Alation — and
   the cases where a catalog is essential vs. where simpler tools suffice.
+date: '2026-04-26'
+cluster: data-engineering
+related:
+- DataModelingFundamentals
+- MasterDataManagement
+- DbtAndAnalyticsEngineering
+canonical_id: 01KQ0P44P7T3G6ETQ74NMSK736
+type: article
+title: Data Catalog Tools
 tags:
 - data-catalog
 - datahub
 - amundsen
 - data-discovery
 - data-governance
-related:
-- DataModelingFundamentals
-- MasterDataManagement
-- DbtAndAnalyticsEngineering
+status: active
 hubs:
 - DataEngineeringHub
+- DataModelingFundamentals Hub
 ---
 # Data Catalog Tools
 

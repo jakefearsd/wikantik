@@ -1,17 +1,20 @@
 ---
+date: 2025-05-15T00:00:00Z
+summary: A technical deep dive into VRP solution methodologies, focusing on Clarke-Wright
+  Savings and Ant Colony Optimization.
 cluster: operations-research
+auto-generated: false
 canonical_id: 01KQ0P44YF23KBS4503P4SK81P
-title: Vehicle Routing Problem
 type: article
+title: Vehicle Routing Problem
 tags:
 - optimization
 - logistics
 - heuristics
 - vrp
 status: active
-date: 2025-05-15
-summary: A technical deep dive into VRP solution methodologies, focusing on Clarke-Wright Savings and Ant Colony Optimization.
-auto-generated: false
+hubs:
+- DemandPlanningAndSop Hub
 ---
 
 # Vehicle Routing Problem (VRP): Optimization Heuristics

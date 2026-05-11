@@ -1,5 +1,16 @@
 ---
+summary: A rigorous exploration of Recommendation Systems (RS), focusing on the shift
+  from neighborhood-based similarity to low-rank matrix completion, the integration
+  of Attention/Transformer architectures, and the causal challenges of counterfactual
+  discovery.
 cluster: machine-learning
+related:
+- MachineLearning
+- TransformerArchitecture
+- DeepLearningFundamentals
+- DataStructuresHub
+- MathematicsHub
+- InformationTheory
 canonical_id: 01KQ0P44V8HR56S53FQVR0H4JB
 title: Recommendation Systems and Collaborative Filtering
 type: article
@@ -12,14 +23,8 @@ tags:
 - transformers
 - causal-inference
 - xai
-summary: A rigorous exploration of Recommendation Systems (RS), focusing on the shift from neighborhood-based similarity to low-rank matrix completion, the integration of Attention/Transformer architectures, and the causal challenges of counterfactual discovery.
-related:
-- MachineLearning
-- TransformerArchitecture
-- DeepLearningFundamentals
-- DataStructuresHub
-- MathematicsHub
-- InformationTheory
+hubs:
+- AnomalyDetectionTechniques Hub
 ---
 
 # Recommendation Systems: The Architecture of Latent Discovery

@@ -1,19 +1,9 @@
 ---
-canonical_id: 01KQ0P44R84C0BFKGQHVJKYHSM
-title: Investment Policy Statement
-type: article
-cluster: personal-finance
-status: active
-date: '2026-04-26'
 summary: A written statement of how you will invest, when you will rebalance, and
   what you will do during downturns — the document that prevents you from improvising
   during the moments when improvising is most expensive.
-tags:
-- investment-policy
-- IPS
-- personal-finance
-- portfolio-management
-- behavioral-discipline
+date: '2026-04-26'
+cluster: personal-finance
 related:
 - PersonalFinanceGuide
 - LowCostIndexFundInvesting
@@ -21,8 +11,19 @@ related:
 - RebalancingStrategies
 - BehavioralFinanceForInvestors
 - TheCaseAgainstMarketTiming
+canonical_id: 01KQ0P44R84C0BFKGQHVJKYHSM
+type: article
+title: Investment Policy Statement
+tags:
+- investment-policy
+- IPS
+- personal-finance
+- portfolio-management
+- behavioral-discipline
+status: active
 hubs:
 - PersonalFinanceHub
+- RebalancingStrategies Hub
 ---
 # Investment Policy Statement
 

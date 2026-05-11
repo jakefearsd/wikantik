@@ -1,5 +1,10 @@
 ---
+summary: A technical deep dive into the Transformer architecture, focusing on the
+  scaled dot-product attention mechanism and the mathematical optimization of KV-caching
+  for efficient inference.
+date: 2024-05-16T00:00:00Z
 cluster: machine-learning
+auto-generated: false
 canonical_id: 01KQ0P44SYVZ3S6WKPPPHRQHH0
 title: Natural Language Processing
 type: article
@@ -9,9 +14,8 @@ tags:
 - attention
 - kv-cache
 - deep-learning
-summary: A technical deep dive into the Transformer architecture, focusing on the scaled dot-product attention mechanism and the mathematical optimization of KV-caching for efficient inference.
-auto-generated: false
-date: 2024-05-16
+hubs:
+- AnomalyDetectionTechniques Hub
 ---
 # Natural Language Processing: The Transformer Era
 

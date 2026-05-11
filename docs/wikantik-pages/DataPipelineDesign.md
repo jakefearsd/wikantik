@@ -1,26 +1,27 @@
 ---
-canonical_id: 01KQ0P44P962TNREGKV1782DA8
-title: Data Pipeline Design
-type: article
-cluster: data-engineering
-status: active
-date: '2026-04-26'
 summary: How to design data pipelines that are observable, idempotent, and resilient
   — the patterns that scale, the failure modes to avoid, and the orchestration tools
   in modern data stacks.
+date: '2026-04-26'
+cluster: data-engineering
+related:
+- EtlVsElt
+- MapReduceParadigm
+- DbtAndAnalyticsEngineering
+- DataModelingFundamentals
+canonical_id: 01KQ0P44P962TNREGKV1782DA8
+type: article
+title: Data Pipeline Design
 tags:
 - data-pipelines
 - etl
 - data-engineering
 - airflow
 - orchestration
-related:
-- EtlVsElt
-- MapReduceParadigm
-- DbtAndAnalyticsEngineering
-- DataModelingFundamentals
+status: active
 hubs:
 - DataEngineeringHub
+- DataModelingFundamentals Hub
 ---
 # Data Pipeline Design
 

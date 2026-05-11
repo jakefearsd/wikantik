@@ -1,27 +1,28 @@
 ---
-canonical_id: 01KQ0P44ME63AX1ETEBW9GJXWW
-title: Behavioral Finance For Investors
-type: article
-cluster: index-fund-investing
-status: active
-date: '2026-04-26'
 summary: The cognitive biases that destroy retail-investor returns — what they are,
   why knowing about them is not enough to fix them, and the structural defenses that
   actually work.
-tags:
-- behavioral-finance
-- investor-psychology
-- cognitive-bias
-- index-funds
-- discipline
+date: '2026-04-26'
+cluster: index-fund-investing
 related:
 - LowCostIndexFundInvesting
 - TheCaseAgainstMarketTiming
 - InvestmentPolicyStatement
 - DollarCostAveraging
 - RebalancingStrategies
+canonical_id: 01KQ0P44ME63AX1ETEBW9GJXWW
+type: article
+title: Behavioral Finance For Investors
+tags:
+- behavioral-finance
+- investor-psychology
+- cognitive-bias
+- index-funds
+- discipline
+status: active
 hubs:
 - LowCostIndexFundInvestingHub
+- RebalancingStrategies Hub
 ---
 # Behavioral Finance For Investors
 

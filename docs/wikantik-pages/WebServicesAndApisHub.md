@@ -1,8 +1,8 @@
 ---
-date: '2026-04-26'
 summary: Index of pages on web service and API design — REST vs. GraphQL vs. RPC,
   the patterns that scale (idempotency, pagination, batching), and the protocols that
   enable real-time communication.
+date: '2026-04-26'
 cluster: web-services-and-apis
 related:
 - JavaHub
@@ -10,8 +10,8 @@ related:
 - DevOpsAndSreHub
 - NetworkingHub
 canonical_id: 01KZHC6PVS4SBQM9R0F3T7K8Z5
-title: WebServicesAndApisHub
 type: hub
+title: WebServicesAndApisHub
 tags:
 - api
 - web-services
@@ -19,10 +19,11 @@ tags:
 - REST
 - GraphQL
 - protocol
+status: active
 hubs:
 - NetworkingHub
 - DevOpsAndSreHub
-status: active
+- CloudPlatformsHub
 ---
 # WebServicesAndApis Hub
 

@@ -1,8 +1,12 @@
 ---
+summary: A deep-dive into the discrete structures that underpin modern computing,
+  from Boolean logic gates to the Max-Flow Min-Cut theorem in network optimization.
+date: 2025-02-13T00:00:00Z
 cluster: mathematics
 canonical_id: 01KQ0P44PRX13DH8HVTDN79C75
-title: "Discrete Mathematics: The Digital Spine"
+title: 'Discrete Mathematics: The Digital Spine'
 type: article
+status: active
 tags:
 - mathematics
 - discrete-math
@@ -10,9 +14,8 @@ tags:
 - set-theory
 - graph-theory
 - network-flow
-summary: A deep-dive into the discrete structures that underpin modern computing, from Boolean logic gates to the Max-Flow Min-Cut theorem in network optimization.
-status: active
-date: 2025-02-13T00:00:00Z
+hubs:
+- ChaosDynamical Hub
 ---
 
 # Discrete Mathematics: Foundations of the Digital World

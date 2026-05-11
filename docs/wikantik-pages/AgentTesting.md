@@ -1,17 +1,20 @@
 ---
-canonical_id: 01KQ12YDRGCZBA685NG52C8AZ0
-title: Agent Testing
-type: article
-cluster: agentic-ai
-status: active
 date: '2026-05-24'
+summary: Methods for deterministic and stochastic testing of agentic loops, including
+  trajectory-based evaluation, shadow production, and LLM-as-judge calibration.
+cluster: agentic-ai
+auto-generated: false
+canonical_id: 01KQ12YDRGCZBA685NG52C8AZ0
+type: article
+title: Agent Testing
 tags:
 - agent
 - testing
 - evaluation
 - llm-as-judge
-summary: Methods for deterministic and stochastic testing of agentic loops, including trajectory-based evaluation, shadow production, and LLM-as-judge calibration.
-auto-generated: false
+status: active
+hubs:
+- AgentLoops Hub
 ---
 # Agent Testing
 

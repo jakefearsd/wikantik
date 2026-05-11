@@ -1,27 +1,28 @@
 ---
-canonical_id: 01KQ0P44X85M8QK291EETYT1MK
-title: Target Date Funds
-type: article
-cluster: index-fund-investing
-status: active
-date: '2026-04-26'
 summary: How target-date funds work, the cases where they are the right answer (most
   households), the cases where they are not, and how to evaluate the specific fund
   series you are choosing between.
-tags:
-- target-date-funds
-- index-funds
-- asset-allocation
-- glide-path
-- 401k
+date: '2026-04-26'
+cluster: index-fund-investing
 related:
 - LowCostIndexFundInvesting
 - AssetAllocationGuide
 - IndexFundPortfolioConstruction
 - RebalancingStrategies
 - AccountTypeStrategy
+canonical_id: 01KQ0P44X85M8QK291EETYT1MK
+type: article
+title: Target Date Funds
+tags:
+- target-date-funds
+- index-funds
+- asset-allocation
+- glide-path
+- 401k
+status: active
 hubs:
 - LowCostIndexFundInvestingHub
+- RebalancingStrategies Hub
 ---
 # Target Date Funds
 

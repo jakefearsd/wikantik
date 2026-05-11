@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44SN797PJ2CGW3G4R0FG
-title: Modern Bundlers and Build Tools
-type: article
-cluster: frontend-development
-status: active
-date: '2026-04-26'
 summary: Vite, esbuild, Turbopack, webpack — how the modern build pipeline works,
   what each tool is good at, and the migration paths from older webpack-era setups.
+date: '2026-04-26'
+cluster: frontend-development
+related:
+- TypeScriptFundamentals
+- WebComponents
+- ServerSideRendering
+canonical_id: 01KQ0P44SN797PJ2CGW3G4R0FG
+type: article
+title: Modern Bundlers and Build Tools
 tags:
 - bundlers
 - build-tools
 - vite
 - webpack
 - esbuild
-related:
-- TypeScriptFundamentals
-- WebComponents
-- ServerSideRendering
+status: active
 hubs:
 - FrontendDevelopmentHub
+- WebComponents Hub
 ---
 # Modern Bundlers and Build Tools
 

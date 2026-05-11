@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44S7P5DN7H4JT82TQZPK
-title: MapReduce Paradigm
-type: article
-cluster: data-engineering
-status: active
+summary: The MapReduce paradigm that defined the batch era — what it was, why it dominated,
+  and how it influenced the modern data stack even after Hadoop's decline.
 date: '2026-04-26'
-summary: The MapReduce paradigm that defined the batch era — what it was, why it
-  dominated, and how it influenced the modern data stack even after Hadoop's decline.
+cluster: data-engineering
+related:
+- DataPipelineDesign
+- EtlVsElt
+- DistributedSystemsHub
+canonical_id: 01KQ0P44S7P5DN7H4JT82TQZPK
+type: article
+title: MapReduce Paradigm
 tags:
 - mapreduce
 - hadoop
 - batch-processing
 - data-engineering
 - distributed-computing
-related:
-- DataPipelineDesign
-- EtlVsElt
-- DistributedSystemsHub
+status: active
 hubs:
 - DataEngineeringHub
+- DataModelingFundamentals Hub
 ---
 # MapReduce Paradigm
 

@@ -1,5 +1,10 @@
 ---
+summary: A technical guide to Synthetic Data Generation (SDG) for tabular data, focusing
+  on the Synthetic Data Vault (SDV) framework, CTGAN, and the integration of Differential
+  Privacy.
+date: 2024-05-16T00:00:00Z
 cluster: generative-ai
+auto-generated: false
 canonical_id: 01KQ0P44X52Q9CY5WAJRF9F3EF
 title: Synthetic Data Generation
 type: article
@@ -9,9 +14,8 @@ tags:
 - differential-privacy
 - machine-learning
 - data-privacy
-summary: A technical guide to Synthetic Data Generation (SDG) for tabular data, focusing on the Synthetic Data Vault (SDV) framework, CTGAN, and the integration of Differential Privacy.
-auto-generated: false
-date: 2024-05-16
+hubs:
+- FineTuningLargeLanguageModels Hub
 ---
 # Synthetic Data Generation: Tabular Models and Privacy
 

@@ -1,24 +1,25 @@
 ---
-canonical_id: 01KQ0P44Y39E5EY1XSMGSVJ2BQ
-title: TypeScript Fundamentals
-type: article
-cluster: frontend-development
-status: active
-date: '2026-04-26'
 summary: The TypeScript features that matter day-to-day — types you actually use,
   structural typing, generics, and the gradual adoption path for migrating JavaScript
   codebases.
+date: '2026-04-26'
+cluster: frontend-development
+related:
+- ModernBundlersAndBuildTools
+- WebComponents
+- FormHandlingAndValidation
+canonical_id: 01KQ0P44Y39E5EY1XSMGSVJ2BQ
+type: article
+title: TypeScript Fundamentals
 tags:
 - typescript
 - javascript
 - types
 - frontend
-related:
-- ModernBundlersAndBuildTools
-- WebComponents
-- FormHandlingAndValidation
+status: active
 hubs:
 - FrontendDevelopmentHub
+- WebComponents Hub
 ---
 # TypeScript Fundamentals
 

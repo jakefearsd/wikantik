@@ -1,26 +1,27 @@
 ---
-canonical_id: 01KQEKGD8XE3Z6DEM2XJXNAEYP
-title: Container Security
-type: article
-cluster: security
-status: active
+summary: Defending containerised workloads — image scanning, runtime security, network
+  policies, supply chain — and the controls that distinguish a real posture from a
+  checkbox.
 date: '2026-04-25'
+cluster: security
+related:
+- ContainerOrchestration
+- ApplicationSecurityFundamentals
+- ThreatModeling
+- ZeroTrustArchitecture
+canonical_id: 01KQEKGD8XE3Z6DEM2XJXNAEYP
+type: article
+title: Container Security
 tags:
 - container-security
 - kubernetes
 - docker
 - supply-chain
 - runtime-security
-summary: Defending containerised workloads — image scanning, runtime security,
-  network policies, supply chain — and the controls that distinguish a real
-  posture from a checkbox.
-related:
-- ContainerOrchestration
-- ApplicationSecurityFundamentals
-- ThreatModeling
-- ZeroTrustArchitecture
+status: active
 hubs:
 - SecurityHub
+- ContainerSecurity Hub
 ---
 # Container Security
 

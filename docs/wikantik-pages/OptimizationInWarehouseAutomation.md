@@ -1,16 +1,8 @@
 ---
-canonical_id: 01KQ0P44TDGH7ZESM085FP6PV2
-type: article
-cluster: warehouse-automation
-status: active
-summary: How linear programming, scheduling algorithms, and stochastic models drive efficiency in modern automated warehouse operations
+summary: How linear programming, scheduling algorithms, and stochastic models drive
+  efficiency in modern automated warehouse operations
 date: '2026-03-21'
-tags:
-- operations-research
-- warehouse-automation
-- optimization
-- logistics
-- supply-chain
+cluster: warehouse-automation
 related:
 - OperationsResearchHub
 - LinearProgrammingFoundations
@@ -19,6 +11,17 @@ related:
 - WarehouseManagementSystems
 - WarehouseRobotics
 - WarehouseAiAndMl
+canonical_id: 01KQ0P44TDGH7ZESM085FP6PV2
+type: article
+status: active
+tags:
+- operations-research
+- warehouse-automation
+- optimization
+- logistics
+- supply-chain
+hubs:
+- DemandPlanningAndSop Hub
 ---
 # Optimization in Warehouse Automation
 

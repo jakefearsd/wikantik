@@ -1,17 +1,20 @@
 ---
-canonical_id: 01KQ0P44KTD1J1NF6BTMNGN383
-title: Anomaly Detection Techniques
-type: article
-cluster: machine-learning
-status: active
 date: '2026-05-15'
+summary: Technical analysis of unsupervised outlier detection. Isolation Forest mechanics,
+  Local Outlier Factor (LOF) geometry, and reconstruction-based detection via Autoencoders.
+cluster: machine-learning
+auto-generated: false
+canonical_id: 01KQ0P44KTD1J1NF6BTMNGN383
+type: article
+title: Anomaly Detection Techniques
 tags:
 - anomaly-detection
 - isolation-forest
 - local-outlier-factor
 - unsupervised-learning
-summary: Technical analysis of unsupervised outlier detection. Isolation Forest mechanics, Local Outlier Factor (LOF) geometry, and reconstruction-based detection via Autoencoders.
-auto-generated: false
+status: active
+hubs:
+- AnomalyDetectionTechniques Hub
 ---
 # Anomaly Detection Techniques
 

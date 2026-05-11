@@ -23,6 +23,7 @@ tags:
 status: active
 hubs:
 - WarehouseAutomationHub
+- AutomatedStorageAndRetrieval Hub
 ---
 # Automated Storage and Retrieval Systems (AS/RS)
 

@@ -1,25 +1,26 @@
 ---
-canonical_id: 01KQ12YDRDY7T6HDG0N4W0CT2N
-title: Agent Planning
-type: article
-cluster: agentic-ai
-status: active
+summary: Plan representations for LLM agents — flat ReAct vs explicit plans vs graphs
+  — and when each survives contact with reality.
 date: '2026-04-24'
+cluster: agentic-ai
+related:
+- AgenticWorkflowDesign
+- AgentReasoning
+- AgentLoops
+- AiAgentArchitectures
+canonical_id: 01KQ12YDRDY7T6HDG0N4W0CT2N
+type: article
+title: Agent Planning
 tags:
 - agent
 - planning
 - task-decomposition
 - tree-of-thought
 - replanning
-summary: Plan representations for LLM agents — flat ReAct vs explicit plans vs
-  graphs — and when each survives contact with reality.
-related:
-- AgenticWorkflowDesign
-- AgentReasoning
-- AgentLoops
-- AiAgentArchitectures
+status: active
 hubs:
 - AgenticAiHub
+- AgentLoops Hub
 ---
 # Agent Planning: Architectural Regimes and Replanning
 

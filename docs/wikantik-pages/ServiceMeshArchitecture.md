@@ -1,25 +1,27 @@
 ---
+summary: Technical analysis of Service Mesh architectures, sidecar proxy patterns,
+  and the trade-offs between mTLS security and operational complexity.
+date: '2026-04-26'
+cluster: devops-sre
+related:
+- LoadBalancingStrategies
+- ReverseProxyPatterns
+- CloudNativeApplicationDesign
+- WebApplicationFirewalls
+auto-generated: false
 canonical_id: 01KQ0P44WB2QYZ7CSMFH42FAZ0
 title: Service Mesh Architecture
 type: article
-cluster: devops-sre
-status: active
-date: '2026-04-26'
-summary: Technical analysis of Service Mesh architectures, sidecar proxy patterns, and the trade-offs between mTLS security and operational complexity.
-auto-generated: false
+hubs:
+- DevOpsAndSreHub
+- ContainerSecurity Hub
 tags:
 - service-mesh
 - istio
 - linkerd
 - microservices
 - envoy
-related:
-- LoadBalancingStrategies
-- ReverseProxyPatterns
-- CloudNativeApplicationDesign
-- WebApplicationFirewalls
-hubs:
-- DevOpsAndSreHub
+status: active
 ---
 
 A Service Mesh is a dedicated infrastructure layer for managing service-to-service communication. It decouples cross-cutting concerns—security, reliability, and observability—from the application code by injecting a network proxy (Sidecar) alongside every service instance.

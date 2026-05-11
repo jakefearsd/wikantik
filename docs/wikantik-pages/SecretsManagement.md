@@ -1,5 +1,9 @@
 ---
+summary: A technical guide to Secrets Management architectures, focusing on Vault/KMS
+  integration, dynamic secrets, and solving the "Secret Zero" bootstrap problem.
+date: 2025-05-15T00:00:00Z
 cluster: security
+auto-generated: false
 canonical_id: 01KQ0P44W4XHHJQ1RHDGK5YKVG
 title: Secrets Management
 type: article
@@ -8,9 +12,8 @@ tags:
 - kms
 - secret-zero
 - security-architecture
-date: 2025-05-15
-summary: A technical guide to Secrets Management architectures, focusing on Vault/KMS integration, dynamic secrets, and solving the "Secret Zero" bootstrap problem.
-auto-generated: false
+hubs:
+- ContainerSecurity Hub
 ---
 
 # Secrets Management: Vault/KMS and the Secret Zero Problem

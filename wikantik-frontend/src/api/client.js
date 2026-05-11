@@ -615,6 +615,21 @@ export const api = {
     deleteEdge: (id) =>
       request(`/admin/knowledge-graph/edges/${id}`, { method: 'DELETE' }),
 
+    deleteAndRejectEdge: (id, reason) =>
+      request(`/admin/knowledge-graph/edges/${id}/delete-and-reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+
+    bulkDeleteEdges: ({ relationship_type, search, expected_count }) =>
+      request('/admin/knowledge-graph/edges/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ relationship_type, search, expected_count }),
+      }),
+
+    getEdgeAudit: (id, limit = 20) =>
+      request(`/admin/knowledge-graph/edges/${id}/audit?limit=${limit}`),
+
     projectAll: () =>
       request('/admin/knowledge-graph/project-all', { method: 'POST' }),
 

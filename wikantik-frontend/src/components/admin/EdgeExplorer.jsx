@@ -12,25 +12,13 @@ function ConfirmModal({ title, body, requireText, onConfirm, onCancel, extraFiel
   const canConfirm = requireText ? typed === requireText : true;
   return (
     <div
+      className="modal-overlay"
       role="dialog"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
+      style={{ alignItems: 'center', paddingTop: 0, zIndex: 1000 }}
     >
       <div
-        style={{
-          background: 'var(--surface-primary)',
-          padding: 'var(--space-lg)',
-          borderRadius: 'var(--radius-md)',
-          minWidth: '380px',
-          maxWidth: '520px',
-        }}
+        className="modal-content"
+        style={{ minWidth: '380px', maxWidth: '520px' }}
       >
         <h3>{title}</h3>
         <p>{body}</p>
@@ -202,7 +190,8 @@ function EdgeDetail({
     <div
       style={{
         padding: 'var(--space-md)',
-        background: 'var(--surface-secondary)',
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border)',
         borderRadius: 'var(--radius-md)',
       }}
     >
@@ -245,7 +234,7 @@ function EdgeDetail({
           <button type="button" className="btn btn-sm" onClick={onDelete}>
             Delete
           </button>
-          <button type="button" className="btn btn-sm btn-warning" onClick={onDeleteAndReject}>
+          <button type="button" className="btn btn-sm btn-danger" onClick={onDeleteAndReject}>
             Delete + Prevent
           </button>
         </div>
@@ -496,7 +485,7 @@ export default function EdgeExplorer() {
           </span>
           <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
             <button
-              className="btn btn-sm btn-warning"
+              className="btn btn-sm btn-danger"
               disabled={total === 0}
               onClick={() => setConfirmMode('bulk')}
             >

@@ -135,26 +135,14 @@ export default function EdgeFormModal({
 
   return (
     <div
+      className="modal-overlay"
       role="dialog"
       aria-label={mode === 'edit' ? 'Edit edge' : 'New edge'}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-      }}
+      style={{ alignItems: 'center', paddingTop: 0, zIndex: 1000 }}
     >
       <div
-        style={{
-          background: 'var(--surface-primary)',
-          padding: 'var(--space-lg)',
-          borderRadius: 'var(--radius-md)',
-          minWidth: '480px',
-          maxWidth: '640px',
-        }}
+        className="modal-content"
+        style={{ minWidth: '480px', maxWidth: '640px' }}
       >
         <h3>{mode === 'edit' ? 'Edit edge' : 'New edge'}</h3>
         <NodeAutocomplete
@@ -197,7 +185,7 @@ export default function EdgeFormModal({
             aria-label="Properties"
           />
           {!propsValid && (
-            <small style={{ color: 'var(--error)' }}>Invalid JSON object.</small>
+            <small style={{ color: 'var(--error, #c0392b)' }}>Invalid JSON object.</small>
           )}
         </div>
         {error && (

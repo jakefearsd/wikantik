@@ -89,8 +89,59 @@ public final class KgEdgeRepository extends KgJdbcSupport {
 
     // ---- Edge operations ----
 
+    /**
+     * Code-level guard against mixed page/entity edges, established 2026-05-11 after
+     * the one-shot deletion of 84 such edges left from earlier extractor flows. The
+     * Knowledge Graph stores both wiki-page nodes (node_type != 'concept') and
+     * LLM-extracted concept nodes (node_type = 'concept'); edges spanning the two
+     * categories had no demonstrated downstream utility and were almost entirely
+     * generic {@code related_to} noise from frontmatter resolvers picking the wrong
+     * node when both kinds shared a name. This guard prevents recurrence at the
+     * write boundary.
+     *
+     * @return {@code true} iff the two endpoints straddle the page/entity boundary
+     */
+    private boolean isMixedEdgeEndpoints( final UUID sourceId, final UUID targetId ) {
+        final String sql = "SELECT sn.node_type AS s_type, tn.node_type AS t_type "
+                         + "FROM kg_nodes sn, kg_nodes tn WHERE sn.id = ? AND tn.id = ?";
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setObject( 1, sourceId );
+            ps.setObject( 2, targetId );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                if ( !rs.next() ) return false; // one node missing — FK will fail downstream
+                final String sType = rs.getString( "s_type" );
+                final String tType = rs.getString( "t_type" );
+                // Mixed iff exactly one side is 'concept'. NULL node_types count as page-like.
+                return ( "concept".equals( sType ) ) != ( "concept".equals( tType ) );
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "isMixedEdgeEndpoints lookup failed for {}->{}: {}",
+                sourceId, targetId, e.getMessage(), e );
+            return false; // fail-open: let the insert proceed and surface real errors downstream
+        }
+    }
+
+    /**
+     * Logs a stack-tracing WARN when the guard rejects a mixed edge. The {@code Throwable}
+     * is not thrown — it exists solely to capture the call stack so operators can
+     * trace the offending flow in the catalina logs.
+     */
+    private void warnMixedEdgeRejected( final UUID sourceId, final UUID targetId,
+                                         final String relationshipType ) {
+        LOG.warn( "Rejected mixed page/entity edge {}->{} [{}]: writes that cross the "
+                + "page/entity boundary are disallowed since 2026-05-11. Fix the calling "
+                + "flow to use homogeneous endpoints. Stack trace follows.",
+            sourceId, targetId, relationshipType,
+            new Throwable( "mixed-edge guard fired" ) );
+    }
+
     public KgEdge upsertEdge( final UUID sourceId, final UUID targetId, final String relationshipType,
                               final Provenance provenance, final Map< String, Object > properties ) {
+        if ( isMixedEdgeEndpoints( sourceId, targetId ) ) {
+            warnMixedEdgeRejected( sourceId, targetId, relationshipType );
+            return null;
+        }
         final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
         final String sql = "INSERT INTO kg_edges ( source_id, target_id, relationship_type, provenance, properties, tier, provenance_proposal_id, modified ) "
                 + "VALUES ( ?, ?, ?, ?, ?::jsonb, 'human', NULL, CURRENT_TIMESTAMP ) "
@@ -130,6 +181,10 @@ public final class KgEdgeRepository extends KgJdbcSupport {
                                           final String relationshipType, final Provenance provenance,
                                           final Map< String, Object > properties,
                                           final String tier, final UUID provenanceProposalId ) {
+        if ( isMixedEdgeEndpoints( sourceId, targetId ) ) {
+            warnMixedEdgeRejected( sourceId, targetId, relationshipType );
+            return;
+        }
         final String propsJson = GSON.toJson( properties != null ? properties : Map.of() );
         final String sql = "INSERT INTO kg_edges ( source_id, target_id, relationship_type, provenance, " +
             "properties, tier, provenance_proposal_id, modified ) " +

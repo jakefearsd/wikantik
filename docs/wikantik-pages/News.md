@@ -6,6 +6,70 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-12** — feat(edge-curation): one-click Confirm to elevate edges to human-curated
+
+**2026-05-12** — feat(edge-curation): proposal-page fallback for unattributed concept nodes
+
+**2026-05-12** — feat(edge-curation): render mention chunks as Markdown with entity highlight
+
+**2026-05-12** — feat(edge-curation): source/target mention panel for disambiguation
+
+**2026-05-12** — fix(kg-admin): edge/node lookup uses ID, not name, so slashes don't 400
+
+**2026-05-11** — docs(content): wiki content updates
+
+**2026-05-11** — chore(dev): mcd shorthand now redeploys instead of full deploy
+
+**2026-05-11** — feat(retrieval): provenance-weighted KG rerank probe + closed rel-type vocab
+
+**2026-05-11** — fix(it): EdgeCurationBrowserIT clicks source-name button, not <tr>
+
+**2026-05-11** — feat(admin): Node Explorer adopts AdminTable + fixes delete reload bug
+
+**2026-05-11** — fix(search): render Markdown in search-result snippets
+
+**2026-05-11** — feat(kg): code-level guard rejects mixed page/entity edges
+
+**2026-05-11** — feat(kg): Edge Explorer endpoint-kind filter (pages / entities / both)
+
+**2026-05-11** — feat(frontend): EdgeExplorer adopts AdminTable for bulk edits
+
+**2026-05-11** — fix(frontend): consistent form styling in edge curation modals
+
+**2026-05-11** — fix(frontend): use defined CSS variables for edge curation modals
+
+**2026-05-11** — fix(kg): expose V027 vocabulary in schema + rework Selenide IT
+
+**2026-05-11** — test(selenide): end-to-end Edge Explorer create + delete-and-reject
+
+**2026-05-11** — test(it): wire-level IT for admin edge curation endpoints
+
+**2026-05-11** — feat(frontend): wire EdgeExplorer to create/edit/delete/reject/bulk-delete
+
+**2026-05-11** — feat(frontend): EdgeFormModal shared between Create and Edit
+
+**2026-05-11** — feat(frontend): client wrappers for edge curation endpoints
+
+**2026-05-11** — feat(admin): edge curation endpoints on AdminKnowledgeResource
+
+**2026-05-11** — feat(kg): KnowledgeGraphService methods for edge curation v0
+
+**2026-05-11** — test(kg): regression-lock upsertEdge tier/proposal stamping
+
+**2026-05-11** — feat(kg): bulk delete + delete-and-reject on KgEdgeRepository
+
+**2026-05-11** — feat(kg): KgEdgeRepository.countEdgesWithFilter
+
+**2026-05-11** — feat(kg): KgEdgeAuditRepository for append-only edge mutation audit
+
+**2026-05-11** — feat(kg): add HUMAN_CURATED provenance for admin-UI edge writes
+
+**2026-05-11** — db(V028): kg_edge_audit append-only audit table
+
+**2026-05-11** — docs(plan): KG edge curation v0 implementation plan
+
+**2026-05-11** — docs(spec): KG edge curation v0 design
+
 **2026-05-10** — docs(retrieval): clarify KG-rerank uses untyped co-mention proximity
 
 **2026-05-10** — docs(retrieval): clean up corrupt frontmatter on WikantikSearchAndRetrieval.md
@@ -2946,8 +3010,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-11-13** — SPWIKI-1238 addresses the missing i18n keys for all existing resource files and adds a unit test to complain about missing stuff in the future
 
 **2025-11-12** — JSPWIKI-1237 adds the owasp recommended http response headers
-
-**2025-11-11** — fixes the build, typo
-
-**2025-11-11** — Merge pull request #423 from spyhunter99/build/enableItnegrationTests
 

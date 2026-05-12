@@ -78,6 +78,7 @@ import java.util.stream.Collectors;
  *   <li>{@code POST /admin/knowledge-graph/edges} — upsert edge (manual curation, stamps HUMAN_CURATED)</li>
  *   <li>{@code POST /admin/knowledge-graph/edges/bulk-delete} — bulk delete by filter</li>
  *   <li>{@code POST /admin/knowledge-graph/edges/{id}/delete-and-reject} — delete + write rejection</li>
+ *   <li>{@code POST /admin/knowledge-graph/edges/{id}/confirm} — elevate edge to human-curated</li>
  *   <li>{@code GET  /admin/knowledge-graph/edges/{id}/audit} — list edge audit rows</li>
  *   <li>{@code DELETE /admin/knowledge-graph/edges/{id}} — delete an edge</li>
  *   <li>{@code GET  /admin/knowledge-graph/judge-timeouts} — list chronic-timeout proposals (?limit=50)</li>
@@ -744,7 +745,30 @@ public class AdminKnowledgeResource extends RestServletBase {
             handlePostEdgeDeleteAndReject( service, request, response, segments );
             return;
         }
+        if ( segments.length >= 3 && "confirm".equals( segments[2] ) ) {
+            handlePostEdgeConfirm( service, request, response, segments );
+            return;
+        }
         handlePostEdgeUpsert( service, request, response );
+    }
+
+    private void handlePostEdgeConfirm( final KnowledgeGraphService service,
+                                        final HttpServletRequest request,
+                                        final HttpServletResponse response,
+                                        final String[] segments ) throws IOException {
+        final UUID id = parseUuid( segments[1], response );
+        if ( id == null ) return;
+        final String actorVal = actor( request );
+        final KgEdge after = service.confirmEdge( id, actorVal );
+        if ( after == null ) {
+            sendNotFound( response, "Edge not found: " + id );
+            return;
+        }
+        sendJson( response, Map.of(
+            "id", after.id().toString(),
+            "tier", after.tier(),
+            "provenance", after.provenance().value(),
+            "confirmed", true ) );
     }
 
     private void handlePostEdgeUpsert( final KnowledgeGraphService service,

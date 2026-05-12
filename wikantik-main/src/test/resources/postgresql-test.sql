@@ -454,7 +454,7 @@ CREATE INDEX IF NOT EXISTS kg_judge_timeouts_content_sha_idx
 CREATE TABLE IF NOT EXISTS kg_edge_audit (
     id        UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     edge_id   UUID         NOT NULL,
-    action    VARCHAR(10)  NOT NULL CHECK (action IN ('CREATE','UPDATE','DELETE')),
+    action    VARCHAR(10)  NOT NULL CHECK (action IN ('CREATE','UPDATE','DELETE','CONFIRM')),
     before    JSONB,
     after     JSONB,
     actor     VARCHAR(100) NOT NULL,

@@ -62,6 +62,16 @@ public interface KnowledgeGraphService {
      */
     List< NodeMention > getMentionsForNode( UUID nodeId, int limit );
 
+    /**
+     * Elevates an existing edge to human-curated status in place: sets
+     * {@code tier='human'} and {@code provenance='human-curated'}, writes a
+     * {@code 'confirm'} row to {@code kg_edge_audit}. Idempotent — calling on
+     * an already-curated edge is a no-op apart from refreshing
+     * {@code modified} and writing a new audit row. Returns the updated edge,
+     * or {@code null} if the id doesn't exist.
+     */
+    KgEdge confirmEdge( UUID edgeId, String actor );
+
     /** Query edges with resolved source/target names for display. */
     List< Map< String, Object > > queryEdges( String relationshipType, String searchName,
                                                int limit, int offset );

@@ -389,6 +389,7 @@ function EdgeDetail({
   targetNode,
   loading,
   onNavigateNode,
+  onConfirm,
   onEdit,
   onDelete,
   onDeleteAndReject,
@@ -484,8 +485,22 @@ function EdgeDetail({
             gap: 'var(--space-sm)',
             marginBottom: 'var(--space-md)',
             justifyContent: 'center',
+            flexWrap: 'wrap',
           }}
         >
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            onClick={onConfirm}
+            disabled={edge.provenance === 'human-curated'}
+            title={
+              edge.provenance === 'human-curated'
+                ? 'Already human-curated'
+                : 'Elevate this edge to human-curated without any edit'
+            }
+          >
+            Confirm
+          </button>
           <button type="button" className="btn btn-sm" onClick={onEdit}>
             Edit
           </button>
@@ -635,6 +650,24 @@ export default function EdgeExplorer() {
     } catch (e) {
       setError(e.message);
       setConfirmMode(null);
+    }
+  };
+
+  const onConfirmEdge = async () => {
+    if (!selectedEdge?.id) return;
+    try {
+      const updated = await api.knowledge.confirmEdge(selectedEdge.id);
+      // Update the in-pane edge state immediately so the Confirm button
+      // disables itself; the list also gets refreshed so the row reflects
+      // the new provenance the next time it's clicked.
+      if (updated) {
+        setSelectedEdge((cur) =>
+          cur ? { ...cur, tier: updated.tier, provenance: updated.provenance } : cur,
+        );
+      }
+      await loadEdges(page);
+    } catch (e) {
+      setError(e.message);
     }
   };
 
@@ -858,6 +891,7 @@ export default function EdgeExplorer() {
             targetNode={targetNode}
             loading={detailLoading}
             onNavigateNode={handleNavigateNode}
+            onConfirm={onConfirmEdge}
             onEdit={() => setFormMode('edit')}
             onDelete={() => setConfirmMode('plain')}
             onDeleteAndReject={() => setConfirmMode('reject')}

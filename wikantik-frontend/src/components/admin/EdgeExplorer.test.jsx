@@ -12,6 +12,7 @@ vi.mock('../../api/client', () => ({
       getNodeMentions: vi.fn(),
       deleteEdge: vi.fn(),
       deleteAndRejectEdge: vi.fn(),
+      confirmEdge: vi.fn(),
       getEdgeAudit: vi.fn(),
       upsertEdge: vi.fn(),
       queryNodes: vi.fn(),
@@ -86,7 +87,10 @@ describe('EdgeExplorer', () => {
     fireEvent.click(screen.getByText('A'));
     await waitFor(() => screen.getByRole('button', { name: /^delete$/i }));
     fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+    // The detail pane also has a "Confirm" button (in-place elevate); scope
+    // the confirm click to the dialog so we hit the modal's Confirm.
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /^confirm$/i }));
     await waitFor(() => expect(api.knowledge.deleteEdge).toHaveBeenCalledWith('e1'));
   });
 
@@ -97,8 +101,11 @@ describe('EdgeExplorer', () => {
     fireEvent.click(screen.getByText('A'));
     await waitFor(() => screen.getByRole('button', { name: /delete \+ prevent/i }));
     fireEvent.click(screen.getByRole('button', { name: /delete \+ prevent/i }));
-    fireEvent.change(screen.getByLabelText(/reason/i), { target: { value: 'wrong direction' } });
-    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText(/reason/i), {
+      target: { value: 'wrong direction' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^confirm$/i }));
     await waitFor(() =>
       expect(api.knowledge.deleteAndRejectEdge).toHaveBeenCalledWith('e1', 'wrong direction'),
     );
@@ -210,6 +217,52 @@ describe('EdgeExplorer', () => {
     expect(sourceInput).toHaveValue('Automated Storage and Retrieval System (AS/RS)');
     const targetInput = screen.getByLabelText('Target');
     expect(targetInput).toHaveValue('stacker crane');
+  });
+
+  it('Confirm button calls confirmEdge with the row id and updates provenance in place', async () => {
+    // Seed an AI-inferred row so the Confirm button is enabled — the
+    // disabled-when-already-curated state is covered separately below.
+    api.knowledge.queryEdges.mockResolvedValue({
+      edges: [{ ...row('e1', 'A'), provenance: 'ai-inferred' }],
+      total: 1,
+    });
+    api.knowledge.confirmEdge.mockResolvedValue({
+      id: 'e1',
+      tier: 'human',
+      provenance: 'human-curated',
+      confirmed: true,
+    });
+
+    render(<EdgeExplorer />);
+    await waitFor(() => screen.getByText('A'));
+    fireEvent.click(screen.getByText('A'));
+
+    const confirm = await screen.findByRole('button', { name: /^confirm$/i });
+    expect(confirm).not.toBeDisabled();
+    fireEvent.click(confirm);
+
+    await waitFor(() => expect(api.knowledge.confirmEdge).toHaveBeenCalledWith('e1'));
+
+    // After the call resolves the button must report the elevated state,
+    // i.e. be disabled (we re-read selectedEdge.provenance into the button's
+    // `disabled` predicate).
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^confirm$/i })).toBeDisabled(),
+    );
+  });
+
+  it('Confirm button is disabled when the edge is already human-curated', async () => {
+    api.knowledge.queryEdges.mockResolvedValue({
+      edges: [{ ...row('e1', 'A'), provenance: 'human-curated' }],
+      total: 1,
+    });
+
+    render(<EdgeExplorer />);
+    await waitFor(() => screen.getByText('A'));
+    fireEvent.click(screen.getByText('A'));
+
+    const confirm = await screen.findByRole('button', { name: /^confirm$/i });
+    expect(confirm).toBeDisabled();
   });
 
   it('flags edge-proposal-fallback mentions as "Inferred context" so curators can tell them apart', async () => {

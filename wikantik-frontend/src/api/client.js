@@ -638,6 +638,12 @@ export const api = {
         body: JSON.stringify({ reason }),
       }),
 
+    // Elevate an existing edge in place to human-curated status — no edit
+    // assumptions, just "I've reviewed this and I endorse it". Sets tier to
+    // 'human' and provenance to 'human-curated', writes a CONFIRM audit row.
+    confirmEdge: (id) =>
+      request(`/admin/knowledge-graph/edges/${id}/confirm`, { method: 'POST' }),
+
     bulkDeleteEdges: ({ relationship_type, search, expected_count }) =>
       request('/admin/knowledge-graph/edges/bulk-delete', {
         method: 'POST',

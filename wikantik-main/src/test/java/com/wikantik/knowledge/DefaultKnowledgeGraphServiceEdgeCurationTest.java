@@ -112,6 +112,52 @@ class DefaultKnowledgeGraphServiceEdgeCurationTest {
     }
 
     @Test
+    void confirmEdgeElevatesMachineEdgeToHumanCuratedAndWritesAudit() throws Exception {
+        // A machine-tier AI_INFERRED edge — exactly the kind of row a curator
+        // hits "Confirm" on to elevate without otherwise editing.
+        final UUID a = nodes.upsertNode( "SvcA", "concept", null,
+            Provenance.AI_INFERRED, Map.of() ).id();
+        final UUID b = nodes.upsertNode( "SvcB", "concept", null,
+            Provenance.AI_INFERRED, Map.of() ).id();
+        edgeRepo.upsertEdgeWithProvenance(
+            a, b, "related_to", Provenance.AI_INFERRED, Map.of(),
+            "machine", null );
+        final UUID edgeId = lookupOneEdgeId();
+
+        final KgEdge after = service.confirmEdge( edgeId, "carol" );
+
+        assertNotNull( after );
+        assertEquals( Provenance.HUMAN_CURATED, after.provenance() );
+        assertEquals( "human", after.tier() );
+
+        // Audit row recorded the before -> after transition.
+        final List< Map< String, Object > > audit = service.getEdgeAudit( edgeId, 10 );
+        assertEquals( 1, audit.size() );
+        assertEquals( "CONFIRM", audit.get( 0 ).get( "action" ) );
+        assertEquals( "carol", audit.get( 0 ).get( "actor" ) );
+    }
+
+    @Test
+    void confirmEdgeReturnsNullForUnknownId() {
+        assertNull( service.confirmEdge( UUID.randomUUID(), "carol" ) );
+    }
+
+    @Test
+    void confirmEdgeIsIdempotentOnAlreadyCuratedEdge() throws Exception {
+        seedEdges();
+        final UUID id = lookupOneEdgeId();
+        // Pre-condition: seeded edges are already HUMAN_CURATED.
+        final KgEdge first = service.confirmEdge( id, "carol" );
+        final KgEdge second = service.confirmEdge( id, "carol" );
+        assertNotNull( first );
+        assertNotNull( second );
+        assertEquals( Provenance.HUMAN_CURATED, second.provenance() );
+        // Two audit rows even though the state didn't change — operator
+        // intent is what gets recorded, not the diff.
+        assertEquals( 2, service.getEdgeAudit( id, 10 ).size() );
+    }
+
+    @Test
     void getEdgeAuditReturnsAuditRowsForEdge() {
         final UUID edgeId = UUID.randomUUID();
         service.getEdgeAuditRepository().insert( edgeId, "CREATE", null,

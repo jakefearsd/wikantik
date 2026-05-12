@@ -221,6 +221,38 @@ class AdminKnowledgeResourceMockTest {
     }
 
     @Test
+    void postEdgeConfirm_elevatesAndReturnsConfirmedFlag() throws Exception {
+        final UUID id = UUID.randomUUID();
+        final UUID src = UUID.randomUUID();
+        final UUID tgt = UUID.randomUUID();
+        final KgEdge after = new KgEdge( id, src, tgt, "related",
+            com.wikantik.api.knowledge.Provenance.HUMAN_CURATED, Map.of(),
+            Instant.parse( "2026-04-24T09:00:00Z" ),
+            Instant.parse( "2026-04-24T10:00:00Z" ),
+            "human", null );
+        Mockito.when( service.confirmEdge( Mockito.eq( id ), anyString() ) ).thenReturn( after );
+        final JsonObject obj = call( request( "/edges/" + id + "/confirm" ), "POST" );
+        assertEquals( id.toString(), obj.get( "id" ).getAsString() );
+        assertEquals( "human", obj.get( "tier" ).getAsString() );
+        assertEquals( "human-curated", obj.get( "provenance" ).getAsString() );
+        assertTrue( obj.get( "confirmed" ).getAsBoolean() );
+    }
+
+    @Test
+    void postEdgeConfirm_returns404WhenServiceReturnsNull() throws Exception {
+        final UUID id = UUID.randomUUID();
+        Mockito.when( service.confirmEdge( Mockito.eq( id ), anyString() ) ).thenReturn( null );
+        final JsonObject obj = call( request( "/edges/" + id + "/confirm" ), "POST" );
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void postEdgeConfirm_returns400OnMalformedUuid() throws Exception {
+        final JsonObject obj = call( request( "/edges/not-a-uuid/confirm" ), "POST" );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
     void getNodeMentions_defaultsLimitWhenAbsent() throws Exception {
         // limit defaults to 3 when the param is missing; service is invoked
         // with that value so the SQL caps the result set.

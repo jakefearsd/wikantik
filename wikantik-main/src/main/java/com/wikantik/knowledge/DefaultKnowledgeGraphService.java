@@ -340,6 +340,23 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     }
 
     @Override
+    public KgEdge confirmEdge( final UUID edgeId, final String actor ) {
+        if ( edgeId == null ) return null;
+        final KgEdge before = edges.findById( edgeId );
+        if ( before == null ) return null;
+        final KgEdge after = edges.elevateToHumanCurated( edgeId );
+        if ( after == null ) return null;
+        edgeAudit.insert( edgeId, "CONFIRM",
+            Map.of( "tier", before.tier() == null ? "" : before.tier(),
+                    "provenance", before.provenance().value() ),
+            Map.of( "tier", "human",
+                    "provenance", after.provenance().value() ),
+            actor, null );
+        snapshotBuilder.invalidateCache();
+        return after;
+    }
+
+    @Override
     public int bulkDeleteEdges( final String relationshipType, final String searchName,
                                 final int expectedCount ) {
         return bulkDeleteEdges( relationshipType, searchName, null, expectedCount );

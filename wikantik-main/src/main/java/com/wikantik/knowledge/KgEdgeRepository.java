@@ -389,6 +389,34 @@ public final class KgEdgeRepository extends KgJdbcSupport {
         return queryCount( "SELECT COUNT(*) FROM kg_edges" );
     }
 
+    /**
+     * In-place elevation of an existing edge to human-curated status: sets
+     * {@code tier = 'human'} and {@code provenance = 'human-curated'}. Used by
+     * the admin Edge Explorer's "Confirm" action — a curator endorsing a
+     * machine-proposed edge without otherwise editing it. Idempotent: if the
+     * edge is already at this state, the UPDATE is still issued but no-op
+     * (the row's modified timestamp does refresh).
+     *
+     * @param id edge id
+     * @return the updated edge, or {@code null} if {@code id} doesn't exist
+     */
+    public KgEdge elevateToHumanCurated( final UUID id ) {
+        if ( id == null ) return null;
+        final String sql = "UPDATE kg_edges SET tier = 'human', provenance = ?, modified = NOW() "
+                         + "WHERE id = ?";
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setString( 1, Provenance.HUMAN_CURATED.value() );
+            ps.setObject( 2, id );
+            final int rows = ps.executeUpdate();
+            if ( rows == 0 ) return null;
+            return findById( id );
+        } catch ( final SQLException e ) {
+            LOG.warn( "elevateToHumanCurated({}) failed: {}", id, e.getMessage(), e );
+            throw new RuntimeException( "elevateToHumanCurated failed", e );
+        }
+    }
+
     public KgEdge findById( final UUID id ) {
         final String sql = "SELECT * FROM kg_edges WHERE id = ?";
         try ( Connection conn = dataSource.getConnection();

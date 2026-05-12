@@ -149,7 +149,7 @@ function EdgeDetail({
           <strong style={{ fontSize: '0.95em' }}>
             <button
               className="btn-link"
-              onClick={() => onNavigateNode(node.name)}
+              onClick={() => onNavigateNode(node)}
               style={{ fontWeight: 600 }}
             >
               {node.name}
@@ -312,10 +312,14 @@ export default function EdgeExplorer() {
     setDetailLoading(true);
     setSourceNode(null);
     setTargetNode(null);
+    // Look up the endpoint nodes by ID, not by name. Tomcat rejects encoded
+    // slashes in path segments by default, so getNode(name) 400s for any node
+    // whose name contains "/" — the edge list itself carries source_id /
+    // target_id, so this path is robust to special characters in names.
     try {
       const [src, tgt] = await Promise.all([
-        api.knowledge.getNode(edge.source_name).catch(() => null),
-        api.knowledge.getNode(edge.target_name).catch(() => null),
+        edge.source_id ? api.knowledge.getNodeById(edge.source_id).catch(() => null) : null,
+        edge.target_id ? api.knowledge.getNodeById(edge.target_id).catch(() => null) : null,
       ]);
       setSourceNode(src);
       setTargetNode(tgt);
@@ -324,20 +328,20 @@ export default function EdgeExplorer() {
     }
   };
 
-  const handleNavigateNode = async (name) => {
+  const handleNavigateNode = async (node) => {
+    if (!node?.id) return;
     setDetailLoading(true);
     try {
-      const node = await api.knowledge.getNode(name);
-      if (node) {
-        setSourceNode(node);
-        setTargetNode(null);
-        setSelectedEdge({
-          source_name: node.name,
-          target_name: '',
-          relationship_type: '(viewing node)',
-          provenance: node.provenance,
-        });
-      }
+      const full = await api.knowledge.getNodeById(node.id).catch(() => null);
+      const resolved = full || node;
+      setSourceNode(resolved);
+      setTargetNode(null);
+      setSelectedEdge({
+        source_name: resolved.name,
+        target_name: '',
+        relationship_type: '(viewing node)',
+        provenance: resolved.provenance,
+      });
     } finally {
       setDetailLoading(false);
     }

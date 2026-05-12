@@ -8,6 +8,7 @@ vi.mock('../../api/client', () => ({
       getSchema: vi.fn(),
       queryNodes: vi.fn(),
       getNode: vi.fn(),
+      getNodeById: vi.fn(),
       getSimilarNodes: vi.fn(),
       deleteNode: vi.fn(),
       projectAll: vi.fn(),
@@ -42,6 +43,9 @@ describe('GraphExplorer', () => {
     api.knowledge.getNode.mockImplementation((name) =>
       Promise.resolve({ ...node(`id-${name}`, name), edges: [] }),
     );
+    api.knowledge.getNodeById.mockImplementation((id) =>
+      Promise.resolve({ ...node(id, `name-${id}`), edges: [] }),
+    );
   });
 
   it('shows the total node count in the header', async () => {
@@ -50,13 +54,16 @@ describe('GraphExplorer', () => {
     expect(screen.getByText(/1,234 total/)).toBeInTheDocument();
   });
 
-  it('clicking a name button opens the detail pane', async () => {
+  it('clicking a name button opens the detail pane via ID-based lookup', async () => {
     render(<GraphExplorer />);
     await waitFor(() => screen.getByText('Alpha'));
     fireEvent.click(screen.getByText('Alpha'));
+    // Use the slash-safe by-id lookup, not by-name (Tomcat 400s on encoded "/"
+    // — node names like "Foo (Bar/Baz)" must not go through path segments).
     await waitFor(() =>
-      expect(api.knowledge.getNode).toHaveBeenCalledWith('Alpha'),
+      expect(api.knowledge.getNodeById).toHaveBeenCalledWith('n1'),
     );
+    expect(api.knowledge.getNode).not.toHaveBeenCalled();
   });
 
   it('AdminTable bulk delete fans out per-row deleteNode calls', async () => {
@@ -100,8 +107,9 @@ describe('GraphExplorer', () => {
       const deleteBtn = await screen.findByRole('button', { name: /^delete$/i });
       fireEvent.click(deleteBtn);
 
+      // With the ID-based selection flow, selectedNode.id is the row id ('n1').
       await waitFor(() =>
-        expect(api.knowledge.deleteNode).toHaveBeenCalledWith('id-Alpha'),
+        expect(api.knowledge.deleteNode).toHaveBeenCalledWith('n1'),
       );
       expect(reloadSpy).not.toHaveBeenCalled();
     } finally {

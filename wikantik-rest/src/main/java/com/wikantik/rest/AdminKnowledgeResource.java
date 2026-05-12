@@ -263,6 +263,27 @@ public class AdminKnowledgeResource extends RestServletBase {
             handleGetSimilarNodes( request, response, segments[1] );
             return;
         }
+        if ( segments.length >= 3 && "by-id".equals( segments[1] ) ) {
+            // GET /admin/knowledge-graph/nodes/by-id/{uuid}
+            // ID-based lookup. Required because Tomcat rejects encoded slashes
+            // in path segments by default, so a name like
+            // "Automated Storage and Retrieval System (AS/RS)" can't be passed
+            // through the /nodes/{name} variant — the request 400s before it
+            // reaches this servlet.
+            final UUID id = parseUuid( segments[2], response );
+            if ( id == null ) return;
+            final KgNode node = service.getNode( id );
+            if ( node == null ) {
+                sendNotFound( response, "Node not found: " + id );
+                return;
+            }
+            final Map< String, Object > result = nodeToMap( node );
+            final List< KgEdge > edges = service.getEdgesForNode( node.id(), "both" );
+            final Map< UUID, String > nameMap = resolveEdgeNames( service, edges );
+            result.put( "edges", edges.stream().map( e -> enrichEdge( e, nameMap ) ).toList() );
+            sendJson( response, result );
+            return;
+        }
         if ( segments.length >= 2 ) {
             // GET /admin/knowledge-graph/nodes/{name}
             final String name = segments[1];

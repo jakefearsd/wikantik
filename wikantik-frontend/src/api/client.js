@@ -546,6 +546,14 @@ export const api = {
     getNode: (name) =>
       request(`/admin/knowledge-graph/nodes/${encodeURIComponent(name)}`),
 
+    // Fetches a node by its UUID. Use this whenever the node name might
+    // contain characters Tomcat rejects in path segments (notably `/`, which
+    // it 400s as an encoded slash by default). The edge list response
+    // already carries source_id/target_id, so prefer this over getNode(name)
+    // for edge curation flows.
+    getNodeById: (id) =>
+      request(`/admin/knowledge-graph/nodes/by-id/${encodeURIComponent(id)}`),
+
     getEdges: (nodeId, direction = 'both') =>
       request(`/admin/knowledge-graph/edges/${nodeId}?direction=${direction}`),
 

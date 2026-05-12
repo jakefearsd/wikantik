@@ -84,9 +84,16 @@ export default function GraphExplorer() {
     }
   };
 
-  const handleNodeClick = async (name) => {
+  // Accepts either a node object (preferred — uses the slash-safe by-id
+  // lookup) or a bare name (legacy callers like NodeDetail's navigate). Tomcat
+  // rejects encoded slashes in path segments, so for names with "/" the
+  // by-name lookup 400s and the detail pane shows empty.
+  const handleNodeClick = async (nodeOrName) => {
     try {
-      const data = await api.knowledge.getNode(name);
+      const data =
+        typeof nodeOrName === 'object' && nodeOrName?.id
+          ? await api.knowledge.getNodeById(nodeOrName.id)
+          : await api.knowledge.getNode(nodeOrName);
       setSelectedNode(data);
     } catch (err) {
       setError(err.message);
@@ -116,7 +123,7 @@ export default function GraphExplorer() {
             className="btn-link"
             onClick={(ev) => {
               ev.stopPropagation();
-              handleNodeClick(n.name);
+              handleNodeClick(n);
             }}
             style={{ fontWeight: 500 }}
           >

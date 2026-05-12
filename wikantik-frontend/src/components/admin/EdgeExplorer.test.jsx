@@ -8,6 +8,7 @@ vi.mock('../../api/client', () => ({
       queryEdges: vi.fn(),
       getSchema: vi.fn(),
       getNode: vi.fn(),
+      getNodeById: vi.fn(),
       deleteEdge: vi.fn(),
       deleteAndRejectEdge: vi.fn(),
       getEdgeAudit: vi.fn(),
@@ -37,6 +38,9 @@ describe('EdgeExplorer', () => {
       total: 950,
     });
     api.knowledge.getNode.mockResolvedValue({ id: 's1', name: 'A', node_type: 'concept' });
+    api.knowledge.getNodeById.mockImplementation((id) =>
+      Promise.resolve({ id, name: `node-${id}`, node_type: 'concept', provenance: 'human-curated' }),
+    );
     api.knowledge.getEdgeAudit.mockResolvedValue({ audit: [] });
   });
 
@@ -143,6 +147,67 @@ describe('EdgeExplorer', () => {
     await waitFor(() =>
       expect(api.knowledge.deleteAndRejectEdge).toHaveBeenCalledWith('e1', 'bulk bad inference'),
     );
+  });
+
+  it('Edit modal populates Source/Target when the node name contains a slash (Tomcat %2F regression)', async () => {
+    // Reject *any* by-name lookup for names containing a slash, mirroring
+    // Tomcat's default behaviour of returning 400 for encoded slashes in path
+    // segments. The component must therefore fetch by ID — not by name.
+    api.knowledge.getNode.mockImplementation((name) => {
+      if (typeof name === 'string' && name.includes('/')) {
+        return Promise.reject(new Error('400 Bad Request (encoded slash)'));
+      }
+      return Promise.resolve({ id: 's-fallback', name, node_type: 'concept' });
+    });
+    api.knowledge.getNodeById.mockImplementation((id) => {
+      if (id === 'edge1-s') {
+        return Promise.resolve({
+          id: 'edge1-s',
+          name: 'Automated Storage and Retrieval System (AS/RS)',
+          node_type: 'article',
+          provenance: 'human-authored',
+        });
+      }
+      if (id === 'edge1-t') {
+        return Promise.resolve({
+          id: 'edge1-t',
+          name: 'stacker crane',
+          node_type: 'concept',
+          provenance: 'ai-inferred',
+        });
+      }
+      return Promise.resolve(null);
+    });
+    api.knowledge.queryEdges.mockResolvedValue({
+      edges: [
+        {
+          id: 'edge1',
+          source_id: 'edge1-s',
+          target_id: 'edge1-t',
+          source_name: 'Automated Storage and Retrieval System (AS/RS)',
+          target_name: 'stacker crane',
+          relationship_type: 'contains',
+          provenance: 'human-curated',
+        },
+      ],
+      total: 1,
+    });
+
+    render(<EdgeExplorer />);
+    await waitFor(() => screen.getByText(/Automated Storage and Retrieval System/));
+    fireEvent.click(screen.getByText(/Automated Storage and Retrieval System/));
+
+    // Wait for the detail pane action row to appear.
+    const editBtn = await screen.findByRole('button', { name: /^edit$/i });
+    fireEvent.click(editBtn);
+
+    // The EdgeFormModal opens. Its Source and Target NodeAutocomplete inputs
+    // are aria-labeled "Source" / "Target" and disabled in edit mode; both
+    // must show the resolved node names rather than empty strings.
+    const sourceInput = await screen.findByLabelText('Source');
+    expect(sourceInput).toHaveValue('Automated Storage and Retrieval System (AS/RS)');
+    const targetInput = screen.getByLabelText('Target');
+    expect(targetInput).toHaveValue('stacker crane');
   });
 
   it('renders History rows from getEdgeAudit when expanded', async () => {

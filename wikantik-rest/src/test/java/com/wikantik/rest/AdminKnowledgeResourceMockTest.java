@@ -158,6 +158,36 @@ class AdminKnowledgeResourceMockTest {
         assertTrue( obj.has( "edges" ) );
     }
 
+    @Test
+    void getNodeById_returnsNodeWithEdges() throws Exception {
+        // /nodes/by-id/{uuid} is the slash-safe lookup path. Tomcat rejects
+        // encoded slashes in path segments by default, so any node whose name
+        // contains "/" can't be fetched via /nodes/{name} — the request 400s
+        // before the servlet runs. This branch dispatches on the ID instead.
+        final UUID id = UUID.randomUUID();
+        Mockito.when( service.getNode( id ) ).thenReturn( node( id, "Has/Slash" ) );
+        Mockito.when( service.getEdgesForNode( id, "both" ) ).thenReturn( List.of() );
+        final JsonObject obj = call( request( "/nodes/by-id/" + id ), "GET" );
+        assertEquals( "Has/Slash", obj.get( "name" ).getAsString() );
+        assertTrue( obj.has( "edges" ) );
+        Mockito.verify( service ).getNode( id );
+        Mockito.verify( service, Mockito.never() ).getNodeByName( anyString() );
+    }
+
+    @Test
+    void getNodeById_returns404WhenMissing() throws Exception {
+        final UUID id = UUID.randomUUID();
+        Mockito.when( service.getNode( id ) ).thenReturn( null );
+        final JsonObject obj = call( request( "/nodes/by-id/" + id ), "GET" );
+        assertEquals( 404, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void getNodeById_returns400OnMalformedUuid() throws Exception {
+        final JsonObject obj = call( request( "/nodes/by-id/not-a-uuid" ), "GET" );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
     // ---- GET /edges ----
 
     @Test

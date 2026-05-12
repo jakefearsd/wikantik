@@ -78,7 +78,12 @@ export default function NodeDetail({ node, onNavigate, onDeleted }) {
                 <tr key={e.id}>
                   <td>{e.relationship_type}</td>
                   <td>
-                    <button className="btn-link" onClick={() => onNavigate && onNavigate(e.target_name)}>
+                    <button
+                      className="btn-link"
+                      onClick={() =>
+                        onNavigate && onNavigate({ id: e.target_id, name: e.target_name })
+                      }
+                    >
                       {e.target_name || e.target_id}
                     </button>
                   </td>
@@ -101,7 +106,12 @@ export default function NodeDetail({ node, onNavigate, onDeleted }) {
               {inbound.map(e => (
                 <tr key={e.id}>
                   <td>
-                    <button className="btn-link" onClick={() => onNavigate && onNavigate(e.source_name)}>
+                    <button
+                      className="btn-link"
+                      onClick={() =>
+                        onNavigate && onNavigate({ id: e.source_id, name: e.source_name })
+                      }
+                    >
                       {e.source_name || e.source_id}
                     </button>
                   </td>
@@ -130,9 +140,12 @@ export default function NodeDetail({ node, onNavigate, onDeleted }) {
             </thead>
             <tbody>
               {similar.map(s => (
-                <tr key={s.name}>
+                <tr key={s.id || s.name}>
                   <td>
-                    <button className="btn-link" onClick={() => onNavigate && onNavigate(s.name)}>
+                    <button
+                      className="btn-link"
+                      onClick={() => onNavigate && onNavigate(s.id ? { id: s.id, name: s.name } : s.name)}
+                    >
                       {s.name}
                     </button>
                   </td>

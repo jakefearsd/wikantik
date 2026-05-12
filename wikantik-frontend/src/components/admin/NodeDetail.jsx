@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import ProvenanceBadge from './ProvenanceBadge';
 import PageLink from './PageLink';
+import { MentionsPanel } from './MentionChunks';
 
 export default function NodeDetail({ node, onNavigate, onDeleted }) {
   const [similar, setSimilar] = useState([]);
@@ -17,9 +18,14 @@ export default function NodeDetail({ node, onNavigate, onDeleted }) {
 
   const outbound = (node.edges || []).filter(e => e.source_id === node.id);
   const inbound = (node.edges || []).filter(e => e.target_id === node.id);
+  const totalEdges = outbound.length + inbound.length;
 
   const handleDelete = async () => {
-    if (!confirm(`Delete node "${node.name}"? This will also remove all its edges.`)) return;
+    const impact = totalEdges > 0
+      ? ` This will also remove ${totalEdges} edge${totalEdges === 1 ? '' : 's'}` +
+        ` (${outbound.length} outbound, ${inbound.length} inbound).`
+      : ' It has no edges to remove.';
+    if (!confirm(`Delete node "${node.name}"?${impact}`)) return;
     await api.knowledge.deleteNode(node.id);
     // Refresh the parent list in place instead of a full window reload, which
     // would lose the admin tab state and bounce the user back to the default
@@ -34,9 +40,20 @@ export default function NodeDetail({ node, onNavigate, onDeleted }) {
       border: '1px solid var(--border)',
       borderRadius: 'var(--radius-md)',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-sm)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-sm)', gap: 'var(--space-sm)' }}>
         <h3 style={{ margin: 0 }}>{node.name}</h3>
-        <button className="btn btn-sm btn-danger" onClick={handleDelete}>Delete</button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+          <button className="btn btn-sm btn-danger" onClick={handleDelete}>Delete</button>
+          {totalEdges > 0 && (
+            <span
+              data-testid="node-delete-impact"
+              style={{ fontSize: '0.75em', color: 'var(--text-muted)' }}
+              title="Deleting this node cascades to every edge that touches it. Inbound edges (other nodes pointing at this one) are removed as well."
+            >
+              Removes {totalEdges} edge{totalEdges === 1 ? '' : 's'} ({outbound.length} out / {inbound.length} in)
+            </span>
+          )}
+        </div>
       </div>
 
       <div style={{ fontSize: '0.9em', marginBottom: 'var(--space-md)' }}>
@@ -65,6 +82,8 @@ export default function NodeDetail({ node, onNavigate, onDeleted }) {
           </table>
         </div>
       )}
+
+      <MentionsPanel label="Context" node={node} />
 
       {outbound.length > 0 && (
         <div style={{ marginBottom: 'var(--space-md)' }}>

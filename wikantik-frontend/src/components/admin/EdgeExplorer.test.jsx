@@ -40,8 +40,14 @@ describe('EdgeExplorer', () => {
       total: 950,
     });
     api.knowledge.getNode.mockResolvedValue({ id: 's1', name: 'A', node_type: 'concept' });
+    // Always include source_page so the EdgeDetail node card exercises the
+    // <PageLink> render path. The IT EdgeCurationBrowserIT seeds nodes with a
+    // source_page; if we drop the PageLink import again, this catches it.
     api.knowledge.getNodeById.mockImplementation((id) =>
-      Promise.resolve({ id, name: `node-${id}`, node_type: 'concept', provenance: 'human-curated' }),
+      Promise.resolve({
+        id, name: `node-${id}`, node_type: 'concept',
+        provenance: 'human-curated', source_page: `${id}Page`,
+      }),
     );
     api.knowledge.getNodeMentions.mockResolvedValue({ mentions: [] });
     api.knowledge.getEdgeAudit.mockResolvedValue({ audit: [] });

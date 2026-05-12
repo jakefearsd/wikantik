@@ -212,6 +212,70 @@ describe('EdgeExplorer', () => {
     expect(targetInput).toHaveValue('stacker crane');
   });
 
+  it('renders chunk body as Markdown while still highlighting the entity name', async () => {
+    // Chunks are stored as Markdown — bold/italic/code/links/lists must
+    // render, not show as literal characters. The entity name highlight has
+    // to survive Markdown processing (via a rehype plugin that walks the AST
+    // and wraps matches in <mark>), skipping <code>/<pre> so identifiers
+    // aren't mangled.
+    api.knowledge.getNodeMentions.mockImplementation((id) => {
+      if (id === 'e1-s') {
+        return Promise.resolve({
+          mentions: [
+            {
+              chunk_id: 'c-md',
+              page_name: 'KubernetesDeep',
+              chunk_index: 4,
+              heading_path: ['Probes', 'Readiness'],
+              text:
+                '**Important:** the `readinessProbe` is *not* the same as the liveness probe.\n\n'
+                + 'A node-e1-s reference appears here and should be highlighted.\n\n'
+                + '- node-e1-s is mentioned in a bullet too\n'
+                + '- the `node-e1-s` code span should not be highlighted',
+              confidence: 0.95,
+              extractor: 'gemma4-assist:latest',
+            },
+          ],
+        });
+      }
+      return Promise.resolve({ mentions: [] });
+    });
+
+    render(<EdgeExplorer />);
+    await waitFor(() => screen.getByText('A'));
+    fireEvent.click(screen.getByText('A'));
+    await screen.findByRole('button', { name: /^edit$/i });
+
+    // Markdown structure: bold renders as <strong>, code as <code>, list as <li>.
+    await waitFor(() =>
+      expect(screen.getByText('Important:').tagName.toLowerCase()).toBe('strong'),
+    );
+    expect(screen.getByText('readinessProbe').tagName.toLowerCase()).toBe('code');
+    // At least one <li> from the bullet list.
+    expect(document.querySelector('.mention-chunk-body li')).toBeTruthy();
+
+    // Highlight: the entity name (node-A) should be wrapped in <mark> in
+    // prose, but NOT inside the inline `code-block` span.
+    const marks = document.querySelectorAll('.mention-chunk-body mark');
+    expect(marks.length).toBeGreaterThanOrEqual(2);
+    Array.from(marks).forEach((el) => {
+      expect(el.textContent.toLowerCase()).toBe('node-e1-s');
+      // Walk ancestors to make sure no <code> wraps a <mark>.
+      let p = el.parentElement;
+      while (p && p.classList && !p.classList.contains('mention-chunk-body')) {
+        expect(p.tagName.toLowerCase()).not.toBe('code');
+        p = p.parentElement;
+      }
+    });
+    // The code span '`node-e1-s`' must render as <code> with its text intact
+    // and unhighlighted — exactly one such code element.
+    const codeNodes = Array.from(
+      document.querySelectorAll('.mention-chunk-body code'),
+    ).filter((c) => c.textContent === 'node-e1-s');
+    expect(codeNodes.length).toBe(1);
+    expect(codeNodes[0].querySelector('mark')).toBeNull();
+  });
+
   it('renders source and target mentions with target=_blank page links', async () => {
     // Mentions panel pulls the surrounding chunk text so curators can
     // disambiguate acronyms/initialisms. Each row links to the host page,

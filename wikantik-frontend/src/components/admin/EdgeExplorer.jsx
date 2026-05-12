@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { api } from '../../api/client';
 import ProvenanceBadge from './ProvenanceBadge';
 import PageLink from './PageLink';
@@ -52,41 +54,148 @@ function ConfirmModal({ title, body, onConfirm, onCancel, extraField }) {
   );
 }
 
-// Lower-cases both strings then locates each occurrence of `needle` in the
-// chunk text, wrapping matches in a <mark>. Splits the source into segments
-// so React can render without dangerouslySetInnerHTML. Returns the raw text
-// when needle is empty or absent.
-function highlightEntity(text, needle) {
-  if (!text) return null;
-  if (!needle || !needle.trim()) return text;
-  const safeNeedle = needle.trim();
-  const lower = text.toLowerCase();
-  const target = safeNeedle.toLowerCase();
-  const parts = [];
-  let cursor = 0;
-  let idx = lower.indexOf(target, cursor);
-  let key = 0;
-  while (idx !== -1) {
-    if (idx > cursor) parts.push(text.slice(cursor, idx));
-    parts.push(
-      <mark
-        key={`m${key++}`}
+// Rehype plugin: walks the rendered HAST and wraps every case-insensitive
+// occurrence of `needle` in a <mark> element. Skips text inside <code>, <pre>,
+// and <a> so we don't mangle code identifiers or URLs. Returns an identity
+// transformer when needle is empty so the markdown still renders cleanly.
+function makeHighlightRehype(needle) {
+  return () => (tree) => {
+    if (!needle || !needle.trim()) return;
+    const target = needle.trim().toLowerCase();
+    const tlen = target.length;
+    const visit = (node, skipMarking) => {
+      if (!node) return;
+      if (node.type === 'element') {
+        const skip = skipMarking
+          || node.tagName === 'code'
+          || node.tagName === 'pre'
+          || node.tagName === 'a'
+          || node.tagName === 'mark';
+        if (node.children) {
+          const replaced = [];
+          for (const child of node.children) {
+            if (!skip && child.type === 'text' && child.value) {
+              const text = child.value;
+              const lower = text.toLowerCase();
+              let cursor = 0;
+              let idx = lower.indexOf(target, cursor);
+              if (idx === -1) {
+                replaced.push(child);
+                continue;
+              }
+              while (idx !== -1) {
+                if (idx > cursor) {
+                  replaced.push({ type: 'text', value: text.slice(cursor, idx) });
+                }
+                replaced.push({
+                  type: 'element',
+                  tagName: 'mark',
+                  properties: {},
+                  children: [{ type: 'text', value: text.slice(idx, idx + tlen) }],
+                });
+                cursor = idx + tlen;
+                idx = lower.indexOf(target, cursor);
+              }
+              if (cursor < text.length) {
+                replaced.push({ type: 'text', value: text.slice(cursor) });
+              }
+            } else {
+              visit(child, skip);
+              replaced.push(child);
+            }
+          }
+          node.children = replaced;
+        }
+        return;
+      }
+      if (node.type === 'root' && node.children) {
+        for (const child of node.children) visit(child, skipMarking);
+      }
+    };
+    visit(tree, false);
+  };
+}
+
+// Block-friendly ReactMarkdown overrides for chunk bodies. We have full
+// right-pane width, so paragraphs, lists, and code blocks render at normal
+// scale — but we still tighten margins and downgrade headings (chunks are
+// passages plucked from the middle of pages; their original <h1>/<h2>
+// outranks our admin layout's heading hierarchy).
+const CHUNK_COMPONENTS = {
+  p:    ({ children }) => <p style={{ margin: '0 0 8px 0' }}>{children}</p>,
+  h1:   ({ children }) => <strong style={{ display: 'block', margin: '4px 0' }}>{children}</strong>,
+  h2:   ({ children }) => <strong style={{ display: 'block', margin: '4px 0' }}>{children}</strong>,
+  h3:   ({ children }) => <strong style={{ display: 'block', margin: '4px 0' }}>{children}</strong>,
+  h4:   ({ children }) => <strong style={{ display: 'block', margin: '4px 0' }}>{children}</strong>,
+  h5:   ({ children }) => <strong style={{ display: 'block', margin: '4px 0' }}>{children}</strong>,
+  h6:   ({ children }) => <strong style={{ display: 'block', margin: '4px 0' }}>{children}</strong>,
+  ul:   ({ children }) => <ul style={{ margin: '4px 0 8px 0', paddingLeft: '1.4em' }}>{children}</ul>,
+  ol:   ({ children }) => <ol style={{ margin: '4px 0 8px 0', paddingLeft: '1.4em' }}>{children}</ol>,
+  li:   ({ children }) => <li style={{ margin: 0 }}>{children}</li>,
+  blockquote: ({ children }) => (
+    <blockquote
+      style={{
+        margin: '4px 0',
+        padding: '2px 10px',
+        borderLeft: '3px solid var(--border)',
+        color: 'var(--text-secondary)',
+      }}
+    >
+      {children}
+    </blockquote>
+  ),
+  code: ({ inline, children }) =>
+    inline ? (
+      <code
         style={{
-          background: 'var(--accent-soft, rgba(255, 200, 0, 0.25))',
-          color: 'inherit',
-          padding: '0 2px',
-          borderRadius: '2px',
+          background: 'var(--code-bg)',
+          padding: '0 4px',
+          borderRadius: '3px',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.85em',
         }}
       >
-        {text.slice(idx, idx + safeNeedle.length)}
-      </mark>,
-    );
-    cursor = idx + safeNeedle.length;
-    idx = lower.indexOf(target, cursor);
-  }
-  if (cursor < text.length) parts.push(text.slice(cursor));
-  return parts;
-}
+        {children}
+      </code>
+    ) : (
+      <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85em' }}>{children}</code>
+    ),
+  pre:  ({ children }) => (
+    <pre
+      style={{
+        margin: '6px 0',
+        padding: '6px 10px',
+        background: 'var(--code-bg)',
+        borderRadius: 'var(--radius-sm)',
+        fontSize: '0.82rem',
+        overflowX: 'auto',
+        whiteSpace: 'pre-wrap',
+      }}
+    >
+      {children}
+    </pre>
+  ),
+  a:    ({ href, children }) =>
+    href ? (
+      <a href={href} target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    ) : (
+      <span>{children}</span>
+    ),
+  mark: ({ children }) => (
+    <mark
+      style={{
+        background: 'var(--accent-soft, rgba(255, 200, 0, 0.35))',
+        color: 'inherit',
+        padding: '0 2px',
+        borderRadius: '2px',
+      }}
+    >
+      {children}
+    </mark>
+  ),
+};
 
 function MentionsPanel({ label, node }) {
   const [mentions, setMentions] = useState(null); // null = unloaded; [] = none
@@ -174,8 +283,14 @@ function MentionsPanel({ label, node }) {
                 conf {m.confidence != null ? m.confidence.toFixed(2) : '—'}
               </span>
             </div>
-            <div style={{ whiteSpace: 'pre-wrap' }}>
-              {highlightEntity(m.text, node.name)}
+            <div className="mention-chunk-body">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[makeHighlightRehype(node.name)]}
+                components={CHUNK_COMPONENTS}
+              >
+                {m.text}
+              </ReactMarkdown>
             </div>
           </div>
         ))}

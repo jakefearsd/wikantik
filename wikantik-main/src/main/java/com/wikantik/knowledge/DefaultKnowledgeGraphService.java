@@ -271,10 +271,34 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     public List< com.wikantik.api.knowledge.NodeMention > getMentionsForNode(
             final UUID nodeId, final int limit ) {
         if ( nodeId == null ) return List.of();
-        return chunks.findMentionsForNode( nodeId, limit ).stream()
-            .map( r -> new com.wikantik.api.knowledge.NodeMention(
-                r.chunkId(), r.pageName(), r.chunkIndex(),
-                r.headingPath(), r.text(), r.confidence(), r.extractor() ) )
+        final List< com.wikantik.api.knowledge.NodeMention > real =
+            chunks.findMentionsForNode( nodeId, limit ).stream()
+                .map( r -> new com.wikantik.api.knowledge.NodeMention(
+                    r.chunkId(), r.pageName(), r.chunkIndex(),
+                    r.headingPath(), r.text(), r.confidence(), r.extractor() ) )
+                .toList();
+        if ( !real.isEmpty() ) return real;
+
+        // Fallback: many concept nodes are auto-created as edge endpoints by
+        // KgMaterializationService and never visited by the per-chunk entity
+        // extractor — so they have zero rows in chunk_entity_mentions. Show
+        // the curator the chunks on the originating proposal's source_page
+        // that literally contain the entity name, tagged with extractor
+        // 'edge-proposal-fallback' so the UI can label them as inferred. No
+        // rows are inserted; this is purely a read-time projection.
+        final KgNode node = nodes.getNode( nodeId );
+        if ( node == null || node.provenanceProposalId() == null ) return List.of();
+        final com.wikantik.api.knowledge.KgProposal proposal =
+            proposals.getProposal( node.provenanceProposalId() );
+        if ( proposal == null
+                || proposal.sourcePage() == null
+                || proposal.sourcePage().isBlank() ) return List.of();
+        return chunks.findChunksOnPageContaining( proposal.sourcePage(), node.name(), limit ).stream()
+            .map( c -> new com.wikantik.api.knowledge.NodeMention(
+                c.chunkId(), c.pageName(), c.chunkIndex(),
+                c.headingPath(), c.text(),
+                proposal.confidence(),
+                "edge-proposal-fallback" ) )
             .toList();
     }
 

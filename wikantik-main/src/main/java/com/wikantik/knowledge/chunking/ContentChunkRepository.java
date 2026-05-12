@@ -348,6 +348,73 @@ public class ContentChunkRepository {
     ) {}
 
     /**
+     * Case-insensitive substring search across chunks on a single page. Used
+     * by the admin Edge Explorer's mention-panel fallback path when a concept
+     * node was auto-created as an edge endpoint and has no
+     * {@code chunk_entity_mentions} rows: we look up the originating
+     * proposal's source page and surface chunks on that page that literally
+     * contain the entity name, so a curator at least sees the page-level
+     * context the LLM was reading. Ordered by {@code chunk_index}.
+     *
+     * @param pageName page to search
+     * @param needle   substring to match (case-insensitive); blank or null returns empty
+     * @param limit    hard cap on returned rows (clamped to {@code [1, 50]})
+     * @return matching chunks, empty if the page or needle has no rows
+     */
+    public List< ChunkOnPage > findChunksOnPageContaining( final String pageName,
+                                                           final String needle, final int limit ) {
+        if ( pageName == null || pageName.isBlank() ) return List.of();
+        if ( needle == null || needle.isBlank() ) return List.of();
+        final int clamped = Math.max( 1, Math.min( 50, limit ) );
+        final String sql =
+              "SELECT id, page_name, chunk_index, heading_path, text "
+            + "  FROM kg_content_chunks "
+            + " WHERE page_name = ? "
+            + "   AND POSITION( LOWER( ? ) IN LOWER( text ) ) > 0 "
+            + " ORDER BY chunk_index ASC "
+            + " LIMIT ?";
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setString( 1, pageName );
+            ps.setString( 2, needle );
+            ps.setInt( 3, clamped );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                final List< ChunkOnPage > out = new ArrayList<>();
+                while ( rs.next() ) {
+                    final Array hp = rs.getArray( 4 );
+                    final List< String > headingPath;
+                    if ( hp == null ) {
+                        headingPath = List.of();
+                    } else {
+                        final String[] arr = (String[]) hp.getArray();
+                        headingPath = arr == null ? List.of() : List.of( arr );
+                    }
+                    out.add( new ChunkOnPage(
+                        rs.getObject( 1, UUID.class ),
+                        rs.getString( 2 ),
+                        rs.getInt( 3 ),
+                        headingPath,
+                        rs.getString( 5 ) ) );
+                }
+                return out;
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "findChunksOnPageContaining failed for page '{}' / needle '{}': {}",
+                pageName, needle, e.getMessage(), e );
+            throw new RuntimeException( "findChunksOnPageContaining failed", e );
+        }
+    }
+
+    /** Lightweight chunk projection used by the mention-panel fallback path. */
+    public record ChunkOnPage(
+        UUID chunkId,
+        String pageName,
+        int chunkIndex,
+        List< String > headingPath,
+        String text
+    ) {}
+
+    /**
      * Computes three small outlier lists (top 10 each) over the chunks table:
      * pages with the most chunks, single-chunk pages whose sole chunk has
      * &gt; 400 chars, and chunks whose estimated token count exceeds 512

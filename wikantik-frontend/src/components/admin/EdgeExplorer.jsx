@@ -248,13 +248,16 @@ function MentionsPanel({ label, node }) {
       )}
       {mentions &&
         mentions.length > 0 &&
-        mentions.map((m) => (
+        mentions.map((m) => {
+          const isFallback = m.extractor === 'edge-proposal-fallback';
+          return (
           <div
             key={m.chunk_id}
+            data-testid={isFallback ? 'mention-fallback' : 'mention-attributed'}
             style={{
               padding: 'var(--space-sm)',
               background: 'var(--bg-base, var(--bg-elevated))',
-              border: '1px solid var(--border)',
+              border: `1px ${isFallback ? 'dashed' : 'solid'} var(--border)`,
               borderRadius: 'var(--radius-sm)',
               marginBottom: 'var(--space-sm)',
               fontSize: '0.88em',
@@ -268,6 +271,7 @@ function MentionsPanel({ label, node }) {
                 gap: 'var(--space-sm)',
                 marginBottom: '4px',
                 fontSize: '0.85em',
+                flexWrap: 'wrap',
               }}
             >
               <span>
@@ -276,6 +280,26 @@ function MentionsPanel({ label, node }) {
                   <span style={{ color: 'var(--text-muted)' }}>
                     {' · '}
                     {m.heading_path.join(' › ')}
+                  </span>
+                )}
+                {isFallback && (
+                  <span
+                    title={
+                      'This node has no per-chunk attribution. Showing chunks on the originating '
+                      + "proposal's source page that contain the entity name."
+                    }
+                    style={{
+                      marginLeft: 'var(--space-sm)',
+                      padding: '0 6px',
+                      borderRadius: '3px',
+                      border: '1px dashed var(--border)',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.78em',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.4px',
+                    }}
+                  >
+                    Inferred context
                   </span>
                 )}
               </span>
@@ -293,7 +317,8 @@ function MentionsPanel({ label, node }) {
               </ReactMarkdown>
             </div>
           </div>
-        ))}
+        );
+        })}
     </div>
   );
 }

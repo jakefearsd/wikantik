@@ -212,6 +212,43 @@ describe('EdgeExplorer', () => {
     expect(targetInput).toHaveValue('stacker crane');
   });
 
+  it('flags edge-proposal-fallback mentions as "Inferred context" so curators can tell them apart', async () => {
+    // Concept nodes auto-created as edge endpoints have no chunk_entity_mentions
+    // rows; the server falls back to chunks on the originating proposal's
+    // source page and tags them extractor="edge-proposal-fallback". The UI
+    // must mark these so curators don't mistake them for real attribution.
+    api.knowledge.getNodeMentions.mockImplementation((id) => {
+      if (id === 'e1-s') {
+        return Promise.resolve({
+          mentions: [
+            {
+              chunk_id: 'c-fb',
+              page_name: 'PhilosophyHub',
+              chunk_index: 1,
+              heading_path: ['Schools'],
+              text: 'Confucianism is a system of ethical and philosophical thought.',
+              confidence: 1.0,
+              extractor: 'edge-proposal-fallback',
+            },
+          ],
+        });
+      }
+      return Promise.resolve({ mentions: [] });
+    });
+
+    render(<EdgeExplorer />);
+    await waitFor(() => screen.getByText('A'));
+    fireEvent.click(screen.getByText('A'));
+    await screen.findByRole('button', { name: /^edit$/i });
+
+    // The fallback row carries a data-testid and an "Inferred context" tag.
+    const fallback = await screen.findByTestId('mention-fallback');
+    expect(fallback).toBeInTheDocument();
+    expect(fallback.textContent.toLowerCase()).toContain('inferred context');
+    // No real-attribution row got rendered for this node.
+    expect(screen.queryByTestId('mention-attributed')).toBeNull();
+  });
+
   it('renders chunk body as Markdown while still highlighting the entity name', async () => {
     // Chunks are stored as Markdown — bold/italic/code/links/lists must
     // render, not show as literal characters. The entity name highlight has

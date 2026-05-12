@@ -56,6 +56,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     private final com.wikantik.api.knowledge.KgProposalJudgeService judgeService;
 
     private final KgEdgeAuditRepository edgeAudit;
+    private final com.wikantik.knowledge.chunking.ContentChunkRepository chunks;
 
     // Composed helpers (Phase 11 Ckpt 6)
     private final KgGraphTraversal       traversal;
@@ -106,6 +107,7 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         this.materialization = materialization;
         this.judgeService    = judgeService;
         this.edgeAudit       = new KgEdgeAuditRepository( dataSource );
+        this.chunks          = new com.wikantik.knowledge.chunking.ContentChunkRepository( dataSource );
         this.traversal       = new KgGraphTraversal( nodes, edges, mentionIndex );
         this.snapshotBuilder = new KgGraphSnapshotBuilder( nodes, edges, engine );
     }
@@ -263,6 +265,17 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     @Override
     public List< KgEdge > getEdgesForNode( final UUID nodeId, final String direction ) {
         return edges.getEdgesForNode( nodeId, direction );
+    }
+
+    @Override
+    public List< com.wikantik.api.knowledge.NodeMention > getMentionsForNode(
+            final UUID nodeId, final int limit ) {
+        if ( nodeId == null ) return List.of();
+        return chunks.findMentionsForNode( nodeId, limit ).stream()
+            .map( r -> new com.wikantik.api.knowledge.NodeMention(
+                r.chunkId(), r.pageName(), r.chunkIndex(),
+                r.headingPath(), r.text(), r.confidence(), r.extractor() ) )
+            .toList();
     }
 
     @Override

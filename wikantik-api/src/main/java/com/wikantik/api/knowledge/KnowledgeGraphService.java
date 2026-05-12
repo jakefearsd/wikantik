@@ -53,6 +53,15 @@ public interface KnowledgeGraphService {
 
     List< KgEdge > getEdgesForNode( UUID nodeId, String direction );
 
+    /**
+     * Returns up to {@code limit} content chunks that mention the given node,
+     * ranked by extractor confidence DESC, then chunk_index ASC. Surfaced in
+     * the admin Edge Explorer so curators can see the surrounding passage and
+     * disambiguate the node (especially acronyms / initialisms) without
+     * leaving the page. Empty list if the node has no mention rows.
+     */
+    List< NodeMention > getMentionsForNode( UUID nodeId, int limit );
+
     /** Query edges with resolved source/target names for display. */
     List< Map< String, Object > > queryEdges( String relationshipType, String searchName,
                                                int limit, int offset );

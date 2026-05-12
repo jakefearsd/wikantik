@@ -265,6 +265,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         }
         if ( segments.length >= 3 && "by-id".equals( segments[1] ) ) {
             // GET /admin/knowledge-graph/nodes/by-id/{uuid}
+            // GET /admin/knowledge-graph/nodes/by-id/{uuid}/mentions?limit=N
             // ID-based lookup. Required because Tomcat rejects encoded slashes
             // in path segments by default, so a name like
             // "Automated Storage and Retrieval System (AS/RS)" can't be passed
@@ -272,6 +273,18 @@ public class AdminKnowledgeResource extends RestServletBase {
             // reaches this servlet.
             final UUID id = parseUuid( segments[2], response );
             if ( id == null ) return;
+            if ( segments.length >= 4 && "mentions".equals( segments[3] ) ) {
+                final int limit = parseIntParam( request, "limit", 3 );
+                final List< com.wikantik.api.knowledge.NodeMention > mentions =
+                    service.getMentionsForNode( id, limit );
+                final List< Map< String, Object > > rows = mentions.stream()
+                    .map( this::mentionToMap )
+                    .toList();
+                final Map< String, Object > result = new LinkedHashMap<>();
+                result.put( "mentions", rows );
+                sendJson( response, result );
+                return;
+            }
             final KgNode node = service.getNode( id );
             if ( node == null ) {
                 sendNotFound( response, "Node not found: " + id );
@@ -1100,6 +1113,18 @@ public class AdminKnowledgeResource extends RestServletBase {
         final Map< String, Object > m = edgeToMap( edge );
         m.put( "source_name", nameMap.getOrDefault( edge.sourceId(), edge.sourceId().toString() ) );
         m.put( "target_name", nameMap.getOrDefault( edge.targetId(), edge.targetId().toString() ) );
+        return m;
+    }
+
+    private Map< String, Object > mentionToMap( final com.wikantik.api.knowledge.NodeMention mention ) {
+        final Map< String, Object > m = new LinkedHashMap<>();
+        m.put( "chunk_id", mention.chunkId().toString() );
+        m.put( "page_name", mention.pageName() );
+        m.put( "chunk_index", mention.chunkIndex() );
+        m.put( "heading_path", mention.headingPath() );
+        m.put( "text", mention.text() );
+        m.put( "confidence", mention.confidence() );
+        m.put( "extractor", mention.extractor() );
         return m;
     }
 

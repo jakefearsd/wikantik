@@ -52,6 +52,137 @@ function ConfirmModal({ title, body, onConfirm, onCancel, extraField }) {
   );
 }
 
+// Lower-cases both strings then locates each occurrence of `needle` in the
+// chunk text, wrapping matches in a <mark>. Splits the source into segments
+// so React can render without dangerouslySetInnerHTML. Returns the raw text
+// when needle is empty or absent.
+function highlightEntity(text, needle) {
+  if (!text) return null;
+  if (!needle || !needle.trim()) return text;
+  const safeNeedle = needle.trim();
+  const lower = text.toLowerCase();
+  const target = safeNeedle.toLowerCase();
+  const parts = [];
+  let cursor = 0;
+  let idx = lower.indexOf(target, cursor);
+  let key = 0;
+  while (idx !== -1) {
+    if (idx > cursor) parts.push(text.slice(cursor, idx));
+    parts.push(
+      <mark
+        key={`m${key++}`}
+        style={{
+          background: 'var(--accent-soft, rgba(255, 200, 0, 0.25))',
+          color: 'inherit',
+          padding: '0 2px',
+          borderRadius: '2px',
+        }}
+      >
+        {text.slice(idx, idx + safeNeedle.length)}
+      </mark>,
+    );
+    cursor = idx + safeNeedle.length;
+    idx = lower.indexOf(target, cursor);
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return parts;
+}
+
+function MentionsPanel({ label, node }) {
+  const [mentions, setMentions] = useState(null); // null = unloaded; [] = none
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!node?.id) {
+      setMentions(null);
+      return;
+    }
+    let cancelled = false;
+    setMentions(null);
+    setError(null);
+    api.knowledge
+      .getNodeMentions(node.id, 3)
+      .then((data) => {
+        if (!cancelled) setMentions(data.mentions || []);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e?.message || 'Failed to load mentions');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [node?.id]);
+
+  if (!node?.id) return null;
+
+  return (
+    <div style={{ marginTop: 'var(--space-md)' }}>
+      <h4
+        style={{
+          fontSize: '0.85em',
+          marginBottom: 'var(--space-xs, 4px)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          color: 'var(--text-muted)',
+        }}
+      >
+        {label} mentions{mentions && mentions.length > 0 ? ` (${mentions.length})` : ''}
+      </h4>
+      {error && <div className="admin-error">{error}</div>}
+      {mentions == null && !error && (
+        <div style={{ color: 'var(--text-muted)', fontSize: '0.85em' }}>Loading mentions…</div>
+      )}
+      {mentions && mentions.length === 0 && (
+        <div style={{ color: 'var(--text-muted)', fontSize: '0.85em', fontStyle: 'italic' }}>
+          No mention chunks recorded for this node.
+        </div>
+      )}
+      {mentions &&
+        mentions.length > 0 &&
+        mentions.map((m) => (
+          <div
+            key={m.chunk_id}
+            style={{
+              padding: 'var(--space-sm)',
+              background: 'var(--bg-base, var(--bg-elevated))',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: 'var(--space-sm)',
+              fontSize: '0.88em',
+              lineHeight: 1.5,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 'var(--space-sm)',
+                marginBottom: '4px',
+                fontSize: '0.85em',
+              }}
+            >
+              <span>
+                <PageLink name={m.page_name} />
+                {m.heading_path && m.heading_path.length > 0 && (
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    {' · '}
+                    {m.heading_path.join(' › ')}
+                  </span>
+                )}
+              </span>
+              <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                conf {m.confidence != null ? m.confidence.toFixed(2) : '—'}
+              </span>
+            </div>
+            <div style={{ whiteSpace: 'pre-wrap' }}>
+              {highlightEntity(m.text, node.name)}
+            </div>
+          </div>
+        ))}
+    </div>
+  );
+}
+
 function EdgeHistory({ edgeId }) {
   const [rows, setRows] = useState(null);
   const [open, setOpen] = useState(false);
@@ -233,6 +364,8 @@ function EdgeDetail({
         <>
           {renderNodeCard('Source', sourceNode)}
           {renderNodeCard('Target', targetNode)}
+          <MentionsPanel label="Source" node={sourceNode} />
+          <MentionsPanel label="Target" node={targetNode} />
         </>
       )}
 

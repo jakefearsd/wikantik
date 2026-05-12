@@ -188,6 +188,48 @@ class AdminKnowledgeResourceMockTest {
         assertEquals( 400, obj.get( "status" ).getAsInt() );
     }
 
+    @Test
+    void getNodeMentions_returnsMentionList() throws Exception {
+        // GET /nodes/by-id/{uuid}/mentions?limit=3 — top-N mentions of the
+        // node, joined to kg_content_chunks. Each row carries chunk_id, page
+        // name, heading path, text, confidence, and extractor.
+        final UUID id = UUID.randomUUID();
+        final UUID chunkId = UUID.randomUUID();
+        Mockito.when( service.getMentionsForNode( id, 3 ) ).thenReturn( List.of(
+            new com.wikantik.api.knowledge.NodeMention(
+                chunkId, "MyPage", 2,
+                List.of( "MyPage", "Subsection" ),
+                "The AS/RS contains the stacker crane that travels the aisles.",
+                0.92, "gemma4-assist:latest" )
+        ) );
+        final HttpServletRequest req = request( "/nodes/by-id/" + id + "/mentions" );
+        Mockito.doReturn( "3" ).when( req ).getParameter( "limit" );
+        final JsonObject obj = call( req, "GET" );
+        assertTrue( obj.has( "mentions" ) );
+        final JsonObject first = obj.getAsJsonArray( "mentions" ).get( 0 ).getAsJsonObject();
+        assertEquals( "MyPage", first.get( "page_name" ).getAsString() );
+        assertEquals( 2, first.get( "chunk_index" ).getAsInt() );
+        assertEquals( 0.92, first.get( "confidence" ).getAsDouble(), 0.001 );
+        assertEquals( "gemma4-assist:latest", first.get( "extractor" ).getAsString() );
+        assertTrue( first.get( "text" ).getAsString().contains( "stacker crane" ) );
+    }
+
+    @Test
+    void getNodeMentions_returns400OnMalformedUuid() throws Exception {
+        final JsonObject obj = call( request( "/nodes/by-id/not-a-uuid/mentions" ), "GET" );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void getNodeMentions_defaultsLimitWhenAbsent() throws Exception {
+        // limit defaults to 3 when the param is missing; service is invoked
+        // with that value so the SQL caps the result set.
+        final UUID id = UUID.randomUUID();
+        Mockito.when( service.getMentionsForNode( id, 3 ) ).thenReturn( List.of() );
+        call( request( "/nodes/by-id/" + id + "/mentions" ), "GET" );
+        Mockito.verify( service ).getMentionsForNode( id, 3 );
+    }
+
     // ---- GET /edges ----
 
     @Test

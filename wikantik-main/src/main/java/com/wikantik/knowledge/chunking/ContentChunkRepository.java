@@ -277,6 +277,77 @@ public class ContentChunkRepository {
     }
 
     /**
+     * Top mentions of a KG node — chunks the node appears in, ranked by
+     * extractor confidence DESC then chunk_index ASC. Joins
+     * {@code chunk_entity_mentions} to {@code kg_content_chunks}. Used by the
+     * admin Edge Explorer to render the surrounding passage so a curator can
+     * disambiguate the node (acronyms / initialisms / homonyms).
+     *
+     * @param nodeId target node id
+     * @param limit  hard cap on returned rows (clamped to {@code [1, 50]})
+     * @return ordered mentions; empty if the node has no rows in
+     *         {@code chunk_entity_mentions}
+     */
+    public List< NodeMentionRow > findMentionsForNode( final UUID nodeId, final int limit ) {
+        if ( nodeId == null ) return List.of();
+        final int clamped = Math.max( 1, Math.min( 50, limit ) );
+        final String sql =
+              "SELECT c.id, c.page_name, c.chunk_index, c.heading_path, c.text, "
+            + "       m.confidence, m.extractor "
+            + "  FROM chunk_entity_mentions m "
+            + "  JOIN kg_content_chunks c ON m.chunk_id = c.id "
+            + " WHERE m.node_id = ? "
+            + " ORDER BY m.confidence DESC, c.chunk_index ASC "
+            + " LIMIT ?";
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setObject( 1, nodeId );
+            ps.setInt( 2, clamped );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                final List< NodeMentionRow > out = new ArrayList<>();
+                while ( rs.next() ) {
+                    final Array hp = rs.getArray( 4 );
+                    final List< String > headingPath;
+                    if ( hp == null ) {
+                        headingPath = List.of();
+                    } else {
+                        final String[] arr = (String[]) hp.getArray();
+                        headingPath = arr == null ? List.of() : List.of( arr );
+                    }
+                    out.add( new NodeMentionRow(
+                        rs.getObject( 1, UUID.class ),
+                        rs.getString( 2 ),
+                        rs.getInt( 3 ),
+                        headingPath,
+                        rs.getString( 5 ),
+                        rs.getDouble( 6 ),
+                        rs.getString( 7 ) ) );
+                }
+                return out;
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "findMentionsForNode failed for node {}: {}", nodeId, e.getMessage(), e );
+            throw new RuntimeException( "findMentionsForNode failed", e );
+        }
+    }
+
+    /**
+     * Row returned by {@link #findMentionsForNode(UUID, int)} — chunk fields
+     * joined with the bridge row's confidence and extractor. Internal to the
+     * repository; the service layer maps this to
+     * {@link com.wikantik.api.knowledge.NodeMention}.
+     */
+    public record NodeMentionRow(
+        UUID chunkId,
+        String pageName,
+        int chunkIndex,
+        List< String > headingPath,
+        String text,
+        double confidence,
+        String extractor
+    ) {}
+
+    /**
      * Computes three small outlier lists (top 10 each) over the chunks table:
      * pages with the most chunks, single-chunk pages whose sole chunk has
      * &gt; 400 chars, and chunks whose estimated token count exceeds 512

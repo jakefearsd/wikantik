@@ -554,6 +554,14 @@ export const api = {
     getNodeById: (id) =>
       request(`/admin/knowledge-graph/nodes/by-id/${encodeURIComponent(id)}`),
 
+    // Top mentions of a node — surrounding content chunks the entity appears
+    // in, ranked by extractor confidence. Used by the Edge Explorer to give
+    // curators disambiguation context for acronyms / initialisms.
+    getNodeMentions: (id, limit = 3) =>
+      request(
+        `/admin/knowledge-graph/nodes/by-id/${encodeURIComponent(id)}/mentions?limit=${limit}`,
+      ),
+
     getEdges: (nodeId, direction = 'both') =>
       request(`/admin/knowledge-graph/edges/${nodeId}?direction=${direction}`),
 

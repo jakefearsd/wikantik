@@ -9,6 +9,7 @@ vi.mock('../../api/client', () => ({
       getSchema: vi.fn(),
       getNode: vi.fn(),
       getNodeById: vi.fn(),
+      getNodeMentions: vi.fn(),
       deleteEdge: vi.fn(),
       deleteAndRejectEdge: vi.fn(),
       getEdgeAudit: vi.fn(),
@@ -41,6 +42,7 @@ describe('EdgeExplorer', () => {
     api.knowledge.getNodeById.mockImplementation((id) =>
       Promise.resolve({ id, name: `node-${id}`, node_type: 'concept', provenance: 'human-curated' }),
     );
+    api.knowledge.getNodeMentions.mockResolvedValue({ mentions: [] });
     api.knowledge.getEdgeAudit.mockResolvedValue({ audit: [] });
   });
 
@@ -208,6 +210,70 @@ describe('EdgeExplorer', () => {
     expect(sourceInput).toHaveValue('Automated Storage and Retrieval System (AS/RS)');
     const targetInput = screen.getByLabelText('Target');
     expect(targetInput).toHaveValue('stacker crane');
+  });
+
+  it('renders source and target mentions with target=_blank page links', async () => {
+    // Mentions panel pulls the surrounding chunk text so curators can
+    // disambiguate acronyms/initialisms. Each row links to the host page,
+    // shows the heading breadcrumb, and the entity name is bolded inside the
+    // chunk text via <mark>.
+    api.knowledge.getNodeMentions.mockImplementation((id) => {
+      if (id === 'e1-s') {
+        return Promise.resolve({
+          mentions: [
+            {
+              chunk_id: 'c-src-1',
+              page_name: 'AutomatedStorageAndRetrieval',
+              chunk_index: 2,
+              heading_path: ['AS/RS', 'Stacker cranes'],
+              text: 'A stacker crane travels the aisles of the AS/RS, retrieving pallets.',
+              confidence: 0.91,
+              extractor: 'gemma4-assist:latest',
+            },
+          ],
+        });
+      }
+      if (id === 'e1-t') {
+        return Promise.resolve({
+          mentions: [
+            {
+              chunk_id: 'c-tgt-1',
+              page_name: 'StackerCrane',
+              chunk_index: 0,
+              heading_path: [],
+              text: 'A stacker crane is a vertically reciprocating storage machine.',
+              confidence: 0.88,
+              extractor: 'gemma4-assist:latest',
+            },
+          ],
+        });
+      }
+      return Promise.resolve({ mentions: [] });
+    });
+
+    render(<EdgeExplorer />);
+    await waitFor(() => screen.getByText('A'));
+    fireEvent.click(screen.getByText('A'));
+    // Wait for the detail pane to load by selecting the Edit button.
+    await screen.findByRole('button', { name: /^edit$/i });
+
+    // The mentions section names both endpoints.
+    await waitFor(() => screen.getByText(/source mentions/i));
+    expect(screen.getByText(/target mentions/i)).toBeInTheDocument();
+
+    // Page-name links open in a new tab — defence in depth so a curator
+    // accidentally clicking doesn't lose their place in the explorer.
+    const srcLink = screen.getByRole('link', { name: /AutomatedStorageAndRetrieval/i });
+    expect(srcLink).toHaveAttribute('target', '_blank');
+    expect(srcLink).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    expect(screen.getByRole('link', { name: /StackerCrane/i })).toHaveAttribute(
+      'target',
+      '_blank',
+    );
+
+    // Chunk text rendered with the entity name highlighted.
+    expect(screen.getByText(/travels the aisles/i)).toBeInTheDocument();
+    expect(screen.getByText(/vertically reciprocating/i)).toBeInTheDocument();
   });
 
   it('renders History rows from getEdgeAudit when expanded', async () => {

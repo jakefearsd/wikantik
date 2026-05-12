@@ -121,7 +121,12 @@ public class EdgeCurationBrowserIT extends WithIntegrationTestSetup {
             .shouldBe( visible, Duration.ofSeconds( 5 ) )
             .setValue( "smoke test" );
 
-        $$( "button" ).findBy( text( "Confirm" ) ).click();
+        // Scope the Confirm click to the modal — the detail pane now carries
+        // its own "Confirm" button (one-click elevate-to-human-curated) which
+        // matches "Confirm" first and may be disabled if the seeded edge is
+        // already human-curated.
+        $( ".modal-overlay" ).$$( "button" )
+            .findBy( text( "Confirm" ) ).click();
 
         // Row should disappear from the table after the delete completes.
         $( "table.admin-table" )

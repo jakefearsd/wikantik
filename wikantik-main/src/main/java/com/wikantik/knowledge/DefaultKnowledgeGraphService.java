@@ -173,14 +173,14 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
         final long nodeCount = nodes.countNodes();
         final long edgeCount = edges.countEdges();
-        final long pendingCount = proposals.countPendingProposals();
+        final SchemaDescription.PendingBreakdown breakdown = proposals.countPendingBreakdown();
 
         return new SchemaDescription(
                 nodeTypes,
                 relTypes,
                 new ArrayList<>( statusSet ),
                 propertyKeys,
-                new SchemaDescription.Stats( nodeCount, edgeCount, pendingCount )
+                new SchemaDescription.Stats( nodeCount, edgeCount, breakdown.total(), breakdown )
         );
     }
 

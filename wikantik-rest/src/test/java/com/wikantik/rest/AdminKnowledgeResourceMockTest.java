@@ -112,7 +112,9 @@ class AdminKnowledgeResourceMockTest {
     void getSchema_returnsServicePayload() throws Exception {
         Mockito.when( service.discoverSchema() ).thenReturn( new SchemaDescription(
             List.of( "Concept" ), List.of( "related" ), List.of( "active" ),
-            Map.of(), new SchemaDescription.Stats( 5, 3, 1 ) ) );
+            Map.of(),
+            new SchemaDescription.Stats( 5, 3, 1,
+                new SchemaDescription.PendingBreakdown( 1, 1, 0, 0, 0, 1 ) ) ) );
         final JsonObject obj = call( request( "/schema" ), "GET" );
         assertTrue( obj.getAsJsonArray( "nodeTypes" ).size() > 0 );
     }

@@ -66,8 +66,9 @@ export default function AdminKnowledgePage() {
           style={{ marginLeft: 'auto', color: 'var(--danger)' }}
           onClick={handleClearAll}
           disabled={clearing}
+          title="Destructive: wipes every node, edge, proposal, and embedding in the Knowledge Graph. Does NOT touch wiki pages or the Page Graph."
         >
-          {clearing ? 'Clearing...' : 'Clear All'}
+          {clearing ? 'Clearing…' : 'Clear all KG data'}
         </button>
       </div>
       <p className="tab-description">

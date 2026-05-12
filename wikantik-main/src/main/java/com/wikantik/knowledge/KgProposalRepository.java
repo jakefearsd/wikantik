@@ -497,6 +497,46 @@ public final class KgProposalRepository {
             + "WHERE status = 'pending' AND machine_status IS NULL" );
     }
 
+    /**
+     * Single-round-trip breakdown of every pending proposal split by
+     * {@code proposal_type} and {@code machine_status}. Surfaced in the schema
+     * stats so the admin UI can describe the queue with more than a bare count.
+     * Returns {@link SchemaDescription.PendingBreakdown#EMPTY} on SQL failure
+     * rather than throwing — the schema header is informational, not
+     * load-bearing, and shouldn't crash the page if the count query glitches.
+     */
+    public SchemaDescription.PendingBreakdown countPendingBreakdown() {
+        final String sql = """
+            SELECT
+                COUNT(*)                                                          AS total,
+                COALESCE(SUM(CASE WHEN proposal_type='new-node' THEN 1 ELSE 0 END), 0) AS new_nodes,
+                COALESCE(SUM(CASE WHEN proposal_type='new-edge' THEN 1 ELSE 0 END), 0) AS new_edges,
+                COALESCE(SUM(CASE WHEN machine_status='approved' THEN 1 ELSE 0 END), 0) AS judge_approved,
+                COALESCE(SUM(CASE WHEN machine_status='abstain'  THEN 1 ELSE 0 END), 0) AS judge_abstained,
+                COALESCE(SUM(CASE WHEN machine_status IS NULL    THEN 1 ELSE 0 END), 0) AS unjudged
+            FROM kg_proposals
+            WHERE status = 'pending'
+            """;
+        try ( final Connection conn = dataSource.getConnection();
+              final PreparedStatement ps = conn.prepareStatement( sql );
+              final ResultSet rs = ps.executeQuery() ) {
+            if ( rs.next() ) {
+                return new SchemaDescription.PendingBreakdown(
+                    rs.getLong( "total" ),
+                    rs.getLong( "new_nodes" ),
+                    rs.getLong( "new_edges" ),
+                    rs.getLong( "judge_approved" ),
+                    rs.getLong( "judge_abstained" ),
+                    rs.getLong( "unjudged" )
+                );
+            }
+            return SchemaDescription.PendingBreakdown.EMPTY;
+        } catch ( final SQLException e ) {
+            LOG.warn( "countPendingBreakdown failed, returning empty: {}", e.getMessage(), e );
+            return SchemaDescription.PendingBreakdown.EMPTY;
+        }
+    }
+
     public ProposalUpserter.Result upsertConsolidatedProposal( final ConsolidatedProposal cp ) {
         final String proposedJson = GSON.toJson( buildProposedData( cp ) );
         final String supportJson  = GSON.toJson( cp.support() );

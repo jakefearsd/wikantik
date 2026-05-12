@@ -53,7 +53,9 @@ class DiscoverSchemaToolTest {
             List.of( "Concept" ),
             List.of( "relatedTo" ),
             List.of( "active" ),
-            Map.of(), new SchemaDescription.Stats( 5, 3, 0 ) ) );
+            Map.of(),
+            new SchemaDescription.Stats( 5, 3, 0,
+                SchemaDescription.PendingBreakdown.EMPTY ) ) );
 
         final McpSchema.CallToolResult result =
             new DiscoverSchemaTool( svc ).execute( Map.of() );
@@ -69,7 +71,9 @@ class DiscoverSchemaToolTest {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
         when( svc.discoverSchema() ).thenReturn( new SchemaDescription(
             List.of( "Concept" ), List.of(), List.of(),
-            Map.of(), new SchemaDescription.Stats( 1, 0, 0 ) ) );
+            Map.of(),
+            new SchemaDescription.Stats( 1, 0, 0,
+                SchemaDescription.PendingBreakdown.EMPTY ) ) );
         final MentionIndex idx = mock( MentionIndex.class );
         when( idx.getMentionedIds() ).thenReturn( Set.of( UUID.randomUUID(), UUID.randomUUID() ) );
 

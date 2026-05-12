@@ -368,6 +368,7 @@ export default function AdminTable({
                 return (
                   <th
                     key={col.id}
+                    title={col.titleHint || undefined}
                     style={{
                       width: col.width,
                       textAlign: col.align ?? 'left',

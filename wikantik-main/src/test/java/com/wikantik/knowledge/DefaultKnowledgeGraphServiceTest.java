@@ -80,6 +80,38 @@ class DefaultKnowledgeGraphServiceTest {
     }
 
     @Test
+    void discoverSchema_pendingBreakdown_splitsByTypeAndJudgeStatus() throws Exception {
+        service.upsertNode( "Order", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        service.upsertNode( "Inventory", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );
+
+        service.submitProposal( "new-node", "Order.md",
+            Map.of( "name", "Region", "node_type", "concept" ), 0.6, "test" );
+        service.submitProposal( "new-node", "Order.md",
+            Map.of( "name", "Currency", "node_type", "concept" ), 0.7, "test" );
+        service.submitProposal( "new-edge", "Order.md",
+            Map.of( "source", "Order", "target", "Inventory", "relationship", "depends-on" ),
+            0.8, "test" );
+
+        try ( final Connection conn = dataSource.getConnection() ) {
+            conn.createStatement().execute(
+                "UPDATE kg_proposals SET machine_status = 'approved' " +
+                "WHERE proposed_data::text LIKE '%Region%'" );
+            conn.createStatement().execute(
+                "UPDATE kg_proposals SET machine_status = 'abstain' " +
+                "WHERE proposed_data::text LIKE '%Currency%'" );
+        }
+
+        final SchemaDescription.PendingBreakdown b =
+            service.discoverSchema().stats().pendingBreakdown();
+        assertEquals( 3, b.total(), "three pending overall" );
+        assertEquals( 2, b.newNodes(), "two new-node proposals" );
+        assertEquals( 1, b.newEdges(), "one new-edge proposal" );
+        assertEquals( 1, b.judgeApproved(), "Region was judge-approved" );
+        assertEquals( 1, b.judgeAbstained(), "Currency was judge-abstained" );
+        assertEquals( 1, b.unjudged(), "the edge proposal hasn't been judged" );
+    }
+
+    @Test
     void traverse_findsConnectedNodes() {
         final KgNode order = service.upsertNode( "Order", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );
         final KgNode customer = service.upsertNode( "Customer", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );

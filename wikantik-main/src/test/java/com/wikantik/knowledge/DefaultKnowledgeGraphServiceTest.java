@@ -166,6 +166,76 @@ class DefaultKnowledgeGraphServiceTest {
     }
 
     @Test
+    void approveProposal_throwsWhenAlreadyApproved() {
+        // Spec §6: approving an already-approved proposal must throw
+        // IllegalStateException with the exact message wording.
+        final KgProposal proposal = service.submitProposal( "new-node", "Test.md",
+                Map.of( "name", "DoubleApproveNode", "nodeType", "concept" ), 0.8, "test" );
+        // First approval — succeeds
+        service.approveProposal( proposal.id(), "admin" );
+        // Second approval on the now-approved proposal — must throw
+        final IllegalStateException ex = assertThrows( IllegalStateException.class,
+                () -> service.approveProposal( proposal.id(), "admin" ),
+                "approveProposal on already-approved proposal should throw IllegalStateException" );
+        assertTrue( ex.getMessage().contains( "proposal already reviewed: status=approved" ),
+                "Exception message must match spec wording, got: " + ex.getMessage() );
+    }
+
+    @Test
+    void approveProposal_throwsWhenAlreadyRejected() {
+        final KgProposal proposal = service.submitProposal( "new-node", "Test.md",
+                Map.of( "name", "ApproveAfterRejectNode", "nodeType", "concept" ), 0.8, "test" );
+        service.rejectProposal( proposal.id(), "admin", "not valid" );
+        final IllegalStateException ex = assertThrows( IllegalStateException.class,
+                () -> service.approveProposal( proposal.id(), "admin" ),
+                "approveProposal on already-rejected proposal should throw IllegalStateException" );
+        assertTrue( ex.getMessage().contains( "proposal already reviewed: status=rejected" ),
+                "Exception message must match spec wording, got: " + ex.getMessage() );
+    }
+
+    @Test
+    void rejectProposal_throwsWhenAlreadyRejected() {
+        final KgProposal proposal = service.submitProposal( "new-node", "Test.md",
+                Map.of( "name", "DoubleRejectNode", "nodeType", "concept" ), 0.8, "test" );
+        service.rejectProposal( proposal.id(), "admin", "first rejection" );
+        final IllegalStateException ex = assertThrows( IllegalStateException.class,
+                () -> service.rejectProposal( proposal.id(), "admin", "second attempt" ),
+                "rejectProposal on already-rejected proposal should throw IllegalStateException" );
+        assertTrue( ex.getMessage().contains( "proposal already reviewed: status=rejected" ),
+                "Exception message must match spec wording, got: " + ex.getMessage() );
+    }
+
+    @Test
+    void rejectProposal_throwsWhenAlreadyApproved() {
+        final KgProposal proposal = service.submitProposal( "new-node", "Test.md",
+                Map.of( "name", "RejectAfterApproveNode", "nodeType", "concept" ), 0.8, "test" );
+        service.approveProposal( proposal.id(), "admin" );
+        final IllegalStateException ex = assertThrows( IllegalStateException.class,
+                () -> service.rejectProposal( proposal.id(), "admin", "too late" ),
+                "rejectProposal on already-approved proposal should throw IllegalStateException" );
+        assertTrue( ex.getMessage().contains( "proposal already reviewed: status=approved" ),
+                "Exception message must match spec wording, got: " + ex.getMessage() );
+    }
+
+    @Test
+    void approveProposal_happyPath_pendingProposalSucceeds() {
+        final KgProposal proposal = service.submitProposal( "new-node", "Test.md",
+                Map.of( "name", "HappyApproveNode", "nodeType", "concept" ), 0.9, "test" );
+        final KgProposal approved = service.approveProposal( proposal.id(), "admin" );
+        assertNotNull( approved, "approveProposal on pending proposal should return non-null" );
+        assertEquals( "approved", approved.status(), "approved proposal status should be 'approved'" );
+    }
+
+    @Test
+    void rejectProposal_happyPath_pendingProposalSucceeds() {
+        final KgProposal proposal = service.submitProposal( "new-node", "Test.md",
+                Map.of( "name", "HappyRejectNode", "nodeType", "concept" ), 0.9, "test" );
+        final KgProposal rejected = service.rejectProposal( proposal.id(), "admin", "not valid" );
+        assertNotNull( rejected, "rejectProposal on pending proposal should return non-null" );
+        assertEquals( "rejected", rejected.status(), "rejected proposal status should be 'rejected'" );
+    }
+
+    @Test
     void submitProposal_rejectedIfPreviouslyRejected() {
         service.upsertNode( "Order", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );
         service.upsertNode( "Inventory", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );

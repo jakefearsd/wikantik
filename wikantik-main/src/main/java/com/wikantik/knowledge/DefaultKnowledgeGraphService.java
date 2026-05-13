@@ -488,6 +488,10 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         if ( existing == null ) {
             return null;
         }
+        if ( !"pending".equals( existing.status() ) ) {
+            throw new IllegalStateException(
+                "proposal already reviewed: status=" + existing.status() );
+        }
         proposals.applyHumanVerdict( proposalId, "approved", reviewedBy );
         proposals.recordReview( proposalId, KgProposalReview.REVIEWER_HUMAN, reviewedBy,
             "approved", null, null );
@@ -504,6 +508,10 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         final KgProposal proposal = proposals.getProposal( proposalId );
         if ( proposal == null ) {
             return null;
+        }
+        if ( !"pending".equals( proposal.status() ) ) {
+            throw new IllegalStateException(
+                "proposal already reviewed: status=" + proposal.status() );
         }
         proposals.applyHumanVerdict( proposalId, "rejected", reviewedBy );
         proposals.recordReview( proposalId, KgProposalReview.REVIEWER_HUMAN, reviewedBy,

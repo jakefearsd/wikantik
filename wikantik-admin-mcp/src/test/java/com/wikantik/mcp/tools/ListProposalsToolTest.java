@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.mockito.Mockito;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -121,5 +123,23 @@ class ListProposalsToolTest {
             new ListProposalsTool( svc ).execute( Map.of() );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "DB offline" ) );
+    }
+
+    @Test
+    void executeAddsNodeExistsFlagForNewNodeProposal() {
+        final KnowledgeGraphService svc = Mockito.mock( KnowledgeGraphService.class );
+        final KgProposal p = Mockito.mock( KgProposal.class );
+        when( p.id() ).thenReturn( UUID.randomUUID() );
+        when( p.proposalType() ).thenReturn( "new-node" );
+        when( p.proposedData() ).thenReturn( java.util.Map.of( "name", "Raft" ) );
+        when( p.status() ).thenReturn( "pending" );
+        when( svc.listProposals( "pending", null, 50, 0 ) ).thenReturn( java.util.List.of( p ) );
+        when( svc.getNodeByName( "Raft" ) ).thenReturn( Mockito.mock( com.wikantik.api.knowledge.KgNode.class ) );
+
+        final var result = new ListProposalsTool( svc ).execute( java.util.Map.of( "status", "pending" ) );
+        final String body = ( ( io.modelcontextprotocol.spec.McpSchema.TextContent )
+                result.content().get( 0 ) ).text();
+        org.junit.jupiter.api.Assertions.assertTrue( body.contains( "\"node_exists\":true" ),
+                "Expected node_exists flag in payload: " + body );
     }
 }

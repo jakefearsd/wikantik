@@ -16,11 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.wikantik.knowledge.curation;
+package com.wikantik.api.knowledge;
 
-import com.wikantik.api.knowledge.KgNode;
-import com.wikantik.api.knowledge.KgProposal;
-import com.wikantik.api.knowledge.KnowledgeGraphService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

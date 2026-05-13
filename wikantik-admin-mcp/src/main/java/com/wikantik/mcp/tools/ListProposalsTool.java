@@ -20,6 +20,7 @@ package com.wikantik.mcp.tools;
 
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.api.knowledge.ProposalConflictFlags;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -88,6 +89,7 @@ public class ListProposalsTool implements McpTool {
         exampleProposal.put( "reviewed_by", null );
         exampleProposal.put( "created", "2026-04-24T11:22:33Z" );
         exampleProposal.put( "reviewed_at", null );
+        exampleProposal.put( "edge_previously_rejected", false );
 
         final Map< String, Object > outputSchema = new LinkedHashMap<>();
         outputSchema.put( "type", "object" );
@@ -126,6 +128,7 @@ public class ListProposalsTool implements McpTool {
                 map.put( "reviewed_by", p.reviewedBy() );
                 map.put( "created", p.created() != null ? p.created().toString() : null );
                 map.put( "reviewed_at", p.reviewedAt() != null ? p.reviewedAt().toString() : null );
+                map.putAll( ProposalConflictFlags.forProposal( service, p ) );
                 return map;
             } ).toList();
 

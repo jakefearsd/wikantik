@@ -160,9 +160,6 @@
                 <artifactId>maven-war-plugin</artifactId>
                 <configuration>
                     <webResources>
-                        <resource>
-                            <directory>src/main/styles/static</directory>
-                        </resource>
                         <!-- React SPA frontend — served at / -->
                         <resource>
                             <directory>${project.basedir}/../wikantik-frontend/dist</directory>

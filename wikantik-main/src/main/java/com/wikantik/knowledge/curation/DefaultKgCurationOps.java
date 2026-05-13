@@ -100,8 +100,58 @@ public class DefaultKgCurationOps implements KgCurationOps {
     /**
      * After approving a {@code new-edge} proposal, writes the approved relationship
      * back into the source page's frontmatter. Body lifted from {@code AdminKnowledgeResource}.
+     *
+     * <p>package-private: invoked from tryApproveProposal; visibility kept narrow to discourage direct callers.
      */
-    void writeFrontmatterIfEdge( final KgProposal approved ) {
-        // Filled in by Task 2 — placeholder no-op for now.
+    @SuppressWarnings( "unchecked" )
+    void writeFrontmatterIfEdge( final KgProposal proposal ) {
+        if ( !"new-edge".equals( proposal.proposalType() ) || proposal.sourcePage() == null ) return;
+
+        final java.util.Map< String, Object > data = proposal.proposedData();
+        if ( data == null ) return;
+
+        final String target = ( String ) data.get( "target" );
+        final String relationship = ( String ) data.get( "relationship" );
+        if ( target == null || relationship == null ) return;
+
+        try {
+            final String pageName = proposal.sourcePage().replace( ".md", "" );
+            final String pageText = pages.getPureText( pageName,
+                    com.wikantik.api.providers.PageProvider.LATEST_VERSION );
+            if ( pageText == null ) {
+                LOG.warn( "Cannot write-back to page '{}': page not found", pageName );
+                return;
+            }
+
+            final com.wikantik.api.frontmatter.ParsedPage parsed =
+                    com.wikantik.api.frontmatter.FrontmatterParser.parse( pageText );
+            final java.util.Map< String, Object > metadata =
+                    new java.util.LinkedHashMap<>( parsed.metadata() );
+
+            // Add the target to the relationship key (create if needed); deduplicate
+            final Object existing = metadata.get( relationship );
+            if ( existing instanceof java.util.List ) {
+                final java.util.List< String > list =
+                        new java.util.ArrayList<>( ( java.util.List< String > ) existing );
+                if ( !list.contains( target ) ) list.add( target );
+                metadata.put( relationship, list );
+            } else {
+                metadata.put( relationship, new java.util.ArrayList<>( java.util.List.of( target ) ) );
+            }
+
+            final String updated = com.wikantik.api.frontmatter.FrontmatterWriter.write(
+                    metadata, parsed.body() );
+            final com.wikantik.api.pages.SaveOptions opts =
+                    com.wikantik.api.pages.SaveOptions.builder()
+                            .author( "Knowledge Admin" )
+                            .changeNote( "Approved knowledge proposal: " + relationship + " → " + target )
+                            .build();
+            saver.saveText( pageName, updated, opts );
+            LOG.info( "Frontmatter write-back: added {} → {} to page '{}'",
+                    relationship, target, pageName );
+        } catch ( final com.wikantik.api.exceptions.WikiException e ) {
+            LOG.error( "Failed to write-back frontmatter for proposal {}: {}",
+                    proposal.id(), e.getMessage(), e );
+        }
     }
 }

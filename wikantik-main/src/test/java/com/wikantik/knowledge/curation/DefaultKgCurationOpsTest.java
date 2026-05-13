@@ -79,4 +79,34 @@ public class DefaultKgCurationOpsTest {
         assertTrue( result.isPresent() );
         assertEquals( "constraint violation", result.get() );
     }
+
+    @Test
+    void approvingNewEdgeWritesBackToSourcePageFrontmatter() throws Exception {
+        final UUID id = UUID.randomUUID();
+        final KgProposal approved = Mockito.mock( KgProposal.class );
+        when( approved.proposalType() ).thenReturn( "new-edge" );
+        when( approved.sourcePage() ).thenReturn( "HybridRetrieval" );
+        when( approved.proposedData() ).thenReturn( java.util.Map.of(
+                "target", "BM25", "relationship", "falls_back_to" ) );
+        when( kg.approveProposal( eq( id ), any() ) ).thenReturn( approved );
+        when( pages.getPureText( eq( "HybridRetrieval" ), Mockito.anyInt() ) )
+                .thenReturn( "---\ntitle: Hybrid Retrieval\n---\nbody" );
+
+        ops.tryApproveProposal( id, "alice" );
+
+        Mockito.verify( saver ).saveText( eq( "HybridRetrieval" ), Mockito.contains( "falls_back_to" ),
+                any( com.wikantik.api.pages.SaveOptions.class ) );
+    }
+
+    @Test
+    void approvingNonEdgeProposalDoesNotTouchFrontmatter() {
+        final UUID id = UUID.randomUUID();
+        final KgProposal approved = Mockito.mock( KgProposal.class );
+        when( approved.proposalType() ).thenReturn( "new-node" );
+        when( kg.approveProposal( eq( id ), any() ) ).thenReturn( approved );
+
+        ops.tryApproveProposal( id, "alice" );
+
+        Mockito.verifyNoInteractions( saver );
+    }
 }

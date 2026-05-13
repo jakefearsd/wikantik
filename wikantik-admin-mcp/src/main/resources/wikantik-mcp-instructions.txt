@@ -232,6 +232,33 @@ propose_knowledge  Submit a knowledge graph proposal for human review.
                   error. Returns {id, proposal_type, source_page, status,
                   confidence, created}.
 
+inspect_proposals  Bulk deep-dive (1..50 ids) of pending or historical KG
+                  proposals. Returns full proposal, conflict flags
+                  (node_exists / edge_previously_rejected), prior reviews,
+                  and any linked entity snapshot. Use after list_proposals to
+                  triage duplicates before approving. Required: ids[].
+
+review_proposals  Bulk approve / reject / judge of 1..50 KG proposals.
+                  Required: verdict (approve | reject | judge), ids[].
+                  verdict=reject requires a top-level reason. Per-id
+                  failures surface in failed[]. Approvals of proposals
+                  whose source page is on the exclusion list still succeed
+                  but echo a warnings_by_proposal entry.
+
+curate_edges      Heterogeneous bulk edge ops (1..50). Required: operations[]
+                  where each op has action (upsert | confirm | delete |
+                  delete-and-reject), tag, and an edge id (or source/target/
+                  relationship for upsert). upsert stamps HUMAN_CURATED;
+                  confirm elevates an existing edge to human-curated;
+                  delete-and-reject deletes and writes a rejection record so
+                  the edge cannot be re-proposed.
+
+curate_nodes      Heterogeneous bulk node ops (1..50). Required: operations[]
+                  where each op has action (upsert | delete | merge), tag,
+                  and a node id (or name/node_type for upsert). upsert stamps
+                  HUMAN_AUTHORED; merge collapses source into target (pre-merge
+                  frontmatter rewrite is handled by the REST surface only).
+
 == Concurrency model ==
 
 Edits use optimistic concurrency, not explicit locks. The flow is:

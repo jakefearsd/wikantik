@@ -52,6 +52,30 @@ public class WithMcpTestSetup {
     /** UUID of the seed node used for merge-self per-op error tests. */
     private static final String SEEDED_NODE_ID = "aaaaaaaa-0001-0000-0000-000000000001";
 
+    /** UUID of the pending new-node proposal whose source_page is on kg_excluded_pages. */
+    private static final String SEEDED_EXCLUDED_PAGE_PROPOSAL_ID = "dddddddd-0001-0000-0000-000000000001";
+
+    /** UUID of the pending new-node proposal whose proposed name collides with an existing seed node. */
+    private static final String SEEDED_NODE_EXISTS_PROPOSAL_ID = "dddddddd-0002-0000-0000-000000000002";
+
+    /** UUID of the pending new-edge proposal whose triple is already in kg_rejections. */
+    private static final String SEEDED_EDGE_REJECTED_PROPOSAL_ID = "dddddddd-0003-0000-0000-000000000003";
+
+    /** Source-node UUID used by curate_edges upsert and delete_and_reject tests. */
+    private static final String SEEDED_UPSERT_SRC_NODE_ID = "dddddddd-1001-0000-0000-000000000001";
+
+    /** Target-node UUID used by curate_edges upsert and delete_and_reject tests. */
+    private static final String SEEDED_UPSERT_TGT_NODE_ID = "dddddddd-1002-0000-0000-000000000002";
+
+    /** Source-node UUID used by curate_nodes merge happy-path coverage. */
+    private static final String SEEDED_MERGE_SRC_NODE_ID = "dddddddd-2001-0000-0000-000000000001";
+
+    /** Target-node UUID used by curate_nodes merge happy-path coverage. */
+    private static final String SEEDED_MERGE_TGT_NODE_ID = "dddddddd-2002-0000-0000-000000000002";
+
+    /** UUID of the seed node used by curate_nodes delete happy-path coverage. */
+    private static final String SEEDED_DELETABLE_NODE_ID = "dddddddd-3001-0000-0000-000000000001";
+
     // -----------------------------------------------------------------
 
     protected static McpTestClient mcp;
@@ -92,6 +116,38 @@ public class WithMcpTestSetup {
 
     public static String seededNodeId() {
         return SEEDED_NODE_ID;
+    }
+
+    public static String seededExcludedPageProposalId() {
+        return SEEDED_EXCLUDED_PAGE_PROPOSAL_ID;
+    }
+
+    public static String seededNodeExistsProposalId() {
+        return SEEDED_NODE_EXISTS_PROPOSAL_ID;
+    }
+
+    public static String seededEdgeRejectedProposalId() {
+        return SEEDED_EDGE_REJECTED_PROPOSAL_ID;
+    }
+
+    public static String seededUpsertSrcNodeId() {
+        return SEEDED_UPSERT_SRC_NODE_ID;
+    }
+
+    public static String seededUpsertTgtNodeId() {
+        return SEEDED_UPSERT_TGT_NODE_ID;
+    }
+
+    public static String seededMergeSrcNodeId() {
+        return SEEDED_MERGE_SRC_NODE_ID;
+    }
+
+    public static String seededMergeTgtNodeId() {
+        return SEEDED_MERGE_TGT_NODE_ID;
+    }
+
+    public static String seededDeletableNodeId() {
+        return SEEDED_DELETABLE_NODE_ID;
     }
 
     // -----------------------------------------------------------------

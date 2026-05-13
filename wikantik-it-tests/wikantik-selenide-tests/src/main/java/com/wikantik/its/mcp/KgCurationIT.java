@@ -197,4 +197,245 @@ public class KgCurationIT extends WithMcpTestSetup {
         Assertions.assertTrue( tail.contains( "attempted=1" ),
                 "Expected attempted=1 in McpAudit log line, got: " + tail );
     }
+
+    // ------------------------------------------------------------------
+    // review_proposals — approve a proposal whose source_page sits on
+    // kg_excluded_pages emits warnings_by_proposal (§6 edge case row 1).
+    // ------------------------------------------------------------------
+
+    @Test
+    public void reviewProposalsApproveOnExcludedPageEmitsWarnings() {
+        final String id = WithMcpTestSetup.seededExcludedPageProposalId();
+
+        final Map< String, Object > result = mcp.callTool( "review_proposals",
+                Map.of( "verdict", "approve", "ids", List.of( id ) ) );
+        final String body = result.toString();
+
+        // Approval is still expected to succeed — the exclusion list governs
+        // extraction, not retroactive curation.
+        Assertions.assertTrue( body.contains( "succeeded" ) && body.contains( id ),
+                "Excluded-page proposal should still approve successfully: " + body );
+        Assertions.assertTrue( body.contains( "warnings_by_proposal" ),
+                "Response should surface warnings_by_proposal for excluded source page: " + body );
+        Assertions.assertTrue( body.contains( "kg_excluded_pages" ),
+                "Warning text should cite kg_excluded_pages: " + body );
+    }
+
+    // ------------------------------------------------------------------
+    // inspect_proposals — empty array is a top-level error, exactly-50
+    // resolves all as missing[] without erroring (cap boundary).
+    // ------------------------------------------------------------------
+
+    @Test
+    public void inspectProposalsEmptyArrayIsTopLevelError() {
+        mcp.callToolExpectingError( "inspect_proposals",
+                Map.of( "ids", List.of() ) );
+        // callToolExpectingError throws AssertionError if isError != true.
+    }
+
+    @Test
+    public void inspectProposalsAtCapBoundaryReturnsAllInMissing() {
+        // Exactly 50 fake UUIDs — boundary of the bulk_limit cap (default 50).
+        // None resolve, so all land in missing[] and the call succeeds.
+        final List< Object > ids = new ArrayList<>( 50 );
+        for ( int i = 0; i < 50; i++ ) {
+            ids.add( String.format( "00000000-0000-0000-0000-%012d", i ) );
+        }
+        final Map< String, Object > result = mcp.callTool( "inspect_proposals",
+                Map.of( "ids", ids ) );
+        final String body = result.toString();
+        Assertions.assertTrue( body.contains( "missing" ),
+                "Cap-boundary call should surface missing[]: " + body );
+        Assertions.assertFalse( body.contains( "bulk limit exceeded" ),
+                "Exactly-50 must NOT trip the bulk-limit guard: " + body );
+    }
+
+    @Test
+    public void inspectProposalsExceedingCapIsTopLevelError() {
+        final List< Object > ids = new ArrayList<>( 51 );
+        for ( int i = 0; i < 51; i++ ) {
+            ids.add( String.format( "00000000-0000-0000-0000-%012d", i ) );
+        }
+        mcp.callToolExpectingError( "inspect_proposals",
+                Map.of( "ids", ids ) );
+    }
+
+    // ------------------------------------------------------------------
+    // list_proposals — both conflict flags appear when applicable.
+    // Seeded fixtures guarantee at least one proposal with node_exists=true
+    // and one with edge_previously_rejected=true. (§3 promise: flags surface
+    // without a second round-trip.)
+    // ------------------------------------------------------------------
+
+    @Test
+    public void listProposalsSurfacesBothConflictFlagsAcrossPayload() {
+        final Map< String, Object > result = mcp.callTool( "list_proposals",
+                Map.of( "status", "pending", "limit", 50 ) );
+        final String body = result.toString();
+
+        // Both keys must be present somewhere in the pending payload — seed
+        // fixtures cccccccc-/dddddddd- guarantee at least one of each.
+        Assertions.assertTrue( body.contains( "node_exists=true" )
+                        || body.contains( "node_exists\":true" ),
+                "Expected node_exists=true for the seeded duplicate-name proposal: " + body );
+        Assertions.assertTrue( body.contains( "edge_previously_rejected=true" )
+                        || body.contains( "edge_previously_rejected\":true" ),
+                "Expected edge_previously_rejected=true for the seeded previously-rejected triple: " + body );
+    }
+
+    // ------------------------------------------------------------------
+    // curate_edges — upsert creates an edge (HUMAN_CURATED) and the bulk
+    // McpAudit line is emitted. Follow-up delete_and_reject must then write
+    // a rejection record (verified via list_proposals' conflict flag on a
+    // pending proposal with the same triple).
+    // ------------------------------------------------------------------
+
+    @Test
+    public void curateEdgesUpsertEmitsBulkAuditLogLine() throws Exception {
+        final long before = catalinaOutPath().toFile().exists()
+                ? java.nio.file.Files.size( catalinaOutPath() ) : 0L;
+
+        final Map< String, Object > result = mcp.callTool( "curate_edges",
+                Map.of( "operations", List.of(
+                        Map.of( "action", "upsert", "tag", "u1",
+                                "source_id", WithMcpTestSetup.seededUpsertSrcNodeId(),
+                                "target_id", WithMcpTestSetup.seededUpsertTgtNodeId(),
+                                "relationship_type", "related_to" ) ) ) );
+        final String body = result.toString();
+        Assertions.assertTrue( body.contains( "succeeded" ) && body.contains( "u1" ),
+                "Upsert response should contain succeeded entry tagged u1: " + body );
+
+        final String tail = WithMcpTestSetup.readCatalinaOutSince( before );
+        Assertions.assertTrue( tail.contains( "tool=curate_edges action=bulk" ),
+                "Expected McpAudit bulk-write log line for curate_edges: " + tail );
+        Assertions.assertTrue( tail.contains( "attempted=1" ),
+                "Expected attempted=1 in curate_edges audit line: " + tail );
+    }
+
+    @Test
+    public void curateEdgesDeleteAndRejectWritesRejection() {
+        // Create an edge we can then delete_and_reject, capturing its id from
+        // the upsert response. We use `alternative_to` (a value from the
+        // closed kg_edges_relationship_type_check vocabulary in V027) so the
+        // triple is distinct from the `related_to` edge created by
+        // curateEdgesUpsertEmitsBulkAuditLogLine and won't collide on rerun.
+        final Map< String, Object > upsert = mcp.callTool( "curate_edges",
+                Map.of( "operations", List.of(
+                        Map.of( "action", "upsert", "tag", "u-dar",
+                                "source_id", WithMcpTestSetup.seededUpsertSrcNodeId(),
+                                "target_id", WithMcpTestSetup.seededUpsertTgtNodeId(),
+                                "relationship_type", "alternative_to" ) ) ) );
+        @SuppressWarnings( "unchecked" )
+        final List< Map< String, Object > > succeeded =
+                ( List< Map< String, Object > > ) upsert.get( "succeeded" );
+        Assertions.assertNotNull( succeeded, "upsert must succeed: " + upsert );
+        Assertions.assertFalse( succeeded.isEmpty(), "upsert must produce one succeeded entry: " + upsert );
+        final Object edgeIdObj = succeeded.get( 0 ).get( "id" );
+        Assertions.assertNotNull( edgeIdObj, "upsert must return an edge id: " + upsert );
+        final String edgeId = edgeIdObj.toString();
+
+        final Map< String, Object > dar = mcp.callTool( "curate_edges",
+                Map.of( "operations", List.of(
+                        Map.of( "action", "delete_and_reject", "tag", "dar1",
+                                "id", edgeId, "reason", "IT verification: spurious co-mention" ) ) ) );
+        final String darBody = dar.toString();
+        Assertions.assertTrue( darBody.contains( "succeeded" ) && darBody.contains( "dar1" ),
+                "delete_and_reject should succeed and echo tag dar1: " + darBody );
+        Assertions.assertTrue( darBody.contains( "\"failed\":[]" )
+                        || darBody.contains( "failed=[]" )
+                        || !darBody.contains( "error" ),
+                "delete_and_reject must not surface an error: " + darBody );
+
+        // The rejection record is written against the
+        // (source_name, target_name, relationship_type) triple. Cross-check by
+        // calling propose_knowledge with the SAME triple — that tool itself
+        // refuses to file a duplicate of a rejected proposal, so a top-level
+        // error citing "previously rejected" proves the rejection record was
+        // written and is queryable via service.isRejected(...).
+        final Map< String, Object > err = mcp.callToolExpectingError( "propose_knowledge", Map.of(
+                "proposal_type", "new-edge",
+                "source_page", "KgCurationSeedPage",
+                "proposed_data", Map.of(
+                        "source", "KgUpsertSrcNode",
+                        "target", "KgUpsertTgtNode",
+                        "relationship", "alternative_to" ),
+                "confidence", 0.5,
+                "reasoning", "IT: verify rejection record persisted through delete_and_reject" ) );
+        final String errBody = err.toString();
+        Assertions.assertTrue( errBody.contains( "previously rejected" ),
+                "propose_knowledge should refuse the re-proposal of a rejected triple, citing "
+                        + "the rejection record written by delete_and_reject: " + errBody );
+    }
+
+    // ------------------------------------------------------------------
+    // curate_nodes — happy-path coverage for upsert, delete, merge, and the
+    // bulk McpAudit emission.
+    // ------------------------------------------------------------------
+
+    @Test
+    public void curateNodesUpsertEmitsBulkAuditLogLine() throws Exception {
+        final long before = catalinaOutPath().toFile().exists()
+                ? java.nio.file.Files.size( catalinaOutPath() ) : 0L;
+
+        final String uniqueName = "KgCurationItUpsertNode_"
+                + System.currentTimeMillis() + "_" + Thread.currentThread().threadId();
+        final Map< String, Object > result = mcp.callTool( "curate_nodes",
+                Map.of( "operations", List.of(
+                        Map.of( "action", "upsert", "tag", "n-up",
+                                "name", uniqueName, "node_type", "concept",
+                                "source_page", "KgCurationSeedPage" ) ) ) );
+        final String body = result.toString();
+        Assertions.assertTrue( body.contains( "succeeded" ) && body.contains( "n-up" ),
+                "curate_nodes upsert should succeed and echo tag: " + body );
+
+        final String tail = WithMcpTestSetup.readCatalinaOutSince( before );
+        Assertions.assertTrue( tail.contains( "tool=curate_nodes action=bulk" ),
+                "Expected McpAudit bulk-write log line for curate_nodes: " + tail );
+        Assertions.assertTrue( tail.contains( "attempted=1" ),
+                "Expected attempted=1 in curate_nodes audit line: " + tail );
+    }
+
+    @Test
+    public void curateNodesDeleteHappyPath() {
+        final Map< String, Object > result = mcp.callTool( "curate_nodes",
+                Map.of( "operations", List.of(
+                        Map.of( "action", "delete", "tag", "n-del",
+                                "id", WithMcpTestSetup.seededDeletableNodeId() ) ) ) );
+        final String body = result.toString();
+        Assertions.assertTrue( body.contains( "succeeded" ) && body.contains( "n-del" ),
+                "curate_nodes delete should succeed and echo tag: " + body );
+        Assertions.assertTrue( body.contains( WithMcpTestSetup.seededDeletableNodeId() ),
+                "delete response should echo deleted node id: " + body );
+    }
+
+    @Test
+    public void curateNodesMergeHappyPath() {
+        final Map< String, Object > result = mcp.callTool( "curate_nodes",
+                Map.of( "operations", List.of(
+                        Map.of( "action", "merge", "tag", "n-merge",
+                                "source_id", WithMcpTestSetup.seededMergeSrcNodeId(),
+                                "target_id", WithMcpTestSetup.seededMergeTgtNodeId() ) ) ) );
+        final String body = result.toString();
+        Assertions.assertTrue( body.contains( "succeeded" ) && body.contains( "n-merge" ),
+                "merge should succeed and echo tag: " + body );
+        Assertions.assertTrue(
+                body.contains( WithMcpTestSetup.seededMergeSrcNodeId() )
+                        && body.contains( WithMcpTestSetup.seededMergeTgtNodeId() ),
+                "merge response should echo both source_id and target_id: " + body );
+    }
+
+    // ------------------------------------------------------------------
+    // verdict=judge is intentionally NOT covered at the IT layer — the
+    // judge path requires an external LLM endpoint that the Cargo IT
+    // environment cannot reach. Coverage lives at the unit-test layer in
+    // wikantik-admin-mcp (ReviewProposalsToolTest) and in the curation
+    // service tests (DefaultKgCurationOpsTest).
+    //
+    // Likewise the §6 "Already-reviewed proposal" case is not covered
+    // here: the current KnowledgeGraphService.approveProposal /
+    // KgProposalRepository.applyHumanVerdict pair does not yet enforce
+    // the spec-promised "proposal already reviewed: status=approved"
+    // per-op error. Adding an IT now would fail; this gap is left open
+    // for a follow-up that wires the guard into the service layer.
+    // ------------------------------------------------------------------
 }

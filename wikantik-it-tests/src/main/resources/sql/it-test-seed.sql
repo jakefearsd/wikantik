@@ -140,3 +140,82 @@ VALUES (
   'pending'
 )
 ON CONFLICT DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- Extra KG curation seeds for coverage gaps (KgCurationIT additional cases).
+-- ---------------------------------------------------------------------------
+
+-- Page on the exclusion list, plus a pending proposal whose source_page is
+-- exactly that excluded name. Approving the proposal must surface
+-- warnings_by_proposal containing the "in kg_excluded_pages list" message.
+-- (Approval succeeds — the exclusion list governs extraction, not retroactive
+-- curation; see the §6 edge-case table in 2026-05-13-kg-curation-mcp-design.md.)
+INSERT INTO kg_excluded_pages (page_name, reason)
+VALUES ('KgCurationExcludedPage', 'page_override')
+ON CONFLICT (page_name) DO NOTHING;
+
+INSERT INTO kg_proposals (id, proposal_type, source_page, proposed_data, confidence, status)
+VALUES (
+  'dddddddd-0001-0000-0000-000000000001',
+  'new-node',
+  'KgCurationExcludedPage',
+  '{"name":"ExcludedSeedNode","type":"concept"}'::jsonb,
+  0.80,
+  'pending'
+)
+ON CONFLICT DO NOTHING;
+
+-- Pending new-node proposal whose proposed name COLLIDES with an existing seed
+-- node — list_proposals must surface node_exists=true (plus existing_node_id).
+INSERT INTO kg_proposals (id, proposal_type, source_page, proposed_data, confidence, status)
+VALUES (
+  'dddddddd-0002-0000-0000-000000000002',
+  'new-node',
+  'KgCurationSeedPage',
+  '{"name":"KgCurationSeedNode","type":"concept"}'::jsonb,
+  0.65,
+  'pending'
+)
+ON CONFLICT DO NOTHING;
+
+-- Previously-rejected triple — guarantees list_proposals exposes
+-- edge_previously_rejected=true for any pending proposal whose data matches.
+INSERT INTO kg_rejections (proposed_source, proposed_target, proposed_relationship,
+                            rejected_by, reason)
+VALUES ('KgPreRejectedSource', 'KgPreRejectedTarget', 'related_to',
+        'kg-curation-it', 'seeded rejection for IT')
+ON CONFLICT (proposed_source, proposed_target, proposed_relationship) DO NOTHING;
+
+INSERT INTO kg_proposals (id, proposal_type, source_page, proposed_data, confidence, status)
+VALUES (
+  'dddddddd-0003-0000-0000-000000000003',
+  'new-edge',
+  'KgCurationSeedPage',
+  '{"source":"KgPreRejectedSource","target":"KgPreRejectedTarget","relationship":"related_to"}'::jsonb,
+  0.55,
+  'pending'
+)
+ON CONFLICT DO NOTHING;
+
+-- Seed nodes used as endpoints for curate_edges upsert + delete_and_reject
+-- coverage. Distinct from the existing aaaaaaaa-... pair so the upsert tests
+-- can create a fresh edge without colliding with the seeded edge.
+INSERT INTO kg_nodes (id, name, node_type, source_page, provenance)
+VALUES
+  ('dddddddd-1001-0000-0000-000000000001', 'KgUpsertSrcNode',  'concept', 'KgCurationSeedPage', 'human-authored'),
+  ('dddddddd-1002-0000-0000-000000000002', 'KgUpsertTgtNode',  'concept', 'KgCurationSeedPage', 'human-authored')
+ON CONFLICT (name) DO NOTHING;
+
+-- Seed nodes used for curate_nodes merge happy-path coverage. Two distinct
+-- nodes so source != target and the merge can succeed.
+INSERT INTO kg_nodes (id, name, node_type, source_page, provenance)
+VALUES
+  ('dddddddd-2001-0000-0000-000000000001', 'KgMergeSourceNode', 'concept', 'KgCurationSeedPage', 'human-authored'),
+  ('dddddddd-2002-0000-0000-000000000002', 'KgMergeTargetNode', 'concept', 'KgCurationSeedPage', 'human-authored')
+ON CONFLICT (name) DO NOTHING;
+
+-- Seed node used as the deletion target for curate_nodes.delete happy-path coverage.
+INSERT INTO kg_nodes (id, name, node_type, source_page, provenance)
+VALUES
+  ('dddddddd-3001-0000-0000-000000000001', 'KgCurateNodeDeletable', 'concept', 'KgCurationSeedPage', 'human-authored')
+ON CONFLICT (name) DO NOTHING;

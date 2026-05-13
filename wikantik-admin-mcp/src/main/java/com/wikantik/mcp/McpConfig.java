@@ -94,26 +94,44 @@ public class McpConfig {
     }
 
     /**
-     * Returns the MCP server instructions text, or {@code null} if none configured.
+     * Returns the MCP server instructions text, or empty string if none configured.
      *
-     * <p>Resolution order:
+     * <p>Resolution order is strictly two-stage:</p>
      * <ol>
-     *   <li>Load the file named by {@code mcp.instructions.file} from the classpath</li>
-     *   <li>Fall back to the inline {@code mcp.instructions} property value</li>
-     *   <li>Return {@code null} if neither is set</li>
+     *   <li>If {@code mcp.instructions.file} is set, load that absolute filesystem
+     *       path. On read failure, log an error and fall through to step 2.</li>
+     *   <li>Load the bundled classpath resource {@code /wikantik-mcp-instructions.txt}
+     *       via this class's own classloader (the webapp loader in production,
+     *       the test classpath in tests). No TCCL or parent-classloader walk.</li>
      * </ol>
+     *
+     * <p>If both sources are unreadable, returns {@code ""} and logs at warn level.</p>
      */
     public String instructions() {
-        final String file = props.getProperty( "mcp.instructions.file" );
-        if ( file != null && !file.isBlank() ) {
-            final String text = loadTextResource( file );
-            if ( text != null ) {
-                return text;
+        final String overridePath = props.getProperty( "mcp.instructions.file" );
+        if ( overridePath != null && !overridePath.isBlank() ) {
+            try ( final java.io.InputStream in =
+                    java.nio.file.Files.newInputStream( java.nio.file.Path.of( overridePath ) ) ) {
+                return new String( in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8 );
+            } catch ( final java.io.IOException e ) {
+                LOG.error( "mcp.instructions.file={} is configured but unreadable; "
+                        + "falling back to bundled resource: {}",
+                        overridePath, e.getMessage() );
+                // fall through to bundled resource
             }
-            LOG.debug( "Instructions file '{}' not found on classpath, checking inline property", file );
         }
-        final String inline = props.getProperty( "mcp.instructions" );
-        return inline != null && !inline.isBlank() ? inline : null;
+        try ( final java.io.InputStream in = McpConfig.class.getResourceAsStream(
+                "/wikantik-mcp-instructions.txt" ) ) {
+            if ( in != null ) {
+                return new String( in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8 );
+            }
+            LOG.warn( "Bundled instructions resource /wikantik-mcp-instructions.txt not found; "
+                    + "MCP server will serve an empty instructions field." );
+            return "";
+        } catch ( final java.io.IOException e ) {
+            LOG.error( "Failed to read bundled instructions: {}", e.getMessage() );
+            return "";
+        }
     }
 
     /**
@@ -216,31 +234,6 @@ public class McpConfig {
                     raw, DEFAULT_KG_BULK_LIMIT );
             return DEFAULT_KG_BULK_LIMIT;
         }
-    }
-
-    private String loadTextResource( final String resourceName ) {
-        // Try thread-context classloader first (picks up external overrides), then our own
-        final ClassLoader tccl = Thread.currentThread().getContextClassLoader();
-        if ( tccl != null ) {
-            try ( InputStream is = tccl.getResourceAsStream( resourceName ) ) {
-                if ( is != null ) {
-                    return new String( is.readAllBytes(), StandardCharsets.UTF_8 ).strip();
-                }
-            } catch ( final IOException e ) {
-                LOG.warn( "Error reading instructions file '{}': {}", resourceName, e.getMessage() );
-            }
-        }
-        final ClassLoader ownCl = McpConfig.class.getClassLoader();
-        if ( ownCl != null ) {
-            try ( InputStream is = ownCl.getResourceAsStream( resourceName ) ) {
-                if ( is != null ) {
-                    return new String( is.readAllBytes(), StandardCharsets.UTF_8 ).strip();
-                }
-            } catch ( final IOException e ) {
-                LOG.warn( "Error reading instructions file '{}': {}", resourceName, e.getMessage() );
-            }
-        }
-        return null;
     }
 
     private static void loadFromClasspath( final ClassLoader cl, final Properties target ) {

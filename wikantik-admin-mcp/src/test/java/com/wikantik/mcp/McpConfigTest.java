@@ -49,12 +49,17 @@ class McpConfigTest {
 
     @Test
     void testInlineInstructionsFallback() {
+        // With the two-stage lookup, an unreadable mcp.instructions.file falls back
+        // to the bundled classpath resource — not the mcp.instructions inline property.
+        // The inline property is no longer consulted; the bundled resource is used instead.
         final Properties props = new Properties();
-        props.setProperty( "mcp.instructions.file", "nonexistent-file.txt" );
+        props.setProperty( "mcp.instructions.file", "/nonexistent/file/that/does/not/exist.txt" );
         props.setProperty( "mcp.instructions", "Inline instructions here" );
 
         final McpConfig config = new McpConfig( props );
-        assertEquals( "Inline instructions here", config.instructions() );
+        final String result = config.instructions();
+        assertNotNull( result );
+        assertFalse( result.isBlank(), "Should fall back to bundled resource, not inline property" );
     }
 
     @Test
@@ -71,21 +76,25 @@ class McpConfigTest {
     }
 
     @Test
-    void testNoInstructionsReturnsNull() {
-        // Empty properties — no file, no inline
+    void testNoInstructionsFileReturnsFromBundled() {
+        // With the two-stage lookup, empty properties still returns the bundled resource.
         final Properties props = new Properties();
         final McpConfig config = new McpConfig( props );
-        assertNull( config.instructions() );
+        final String result = config.instructions();
+        assertNotNull( result );
+        assertFalse( result.isBlank(), "Should return bundled resource when no file is configured" );
     }
 
     @Test
-    void testBlankInstructionsFileAndInlineReturnsNull() {
+    void testBlankInstructionsFileFallsBackToBundled() {
+        // A blank mcp.instructions.file is treated as absent; bundled resource is loaded.
         final Properties props = new Properties();
         props.setProperty( "mcp.instructions.file", "  " );
-        props.setProperty( "mcp.instructions", "  " );
 
         final McpConfig config = new McpConfig( props );
-        assertNull( config.instructions() );
+        final String result = config.instructions();
+        assertNotNull( result );
+        assertFalse( result.isBlank(), "Should return bundled resource when file path is blank" );
     }
 
     @Test
@@ -212,5 +221,36 @@ class McpConfigTest {
         final McpConfig config = new McpConfig( props );
         assertEquals( 0, config.rateLimitGlobal() );
         assertEquals( 0, config.rateLimitPerClient() );
+    }
+
+    // --- Two-stage lookup tests (Task 5) ---
+
+    @Test
+    void instructionsPrefersFileOverrideWhenSpecified( @org.junit.jupiter.api.io.TempDir final java.nio.file.Path tmp ) throws Exception {
+        final java.nio.file.Path override = tmp.resolve( "custom-instructions.txt" );
+        java.nio.file.Files.writeString( override, "OVERRIDE INSTRUCTIONS" );
+        final java.util.Properties p = new java.util.Properties();
+        p.setProperty( "mcp.instructions.file", override.toString() );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "OVERRIDE INSTRUCTIONS", new McpConfig( p ).instructions() );
+    }
+
+    @Test
+    void instructionsFallsBackToBundledWhenOverrideMissing() {
+        final java.util.Properties p = new java.util.Properties();
+        p.setProperty( "mcp.instructions.file", "/nonexistent/path/that/does/not/exist.txt" );
+        final String result = new McpConfig( p ).instructions();
+        org.junit.jupiter.api.Assertions.assertNotNull( result );
+        org.junit.jupiter.api.Assertions.assertFalse( result.isBlank(),
+                "Should fall back to the bundled classpath resource when override is unreadable" );
+    }
+
+    @Test
+    void instructionsReturnsBundledResourceByDefault() {
+        final String result = new McpConfig( new java.util.Properties() ).instructions();
+        org.junit.jupiter.api.Assertions.assertNotNull( result );
+        org.junit.jupiter.api.Assertions.assertFalse( result.isBlank(),
+                "Default instructions should load from the bundled classpath resource" );
     }
 }

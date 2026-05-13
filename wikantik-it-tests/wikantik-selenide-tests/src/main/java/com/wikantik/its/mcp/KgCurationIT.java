@@ -430,12 +430,26 @@ public class KgCurationIT extends WithMcpTestSetup {
     // environment cannot reach. Coverage lives at the unit-test layer in
     // wikantik-admin-mcp (ReviewProposalsToolTest) and in the curation
     // service tests (DefaultKgCurationOpsTest).
-    //
-    // Likewise the §6 "Already-reviewed proposal" case is not covered
-    // here: the current KnowledgeGraphService.approveProposal /
-    // KgProposalRepository.applyHumanVerdict pair does not yet enforce
-    // the spec-promised "proposal already reviewed: status=approved"
-    // per-op error. Adding an IT now would fail; this gap is left open
-    // for a follow-up that wires the guard into the service layer.
     // ------------------------------------------------------------------
+
+    // ------------------------------------------------------------------
+    // review_proposals — re-approving an already-approved proposal yields
+    // a per-op error containing "already reviewed" (§6 guard, now enforced).
+    // ------------------------------------------------------------------
+
+    @Test
+    public void reviewProposalsReApproveAlreadyApprovedSurfacesPerIdError() {
+        final String alreadyApproved = WithMcpTestSetup.seededAlreadyApprovedProposalId();
+
+        final Map< String, Object > result = mcp.callTool( "review_proposals",
+                Map.of( "verdict", "approve", "ids", List.of( alreadyApproved ) ) );
+
+        final String body = result.toString();
+        Assertions.assertTrue( body.contains( "failed" ),
+                "Re-approve should appear under 'failed' in the result envelope: " + body );
+        Assertions.assertTrue( body.contains( alreadyApproved ),
+                "Response should echo the already-reviewed proposal id: " + body );
+        Assertions.assertTrue( body.contains( "already reviewed" ),
+                "Per-op error should cite 'already reviewed': " + body );
+    }
 }

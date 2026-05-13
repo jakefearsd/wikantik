@@ -219,3 +219,21 @@ INSERT INTO kg_nodes (id, name, node_type, source_page, provenance)
 VALUES
   ('dddddddd-3001-0000-0000-000000000001', 'KgCurateNodeDeletable', 'concept', 'KgCurationSeedPage', 'human-authored')
 ON CONFLICT (name) DO NOTHING;
+
+-- Already-approved proposal for the §6 "re-review" guard IT coverage.
+-- status=approved so review_proposals with verdict=approve must surface
+-- a per-id error containing "already reviewed".
+INSERT INTO kg_proposals (id, proposal_type, source_page, proposed_data, confidence, status, tier,
+                          reviewed_by, reviewed_at)
+VALUES (
+  'eeeeeeee-0001-0000-0000-000000000001',
+  'new-node',
+  'KgCurationSeedPage',
+  '{"name":"AlreadyApprovedNode","type":"concept"}'::jsonb,
+  0.90,
+  'approved',
+  'human',
+  'kg-curation-it',
+  NOW()
+)
+ON CONFLICT DO NOTHING;

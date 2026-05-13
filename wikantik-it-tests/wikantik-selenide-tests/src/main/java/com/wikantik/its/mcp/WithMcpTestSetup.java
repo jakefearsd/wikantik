@@ -76,6 +76,9 @@ public class WithMcpTestSetup {
     /** UUID of the seed node used by curate_nodes delete happy-path coverage. */
     private static final String SEEDED_DELETABLE_NODE_ID = "dddddddd-3001-0000-0000-000000000001";
 
+    /** UUID of the already-approved proposal used by the §6 re-review guard IT coverage. */
+    private static final String SEEDED_ALREADY_APPROVED_PROPOSAL_ID = "eeeeeeee-0001-0000-0000-000000000001";
+
     // -----------------------------------------------------------------
 
     protected static McpTestClient mcp;
@@ -148,6 +151,10 @@ public class WithMcpTestSetup {
 
     public static String seededDeletableNodeId() {
         return SEEDED_DELETABLE_NODE_ID;
+    }
+
+    public static String seededAlreadyApprovedProposalId() {
+        return SEEDED_ALREADY_APPROVED_PROPOSAL_ID;
     }
 
     // -----------------------------------------------------------------

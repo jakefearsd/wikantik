@@ -108,11 +108,23 @@ public class McpToolRegistry {
         ) );
 
         // --- Knowledge proposal tools (only if KnowledgeGraphService is available) ---
-        final KnowledgeGraphService kgService = com.wikantik.knowledge.subsystem
-            .KnowledgeSubsystemBridge.fromLegacyEngine( engine ).kgService();
+        final var subsystem = com.wikantik.knowledge.subsystem
+            .KnowledgeSubsystemBridge.fromLegacyEngine( engine );
+        final KnowledgeGraphService kgService = subsystem.kgService();
+        final com.wikantik.api.knowledge.KgCurationOps curationOps = subsystem.kgCurationOps();
         if ( kgService != null ) {
+            final int bulkLimit = new McpConfig().kgCurationBulkLimit();
             readOnlyList.add( new ListProposalsTool( kgService ) );
+            readOnlyList.add( new InspectProposalsTool( kgService, bulkLimit ) );
             authorConfigurableList.add( new ProposeKnowledgeTool( kgService ) );
+            if ( curationOps != null ) {
+                // future: gated by kg_curate scope when scoped API keys land (9b)
+                authorConfigurableList.add( new ReviewProposalsTool( curationOps, bulkLimit ) );
+                // future: gated by kg_curate scope when scoped API keys land (9b)
+                authorConfigurableList.add( new CurateEdgesTool( curationOps, bulkLimit ) );
+                // future: gated by kg_curate scope when scoped API keys land (9b)
+                authorConfigurableList.add( new CurateNodesTool( curationOps, bulkLimit ) );
+            }
         }
 
         readOnly = List.copyOf( readOnlyList );

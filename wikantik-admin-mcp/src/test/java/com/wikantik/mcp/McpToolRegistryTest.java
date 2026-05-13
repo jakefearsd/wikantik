@@ -19,10 +19,13 @@
 package com.wikantik.mcp;
 
 import com.wikantik.TestEngine;
+import com.wikantik.WikiEngine;
+import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.mcp.tools.McpTool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.util.List;
 import java.util.Set;
@@ -168,6 +171,35 @@ class McpToolRegistryTest {
         }
         for ( final McpTool tool : registry.authorConfigurableTools() ) {
             assertNotNull( tool.definition(), "Tool " + tool.name() + " should have a definition" );
+        }
+    }
+
+    @Test
+    void registerCurationToolsWhenKgServiceAvailable() {
+        final TestEngine kgEngine = TestEngine.build();
+        ( (WikiEngine) kgEngine ).setManager( KnowledgeGraphService.class,
+                Mockito.mock( KnowledgeGraphService.class ) );
+        final McpToolRegistry kgRegistry = new McpToolRegistry( kgEngine );
+        try {
+            final Set< String > readOnlyNames = kgRegistry.readOnlyTools().stream()
+                    .map( McpTool::name )
+                    .collect( Collectors.toSet() );
+            assertTrue( readOnlyNames.contains( "inspect_proposals" ),
+                    "should contain inspect_proposals" );
+            assertTrue( readOnlyNames.contains( "list_proposals" ),
+                    "should contain list_proposals" );
+
+            final Set< String > authorNames = kgRegistry.authorConfigurableTools().stream()
+                    .map( McpTool::name )
+                    .collect( Collectors.toSet() );
+            assertTrue( authorNames.contains( "review_proposals" ),
+                    "should contain review_proposals" );
+            assertTrue( authorNames.contains( "curate_edges" ),
+                    "should contain curate_edges" );
+            assertTrue( authorNames.contains( "curate_nodes" ),
+                    "should contain curate_nodes" );
+        } finally {
+            kgEngine.stop();
         }
     }
 }

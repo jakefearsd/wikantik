@@ -82,7 +82,7 @@ public final class KnowledgeSubsystemBridge {
             return new KnowledgeSubsystem.Services(
                 null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null,
-                null, null );
+                null, null, null );
         }
         final KnowledgeSubsystem.Services typed = wikiEngine.getKnowledgeSubsystem();
         if ( typed != null ) return typed;
@@ -122,7 +122,8 @@ public final class KnowledgeSubsystemBridge {
             engine.getManager( BootstrapEntityExtractionIndexer.class ),
             engine.getManager( KgInclusionPolicy.class ),
             engine.getManager( ReconciliationJobRunner.class ),
-            engine.getManager( RetrievalQualityRunner.class )
+            engine.getManager( RetrievalQualityRunner.class ),
+            /*kgCurationOps=*/ null
         );
     }
 }

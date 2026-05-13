@@ -169,6 +169,31 @@ public class McpConfig {
         return raw != null && Boolean.parseBoolean( raw.strip() );
     }
 
+    private static final int DEFAULT_KG_BULK_LIMIT = 50;
+
+    /**
+     * Returns the maximum number of proposals that may be acted on in a single
+     * bulk KG curation call. Reads from {@code wikantik.mcp.kg_curation.bulk_limit};
+     * defaults to {@value DEFAULT_KG_BULK_LIMIT}.
+     */
+    public int kgCurationBulkLimit() {
+        final String raw = props.getProperty( "wikantik.mcp.kg_curation.bulk_limit" );
+        if ( raw == null || raw.isBlank() ) return DEFAULT_KG_BULK_LIMIT;
+        try {
+            final int v = Integer.parseInt( raw.trim() );
+            if ( v <= 0 ) {
+                LOG.warn( "wikantik.mcp.kg_curation.bulk_limit={} is not positive — falling back to default {}",
+                        raw, DEFAULT_KG_BULK_LIMIT );
+                return DEFAULT_KG_BULK_LIMIT;
+            }
+            return v;
+        } catch ( final NumberFormatException e ) {
+            LOG.warn( "wikantik.mcp.kg_curation.bulk_limit={} is not an integer — falling back to default {}",
+                    raw, DEFAULT_KG_BULK_LIMIT );
+            return DEFAULT_KG_BULK_LIMIT;
+        }
+    }
+
     private String loadTextResource( final String resourceName ) {
         // Try thread-context classloader first (picks up external overrides), then our own
         final ClassLoader tccl = Thread.currentThread().getContextClassLoader();

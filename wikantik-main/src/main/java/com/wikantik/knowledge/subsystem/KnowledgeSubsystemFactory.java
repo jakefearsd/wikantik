@@ -43,6 +43,8 @@ import com.wikantik.knowledge.judge.JudgeRunner;
 import com.wikantik.knowledge.judge.KgJudgeConfig;
 import com.wikantik.knowledge.judge.KgJudgeTimeoutRepository;
 import com.wikantik.knowledge.judge.KgMaterializationService;
+import com.wikantik.api.knowledge.KgCurationOps;
+import com.wikantik.knowledge.curation.DefaultKgCurationOps;
 import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.util.TextUtil;
 import org.apache.logging.log4j.LogManager;
@@ -212,6 +214,11 @@ public final class KnowledgeSubsystemFactory {
             : new ChunkProjector( chunker, contentChunkRepo,
                 () -> TextUtil.getBooleanProperty( props, "wikantik.chunker.enabled", true ) );
 
+        // KG curation facade — built once here, shared by both the REST admin surface and
+        // the MCP write tools. PageSaveHelper is already available via saveHelper above.
+        final KgCurationOps curation = new DefaultKgCurationOps(
+            kgService, pageMgr, saveHelper );
+
         // Phase 8 Ckpt 1.5: the six post-construction services (ContextRetrievalService,
         // ForAgentProjectionService, BootstrapEntityExtractionIndexer, KgInclusionPolicy,
         // ReconciliationJobRunner, RetrievalQualityRunner) are wired into the engine's
@@ -241,7 +248,8 @@ public final class KnowledgeSubsystemFactory {
             /*bootstrapEntityExtractionIndexer=*/ null,
             /*kgInclusionPolicy=*/           null,
             /*reconciliationJobRunner=*/     null,
-            /*retrievalQualityRunner=*/      null
+            /*retrievalQualityRunner=*/      null,
+            /*kgCurationOps=*/               curation
         );
     }
 }

@@ -1604,7 +1604,8 @@ public class WikiEngine implements Engine {
             getManager( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class ),
             getManager( com.wikantik.api.kgpolicy.KgInclusionPolicy.class ),
             getManager( com.wikantik.kgpolicy.ReconciliationJobRunner.class ),
-            getManager( com.wikantik.api.eval.RetrievalQualityRunner.class )
+            getManager( com.wikantik.api.eval.RetrievalQualityRunner.class ),
+            base.kgCurationOps()
         );
     }
 
@@ -1662,7 +1663,8 @@ public class WikiEngine implements Engine {
             knowledgeSubsystem.bootstrapEntityExtractionIndexer(),
             knowledgeSubsystem.kgInclusionPolicy(),
             knowledgeSubsystem.reconciliationJobRunner(),
-            knowledgeSubsystem.retrievalQualityRunner()
+            knowledgeSubsystem.retrievalQualityRunner(),
+            knowledgeSubsystem.kgCurationOps()
         );
         // Rebuild the full WikiSubsystems stash so servlet callers see the updated record.
         final WikiSubsystems current =

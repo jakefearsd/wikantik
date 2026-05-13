@@ -54,6 +54,21 @@ public final class McpAudit {
                 safe( tool ), safe( action ), safe( target ), author == null || author.isBlank() ? "unknown" : author );
     }
 
+    /**
+     * Records a bulk state-changing MCP tool invocation with aggregate counts.
+     *
+     * @param tool      the tool name (e.g. {@code bulk_accept_kg_proposals})
+     * @param attempted total proposals attempted
+     * @param succeeded count successfully processed
+     * @param failed    count that failed or were skipped
+     * @param author    the effective author, or {@code null} if unknown
+     */
+    public static void logBulkWrite( final String tool, final int attempted, final int succeeded,
+                                      final int failed, final String author ) {
+        SECURITY.info( "tool={} action=bulk attempted={} succeeded={} failed={} author={}",
+                tool, attempted, succeeded, failed, author );
+    }
+
     private static String safe( final String s ) {
         return s == null ? "unknown" : s;
     }

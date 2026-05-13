@@ -22,6 +22,7 @@ import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.eval.RetrievalQualityRunner;
 import com.wikantik.api.kgpolicy.KgInclusionPolicy;
 import com.wikantik.api.knowledge.ContextRetrievalService;
+import com.wikantik.api.knowledge.KgCurationOps;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.core.subsystem.CoreSubsystem;
@@ -156,6 +157,7 @@ public final class KnowledgeSubsystem {
         BootstrapEntityExtractionIndexer bootstrapEntityExtractionIndexer,
         KgInclusionPolicy kgInclusionPolicy,
         ReconciliationJobRunner reconciliationJobRunner,
-        RetrievalQualityRunner retrievalQualityRunner
+        RetrievalQualityRunner retrievalQualityRunner,
+        KgCurationOps kgCurationOps
     ) {}
 }

@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.curation;
 
+import com.wikantik.api.knowledge.KgCurationOps;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.managers.PageManager;
@@ -108,5 +109,46 @@ public class DefaultKgCurationOpsTest {
         ops.tryApproveProposal( id, "alice" );
 
         Mockito.verifyNoInteractions( saver );
+    }
+
+    @Test
+    void tryUpsertEdgeReturnsIdOnSuccess() {
+        final UUID source = UUID.randomUUID();
+        final UUID target = UUID.randomUUID();
+        final UUID edgeId = UUID.randomUUID();
+        final com.wikantik.api.knowledge.KgEdge edge = Mockito.mock( com.wikantik.api.knowledge.KgEdge.class );
+        when( edge.id() ).thenReturn( edgeId );
+        when( kg.upsertEdge( eq( source ), eq( target ), eq( "depends_on" ),
+                eq( com.wikantik.api.knowledge.Provenance.HUMAN_CURATED ),
+                any() ) ).thenReturn( edge );
+
+        final KgCurationOps.EdgeResult r = ops.tryUpsertEdge( source, target, "depends_on",
+                java.util.Map.of(), "alice" );
+        assertTrue( r.error().isEmpty() );
+        assertEquals( edgeId, r.edgeId().orElseThrow() );
+    }
+
+    @Test
+    void tryUpsertEdgeReportsDuplicateKeyAsErrorMessage() {
+        when( kg.upsertEdge( any(), any(), any(), any(), any() ) )
+                .thenThrow( new RuntimeException( "duplicate key value violates unique constraint" ) );
+        final KgCurationOps.EdgeResult r = ops.tryUpsertEdge(
+                UUID.randomUUID(), UUID.randomUUID(), "rel", java.util.Map.of(), "alice" );
+        assertTrue( r.error().isPresent() );
+        assertTrue( r.error().get().toLowerCase().contains( "duplicate" ) );
+    }
+
+    @Test
+    void tryConfirmEdgeReturnsNotFoundWhenServiceReturnsNull() {
+        final UUID id = UUID.randomUUID();
+        when( kg.confirmEdge( eq( id ), any() ) ).thenReturn( null );
+        assertTrue( ops.tryConfirmEdge( id, "alice" ).isPresent() );
+    }
+
+    @Test
+    void tryDeleteAndRejectEdgeSucceedsWhenServiceReturnsCleanly() {
+        final UUID id = UUID.randomUUID();
+        Mockito.doNothing().when( kg ).deleteEdgeAndRecordRejection( eq( id ), eq( "alice" ), eq( "spurious" ) );
+        assertEquals( Optional.empty(), ops.tryDeleteAndRejectEdge( id, "alice", "spurious" ) );
     }
 }

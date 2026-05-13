@@ -18,6 +18,7 @@
  */
 package com.wikantik.api.knowledge;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,4 +40,18 @@ public interface KgCurationOps {
     Optional<String> tryRejectProposal( UUID proposalId, String reviewedBy, String reason );
 
     Optional<String> tryJudgeProposal( UUID proposalId, String reviewedBy );
+
+    Optional<String> tryConfirmEdge( UUID edgeId, String actor );
+
+    Optional<String> tryDeleteEdge( UUID edgeId, String actor );
+
+    Optional<String> tryDeleteAndRejectEdge( UUID edgeId, String actor, String reason );
+
+    EdgeResult tryUpsertEdge( UUID sourceId, UUID targetId, String relationshipType,
+                              Map<String, Object> properties, String actor );
+
+    record EdgeResult( Optional<UUID> edgeId, Optional<String> error ) {
+        public static EdgeResult ok( UUID id ) { return new EdgeResult( Optional.of( id ), Optional.empty() ); }
+        public static EdgeResult fail( String msg ) { return new EdgeResult( Optional.empty(), Optional.of( msg ) ); }
+    }
 }

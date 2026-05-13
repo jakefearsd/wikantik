@@ -19,13 +19,16 @@
 package com.wikantik.knowledge.curation;
 
 import com.wikantik.api.knowledge.KgCurationOps;
+import com.wikantik.api.knowledge.KgEdge;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -94,6 +97,55 @@ public class DefaultKgCurationOps implements KgCurationOps {
             LOG.warn( "tryJudgeProposal: proposal={} actor={}: {}",
                     proposalId, reviewedBy, e.getMessage() );
             return Optional.of( e.getMessage() != null ? e.getMessage() : "Judge error" );
+        }
+    }
+
+    @Override
+    public Optional<String> tryConfirmEdge( final UUID edgeId, final String actor ) {
+        try {
+            final KgEdge after = kg.confirmEdge( edgeId, actor );
+            if ( after == null ) return Optional.of( "Edge not found: " + edgeId );
+            return Optional.empty();
+        } catch ( final Exception e ) {
+            LOG.warn( "tryConfirmEdge: edge={} actor={}: {}", edgeId, actor, e.getMessage() );
+            return Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
+        }
+    }
+
+    @Override
+    public Optional<String> tryDeleteEdge( final UUID edgeId, final String actor ) {
+        try {
+            kg.deleteEdge( edgeId );
+            return Optional.empty();
+        } catch ( final Exception e ) {
+            LOG.warn( "tryDeleteEdge: edge={} actor={}: {}", edgeId, actor, e.getMessage() );
+            return Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
+        }
+    }
+
+    @Override
+    public Optional<String> tryDeleteAndRejectEdge( final UUID edgeId, final String actor, final String reason ) {
+        try {
+            kg.deleteEdgeAndRecordRejection( edgeId, actor, reason );
+            return Optional.empty();
+        } catch ( final Exception e ) {
+            LOG.warn( "tryDeleteAndRejectEdge: edge={} actor={}: {}", edgeId, actor, e.getMessage() );
+            return Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
+        }
+    }
+
+    @Override
+    public EdgeResult tryUpsertEdge( final UUID sourceId, final UUID targetId, final String relationshipType,
+                                     final Map<String, Object> properties, final String actor ) {
+        try {
+            final KgEdge edge = kg.upsertEdge( sourceId, targetId, relationshipType,
+                    Provenance.HUMAN_CURATED,
+                    properties == null ? Map.of() : properties );
+            return EdgeResult.ok( edge.id() );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "tryUpsertEdge: src={} tgt={} rel={} actor={}: {}",
+                    sourceId, targetId, relationshipType, actor, e.getMessage() );
+            return EdgeResult.fail( e.getMessage() != null ? e.getMessage() : "Internal error" );
         }
     }
 

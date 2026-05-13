@@ -233,6 +233,8 @@ class AdminKnowledgeResourceMockTest {
             Instant.parse( "2026-04-24T10:00:00Z" ),
             "human", null );
         Mockito.when( service.confirmEdge( Mockito.eq( id ), anyString() ) ).thenReturn( after );
+        // After routing through the facade, the resource re-fetches the edge for the response.
+        Mockito.when( service.getEdge( id ) ).thenReturn( after );
         final JsonObject obj = call( request( "/edges/" + id + "/confirm" ), "POST" );
         assertEquals( id.toString(), obj.get( "id" ).getAsString() );
         assertEquals( "human", obj.get( "tier" ).getAsString() );
@@ -447,8 +449,11 @@ class AdminKnowledgeResourceMockTest {
     @Test
     void postProposal_rejectPersistsReason() throws Exception {
         final UUID id = UUID.randomUUID();
+        final KgProposal rejected = proposal( id, "new-node", "Alpha", "rejected" );
         Mockito.when( service.rejectProposal( Mockito.eq( id ), anyString(), Mockito.eq( "bad idea" ) ) )
-            .thenReturn( proposal( id, "new-node", "Alpha", "rejected" ) );
+            .thenReturn( rejected );
+        // After routing through the facade, the resource re-fetches the proposal for the response.
+        Mockito.when( service.getProposal( id ) ).thenReturn( rejected );
 
         final JsonObject body = new JsonObject();
         body.addProperty( "reason", "bad idea" );
@@ -461,9 +466,12 @@ class AdminKnowledgeResourceMockTest {
     @Test
     void postNode_upsertsWithProvidedFields() throws Exception {
         final UUID id = UUID.randomUUID();
+        final KgNode alphaNode = node( id, "Alpha" );
         Mockito.when( service.upsertNode( Mockito.eq( "Alpha" ), Mockito.eq( "Concept" ),
                 Mockito.eq( "AlphaPage" ), Mockito.eq( Provenance.HUMAN_AUTHORED ), any() ) )
-            .thenReturn( node( id, "Alpha" ) );
+            .thenReturn( alphaNode );
+        // After routing through the facade, the resource re-fetches the node for the response.
+        Mockito.when( service.getNode( id ) ).thenReturn( alphaNode );
 
         final JsonObject body = new JsonObject();
         body.addProperty( "name", "Alpha" );
@@ -480,12 +488,15 @@ class AdminKnowledgeResourceMockTest {
         final UUID src = UUID.randomUUID();
         final UUID tgt = UUID.randomUUID();
         final UUID eId = UUID.randomUUID();
+        final KgEdge theEdge = edge( eId, src, tgt );
         // Edge upsert always stamps HUMAN_CURATED regardless of body provenance.
         Mockito.when( service.upsertEdge( Mockito.eq( src ), Mockito.eq( tgt ),
                 Mockito.eq( "related" ), Mockito.eq( Provenance.HUMAN_CURATED ), any() ) )
-            .thenReturn( edge( eId, src, tgt ) );
+            .thenReturn( theEdge );
         // Before-state lookup for audit
         Mockito.when( service.getEdgesForNode( Mockito.eq( src ), anyString() ) ).thenReturn( List.of() );
+        // After routing through the facade, the resource re-fetches the edge for the response.
+        Mockito.when( service.getEdge( eId ) ).thenReturn( theEdge );
 
         final JsonObject body = new JsonObject();
         body.addProperty( "source_id", src.toString() );

@@ -26,6 +26,7 @@ import com.google.gson.reflect.TypeToken;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.knowledge.ProposalConflictFlags;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.knowledge.judge.JudgeRunner;
 import com.wikantik.knowledge.SummaryExtractor;
@@ -103,6 +104,10 @@ public class AdminKnowledgeResource extends RestServletBase {
                     "Knowledge graph is not configured" );
         }
         return service;
+    }
+
+    private KgCurationOps getKgCurationOps() {
+        return getSubsystems().knowledge().kgCurationOps();
     }
 
     /**
@@ -476,25 +481,27 @@ public class AdminKnowledgeResource extends RestServletBase {
         final String action = segments[2];
         final String reviewedBy = request.getRemoteUser() != null ? request.getRemoteUser() : "admin";
 
+        final KgCurationOps ops = getKgCurationOps();
         switch ( action ) {
             case "approve" -> {
-                final KgProposal approved = service.approveProposal( proposalId, reviewedBy );
-                if ( approved == null ) {
-                    sendNotFound( response, "Proposal not found: " + proposalId );
+                final java.util.Optional< String > err = ops.tryApproveProposal( proposalId, reviewedBy );
+                if ( err.isPresent() ) {
+                    sendNotFound( response, err.get() );
                     return;
                 }
-                writeFrontmatterIfEdge( approved );
+                final KgProposal approved = service.getProposal( proposalId );
                 sendJson( response, proposalToMap( approved ) );
             }
             case "reject" -> {
                 final JsonObject body = parseJsonBody( request, response );
                 if ( body == null ) return;
                 final String reason = body.has( "reason" ) ? body.get( "reason" ).getAsString() : null;
-                final KgProposal rejected = service.rejectProposal( proposalId, reviewedBy, reason );
-                if ( rejected == null ) {
-                    sendNotFound( response, "Proposal not found: " + proposalId );
+                final java.util.Optional< String > err = ops.tryRejectProposal( proposalId, reviewedBy, reason );
+                if ( err.isPresent() ) {
+                    sendNotFound( response, err.get() );
                     return;
                 }
+                final KgProposal rejected = service.getProposal( proposalId );
                 sendJson( response, proposalToMap( rejected ) );
             }
             case "judge" -> {
@@ -578,6 +585,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         }
 
         final String actor = request.getRemoteUser() != null ? request.getRemoteUser() : "admin";
+        final KgCurationOps ops = getKgCurationOps();
         final List< String > succeeded = new ArrayList<>();
         final List< Map< String, Object > > failed = new ArrayList<>();
 
@@ -603,9 +611,9 @@ public class AdminKnowledgeResource extends RestServletBase {
 
             final java.util.Optional< String > err;
             switch ( action ) {
-                case "approve" -> err = tryApproveProposal( service, proposalId, actor );
-                case "reject"  -> err = tryRejectProposal( service, proposalId, actor, reason );
-                default        -> err = tryJudgeProposal( service, proposalId, actor );
+                case "approve" -> err = ops.tryApproveProposal( proposalId, actor );
+                case "reject"  -> err = ops.tryRejectProposal( proposalId, actor, reason );
+                default        -> err = ops.tryJudgeProposal( proposalId, actor );
             }
 
             if ( err.isEmpty() ) {
@@ -629,67 +637,11 @@ public class AdminKnowledgeResource extends RestServletBase {
         sendJson( response, result );
     }
 
-    /**
-     * Tries to approve a single proposal. Returns empty on success or an error message on failure.
-     * Used by both the single-item path and the bulk path to avoid duplicating logic.
-     */
-    private java.util.Optional< String > tryApproveProposal( final KnowledgeGraphService service,
-                                                              final UUID proposalId,
-                                                              final String reviewedBy ) {
-        try {
-            final KgProposal approved = service.approveProposal( proposalId, reviewedBy );
-            if ( approved == null ) {
-                return java.util.Optional.of( "Not found: " + proposalId );
-            }
-            writeFrontmatterIfEdge( approved );
-            return java.util.Optional.empty();
-        } catch ( final Exception e ) {
-            LOG.warn( "tryApproveProposal: proposal={} actor={}: {}", proposalId, reviewedBy, e.getMessage() );
-            return java.util.Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
-        }
-    }
-
-    /**
-     * Tries to reject a single proposal. Returns empty on success or an error message on failure.
-     * Used by both the single-item path and the bulk path to avoid duplicating logic.
-     */
-    private java.util.Optional< String > tryRejectProposal( final KnowledgeGraphService service,
-                                                             final UUID proposalId,
-                                                             final String reviewedBy,
-                                                             final String reason ) {
-        try {
-            final KgProposal rejected = service.rejectProposal( proposalId, reviewedBy, reason );
-            if ( rejected == null ) {
-                return java.util.Optional.of( "Not found: " + proposalId );
-            }
-            return java.util.Optional.empty();
-        } catch ( final Exception e ) {
-            LOG.warn( "tryRejectProposal: proposal={} actor={}: {}", proposalId, reviewedBy, e.getMessage() );
-            return java.util.Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
-        }
-    }
-
-    /**
-     * Tries to judge a single proposal now. Returns empty on success or an error message on failure.
-     * Judge exceptions (e.g. timeout) surface as per-id failures with a LOG.warn per CLAUDE.md.
-     * Used by both the single-item path and the bulk path to avoid duplicating logic.
-     */
-    private java.util.Optional< String > tryJudgeProposal( final KnowledgeGraphService service,
-                                                            final UUID proposalId,
-                                                            final String reviewedBy ) {
-        try {
-            service.judgeNow( proposalId, reviewedBy );
-            return java.util.Optional.empty();
-        } catch ( final Exception e ) {
-            LOG.warn( "tryJudgeProposal: proposal={} actor={}: {}", proposalId, reviewedBy, e.getMessage() );
-            return java.util.Optional.of( e.getMessage() != null ? e.getMessage() : "Judge error" );
-        }
-    }
-
     private void handlePostNode( final KnowledgeGraphService service,
                                  final HttpServletRequest request,
                                  final HttpServletResponse response,
                                  final String[] segments ) throws IOException {
+        final KgCurationOps ops = getKgCurationOps();
         if ( segments.length >= 2 && "merge".equals( segments[1] ) ) {
             // POST /admin/knowledge-graph/nodes/merge
             final JsonObject body = parseJsonBody( request, response );
@@ -706,7 +658,11 @@ public class AdminKnowledgeResource extends RestServletBase {
                         service, sourceNode.name(), targetNode.name(), sourceId );
             }
 
-            service.mergeNodes( sourceId, targetId );
+            final java.util.Optional< String > mergeErr = ops.tryMergeNodes( sourceId, targetId, actor( request ) );
+            if ( mergeErr.isPresent() ) {
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST, mergeErr.get() );
+                return;
+            }
             sendJson( response, Map.of( "merged", true, "targetId", targetId.toString(),
                     "pages_updated", pagesUpdated ) );
         } else {
@@ -718,13 +674,15 @@ public class AdminKnowledgeResource extends RestServletBase {
             final String sourcePage = body.has( "source_page" ) ? body.get( "source_page" ).getAsString() : null;
             final Map< String, Object > properties = body.has( "properties" )
                     ? GSON.fromJson( body.get( "properties" ), MAP_TYPE ) : Map.of();
-            final KgNode node = service.upsertNode( name, nodeType, sourcePage,
-                    Provenance.HUMAN_AUTHORED, properties );
+            final KgCurationOps.NodeResult nodeResult = ops.tryUpsertNode( name, nodeType, sourcePage,
+                    properties, actor( request ) );
+            if ( nodeResult.error().isPresent() ) {
+                LOG.warn( "tryUpsertNode: name='{}' sourcePage='{}': {}", name, sourcePage, nodeResult.error().get() );
+                sendError( response, HttpServletResponse.SC_CONFLICT, nodeResult.error().get() );
+                return;
+            }
+            final KgNode node = service.getNode( nodeResult.nodeId().get() );
             if ( node == null ) {
-                // Insert succeeded but read-back returned null — typically because
-                // source_page is in kg_excluded_pages and KgInclusionFilter hides it.
-                LOG.warn( "upsertNode returned null for name='{}' source_page='{}' — " +
-                    "likely filtered by KG inclusion policy", name, sourcePage );
                 sendError( response, HttpServletResponse.SC_CONFLICT,
                     "node not visible after insert (excluded source page or other policy filter)" );
                 return;
@@ -759,9 +717,14 @@ public class AdminKnowledgeResource extends RestServletBase {
         final UUID id = parseUuid( segments[1], response );
         if ( id == null ) return;
         final String actorVal = actor( request );
-        final KgEdge after = service.confirmEdge( id, actorVal );
+        final java.util.Optional< String > err = getKgCurationOps().tryConfirmEdge( id, actorVal );
+        if ( err.isPresent() ) {
+            sendNotFound( response, err.get() );
+            return;
+        }
+        final KgEdge after = service.getEdge( id );
         if ( after == null ) {
-            sendNotFound( response, "Edge not found: " + id );
+            sendNotFound( response, "Edge not found after confirm: " + id );
             return;
         }
         sendJson( response, Map.of(
@@ -797,26 +760,31 @@ public class AdminKnowledgeResource extends RestServletBase {
                 sourceId, targetId, relType, e.getMessage() );
         }
 
-        final KgEdge edge;
-        try {
-            // Always stamp HUMAN_CURATED regardless of any provenance value in the body
-            edge = service.upsertEdge( sourceId, targetId, relType,
-                    Provenance.HUMAN_CURATED, properties );
-        } catch ( final RuntimeException e ) {
-            // Walk the cause chain for a duplicate key violation
-            Throwable cause = e;
-            while ( cause != null ) {
-                if ( cause.getMessage() != null
-                        && cause.getMessage().toLowerCase( java.util.Locale.ROOT ).contains( "duplicate key" ) ) {
-                    LOG.warn( "handlePostEdgeUpsert: duplicate key for ({}, {}, {}): {}",
-                        sourceId, targetId, relType, e.getMessage() );
-                    sendError( response, HttpServletResponse.SC_CONFLICT,
-                        "Edge already exists: " + sourceId + " -[" + relType + "]-> " + targetId );
-                    return;
-                }
-                cause = cause.getCause();
+        // Always stamps HUMAN_CURATED regardless of any provenance value in the body
+        final KgCurationOps.EdgeResult result = getKgCurationOps().tryUpsertEdge(
+                sourceId, targetId, relType, properties, actor( request ) );
+        if ( result.error().isPresent() ) {
+            final String msg = result.error().get();
+            if ( msg != null && msg.toLowerCase( java.util.Locale.ROOT ).contains( "duplicate" ) ) {
+                LOG.warn( "handlePostEdgeUpsert: duplicate key for ({}, {}, {}): {}",
+                    sourceId, targetId, relType, msg );
+                sendError( response, HttpServletResponse.SC_CONFLICT,
+                    "Edge already exists: " + sourceId + " -[" + relType + "]-> " + targetId );
+            } else {
+                LOG.warn( "handlePostEdgeUpsert: failed for ({}, {}, {}): {}",
+                    sourceId, targetId, relType, msg );
+                sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, msg );
             }
-            throw e;
+            return;
+        }
+
+        final KgEdge edge = service.getEdge( result.edgeId().get() );
+        if ( edge == null ) {
+            LOG.warn( "handlePostEdgeUpsert: edge not readable after upsert (src={}, tgt={}, rel={})",
+                sourceId, targetId, relType );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                "Edge not visible after upsert" );
+            return;
         }
 
         // Write audit row (best-effort)
@@ -917,7 +885,12 @@ public class AdminKnowledgeResource extends RestServletBase {
         }
 
         final String actorVal = actor( request );
-        service.deleteEdgeAndRecordRejection( id, actorVal, reason );
+        final java.util.Optional< String > err = getKgCurationOps().tryDeleteAndRejectEdge( id, actorVal, reason );
+        if ( err.isPresent() ) {
+            LOG.warn( "handlePostEdgeDeleteAndReject: failed for edge {}: {}", id, err.get() );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, err.get() );
+            return;
+        }
 
         // Write audit row (best-effort)
         final var audit = getAuditRepo( service );
@@ -955,7 +928,12 @@ public class AdminKnowledgeResource extends RestServletBase {
                                    final String idStr ) throws IOException {
         final UUID id = parseUuid( idStr, response );
         if ( id == null ) return;
-        service.deleteNode( id );
+        final java.util.Optional< String > err = getKgCurationOps().tryDeleteNode( id, null );
+        if ( err.isPresent() ) {
+            LOG.warn( "handleDeleteNode: failed for node {}: {}", id, err.get() );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, err.get() );
+            return;
+        }
         LOG.info( "Knowledge graph node deleted: {}", id );
         sendJson( response, Map.of( "deleted", true ) );
     }
@@ -978,7 +956,12 @@ public class AdminKnowledgeResource extends RestServletBase {
             LOG.warn( "handleDeleteEdge: failed to fetch before-state for audit (id={}): {}", id, e.getMessage() );
         }
 
-        service.deleteEdge( id );
+        final java.util.Optional< String > err = getKgCurationOps().tryDeleteEdge( id, actor( request ) );
+        if ( err.isPresent() ) {
+            LOG.warn( "handleDeleteEdge: failed for edge {}: {}", id, err.get() );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, err.get() );
+            return;
+        }
         LOG.info( "Knowledge graph edge deleted: {}", id );
 
         // Write audit row (best-effort)
@@ -992,65 +975,6 @@ public class AdminKnowledgeResource extends RestServletBase {
         }
 
         sendJson( response, Map.of( "deleted", true ) );
-    }
-
-    // --- Frontmatter write-back ---
-
-    /**
-     * After approving a {@code new-edge} proposal, writes the approved relationship
-     * back into the source page's frontmatter. The subsequent page save triggers the
-     * graph projector, which recognizes the edge at {@code ai-reviewed} provenance
-     * and skips duplication.
-     */
-    @SuppressWarnings( "unchecked" )
-    private void writeFrontmatterIfEdge( final KgProposal proposal ) {
-        if ( !"new-edge".equals( proposal.proposalType() ) || proposal.sourcePage() == null ) {
-            return;
-        }
-
-        final Map< String, Object > data = proposal.proposedData();
-        if ( data == null ) return;
-
-        final String target = ( String ) data.get( "target" );
-        final String relationship = ( String ) data.get( "relationship" );
-        if ( target == null || relationship == null ) return;
-
-        try {
-            final PageManager pm = getSubsystems().page().pages();
-            final String pageName = proposal.sourcePage().replace( ".md", "" );
-            final String pageText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
-            if ( pageText == null ) {
-                LOG.warn( "Cannot write-back to page '{}': page not found", pageName );
-                return;
-            }
-
-            final ParsedPage parsed = FrontmatterParser.parse( pageText );
-            final Map< String, Object > metadata = new LinkedHashMap<>( parsed.metadata() );
-
-            // Add the target to the relationship key (create if needed)
-            final Object existing = metadata.get( relationship );
-            if ( existing instanceof List ) {
-                final List< String > list = new ArrayList<>( ( List< String > ) existing );
-                if ( !list.contains( target ) ) {
-                    list.add( target );
-                    metadata.put( relationship, list );
-                }
-            } else {
-                metadata.put( relationship, new ArrayList<>( List.of( target ) ) );
-            }
-
-            final String updatedText = FrontmatterWriter.write( metadata, parsed.body() );
-            final PageSaveHelper saveHelper = new PageSaveHelper( getEngine(), pm );
-            final SaveOptions options = SaveOptions.builder()
-                    .author( "Knowledge Admin" )
-                    .changeNote( "Approved knowledge proposal: " + relationship + " → " + target )
-                    .build();
-            saveHelper.saveText( pageName, updatedText, options );
-
-            LOG.info( "Frontmatter write-back: added {} → {} to page '{}'", relationship, target, pageName );
-        } catch ( final WikiException e ) {
-            LOG.error( "Failed to write-back frontmatter for proposal {}: {}", proposal.id(), e.getMessage(), e );
-        }
     }
 
     /**
@@ -1220,24 +1144,9 @@ public class AdminKnowledgeResource extends RestServletBase {
         map.put( "machine_judged_at", p.machineJudgedAt() != null ? p.machineJudgedAt().toString() : null );
         map.put( "machine_model", p.machineModel() );
 
-        if ( service != null && p.proposedData() != null ) {
-            try {
-                if ( "new-node".equals( p.proposalType() ) ) {
-                    final Object name = p.proposedData().get( "name" );
-                    if ( name instanceof String s && !s.isBlank() ) {
-                        map.put( "node_exists", service.getNodeByName( s ) != null );
-                    }
-                } else if ( "new-edge".equals( p.proposalType() ) ) {
-                    final Object src = p.proposedData().get( "source" );
-                    final Object tgt = p.proposedData().get( "target" );
-                    final Object rel = p.proposedData().get( "relationship" );
-                    if ( src instanceof String s && tgt instanceof String t && rel instanceof String r ) {
-                        map.put( "edge_previously_rejected", service.isRejected( s, t, r ) );
-                    }
-                }
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "Failed to compute conflict flags for proposal {}: {}", p.id(), e.getMessage() );
-            }
+        if ( service != null ) {
+            final Map< String, Object > flags = ProposalConflictFlags.forProposal( service, p );
+            map.putAll( flags );
         }
         return map;
     }

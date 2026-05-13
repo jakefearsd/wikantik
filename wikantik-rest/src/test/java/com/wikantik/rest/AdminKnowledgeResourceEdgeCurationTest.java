@@ -109,11 +109,14 @@ class AdminKnowledgeResourceEdgeCurationTest {
         final UUID src = UUID.randomUUID();
         final UUID tgt = UUID.randomUUID();
         final UUID eId = UUID.randomUUID();
+        final KgEdge theEdge = edge( eId, src, tgt );
         Mockito.when( service.upsertEdge( eq( src ), eq( tgt ),
                 eq( "related" ), eq( Provenance.HUMAN_CURATED ), any() ) )
-            .thenReturn( edge( eId, src, tgt ) );
+            .thenReturn( theEdge );
         // Also stub getEdgesForNode so the before-state lookup doesn't fail
         Mockito.when( service.getEdgesForNode( eq( src ), anyString() ) ).thenReturn( List.of() );
+        // After routing through the facade, the resource re-fetches the edge for the response.
+        Mockito.when( service.getEdge( eId ) ).thenReturn( theEdge );
 
         final JsonObject body = new JsonObject();
         body.addProperty( "source_id", src.toString() );

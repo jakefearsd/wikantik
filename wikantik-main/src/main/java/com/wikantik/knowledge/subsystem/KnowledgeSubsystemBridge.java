@@ -23,9 +23,13 @@ import com.wikantik.api.core.Engine;
 import com.wikantik.api.eval.RetrievalQualityRunner;
 import com.wikantik.api.kgpolicy.KgInclusionPolicy;
 import com.wikantik.api.knowledge.ContextRetrievalService;
+import com.wikantik.api.knowledge.KgCurationOps;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.knowledge.FrontmatterDefaultsFilter;
+import com.wikantik.knowledge.curation.DefaultKgCurationOps;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubOverviewService;
@@ -100,8 +104,20 @@ public final class KnowledgeSubsystemBridge {
      * snapshot stays coherent without requiring a full re-initialization cycle.
      */
     public static KnowledgeSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
+        final KnowledgeGraphService kgSvc = engine.getManager( KnowledgeGraphService.class );
+        final PageManager pm = engine.getManager( PageManager.class );
+        // Synthesise a DefaultKgCurationOps when both the KG service and page manager are
+        // available (the normal test-fixture case after setManager hot-swaps). Falls back
+        // to null when the engine is a minimal stub that only registers some managers.
+        final KgCurationOps kgCurationOps;
+        if ( kgSvc != null && pm != null ) {
+            final PageSaveHelper saver = new PageSaveHelper( engine, pm );
+            kgCurationOps = new DefaultKgCurationOps( kgSvc, pm, saver );
+        } else {
+            kgCurationOps = null;
+        }
         return new KnowledgeSubsystem.Services(
-            engine.getManager( KnowledgeGraphService.class ),
+            kgSvc,
             engine.getManager( KgProposalJudgeService.class ),
             engine.getManager( JudgeRunner.class ),
             engine.getManager( KgMaterializationService.class ),
@@ -123,7 +139,7 @@ public final class KnowledgeSubsystemBridge {
             engine.getManager( KgInclusionPolicy.class ),
             engine.getManager( ReconciliationJobRunner.class ),
             engine.getManager( RetrievalQualityRunner.class ),
-            /*kgCurationOps=*/ null
+            kgCurationOps
         );
     }
 }

@@ -145,8 +145,30 @@ public class DefaultKgCurationOps implements KgCurationOps {
         } catch ( final RuntimeException e ) {
             LOG.warn( "tryUpsertEdge: src={} tgt={} rel={} actor={}: {}",
                     sourceId, targetId, relationshipType, actor, e.getMessage() );
-            return EdgeResult.fail( e.getMessage() != null ? e.getMessage() : "Internal error" );
+            // Walk the cause chain to surface duplicate-key messages — the JDBC driver
+            // wraps them inside a RuntimeException thrown by the persistence layer.
+            final String msg = causeChainMessage( e );
+            return EdgeResult.fail( msg );
         }
+    }
+
+    /**
+     * Walks the exception cause chain and returns the deepest (most-specific) non-blank
+     * message found, or {@code "Internal error"} if none is available. Returning the
+     * deepest message ensures that JDBC-level details (e.g. "duplicate key value violates
+     * unique constraint") are not hidden by generic wrapper messages produced by the
+     * persistence layer.
+     */
+    private static String causeChainMessage( final Throwable t ) {
+        String result = "Internal error";
+        Throwable current = t;
+        while ( current != null ) {
+            if ( current.getMessage() != null && !current.getMessage().isBlank() ) {
+                result = current.getMessage();
+            }
+            current = current.getCause();
+        }
+        return result;
     }
 
     @Override
@@ -244,6 +266,7 @@ public class DefaultKgCurationOps implements KgCurationOps {
             LOG.info( "Frontmatter write-back: added {} → {} to page '{}'",
                     relationship, target, pageName );
         } catch ( final com.wikantik.api.exceptions.WikiException e ) {
+            // LOG.error justified: frontmatter write-back failure indicates data inconsistency between the approved proposal and the wiki page store — operator must investigate.
             LOG.error( "Failed to write-back frontmatter for proposal {}: {}",
                     proposal.id(), e.getMessage(), e );
         }

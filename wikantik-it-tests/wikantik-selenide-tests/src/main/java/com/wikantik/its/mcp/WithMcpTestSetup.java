@@ -21,11 +21,38 @@ package com.wikantik.its.mcp;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+
 /**
  * Base class for MCP integration tests. Creates and closes an {@link McpTestClient}
  * for the test class lifecycle. Does not depend on Selenide or any browser.
+ *
+ * <p>Exposes static accessors for KG curation seed fixture UUIDs inserted by
+ * {@code it-test-seed.sql} (fixed UUIDs so tests are deterministic). Also provides
+ * helpers for reading the Cargo Tomcat log to verify audit-log emission.</p>
  */
 public class WithMcpTestSetup {
+
+    // -----------------------------------------------------------------
+    // KG curation seed fixture IDs — match it-test-seed.sql exactly.
+    // -----------------------------------------------------------------
+
+    /** UUID of the pending {@code new-node} proposal seeded for approve/inspect tests. */
+    private static final String SEEDED_PENDING_NODE_PROPOSAL_ID = "cccccccc-0001-0000-0000-000000000001";
+
+    /** UUID of the pending {@code new-edge} proposal seeded for reject-without-reason tests. */
+    private static final String SEEDED_PENDING_EDGE_PROPOSAL_ID = "cccccccc-0002-0000-0000-000000000002";
+
+    /** UUID of the HUMAN_CURATED edge seeded for confirm/delete flow tests. */
+    private static final String SEEDED_EDGE_ID = "bbbbbbbb-0001-0000-0000-000000000001";
+
+    /** UUID of the seed node used for merge-self per-op error tests. */
+    private static final String SEEDED_NODE_ID = "aaaaaaaa-0001-0000-0000-000000000001";
+
+    // -----------------------------------------------------------------
 
     protected static McpTestClient mcp;
 
@@ -45,5 +72,55 @@ public class WithMcpTestSetup {
 
     protected static String uniquePageName( final String prefix ) {
         return prefix + "_" + System.currentTimeMillis() + "_" + Thread.currentThread().threadId();
+    }
+
+    // -----------------------------------------------------------------
+    // KG curation seed accessors
+    // -----------------------------------------------------------------
+
+    public static String seededPendingNodeProposalId() {
+        return SEEDED_PENDING_NODE_PROPOSAL_ID;
+    }
+
+    public static String seededPendingEdgeProposalId() {
+        return SEEDED_PENDING_EDGE_PROPOSAL_ID;
+    }
+
+    public static String seededEdgeId() {
+        return SEEDED_EDGE_ID;
+    }
+
+    public static String seededNodeId() {
+        return SEEDED_NODE_ID;
+    }
+
+    // -----------------------------------------------------------------
+    // Cargo Tomcat log helpers
+    // The Cargo plugin writes Tomcat stdout/stderr to
+    // ${project.build.directory}/tomcat.log (configured in the parent
+    // wikantik-it-tests pom.xml via <output>). The system property
+    // "cargo.tomcat.log" allows override in CI environments.
+    // -----------------------------------------------------------------
+
+    public static Path catalinaOutPath() {
+        return Path.of( System.getProperty( "cargo.tomcat.log",
+                "target/tomcat.log" ) );
+    }
+
+    public static String readCatalinaOutSince( final long offsetBytes ) throws IOException {
+        final Path p = catalinaOutPath();
+        if ( !p.toFile().exists() ) {
+            return "";
+        }
+        try ( final RandomAccessFile raf = new RandomAccessFile( p.toFile(), "r" ) ) {
+            final long len = raf.length();
+            if ( offsetBytes >= len ) {
+                return "";
+            }
+            raf.seek( offsetBytes );
+            final byte[] buf = new byte[ (int) ( len - offsetBytes ) ];
+            raf.readFully( buf );
+            return new String( buf, StandardCharsets.UTF_8 );
+        }
     }
 }

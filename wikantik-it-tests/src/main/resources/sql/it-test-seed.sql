@@ -93,3 +93,50 @@ INSERT INTO policy_grants (principal_type, principal_name, permission_type, targ
     ('role', 'Anonymous',     'wiki',  '*', 'createPages,createGroups')
 ON CONFLICT (principal_type, principal_name, permission_type, target) DO UPDATE
     SET actions = EXCLUDED.actions;
+
+-- -----------------------------------------------------------------------
+-- KG curation IT fixtures (KgCurationIT)
+-- Fixed UUIDs so WithMcpTestSetup can expose them as static constants.
+-- -----------------------------------------------------------------------
+
+-- Two seed nodes: one used as a merge-self target, one as the edge endpoint.
+INSERT INTO kg_nodes (id, name, node_type, source_page, provenance)
+VALUES
+  ('aaaaaaaa-0001-0000-0000-000000000001', 'KgCurationSeedNode', 'concept', 'KgCurationSeedPage', 'human-authored'),
+  ('aaaaaaaa-0002-0000-0000-000000000002', 'KgCurationEdgeSrc',  'concept', 'KgCurationSeedPage', 'human-authored')
+ON CONFLICT (name) DO NOTHING;
+
+-- One HUMAN_CURATED edge between the two seed nodes (for confirm + delete tests).
+INSERT INTO kg_edges (id, source_id, target_id, relationship_type, provenance)
+VALUES (
+  'bbbbbbbb-0001-0000-0000-000000000001',
+  'aaaaaaaa-0002-0000-0000-000000000002',
+  'aaaaaaaa-0001-0000-0000-000000000001',
+  'related_to',
+  'human-curated'
+)
+ON CONFLICT (source_id, target_id, relationship_type) DO NOTHING;
+
+-- Pending new-node proposal (inspect_proposals + review_proposals approve path).
+INSERT INTO kg_proposals (id, proposal_type, source_page, proposed_data, confidence, status)
+VALUES (
+  'cccccccc-0001-0000-0000-000000000001',
+  'new-node',
+  'KgCurationSeedPage',
+  '{"name":"SeedProposalNode","type":"concept"}'::jsonb,
+  0.85,
+  'pending'
+)
+ON CONFLICT DO NOTHING;
+
+-- Pending new-edge proposal (review_proposals reject-without-reason error path).
+INSERT INTO kg_proposals (id, proposal_type, source_page, proposed_data, confidence, status)
+VALUES (
+  'cccccccc-0002-0000-0000-000000000002',
+  'new-edge',
+  'KgCurationSeedPage',
+  '{"source":"KgCurationEdgeSrc","target":"KgCurationSeedNode","relationship":"related_to"}'::jsonb,
+  0.75,
+  'pending'
+)
+ON CONFLICT DO NOTHING;

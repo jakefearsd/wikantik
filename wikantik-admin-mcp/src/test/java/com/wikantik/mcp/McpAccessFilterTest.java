@@ -36,6 +36,8 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.Properties;
 
+import org.mockito.Mockito;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -170,8 +172,8 @@ class McpAccessFilterTest {
         verify( chain, never() ).doFilter( request, response );
         verify( response ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
         verify( response ).setContentType( "application/json" );
-        assertTrue( body.toString().contains( "MCP not configured" ),
-                "Expected error body to mention MCP not configured, got: " + body );
+        assertTrue( body.toString().contains( "mcp_access_unconfigured" ),
+                "Expected error body to mention mcp_access_unconfigured, got: " + body );
     }
 
     @Test
@@ -476,5 +478,36 @@ class McpAccessFilterTest {
 
         verify( svc, never() ).verify( anyString() );
         verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+    }
+
+    @Test
+    void failClosedReturns503WithJsonBodyAndRetryAfter() throws Exception {
+        final Properties p = new Properties();
+        // No keys, no CIDRs, no allowUnrestricted → fail-closed
+        final McpConfig config = new McpConfig( p );
+        final McpRateLimiter rl = new McpRateLimiter( 0, 0 );
+        final McpAccessFilter filter = new McpAccessFilter( config, rl );
+
+        final HttpServletRequest req = Mockito.mock( HttpServletRequest.class );
+        when( req.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+        final HttpServletResponse resp = Mockito.mock( HttpServletResponse.class );
+        final StringWriter body = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( body ) );
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        filter.doFilter( req, resp, chain );
+
+        Mockito.verify( resp ).setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
+        Mockito.verify( resp ).setContentType( "application/json" );
+        Mockito.verify( resp ).setHeader( "Retry-After", "86400" );
+        Mockito.verifyNoInteractions( chain );
+
+        final String text = body.toString();
+        org.junit.jupiter.api.Assertions.assertTrue(
+                text.contains( "\"error\":\"mcp_access_unconfigured\"" ), text );
+        org.junit.jupiter.api.Assertions.assertTrue(
+                text.contains( "mcp.access.keys" ), "Body should name the config keys: " + text );
+        org.junit.jupiter.api.Assertions.assertTrue(
+                text.contains( "mcp.access.allowUnrestricted" ), text );
     }
 }

@@ -120,7 +120,12 @@ public class McpAccessFilter implements Filter {
             SECURITY.warn( "MCP request rejected: filter fail-closed (no auth configured), ip={}", remoteAddr );
             httpResp.setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
             httpResp.setContentType( "application/json" );
-            httpResp.getWriter().write( "{\"error\":\"MCP not configured\"}" );
+            httpResp.setHeader( "Retry-After", "86400" );
+            httpResp.getWriter().write(
+                    "{\"error\":\"mcp_access_unconfigured\","
+                    + "\"detail\":\"No API keys, CIDR allowlist, or mcp.access.allowUnrestricted=true. "
+                    + "Configure one of mcp.access.keys / mcp.access.allowedCidrs / mcp.access.allowUnrestricted "
+                    + "in wikantik-custom.properties to enable /wikantik-admin-mcp.\"}" );
             return;
         }
 

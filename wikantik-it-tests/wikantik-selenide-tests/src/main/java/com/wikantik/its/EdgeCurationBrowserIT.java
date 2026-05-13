@@ -121,12 +121,20 @@ public class EdgeCurationBrowserIT extends WithIntegrationTestSetup {
             .shouldBe( visible, Duration.ofSeconds( 5 ) )
             .setValue( "smoke test" );
 
-        // Scope the Confirm click to the modal — the detail pane now carries
-        // its own "Confirm" button (one-click elevate-to-human-curated) which
-        // matches "Confirm" first and may be disabled if the seeded edge is
-        // already human-curated.
-        $( ".modal-overlay" ).$$( "button" )
-            .findBy( text( "Confirm" ) ).click();
+        // Scope the Confirm click to the modal. The detail pane carries its
+        // own "Confirm" button (one-click elevate-to-human-curated) which is
+        // btn-primary btn-sm, not btn-danger — so ".modal-overlay button.btn-danger"
+        // uniquely targets the modal's red Confirm.
+        //
+        // Headless Chrome's default viewport is short enough that the modal's
+        // action row can sit below the fold; without explicit scrollIntoView,
+        // WebDriver reports the button as not displayed and Selenide's text
+        // filter also returns "" so findBy(text("Confirm")) misses it. Scroll
+        // and then click.
+        $( ".modal-overlay button.btn-danger" )
+            .scrollIntoView( true )
+            .shouldBe( visible, Duration.ofSeconds( 5 ) )
+            .click();
 
         // Row should disappear from the table after the delete completes.
         $( "table.admin-table" )

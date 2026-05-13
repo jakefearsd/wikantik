@@ -484,6 +484,10 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     @Override
     public KgProposal approveProposal( final UUID proposalId, final String reviewedBy ) {
+        final KgProposal existing = proposals.getProposal( proposalId );
+        if ( existing == null ) {
+            return null;
+        }
         proposals.applyHumanVerdict( proposalId, "approved", reviewedBy );
         proposals.recordReview( proposalId, KgProposalReview.REVIEWER_HUMAN, reviewedBy,
             "approved", null, null );
@@ -498,6 +502,9 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     @Override
     public KgProposal rejectProposal( final UUID proposalId, final String reviewedBy, final String reason ) {
         final KgProposal proposal = proposals.getProposal( proposalId );
+        if ( proposal == null ) {
+            return null;
+        }
         proposals.applyHumanVerdict( proposalId, "rejected", reviewedBy );
         proposals.recordReview( proposalId, KgProposalReview.REVIEWER_HUMAN, reviewedBy,
             "rejected", null, reason );

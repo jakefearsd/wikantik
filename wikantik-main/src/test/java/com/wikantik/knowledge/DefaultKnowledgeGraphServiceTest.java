@@ -149,6 +149,23 @@ class DefaultKnowledgeGraphServiceTest {
     }
 
     @Test
+    void approveProposal_returnsNullForMissingId() {
+        // Approving a non-existent UUID must return null cleanly, not throw a
+        // FK violation. The MCP facade converts null to a per-id "Not found" error.
+        final java.util.UUID missing = java.util.UUID.fromString( "00000000-0000-0000-0000-000000000000" );
+        assertNull( service.approveProposal( missing, "admin" ),
+                "approveProposal with unknown id should return null, not throw" );
+    }
+
+    @Test
+    void rejectProposal_returnsNullForMissingId() {
+        // Rejecting a non-existent UUID must return null cleanly.
+        final java.util.UUID missing = java.util.UUID.fromString( "00000000-0000-0000-0000-000000000000" );
+        assertNull( service.rejectProposal( missing, "admin", "no reason needed" ),
+                "rejectProposal with unknown id should return null, not throw" );
+    }
+
+    @Test
     void submitProposal_rejectedIfPreviouslyRejected() {
         service.upsertNode( "Order", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );
         service.upsertNode( "Inventory", "dm", null, Provenance.HUMAN_AUTHORED, Map.of() );

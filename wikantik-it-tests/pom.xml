@@ -140,6 +140,7 @@
                   <it-wikantik.config.wdm.target-path>${project.basedir}/target/wdm</it-wikantik.config.wdm.target-path>
                   <it-wikantik.login.janne.username>janne</it-wikantik.login.janne.username>
                   <it-wikantik.login.janne.password>myP@5sw0rd</it-wikantik.login.janne.password>
+                  <it.security.log>${project.basedir}/target/test-classes/security-${it-wikantik.context}.log</it.security.log>
                 </systemPropertyVariables>
               </configuration>
               <executions>

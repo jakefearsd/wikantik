@@ -96,13 +96,20 @@ public class WithMcpTestSetup {
 
     // -----------------------------------------------------------------
     // Cargo Tomcat log helpers
-    // The Cargo plugin writes Tomcat stdout/stderr to
-    // ${project.build.directory}/tomcat.log (configured in the parent
-    // wikantik-it-tests pom.xml via <output>). The system property
-    // "cargo.tomcat.log" allows override in CI environments.
+    // The SecurityLog appender in wikantik-custom.properties writes MCP
+    // audit lines to a per-module security log at
+    // target/test-classes/security-${it-wikantik.context}.log, NOT to
+    // the Cargo stdout capture (target/tomcat.log). The parent IT pom
+    // injects the resolved path as the "it.security.log" system property.
+    // The legacy "cargo.tomcat.log" override is still honoured for CI
+    // environments that route everything to one file.
     // -----------------------------------------------------------------
 
     public static Path catalinaOutPath() {
+        final String securityLog = System.getProperty( "it.security.log" );
+        if ( securityLog != null && !securityLog.isBlank() ) {
+            return Path.of( securityLog );
+        }
         return Path.of( System.getProperty( "cargo.tomcat.log",
                 "target/tomcat.log" ) );
     }

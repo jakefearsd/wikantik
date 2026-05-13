@@ -16,12 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.wikantik.knowledge.curation;
+package com.wikantik.api.knowledge;
 
-import com.wikantik.api.knowledge.KgNode;
-import com.wikantik.api.knowledge.KgProposal;
-import com.wikantik.api.knowledge.KnowledgeGraphService;
-import com.wikantik.api.knowledge.ProposalConflictFlags;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 

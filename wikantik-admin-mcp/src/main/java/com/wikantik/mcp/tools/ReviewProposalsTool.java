@@ -166,7 +166,13 @@ public class ReviewProposalsTool implements McpTool, AuthorConfigurable {
         out.put( "status", "completed" );
         out.put( "succeeded", succeeded );
         out.put( "failed", failed );
-        out.put( "message", succeeded.size() + " of " + rawList.size() + " proposals " + verdict + "d" );
+        final String verbed = switch ( verdict ) {
+            case "approve" -> "approved";
+            case "reject"  -> "rejected";
+            case "judge"   -> "judged";
+            default        -> verdict + "d";
+        };
+        out.put( "message", succeeded.size() + " of " + rawList.size() + " proposals " + verbed );
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, out );
     }
 }

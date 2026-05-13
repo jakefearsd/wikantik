@@ -30,6 +30,7 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.knowledge.FrontmatterDefaultsFilter;
 import com.wikantik.knowledge.curation.DefaultKgCurationOps;
+import com.wikantik.kgpolicy.KgExcludedPagesRepository;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubOverviewService;
@@ -112,7 +113,11 @@ public final class KnowledgeSubsystemBridge {
         final KgCurationOps kgCurationOps;
         if ( kgSvc != null && pm != null ) {
             final PageSaveHelper saver = new PageSaveHelper( engine, pm );
-            kgCurationOps = new DefaultKgCurationOps( kgSvc, pm, saver );
+            // KgExcludedPagesRepository may not be registered in lightweight test fixtures;
+            // fall back to three-arg ctor (warnings silently disabled) when it is absent.
+            final KgExcludedPagesRepository excludedRepo =
+                engine.getManager( KgExcludedPagesRepository.class );
+            kgCurationOps = new DefaultKgCurationOps( kgSvc, pm, saver, excludedRepo );
         } else {
             kgCurationOps = null;
         }

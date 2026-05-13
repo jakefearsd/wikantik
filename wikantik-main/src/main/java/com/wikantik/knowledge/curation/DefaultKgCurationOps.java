@@ -25,9 +25,12 @@ import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
+import com.wikantik.kgpolicy.KgExcludedPagesRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,28 +51,40 @@ public class DefaultKgCurationOps implements KgCurationOps {
     private final KnowledgeGraphService kg;
     private final PageManager pages;
     private final PageSaveHelper saver;
+    private final KgExcludedPagesRepository excluded;
+
+    public DefaultKgCurationOps( final KnowledgeGraphService kg,
+                                 final PageManager pages,
+                                 final PageSaveHelper saver,
+                                 final KgExcludedPagesRepository excluded ) {
+        this.kg = kg;
+        this.pages = pages;
+        this.saver = saver;
+        this.excluded = excluded;
+    }
 
     public DefaultKgCurationOps( final KnowledgeGraphService kg,
                                  final PageManager pages,
                                  final PageSaveHelper saver ) {
-        this.kg = kg;
-        this.pages = pages;
-        this.saver = saver;
+        this( kg, pages, saver, null );
     }
 
     @Override
-    public Optional<String> tryApproveProposal( final UUID proposalId, final String reviewedBy ) {
+    public KgCurationOps.ApproveOutcome tryApprove( final UUID proposalId, final String reviewedBy ) {
         try {
             final KgProposal approved = kg.approveProposal( proposalId, reviewedBy );
-            if ( approved == null ) {
-                return Optional.of( "Not found: " + proposalId );
-            }
+            if ( approved == null ) return KgCurationOps.ApproveOutcome.fail( "Not found: " + proposalId );
             writeFrontmatterIfEdge( approved );
-            return Optional.empty();
+
+            final List< String > warnings = new ArrayList<>();
+            if ( excluded != null && approved.sourcePage() != null
+                    && excluded.findReason( approved.sourcePage() ).isPresent() ) {
+                warnings.add( "source_page is in kg_excluded_pages list" );
+            }
+            return KgCurationOps.ApproveOutcome.ok( List.copyOf( warnings ) );
         } catch ( final Exception e ) {
-            LOG.warn( "tryApproveProposal: proposal={} actor={}: {}",
-                    proposalId, reviewedBy, e.getMessage() );
-            return Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
+            LOG.warn( "tryApprove: proposal={} actor={}: {}", proposalId, reviewedBy, e.getMessage() );
+            return KgCurationOps.ApproveOutcome.fail( e.getMessage() != null ? e.getMessage() : "Internal error" );
         }
     }
 

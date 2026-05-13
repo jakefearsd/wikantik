@@ -45,6 +45,7 @@ import com.wikantik.knowledge.judge.KgJudgeTimeoutRepository;
 import com.wikantik.knowledge.judge.KgMaterializationService;
 import com.wikantik.api.knowledge.KgCurationOps;
 import com.wikantik.knowledge.curation.DefaultKgCurationOps;
+import com.wikantik.kgpolicy.KgExcludedPagesRepository;
 import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.util.TextUtil;
 import org.apache.logging.log4j.LogManager;
@@ -216,8 +217,11 @@ public final class KnowledgeSubsystemFactory {
 
         // KG curation facade — built once here, shared by both the REST admin surface and
         // the MCP write tools. PageSaveHelper is already available via saveHelper above.
+        // Pass KgExcludedPagesRepository so approve can surface warnings when the source
+        // page is on the exclusion list.
+        final KgExcludedPagesRepository kgExcludedPages = persistence.kgExcludedPages();
         final KgCurationOps curation = new DefaultKgCurationOps(
-            kgService, pageMgr, saveHelper );
+            kgService, pageMgr, saveHelper, kgExcludedPages );
 
         // Phase 8 Ckpt 1.5: the six post-construction services (ContextRetrievalService,
         // ForAgentProjectionService, BootstrapEntityExtractionIndexer, KgInclusionPolicy,

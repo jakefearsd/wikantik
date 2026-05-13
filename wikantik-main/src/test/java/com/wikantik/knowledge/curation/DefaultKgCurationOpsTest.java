@@ -23,10 +23,12 @@ import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
+import com.wikantik.kgpolicy.KgExcludedPagesRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -183,5 +185,42 @@ public class DefaultKgCurationOpsTest {
         assertTrue( r.isPresent() );
         assertTrue( r.get().toLowerCase().contains( "same" ) );
         Mockito.verifyNoInteractions( kg );  // service must not be called
+    }
+
+    @Test
+    void approveSurfacesKgExcludedPagesWarningWhenPageIsOnExclusionList() {
+        final KgExcludedPagesRepository excluded =
+                Mockito.mock( KgExcludedPagesRepository.class );
+        ops = new DefaultKgCurationOps( kg, pages, saver, excluded );
+
+        final UUID id = UUID.randomUUID();
+        final KgProposal approved = Mockito.mock( KgProposal.class );
+        when( approved.proposalType() ).thenReturn( "new-node" );
+        when( approved.sourcePage() ).thenReturn( "PaxosAndRaft" );
+        when( kg.approveProposal( eq( id ), any() ) ).thenReturn( approved );
+        when( excluded.findReason( "PaxosAndRaft" ) )
+                .thenReturn( Optional.of( com.wikantik.api.kgpolicy.ExclusionReason.SYSTEM_PAGE ) );
+
+        final KgCurationOps.ApproveOutcome r = ops.tryApprove( id, "alice" );
+        assertTrue( r.error().isEmpty() );
+        assertEquals( List.of( "source_page is in kg_excluded_pages list" ), r.warnings() );
+    }
+
+    @Test
+    void approveHasNoWarningsWhenSourcePageNotExcluded() {
+        final KgExcludedPagesRepository excluded =
+                Mockito.mock( KgExcludedPagesRepository.class );
+        ops = new DefaultKgCurationOps( kg, pages, saver, excluded );
+
+        final UUID id = UUID.randomUUID();
+        final KgProposal approved = Mockito.mock( KgProposal.class );
+        when( approved.proposalType() ).thenReturn( "new-node" );
+        when( approved.sourcePage() ).thenReturn( "Active" );
+        when( kg.approveProposal( eq( id ), any() ) ).thenReturn( approved );
+        when( excluded.findReason( "Active" ) ).thenReturn( Optional.empty() );
+
+        final KgCurationOps.ApproveOutcome r = ops.tryApprove( id, "alice" );
+        assertTrue( r.error().isEmpty() );
+        assertTrue( r.warnings().isEmpty() );
     }
 }

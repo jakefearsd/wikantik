@@ -484,13 +484,15 @@ public class AdminKnowledgeResource extends RestServletBase {
         final KgCurationOps ops = getKgCurationOps();
         switch ( action ) {
             case "approve" -> {
-                final java.util.Optional< String > err = ops.tryApproveProposal( proposalId, reviewedBy );
-                if ( err.isPresent() ) {
-                    sendNotFound( response, err.get() );
+                final KgCurationOps.ApproveOutcome outcome = ops.tryApprove( proposalId, reviewedBy );
+                if ( outcome.error().isPresent() ) {
+                    sendNotFound( response, outcome.error().get() );
                     return;
                 }
                 final KgProposal approved = service.getProposal( proposalId );
-                sendJson( response, proposalToMap( approved ) );
+                final Map< String, Object > approveResult = new LinkedHashMap<>( proposalToMap( approved ) );
+                approveResult.put( "warnings", outcome.warnings() );
+                sendJson( response, approveResult );
             }
             case "reject" -> {
                 final JsonObject body = parseJsonBody( request, response );
@@ -588,6 +590,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         final KgCurationOps ops = getKgCurationOps();
         final List< String > succeeded = new ArrayList<>();
         final List< Map< String, Object > > failed = new ArrayList<>();
+        final Map< String, List< String > > warningsByProposal = new LinkedHashMap<>();
 
         for ( final JsonElement idEl : idsArr ) {
             final String idStr = idEl.isJsonPrimitive() ? idEl.getAsString() : null;
@@ -609,20 +612,33 @@ public class AdminKnowledgeResource extends RestServletBase {
                 continue;
             }
 
-            final java.util.Optional< String > err;
-            switch ( action ) {
-                case "approve" -> err = ops.tryApproveProposal( proposalId, actor );
-                case "reject"  -> err = ops.tryRejectProposal( proposalId, actor, reason );
-                default        -> err = ops.tryJudgeProposal( proposalId, actor );
-            }
-
-            if ( err.isEmpty() ) {
-                succeeded.add( idStr );
+            if ( "approve".equals( action ) ) {
+                final KgCurationOps.ApproveOutcome outcome = ops.tryApprove( proposalId, actor );
+                if ( outcome.error().isPresent() ) {
+                    final Map< String, Object > f = new LinkedHashMap<>();
+                    f.put( "id", idStr );
+                    f.put( "error", outcome.error().get() );
+                    failed.add( f );
+                } else {
+                    succeeded.add( idStr );
+                    if ( !outcome.warnings().isEmpty() ) {
+                        warningsByProposal.put( idStr, outcome.warnings() );
+                    }
+                }
             } else {
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", idStr );
-                f.put( "error", err.get() );
-                failed.add( f );
+                final java.util.Optional< String > err;
+                switch ( action ) {
+                    case "reject"  -> err = ops.tryRejectProposal( proposalId, actor, reason );
+                    default        -> err = ops.tryJudgeProposal( proposalId, actor );
+                }
+                if ( err.isEmpty() ) {
+                    succeeded.add( idStr );
+                } else {
+                    final Map< String, Object > f = new LinkedHashMap<>();
+                    f.put( "id", idStr );
+                    f.put( "error", err.get() );
+                    failed.add( f );
+                }
             }
         }
 
@@ -634,6 +650,9 @@ public class AdminKnowledgeResource extends RestServletBase {
         result.put( "failed", failed );
         result.put( "status", "completed" );
         result.put( "message", succeeded.size() + " of " + idsArr.size() + " proposals " + action + "d" );
+        if ( !warningsByProposal.isEmpty() ) {
+            result.put( "warnings_by_proposal", warningsByProposal );
+        }
         sendJson( response, result );
     }
 

@@ -131,6 +131,7 @@ public class ReviewProposalsTool implements McpTool, AuthorConfigurable {
 
         final List< String > succeeded = new ArrayList<>();
         final List< Map< String, Object > > failed = new ArrayList<>();
+        final Map< String, List< String > > warningsByProposal = new LinkedHashMap<>();
 
         for ( final Object idEl : rawList ) {
             final String idStr = idEl == null ? null : idEl.toString();
@@ -145,18 +146,32 @@ public class ReviewProposalsTool implements McpTool, AuthorConfigurable {
                 continue;
             }
 
-            final Optional< String > err = switch ( verdict ) {
-                case "approve" -> ops.tryApproveProposal( id, defaultAuthor );
-                case "reject"  -> ops.tryRejectProposal( id, defaultAuthor, reason );
-                default        -> ops.tryJudgeProposal( id, defaultAuthor );
-            };
-            if ( err.isEmpty() ) {
-                succeeded.add( idStr );
+            if ( "approve".equals( verdict ) ) {
+                final KgCurationOps.ApproveOutcome o = ops.tryApprove( id, defaultAuthor );
+                if ( o.error().isPresent() ) {
+                    final Map< String, Object > f = new LinkedHashMap<>();
+                    f.put( "id", idStr );
+                    f.put( "error", o.error().get() );
+                    failed.add( f );
+                } else {
+                    succeeded.add( idStr );
+                    if ( !o.warnings().isEmpty() ) {
+                        warningsByProposal.put( idStr, o.warnings() );
+                    }
+                }
             } else {
-                final Map< String, Object > f = new LinkedHashMap<>();
-                f.put( "id", idStr );
-                f.put( "error", err.get() );
-                failed.add( f );
+                final Optional< String > err = switch ( verdict ) {
+                    case "reject"  -> ops.tryRejectProposal( id, defaultAuthor, reason );
+                    default        -> ops.tryJudgeProposal( id, defaultAuthor );
+                };
+                if ( err.isEmpty() ) {
+                    succeeded.add( idStr );
+                } else {
+                    final Map< String, Object > f = new LinkedHashMap<>();
+                    f.put( "id", idStr );
+                    f.put( "error", err.get() );
+                    failed.add( f );
+                }
             }
         }
 
@@ -173,6 +188,9 @@ public class ReviewProposalsTool implements McpTool, AuthorConfigurable {
             default        -> verdict + "d";
         };
         out.put( "message", succeeded.size() + " of " + rawList.size() + " proposals " + verbed );
+        if ( !warningsByProposal.isEmpty() ) {
+            out.put( "warnings_by_proposal", warningsByProposal );
+        }
         return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, out );
     }
 }

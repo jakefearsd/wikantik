@@ -34,6 +34,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+// Note: ReviewProposalsTool calls ops.tryApprove(...) for the "approve" verdict;
+// ops.tryApproveProposal is the interface default that delegates to tryApprove.
+
 public class ReviewProposalsToolTest {
 
     private KgCurationOps ops;
@@ -49,8 +52,8 @@ public class ReviewProposalsToolTest {
     void approvesAllSucceedsReturnsEnvelope() {
         final UUID a = UUID.randomUUID();
         final UUID b = UUID.randomUUID();
-        when( ops.tryApproveProposal( eq( a ), eq( "alice" ) ) ).thenReturn( Optional.empty() );
-        when( ops.tryApproveProposal( eq( b ), eq( "alice" ) ) ).thenReturn( Optional.empty() );
+        when( ops.tryApprove( eq( a ), eq( "alice" ) ) ).thenReturn( KgCurationOps.ApproveOutcome.ok() );
+        when( ops.tryApprove( eq( b ), eq( "alice" ) ) ).thenReturn( KgCurationOps.ApproveOutcome.ok() );
 
         final McpSchema.CallToolResult r = tool.execute( Map.of(
                 "verdict", "approve",
@@ -65,9 +68,9 @@ public class ReviewProposalsToolTest {
     void mixedSuccessAndFailureKeepsPerIdErrors() {
         final UUID ok = UUID.randomUUID();
         final UUID bad = UUID.randomUUID();
-        when( ops.tryApproveProposal( eq( ok ), any() ) ).thenReturn( Optional.empty() );
-        when( ops.tryApproveProposal( eq( bad ), any() ) )
-                .thenReturn( Optional.of( "Not found: " + bad ) );
+        when( ops.tryApprove( eq( ok ), any() ) ).thenReturn( KgCurationOps.ApproveOutcome.ok() );
+        when( ops.tryApprove( eq( bad ), any() ) )
+                .thenReturn( KgCurationOps.ApproveOutcome.fail( "Not found: " + bad ) );
 
         final McpSchema.CallToolResult r = tool.execute( Map.of(
                 "verdict", "approve",
@@ -75,6 +78,32 @@ public class ReviewProposalsToolTest {
         final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
         assertTrue( body.contains( "\"id\":\"" + bad + "\"" ), body );
         assertTrue( body.contains( "Not found" ), body );
+    }
+
+    @Test
+    void approveWithWarningsSurfaces_warningsByProposal() {
+        final UUID id = UUID.randomUUID();
+        when( ops.tryApprove( eq( id ), any() ) ).thenReturn(
+                KgCurationOps.ApproveOutcome.ok( List.of( "source_page is in kg_excluded_pages list" ) ) );
+
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "verdict", "approve",
+                "ids", List.of( id.toString() ) ) );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "warnings_by_proposal" ), body );
+        assertTrue( body.contains( "source_page is in kg_excluded_pages list" ), body );
+    }
+
+    @Test
+    void approveWithoutWarningsOmits_warningsByProposal() {
+        final UUID id = UUID.randomUUID();
+        when( ops.tryApprove( eq( id ), any() ) ).thenReturn( KgCurationOps.ApproveOutcome.ok() );
+
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "verdict", "approve",
+                "ids", List.of( id.toString() ) ) );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertFalse( body.contains( "warnings_by_proposal" ), body );
     }
 
     @Test

@@ -18,6 +18,7 @@
  */
 package com.wikantik.api.knowledge;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,7 +36,33 @@ import java.util.UUID;
  */
 public interface KgCurationOps {
 
-    Optional<String> tryApproveProposal( UUID proposalId, String reviewedBy );
+    /**
+     * Rich result for proposal approval: carries both an error (absent on success)
+     * and a list of non-fatal warnings (e.g. source_page is on the exclusion list).
+     */
+    record ApproveOutcome( Optional<String> error, List<String> warnings ) {
+        public static ApproveOutcome ok() { return new ApproveOutcome( Optional.empty(), List.of() ); }
+        public static ApproveOutcome ok( List<String> warnings ) {
+            return new ApproveOutcome( Optional.empty(), warnings );
+        }
+        public static ApproveOutcome fail( String msg ) {
+            return new ApproveOutcome( Optional.of( msg ), List.of() );
+        }
+    }
+
+    /**
+     * Approve a proposal and return a rich outcome that includes both error and warnings.
+     * Approval still succeeds even when warnings are present.
+     */
+    ApproveOutcome tryApprove( UUID proposalId, String reviewedBy );
+
+    /**
+     * Backward-compatible convenience method that delegates to {@link #tryApprove}
+     * and returns only the error portion, silently discarding any warnings.
+     */
+    default Optional<String> tryApproveProposal( UUID proposalId, String reviewedBy ) {
+        return tryApprove( proposalId, reviewedBy ).error();
+    }
 
     Optional<String> tryRejectProposal( UUID proposalId, String reviewedBy, String reason );
 

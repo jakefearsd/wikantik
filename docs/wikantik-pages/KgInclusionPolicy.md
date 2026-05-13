@@ -189,6 +189,21 @@ the override.
   `page_override` > `cluster_policy`. The strongest applicable reason is
   recorded.
 
+## Agent curation path
+
+Curator agents should drive proposal triage through `/wikantik-admin-mcp` rather
+than the REST surface:
+
+- `list_proposals` — filtered listing with conflict flags
+  (`node_exists`, `edge_previously_rejected`)
+- `inspect_proposals` — bulk deep-dive (1..50 ids) with prior reviews
+- `review_proposals` — bulk `approve | reject | judge` (1..50 ids; `reject`
+  requires a top-level `reason`)
+- `curate_edges` / `curate_nodes` — heterogeneous bulk ops (1..50 ops)
+
+See `docs/superpowers/specs/2026-05-13-kg-curation-mcp-design.md` for the full
+envelope and error contract.
+
 ## Further Reading
 
 - [WikantikKnowledgeGraphAdmin](WikantikKnowledgeGraphAdmin) — the broader

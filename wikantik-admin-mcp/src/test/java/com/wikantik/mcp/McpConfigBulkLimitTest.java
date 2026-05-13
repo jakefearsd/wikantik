@@ -42,4 +42,23 @@ public class McpConfigBulkLimitTest {
         p.setProperty( "wikantik.mcp.kg_curation.bulk_limit", "12" );
         assertEquals( 12, new McpConfig( p ).kgCurationBulkLimit() );
     }
+
+    @Test
+    void defaultRateLimiterMaxClientsIs10000() {
+        assertEquals( 10000, new McpConfig( new Properties() ).rateLimiterMaxClients() );
+    }
+
+    @Test
+    void rateLimiterMaxClientsZeroOrNegativeFallsBackToDefault() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.mcp.rate_limit.max_clients", "0" );
+        assertEquals( 10000, new McpConfig( p ).rateLimiterMaxClients() );
+    }
+
+    @Test
+    void rateLimiterMaxClientsHonoursPositiveValue() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.mcp.rate_limit.max_clients", "500" );
+        assertEquals( 500, new McpConfig( p ).rateLimiterMaxClients() );
+    }
 }

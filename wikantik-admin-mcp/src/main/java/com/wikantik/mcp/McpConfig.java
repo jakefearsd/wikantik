@@ -169,6 +169,30 @@ public class McpConfig {
         return raw != null && Boolean.parseBoolean( raw.strip() );
     }
 
+    private static final int DEFAULT_RATE_LIMIT_MAX_CLIENTS = 10000;
+
+    /**
+     * Returns the maximum number of distinct clients tracked by the per-client rate limiter.
+     * Reads from {@code wikantik.mcp.rate_limit.max_clients}; defaults to {@value DEFAULT_RATE_LIMIT_MAX_CLIENTS}.
+     */
+    public int rateLimiterMaxClients() {
+        final String raw = props.getProperty( "wikantik.mcp.rate_limit.max_clients" );
+        if ( raw == null || raw.isBlank() ) return DEFAULT_RATE_LIMIT_MAX_CLIENTS;
+        try {
+            final int v = Integer.parseInt( raw.trim() );
+            if ( v <= 0 ) {
+                LOG.warn( "wikantik.mcp.rate_limit.max_clients={} is not positive — falling back to default {}",
+                        raw, DEFAULT_RATE_LIMIT_MAX_CLIENTS );
+                return DEFAULT_RATE_LIMIT_MAX_CLIENTS;
+            }
+            return v;
+        } catch ( final NumberFormatException e ) {
+            LOG.warn( "wikantik.mcp.rate_limit.max_clients={} is not an integer — falling back to default {}",
+                    raw, DEFAULT_RATE_LIMIT_MAX_CLIENTS );
+            return DEFAULT_RATE_LIMIT_MAX_CLIENTS;
+        }
+    }
+
     private static final int DEFAULT_KG_BULK_LIMIT = 50;
 
     /**

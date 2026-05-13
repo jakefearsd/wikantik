@@ -18,25 +18,33 @@
  */
 package com.wikantik.mcp;
 
+import com.github.benmanes.caffeine.cache.Ticker;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class McpRateLimiterTest {
 
+    private static final class FakeTicker implements Ticker {
+        private long nanos = 0L;
+        @Override public long read() { return nanos; }
+        void advance( final Duration d ) { nanos += d.toNanos(); }
+        void set( final long ns ) { nanos = ns; }
+    }
+
     /**
      * Testable rate limiter with a controllable clock.
      */
     private static McpRateLimiter createWithClock( final int globalLimit, final int perClientLimit,
                                                     final AtomicLong clock ) {
-        return new McpRateLimiter( globalLimit, perClientLimit ) {
-            @Override
-            long clock() {
-                return clock.get();
-            }
-        };
+        final FakeTicker ticker = new FakeTicker();
+        ticker.set( clock.get() );
+        // We wrap AtomicLong into a delegating ticker that reads the AtomicLong on each call
+        final Ticker delegating = () -> clock.get();
+        return new McpRateLimiter( globalLimit, perClientLimit, 10000, delegating );
     }
 
     @Test
@@ -240,5 +248,30 @@ class McpRateLimiterTest {
         assertTrue( limiter.tryAcquire( "client-c" ) );
         // Now global is full
         assertFalse( limiter.tryAcquire( "client-d" ) );
+    }
+
+    @Test
+    void evictsClientEntryAfterTtl() {
+        final FakeTicker ticker = new FakeTicker();
+        final McpRateLimiter rl = new McpRateLimiter( 100, 10, 10000, ticker );
+
+        rl.tryAcquire( "key:transient" );
+        assertTrue( rl.clientCacheSize() >= 1 );
+
+        ticker.advance( Duration.ofHours( 1 ).plus( Duration.ofMinutes( 1 ) ) );
+        rl.tryAcquire( "key:other" );  // touch the cache to trigger maintenance
+
+        rl.invalidateNow();
+        assertEquals( 1, rl.clientCacheSize(),
+                "Stale entry should have been evicted; only 'key:other' remains." );
+    }
+
+    @Test
+    void capsCacheAtMaxClients() {
+        final McpRateLimiter rl = new McpRateLimiter( 0, 10, 5, new FakeTicker() );
+        for ( int i = 0; i < 50; i++ ) rl.tryAcquire( "client:" + i );
+        rl.invalidateNow();
+        assertTrue( rl.clientCacheSize() <= 5,
+                "Caffeine size cap should bound the map at 5 entries; was " + rl.clientCacheSize() );
     }
 }

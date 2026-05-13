@@ -87,9 +87,10 @@ public final class McpEndpointBootstrapper {
                 config.instructions() != null ? config.instructions().length() + " chars" : "none" );
 
         final McpRateLimiter rateLimiter = new McpRateLimiter(
-                config.rateLimitGlobal(), config.rateLimitPerClient() );
-        LOG.info( "{}: rate limiting — global={}/s, perClient={}/s",
-                logTag, config.rateLimitGlobal(), config.rateLimitPerClient() );
+                config.rateLimitGlobal(), config.rateLimitPerClient(),
+                config.rateLimiterMaxClients(), com.github.benmanes.caffeine.cache.Ticker.systemTicker() );
+        LOG.info( "{}: rate limiting — global={}/s, perClient={}/s, maxClients={}",
+                logTag, config.rateLimitGlobal(), config.rateLimitPerClient(), config.rateLimiterMaxClients() );
 
         final ApiKeyService apiKeyService = ApiKeyServiceHolder.get( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties() );
         if ( apiKeyService != null ) {

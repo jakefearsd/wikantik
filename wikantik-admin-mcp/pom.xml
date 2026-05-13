@@ -87,6 +87,12 @@
       <version>${snakeyaml.version}</version>
     </dependency>
 
+    <!-- Caffeine cache (for rate limiter client-bucket management) -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+
     <!-- JSON (already managed in parent) -->
     <dependency>
       <groupId>com.google.code.gson</groupId>

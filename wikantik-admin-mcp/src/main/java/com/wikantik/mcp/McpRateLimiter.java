@@ -18,35 +18,49 @@
  */
 package com.wikantik.mcp;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Ticker;
+
+import java.time.Duration;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Sliding-window rate limiter with global and per-client limits.
  *
- * <p>Each bucket tracks request timestamps within a 1-second window.
- * No external dependencies — uses only {@code java.util.concurrent} types.
- * Stale client entries are cleaned up probabilistically to prevent unbounded growth.</p>
+ * <p>Each bucket tracks request timestamps within a 1-second window. Per-client
+ * buckets live in a Caffeine cache with a hard size cap and 1-hour TTL after
+ * the last write — replacing the previous {@code ConcurrentHashMap} +
+ * probabilistic-cleanup pattern with deterministic eviction.</p>
  */
 public class McpRateLimiter {
 
-    private static final String GLOBAL_KEY = "__global__";
-    private static final long WINDOW_NS = 1_000_000_000L; // 1 second in nanoseconds
-    private static final long STALE_THRESHOLD_NS = 60_000_000_000L; // 60 seconds
+    private static final long WINDOW_NS = 1_000_000_000L;
 
     private final int globalLimit;
     private final int perClientLimit;
-    private final ConcurrentHashMap< String, ConcurrentLinkedDeque< Long > > buckets;
     private final boolean disabled;
+    private final Ticker ticker;
+
+    private final ConcurrentLinkedDeque< Long > globalBucket;
+    private final Cache< String, ConcurrentLinkedDeque< Long > > clientBuckets;
 
     public McpRateLimiter( final int globalLimit, final int perClientLimit ) {
+        this( globalLimit, perClientLimit, 10000, Ticker.systemTicker() );
+    }
+
+    public McpRateLimiter( final int globalLimit, final int perClientLimit,
+                           final int maxClients, final Ticker ticker ) {
         this.globalLimit = globalLimit;
         this.perClientLimit = perClientLimit;
-        this.buckets = new ConcurrentHashMap<>();
         this.disabled = globalLimit <= 0 && perClientLimit <= 0;
+        this.ticker = ticker;
+        this.globalBucket = globalLimit > 0 ? new ConcurrentLinkedDeque<>() : null;
+        this.clientBuckets = Caffeine.newBuilder()
+                .maximumSize( maxClients )
+                .expireAfterWrite( Duration.ofHours( 1 ) )
+                .ticker( ticker )
+                .build();
     }
 
     /**
@@ -56,79 +70,43 @@ public class McpRateLimiter {
      * @return {@code true} if the request is allowed, {@code false} if rate limited
      */
     public boolean tryAcquire( final String clientId ) {
-        if ( disabled ) {
-            return true;
+        if ( disabled ) return true;
+
+        final long now = ticker.read();
+
+        if ( globalBucket != null ) {
+            evictOld( globalBucket, now );
+            if ( globalBucket.size() >= globalLimit ) return false;
         }
 
-        final long now = clock();
-
-        // Evict old entries and check limits before recording anything,
-        // so a failed per-client check doesn't pollute the global bucket.
-        final ConcurrentLinkedDeque< Long > globalDeque =
-                globalLimit > 0 ? getAndEvict( GLOBAL_KEY, now ) : null;
-        final ConcurrentLinkedDeque< Long > clientDeque =
-                perClientLimit > 0 ? getAndEvict( clientId, now ) : null;
-
-        if ( globalDeque != null && globalDeque.size() >= globalLimit ) {
-            return false;
-        }
-        if ( clientDeque != null && clientDeque.size() >= perClientLimit ) {
-            return false;
+        ConcurrentLinkedDeque< Long > clientDeque = null;
+        if ( perClientLimit > 0 ) {
+            clientDeque = clientBuckets.get( clientId, k -> new ConcurrentLinkedDeque<>() );
+            evictOld( clientDeque, now );
+            if ( clientDeque.size() >= perClientLimit ) return false;
         }
 
-        // Both checks passed — record the request
-        if ( globalDeque != null ) {
-            globalDeque.addLast( now );
-        }
-        if ( clientDeque != null ) {
-            clientDeque.addLast( now );
-        }
-
-        // Probabilistic cleanup of stale entries (1 in 100 calls)
-        if ( ThreadLocalRandom.current().nextInt( 100 ) == 0 ) {
-            cleanupStaleEntries( now );
-        }
-
+        if ( globalBucket != null ) globalBucket.addLast( now );
+        if ( clientDeque != null )  clientDeque.addLast( now );
         return true;
     }
 
-    private ConcurrentLinkedDeque< Long > getAndEvict( final String key, final long now ) {
-        final ConcurrentLinkedDeque< Long > deque =
-                buckets.computeIfAbsent( key, k -> new ConcurrentLinkedDeque<>() );
-        evictOld( deque, now );
-        return deque;
-    }
-
-    private void evictOld( final ConcurrentLinkedDeque< Long > deque, final long now ) {
+    private static void evictOld( final ConcurrentLinkedDeque< Long > deque, final long now ) {
         while ( true ) {
             final Long head = deque.peekFirst();
-            if ( head == null || now - head < WINDOW_NS ) {
-                break;
-            }
+            if ( head == null || now - head < WINDOW_NS ) break;
             deque.pollFirst();
         }
     }
 
-    private void cleanupStaleEntries( final long now ) {
-        final Iterator< Map.Entry< String, ConcurrentLinkedDeque< Long > > > it =
-                buckets.entrySet().iterator();
-        while ( it.hasNext() ) {
-            final Map.Entry< String, ConcurrentLinkedDeque< Long > > entry = it.next();
-            if ( GLOBAL_KEY.equals( entry.getKey() ) ) {
-                continue;
-            }
-            final ConcurrentLinkedDeque< Long > deque = entry.getValue();
-            final Long last = deque.peekLast();
-            if ( last == null || now - last > STALE_THRESHOLD_NS ) {
-                it.remove();
-            }
-        }
+    /** Test seam: returns approximate current size of the per-client cache. */
+    long clientCacheSize() {
+        clientBuckets.cleanUp();
+        return clientBuckets.estimatedSize();
     }
 
-    /**
-     * Overridable clock for testing. Returns nanoseconds.
-     */
-    long clock() {
-        return System.nanoTime();
+    /** Test seam: force Caffeine maintenance to run synchronously. */
+    void invalidateNow() {
+        clientBuckets.cleanUp();
     }
 }

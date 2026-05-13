@@ -54,4 +54,16 @@ public interface KgCurationOps {
         public static EdgeResult ok( UUID id ) { return new EdgeResult( Optional.of( id ), Optional.empty() ); }
         public static EdgeResult fail( String msg ) { return new EdgeResult( Optional.empty(), Optional.of( msg ) ); }
     }
+
+    Optional<String> tryDeleteNode( UUID nodeId, String actor );
+
+    Optional<String> tryMergeNodes( UUID sourceId, UUID targetId, String actor );
+
+    NodeResult tryUpsertNode( String name, String nodeType, String sourcePage,
+                              Map<String, Object> properties, String actor );
+
+    record NodeResult( Optional<UUID> nodeId, Optional<String> error ) {
+        public static NodeResult ok( UUID id ) { return new NodeResult( Optional.of( id ), Optional.empty() ); }
+        public static NodeResult fail( String msg ) { return new NodeResult( Optional.empty(), Optional.of( msg ) ); }
+    }
 }

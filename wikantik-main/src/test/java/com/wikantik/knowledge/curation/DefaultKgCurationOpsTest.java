@@ -151,4 +151,37 @@ public class DefaultKgCurationOpsTest {
         Mockito.doNothing().when( kg ).deleteEdgeAndRecordRejection( eq( id ), eq( "alice" ), eq( "spurious" ) );
         assertEquals( Optional.empty(), ops.tryDeleteAndRejectEdge( id, "alice", "spurious" ) );
     }
+
+    @Test
+    void tryUpsertNodeReturnsIdOnSuccess() {
+        final UUID nodeId = UUID.randomUUID();
+        final com.wikantik.api.knowledge.KgNode node =
+                Mockito.mock( com.wikantik.api.knowledge.KgNode.class );
+        when( node.id() ).thenReturn( nodeId );
+        when( kg.upsertNode( eq( "Raft" ), eq( "concept" ), eq( "PaxosAndRaft" ),
+                eq( com.wikantik.api.knowledge.Provenance.HUMAN_AUTHORED ),
+                any() ) ).thenReturn( node );
+
+        final KgCurationOps.NodeResult r = ops.tryUpsertNode( "Raft", "concept", "PaxosAndRaft",
+                java.util.Map.of(), "alice" );
+        assertEquals( nodeId, r.nodeId().orElseThrow() );
+    }
+
+    @Test
+    void tryUpsertNodeFilteredByPolicyReportsConflict() {
+        when( kg.upsertNode( any(), any(), any(), any(), any() ) ).thenReturn( null );
+        final KgCurationOps.NodeResult r = ops.tryUpsertNode( "Raft", "concept", "Excluded",
+                java.util.Map.of(), "alice" );
+        assertTrue( r.error().isPresent() );
+        assertTrue( r.error().get().contains( "not visible after insert" ) );
+    }
+
+    @Test
+    void tryMergeNodesRejectsSelfMerge() {
+        final UUID id = UUID.randomUUID();
+        final Optional<String> r = ops.tryMergeNodes( id, id, "alice" );
+        assertTrue( r.isPresent() );
+        assertTrue( r.get().toLowerCase().contains( "same" ) );
+        Mockito.verifyNoInteractions( kg );  // service must not be called
+    }
 }

@@ -149,6 +149,48 @@ public class DefaultKgCurationOps implements KgCurationOps {
         }
     }
 
+    @Override
+    public Optional<String> tryDeleteNode( final UUID nodeId, final String actor ) {
+        try {
+            kg.deleteNode( nodeId );
+            return Optional.empty();
+        } catch ( final Exception e ) {
+            LOG.warn( "tryDeleteNode: node={} actor={}: {}", nodeId, actor, e.getMessage() );
+            return Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
+        }
+    }
+
+    @Override
+    public Optional<String> tryMergeNodes( final UUID sourceId, final UUID targetId, final String actor ) {
+        if ( sourceId == null || targetId == null ) return Optional.of( "source_id and target_id are required" );
+        if ( sourceId.equals( targetId ) ) return Optional.of( "source_id and target_id are the same" );
+        try {
+            kg.mergeNodes( sourceId, targetId );
+            return Optional.empty();
+        } catch ( final Exception e ) {
+            LOG.warn( "tryMergeNodes: src={} tgt={} actor={}: {}",
+                    sourceId, targetId, actor, e.getMessage() );
+            return Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
+        }
+    }
+
+    @Override
+    public NodeResult tryUpsertNode( final String name, final String nodeType, final String sourcePage,
+                                     final Map<String, Object> properties, final String actor ) {
+        try {
+            final com.wikantik.api.knowledge.KgNode node = kg.upsertNode( name, nodeType, sourcePage,
+                    Provenance.HUMAN_AUTHORED,
+                    properties == null ? Map.of() : properties );
+            if ( node == null ) {
+                return NodeResult.fail( "node not visible after insert (excluded source page or other policy filter)" );
+            }
+            return NodeResult.ok( node.id() );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "tryUpsertNode: name={} actor={}: {}", name, actor, e.getMessage() );
+            return NodeResult.fail( e.getMessage() != null ? e.getMessage() : "Internal error" );
+        }
+    }
+
     /**
      * After approving a {@code new-edge} proposal, writes the approved relationship
      * back into the source page's frontmatter. Body lifted from {@code AdminKnowledgeResource}.

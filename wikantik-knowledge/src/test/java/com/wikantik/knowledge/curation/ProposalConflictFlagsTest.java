@@ -61,6 +61,18 @@ public class ProposalConflictFlagsTest {
     }
 
     @Test
+    void blankNameSkipsNodeExistsLookup() {
+        final KnowledgeGraphService svc = Mockito.mock( KnowledgeGraphService.class );
+        final KgProposal p = Mockito.mock( KgProposal.class );
+        when( p.proposalType() ).thenReturn( "new-node" );
+        when( p.proposedData() ).thenReturn( Map.of( "name", "   " ) );
+
+        final Map<String, Object> flags = ProposalConflictFlags.forProposal( svc, p );
+        assertFalse( flags.containsKey( "node_exists" ) );
+        Mockito.verifyNoInteractions( svc );
+    }
+
+    @Test
     void unrelatedFlagsAreOmittedNotNull() {
         final KnowledgeGraphService svc = Mockito.mock( KnowledgeGraphService.class );
         final KgProposal p = Mockito.mock( KgProposal.class );

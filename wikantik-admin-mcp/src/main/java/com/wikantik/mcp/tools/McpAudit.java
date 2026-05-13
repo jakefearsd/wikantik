@@ -65,8 +65,9 @@ public final class McpAudit {
      */
     public static void logBulkWrite( final String tool, final int attempted, final int succeeded,
                                       final int failed, final String author ) {
-        SECURITY.info( "tool={} action=bulk attempted={} succeeded={} failed={} author={}",
-                tool, attempted, succeeded, failed, author );
+        SECURITY.info( "MCP_WRITE tool={} action=bulk attempted={} succeeded={} failed={} author={}",
+                safe( tool ), attempted, succeeded, failed,
+                author == null || author.isBlank() ? "unknown" : author );
     }
 
     private static String safe( final String s ) {

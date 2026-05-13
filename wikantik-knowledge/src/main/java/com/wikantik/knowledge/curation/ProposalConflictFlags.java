@@ -39,7 +39,7 @@ public final class ProposalConflictFlags {
         try {
             if ( "new-node".equals( p.proposalType() ) ) {
                 final Object name = p.proposedData().get( "name" );
-                if ( name instanceof String s ) {
+                if ( name instanceof String s && !s.isBlank() ) {
                     final KgNode existing = svc.getNodeByName( s );
                     flags.put( "node_exists", existing != null );
                     if ( existing != null ) flags.put( "existing_node_id", existing.id().toString() );

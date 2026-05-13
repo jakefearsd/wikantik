@@ -108,6 +108,9 @@ public class McpToolRegistry {
         ) );
 
         // --- Knowledge proposal tools (only if KnowledgeGraphService is available) ---
+        // future: switch to engine.getKnowledgeSubsystem() when KnowledgeSubsystemBridge
+        // retires in Phase 9. See wikantik-main/.../KnowledgeSubsystemBridge.java javadoc
+        // for status.
         final var subsystem = com.wikantik.knowledge.subsystem
             .KnowledgeSubsystemBridge.fromLegacyEngine( engine );
         final KnowledgeGraphService kgService = subsystem.kgService();

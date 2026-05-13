@@ -55,6 +55,10 @@ import java.util.Optional;
  *
  * <p>After authentication, requests are subject to rate limiting if configured.
  * Failed access attempts and rate limit violations are logged to the {@code SecurityLog} logger.
+ *
+ * <p>CIDR allowlists support both IPv4 and IPv6 entries. Mixed allowlists
+ * are honoured per-family — a v4 caller will only match v4 CIDRs, and a
+ * v6 caller will only match v6 CIDRs (no cross-family matching).</p>
  */
 @SuppressWarnings( "PMD.MoreThanOneLogger" ) // SecurityLog and LOG route to different log destinations by design.
 public class McpAccessFilter implements Filter {

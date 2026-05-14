@@ -457,6 +457,94 @@ public final class KgNodeRepository extends KgJdbcSupport {
         }
     }
 
+    /**
+     * Lists orphaned nodes — nodes that have no incident edges in {@code kg_edges}
+     * (neither incoming nor outgoing). Always runs with the {@code kg_excluded_pages}
+     * filter bypassed (admin tool). Optional filters:
+     * <ul>
+     *   <li>{@code node_type} — exact match</li>
+     *   <li>{@code source_page} — exact match</li>
+     *   <li>{@code source_page_excluded} — three-state {@link Boolean}; see
+     *       {@link com.wikantik.api.knowledge.KnowledgeGraphService#listOrphanedNodes}
+     *       for the full spec.</li>
+     * </ul>
+     */
+    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
+            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
+    public List< KgNode > listOrphanedNodes( final Map< String, Object > filters,
+                                              final int limit, final int offset ) {
+        final List< Object > params = new ArrayList<>();
+        final String sql = buildOrphanedNodesSql( filters, false, params )
+                + " ORDER BY n.name LIMIT ? OFFSET ?";
+        params.add( limit );
+        params.add( offset );
+
+        final List< KgNode > results = new ArrayList<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) results.add( mapNode( rs ) );
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "listOrphanedNodes failed: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
+        return results;
+    }
+
+    /** Counts orphaned nodes matching the same filters as {@link #listOrphanedNodes}. */
+    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
+            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
+    public long countOrphanedNodes( final Map< String, Object > filters ) {
+        final List< Object > params = new ArrayList<>();
+        final String sql = buildOrphanedNodesSql( filters, true, params );
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? rs.getLong( 1 ) : 0L;
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "countOrphanedNodes failed: {}", e.getMessage(), e );
+            throw new RuntimeException( e );
+        }
+    }
+
+    /** Shared builder for orphan list/count queries. Appends bound params to {@code params}. */
+    private static String buildOrphanedNodesSql( final Map< String, Object > filters,
+                                                  final boolean countOnly,
+                                                  final List< Object > params ) {
+        final StringBuilder sql = new StringBuilder();
+        sql.append( countOnly ? "SELECT COUNT(*) FROM kg_nodes n " : "SELECT n.* FROM kg_nodes n " )
+           .append( "LEFT JOIN kg_excluded_pages kgxn ON n.source_page = kgxn.page_name " )
+           .append( "WHERE NOT EXISTS ( SELECT 1 FROM kg_edges e WHERE e.source_id = n.id OR e.target_id = n.id )" );
+
+        if ( filters != null ) {
+            if ( filters.containsKey( "node_type" ) ) {
+                sql.append( " AND n.node_type = ?" );
+                params.add( filters.get( "node_type" ) );
+            }
+            if ( filters.containsKey( "source_page" ) ) {
+                sql.append( " AND n.source_page = ?" );
+                params.add( filters.get( "source_page" ) );
+            }
+            final Object excluded = filters.get( "source_page_excluded" );
+            if ( excluded instanceof Boolean b ) {
+                if ( b ) {
+                    // Excluded=true: page is on kg_excluded_pages OR node is a stub (no source_page)
+                    sql.append( " AND ( n.source_page IS NULL OR kgxn.page_name IS NOT NULL )" );
+                } else {
+                    // Excluded=false: page is NOT on kg_excluded_pages (this also keeps stubs since
+                    // a stub's LEFT JOIN yields kgxn.page_name IS NULL — they cannot be classified
+                    // either way, so they remain visible regardless of the filter direction).
+                    sql.append( " AND kgxn.page_name IS NULL" );
+                }
+            }
+        }
+        return sql.toString();
+    }
+
     public Map< UUID, String > getNodeNames( final Collection< UUID > ids ) {
         if ( ids == null || ids.isEmpty() ) return Map.of();
         final String placeholders = String.join( ", ", Collections.nCopies( ids.size(), "?" ) );

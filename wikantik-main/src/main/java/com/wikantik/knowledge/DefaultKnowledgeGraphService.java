@@ -273,6 +273,17 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         return nodes.countNodesWithFilter( filters, provenanceFilter );
     }
 
+    @Override
+    public List< KgNode > listOrphanedNodes( final Map< String, Object > filters,
+                                              final int limit, final int offset ) {
+        return nodes.listOrphanedNodes( filters, limit, offset );
+    }
+
+    @Override
+    public long countOrphanedNodes( final Map< String, Object > filters ) {
+        return nodes.countOrphanedNodes( filters );
+    }
+
     // --- Edge operations ---
 
     @Override

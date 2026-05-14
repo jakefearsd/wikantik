@@ -269,6 +269,14 @@ search_knowledge  Admin-context fuzzy search across KG node names and property
                   text. Admin-bypass on. Use after a curate_nodes or
                   review_proposals approval to find the new entity by name.
 
+list_orphaned_kg_nodes
+                  Admin-only listing of KG nodes with no incident edges
+                  (degree-0). Admin-bypass on. Filters: node_type,
+                  source_page, source_page_excluded (three-state — true /
+                  false / omitted distinguishes policy-hidden from truly
+                  disconnected). Replaces the sample-and-walk workaround
+                  for finding orphans at scale.
+
 == Concurrency model ==
 
 Edits use optimistic concurrency, not explicit locks. The flow is:

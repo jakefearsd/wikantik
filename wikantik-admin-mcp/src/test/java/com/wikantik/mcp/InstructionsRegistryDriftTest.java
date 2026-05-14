@@ -21,6 +21,7 @@ package com.wikantik.mcp;
 import com.wikantik.TestEngine;
 import com.wikantik.mcp.tools.AdminQueryNodesTool;
 import com.wikantik.mcp.tools.AdminSearchKnowledgeTool;
+import com.wikantik.mcp.tools.ListOrphanedKgNodesTool;
 import com.wikantik.mcp.tools.ListProposalsTool;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.ProposeKnowledgeTool;
@@ -152,6 +153,7 @@ class InstructionsRegistryDriftTest {
         names.add( ProposeKnowledgeTool.TOOL_NAME );
         names.add( AdminQueryNodesTool.TOOL_NAME );
         names.add( AdminSearchKnowledgeTool.TOOL_NAME );
+        names.add( ListOrphanedKgNodesTool.TOOL_NAME );
         return names;
     }
 

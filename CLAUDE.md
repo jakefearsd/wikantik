@@ -311,7 +311,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 - **wikantik-cache-memcached**: Distributed cache adapter for Memcached
 - **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, `/wiki/{slug}?format=md|json` content filter
 - **wikantik-rest**: REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`)
-- **wikantik-admin-mcp**: Admin MCP server at `/wikantik-admin-mcp` — 24 tools — adds admin-bypass mirrors of query_nodes + search_knowledge so curators see freshly-created entities. Reconciled 2026-05-14. See `com.wikantik.mcp.McpServerInitializer`.
+- **wikantik-admin-mcp**: Admin MCP server at `/wikantik-admin-mcp` — 25 tools — adds admin-bypass mirrors of query_nodes + search_knowledge so curators see freshly-created entities, plus `list_orphaned_kg_nodes` for finding degree-0 entities at scale. Reconciled 2026-05-14. See `com.wikantik.mcp.McpServerInitializer`.
 - **wikantik-knowledge**: Knowledge MCP server at `/knowledge-mcp` — 16 read-only tools (hybrid retrieval, Knowledge Graph traversal, schema discovery, structural-spine navigation, agent-grade page projection, batched markdown reads via `read_pages`) plus the Knowledge Graph service (pgvector-backed embeddings, co-mention graph, hub discovery). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 - **wikantik-tools**: OpenAPI 3.1 tool server at `/tools/*` — 2 tools (`search_wiki`, `get_page`) for OpenWebUI-compatible non-MCP clients.
 - **wikantik-extract-cli**: Standalone entity-extractor CLI (offline/batch extraction against the Knowledge Graph pipeline)
@@ -325,7 +325,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 
 | Endpoint | Module | Protocol | Tools | Auth |
 |----------|--------|----------|-------|------|
-| `/wikantik-admin-mcp` | wikantik-admin-mcp | MCP (Streamable HTTP) | 24 write/analytics tools (incl. KG curation + admin-bypass reads) | `McpAccessFilter` (bearer token / API key) |
+| `/wikantik-admin-mcp` | wikantik-admin-mcp | MCP (Streamable HTTP) | 25 write/analytics tools (incl. KG curation + admin-bypass reads + orphan-listing) | `McpAccessFilter` (bearer token / API key) |
 | `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 16 read-only retrieval + Knowledge Graph + Page Graph structural-spine + agent-projection + batched-read tools | `KnowledgeMcpAccessFilter` (same scheme) |
 | `/tools/*` | wikantik-tools | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) | API key |
 | `/api/*` | wikantik-rest | REST/JSON | 24 Resource classes | `RestServletBase.checkPagePermission()` (ACL + policy grants) |

@@ -46,7 +46,9 @@ public class McpProtocolIT extends WithMcpTestSetup {
             // Agent-grade content phase 1 — verification stamping
             "mark_page_verified",
             // KG read tools with admin bypass — curators see excluded-page entities immediately
-            "query_nodes", "search_knowledge"
+            "query_nodes", "search_knowledge",
+            // Orphan triage — admin-bypass listing of degree-0 KG nodes
+            "list_orphaned_kg_nodes"
     );
 
     @Test

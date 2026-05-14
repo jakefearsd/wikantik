@@ -41,6 +41,35 @@ public interface KnowledgeGraphService {
      */
     long countNodes( Map< String, Object > filters, Set< Provenance > provenanceFilter );
 
+    /**
+     * Admin-only listing of orphaned knowledge-graph nodes — nodes with no incident
+     * edges (neither incoming nor outgoing in {@code kg_edges}). Always runs with the
+     * {@code kg_excluded_pages} filter bypassed so curators can find disconnected
+     * entities regardless of whether their source page is currently admitted by the
+     * cluster inclusion policy.
+     *
+     * <p>Supported filter keys (all optional, additive):</p>
+     * <ul>
+     *   <li>{@code node_type} — exact match on {@code n.node_type}</li>
+     *   <li>{@code source_page} — exact match on {@code n.source_page}</li>
+     *   <li>{@code source_page_excluded} — three-state {@link Boolean}:
+     *       {@code true} keeps only nodes whose source page is on {@code kg_excluded_pages},
+     *       {@code false} keeps only nodes whose source page is NOT on the table,
+     *       {@code null} (or absent) returns both.</li>
+     * </ul>
+     *
+     * <p>Stub nodes (no {@code source_page}) are returned regardless of the
+     * {@code source_page_excluded} filter — they cannot be classified either way.</p>
+     */
+    List< KgNode > listOrphanedNodes( Map< String, Object > filters, int limit, int offset );
+
+    /**
+     * Counts orphaned nodes that would be returned by
+     * {@link #listOrphanedNodes(Map, int, int)} with the same filters. Used by the
+     * admin tooling to size cleanup work alongside the paginated listing.
+     */
+    long countOrphanedNodes( Map< String, Object > filters );
+
     // --- Edge operations ---
 
     KgEdge upsertEdge( UUID sourceId, UUID targetId, String relationshipType,

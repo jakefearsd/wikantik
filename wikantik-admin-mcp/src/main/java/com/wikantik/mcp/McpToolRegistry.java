@@ -134,6 +134,7 @@ public class McpToolRegistry {
             // whose page is still on kg_excluded_pages).
             readOnlyList.add( new AdminQueryNodesTool( kgService ) );
             readOnlyList.add( new AdminSearchKnowledgeTool( kgService ) );
+            readOnlyList.add( new ListOrphanedKgNodesTool( kgService ) );
         }
 
         readOnly = List.copyOf( readOnlyList );

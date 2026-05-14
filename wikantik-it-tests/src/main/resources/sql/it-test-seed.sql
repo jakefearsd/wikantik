@@ -237,3 +237,31 @@ VALUES (
   NOW()
 )
 ON CONFLICT DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- Visibility test fixtures for KgCurationVisibilityIT (Task 8 / Fix 1 wire IT)
+-- Proves admin-bypass: admin /wikantik-admin-mcp query_nodes + search_knowledge
+-- must surface entities whose source_page is on kg_excluded_pages.
+-- ---------------------------------------------------------------------------
+
+INSERT INTO kg_excluded_pages (page_name, reason)
+VALUES ('KgVisibilityExcludedPage', 'page_override')
+ON CONFLICT (page_name) DO NOTHING;
+
+INSERT INTO kg_nodes (id, name, node_type, source_page, provenance)
+VALUES (
+    'ffffffff-0001-0000-0000-000000000001',
+    'KgVisibilityExcludedNode',
+    'concept',
+    'KgVisibilityExcludedPage',
+    'human-authored'
+) ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO kg_nodes (id, name, node_type, source_page, provenance)
+VALUES (
+    'ffffffff-0002-0000-0000-000000000002',
+    'KgVisibilityAllowedNode',
+    'concept',
+    'KgVisibilityAllowedPage',
+    'human-authored'
+) ON CONFLICT (name) DO NOTHING;

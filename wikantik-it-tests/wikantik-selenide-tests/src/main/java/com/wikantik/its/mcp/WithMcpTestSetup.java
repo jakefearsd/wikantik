@@ -80,6 +80,23 @@ public class WithMcpTestSetup {
     private static final String SEEDED_ALREADY_APPROVED_PROPOSAL_ID = "eeeeeeee-0001-0000-0000-000000000001";
 
     // -----------------------------------------------------------------
+    // Visibility IT fixture IDs — match it-test-seed.sql exactly.
+    // Used by KgCurationVisibilityIT to verify admin-bypass on read paths.
+    // -----------------------------------------------------------------
+
+    /** UUID of the node seeded on KgVisibilityExcludedPage (on kg_excluded_pages). */
+    public static final String SEEDED_VISIBILITY_EXCLUDED_NODE_ID = "ffffffff-0001-0000-0000-000000000001";
+
+    /** UUID of the node seeded on KgVisibilityAllowedPage (not excluded). */
+    public static final String SEEDED_VISIBILITY_ALLOWED_NODE_ID  = "ffffffff-0002-0000-0000-000000000002";
+
+    /** Name of the node on the excluded source page. */
+    public static final String SEEDED_VISIBILITY_EXCLUDED_NAME    = "KgVisibilityExcludedNode";
+
+    /** Name of the node on the allowed source page. */
+    public static final String SEEDED_VISIBILITY_ALLOWED_NAME     = "KgVisibilityAllowedNode";
+
+    // -----------------------------------------------------------------
 
     protected static McpTestClient mcp;
 
@@ -155,6 +172,14 @@ public class WithMcpTestSetup {
 
     public static String seededAlreadyApprovedProposalId() {
         return SEEDED_ALREADY_APPROVED_PROPOSAL_ID;
+    }
+
+    public static String seededVisibilityExcludedNodeId() {
+        return SEEDED_VISIBILITY_EXCLUDED_NODE_ID;
+    }
+
+    public static String seededVisibilityAllowedNodeId() {
+        return SEEDED_VISIBILITY_ALLOWED_NODE_ID;
     }
 
     // -----------------------------------------------------------------

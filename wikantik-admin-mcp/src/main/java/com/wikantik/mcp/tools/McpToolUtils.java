@@ -20,13 +20,18 @@ package com.wikantik.mcp.tools;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -41,6 +46,30 @@ public final class McpToolUtils {
 
     /** Shared Gson instance — serializes nulls so JSON keys are always present. */
     public static final Gson SHARED_GSON = new GsonBuilder().serializeNulls().create();
+
+    /**
+     * Gson instance for KG-aware tools that serialize {@link com.wikantik.api.knowledge.KgNode}
+     * records containing {@link Instant} timestamps. Writes {@code Instant} as ISO-8601 strings.
+     */
+    public static final Gson KG_GSON = new GsonBuilder()
+            .serializeNulls()
+            .registerTypeAdapter( Instant.class, new TypeAdapter< Instant >() {
+                @Override
+                public void write( final JsonWriter out, final Instant value ) throws IOException {
+                    if ( value == null ) {
+                        out.nullValue();
+                    } else {
+                        out.value( value.toString() );
+                    }
+                }
+
+                @Override
+                public Instant read( final JsonReader in ) throws IOException {
+                    final String s = in.nextString();
+                    return s == null ? null : Instant.parse( s );
+                }
+            } )
+            .create();
 
     private McpToolUtils() {
     }

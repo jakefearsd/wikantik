@@ -188,6 +188,10 @@ class McpToolRegistryTest {
                     "should contain inspect_proposals" );
             assertTrue( readOnlyNames.contains( "list_proposals" ),
                     "should contain list_proposals" );
+            assertTrue( readOnlyNames.contains( "query_nodes" ),
+                    "should contain admin-bypass query_nodes" );
+            assertTrue( readOnlyNames.contains( "search_knowledge" ),
+                    "should contain admin-bypass search_knowledge" );
 
             final Set< String > authorNames = kgRegistry.authorConfigurableTools().stream()
                     .map( McpTool::name )

@@ -128,6 +128,12 @@ public class McpToolRegistry {
                 // future: gated by kg_curate scope when scoped API keys land (9b)
                 authorConfigurableList.add( new CurateNodesTool( curationOps, bulkLimit ) );
             }
+            // Admin-only mirrors of the read tools from /knowledge-mcp, with admin bypass
+            // enabled so curators can immediately see entities whose source pages have not
+            // yet been admitted by the cluster inclusion policy (e.g. freshly-created nodes
+            // whose page is still on kg_excluded_pages).
+            readOnlyList.add( new AdminQueryNodesTool( kgService ) );
+            readOnlyList.add( new AdminSearchKnowledgeTool( kgService ) );
         }
 
         readOnly = List.copyOf( readOnlyList );

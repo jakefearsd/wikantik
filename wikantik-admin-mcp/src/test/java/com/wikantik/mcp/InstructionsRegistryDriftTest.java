@@ -19,6 +19,8 @@
 package com.wikantik.mcp;
 
 import com.wikantik.TestEngine;
+import com.wikantik.mcp.tools.AdminQueryNodesTool;
+import com.wikantik.mcp.tools.AdminSearchKnowledgeTool;
 import com.wikantik.mcp.tools.ListProposalsTool;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.ProposeKnowledgeTool;
@@ -148,6 +150,8 @@ class InstructionsRegistryDriftTest {
         // instructions describe production, where these tools are present.
         names.add( ListProposalsTool.TOOL_NAME );
         names.add( ProposeKnowledgeTool.TOOL_NAME );
+        names.add( AdminQueryNodesTool.TOOL_NAME );
+        names.add( AdminSearchKnowledgeTool.TOOL_NAME );
         return names;
     }
 

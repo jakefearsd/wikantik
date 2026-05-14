@@ -259,6 +259,16 @@ curate_nodes      Heterogeneous bulk node ops (1..50). Required: operations[]
                   HUMAN_AUTHORED; merge collapses source into target (pre-merge
                   frontmatter rewrite is handled by the REST surface only).
 
+query_nodes       Admin-context filter+list of KG nodes. Bypasses the inclusion
+                  filter so freshly-created entities (whose source pages have not
+                  yet been admitted by the cluster inclusion policy) are visible.
+                  Mirrors /knowledge-mcp query_nodes but with admin-bypass on.
+                  Use after a curate_nodes upsert to verify the write.
+
+search_knowledge  Admin-context fuzzy search across KG node names and property
+                  text. Admin-bypass on. Use after a curate_nodes or
+                  review_proposals approval to find the new entity by name.
+
 == Concurrency model ==
 
 Edits use optimistic concurrency, not explicit locks. The flow is:

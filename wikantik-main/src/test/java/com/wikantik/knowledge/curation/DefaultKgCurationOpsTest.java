@@ -131,6 +131,26 @@ public class DefaultKgCurationOpsTest {
     }
 
     @Test
+    void tryUpsertEdgeReportsExplicitRefusalWhenRepositoryRejectsMixedEdge() {
+        // KgEdgeRepository.upsertEdge returns null when the mixed page/entity
+        // guard rejects the write. Prior to the 2026-05-14 fix this NPE'd at
+        // edge.id() and the calling MCP agent saw an opaque internal error
+        // instead of the policy reason — so it kept retrying with different
+        // predicates between the same endpoints.
+        when( kg.upsertEdge( any(), any(), any(), any(), any() ) ).thenReturn( null );
+
+        final KgCurationOps.EdgeResult r = ops.tryUpsertEdge(
+                UUID.randomUUID(), UUID.randomUUID(), "depends_on",
+                java.util.Map.of(), "alice" );
+
+        assertTrue( r.error().isPresent(), "rejection must yield an error" );
+        assertTrue( r.edgeId().isEmpty(), "no id on rejection" );
+        final String msg = r.error().get().toLowerCase();
+        assertTrue( msg.contains( "page/entity boundary" ) || msg.contains( "mixed page" ),
+                "refusal must cite the page/entity boundary policy; got: " + r.error().get() );
+    }
+
+    @Test
     void tryUpsertEdgeReportsDuplicateKeyAsErrorMessage() {
         when( kg.upsertEdge( any(), any(), any(), any(), any() ) )
                 .thenThrow( new RuntimeException( "duplicate key value violates unique constraint" ) );

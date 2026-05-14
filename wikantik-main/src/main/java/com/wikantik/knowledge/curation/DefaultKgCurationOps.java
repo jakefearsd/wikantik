@@ -156,6 +156,17 @@ public class DefaultKgCurationOps implements KgCurationOps {
             final KgEdge edge = kg.upsertEdge( sourceId, targetId, relationshipType,
                     Provenance.HUMAN_CURATED,
                     properties == null ? Map.of() : properties );
+            if ( edge == null ) {
+                // KgEdgeRepository returns null when the mixed page/entity guard fires (or
+                // a similar fail-closed policy rejects the write). Surface an explicit
+                // refusal so the calling agent can self-correct instead of seeing an NPE.
+                final String msg = "edge rejected: endpoints cross the page/entity boundary "
+                        + "(mixed page<->entity edges disallowed since 2026-05-11). "
+                        + "Use homogeneous endpoints — page->page or entity->entity.";
+                LOG.warn( "tryUpsertEdge: src={} tgt={} rel={} actor={}: {}",
+                        sourceId, targetId, relationshipType, actor, msg );
+                return EdgeResult.fail( msg );
+            }
             return EdgeResult.ok( edge.id() );
         } catch ( final RuntimeException e ) {
             LOG.warn( "tryUpsertEdge: src={} tgt={} rel={} actor={}: {}",

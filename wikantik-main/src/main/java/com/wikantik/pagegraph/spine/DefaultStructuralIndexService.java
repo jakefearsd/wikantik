@@ -153,13 +153,20 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 // in memory until an author (or Phase 4's mandatory validator) writes them
                 // to disk — otherwise every restart would churn fresh rows into the DB.
                 if ( authored ) {
+                    PageCanonicalIdsDao.UpsertResult upsertResult = PageCanonicalIdsDao.UpsertResult.WRITTEN;
                     try {
-                        dao.upsert( canonicalId, p.getName(), title, type.asFrontmatterValue(), cluster );
+                        upsertResult = dao.upsert( canonicalId, p.getName(), title, type.asFrontmatterValue(), cluster );
                     } catch ( final RuntimeException dbx ) {
                         LOG.warn( "DAO upsert failed for {} — in-memory projection will continue: {}",
                                   p.getName(), dbx.getMessage() );
+                        upsertResult = PageCanonicalIdsDao.UpsertResult.SKIPPED_STALE_SLUG_OWNER;
                     }
-                    persistVerification( canonicalId, fm );
+                    // Skip page_verification only when we EXPLICITLY know the canonical_id
+                    // was not written (stale-slug owner) — otherwise every boot logs a noisy
+                    // FK violation against a row that doesn't exist.
+                    if ( upsertResult != PageCanonicalIdsDao.UpsertResult.SKIPPED_STALE_SLUG_OWNER ) {
+                        persistVerification( canonicalId, fm );
+                    }
                 }
 
                 indexed++;
@@ -288,12 +295,17 @@ public class DefaultStructuralIndexService implements StructuralIndexService {
                 canonicalId, slug, title, type, cluster, tags, summary, updated, kgInclude );
 
         if ( authored ) {
+            PageCanonicalIdsDao.UpsertResult upsertResult = PageCanonicalIdsDao.UpsertResult.WRITTEN;
             try {
-                dao.upsert( canonicalId, slug, title, type.asFrontmatterValue(), cluster );
+                upsertResult = dao.upsert( canonicalId, slug, title, type.asFrontmatterValue(), cluster );
             } catch ( final RuntimeException dbx ) {
                 LOG.warn( "DAO upsert failed for {}: {}", slug, dbx.getMessage() );
+                upsertResult = PageCanonicalIdsDao.UpsertResult.SKIPPED_STALE_SLUG_OWNER;
             }
-            persistVerification( canonicalId, fm );
+            // Skip page_verification only when we EXPLICITLY know the canonical_id was not written.
+            if ( upsertResult != PageCanonicalIdsDao.UpsertResult.SKIPPED_STALE_SLUG_OWNER ) {
+                persistVerification( canonicalId, fm );
+            }
         }
 
         final StructuralProjection proj = current.get();

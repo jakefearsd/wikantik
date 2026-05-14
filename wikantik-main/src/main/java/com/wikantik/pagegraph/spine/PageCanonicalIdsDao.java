@@ -46,11 +46,21 @@ public class PageCanonicalIdsDao {
         this.ds = ds;
     }
 
-    public void upsert( final String canonicalId,
-                        final String currentSlug,
-                        final String title,
-                        final String type,
-                        final String cluster ) {
+    /**
+     * Outcome of an {@link #upsert} call. {@link #WRITTEN} means the row is now
+     * present (either INSERTed or UPDATEd); {@link #SKIPPED_STALE_SLUG_OWNER}
+     * means the slug is already claimed by a different canonical_id and the
+     * caller must NOT cascade dependent FK-bound writes (e.g.
+     * {@code page_verification}, which would error with an FK violation
+     * because the new canonical_id is not in {@code page_canonical_ids}).
+     */
+    public enum UpsertResult { WRITTEN, SKIPPED_STALE_SLUG_OWNER }
+
+    public UpsertResult upsert( final String canonicalId,
+                                final String currentSlug,
+                                final String title,
+                                final String type,
+                                final String cluster ) {
         try ( Connection c = ds.getConnection() ) {
             c.setAutoCommit( false );
             try {
@@ -70,18 +80,19 @@ public class PageCanonicalIdsDao {
                             // findByCanonicalId returned empty, but guard defensively).
                             LOG.debug( "upsert({}, {}): slug already owned by same canonical_id — no-op",
                                        canonicalId, currentSlug );
-                        } else {
-                            LOG.warn( "upsert({}, {}): slug '{}' is already claimed by canonical_id '{}'. "
-                                    + "Frontmatter and DB are out of sync — skipping DB write so the "
-                                    + "in-memory projection continues cleanly. "
-                                    + "To fix: run bin/db/one-shots/reconcile_page_canonical_ids.sh "
-                                    + "(or manually DELETE the stale row from page_canonical_ids "
-                                    + "WHERE canonical_id='{}' AND current_slug='{}').",
-                                      canonicalId, currentSlug, currentSlug,
-                                      ownerId, ownerId, currentSlug );
+                            c.commit();
+                            return UpsertResult.WRITTEN;
                         }
+                        LOG.warn( "upsert({}, {}): slug '{}' is already claimed by canonical_id '{}'. "
+                                + "Frontmatter and DB are out of sync — skipping DB write so the "
+                                + "in-memory projection continues cleanly. "
+                                + "To fix: run bin/db/one-shots/reconcile_page_canonical_ids.sh "
+                                + "(or manually DELETE the stale row from page_canonical_ids "
+                                + "WHERE canonical_id='{}' AND current_slug='{}').",
+                                  canonicalId, currentSlug, currentSlug,
+                                  ownerId, ownerId, currentSlug );
                         c.commit();
-                        return;
+                        return UpsertResult.SKIPPED_STALE_SLUG_OWNER;
                     }
                     try ( PreparedStatement ps = c.prepareStatement(
                             "INSERT INTO page_canonical_ids " +
@@ -131,6 +142,7 @@ public class PageCanonicalIdsDao {
             LOG.warn( "PageCanonicalIdsDao.upsert({}) failed: {}", canonicalId, e.getMessage(), e );
             throw new RuntimeException( "upsert failed", e );
         }
+        return UpsertResult.WRITTEN;
     }
 
     private Optional< Row > findBySlug( final Connection c, final String slug ) throws SQLException {

@@ -232,8 +232,10 @@ class PageCanonicalIdsDaoTest {
 
         try {
             // Now try to upsert the fresh canonical_id for the same slug
-            assertDoesNotThrow( () -> dao.upsert( freshId, slug, "Conflicted Page", "article", null ),
-                    "Mismatch case must not throw an exception" );
+            final PageCanonicalIdsDao.UpsertResult result = dao.upsert(
+                    freshId, slug, "Conflicted Page", "article", null );
+            assertEquals( PageCanonicalIdsDao.UpsertResult.SKIPPED_STALE_SLUG_OWNER, result,
+                    "stale-slug conflict must signal SKIPPED so callers can suppress FK-bound cascades" );
 
             // The fresh canonical_id must NOT have been inserted
             assertTrue( dao.findByCanonicalId( freshId ).isEmpty(),

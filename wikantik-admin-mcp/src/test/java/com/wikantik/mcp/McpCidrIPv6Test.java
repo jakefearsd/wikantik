@@ -100,6 +100,36 @@ public class McpCidrIPv6Test {
                 "/0 IPv4 must not silently match a 16-byte IPv6 address" );
     }
 
+    // Covers McpAccessFilter.java:314-322 — malformed CIDRs (out-of-range
+    // prefix, negative prefix, missing slash, non-numeric prefix) are dropped
+    // by parseCidrs without throwing. Operators see a warn log; the filter
+    // still returns a usable (possibly empty) list.
+
+    @Test
+    void parseCidrsRejectsIpv6PrefixAbove128() {
+        // 2001:db8::/129 exceeds the 128-bit ceiling for IPv6.
+        assertTrue( McpAccessFilter.parseCidrs( "2001:db8::/129" ).isEmpty(),
+                "/129 must be rejected — IPv6 ceiling is 128 bits" );
+    }
+
+    @Test
+    void parseCidrsRejectsNegativePrefix() {
+        assertTrue( McpAccessFilter.parseCidrs( "10.0.0.0/-1" ).isEmpty(),
+                "negative prefix must be rejected" );
+    }
+
+    @Test
+    void parseCidrsRejectsMissingSlash() {
+        assertTrue( McpAccessFilter.parseCidrs( "10.0.0.0" ).isEmpty(),
+                "missing '/<prefix>' must be rejected, not treated as host-only" );
+    }
+
+    @Test
+    void parseCidrsRejectsNonNumericPrefix() {
+        assertTrue( McpAccessFilter.parseCidrs( "10.0.0.0/abc" ).isEmpty(),
+                "non-numeric prefix must be rejected" );
+    }
+
     private static boolean matches( final List< McpAccessFilter.CidrEntry > cidrs,
                                     final String addr ) throws Exception {
         final byte[] bytes = InetAddress.getByName( addr ).getAddress();

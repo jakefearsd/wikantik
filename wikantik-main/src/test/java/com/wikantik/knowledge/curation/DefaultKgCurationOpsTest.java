@@ -243,4 +243,72 @@ public class DefaultKgCurationOpsTest {
         assertTrue( r.error().isEmpty() );
         assertTrue( r.warnings().isEmpty() );
     }
+
+    // Covers DefaultKgCurationOps.java:115-118 — tryDeleteEdge happy path
+    // returns Optional.empty when the service swallows the call cleanly.
+    @Test
+    void tryDeleteEdgeReturnsEmptyOnSuccess() {
+        final UUID id = UUID.randomUUID();
+        Mockito.doNothing().when( kg ).deleteEdge( id );
+        assertEquals( Optional.empty(), ops.tryDeleteEdge( id, "alice" ) );
+        Mockito.verify( kg ).deleteEdge( id );
+    }
+
+    // Covers DefaultKgCurationOps.java:91-97 — tryRejectProposal returns
+    // "Not found: ..." when rejectProposal returns null (unknown id).
+    @Test
+    void tryRejectProposalReturnsNotFoundOnNull() {
+        final UUID id = UUID.randomUUID();
+        when( kg.rejectProposal( eq( id ), eq( "alice" ), eq( "spam" ) ) )
+                .thenReturn( null );
+
+        final Optional< String > r = ops.tryRejectProposal( id, "alice", "spam" );
+        assertTrue( r.isPresent() );
+        assertTrue( r.get().contains( "Not found" ),
+                "rejection-of-missing-proposal must surface a not-found message: " + r.get() );
+    }
+
+    // Covers DefaultKgCurationOps.java:156 — tryMergeNodes rejects a null
+    // source_id up front, before reaching kg.mergeNodes.
+    @Test
+    void tryMergeNodesRejectsNullSourceId() {
+        final Optional< String > r = ops.tryMergeNodes( null, UUID.randomUUID(), "alice" );
+        assertTrue( r.isPresent() );
+        assertTrue( r.get().toLowerCase().contains( "required" ),
+                "null source_id rejection must cite the requirement: " + r.get() );
+        Mockito.verifyNoInteractions( kg );
+    }
+
+    // Covers DefaultKgCurationOps.java:156 — tryMergeNodes rejects a null
+    // target_id up front, before reaching kg.mergeNodes.
+    @Test
+    void tryMergeNodesRejectsNullTargetId() {
+        final Optional< String > r = ops.tryMergeNodes( UUID.randomUUID(), null, "alice" );
+        assertTrue( r.isPresent() );
+        assertTrue( r.get().toLowerCase().contains( "required" ),
+                "null target_id rejection must cite the requirement: " + r.get() );
+        Mockito.verifyNoInteractions( kg );
+    }
+
+    // Covers DefaultKgCurationOps.java:215-225 — causeChainMessage walks the
+    // cause chain and returns the innermost non-blank message, so JDBC-level
+    // "duplicate key" text is not masked by generic outer wrappers. The wrap()
+    // helper now routes every try* op through this unwrap (not just
+    // tryUpsertEdge — that's the design change documented in the spec).
+    @Test
+    void causeChainMessageDeepUnwrapPrefersInnermost() {
+        final UUID id = UUID.randomUUID();
+        final Throwable inner =
+                new RuntimeException( "duplicate key value violates unique constraint" );
+        final Throwable middle = new RuntimeException( "JDBC error", inner );
+        final Throwable outer = new RuntimeException( "outer wrapper", middle );
+
+        // tryConfirmEdge routes through wrap() → tryWithMessage → causeChainMessage.
+        Mockito.doThrow( outer ).when( kg ).confirmEdge( eq( id ), any() );
+
+        final Optional< String > r = ops.tryConfirmEdge( id, "alice" );
+        assertTrue( r.isPresent() );
+        assertEquals( "duplicate key value violates unique constraint", r.get(),
+                "deepest cause message must surface, not the outer wrapper text" );
+    }
 }

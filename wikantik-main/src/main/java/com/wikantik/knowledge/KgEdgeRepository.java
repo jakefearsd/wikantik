@@ -55,6 +55,31 @@ public final class KgEdgeRepository extends KgJdbcSupport {
      * Nodes with NULL {@code node_type} (legacy/bugged data) are excluded from both
      * the "page" and "entity" filters by the SQL semantics of {@code != 'concept'}.</p>
      */
+    /**
+     * Appends the {@code AND ...} filter clauses for {@code kg_edges} to {@code sql}
+     * (relationship_type, name LIKE, endpointKind) and binds the corresponding params
+     * to {@code params}. Shared between {@link #queryEdgesWithNames},
+     * {@link #countEdgesWithFilter}, and {@link #bulkDeleteByFilter} so the three SQL
+     * shapes cannot drift.
+     */
+    private static void appendEdgeFilter( final StringBuilder sql,
+                                           final List< Object > params,
+                                           final String relationshipType,
+                                           final String searchName,
+                                           final String endpointKind ) {
+        if ( relationshipType != null && !relationshipType.isBlank() ) {
+            sql.append( " AND e.relationship_type = ?" );
+            params.add( relationshipType );
+        }
+        if ( searchName != null && !searchName.isBlank() ) {
+            sql.append( " AND ( LOWER( sn.name ) LIKE ? OR LOWER( tn.name ) LIKE ? )" );
+            final String pattern = "%" + searchName.toLowerCase( Locale.ROOT ) + "%";
+            params.add( pattern );
+            params.add( pattern );
+        }
+        sql.append( endpointKindClause( endpointKind ) );
+    }
+
     private static String endpointKindClause( final String endpointKind ) {
         if ( endpointKind == null || endpointKind.isBlank() ) return "";
         return switch ( endpointKind ) {
@@ -336,18 +361,7 @@ public final class KgEdgeRepository extends KgJdbcSupport {
               + KgInclusionFilter.EDGE_FILTER_JOIN
               + "WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE );
         final List< Object > params = new ArrayList<>();
-
-        if ( relationshipType != null && !relationshipType.isBlank() ) {
-            sql.append( " AND e.relationship_type = ?" );
-            params.add( relationshipType );
-        }
-        if ( searchName != null && !searchName.isBlank() ) {
-            sql.append( " AND ( LOWER( sn.name ) LIKE ? OR LOWER( tn.name ) LIKE ? )" );
-            final String pattern = "%" + searchName.toLowerCase( Locale.ROOT ) + "%";
-            params.add( pattern );
-            params.add( pattern );
-        }
-        sql.append( endpointKindClause( endpointKind ) );
+        appendEdgeFilter( sql, params, relationshipType, searchName, endpointKind );
         sql.append( " ORDER BY sn.name, e.relationship_type LIMIT ? OFFSET ?" );
         params.add( limit );
         params.add( offset );
@@ -444,18 +458,7 @@ public final class KgEdgeRepository extends KgJdbcSupport {
               + KgInclusionFilter.EDGE_FILTER_JOIN
               + "WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE );
         final List< Object > params = new ArrayList<>();
-
-        if ( relationshipType != null && !relationshipType.isBlank() ) {
-            sql.append( " AND e.relationship_type = ?" );
-            params.add( relationshipType );
-        }
-        if ( searchName != null && !searchName.isBlank() ) {
-            sql.append( " AND ( LOWER( sn.name ) LIKE ? OR LOWER( tn.name ) LIKE ? )" );
-            final String pattern = "%" + searchName.toLowerCase( java.util.Locale.ROOT ) + "%";
-            params.add( pattern );
-            params.add( pattern );
-        }
-        sql.append( endpointKindClause( endpointKind ) );
+        appendEdgeFilter( sql, params, relationshipType, searchName, endpointKind );
 
         try ( Connection conn = dataSource.getConnection();
               PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
@@ -491,18 +494,7 @@ public final class KgEdgeRepository extends KgJdbcSupport {
               + KgInclusionFilter.EDGE_FILTER_JOIN
               + " WHERE" + KgInclusionFilter.EDGE_FILTER_WHERE );
         final List< Object > params = new ArrayList<>();
-
-        if ( relationshipType != null && !relationshipType.isBlank() ) {
-            sql.append( " AND e.relationship_type = ?" );
-            params.add( relationshipType );
-        }
-        if ( searchName != null && !searchName.isBlank() ) {
-            sql.append( " AND ( LOWER( sn.name ) LIKE ? OR LOWER( tn.name ) LIKE ? )" );
-            final String pattern = "%" + searchName.toLowerCase( java.util.Locale.ROOT ) + "%";
-            params.add( pattern );
-            params.add( pattern );
-        }
-        sql.append( endpointKindClause( endpointKind ) );
+        appendEdgeFilter( sql, params, relationshipType, searchName, endpointKind );
         sql.append( " )" );
 
         try ( Connection conn = dataSource.getConnection();

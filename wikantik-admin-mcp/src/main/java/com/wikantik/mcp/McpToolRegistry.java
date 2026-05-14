@@ -26,6 +26,8 @@ import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.diff.DifferenceManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.mcp.tools.*;
+import com.wikantik.mcp.tools.kg.QueryNodesTool;
+import com.wikantik.mcp.tools.kg.SearchKnowledgeTool;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -128,12 +130,13 @@ public class McpToolRegistry {
                 // future: gated by kg_curate scope when scoped API keys land (9b)
                 authorConfigurableList.add( new CurateNodesTool( curationOps, bulkLimit ) );
             }
-            // Admin-only mirrors of the read tools from /knowledge-mcp, with admin bypass
-            // enabled so curators can immediately see entities whose source pages have not
-            // yet been admitted by the cluster inclusion policy (e.g. freshly-created nodes
-            // whose page is still on kg_excluded_pages).
-            readOnlyList.add( new AdminQueryNodesTool( kgService ) );
-            readOnlyList.add( new AdminSearchKnowledgeTool( kgService ) );
+            // Admin variants of the canonical /knowledge-mcp tools with admin bypass
+            // enabled, so curators can immediately see entities whose source pages have
+            // not yet been admitted by the cluster inclusion policy (e.g. freshly-created
+            // nodes whose page is still on kg_excluded_pages). MentionIndex is intentionally
+            // null — the admin surface does not hide unmentioned entities.
+            readOnlyList.add( new QueryNodesTool( kgService, null, true ) );
+            readOnlyList.add( new SearchKnowledgeTool( kgService, null, true ) );
             readOnlyList.add( new ListOrphanedKgNodesTool( kgService ) );
         }
 

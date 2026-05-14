@@ -18,17 +18,13 @@
  */
 package com.wikantik.knowledge;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.knowledge.extraction.ProposalUpserter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.lang.reflect.Type;
 import java.sql.*;
-import java.time.Instant;
 import java.util.*;
 
 /**
@@ -44,11 +40,9 @@ import java.util.*;
  *
  * @since 1.0
  */
-public final class KgProposalRepository {
+public final class KgProposalRepository extends KgJdbcSupport {
 
     private static final Logger LOG = LogManager.getLogger( KgProposalRepository.class );
-    private static final Gson GSON = new Gson();
-    private static final Type MAP_TYPE = new TypeToken< Map< String, Object > >() {}.getType();
 
     /**
      * Sentinel value for the {@code machineStatus} filter that maps to
@@ -57,37 +51,19 @@ public final class KgProposalRepository {
      */
     public static final String MACHINE_STATUS_NULL_SENTINEL = "(null)";
 
-    private final DataSource dataSource;
-
     public KgProposalRepository( final DataSource dataSource ) {
-        this.dataSource = dataSource;
+        super( dataSource );
+    }
+
+    @Override
+    protected Logger log() {
+        return LOG;
     }
 
     private static boolean isPoolClosed( final SQLException e ) {
         if ( e == null ) return false;
         final String msg = e.getMessage();
         return msg != null && msg.toLowerCase( java.util.Locale.ROOT ).contains( "data source is closed" );
-    }
-
-    private Map< String, Object > parseJson( final String json ) {
-        if ( json == null || json.isBlank() ) return Map.of();
-        final Map< String, Object > result = GSON.fromJson( json, MAP_TYPE );
-        return result != null ? result : Map.of();
-    }
-
-    private Instant toInstant( final Timestamp ts ) {
-        return ts != null ? ts.toInstant() : null;
-    }
-
-    private long queryCount( final String sql ) {
-        try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql );
-              ResultSet rs = ps.executeQuery() ) {
-            return rs.next() ? rs.getLong( 1 ) : 0;
-        } catch ( final SQLException e ) {
-            LOG.warn( "Failed to execute count query: {}", e.getMessage(), e );
-            throw new RuntimeException( e );
-        }
     }
 
     private KgProposal mapProposal( final ResultSet rs ) throws SQLException {

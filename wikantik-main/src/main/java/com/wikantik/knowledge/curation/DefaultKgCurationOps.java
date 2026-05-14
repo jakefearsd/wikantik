@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Default implementation of {@link KgCurationOps}. Wraps {@link KnowledgeGraphService}
@@ -71,111 +72,137 @@ public class DefaultKgCurationOps implements KgCurationOps {
 
     @Override
     public KgCurationOps.ApproveOutcome tryApprove( final UUID proposalId, final String reviewedBy ) {
-        try {
-            final KgProposal approved = kg.approveProposal( proposalId, reviewedBy );
-            if ( approved == null ) return KgCurationOps.ApproveOutcome.fail( "Not found: " + proposalId );
-            writeFrontmatterIfEdge( approved );
-
-            final List< String > warnings = new ArrayList<>();
-            if ( excluded != null && approved.sourcePage() != null
-                    && excluded.findReason( approved.sourcePage() ).isPresent() ) {
-                warnings.add( "source_page is in kg_excluded_pages list" );
-            }
-            return KgCurationOps.ApproveOutcome.ok( List.copyOf( warnings ) );
-        } catch ( final Exception e ) {
-            LOG.warn( "tryApprove: proposal={} actor={}: {}", proposalId, reviewedBy, e.getMessage() );
-            return KgCurationOps.ApproveOutcome.fail( e.getMessage() != null ? e.getMessage() : "Internal error" );
-        }
+        return wrap( "tryApprove", "proposal=" + proposalId + " actor=" + reviewedBy,
+                () -> {
+                    final KgProposal approved = kg.approveProposal( proposalId, reviewedBy );
+                    if ( approved == null ) return KgCurationOps.ApproveOutcome.fail( "Not found: " + proposalId );
+                    writeFrontmatterIfEdge( approved );
+                    final List< String > warnings = new ArrayList<>();
+                    if ( excluded != null && approved.sourcePage() != null
+                            && excluded.findReason( approved.sourcePage() ).isPresent() ) {
+                        warnings.add( "source_page is in kg_excluded_pages list" );
+                    }
+                    return KgCurationOps.ApproveOutcome.ok( List.copyOf( warnings ) );
+                },
+                KgCurationOps.ApproveOutcome::fail );
     }
 
     @Override
     public Optional<String> tryRejectProposal( final UUID proposalId, final String reviewedBy, final String reason ) {
-        try {
-            final KgProposal rejected = kg.rejectProposal( proposalId, reviewedBy, reason );
-            if ( rejected == null ) {
-                return Optional.of( "Not found: " + proposalId );
-            }
-            return Optional.empty();
-        } catch ( final Exception e ) {
-            LOG.warn( "tryRejectProposal: proposal={} actor={}: {}",
-                    proposalId, reviewedBy, e.getMessage() );
-            return Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
-        }
+        return tryWithMessage( "tryRejectProposal", "proposal=" + proposalId + " actor=" + reviewedBy,
+                () -> {
+                    final KgProposal rejected = kg.rejectProposal( proposalId, reviewedBy, reason );
+                    return rejected == null ? "Not found: " + proposalId : null;
+                } );
     }
 
     @Override
     public Optional<String> tryJudgeProposal( final UUID proposalId, final String reviewedBy ) {
-        try {
-            kg.judgeNow( proposalId, reviewedBy );
-            return Optional.empty();
-        } catch ( final Exception e ) {
-            LOG.warn( "tryJudgeProposal: proposal={} actor={}: {}",
-                    proposalId, reviewedBy, e.getMessage() );
-            return Optional.of( e.getMessage() != null ? e.getMessage() : "Judge error" );
-        }
+        return tryWithMessage( "tryJudgeProposal", "proposal=" + proposalId + " actor=" + reviewedBy,
+                () -> { kg.judgeNow( proposalId, reviewedBy ); return null; } );
     }
 
     @Override
     public Optional<String> tryConfirmEdge( final UUID edgeId, final String actor ) {
-        try {
-            final KgEdge after = kg.confirmEdge( edgeId, actor );
-            if ( after == null ) return Optional.of( "Edge not found: " + edgeId );
-            return Optional.empty();
-        } catch ( final Exception e ) {
-            LOG.warn( "tryConfirmEdge: edge={} actor={}: {}", edgeId, actor, e.getMessage() );
-            return Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
-        }
+        return tryWithMessage( "tryConfirmEdge", "edge=" + edgeId + " actor=" + actor,
+                () -> {
+                    final KgEdge after = kg.confirmEdge( edgeId, actor );
+                    return after == null ? "Edge not found: " + edgeId : null;
+                } );
     }
 
     @Override
     public Optional<String> tryDeleteEdge( final UUID edgeId, final String actor ) {
-        try {
-            kg.deleteEdge( edgeId );
-            return Optional.empty();
-        } catch ( final Exception e ) {
-            LOG.warn( "tryDeleteEdge: edge={} actor={}: {}", edgeId, actor, e.getMessage() );
-            return Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
-        }
+        return tryWithMessage( "tryDeleteEdge", "edge=" + edgeId + " actor=" + actor,
+                () -> { kg.deleteEdge( edgeId ); return null; } );
     }
 
     @Override
     public Optional<String> tryDeleteAndRejectEdge( final UUID edgeId, final String actor, final String reason ) {
-        try {
-            kg.deleteEdgeAndRecordRejection( edgeId, actor, reason );
-            return Optional.empty();
-        } catch ( final Exception e ) {
-            LOG.warn( "tryDeleteAndRejectEdge: edge={} actor={}: {}", edgeId, actor, e.getMessage() );
-            return Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
-        }
+        return tryWithMessage( "tryDeleteAndRejectEdge", "edge=" + edgeId + " actor=" + actor,
+                () -> { kg.deleteEdgeAndRecordRejection( edgeId, actor, reason ); return null; } );
     }
 
     @Override
     public EdgeResult tryUpsertEdge( final UUID sourceId, final UUID targetId, final String relationshipType,
                                      final Map<String, Object> properties, final String actor ) {
+        return wrap( "tryUpsertEdge",
+                "src=" + sourceId + " tgt=" + targetId + " rel=" + relationshipType + " actor=" + actor,
+                () -> {
+                    final KgEdge edge = kg.upsertEdge( sourceId, targetId, relationshipType,
+                            Provenance.HUMAN_CURATED,
+                            properties == null ? Map.of() : properties );
+                    if ( edge == null ) {
+                        // KgEdgeRepository returns null when the mixed page/entity guard fires (or
+                        // a similar fail-closed policy rejects the write). Surface an explicit
+                        // refusal so the calling agent can self-correct instead of seeing an NPE.
+                        return EdgeResult.fail( "edge rejected: endpoints cross the page/entity boundary "
+                                + "(mixed page<->entity edges disallowed since 2026-05-11). "
+                                + "Use homogeneous endpoints — page->page or entity->entity." );
+                    }
+                    return EdgeResult.ok( edge.id() );
+                },
+                EdgeResult::fail );
+    }
+
+    @Override
+    public Optional<String> tryDeleteNode( final UUID nodeId, final String actor ) {
+        return tryWithMessage( "tryDeleteNode", "node=" + nodeId + " actor=" + actor,
+                () -> { kg.deleteNode( nodeId ); return null; } );
+    }
+
+    @Override
+    public Optional<String> tryMergeNodes( final UUID sourceId, final UUID targetId, final String actor ) {
+        if ( sourceId == null || targetId == null ) return Optional.of( "source_id and target_id are required" );
+        if ( sourceId.equals( targetId ) ) return Optional.of( "source_id and target_id are the same" );
+        return tryWithMessage( "tryMergeNodes",
+                "src=" + sourceId + " tgt=" + targetId + " actor=" + actor,
+                () -> { kg.mergeNodes( sourceId, targetId ); return null; } );
+    }
+
+    @Override
+    public NodeResult tryUpsertNode( final String name, final String nodeType, final String sourcePage,
+                                     final Map<String, Object> properties, final String actor ) {
+        return wrap( "tryUpsertNode", "name=" + name + " actor=" + actor,
+                () -> {
+                    final com.wikantik.api.knowledge.KgNode node = kg.upsertNode( name, nodeType, sourcePage,
+                            Provenance.HUMAN_AUTHORED,
+                            properties == null ? Map.of() : properties );
+                    if ( node == null ) {
+                        return NodeResult.fail( "node not visible after insert (excluded source page or other policy filter)" );
+                    }
+                    return NodeResult.ok( node.id() );
+                },
+                NodeResult::fail );
+    }
+
+    /**
+     * Runs {@code body}; on any exception, logs at warn with {@code opName}+{@code ctx} and
+     * wraps the deepest cause-chain message via {@code failBuilder}. Single place where
+     * curation primitives unwrap JDBC duplicate-key text so admin surfaces never lose it.
+     */
+    private <T> T wrap( final String opName, final Object ctx,
+                        final ThrowingSupplier< T > body,
+                        final Function< String, T > failBuilder ) {
         try {
-            final KgEdge edge = kg.upsertEdge( sourceId, targetId, relationshipType,
-                    Provenance.HUMAN_CURATED,
-                    properties == null ? Map.of() : properties );
-            if ( edge == null ) {
-                // KgEdgeRepository returns null when the mixed page/entity guard fires (or
-                // a similar fail-closed policy rejects the write). Surface an explicit
-                // refusal so the calling agent can self-correct instead of seeing an NPE.
-                final String msg = "edge rejected: endpoints cross the page/entity boundary "
-                        + "(mixed page<->entity edges disallowed since 2026-05-11). "
-                        + "Use homogeneous endpoints — page->page or entity->entity.";
-                LOG.warn( "tryUpsertEdge: src={} tgt={} rel={} actor={}: {}",
-                        sourceId, targetId, relationshipType, actor, msg );
-                return EdgeResult.fail( msg );
-            }
-            return EdgeResult.ok( edge.id() );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "tryUpsertEdge: src={} tgt={} rel={} actor={}: {}",
-                    sourceId, targetId, relationshipType, actor, e.getMessage() );
-            // Walk the cause chain to surface duplicate-key messages — the JDBC driver
-            // wraps them inside a RuntimeException thrown by the persistence layer.
-            final String msg = causeChainMessage( e );
-            return EdgeResult.fail( msg );
+            return body.get();
+        } catch ( final Exception e ) {
+            LOG.warn( "{}: ctx={}: {}", opName, ctx, e.getMessage() );
+            return failBuilder.apply( causeChainMessage( e ) );
         }
+    }
+
+    /**
+     * Wraps a body whose return contract is {@code null}-on-success, {@code "error-text"}-on-logical-failure.
+     * Translates to {@code Optional.empty()} / {@code Optional.of(...)} and routes thrown
+     * exceptions through {@link #causeChainMessage}.
+     */
+    private Optional< String > tryWithMessage( final String opName, final Object ctx,
+                                                final ThrowingSupplier< String > body ) {
+        return wrap( opName, ctx, () -> {
+            final String err = body.get();
+            return err == null ? Optional.< String >empty() : Optional.of( err );
+        }, Optional::of );
     }
 
     /**
@@ -197,46 +224,9 @@ public class DefaultKgCurationOps implements KgCurationOps {
         return result;
     }
 
-    @Override
-    public Optional<String> tryDeleteNode( final UUID nodeId, final String actor ) {
-        try {
-            kg.deleteNode( nodeId );
-            return Optional.empty();
-        } catch ( final Exception e ) {
-            LOG.warn( "tryDeleteNode: node={} actor={}: {}", nodeId, actor, e.getMessage() );
-            return Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
-        }
-    }
-
-    @Override
-    public Optional<String> tryMergeNodes( final UUID sourceId, final UUID targetId, final String actor ) {
-        if ( sourceId == null || targetId == null ) return Optional.of( "source_id and target_id are required" );
-        if ( sourceId.equals( targetId ) ) return Optional.of( "source_id and target_id are the same" );
-        try {
-            kg.mergeNodes( sourceId, targetId );
-            return Optional.empty();
-        } catch ( final Exception e ) {
-            LOG.warn( "tryMergeNodes: src={} tgt={} actor={}: {}",
-                    sourceId, targetId, actor, e.getMessage() );
-            return Optional.of( e.getMessage() != null ? e.getMessage() : "Internal error" );
-        }
-    }
-
-    @Override
-    public NodeResult tryUpsertNode( final String name, final String nodeType, final String sourcePage,
-                                     final Map<String, Object> properties, final String actor ) {
-        try {
-            final com.wikantik.api.knowledge.KgNode node = kg.upsertNode( name, nodeType, sourcePage,
-                    Provenance.HUMAN_AUTHORED,
-                    properties == null ? Map.of() : properties );
-            if ( node == null ) {
-                return NodeResult.fail( "node not visible after insert (excluded source page or other policy filter)" );
-            }
-            return NodeResult.ok( node.id() );
-        } catch ( final RuntimeException e ) {
-            LOG.warn( "tryUpsertNode: name={} actor={}: {}", name, actor, e.getMessage() );
-            return NodeResult.fail( e.getMessage() != null ? e.getMessage() : "Internal error" );
-        }
+    @FunctionalInterface
+    private interface ThrowingSupplier< T > {
+        T get() throws Exception;
     }
 
     /**

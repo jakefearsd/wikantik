@@ -18,14 +18,17 @@
  */
 package com.wikantik.mcp.tools;
 
+import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KgProposalReview;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.api.knowledge.Provenance;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -87,5 +90,64 @@ public class InspectProposalsToolTest {
         assertFalse( r.isError() );
         final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
         assertTrue( body.contains( "\"missing\":[\"not-a-uuid\"]" ), body );
+    }
+
+    // Covers InspectProposalsTool.java:169-183 — linkedEntity() surfaces an
+    // existing KG node when the proposal's proposed_data.name resolves via
+    // getNodeByName.
+    @Test
+    void linkedEntityIncludesExistingNodeWhenNameResolves() {
+        final UUID id = UUID.randomUUID();
+        final UUID nodeId = UUID.randomUUID();
+        final KgProposal p = Mockito.mock( KgProposal.class );
+        when( p.id() ).thenReturn( id );
+        when( p.proposalType() ).thenReturn( "new-node" );
+        when( p.proposedData() ).thenReturn( Map.of( "name", "Raft" ) );
+        when( svc.getProposal( id ) ).thenReturn( p );
+        when( svc.listReviews( id ) ).thenReturn( List.of() );
+
+        final KgNode existing = new KgNode( nodeId, "Raft", "concept", "PaxosAndRaft",
+                Provenance.HUMAN_AUTHORED, Map.of(),
+                Instant.parse( "2026-05-01T00:00:00Z" ),
+                Instant.parse( "2026-05-01T00:00:00Z" ),
+                "human", null );
+        when( svc.getNodeByName( "Raft", true ) ).thenReturn( existing );
+
+        final McpSchema.CallToolResult r = tool.execute( Map.of( "ids", List.of( id.toString() ) ) );
+        assertFalse( r.isError() );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "\"kind\":\"node\"" ), body );
+        assertTrue( body.contains( "\"id\":\"" + nodeId + "\"" ), body );
+        assertTrue( body.contains( "\"name\":\"Raft\"" ), body );
+        assertTrue( body.contains( "\"type\":\"concept\"" ), body );
+    }
+
+    // Covers InspectProposalsTool.java:128 — prior_reviews are passed through
+    // from KnowledgeGraphService.listReviews and rendered field-by-field.
+    @Test
+    void priorReviewsArePassedThrough() {
+        final UUID id = UUID.randomUUID();
+        final UUID reviewId = UUID.randomUUID();
+        final KgProposal p = Mockito.mock( KgProposal.class );
+        when( p.id() ).thenReturn( id );
+        when( p.proposalType() ).thenReturn( "new-node" );
+        when( p.proposedData() ).thenReturn( Map.of( "name", "Raft" ) );
+        when( svc.getProposal( id ) ).thenReturn( p );
+        when( svc.getNodeByName( "Raft", true ) ).thenReturn( null );
+
+        final KgProposalReview review = new KgProposalReview(
+                reviewId, id, KgProposalReview.REVIEWER_MACHINE, "gemma4-judge:latest",
+                "reject", 0.92, "duplicate of existing node",
+                Instant.parse( "2026-05-10T12:34:56Z" ) );
+        when( svc.listReviews( id ) ).thenReturn( List.of( review ) );
+
+        final McpSchema.CallToolResult r = tool.execute( Map.of( "ids", List.of( id.toString() ) ) );
+        assertFalse( r.isError() );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "\"reviewer_kind\":\"machine\"" ), body );
+        assertTrue( body.contains( "\"reviewer_id\":\"gemma4-judge:latest\"" ), body );
+        assertTrue( body.contains( "\"verdict\":\"reject\"" ), body );
+        assertTrue( body.contains( "\"rationale\":\"duplicate of existing node\"" ), body );
+        assertTrue( body.contains( "2026-05-10T12:34:56Z" ), body );
     }
 }

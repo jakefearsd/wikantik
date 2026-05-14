@@ -113,6 +113,29 @@ public class McpAccessFilter implements Filter {
         }
     }
 
+    /**
+     * Outcome of {@link #authorize(HttpServletRequest)} — either the request is
+     * authorised (with a stable {@code clientId} for rate-limiting and a possibly-wrapped
+     * {@code effectiveReq}) or it is denied (with an HTTP status, optional headers, and a
+     * JSON error body).
+     */
+    sealed interface Outcome permits Outcome.Allowed, Outcome.Denied {
+
+        record Allowed( String clientId, HttpServletRequest effectiveReq ) implements Outcome { }
+
+        /** Header pair to be added to the response before writing the body. */
+        record Header( String name, String value ) { }
+
+        record Denied( int status, String body, List< Header > headers ) implements Outcome {
+            static Denied of( final int status, final String body ) {
+                return new Denied( status, body, List.of() );
+            }
+            static Denied of( final int status, final String body, final Header... headers ) {
+                return new Denied( status, body, List.of( headers ) );
+            }
+        }
+    }
+
     @Override
     public void doFilter( final ServletRequest request, final ServletResponse response,
                           final FilterChain chain ) throws IOException, ServletException {
@@ -120,68 +143,81 @@ public class McpAccessFilter implements Filter {
         final HttpServletResponse httpResp = ( HttpServletResponse ) response;
         final String remoteAddr = httpReq.getRemoteAddr();
 
+        final Outcome outcome = authorize( httpReq );
+        if ( outcome instanceof Outcome.Denied d ) {
+            writeDenied( httpResp, d );
+            return;
+        }
+
+        final Outcome.Allowed allowed = ( Outcome.Allowed ) outcome;
+        if ( !rateLimiter.tryAcquire( allowed.clientId() ) ) {
+            SECURITY.warn( "MCP rate limit exceeded: client={}, ip={}", allowed.clientId(), remoteAddr );
+            writeDenied( httpResp, Outcome.Denied.of( SC_TOO_MANY_REQUESTS,
+                    "{\"error\":\"Rate limit exceeded\"}",
+                    new Outcome.Header( "Retry-After", "1" ) ) );
+            return;
+        }
+
+        chain.doFilter( allowed.effectiveReq(), response );
+    }
+
+    /**
+     * Authorises a single HTTP request against the configured policy. Pure function: no
+     * response writes happen here. Callers (production: {@link #doFilter}; tests: directly)
+     * inspect the returned {@link Outcome}.
+     */
+    Outcome authorize( final HttpServletRequest httpReq ) {
+        final String remoteAddr = httpReq.getRemoteAddr();
+
         if ( failClosed ) {
             SECURITY.warn( "MCP request rejected: filter fail-closed (no auth configured), ip={}", remoteAddr );
-            httpResp.setStatus( HttpServletResponse.SC_SERVICE_UNAVAILABLE );
-            httpResp.setContentType( "application/json" );
-            httpResp.setHeader( "Retry-After", "86400" );
-            httpResp.getWriter().write(
+            return Outcome.Denied.of( HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                     "{\"error\":\"mcp_access_unconfigured\","
-                    + "\"detail\":\"No API keys, CIDR allowlist, or mcp.access.allowUnrestricted=true. "
-                    + "Configure one of mcp.access.keys / mcp.access.allowedCidrs / mcp.access.allowUnrestricted "
-                    + "in wikantik-custom.properties to enable /wikantik-admin-mcp.\"}" );
-            return;
+                  + "\"detail\":\"No API keys, CIDR allowlist, or mcp.access.allowUnrestricted=true. "
+                  + "Configure one of mcp.access.keys / mcp.access.allowedCidrs / mcp.access.allowUnrestricted "
+                  + "in wikantik-custom.properties to enable /wikantik-admin-mcp.\"}",
+                    new Outcome.Header( "Retry-After", "86400" ) );
         }
-
-        final String clientId;
-        HttpServletRequest effectiveReq = httpReq;
 
         if ( unrestricted ) {
-            clientId = "ip:" + remoteAddr;
-        } else {
-            final Optional< ApiKeyService.Record > dbKey = checkDbKey( httpReq );
-            if ( dbKey.isPresent() ) {
-                final ApiKeyService.Record record = dbKey.get();
-                if ( !record.scope().matches( ApiKeyService.Scope.MCP ) ) {
-                    SECURITY.warn( "MCP access denied: key id={} scope={} does not cover mcp, ip={}",
-                            record.id(), record.scope().wire(), remoteAddr );
-                    httpResp.setStatus( HttpServletResponse.SC_FORBIDDEN );
-                    httpResp.setContentType( "application/json" );
-                    httpResp.getWriter().write( "{\"error\":\"Key not authorized for MCP\"}" );
-                    return;
-                }
-                final ApiKeyPrincipalRequest wrapper = new ApiKeyPrincipalRequest( httpReq, record.principalLogin() );
-                wrapper.setAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD, record );
-                effectiveReq = wrapper;
-                clientId = "key:" + record.id();
-            } else {
-                final int keyIndex = checkApiKey( httpReq );
-                if ( keyIndex >= 0 ) {
-                    clientId = "legacy:" + keyIndex;
-                } else if ( checkIp( httpReq ) ) {
-                    clientId = "ip:" + remoteAddr;
-                } else {
-                    final boolean authHeaderPresent = httpReq.getHeader( "Authorization" ) != null;
-                    SECURITY.warn( "MCP access denied: ip={}, auth={}",
-                            remoteAddr, authHeaderPresent ? "invalid-key" : "none" );
-                    httpResp.setStatus( HttpServletResponse.SC_FORBIDDEN );
-                    httpResp.setContentType( "application/json" );
-                    httpResp.getWriter().write( "{\"error\":\"Access denied\"}" );
-                    return;
-                }
+            return new Outcome.Allowed( "ip:" + remoteAddr, httpReq );
+        }
+
+        final Optional< ApiKeyService.Record > dbKey = checkDbKey( httpReq );
+        if ( dbKey.isPresent() ) {
+            final ApiKeyService.Record record = dbKey.get();
+            if ( !record.scope().matches( ApiKeyService.Scope.MCP ) ) {
+                SECURITY.warn( "MCP access denied: key id={} scope={} does not cover mcp, ip={}",
+                        record.id(), record.scope().wire(), remoteAddr );
+                return Outcome.Denied.of( HttpServletResponse.SC_FORBIDDEN,
+                        "{\"error\":\"Key not authorized for MCP\"}" );
             }
+            final ApiKeyPrincipalRequest wrapper = new ApiKeyPrincipalRequest( httpReq, record.principalLogin() );
+            wrapper.setAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD, record );
+            return new Outcome.Allowed( "key:" + record.id(), wrapper );
         }
 
-        if ( !rateLimiter.tryAcquire( clientId ) ) {
-            SECURITY.warn( "MCP rate limit exceeded: client={}, ip={}", clientId, remoteAddr );
-            httpResp.setStatus( SC_TOO_MANY_REQUESTS );
-            httpResp.setHeader( "Retry-After", "1" );
-            httpResp.setContentType( "application/json" );
-            httpResp.getWriter().write( "{\"error\":\"Rate limit exceeded\"}" );
-            return;
+        final int keyIndex = checkApiKey( httpReq );
+        if ( keyIndex >= 0 ) {
+            return new Outcome.Allowed( "legacy:" + keyIndex, httpReq );
+        }
+        if ( checkIp( httpReq ) ) {
+            return new Outcome.Allowed( "ip:" + remoteAddr, httpReq );
         }
 
-        chain.doFilter( effectiveReq, response );
+        final boolean authHeaderPresent = httpReq.getHeader( "Authorization" ) != null;
+        SECURITY.warn( "MCP access denied: ip={}, auth={}",
+                remoteAddr, authHeaderPresent ? "invalid-key" : "none" );
+        return Outcome.Denied.of( HttpServletResponse.SC_FORBIDDEN, "{\"error\":\"Access denied\"}" );
+    }
+
+    private static void writeDenied( final HttpServletResponse resp, final Outcome.Denied d ) throws IOException {
+        resp.setStatus( d.status() );
+        resp.setContentType( "application/json" );
+        for ( final Outcome.Header h : d.headers() ) {
+            resp.setHeader( h.name(), h.value() );
+        }
+        resp.getWriter().write( d.body() );
     }
 
     private Optional< ApiKeyService.Record > checkDbKey( final HttpServletRequest request ) {

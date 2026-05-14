@@ -73,53 +73,22 @@ public class CurateNodesTool implements McpTool, AuthorConfigurable {
     }
 
     @Override public McpSchema.CallToolResult execute( final Map< String, Object > args ) {
-        final Object raw = args.get( "operations" );
-        if ( !( raw instanceof List< ? > rawList ) || rawList.isEmpty() ) {
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                    "operations is required and must be a non-empty array" );
-        }
-        if ( rawList.size() > bulkLimit ) {
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                    "bulk limit exceeded: " + rawList.size() + " > " + bulkLimit );
-        }
+        // Historically curate_nodes returns a non-error envelope even when every op
+        // fails — per-op errors live in failed[].error and IT tests rely on this.
+        // curate_edges has the opposite behaviour (hard isError on all-failed).
+        return McpToolUtils.runBulk( TOOL_NAME, "node", args.get( "operations" ),
+                bulkLimit, defaultAuthor, this::dispatch, /*isErrorOnAllFailed*/ false );
+    }
 
-        final List< Map< String, Object > > succeeded = new ArrayList<>();
-        final List< Map< String, Object > > failed = new ArrayList<>();
-
-        for ( final Object opEl : rawList ) {
-            if ( !( opEl instanceof Map< ?, ? > opMap ) ) {
-                failed.add( Map.of( "error", "operation must be an object" ) );
-                continue;
-            }
-            final Map< String, Object > op = castStringKey( opMap );
-            final String tag = stringOrNull( op.get( "tag" ) );
-            final String action = stringOrNull( op.get( "action" ) );
-
-            final Map< String, Object > result;
-            switch ( action == null ? "" : action ) {
-                case "upsert" -> result = doUpsert( op );
-                case "delete" -> result = doDelete( op );
-                case "merge"  -> result = doMerge( op );
-                default       -> result = Map.of( "error",
-                        "Unsupported action '" + action + "' — supported: upsert, delete, merge" );
-            }
-
-            final Map< String, Object > entry = new LinkedHashMap<>();
-            entry.put( "tag", tag );
-            entry.put( "action", action );
-            entry.putAll( result );
-            if ( entry.containsKey( "error" ) ) failed.add( entry );
-            else succeeded.add( entry );
-        }
-
-        McpAudit.logBulkWrite( TOOL_NAME, rawList.size(), succeeded.size(), failed.size(), defaultAuthor );
-
-        final Map< String, Object > out = new LinkedHashMap<>();
-        out.put( "status", "completed" );
-        out.put( "succeeded", succeeded );
-        out.put( "failed", failed );
-        out.put( "message", succeeded.size() + " of " + rawList.size() + " node operations applied" );
-        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, out );
+    private Map< String, Object > dispatch( final Map< String, Object > op ) {
+        final String action = McpToolUtils.stringOrNull( op.get( "action" ) );
+        return switch ( action == null ? "" : action ) {
+            case "upsert" -> doUpsert( op );
+            case "delete" -> doDelete( op );
+            case "merge"  -> doMerge( op );
+            default       -> Map.of( "error",
+                    "Unsupported action '" + action + "' — supported: upsert, delete, merge" );
+        };
     }
 
     private Map< String, Object > doUpsert( final Map< String, Object > op ) {
@@ -128,10 +97,10 @@ public class CurateNodesTool implements McpTool, AuthorConfigurable {
                 "upsert fields belong at the top level of the operation, not nested under 'node'. "
                 + "Expected shape: {action: 'upsert', name: '...', node_type: '...', source_page: '...'}" );
         }
-        final String name = stringOrNull( op.get( "name" ) );
+        final String name = McpToolUtils.stringOrNull( op.get( "name" ) );
         if ( name == null || name.isBlank() ) return Map.of( "error", "upsert requires name" );
-        final String nodeType = stringOrNull( op.get( "node_type" ) );
-        final String sourcePage = stringOrNull( op.get( "source_page" ) );
+        final String nodeType = McpToolUtils.stringOrNull( op.get( "node_type" ) );
+        final String sourcePage = McpToolUtils.stringOrNull( op.get( "source_page" ) );
         @SuppressWarnings( "unchecked" )
         final Map< String, Object > props = op.get( "properties" ) instanceof Map
                 ? ( Map< String, Object > ) op.get( "properties" ) : Map.of();
@@ -142,28 +111,19 @@ public class CurateNodesTool implements McpTool, AuthorConfigurable {
     }
 
     private Map< String, Object > doDelete( final Map< String, Object > op ) {
-        final UUID id = parseUuid( op.get( "id" ) );
+        final UUID id = McpToolUtils.parseUuid( op.get( "id" ) );
         if ( id == null ) return Map.of( "error", "delete requires id (UUID)" );
         final Optional< String > err = ops.tryDeleteNode( id, defaultAuthor );
         return err.isEmpty() ? Map.of( "id", id.toString() ) : Map.of( "id", id.toString(), "error", err.get() );
     }
 
     private Map< String, Object > doMerge( final Map< String, Object > op ) {
-        final UUID src = parseUuid( op.get( "source_id" ) );
-        final UUID tgt = parseUuid( op.get( "target_id" ) );
+        final UUID src = McpToolUtils.parseUuid( op.get( "source_id" ) );
+        final UUID tgt = McpToolUtils.parseUuid( op.get( "target_id" ) );
         if ( src == null || tgt == null ) return Map.of( "error", "merge requires source_id and target_id (UUIDs)" );
         final Optional< String > err = ops.tryMergeNodes( src, tgt, defaultAuthor );
         return err.isEmpty()
                 ? Map.of( "source_id", src.toString(), "target_id", tgt.toString() )
                 : Map.of( "source_id", src.toString(), "target_id", tgt.toString(), "error", err.get() );
     }
-
-    private static String stringOrNull( final Object o ) { return o == null ? null : o.toString(); }
-    private static UUID parseUuid( final Object o ) {
-        if ( o == null ) return null;
-        try { return UUID.fromString( o.toString() ); }
-        catch ( final IllegalArgumentException e ) { return null; }
-    }
-    @SuppressWarnings( "unchecked" )
-    private static Map< String, Object > castStringKey( final Map< ?, ? > raw ) { return ( Map< String, Object > ) raw; }
 }

@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.knowledge.mcp;
+package com.wikantik.mcp.tools.kg;
 
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
@@ -28,11 +28,21 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.*;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * MCP tool that searches for nodes by type, properties, and provenance.
+ *
+ * <p>Lives in {@code wikantik-admin-mcp} so both /knowledge-mcp (registered with a
+ * non-null {@link MentionIndex} and {@code adminBypass=false}) and
+ * /wikantik-admin-mcp (registered with {@code null} index and {@code adminBypass=true})
+ * share a single implementation. Setting {@code adminBypass=true} both bypasses the
+ * inclusion filter at the service layer and emits an {@code admin_bypass: true} marker
+ * in the response payload so curator UIs know they are in admin mode.</p>
  */
 public class QueryNodesTool implements McpTool {
 
@@ -126,7 +136,7 @@ public class QueryNodesTool implements McpTool {
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
             final Map< String, Object > filters = ( Map< String, Object > ) arguments.get( "filters" );
-            final Set< Provenance > provenanceFilter = KnowledgeMcpUtils.parseProvenanceFilter( arguments );
+            final Set< Provenance > provenanceFilter = McpToolUtils.parseProvenanceFilter( arguments );
             final int limit = McpToolUtils.getInt( arguments, "limit", 50 );
             final int offset = McpToolUtils.getInt( arguments, "offset", 0 );
 
@@ -140,10 +150,13 @@ public class QueryNodesTool implements McpTool {
                     if ( mentionIndex.isMentioned( n.id() ) ) filtered.add( n );
                 }
             }
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, Map.of( "results", filtered ) );
+            final Map< String, Object > payload = new LinkedHashMap<>();
+            payload.put( "results", filtered );
+            if ( adminBypass ) payload.put( "admin_bypass", true );
+            return McpToolUtils.jsonResult( McpToolUtils.KG_GSON, payload );
         } catch ( final Exception e ) {
             LOG.error( "Query nodes failed: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.KG_GSON, e.getMessage() );
         }
     }
 }

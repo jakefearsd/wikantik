@@ -480,6 +480,67 @@ class McpAccessFilterTest {
         verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
     }
 
+    // ----- authorize() direct path (sealed Outcome) -----
+
+    // Covers McpAccessFilter.java:188-194 — DB key whose Scope does not match
+    // MCP yields Outcome.Denied(403, "Key not authorized for MCP").
+    @Test
+    void dbKeyOutsideMcpScopeGets403() {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        when( svc.verify( "wkk_tools_only" ) )
+                .thenReturn( Optional.of( dbRecord( 7, "carol", ApiKeyService.Scope.TOOLS ) ) );
+        final McpAccessFilter filter = createFilterWithDbService( svc, null );
+        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wkk_tools_only" );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+
+        final McpAccessFilter.Outcome outcome = filter.authorize( request );
+
+        assertInstanceOf( McpAccessFilter.Outcome.Denied.class, outcome );
+        final McpAccessFilter.Outcome.Denied d = ( McpAccessFilter.Outcome.Denied ) outcome;
+        assertEquals( HttpServletResponse.SC_FORBIDDEN, d.status() );
+        assertTrue( d.body().toLowerCase().contains( "not authorized for mcp" ),
+                "deny body should explain the scope mismatch: " + d.body() );
+    }
+
+    // Covers McpAccessFilter.java:186-203 — when apiKeyService.verify returns
+    // Optional.empty(), control falls through to the legacy-key code path.
+    @Test
+    void dbKeyRejectionFallsThroughToLegacyKey() {
+        final ApiKeyService svc = mock( ApiKeyService.class );
+        when( svc.verify( "legacy-key" ) ).thenReturn( Optional.empty() );
+
+        final Properties props = new Properties();
+        props.setProperty( "mcp.access.keys", "legacy-key" );
+        final McpAccessFilter filter = createFilterWithDbService( svc, props );
+        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer legacy-key" );
+
+        final McpAccessFilter.Outcome outcome = filter.authorize( request );
+
+        assertInstanceOf( McpAccessFilter.Outcome.Allowed.class, outcome,
+                "fall-through to legacy key list must produce Allowed" );
+        final McpAccessFilter.Outcome.Allowed a = ( McpAccessFilter.Outcome.Allowed ) outcome;
+        assertTrue( a.clientId().startsWith( "legacy:" ),
+                "clientId should mark the legacy match path: " + a.clientId() );
+        // The DB service was still consulted before fall-through.
+        verify( svc ).verify( "legacy-key" );
+    }
+
+    // Covers McpAccessFilter.java:262-268 — when InetAddress.getByName throws
+    // UnknownHostException, checkIp must log+deny rather than propagate.
+    @Test
+    void unresolvableRemoteAddrLogsAndDenies() {
+        final McpAccessFilter filter = createFilter( null, "10.0.0.0/8" );
+        // A string with whitespace cannot be parsed as an IP literal nor
+        // resolved as a hostname → InetAddress.getByName throws.
+        when( request.getRemoteAddr() ).thenReturn( "not a host" );
+
+        final McpAccessFilter.Outcome outcome = filter.authorize( request );
+
+        assertInstanceOf( McpAccessFilter.Outcome.Denied.class, outcome );
+        assertEquals( HttpServletResponse.SC_FORBIDDEN,
+                ( ( McpAccessFilter.Outcome.Denied ) outcome ).status() );
+    }
+
     @Test
     void failClosedReturns503WithJsonBodyAndRetryAfter() throws Exception {
         final Properties p = new Properties();

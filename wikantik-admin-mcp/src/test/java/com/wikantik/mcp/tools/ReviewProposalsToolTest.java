@@ -130,4 +130,49 @@ public class ReviewProposalsToolTest {
         final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
         assertTrue( body.contains( "Invalid UUID" ), body );
     }
+
+    // Covers ReviewProposalsTool.java:163-166 — verdict "judge" must dispatch
+    // to ops.tryJudgeProposal (not tryApprove or tryRejectProposal).
+    @Test
+    void judgeVerdictDispatchesToTryJudge() {
+        final UUID id = UUID.randomUUID();
+        when( ops.tryJudgeProposal( eq( id ), eq( "alice" ) ) ).thenReturn( Optional.empty() );
+
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "verdict", "judge",
+                "ids", List.of( id.toString() ) ) );
+
+        assertFalse( r.isError() );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "\"succeeded\":[\"" + id + "\"]" ), body );
+        assertTrue( body.contains( "judged" ), body );
+        Mockito.verify( ops ).tryJudgeProposal( eq( id ), eq( "alice" ) );
+        Mockito.verify( ops, Mockito.never() ).tryApprove( any(), any() );
+        Mockito.verify( ops, Mockito.never() ).tryRejectProposal( any(), any(), any() );
+    }
+
+    // Covers ReviewProposalsTool.java:109-112 — unknown verdict (not in
+    // approve|reject|judge) is rejected as a top-level error.
+    @Test
+    void unknownVerdictIsTopLevelError() {
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "verdict", "bogus",
+                "ids", List.of( UUID.randomUUID().toString() ) ) );
+
+        assertTrue( r.isError() );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "Unsupported verdict" ), body );
+    }
+
+    // Covers ReviewProposalsTool.java:104-108 — missing/blank verdict yields a
+    // top-level error rather than per-id failures.
+    @Test
+    void missingVerdictIsTopLevelError() {
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "ids", List.of( UUID.randomUUID().toString() ) ) );
+
+        assertTrue( r.isError() );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.toLowerCase().contains( "verdict" ), body );
+    }
 }

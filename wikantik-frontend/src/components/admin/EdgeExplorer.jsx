@@ -1,57 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../api/client';
+import { usePaginatedQuery } from '../../hooks/useApi';
 import ProvenanceBadge from './ProvenanceBadge';
 import PageLink from './PageLink';
 import EdgeFormModal from './EdgeFormModal';
 import { MentionsPanel } from './MentionChunks';
-import { AdminTable } from './table';
+import { AdminTable, ConfirmBulkModal } from './table';
 
 const PAGE_SIZE = 50;
-
-function ConfirmModal({ title, body, onConfirm, onCancel, extraField }) {
-  const [extraValue, setExtraValue] = useState('');
-  return (
-    <div
-      className="modal-overlay"
-      role="dialog"
-      style={{ alignItems: 'center', paddingTop: 0, zIndex: 1000 }}
-    >
-      <div
-        className="modal-content admin-modal"
-        style={{ maxWidth: '520px' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: 'var(--space-sm)' }}>
-          {title}
-        </h2>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-md)' }}>{body}</p>
-        {extraField && (
-          <div className="form-field">
-            <label>{extraField.label}</label>
-            <input
-              type="text"
-              aria-label={extraField.label.toLowerCase()}
-              value={extraValue}
-              onChange={(e) => setExtraValue(e.target.value)}
-            />
-          </div>
-        )}
-        <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onCancel}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary btn-danger"
-            onClick={() => onConfirm(extraValue)}
-          >
-            Confirm
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function EdgeHistory({ edgeId }) {
   const [rows, setRows] = useState(null);
@@ -260,16 +216,10 @@ function EdgeDetail({
 }
 
 export default function EdgeExplorer() {
-  const [edges, setEdges] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
   const [relTypeFilter, setRelTypeFilter] = useState('');
   const [endpointKindFilter, setEndpointKindFilter] = useState(''); // '' | 'page' | 'entity'
   const [relTypes, setRelTypes] = useState([]);
-  const [page, setPage] = useState(0);
+  const [schemaError, setSchemaError] = useState(null);
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [sourceNode, setSourceNode] = useState(null);
   const [targetNode, setTargetNode] = useState(null);
@@ -277,25 +227,35 @@ export default function EdgeExplorer() {
   const [formMode, setFormMode] = useState(null); // null | 'create' | 'edit'
   const [confirmMode, setConfirmMode] = useState(null); // null | 'plain' | 'reject'
 
-  const loadEdges = useCallback(
-    async (currentPage) => {
-      try {
-        const data = await api.knowledge.queryEdges({
-          relationship_type: relTypeFilter || undefined,
-          search: search || undefined,
-          endpoint_kind: endpointKindFilter || undefined,
-          limit: PAGE_SIZE,
-          offset: currentPage * PAGE_SIZE,
-        });
-        setEdges(data.edges || []);
-        setTotal(typeof data.total === 'number' ? data.total : data.edges?.length || 0);
-        setError(null);
-      } catch (err) {
-        setError(err.message);
-      }
+  const fetchEdges = useCallback(
+    async ({ page: currentPage, pageSize, search }) => {
+      const data = await api.knowledge.queryEdges({
+        relationship_type: relTypeFilter || undefined,
+        search: search || undefined,
+        endpoint_kind: endpointKindFilter || undefined,
+        limit: pageSize,
+        offset: currentPage * pageSize,
+      });
+      return {
+        rows: data.edges || [],
+        total: typeof data.total === 'number' ? data.total : data.edges?.length || 0,
+      };
     },
-    [relTypeFilter, search, endpointKindFilter],
+    [relTypeFilter, endpointKindFilter],
   );
+
+  const {
+    rows: edges,
+    total,
+    page,
+    setPage,
+    search: searchInput,
+    setSearch: setSearchInput,
+    error,
+    setError,
+    firstLoad: loading,
+    reload: reloadEdges,
+  } = usePaginatedQuery(fetchEdges, [relTypeFilter, endpointKindFilter], { pageSize: PAGE_SIZE });
 
   useEffect(() => {
     (async () => {
@@ -303,27 +263,10 @@ export default function EdgeExplorer() {
         const schema = await api.knowledge.getSchema();
         setRelTypes(schema.relationshipTypes || schema.relationship_types || []);
       } catch (err) {
-        setError(err.message);
+        setSchemaError(err.message);
       }
     })();
   }, []);
-
-  // Reset to page 0 whenever a filter changes, then reload.
-  useEffect(() => {
-    setPage(0);
-    loadEdges(0).finally(() => setLoading(false));
-  }, [loadEdges]);
-
-  // Reload when paginating.
-  useEffect(() => {
-    if (page > 0) loadEdges(page);
-  }, [page, loadEdges]);
-
-  // Debounce the search input → search state.
-  useEffect(() => {
-    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
-    return () => clearTimeout(t);
-  }, [searchInput]);
 
   const handleEdgeClick = async (edge) => {
     setSelectedEdge(edge);
@@ -368,7 +311,7 @@ export default function EdgeExplorer() {
   const refreshAndClose = async () => {
     setFormMode(null);
     setConfirmMode(null);
-    await loadEdges(page);
+    await reloadEdges();
   };
 
   const onConfirmPlainDelete = async () => {
@@ -395,7 +338,7 @@ export default function EdgeExplorer() {
           cur ? { ...cur, tier: updated.tier, provenance: updated.provenance } : cur,
         );
       }
-      await loadEdges(page);
+      await reloadEdges();
     } catch (e) {
       setError(e.message);
     }
@@ -526,15 +469,15 @@ export default function EdgeExplorer() {
       if (selectedEdge?.id && ids.includes(selectedEdge.id) && failed.every((f) => f.id !== selectedEdge.id)) {
         setSelectedEdge(null);
       }
-      await loadEdges(page);
+      await reloadEdges();
 
       return { succeeded, failed, status: 'completed' };
     },
-    [loadEdges, page, selectedEdge],
+    [reloadEdges, selectedEdge],
   );
 
   if (loading) return <div className="admin-loading">Loading edges...</div>;
-  if (error) return <div className="admin-error">{error}</div>;
+  if (error || schemaError) return <div className="admin-error">{error || schemaError}</div>;
 
   return (
     <div style={{ display: 'flex', gap: 'var(--space-lg)', minHeight: '400px' }}>
@@ -648,19 +591,51 @@ export default function EdgeExplorer() {
         />
       )}
 
-      {confirmMode === 'plain' && (
-        <ConfirmModal
-          title="Delete this edge?"
-          body="Re-extraction may re-propose it. Use Delete + Prevent if you want to keep it out."
+      {confirmMode === 'plain' && selectedEdge && (
+        <ConfirmBulkModal
+          action={{
+            id: 'delete',
+            label: 'Delete',
+            variant: 'danger',
+            confirm: {
+              title: 'Delete this edge?',
+              body: () => (
+                <p>
+                  Re-extraction may re-propose it. Use Delete + Prevent if you want to keep
+                  it out.
+                </p>
+              ),
+              confirmLabel: 'Confirm',
+            },
+          }}
+          selectedRows={[selectedEdge]}
+          getRowKey={(e) => e.id}
+          kindLabel="edge"
           onConfirm={onConfirmPlainDelete}
           onCancel={() => setConfirmMode(null)}
         />
       )}
-      {confirmMode === 'reject' && (
-        <ConfirmModal
-          title="Delete and prevent re-proposal"
-          body="This will delete the edge AND insert a rejection so the next extraction run cannot re-add it."
-          extraField={{ label: 'Reason' }}
+      {confirmMode === 'reject' && selectedEdge && (
+        <ConfirmBulkModal
+          action={{
+            id: 'reject',
+            label: 'Delete + Prevent',
+            variant: 'danger',
+            confirm: {
+              title: 'Delete and prevent re-proposal',
+              body: () => (
+                <p>
+                  This will delete the edge AND insert a rejection so the next extraction
+                  run cannot re-add it.
+                </p>
+              ),
+              confirmLabel: 'Confirm',
+            },
+            reason: { label: 'Reason', placeholder: 'Why is this wrong?', required: false },
+          }}
+          selectedRows={[selectedEdge]}
+          getRowKey={(e) => e.id}
+          kindLabel="edge"
           onConfirm={onConfirmDeleteAndReject}
           onCancel={() => setConfirmMode(null)}
         />

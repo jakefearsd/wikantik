@@ -95,6 +95,66 @@ public class CurateEdgesToolTest {
     }
 
     @Test
+    void allFailedOperationsFlagBulkResultAsIsError() {
+        // When zero of N operations succeed, the bulk result is hard-flagged as
+        // isError so the calling model treats it as a tool failure instead of
+        // glancing past status:"completed" and missing the failed[].error array.
+        final UUID src = UUID.randomUUID();
+        final UUID tgt = UUID.randomUUID();
+        when( ops.tryUpsertEdge( eq( src ), eq( tgt ), eq( "rel" ), any(), eq( "alice" ) ) )
+                .thenReturn( KgCurationOps.EdgeResult.fail(
+                        "edge rejected: endpoints cross the page/entity boundary" ) );
+
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "operations", List.of( Map.of(
+                        "action", "upsert", "tag", "x",
+                        "source_id", src.toString(), "target_id", tgt.toString(),
+                        "relationship_type", "rel" ) ) ) );
+
+        assertTrue( r.isError(), "0-of-N-succeeded must set isError" );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "\"status\":\"failed\"" ), body );
+        assertTrue( body.contains( "page/entity boundary" ), body );
+    }
+
+    @Test
+    void partialSuccessDoesNotFlagBulkResultAsIsError() {
+        // Mixed outcomes: the model needs to consume both succeeded and failed arrays.
+        // isError must stay false so the response isn't treated as a hard failure.
+        final UUID okSrc = UUID.randomUUID(), okTgt = UUID.randomUUID(), okId = UUID.randomUUID();
+        final UUID badSrc = UUID.randomUUID(), badTgt = UUID.randomUUID();
+        when( ops.tryUpsertEdge( eq( okSrc ), eq( okTgt ), any(), any(), any() ) )
+                .thenReturn( KgCurationOps.EdgeResult.ok( okId ) );
+        when( ops.tryUpsertEdge( eq( badSrc ), eq( badTgt ), any(), any(), any() ) )
+                .thenReturn( KgCurationOps.EdgeResult.fail( "edge rejected" ) );
+
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "operations", List.of(
+                        Map.of( "action", "upsert", "tag", "ok",
+                                "source_id", okSrc.toString(), "target_id", okTgt.toString(),
+                                "relationship_type", "rel" ),
+                        Map.of( "action", "upsert", "tag", "bad",
+                                "source_id", badSrc.toString(), "target_id", badTgt.toString(),
+                                "relationship_type", "rel" ) ) ) );
+
+        assertFalse( r.isError(), "partial success must NOT flag isError" );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "\"status\":\"completed\"" ), body );
+    }
+
+    @Test
+    void toolDescriptionDocumentsPageEntityBoundaryPolicy() {
+        // The description is the highest-leverage place to communicate policy —
+        // the model reads it before assembling arguments. Without this line the
+        // gemini-cli-mcp-client kept calling curate_edges with page↔entity endpoints.
+        final String desc = tool.definition().description();
+        assertTrue( desc.toLowerCase().contains( "homogeneous" )
+                || desc.toLowerCase().contains( "page→page" )
+                || desc.toLowerCase().contains( "mixed page/entity" ),
+                "description should warn about the page/entity boundary policy; got: " + desc );
+    }
+
+    @Test
     void bulkLimitExceededIsTopLevelError() {
         final List< Object > ops51 = new java.util.ArrayList<>();
         for ( int i = 0; i < 51; i++ ) ops51.add( Map.of( "action", "confirm",
@@ -114,5 +174,43 @@ public class CurateEdgesToolTest {
         final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
         assertTrue( body.contains( "top level" ), body );
         assertTrue( body.contains( "not nested under" ) && body.contains( "edge" ), body );
+    }
+
+    // Covers CurateEdgesTool.java:126-131 — doDelete happy path returns the id.
+    @Test
+    void deleteSuccessReturnsId() {
+        final UUID id = UUID.randomUUID();
+        when( ops.tryDeleteEdge( eq( id ), eq( "alice" ) ) ).thenReturn( Optional.empty() );
+
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "operations", List.of( Map.of(
+                        "action", "delete", "tag", "edge-del", "id", id.toString() ) ) ) );
+
+        assertFalse( r.isError(), "happy-path delete must not flag isError" );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "\"tag\":\"edge-del\"" ), body );
+        assertTrue( body.contains( "\"id\":\"" + id + "\"" ), body );
+        assertTrue( body.contains( "\"action\":\"delete\"" ), body );
+    }
+
+    // Covers CurateEdgesTool.java:133-140 — doDeleteAndReject happy path returns the id.
+    @Test
+    void deleteAndRejectSuccessReturnsId() {
+        final UUID id = UUID.randomUUID();
+        when( ops.tryDeleteAndRejectEdge( eq( id ), eq( "alice" ), eq( "spurious co-mention" ) ) )
+                .thenReturn( Optional.empty() );
+
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "operations", List.of( Map.of(
+                        "action", "delete_and_reject",
+                        "tag", "edge-dar",
+                        "id", id.toString(),
+                        "reason", "spurious co-mention" ) ) ) );
+
+        assertFalse( r.isError(), "happy-path delete_and_reject must not flag isError" );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "\"tag\":\"edge-dar\"" ), body );
+        assertTrue( body.contains( "\"id\":\"" + id + "\"" ), body );
+        assertTrue( body.contains( "\"action\":\"delete_and_reject\"" ), body );
     }
 }

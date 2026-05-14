@@ -158,18 +158,19 @@ export default function KnowledgeGraphView() {
 
   const handleTierChange = useCallback((tier) => {
     setMinTier(tier);
-    const params = new URLSearchParams(window.location.search);
-    if (tier === 'machine') {
-      params.delete('tier'); // keep URL clean for the default
-    } else {
-      params.set('tier', tier);
-    }
-    const qs = params.toString();
+    // Drive the URL write through filter-url's PRESERVED_KEYS path so it stays
+    // the single source of truth for KG/Page Graph URL serialization. `tier` is
+    // 'machine' default → drop it from the URL for cleanliness.
+    const existing = new URLSearchParams(window.location.search);
+    if (tier === 'machine') existing.delete('tier');
+    else existing.set('tier', tier);
+    const next = filterStateToParams(filterState, existing);
+    const qs = next.toString();
     const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
     window.history.replaceState(null, '', url);
     fetchSnapshot(tier);
     setSelectedId(null); // node ID set may change between tiers
-  }, [fetchSnapshot]);
+  }, [fetchSnapshot, filterState]);
 
   const handleRefresh = useCallback(
     () => fetchSnapshot(minTier, selectedNode?.name),

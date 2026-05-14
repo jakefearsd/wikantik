@@ -190,6 +190,29 @@ _acquire_deploy_lock() {
     fi
 }
 
+# _subcommand_help ARG  — uniform per-subcommand --help dispatch.
+#
+# Usage at the top of each cmd_* function:
+#
+#     _subcommand_help "$1" <<EOF || return 0
+#     ...usage text...
+#     EOF
+#
+# When ARG is -h or --help, prints the heredoc on stdout and returns 1 so
+# the caller's `|| return 0` short-circuits the rest of the function.
+# Otherwise reads-and-discards stdin and returns 0, letting the caller
+# continue.
+_subcommand_help() {
+    local help_text
+    help_text="$(cat)"
+    case "${1:-}" in
+        -h|--help)
+            printf '%s\n' "${help_text}"
+            return 1 ;;
+    esac
+    return 0
+}
+
 # Selftest subcommand — visible only via dry-run; greps in tests.
 cmd_selftest() {
     _ssh true
@@ -247,10 +270,7 @@ cmd_deploy() {
     local skip_build=0
     local health_timeout="${HEALTH_TIMEOUT}"
 
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -h|--help)
-                cat <<EOF
+    _subcommand_help "${1:-}" <<EOF || return 0
 deploy — build locally, push image over ssh, up -d on remote, health-poll, auto-rollback on failure.
 
 Usage: bin/remote.sh [--dry-run] deploy [--skip-build] [--health-timeout=N]
@@ -270,7 +290,9 @@ Flow:
   8. poll HEALTH_URL every 3s up to --health-timeout
   9. on failure: re-promote :rollback, print last 50 wikantik log lines, exit 1
 EOF
-                return 0 ;;
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
             --skip-build) skip_build=1; shift ;;
             --health-timeout=*) health_timeout="${1#*=}"; shift ;;
             --health-timeout)   health_timeout="$2"; shift 2 ;;
@@ -342,9 +364,7 @@ EOF
 }
 
 cmd_rollback() {
-    case "${1:-}" in
-        -h|--help)
-            cat <<'EOF'
+    _subcommand_help "${1:-}" <<'EOF' || return 0
 rollback — re-promote wikantik:rollback to wikantik:latest, force-recreate the service.
 
 Usage: bin/remote.sh [--dry-run] rollback
@@ -354,8 +374,6 @@ deploy has been recorded). In that case, recovery is manual: re-deploy a
 known-good build or restore from backup. Acquires the same deploy lock
 as `deploy` and `restore`.
 EOF
-            return 0 ;;
-    esac
 
     _acquire_deploy_lock
     _ssh "docker image inspect wikantik:rollback >/dev/null 2>&1 \
@@ -366,9 +384,7 @@ EOF
 }
 
 cmd_bootstrap() {
-    case "${1:-}" in
-        -h|--help)
-            cat <<'EOF'
+    _subcommand_help "${1:-}" <<'EOF' || return 0
 bootstrap — first-time remote setup. Idempotent; safe to re-run.
 
 Usage: bin/remote.sh bootstrap [--dry-run]
@@ -385,9 +401,6 @@ Does NOT:
   - Run `up -d` — that happens on the first `deploy` invocation, which is when the
     wikantik image first lands on the remote.
 EOF
-            return 0
-            ;;
-    esac
 
     # Local: ensure the ControlMaster dir exists with 0700 (the _ssh helper also
     # does this, but doing it up-front keeps bootstrap self-contained).
@@ -431,10 +444,7 @@ cmd_pages_push() {
     local local_dir=""
     local mirror=0
     local assume_yes=0
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            -h|--help)
-                cat <<'EOF'
+    _subcommand_help "${1:-}" <<'EOF' || return 0
 pages-push — rsync a local pages directory to REMOTE_PAGES_DIR.
 
 Usage:
@@ -445,7 +455,8 @@ Default: no --delete. Files present on the remote but missing locally survive.
 --mirror: opts in to rsync --delete. By default, prompts for confirmation
           showing the files that would be deleted; --yes skips the prompt.
 EOF
-                return 0 ;;
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
             --mirror) mirror=1; shift ;;
             --yes)    assume_yes=1; shift ;;
             -*) echo "pages-push: unknown flag: $1" >&2; exit 2 ;;
@@ -488,15 +499,11 @@ EOF
 
 cmd_pages_pull() {
     local local_dir=""
-    case "${1:-}" in
-        -h|--help)
-            cat <<'EOF'
+    _subcommand_help "${1:-}" <<'EOF' || return 0
 pages-pull — rsync REMOTE_PAGES_DIR to a local directory. Read-only (never deletes locally).
 
 Usage: bin/remote.sh [--dry-run] pages-pull LOCAL_DIR
 EOF
-            return 0 ;;
-    esac
     local_dir="${1:-}"
     [[ -n "${local_dir}" ]] || { echo "pages-pull: missing LOCAL_DIR" >&2; exit 2; }
     mkdir -p "${local_dir}"
@@ -506,25 +513,19 @@ EOF
 }
 
 cmd_backup_trigger() {
-    case "${1:-}" in
-        -h|--help)
-            cat <<'EOF'
+    _subcommand_help "${1:-}" <<'EOF' || return 0
 backup-trigger — invoke the prod backup sidecar.
 
 Usage: bin/remote.sh [--dry-run] backup-trigger [TIER]
   TIER: daily | weekly | monthly  (default: daily)
 EOF
-            return 0 ;;
-    esac
     local tier="${1:-daily}"
     _remote_container backup "${tier}"
 }
 
 cmd_backup_pull() {
     local date_arg=""
-    case "${1:-}" in
-        -h|--help)
-            cat <<'EOF'
+    _subcommand_help "${1:-}" <<'EOF' || return 0
 backup-pull — rsync a backup snapshot from REMOTE_BACKUP_DIR back to the dev box.
 
 Usage: bin/remote.sh [--dry-run] backup-pull [DATE]
@@ -532,8 +533,6 @@ Usage: bin/remote.sh [--dry-run] backup-pull [DATE]
 
 The snapshot is rsynced into ./backups/<DATE>/ locally.
 EOF
-            return 0 ;;
-    esac
     date_arg="${1:-}"
 
     # If no DATE given, discover the lexically-greatest dated subdir on the remote.
@@ -561,9 +560,7 @@ EOF
 }
 
 cmd_status() {
-    case "${1:-}" in
-        -h|--help)
-            cat <<'EOF'
+    _subcommand_help "${1:-}" <<'EOF' || return 0
 status — one-screen summary of the remote deployment.
 
 Usage: bin/remote.sh status
@@ -575,8 +572,6 @@ Prints:
   - du -sh REMOTE_PAGES_DIR REMOTE_BACKUP_DIR            (data size)
   - last 10 wikantik log lines                           (recent activity)
 EOF
-            return 0 ;;
-    esac
 
     echo "=== ${REMOTE_HOST} — container state ==="
     _ssh "cd $(printf '%q' "${REMOTE_REPO_DIR}") && bin/container.sh -e prod ps"
@@ -601,9 +596,7 @@ EOF
 }
 
 cmd_restore() {
-    case "${1:-}" in
-        -h|--help)
-            cat <<'EOF'
+    _subcommand_help "${1:-}" <<'EOF' || return 0
 restore — invoke the prod backup sidecar's restore.sh with a remote backup path.
 
 Usage: bin/remote.sh [--dry-run] restore REMOTE_PATH
@@ -612,8 +605,6 @@ Usage: bin/remote.sh [--dry-run] restore REMOTE_PATH
 The wikantik container is brought down for restore and back up afterward.
 Acquires the same deploy lock as `deploy` and `rollback`.
 EOF
-            return 0 ;;
-    esac
     local path="${1:-}"
     [[ -n "${path}" ]] || { echo "restore: missing REMOTE_PATH" >&2; exit 2; }
     _acquire_deploy_lock

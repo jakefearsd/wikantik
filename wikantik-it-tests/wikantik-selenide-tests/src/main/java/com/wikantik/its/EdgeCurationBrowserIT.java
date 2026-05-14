@@ -50,9 +50,9 @@ import static com.codeborne.selenide.Selenide.$$;
  * of the list and detail panel.</p>
  *
  * <p>Tab label is "Edge Explorer" (AdminKnowledgePage TABS array uses that
- * label, not the bare word "Edges"). The ConfirmModal for delete-and-reject
- * has an extra field whose {@code aria-label} is {@code "reason"} (lowercased
- * from the label "Reason").</p>
+ * label, not the bare word "Edges"). The shared {@code ConfirmBulkModal} for
+ * delete-and-reject renders the reason field as
+ * {@code <textarea id="bulk-modal-reason">}.</p>
  */
 public class EdgeCurationBrowserIT extends WithIntegrationTestSetup {
 
@@ -115,9 +115,10 @@ public class EdgeCurationBrowserIT extends WithIntegrationTestSetup {
             .shouldBe( visible, Duration.ofSeconds( 10 ) )
             .click();
 
-        // The ConfirmModal for delete-and-reject has an extra reason field;
-        // the JSX lowercases the aria-label so it is "reason", not "Reason".
-        $( "input[aria-label=reason]" )
+        // EdgeExplorer now shares the AdminTable ConfirmBulkModal, which renders the
+        // reason field as a <textarea id="bulk-modal-reason"> rather than the old
+        // inline <input aria-label="reason">.
+        $( "textarea#bulk-modal-reason" )
             .shouldBe( visible, Duration.ofSeconds( 5 ) )
             .setValue( "smoke test" );
 

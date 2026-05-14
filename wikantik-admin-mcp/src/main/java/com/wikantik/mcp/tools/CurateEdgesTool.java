@@ -65,7 +65,11 @@ public class CurateEdgesTool implements McpTool, AuthorConfigurable {
                 .name( TOOL_NAME )
                 .description( "Bulk heterogeneous edge curation. Actions: " +
                         "`upsert` (HUMAN_CURATED), `confirm` (elevate to human-curated), `delete`, " +
-                        "`delete_and_reject` (delete + write rejection record)." )
+                        "`delete_and_reject` (delete + write rejection record). " +
+                        "Endpoints MUST be homogeneous: page→page (Page Graph) or " +
+                        "entity→entity (Knowledge Graph). Mixed page/entity edges are " +
+                        "rejected — use `add_outbound_link` for page→page wikilinks, or " +
+                        "`propose_knowledge` / `curate_edges` between two entity nodes." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties,
                         List.of( "operations" ), null, null, null ) )
                 .outputSchema( outputSchema )
@@ -74,54 +78,20 @@ public class CurateEdgesTool implements McpTool, AuthorConfigurable {
     }
 
     @Override public McpSchema.CallToolResult execute( final Map< String, Object > args ) {
-        final Object raw = args.get( "operations" );
-        if ( !( raw instanceof List< ? > rawList ) || rawList.isEmpty() ) {
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                    "operations is required and must be a non-empty array" );
-        }
-        if ( rawList.size() > bulkLimit ) {
-            return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                    "bulk limit exceeded: " + rawList.size() + " > " + bulkLimit );
-        }
+        return McpToolUtils.runBulk( TOOL_NAME, "edge", args.get( "operations" ),
+                bulkLimit, defaultAuthor, this::dispatch );
+    }
 
-        final List< Map< String, Object > > succeeded = new ArrayList<>();
-        final List< Map< String, Object > > failed = new ArrayList<>();
-
-        for ( final Object opEl : rawList ) {
-            if ( !( opEl instanceof Map< ?, ? > opMap ) ) {
-                failed.add( Map.of( "error", "operation must be an object" ) );
-                continue;
-            }
-            final Map< String, Object > op = castStringKey( opMap );
-            final String tag = stringOrNull( op.get( "tag" ) );
-            final String action = stringOrNull( op.get( "action" ) );
-
-            final Map< String, Object > result;
-            switch ( action == null ? "" : action ) {
-                case "upsert"            -> result = doUpsert( op );
-                case "confirm"           -> result = doConfirm( op );
-                case "delete"            -> result = doDelete( op );
-                case "delete_and_reject" -> result = doDeleteAndReject( op );
-                default                  -> result = Map.of( "error",
-                        "Unsupported action '" + action + "' — supported: upsert, confirm, delete, delete_and_reject" );
-            }
-
-            final Map< String, Object > entry = new LinkedHashMap<>();
-            entry.put( "tag", tag );
-            entry.put( "action", action );
-            entry.putAll( result );
-            if ( entry.containsKey( "error" ) ) failed.add( entry );
-            else succeeded.add( entry );
-        }
-
-        McpAudit.logBulkWrite( TOOL_NAME, rawList.size(), succeeded.size(), failed.size(), defaultAuthor );
-
-        final Map< String, Object > out = new LinkedHashMap<>();
-        out.put( "status", "completed" );
-        out.put( "succeeded", succeeded );
-        out.put( "failed", failed );
-        out.put( "message", succeeded.size() + " of " + rawList.size() + " edge operations applied" );
-        return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, out );
+    private Map< String, Object > dispatch( final Map< String, Object > op ) {
+        final String action = McpToolUtils.stringOrNull( op.get( "action" ) );
+        return switch ( action == null ? "" : action ) {
+            case "upsert"            -> doUpsert( op );
+            case "confirm"           -> doConfirm( op );
+            case "delete"            -> doDelete( op );
+            case "delete_and_reject" -> doDeleteAndReject( op );
+            default                  -> Map.of( "error",
+                    "Unsupported action '" + action + "' — supported: upsert, confirm, delete, delete_and_reject" );
+        };
     }
 
     private Map< String, Object > doUpsert( final Map< String, Object > op ) {
@@ -130,9 +100,9 @@ public class CurateEdgesTool implements McpTool, AuthorConfigurable {
                 "upsert fields belong at the top level of the operation, not nested under 'edge'. "
                 + "Expected shape: {action: 'upsert', source_id: '...', target_id: '...', relationship_type: '...'}" );
         }
-        final UUID src = parseUuid( op.get( "source_id" ) );
-        final UUID tgt = parseUuid( op.get( "target_id" ) );
-        final String rel = stringOrNull( op.get( "relationship_type" ) );
+        final UUID src = McpToolUtils.parseUuid( op.get( "source_id" ) );
+        final UUID tgt = McpToolUtils.parseUuid( op.get( "target_id" ) );
+        final String rel = McpToolUtils.stringOrNull( op.get( "relationship_type" ) );
         if ( src == null || tgt == null || rel == null || rel.isBlank() ) {
             return Map.of( "error",
                     "upsert requires source_id, target_id, relationship_type" );
@@ -147,34 +117,25 @@ public class CurateEdgesTool implements McpTool, AuthorConfigurable {
     }
 
     private Map< String, Object > doConfirm( final Map< String, Object > op ) {
-        final UUID id = parseUuid( op.get( "id" ) );
+        final UUID id = McpToolUtils.parseUuid( op.get( "id" ) );
         if ( id == null ) return Map.of( "error", "confirm requires id (UUID)" );
         final Optional< String > err = ops.tryConfirmEdge( id, defaultAuthor );
         return err.isEmpty() ? Map.of( "id", id.toString() ) : Map.of( "id", id.toString(), "error", err.get() );
     }
 
     private Map< String, Object > doDelete( final Map< String, Object > op ) {
-        final UUID id = parseUuid( op.get( "id" ) );
+        final UUID id = McpToolUtils.parseUuid( op.get( "id" ) );
         if ( id == null ) return Map.of( "error", "delete requires id (UUID)" );
         final Optional< String > err = ops.tryDeleteEdge( id, defaultAuthor );
         return err.isEmpty() ? Map.of( "id", id.toString() ) : Map.of( "id", id.toString(), "error", err.get() );
     }
 
     private Map< String, Object > doDeleteAndReject( final Map< String, Object > op ) {
-        final UUID id = parseUuid( op.get( "id" ) );
-        final String reason = stringOrNull( op.get( "reason" ) );
+        final UUID id = McpToolUtils.parseUuid( op.get( "id" ) );
+        final String reason = McpToolUtils.stringOrNull( op.get( "reason" ) );
         if ( id == null ) return Map.of( "error", "delete_and_reject requires id (UUID)" );
         if ( reason == null || reason.isBlank() ) return Map.of( "error", "reason is required for delete_and_reject" );
         final Optional< String > err = ops.tryDeleteAndRejectEdge( id, defaultAuthor, reason );
         return err.isEmpty() ? Map.of( "id", id.toString() ) : Map.of( "id", id.toString(), "error", err.get() );
     }
-
-    private static String stringOrNull( final Object o ) { return o == null ? null : o.toString(); }
-    private static UUID parseUuid( final Object o ) {
-        if ( o == null ) return null;
-        try { return UUID.fromString( o.toString() ); }
-        catch ( final IllegalArgumentException e ) { return null; }
-    }
-    @SuppressWarnings( "unchecked" )
-    private static Map< String, Object > castStringKey( final Map< ?, ? > raw ) { return ( Map< String, Object > ) raw; }
 }

@@ -274,4 +274,25 @@ class McpRateLimiterTest {
         assertTrue( rl.clientCacheSize() <= 5,
                 "Caffeine size cap should bound the map at 5 entries; was " + rl.clientCacheSize() );
     }
+
+    // Covers McpRateLimiter.java:58 + 77-87 — globalLimit=0 means globalBucket
+    // is null, so the global-bucket branch is skipped entirely; but a positive
+    // per-client limit still gates each client to its own budget.
+    @Test
+    void globalDisabledStillRespectsPerClientLimit() {
+        final AtomicLong clock = new AtomicLong( 0 );
+        final McpRateLimiter limiter = createWithClock( 0, 2, clock );
+
+        // Client A burns its 2-call budget.
+        assertTrue( limiter.tryAcquire( "client-a" ) );
+        assertTrue( limiter.tryAcquire( "client-a" ) );
+        assertFalse( limiter.tryAcquire( "client-a" ),
+                "per-client limit must still apply when global limit is disabled" );
+
+        // Other clients get their own independent budgets — global was off,
+        // so client-a's calls didn't decrement any shared counter.
+        assertTrue( limiter.tryAcquire( "client-b" ) );
+        assertTrue( limiter.tryAcquire( "client-b" ) );
+        assertFalse( limiter.tryAcquire( "client-b" ) );
+    }
 }

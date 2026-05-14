@@ -124,6 +124,21 @@ class ListOrphanedKgNodesToolTest {
                 "count must use the same filter map as the list call so the totals cannot drift" );
     }
 
+    // Covers ListOrphanedKgNodesTool.java:138-141 — service exceptions are
+    // logged and surfaced via McpToolUtils.errorResult instead of propagating.
+    @Test
+    void serviceExceptionYieldsErrorResult() {
+        when( service.listOrphanedNodes( any(), anyInt(), anyInt() ) )
+                .thenThrow( new RuntimeException( "DB connection refused" ) );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of() );
+
+        assertTrue( result.isError(), "service exception must produce an error result" );
+        final String body = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( body.contains( "DB connection refused" ),
+                "error body must include the service exception message: " + body );
+    }
+
     @Test
     @SuppressWarnings( "unchecked" )
     void executeReturnsResultsAndCount() {

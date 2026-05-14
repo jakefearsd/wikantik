@@ -27,6 +27,8 @@ import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
 import com.wikantik.knowledge.KgRejectionRepository;
 import com.wikantik.knowledge.MentionIndex;
+import com.wikantik.mcp.tools.kg.QueryNodesTool;
+import com.wikantik.mcp.tools.kg.SearchKnowledgeTool;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;

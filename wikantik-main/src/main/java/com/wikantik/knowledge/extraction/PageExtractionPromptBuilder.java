@@ -3,6 +3,7 @@ package com.wikantik.knowledge.extraction;
 import com.wikantik.api.knowledge.ExtractionContext;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Page;
+import com.wikantik.api.knowledge.RelationshipTypeVocabulary;
 
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -39,26 +40,7 @@ public final class PageExtractionPromptBuilder {
         + "  captures the relation cleanly, OMIT the relation. The DB will reject non-vocabulary\n"
         + "  predicates and the proposal will be discarded.\n"
         + "  Closed vocabulary (source → target):\n"
-        + "    related_to        — generic association; use only when no more specific fits\n"
-        + "    part_of           — A is a part/component of B\n"
-        + "    contains          — A contains/includes B\n"
-        + "    is_a              — A is a subtype/kind of B\n"
-        + "    instance_of       — A is a concrete example/instance of B\n"
-        + "    requires          — A requires/depends on B\n"
-        + "    enables           — A enables/allows/supports B\n"
-        + "    uses              — A uses/invokes/operates on B\n"
-        + "    produces          — A produces/emits/generates B\n"
-        + "    replaces          — A replaces/supersedes B\n"
-        + "    precedes          — A precedes B in time/sequence\n"
-        + "    extends           — A extends/builds on B (specialization)\n"
-        + "    implements        — A is a concrete implementation of B\n"
-        + "    alternative_to    — A is a substitute for B (peer alternatives)\n"
-        + "    contrasts_with    — A and B are explicitly differentiated/compared\n"
-        + "    compatible_with   — A interoperates with B\n"
-        + "    mitigates         — A reduces the harm/risk of B\n"
-        + "    defines           — A defines/specifies/describes B\n"
-        + "    applies_to        — A is relevant within the scope of B\n"
-        + "    located_in        — A is spatially within B\n"
+        + RelationshipTypeVocabulary.promptDescription() + "\n"
         + "- Prefer Known Entities (below) verbatim. Only propose a brand-new entity if it is\n"
         + "  clearly named, distinct, and not in the Known list.\n"
         + "- If the page genuinely has no proper-noun entities, return empty arrays. That is correct.\n"

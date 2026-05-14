@@ -44,6 +44,8 @@ import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.mcp.McpEndpointBootstrapper;
 import com.wikantik.mcp.tools.McpTool;
+import com.wikantik.mcp.tools.kg.QueryNodesTool;
+import com.wikantik.mcp.tools.kg.SearchKnowledgeTool;
 
 import java.util.ArrayList;
 import java.util.List;

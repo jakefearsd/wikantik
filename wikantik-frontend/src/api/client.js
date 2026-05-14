@@ -8,7 +8,7 @@ const BASE = (typeof window !== 'undefined' && window.__WIKANTIK_BASE__) || '';
 let versionMismatchSignaled = false;
 
 async function request(path, options = {}) {
-  const { signal, ...rest } = options;
+  const { signal, extraErrorCodes, ...rest } = options;
   const resp = await fetch(`${BASE}${path}`, {
     credentials: 'same-origin',
     headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...rest.headers },
@@ -39,6 +39,18 @@ async function request(path, options = {}) {
       window.dispatchEvent(new CustomEvent('wikantik:auth-required', {
         detail: { status: resp.status, path },
       }));
+    }
+    // Caller-supplied custom status → app-level code mapping. Lets callers
+    // surface domain errors (rebuild_in_flight, hybrid_disabled, …) without
+    // duplicating the entire fetch/error-envelope dance.
+    const extra = Array.isArray(extraErrorCodes)
+      ? extraErrorCodes.find((m) => m.status === resp.status)
+      : null;
+    if (extra) {
+      throw Object.assign(
+        new Error(body.message || body.error || extra.defaultMessage || resp.statusText),
+        { status: resp.status, code: extra.code, body },
+      );
     }
     throw Object.assign(new Error(body.message || resp.statusText), { status: resp.status, body });
   }
@@ -303,65 +315,23 @@ export const api = {
 
     getIndexStatus: () => request('/admin/content/index-status'),
 
-    getChunks: async (pageName) => {
-      const resp = await fetch(
-        `${BASE}/admin/content/chunks?page=${encodeURIComponent(pageName)}`,
-        {
-          credentials: 'same-origin',
-          headers: { 'Accept': 'application/json' },
-        },
-      );
-      if (resp.status === 404) {
-        const body = await resp.json().catch(() => ({}));
-        throw Object.assign(new Error(body.error || `No chunks found for page ${pageName}`), {
-          status: 404,
-          code: 'page_not_found',
-          body,
-        });
-      }
-      if (!resp.ok) {
-        const body = await resp.json().catch(() => ({ message: resp.statusText }));
-        throw Object.assign(new Error(body.message || resp.statusText), {
-          status: resp.status,
-          body,
-        });
-      }
-      const text = await resp.text();
-      return text ? JSON.parse(text) : null;
-    },
+    getChunks: (pageName) =>
+      request(`/admin/content/chunks?page=${encodeURIComponent(pageName)}`, {
+        extraErrorCodes: [
+          { status: 404, code: 'page_not_found', defaultMessage: `No chunks found for page ${pageName}` },
+        ],
+      }),
 
     getChunkOutliers: () => request('/admin/content/chunks/outliers'),
 
-    rebuildIndexes: async () => {
-      const resp = await fetch(`${BASE}/admin/content/rebuild-indexes`, {
+    rebuildIndexes: () =>
+      request('/admin/content/rebuild-indexes', {
         method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      });
-      if (resp.status === 409) {
-        const body = await resp.json().catch(() => ({}));
-        throw Object.assign(new Error(body.message || 'A rebuild is already in flight'), {
-          status: 409,
-          code: 'rebuild_in_flight',
-          body,
-        });
-      }
-      if (resp.status === 503) {
-        const body = await resp.json().catch(() => ({}));
-        throw Object.assign(new Error(body.message || 'Rebuild disabled (wikantik.rebuild.enabled=false)'), {
-          status: 503,
-          code: 'rebuild_disabled',
-          body,
-        });
-      }
-      if (!resp.ok) {
-        const body = await resp.json().catch(() => ({ message: resp.statusText }));
-        throw Object.assign(new Error(body.message || resp.statusText), { status: resp.status, body });
-      }
-      if (resp.status === 204 || resp.headers.get('Content-Length') === '0') return null;
-      const text = await resp.text();
-      return text ? JSON.parse(text) : null;
-    },
+        extraErrorCodes: [
+          { status: 409, code: 'rebuild_in_flight', defaultMessage: 'A rebuild is already in flight' },
+          { status: 503, code: 'rebuild_disabled', defaultMessage: 'Rebuild disabled (wikantik.rebuild.enabled=false)' },
+        ],
+      }),
 
     flushCache: (cache) =>
       request('/admin/content/cache/flush', {
@@ -369,36 +339,14 @@ export const api = {
         body: JSON.stringify({ cache: cache || null }),
       }),
 
-    reindexEmbeddings: async () => {
-      const resp = await fetch(`${BASE}/admin/content/reindex-embeddings`, {
+    reindexEmbeddings: () =>
+      request('/admin/content/reindex-embeddings', {
         method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      });
-      if (resp.status === 409) {
-        const body = await resp.json().catch(() => ({}));
-        throw Object.assign(new Error(body.message || 'Embedding bootstrap already running'), {
-          status: 409,
-          code: 'embedding_bootstrap_running',
-          body,
-        });
-      }
-      if (resp.status === 503) {
-        const body = await resp.json().catch(() => ({}));
-        throw Object.assign(new Error(body.message || 'Hybrid search disabled (wikantik.search.hybrid.enabled=false)'), {
-          status: 503,
-          code: 'hybrid_disabled',
-          body,
-        });
-      }
-      if (!resp.ok) {
-        const body = await resp.json().catch(() => ({ message: resp.statusText }));
-        throw Object.assign(new Error(body.message || resp.statusText), { status: resp.status, body });
-      }
-      if (resp.status === 204 || resp.headers.get('Content-Length') === '0') return null;
-      const text = await resp.text();
-      return text ? JSON.parse(text) : null;
-    },
+        extraErrorCodes: [
+          { status: 409, code: 'embedding_bootstrap_running', defaultMessage: 'Embedding bootstrap already running' },
+          { status: 503, code: 'hybrid_disabled', defaultMessage: 'Hybrid search disabled (wikantik.search.hybrid.enabled=false)' },
+        ],
+      }),
 
     // Group Management
     listGroups: () => request('/admin/groups'),

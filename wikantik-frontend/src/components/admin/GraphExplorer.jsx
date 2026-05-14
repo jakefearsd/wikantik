@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../api/client';
+import { usePaginatedQuery } from '../../hooks/useApi';
 import NodeDetail from './NodeDetail';
 import ProvenanceBadge from './ProvenanceBadge';
 import { AdminTable } from './table';
@@ -8,67 +9,55 @@ const PAGE_SIZE = 50;
 
 export default function GraphExplorer() {
   const [schema, setSchema] = useState(null);
-  const [nodes, setNodes] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
+  const [schemaError, setSchemaError] = useState(null);
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedNode, setSelectedNode] = useState(null);
   const [projecting, setProjecting] = useState(false);
   const [projectResult, setProjectResult] = useState(null);
-  const [page, setPage] = useState(0);
 
-  const loadNodes = useCallback(
-    async (currentPage) => {
-      try {
-        const data = await api.knowledge.queryNodes({
-          name: search || undefined,
-          node_type: typeFilter || undefined,
-          status: statusFilter || undefined,
-          limit: PAGE_SIZE,
-          offset: currentPage * PAGE_SIZE,
-        });
-        setNodes(data.nodes || []);
-        setTotal(typeof data.total === 'number' ? data.total : data.nodes?.length || 0);
-        setError(null);
-      } catch (err) {
-        setError(err.message);
-      }
+  const fetchNodes = useCallback(
+    async ({ page: currentPage, pageSize, search }) => {
+      const data = await api.knowledge.queryNodes({
+        name: search || undefined,
+        node_type: typeFilter || undefined,
+        status: statusFilter || undefined,
+        limit: pageSize,
+        offset: currentPage * pageSize,
+      });
+      return {
+        rows: data.nodes || [],
+        total: typeof data.total === 'number' ? data.total : data.nodes?.length || 0,
+      };
     },
-    [search, typeFilter, statusFilter],
+    [typeFilter, statusFilter],
   );
 
-  const loadSchema = async () => {
+  const {
+    rows: nodes,
+    total,
+    page,
+    setPage,
+    search: searchInput,
+    setSearch: setSearchInput,
+    error,
+    setError,
+    firstLoad: loading,
+    reload: reloadNodes,
+  } = usePaginatedQuery(fetchNodes, [typeFilter, statusFilter], { pageSize: PAGE_SIZE });
+
+  const loadSchema = useCallback(async () => {
     try {
       const schemaData = await api.knowledge.getSchema();
       setSchema(schemaData);
     } catch (err) {
-      setError(err.message);
+      setSchemaError(err.message);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadSchema();
-  }, []);
-
-  // Reset to page 0 when filters change.
-  useEffect(() => {
-    setPage(0);
-    loadNodes(0).finally(() => setLoading(false));
-  }, [loadNodes]);
-
-  useEffect(() => {
-    if (page > 0) loadNodes(page);
-  }, [page, loadNodes]);
-
-  // Debounce search input.
-  useEffect(() => {
-    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
-    return () => clearTimeout(t);
-  }, [searchInput]);
+  }, [loadSchema]);
 
   const handleProjectAll = async () => {
     setProjecting(true);
@@ -76,7 +65,7 @@ export default function GraphExplorer() {
     try {
       const result = await api.knowledge.projectAll();
       setProjectResult(result);
-      await Promise.all([loadSchema(), loadNodes(page)]);
+      await Promise.all([loadSchema(), reloadNodes()]);
     } catch (err) {
       setProjectResult({ error: err.message });
     } finally {
@@ -105,7 +94,7 @@ export default function GraphExplorer() {
   // the Proposals tab; we now refresh in place.
   const handleNodeDeleted = async () => {
     setSelectedNode(null);
-    await loadNodes(page);
+    await reloadNodes();
     await loadSchema();
   };
 
@@ -208,14 +197,14 @@ export default function GraphExplorer() {
       if (selectedNode?.id && ids.includes(selectedNode.id) && failed.every((f) => f.id !== selectedNode.id)) {
         setSelectedNode(null);
       }
-      await Promise.all([loadNodes(page), loadSchema()]);
+      await Promise.all([reloadNodes(), loadSchema()]);
       return { succeeded, failed, status: 'completed' };
     },
-    [loadNodes, page, selectedNode],
+    [reloadNodes, loadSchema, selectedNode],
   );
 
   if (loading) return <div className="admin-loading">Loading knowledge graph…</div>;
-  if (error) return <div className="admin-error">{error}</div>;
+  if (error || schemaError) return <div className="admin-error">{error || schemaError}</div>;
 
   return (
     <div style={{ display: 'flex', gap: 'var(--space-lg)', minHeight: '400px' }}>

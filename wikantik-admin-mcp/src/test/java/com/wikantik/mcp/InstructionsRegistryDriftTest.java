@@ -19,12 +19,12 @@
 package com.wikantik.mcp;
 
 import com.wikantik.TestEngine;
-import com.wikantik.mcp.tools.AdminQueryNodesTool;
-import com.wikantik.mcp.tools.AdminSearchKnowledgeTool;
 import com.wikantik.mcp.tools.ListOrphanedKgNodesTool;
 import com.wikantik.mcp.tools.ListProposalsTool;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.ProposeKnowledgeTool;
+import com.wikantik.mcp.tools.kg.QueryNodesTool;
+import com.wikantik.mcp.tools.kg.SearchKnowledgeTool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -151,8 +151,8 @@ class InstructionsRegistryDriftTest {
         // instructions describe production, where these tools are present.
         names.add( ListProposalsTool.TOOL_NAME );
         names.add( ProposeKnowledgeTool.TOOL_NAME );
-        names.add( AdminQueryNodesTool.TOOL_NAME );
-        names.add( AdminSearchKnowledgeTool.TOOL_NAME );
+        names.add( QueryNodesTool.TOOL_NAME );
+        names.add( SearchKnowledgeTool.TOOL_NAME );
         names.add( ListOrphanedKgNodesTool.TOOL_NAME );
         return names;
     }

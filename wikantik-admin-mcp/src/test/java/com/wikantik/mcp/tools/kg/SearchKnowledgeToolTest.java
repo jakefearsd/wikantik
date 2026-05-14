@@ -16,12 +16,13 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.knowledge.mcp;
+package com.wikantik.mcp.tools.kg;
 
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
 import com.wikantik.knowledge.MentionIndex;
+import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 
@@ -78,12 +79,12 @@ class SearchKnowledgeToolTest {
 
         // Phase 6 wire-JSON smoke: serialise the tool's schema map exactly as the MCP
         // transport carries it and assert the canonical JSON Schema 'examples' keyword
-        // survives end-to-end. Uses the same Gson the runtime tools use (KnowledgeMcpUtils.GSON);
+        // survives end-to-end. Uses the same Gson the runtime tools use (McpToolUtils.KG_GSON);
         // adding a Jackson ObjectMapper here would drag a non-test dependency into the
         // module's test classpath. The Tool record itself is serialised by the MCP SDK
         // upstream — the agent-facing payload is the schema maps below.
-        final String inputJson  = KnowledgeMcpUtils.GSON.toJson( def.inputSchema().properties() );
-        final String outputJson = KnowledgeMcpUtils.GSON.toJson( def.outputSchema() );
+        final String inputJson  = McpToolUtils.KG_GSON.toJson( def.inputSchema().properties() );
+        final String outputJson = McpToolUtils.KG_GSON.toJson( def.outputSchema() );
         assertTrue( inputJson.contains( "\"examples\"" ),
                 "input schema JSON must carry the 'examples' keyword for agents — got: " + inputJson );
         assertTrue( outputJson.contains( "\"examples\"" ),

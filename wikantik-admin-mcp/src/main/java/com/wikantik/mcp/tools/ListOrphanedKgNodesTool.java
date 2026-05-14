@@ -36,9 +36,10 @@ import java.util.Map;
  * {@code incident_edges} (the workaround that motivated this tool).
  *
  * <p>Always runs with the {@code kg_excluded_pages} filter bypassed — the same
- * admin-bypass posture as {@link AdminQueryNodesTool} — so curators can find
- * orphans on pages that have not yet been admitted by the cluster inclusion
- * policy.</p>
+ * admin-bypass posture used when {@code query_nodes} is registered on
+ * {@code /wikantik-admin-mcp} (see {@code McpToolRegistry}) — so curators can
+ * find orphans on pages that have not yet been admitted by the cluster
+ * inclusion policy.</p>
  *
  * <p>Three-state {@code source_page_excluded} filter lets curators distinguish
  * "policy-hidden but anchored to a page" from "truly disconnected." Stubs

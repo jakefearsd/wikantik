@@ -194,21 +194,7 @@ public class McpConfig {
      * Reads from {@code wikantik.mcp.rate_limit.max_clients}; defaults to {@value DEFAULT_RATE_LIMIT_MAX_CLIENTS}.
      */
     public int rateLimiterMaxClients() {
-        final String raw = props.getProperty( "wikantik.mcp.rate_limit.max_clients" );
-        if ( raw == null || raw.isBlank() ) return DEFAULT_RATE_LIMIT_MAX_CLIENTS;
-        try {
-            final int v = Integer.parseInt( raw.trim() );
-            if ( v <= 0 ) {
-                LOG.warn( "wikantik.mcp.rate_limit.max_clients={} is not positive — falling back to default {}",
-                        raw, DEFAULT_RATE_LIMIT_MAX_CLIENTS );
-                return DEFAULT_RATE_LIMIT_MAX_CLIENTS;
-            }
-            return v;
-        } catch ( final NumberFormatException e ) {
-            LOG.warn( "wikantik.mcp.rate_limit.max_clients={} is not an integer — falling back to default {}",
-                    raw, DEFAULT_RATE_LIMIT_MAX_CLIENTS );
-            return DEFAULT_RATE_LIMIT_MAX_CLIENTS;
-        }
+        return positiveIntProperty( "wikantik.mcp.rate_limit.max_clients", DEFAULT_RATE_LIMIT_MAX_CLIENTS );
     }
 
     private static final int DEFAULT_KG_BULK_LIMIT = 50;
@@ -219,20 +205,26 @@ public class McpConfig {
      * defaults to {@value DEFAULT_KG_BULK_LIMIT}.
      */
     public int kgCurationBulkLimit() {
-        final String raw = props.getProperty( "wikantik.mcp.kg_curation.bulk_limit" );
-        if ( raw == null || raw.isBlank() ) return DEFAULT_KG_BULK_LIMIT;
+        return positiveIntProperty( "wikantik.mcp.kg_curation.bulk_limit", DEFAULT_KG_BULK_LIMIT );
+    }
+
+    /**
+     * Reads a positive-int property. On missing/blank/non-numeric/non-positive input,
+     * logs a single warn and returns {@code defaultValue}.
+     */
+    private int positiveIntProperty( final String key, final int defaultValue ) {
+        final String raw = props.getProperty( key );
+        if ( raw == null || raw.isBlank() ) return defaultValue;
         try {
             final int v = Integer.parseInt( raw.trim() );
             if ( v <= 0 ) {
-                LOG.warn( "wikantik.mcp.kg_curation.bulk_limit={} is not positive — falling back to default {}",
-                        raw, DEFAULT_KG_BULK_LIMIT );
-                return DEFAULT_KG_BULK_LIMIT;
+                LOG.warn( "{}={} is not positive — falling back to default {}", key, raw, defaultValue );
+                return defaultValue;
             }
             return v;
         } catch ( final NumberFormatException e ) {
-            LOG.warn( "wikantik.mcp.kg_curation.bulk_limit={} is not an integer — falling back to default {}",
-                    raw, DEFAULT_KG_BULK_LIMIT );
-            return DEFAULT_KG_BULK_LIMIT;
+            LOG.warn( "{}={} is not an integer — falling back to default {}", key, raw, defaultValue );
+            return defaultValue;
         }
     }
 

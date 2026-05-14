@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.knowledge.mcp;
+package com.wikantik.mcp.tools.kg;
 
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
@@ -29,12 +29,20 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * MCP tool for full-text search across node names and properties.
  * Bridges the gap between "I don't know the exact name" and the
  * structured query tools.
+ *
+ * <p>Like {@link QueryNodesTool} this implementation is shared between /knowledge-mcp
+ * and /wikantik-admin-mcp. Constructing with {@code adminBypass=true} bypasses the
+ * inclusion filter and emits the {@code admin_bypass: true} marker.</p>
  */
 public class SearchKnowledgeTool implements McpTool {
 
@@ -141,7 +149,7 @@ public class SearchKnowledgeTool implements McpTool {
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
             final String query = McpToolUtils.getString( arguments, "query" );
-            final Set< Provenance > provenanceFilter = KnowledgeMcpUtils.parseProvenanceFilter( arguments );
+            final Set< Provenance > provenanceFilter = McpToolUtils.parseProvenanceFilter( arguments );
             final int limit = McpToolUtils.getInt( arguments, "limit", 20 );
 
             final String tierRaw = McpToolUtils.getString( arguments, "min_tier", "machine" );
@@ -149,7 +157,7 @@ public class SearchKnowledgeTool implements McpTool {
             try {
                 minTier = Tier.fromWire( tierRaw );
             } catch ( final IllegalArgumentException e ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                return McpToolUtils.errorResult( McpToolUtils.KG_GSON,
                     "min_tier must be 'human' or 'machine'" );
             }
 
@@ -166,10 +174,11 @@ public class SearchKnowledgeTool implements McpTool {
                 payload.put( "hint", "search_knowledge searches Knowledge Graph nodes only; "
                         + "if you expected page-body matches, call retrieve_context with the same query." );
             }
-            return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, payload );
+            if ( adminBypass ) payload.put( "admin_bypass", true );
+            return McpToolUtils.jsonResult( McpToolUtils.KG_GSON, payload );
         } catch ( final Exception e ) {
             LOG.error( "Search knowledge failed for query: {}", e.getMessage(), e );
-            return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );
+            return McpToolUtils.errorResult( McpToolUtils.KG_GSON, e.getMessage() );
         }
     }
 

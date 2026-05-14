@@ -61,4 +61,17 @@ public class McpConfigBulkLimitTest {
         p.setProperty( "wikantik.mcp.rate_limit.max_clients", "500" );
         assertEquals( 500, new McpConfig( p ).rateLimiterMaxClients() );
     }
+
+    // Covers McpConfig.java:215-228 — non-positive integer values (negative
+    // and non-numeric) for wikantik.mcp.rate_limit.max_clients must fall back
+    // to the bundled default rather than configuring a non-functional limiter.
+    @Test
+    void rateLimiterMaxClientsNonPositiveFallsBackToDefault() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.mcp.rate_limit.max_clients", "-7" );
+        assertEquals( 10000, new McpConfig( p ).rateLimiterMaxClients() );
+
+        p.setProperty( "wikantik.mcp.rate_limit.max_clients", "not-a-number" );
+        assertEquals( 10000, new McpConfig( p ).rateLimiterMaxClients() );
+    }
 }

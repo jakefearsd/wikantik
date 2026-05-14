@@ -21,6 +21,7 @@ package com.wikantik.knowledge.extraction;
 import com.wikantik.api.knowledge.ExtractionChunk;
 import com.wikantik.api.knowledge.ExtractionContext;
 import com.wikantik.api.knowledge.KgNode;
+import com.wikantik.api.knowledge.RelationshipTypeVocabulary;
 
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -41,19 +42,12 @@ public final class ExtractionPromptBuilder {
      * Claude actually hits.
      */
     /**
-     * Closed relation-type vocabulary, kept in sync with the
-     * {@code kg_edges_relationship_type_check} CHECK constraint added in
-     * V027 and extended in V030 with {@code generalizes}. Editing this list
-     * requires editing the constraint and re-running
-     * {@code bin/db/normalize-relationship-types.sql} on existing data.
+     * Closed relation-type vocabulary. Delegates to
+     * {@link RelationshipTypeVocabulary#CLOSED_VOCAB} so both extractors and the
+     * DB CHECK constraint share one source of truth.
      */
-    public static final String[] RELATION_TYPES = {
-        "related_to", "part_of", "contains", "is_a", "instance_of",
-        "requires",   "enables", "uses",     "produces", "replaces",
-        "precedes",   "extends", "implements", "alternative_to", "contrasts_with",
-        "compatible_with", "mitigates", "defines", "applies_to", "located_in",
-        "generalizes"
-    };
+    public static final String[] RELATION_TYPES =
+            RelationshipTypeVocabulary.CLOSED_VOCAB.toArray( new String[ 0 ] );
 
     public static final String SYSTEM_PROMPT =
         "You extract named entities and relationships from wiki content. Output STRICT JSON only — no prose, "
@@ -70,27 +64,7 @@ public final class ExtractionPromptBuilder {
       +   "Do NOT invent new types, do NOT vary the casing or separators, and do NOT emit free-form phrases. "
       +   "If no listed type captures the relation cleanly, OMIT the relation entirely — quality over quantity.\n"
       + "  Closed vocabulary (direction is source → target):\n"
-      + "    related_to        — generic association; use only when no more specific type fits\n"
-      + "    part_of           — A is a part/component of B\n"
-      + "    contains          — A contains/includes B (directional emphasis on container)\n"
-      + "    is_a              — A is a subtype/kind of B\n"
-      + "    instance_of       — A is a concrete example/instance of B\n"
-      + "    generalizes       — A is a generalization/abstraction of B (inverse of is_a / instance_of)\n"
-      + "    requires          — A requires/depends on B\n"
-      + "    enables           — A enables/allows/supports B\n"
-      + "    uses              — A uses/invokes/operates on B\n"
-      + "    produces          — A produces/emits/generates B\n"
-      + "    replaces          — A replaces/supersedes B\n"
-      + "    precedes          — A precedes B in time/sequence\n"
-      + "    extends           — A extends/builds on B (specialization)\n"
-      + "    implements        — A is a concrete implementation of B\n"
-      + "    alternative_to    — A is a substitute for B (peer alternatives)\n"
-      + "    contrasts_with    — A and B are explicitly differentiated/compared\n"
-      + "    compatible_with   — A interoperates with B\n"
-      + "    mitigates         — A reduces the harm/risk of B\n"
-      + "    defines           — A defines/specifies/describes B\n"
-      + "    applies_to        — A is relevant within the scope of B\n"
-      + "    located_in        — A is spatially within B\n"
+      + RelationshipTypeVocabulary.promptDescription() + "\n"
       + "- `confidence` is your calibrated certainty, not a popularity estimate.\n"
       + "- Every `reasoning` value MUST be 15 words or fewer. No multi-sentence explanations.\n"
       + "- REUSE names from the provided dictionary verbatim whenever the chunk refers to an entity that is already known. "

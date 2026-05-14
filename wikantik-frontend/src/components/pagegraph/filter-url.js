@@ -1,6 +1,10 @@
 import { INITIAL_FILTER_STATE, ENDPOINT_CLASSES, applyPreset, PRESETS } from './filter-state.js';
 
-const PRESERVED_KEYS = ['focus'];
+// `tier` is preserved (not managed) — KnowledgeGraphView owns it as a separate
+// server-fetch parameter, but routing it through the same params helper keeps
+// URL serialization in one place. PageGraphView, which has no tier concept,
+// is unaffected because the URL key is only ever read from `existing`.
+const PRESERVED_KEYS = ['focus', 'tier'];
 const MANAGED_KEYS = ['preset', 'hop', 'cluster', 'unclustered', 'tags', 'type', 'status', 'search', 'endpoints'];
 
 function asCsv(set) {

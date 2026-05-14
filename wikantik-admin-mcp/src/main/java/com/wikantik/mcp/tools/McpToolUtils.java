@@ -35,8 +35,10 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Shared utilities for MCP tool implementations, reducing boilerplate
@@ -204,6 +206,148 @@ public final class McpToolUtils {
      */
     public static boolean getBoolean( final Map< String, Object > args, final String key ) {
         return Boolean.TRUE.equals( args.get( key ) );
+    }
+
+    /**
+     * Returns {@code o.toString()} or {@code null}. Useful when reading MCP argument
+     * values that may be either a String or another type that should be rendered
+     * for an error message.
+     */
+    public static String stringOrNull( final Object o ) {
+        return o == null ? null : o.toString();
+    }
+
+    /**
+     * Parses an {@link java.util.UUID} from any object whose {@code toString()} is a
+     * valid UUID string, or returns {@code null} on null/parse failure.
+     */
+    public static java.util.UUID parseUuid( final Object o ) {
+        if ( o == null ) return null;
+        try {
+            return java.util.UUID.fromString( o.toString() );
+        } catch ( final IllegalArgumentException e ) {
+            return null;
+        }
+    }
+
+    /** Unchecked cast helper for inbound MCP argument maps (always {@code Map<String,Object>}). */
+    @SuppressWarnings( "unchecked" )
+    public static Map< String, Object > castStringKey( final Map< ?, ? > raw ) {
+        return ( Map< String, Object > ) raw;
+    }
+
+    /**
+     * Runs a heterogeneous bulk MCP operation: validates the {@code operations} list,
+     * iterates each op through {@code dispatch}, accumulates per-op results into
+     * {@code succeeded} / {@code failed} arrays, audits via {@link McpAudit#logBulkWrite},
+     * and returns a {@link McpSchema.CallToolResult} whose {@code isError} flag is set
+     * when zero ops succeeded. Used by {@code curate_edges} and {@code curate_nodes}.
+     *
+     * @param toolName tool name passed to the audit logger
+     * @param entityLabel singular noun for the {@code message} field (e.g. "edge", "node")
+     * @param rawList raw {@code operations} payload (must be a non-empty {@code List<?>})
+     * @param bulkLimit per-call cap from {@link McpConfig#kgCurationBulkLimit()}
+     * @param defaultAuthor author audit attribute
+     * @param dispatch maps the parsed per-op map (with {@code tag} and {@code action} already extracted)
+     *                 to either an {@code id} map (success) or an {@code error} map (failure).
+     *                 The function receives the full op map; it does NOT need to copy {@code tag}/{@code action} —
+     *                 the wrapper adds those itself.
+     */
+    public static McpSchema.CallToolResult runBulk(
+            final String toolName,
+            final String entityLabel,
+            final Object rawList,
+            final int bulkLimit,
+            final String defaultAuthor,
+            final java.util.function.Function< Map< String, Object >, Map< String, Object > > dispatch ) {
+        return runBulk( toolName, entityLabel, rawList, bulkLimit, defaultAuthor, dispatch, true );
+    }
+
+    /**
+     * Variant of {@link #runBulk(String, String, Object, int, String, java.util.function.Function)} that
+     * lets the caller control whether an all-failed bulk envelope is hard-flagged with
+     * {@code isError=true}. {@code curate_edges} sets {@code true} (the calling model should treat
+     * an all-fail bulk as a tool error and walk {@code failed[].error}); {@code curate_nodes}
+     * historically returned {@code isError=false} per-op-only and existing IT tests depend on it.
+     */
+    public static McpSchema.CallToolResult runBulk(
+            final String toolName,
+            final String entityLabel,
+            final Object rawList,
+            final int bulkLimit,
+            final String defaultAuthor,
+            final java.util.function.Function< Map< String, Object >, Map< String, Object > > dispatch,
+            final boolean isErrorOnAllFailed ) {
+        if ( !( rawList instanceof List< ? > list ) || list.isEmpty() ) {
+            return errorResult( SHARED_GSON,
+                    "operations is required and must be a non-empty array" );
+        }
+        if ( list.size() > bulkLimit ) {
+            return errorResult( SHARED_GSON,
+                    "bulk limit exceeded: " + list.size() + " > " + bulkLimit );
+        }
+
+        final List< Map< String, Object > > succeeded = new java.util.ArrayList<>();
+        final List< Map< String, Object > > failed = new java.util.ArrayList<>();
+
+        for ( final Object opEl : list ) {
+            if ( !( opEl instanceof Map< ?, ? > opMap ) ) {
+                failed.add( Map.of( "error", "operation must be an object" ) );
+                continue;
+            }
+            final Map< String, Object > op = castStringKey( opMap );
+            final String tag = stringOrNull( op.get( "tag" ) );
+            final String action = stringOrNull( op.get( "action" ) );
+
+            final Map< String, Object > result = dispatch.apply( op );
+            final Map< String, Object > entry = new LinkedHashMap<>();
+            entry.put( "tag", tag );
+            entry.put( "action", action );
+            entry.putAll( result );
+            if ( entry.containsKey( "error" ) ) failed.add( entry );
+            else succeeded.add( entry );
+        }
+
+        McpAudit.logBulkWrite( toolName, list.size(), succeeded.size(), failed.size(), defaultAuthor );
+
+        final boolean allFailed = succeeded.isEmpty() && !failed.isEmpty();
+        final Map< String, Object > out = new LinkedHashMap<>();
+        out.put( "status", allFailed ? "failed" : "completed" );
+        out.put( "succeeded", succeeded );
+        out.put( "failed", failed );
+        out.put( "message", succeeded.size() + " of " + list.size() + " " + entityLabel + " operations applied" );
+        return McpSchema.CallToolResult.builder()
+                .content( List.of( new McpSchema.TextContent( SHARED_GSON.toJson( out ) ) ) )
+                .structuredContent( out )
+                .isError( isErrorOnAllFailed && allFailed )
+                .build();
+    }
+
+    /**
+     * Parses the {@code provenance_filter} argument from an MCP tool invocation into a
+     * {@link Set} of {@link com.wikantik.api.knowledge.Provenance}. Unknown strings are
+     * silently skipped. Returns {@code null} when the argument is absent or not a non-empty
+     * list — callers pass {@code null} through to the service layer which treats that as
+     * "no provenance filter," distinct from "filter to nothing."
+     */
+    @SuppressWarnings( "unchecked" )
+    public static Set< com.wikantik.api.knowledge.Provenance > parseProvenanceFilter(
+            final Map< String, Object > arguments ) {
+        final Object raw = arguments.get( "provenance_filter" );
+        if ( !( raw instanceof List< ? > list ) || list.isEmpty() ) {
+            return null;
+        }
+        final Set< com.wikantik.api.knowledge.Provenance > result = new LinkedHashSet<>();
+        for ( final Object item : list ) {
+            if ( item instanceof String s ) {
+                try {
+                    result.add( com.wikantik.api.knowledge.Provenance.fromValue( s ) );
+                } catch ( final IllegalArgumentException ignored ) {
+                    // silently skip unknown provenance strings
+                }
+            }
+        }
+        return result.isEmpty() ? null : result;
     }
 
     /**

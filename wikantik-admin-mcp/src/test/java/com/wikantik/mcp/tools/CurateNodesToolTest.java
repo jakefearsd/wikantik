@@ -123,4 +123,48 @@ public class CurateNodesToolTest {
                 "Error should explain top-level shape: " + body );
         assertTrue( body.contains( "not nested under" ) && body.contains( "node" ), body );
     }
+
+    // Covers CurateNodesTool.java:110-115 — doDelete happy path returns the id.
+    @Test
+    void deleteSuccessReturnsId() {
+        final UUID id = UUID.randomUUID();
+        when( ops.tryDeleteNode( eq( id ), eq( "alice" ) ) ).thenReturn( Optional.empty() );
+
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "operations", List.of( Map.of(
+                        "action", "delete", "tag", "node-del", "id", id.toString() ) ) ) );
+
+        assertFalse( r.isError(), "happy-path delete must not flag isError" );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "\"tag\":\"node-del\"" ), body );
+        assertTrue( body.contains( "\"id\":\"" + id + "\"" ), body );
+        assertTrue( body.contains( "\"action\":\"delete\"" ), body );
+    }
+
+    // Covers CurateNodesTool.java:104-107 — when tryUpsertNode returns NodeResult.fail
+    // the per-op response carries the failure message in the failed[] array.
+    @Test
+    void upsertServiceFailureSurfacesAsPerOpError() {
+        when( ops.tryUpsertNode( eq( "Excluded" ), eq( "concept" ), eq( "ExcludedPage" ),
+                any(), eq( "alice" ) ) )
+                .thenReturn( KgCurationOps.NodeResult.fail(
+                        "node not visible after insert (excluded source page or other policy filter)" ) );
+
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "operations", List.of( Map.of(
+                        "action", "upsert", "tag", "fail-node",
+                        "name", "Excluded",
+                        "node_type", "concept",
+                        "source_page", "ExcludedPage" ) ) ) );
+
+        // curate_nodes returns a non-error envelope even when every op fails;
+        // per-op errors live in failed[].error. KgCurationIT in /wikantik-it-tests
+        // pins this contract.
+        assertFalse( r.isError(), "curate_nodes returns non-error envelope on per-op failure" );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "not visible after insert" ), body );
+        assertTrue( body.contains( "\"tag\":\"fail-node\"" ), body );
+        assertTrue( body.contains( "\"action\":\"upsert\"" ), body );
+        assertTrue( body.contains( "\"status\":\"failed\"" ), body );
+    }
 }

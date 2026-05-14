@@ -128,3 +128,27 @@ test_helpers_emit_ssh_with_controlmaster() {
     ok "_ssh helper emits ControlMaster and target"
 }
 test_helpers_emit_ssh_with_controlmaster
+
+test_passthrough_dry_run() {
+    local tmp out
+    tmp="$(mktemp -d)"
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
+    make_fake_remote_env "${tmp}"
+
+    for cmd in up down restart "logs -f" "shell" "psql -- -c \\dt" "migrate"; do
+        out="$(eval "${tmp}/bin/remote.sh --dry-run ${cmd}" 2>&1)" \
+            || fail "dry-run ${cmd} non-zero"
+        echo "${out}" | grep -q "container.sh -e prod" \
+            || fail "dry-run ${cmd} did not invoke remote container.sh -e prod: ${out}"
+    done
+
+    # logs default service: wikantik
+    out="$("${tmp}/bin/remote.sh" --dry-run logs 2>&1)"
+    echo "${out}" | grep -q "logs wikantik" \
+        || fail "default logs target should be wikantik: ${out}"
+
+    rm -rf "${tmp}"
+    ok "pass-through subcommands invoke remote container.sh"
+}
+test_passthrough_dry_run

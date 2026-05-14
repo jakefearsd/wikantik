@@ -148,10 +148,21 @@ _rsync() {
 }
 
 # _run CMD ARGS...  — execute (or, under --dry-run, print) the command.
+# Dry-run output is informational, not re-executable shell: args containing
+# spaces are wrapped in single quotes so the printed form stays human-readable
+# (and so grep tests can match literal substrings like "container.sh -e prod").
 _run() {
     if [[ "${DRY_RUN}" -eq 1 ]]; then
         printf '[dry-run]'
-        printf ' %q' "$@"
+        local arg
+        for arg in "$@"; do
+            if [[ "${arg}" == *[[:space:]\'\"\\]* ]]; then
+                # Wrap in single quotes; escape embedded single quotes.
+                printf " '%s'" "${arg//\'/\'\\\'\'}"
+            else
+                printf ' %s' "${arg}"
+            fi
+        done
         printf '\n'
         return 0
     fi
@@ -184,10 +195,65 @@ cmd_selftest() {
     _ssh true
 }
 
+# ---------- Pass-through subcommands ----------
+
+_remote_container() {
+    # All pass-through subcommands run bin/container.sh -e prod on the remote.
+    # Quote each argument so spaces and special chars survive the ssh hop.
+    local quoted=""
+    local a
+    for a in "$@"; do
+        quoted+=" $(printf '%q' "${a}")"
+    done
+    _ssh "cd $(printf '%q' "${REMOTE_REPO_DIR}") && bin/container.sh -e prod${quoted}"
+}
+
+cmd_up()      { _remote_container up "$@"; }
+cmd_down()    { _remote_container down "$@"; }
+cmd_restart() { _remote_container restart "$@"; }
+cmd_logs() {
+    if [[ $# -eq 0 ]]; then
+        _remote_container logs wikantik
+    else
+        # Detect whether the user passed -f / --follow. If so and they did not
+        # pass a service, append wikantik so default behavior matches container.sh.
+        local has_service=0
+        local a
+        for a in "$@"; do
+            case "${a}" in
+                -*) ;;
+                *) has_service=1 ;;
+            esac
+        done
+        if [[ "${has_service}" -eq 0 ]]; then
+            _remote_container logs "$@" wikantik
+        else
+            _remote_container logs "$@"
+        fi
+    fi
+}
+cmd_shell() {
+    local svc="${1:-wikantik}"
+    _remote_container shell "${svc}"
+}
+cmd_psql() {
+    _remote_container psql "$@"
+}
+cmd_migrate() {
+    _remote_container migrate "$@"
+}
+
 # ---------- Subcommand dispatch ----------
 
 case "${SUBCOMMAND}" in
     __selftest) cmd_selftest "$@" ;;
+    up)         cmd_up "$@" ;;
+    down)       cmd_down "$@" ;;
+    restart)    cmd_restart "$@" ;;
+    logs)       cmd_logs "$@" ;;
+    shell)      cmd_shell "$@" ;;
+    psql)       cmd_psql "$@" ;;
+    migrate)    cmd_migrate "$@" ;;
     *) echo "remote.sh: unknown subcommand: ${SUBCOMMAND}" >&2
        echo "           run: bin/remote.sh --help" >&2
        exit 2 ;;

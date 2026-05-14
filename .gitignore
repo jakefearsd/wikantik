@@ -23,6 +23,7 @@ tmp
 backups/
 docs/wikantik-pages/OLD/
 .superpowers/
+.gemini/
 socket:*
 *.swp
 wiki.zip

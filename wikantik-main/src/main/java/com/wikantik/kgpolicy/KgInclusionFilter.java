@@ -76,4 +76,46 @@ public final class KgInclusionFilter {
 
     /** Use in {@code WHERE} when {@link #MENTION_FILTER_JOIN} is present. */
     public static final String MENTION_FILTER_WHERE = " kgxm.page_name IS NULL ";
+
+    /** Empty fragment replacement for {@link #NODE_FILTER_JOIN} when admin bypass is on. */
+    public static final String NODE_FILTER_JOIN_BYPASS = "";
+    /** "TRUE" fragment replacement for {@link #NODE_FILTER_WHERE} when admin bypass is on. */
+    public static final String NODE_FILTER_WHERE_BYPASS = " TRUE ";
+    /** Empty fragment replacement for {@link #EDGE_FILTER_JOIN} when admin bypass is on. */
+    public static final String EDGE_FILTER_JOIN_BYPASS = "";
+    /** "TRUE" fragment replacement for {@link #EDGE_FILTER_WHERE} when admin bypass is on. */
+    public static final String EDGE_FILTER_WHERE_BYPASS = " TRUE ";
+    /** Empty fragment replacement for {@link #MENTION_FILTER_JOIN} when admin bypass is on. */
+    public static final String MENTION_FILTER_JOIN_BYPASS = "";
+    /** "TRUE" fragment replacement for {@link #MENTION_FILTER_WHERE} when admin bypass is on. */
+    public static final String MENTION_FILTER_WHERE_BYPASS = " TRUE ";
+
+    /**
+     * Returns either the production NODE_FILTER_JOIN fragment or the empty
+     * bypass fragment based on {@code adminBypass}. Use at any call site that
+     * might be invoked from an admin curation context.
+     */
+    public static String nodeFilterJoin( final boolean adminBypass ) {
+        return adminBypass ? NODE_FILTER_JOIN_BYPASS : NODE_FILTER_JOIN;
+    }
+
+    public static String nodeFilterWhere( final boolean adminBypass ) {
+        return adminBypass ? NODE_FILTER_WHERE_BYPASS : NODE_FILTER_WHERE;
+    }
+
+    public static String edgeFilterJoin( final boolean adminBypass ) {
+        return adminBypass ? EDGE_FILTER_JOIN_BYPASS : EDGE_FILTER_JOIN;
+    }
+
+    public static String edgeFilterWhere( final boolean adminBypass ) {
+        return adminBypass ? EDGE_FILTER_WHERE_BYPASS : EDGE_FILTER_WHERE;
+    }
+
+    public static String mentionFilterJoin( final boolean adminBypass ) {
+        return adminBypass ? MENTION_FILTER_JOIN_BYPASS : MENTION_FILTER_JOIN;
+    }
+
+    public static String mentionFilterWhere( final boolean adminBypass ) {
+        return adminBypass ? MENTION_FILTER_WHERE_BYPASS : MENTION_FILTER_WHERE;
+    }
 }

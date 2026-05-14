@@ -24,6 +24,7 @@ backups/
 docs/wikantik-pages/OLD/
 .superpowers/
 .gemini/
+*.skill
 socket:*
 *.swp
 wiki.zip

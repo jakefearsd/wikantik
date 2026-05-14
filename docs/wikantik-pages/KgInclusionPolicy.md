@@ -204,6 +204,22 @@ than the REST surface:
 See `docs/superpowers/specs/2026-05-13-kg-curation-mcp-design.md` for the full
 envelope and error contract.
 
+### Admin-bypass on read paths
+
+Admin-context reads bypass the inclusion filter so curators see entities
+they just created, even when the source page hasn't been admitted by the
+cluster policy yet. The bypass applies to:
+
+- REST `/admin/knowledge-graph/*` reads (already gated by `AdminAuthFilter`).
+- The MCP tools registered on `/wikantik-admin-mcp` — `list_proposals`,
+  `inspect_proposals`, and the new admin-bypass copies of `query_nodes`
+  and `search_knowledge` (24 tools total).
+
+The agent-facing `/knowledge-mcp` server keeps the filter on, so retrieval
+quality is unchanged. See
+`docs/superpowers/specs/2026-05-14-kg-curation-operability-design.md`
+for the full contract.
+
 ## Further Reading
 
 - [WikantikKnowledgeGraphAdmin](WikantikKnowledgeGraphAdmin) — the broader

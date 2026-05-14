@@ -63,6 +63,58 @@ public final class KgNodeRepository extends KgJdbcSupport {
         );
     }
 
+    // ---- Package-private SQL builders (used by bypass overloads + test introspection) ----
+
+    /**
+     * Package-private SQL builder for {@link #queryNodes}. Allows test introspection of
+     * the generated SQL without standing up a database connection.
+     */
+    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
+            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
+    static String buildQueryNodesSql( final Map< String, Object > filters,
+                                      final Set< Provenance > provenanceFilter,
+                                      final boolean adminBypass ) {
+        final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
+                .append( KgInclusionFilter.nodeFilterJoin( adminBypass ) )
+                .append( "WHERE" ).append( KgInclusionFilter.nodeFilterWhere( adminBypass ) );
+        if ( filters != null ) {
+            if ( filters.containsKey( "node_type" ) ) sql.append( " AND n.node_type = ?" );
+            if ( filters.containsKey( "source_page" ) ) sql.append( " AND n.source_page = ?" );
+            if ( filters.containsKey( "name" ) ) sql.append( " AND LOWER( n.name ) LIKE ?" );
+            if ( filters.containsKey( "status" ) ) sql.append( " AND n.properties->>'status' = ?" );
+        }
+        if ( provenanceFilter != null && !provenanceFilter.isEmpty() ) {
+            sql.append( " AND n.provenance IN (" );
+            final StringJoiner sj = new StringJoiner( ", " );
+            for ( int i = 0; i < provenanceFilter.size(); i++ ) sj.add( "?" );
+            sql.append( sj ).append( ')' );
+        }
+        sql.append( " ORDER BY n.name LIMIT ? OFFSET ?" );
+        return sql.toString();
+    }
+
+    /**
+     * Package-private SQL builder for {@link #searchNodes}. Allows test introspection of
+     * the generated SQL without standing up a database connection.
+     */
+    @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
+            justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
+    static String buildSearchNodesSql( final Set< Provenance > provenanceFilter,
+                                       final boolean adminBypass ) {
+        final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
+                .append( KgInclusionFilter.nodeFilterJoin( adminBypass ) )
+                .append( "WHERE" ).append( KgInclusionFilter.nodeFilterWhere( adminBypass ) )
+                .append( " AND ( LOWER( n.name ) LIKE ? OR LOWER( n.properties::text ) LIKE ? )" );
+        if ( provenanceFilter != null && !provenanceFilter.isEmpty() ) {
+            sql.append( " AND n.provenance IN (" );
+            final StringJoiner sj = new StringJoiner( ", " );
+            for ( int i = 0; i < provenanceFilter.size(); i++ ) sj.add( "?" );
+            sql.append( sj ).append( ')' );
+        }
+        sql.append( " ORDER BY n.name LIMIT ?" );
+        return sql.toString();
+    }
+
     // ---- Node operations ----
 
     public KgNode upsertNode( final String name, final String nodeType, final String sourcePage,
@@ -89,10 +141,14 @@ public final class KgNodeRepository extends KgJdbcSupport {
     }
 
     public KgNode getNode( final UUID id ) {
+        return getNode( id, false );
+    }
+
+    public KgNode getNode( final UUID id, final boolean adminBypass ) {
         final String sql = "SELECT n.* FROM kg_nodes n"
-                + KgInclusionFilter.NODE_FILTER_JOIN
-                + "WHERE n.id = ?"
-                + " AND" + KgInclusionFilter.NODE_FILTER_WHERE;
+                + KgInclusionFilter.nodeFilterJoin( adminBypass )
+                + "WHERE" + KgInclusionFilter.nodeFilterWhere( adminBypass )
+                + " AND n.id = ?";
         try ( Connection conn = dataSource.getConnection();
               PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setObject( 1, id );
@@ -106,10 +162,14 @@ public final class KgNodeRepository extends KgJdbcSupport {
     }
 
     public KgNode getNodeByName( final String name ) {
+        return getNodeByName( name, false );
+    }
+
+    public KgNode getNodeByName( final String name, final boolean adminBypass ) {
         final String sql = "SELECT n.* FROM kg_nodes n"
-                + KgInclusionFilter.NODE_FILTER_JOIN
-                + "WHERE n.name = ?"
-                + " AND" + KgInclusionFilter.NODE_FILTER_WHERE;
+                + KgInclusionFilter.nodeFilterJoin( adminBypass )
+                + "WHERE" + KgInclusionFilter.nodeFilterWhere( adminBypass )
+                + " AND n.name = ?";
         try ( Connection conn = dataSource.getConnection();
               PreparedStatement ps = conn.prepareStatement( sql ) ) {
             ps.setString( 1, name );
@@ -134,53 +194,40 @@ public final class KgNodeRepository extends KgJdbcSupport {
         }
     }
 
+    public List< KgNode > queryNodes( final Map< String, Object > filters,
+                                      final Set< Provenance > provenanceFilter,
+                                      final int limit, final int offset ) {
+        return queryNodes( filters, provenanceFilter, limit, offset, false );
+    }
+
     @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
             justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public List< KgNode > queryNodes( final Map< String, Object > filters,
                                       final Set< Provenance > provenanceFilter,
-                                      final int limit, final int offset ) {
-        final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
-                .append( KgInclusionFilter.NODE_FILTER_JOIN )
-                .append( "WHERE" ).append( KgInclusionFilter.NODE_FILTER_WHERE );
+                                      final int limit, final int offset,
+                                      final boolean adminBypass ) {
+        final String sql = buildQueryNodesSql( filters, provenanceFilter, adminBypass );
         final List< Object > params = new ArrayList<>();
 
         if ( filters != null ) {
-            if ( filters.containsKey( "node_type" ) ) {
-                sql.append( " AND n.node_type = ?" );
-                params.add( filters.get( "node_type" ) );
-            }
-            if ( filters.containsKey( "source_page" ) ) {
-                sql.append( " AND n.source_page = ?" );
-                params.add( filters.get( "source_page" ) );
-            }
+            if ( filters.containsKey( "node_type" ) ) params.add( filters.get( "node_type" ) );
+            if ( filters.containsKey( "source_page" ) ) params.add( filters.get( "source_page" ) );
             if ( filters.containsKey( "name" ) ) {
-                sql.append( " AND LOWER( n.name ) LIKE ?" );
                 params.add( "%" + filters.get( "name" ).toString().toLowerCase( Locale.ROOT ) + "%" );
             }
-            if ( filters.containsKey( "status" ) ) {
-                sql.append( " AND n.properties->>'status' = ?" );
-                params.add( filters.get( "status" ) );
-            }
+            if ( filters.containsKey( "status" ) ) params.add( filters.get( "status" ) );
         }
 
         if ( provenanceFilter != null && !provenanceFilter.isEmpty() ) {
-            sql.append( " AND n.provenance IN (" );
-            final StringJoiner sj = new StringJoiner( ", " );
-            for ( final Provenance p : provenanceFilter ) {
-                sj.add( "?" );
-                params.add( p.value() );
-            }
-            sql.append( sj );
-            sql.append( ')' );
+            for ( final Provenance p : provenanceFilter ) params.add( p.value() );
         }
 
-        sql.append( " ORDER BY n.name LIMIT ? OFFSET ?" );
         params.add( limit );
         params.add( offset );
 
         final List< KgNode > results = new ArrayList<>();
         try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             for ( int i = 0; i < params.size(); i++ ) {
                 ps.setObject( i + 1, params.get( i ) );
             }
@@ -194,36 +241,30 @@ public final class KgNodeRepository extends KgJdbcSupport {
         return results;
     }
 
+    public List< KgNode > searchNodes( final String query, final Set< Provenance > provenanceFilter,
+                                       final int limit ) {
+        return searchNodes( query, provenanceFilter, limit, false );
+    }
+
     @SuppressFBWarnings( value = "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING",
             justification = "SQL fragments are all string literals; only '?' placeholders are appended conditionally. All user values bound via PreparedStatement.setObject." )
     public List< KgNode > searchNodes( final String query, final Set< Provenance > provenanceFilter,
-                                       final int limit ) {
-        final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
-                .append( KgInclusionFilter.NODE_FILTER_JOIN )
-                .append( "WHERE" ).append( KgInclusionFilter.NODE_FILTER_WHERE )
-                .append( " AND ( LOWER( n.name ) LIKE ? OR LOWER( n.properties::text ) LIKE ? )" );
+                                       final int limit, final boolean adminBypass ) {
+        final String sql = buildSearchNodesSql( provenanceFilter, adminBypass );
         final List< Object > params = new ArrayList<>();
         final String pattern = "%" + query.toLowerCase( Locale.ROOT ) + "%";
         params.add( pattern );
         params.add( pattern );
 
         if ( provenanceFilter != null && !provenanceFilter.isEmpty() ) {
-            sql.append( " AND n.provenance IN (" );
-            final StringJoiner sj = new StringJoiner( ", " );
-            for ( final Provenance p : provenanceFilter ) {
-                sj.add( "?" );
-                params.add( p.value() );
-            }
-            sql.append( sj );
-            sql.append( ')' );
+            for ( final Provenance p : provenanceFilter ) params.add( p.value() );
         }
 
-        sql.append( " ORDER BY n.name LIMIT ?" );
         params.add( limit );
 
         final List< KgNode > results = new ArrayList<>();
         try ( Connection conn = dataSource.getConnection();
-              PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
             for ( int i = 0; i < params.size(); i++ ) {
                 ps.setObject( i + 1, params.get( i ) );
             }

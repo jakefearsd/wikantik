@@ -192,8 +192,18 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     }
 
     @Override
+    public KgNode getNode( final UUID id, final boolean adminBypass ) {
+        return nodes.getNode( id, adminBypass );
+    }
+
+    @Override
     public KgNode getNodeByName( final String name ) {
         return nodes.getNodeByName( name );
+    }
+
+    @Override
+    public KgNode getNodeByName( final String name, final boolean adminBypass ) {
+        return nodes.getNodeByName( name, adminBypass );
     }
 
     @Override
@@ -231,6 +241,14 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
                                       final Set< Provenance > provenanceFilter,
                                       final int limit, final int offset ) {
         return nodes.queryNodes( filters, provenanceFilter, limit, offset );
+    }
+
+    @Override
+    public List< KgNode > queryNodes( final Map< String, Object > filters,
+                                      final Set< Provenance > provenanceFilter,
+                                      final int limit, final int offset,
+                                      final boolean adminBypass ) {
+        return nodes.queryNodes( filters, provenanceFilter, limit, offset, adminBypass );
     }
 
     @Override
@@ -425,6 +443,12 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     public List< KgNode > searchKnowledge( final String query, final Set< Provenance > provenanceFilter,
                                            final int limit, final Tier minTier ) {
         return nodes.searchNodes( query, provenanceFilter, limit, minTier );
+    }
+
+    @Override
+    public List< KgNode > searchKnowledge( final String query, final Set< Provenance > provenanceFilter,
+                                           final int limit, final boolean adminBypass ) {
+        return nodes.searchNodes( query, provenanceFilter, limit, adminBypass );
     }
 
     // --- Proposal management ---

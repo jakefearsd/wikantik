@@ -154,6 +154,36 @@ public interface KnowledgeGraphService {
      */
     TraversalResult traverseByCoMention( String startNodeName, int maxDepth, int minSharedChunks );
 
+    // --- Admin-bypass overloads ---
+
+    /**
+     * Like {@link #queryNodes(Map, Set, int, int)} but, when {@code adminBypass} is {@code true},
+     * omits the {@code kg_excluded_pages} filter so admin curators see nodes from all pages.
+     */
+    List< KgNode > queryNodes( Map< String, Object > filters, Set< Provenance > provenanceFilter,
+                               int limit, int offset, boolean adminBypass );
+
+    /**
+     * Like {@link #searchKnowledge(String, Set, int)} but, when {@code adminBypass} is {@code true},
+     * omits the {@code kg_excluded_pages} filter so admin curators see nodes from all pages.
+     */
+    List< KgNode > searchKnowledge( String query, Set< Provenance > provenanceFilter,
+                                    int limit, boolean adminBypass );
+
+    /**
+     * Like {@link #getNode(UUID)} but, when {@code adminBypass} is {@code true},
+     * omits the {@code kg_excluded_pages} filter so admin curators can retrieve nodes
+     * from excluded pages.
+     */
+    KgNode getNode( UUID id, boolean adminBypass );
+
+    /**
+     * Like {@link #getNodeByName(String)} but, when {@code adminBypass} is {@code true},
+     * omits the {@code kg_excluded_pages} filter so admin curators can retrieve nodes
+     * from excluded pages.
+     */
+    KgNode getNodeByName( String name, boolean adminBypass );
+
     // --- Search ---
 
     List< KgNode > searchKnowledge( String query, Set< Provenance > provenanceFilter, int limit );

@@ -39,6 +39,9 @@ public class ProposeKnowledgeTool implements McpTool, AuthorConfigurable {
     private static final Logger LOG = LogManager.getLogger( ProposeKnowledgeTool.class );
     public static final String TOOL_NAME = "propose_knowledge";
 
+    private static final java.util.regex.Pattern NODE_TYPE_REGEX =
+            java.util.regex.Pattern.compile( "^[a-z][a-z0-9_-]{0,30}$" );
+
     private final KnowledgeGraphService service;
     private String defaultAuthor = "MCP";
 
@@ -133,6 +136,15 @@ public class ProposeKnowledgeTool implements McpTool, AuthorConfigurable {
         }
 
         try {
+            // Validate node_type for new-node proposals
+            if ( "new-node".equals( proposalType ) ) {
+                final String nodeType = McpToolUtils.getString( proposedData, "node_type" );
+                if ( nodeType != null && !NODE_TYPE_REGEX.matcher( nodeType ).matches() ) {
+                    return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
+                            "invalid node_type: must match /^[a-z][a-z0-9_-]{0,30}$/ (got: '" + nodeType + "')" );
+                }
+            }
+
             // Check rejection history for edge proposals
             if ( "new-edge".equals( proposalType ) ) {
                 final String source = ( String ) proposedData.get( "source" );

@@ -449,4 +449,52 @@ class DefaultKnowledgeGraphServiceTest {
         assertTrue( node.tags().isEmpty() );
         assertNull( node.status() );
     }
+
+    // --- node_type vocabulary regex (Task 6) ---
+
+    @Test
+    void upsertNode_rejectsTrailingCommaTypo() {
+        final IllegalArgumentException e = assertThrows( IllegalArgumentException.class,
+                () -> service.upsertNode( "RaftCommaTest_" + System.currentTimeMillis(),
+                        "concept,",
+                        "TestPage", Provenance.HUMAN_AUTHORED, java.util.Map.of() ) );
+        assertTrue( e.getMessage().contains( "invalid node_type" ), e.getMessage() );
+    }
+
+    @Test
+    void upsertNode_rejectsEmptyString() {
+        assertThrows( IllegalArgumentException.class,
+                () -> service.upsertNode( "EmptyTest_" + System.currentTimeMillis(),
+                        "",
+                        "TestPage", Provenance.HUMAN_AUTHORED, java.util.Map.of() ) );
+    }
+
+    @Test
+    void upsertNode_rejectsUppercaseFirstLetter() {
+        assertThrows( IllegalArgumentException.class,
+                () -> service.upsertNode( "UppercaseTest_" + System.currentTimeMillis(),
+                        "Product",
+                        "TestPage", Provenance.HUMAN_AUTHORED, java.util.Map.of() ) );
+    }
+
+    @Test
+    void upsertNode_allowsHyphenatedTypes() {
+        assertDoesNotThrow( () -> service.upsertNode( "HyphenTest_" + System.currentTimeMillis(),
+                "implementation-plan",
+                "TestPage", Provenance.HUMAN_AUTHORED, java.util.Map.of() ) );
+    }
+
+    @Test
+    void upsertNode_allowsLowercaseAlphanumericUnderscore() {
+        assertDoesNotThrow( () -> service.upsertNode( "SnakeTest_" + System.currentTimeMillis(),
+                "concept",
+                "TestPage", Provenance.HUMAN_AUTHORED, java.util.Map.of() ) );
+    }
+
+    @Test
+    void upsertNode_allowsNullNodeType() {
+        assertDoesNotThrow( () -> service.upsertNode( "NullTest_" + System.currentTimeMillis(),
+                null,
+                "TestPage", Provenance.HUMAN_AUTHORED, java.util.Map.of() ) );
+    }
 }

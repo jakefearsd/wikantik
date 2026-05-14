@@ -450,6 +450,24 @@ public class KgCurationIT extends WithMcpTestSetup {
     }
 
     // ------------------------------------------------------------------
+    // curate_nodes — upsert with polluted node_type is a per-op error
+    // citing "invalid node_type" (Task 6, node_type regex guard).
+    // ------------------------------------------------------------------
+
+    @Test
+    public void curateNodesUpsertWithPollutedTypeIsPerOpError() {
+        final java.util.Map< String, Object > r = mcp.callTool( "curate_nodes",
+                java.util.Map.of( "operations", java.util.List.of( java.util.Map.of(
+                        "action", "upsert", "tag", "polluted",
+                        "name", "PollutionTest_" + System.currentTimeMillis(),
+                        "node_type", "concept,",
+                        "source_page", "Main" ) ) ) );
+
+        Assertions.assertTrue( r.toString().contains( "failed" ), r.toString() );
+        Assertions.assertTrue( r.toString().contains( "invalid node_type" ), r.toString() );
+    }
+
+    // ------------------------------------------------------------------
     // verdict=judge is intentionally NOT covered at the IT layer — the
     // judge path requires an external LLM endpoint that the Cargo IT
     // environment cannot reach. Coverage lives at the unit-test layer in

@@ -156,6 +156,19 @@ class ProposeKnowledgeToolTest {
     }
 
     @Test
+    void rejectsProposalWithTrailingCommaNodeType() {
+        final McpSchema.CallToolResult r = new ProposeKnowledgeTool(
+                mock( KnowledgeGraphService.class ) ).execute( Map.of(
+                "proposal_type", "new-node",
+                "source_page", "Foo",
+                "proposed_data", Map.of( "name", "Bar", "node_type", "concept," ),
+                "confidence", 0.9,
+                "reasoning", "x" ) );
+        org.junit.jupiter.api.Assertions.assertTrue( r.isError(),
+                "Proposal with comma-typo node_type should be a top-level error: " + r );
+    }
+
+    @Test
     void execute_returnsErrorOnServiceFailure() {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
         when( svc.submitProposal( any(), any(), anyMap(), anyDouble(), any() ) )

@@ -119,6 +119,10 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     // --- Schema discovery ---
 
+    /** Vocabulary regex for node_type: lowercase start, lowercase/digits/underscore/hyphen, max 31 chars. */
+    private static final java.util.regex.Pattern NODE_TYPE_REGEX =
+            java.util.regex.Pattern.compile( "^[a-z][a-z0-9_-]{0,30}$" );
+
     /**
      * The closed relationship-type vocabulary enforced by the
      * {@code kg_edges_relationship_type_check} CHECK constraint added in V027.
@@ -209,6 +213,10 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
     @Override
     public KgNode upsertNode( final String name, final String nodeType, final String sourcePage,
                               final Provenance provenance, final Map< String, Object > properties ) {
+        if ( nodeType != null && !NODE_TYPE_REGEX.matcher( nodeType ).matches() ) {
+            throw new IllegalArgumentException(
+                    "invalid node_type: must match /^[a-z][a-z0-9_-]{0,30}$/ (got: '" + nodeType + "')" );
+        }
         final KgNode result = nodes.upsertNode( name, nodeType, sourcePage, provenance, properties );
         snapshotBuilder.invalidateCache();
         return result;

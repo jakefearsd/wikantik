@@ -255,3 +255,59 @@ test_rollback_dry_run() {
     ok "rollback dry-run re-promotes :rollback, recreates, acquires lock"
 }
 test_rollback_dry_run
+
+test_pages_push_no_delete_by_default() {
+    local tmp out
+    tmp="$(mktemp -d)"
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
+    make_fake_remote_env "${tmp}"
+    mkdir -p "${tmp}/some-pages"
+    out="$("${tmp}/bin/remote.sh" --dry-run pages-push "${tmp}/some-pages" 2>&1)" \
+        || fail "pages-push dry-run non-zero: ${out}"
+    echo "${out}" | grep -q "rsync" \
+        || fail "pages-push did not call rsync: ${out}"
+    if echo "${out}" | grep -q -- "--delete"; then
+        fail "pages-push must NOT pass --delete by default: ${out}"
+    fi
+    echo "${out}" | grep -q ":/tmp/pages" \
+        || fail "pages-push did not target REMOTE_PAGES_DIR: ${out}"
+    rm -rf "${tmp}"
+    ok "pages-push (default) does not pass --delete"
+}
+
+test_pages_push_mirror_passes_delete() {
+    local tmp out
+    tmp="$(mktemp -d)"
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
+    make_fake_remote_env "${tmp}"
+    mkdir -p "${tmp}/some-pages"
+    # --mirror --yes skips the confirmation prompt in scripted use.
+    out="$("${tmp}/bin/remote.sh" --dry-run pages-push "${tmp}/some-pages" --mirror --yes 2>&1)" \
+        || fail "pages-push --mirror dry-run non-zero: ${out}"
+    echo "${out}" | grep -q -- "--delete" \
+        || fail "pages-push --mirror must pass --delete: ${out}"
+    rm -rf "${tmp}"
+    ok "pages-push --mirror --yes passes --delete"
+}
+
+test_pages_pull_dry_run() {
+    local tmp out
+    tmp="$(mktemp -d)"
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
+    make_fake_remote_env "${tmp}"
+    out="$("${tmp}/bin/remote.sh" --dry-run pages-pull "${tmp}/dest" 2>&1)" \
+        || fail "pages-pull dry-run non-zero: ${out}"
+    echo "${out}" | grep -q ":/tmp/pages/" \
+        || fail "pages-pull did not read from REMOTE_PAGES_DIR: ${out}"
+    if echo "${out}" | grep -q -- "--delete"; then
+        fail "pages-pull must never pass --delete (read-only): ${out}"
+    fi
+    rm -rf "${tmp}"
+    ok "pages-pull is read-only"
+}
+test_pages_push_no_delete_by_default
+test_pages_push_mirror_passes_delete
+test_pages_pull_dry_run

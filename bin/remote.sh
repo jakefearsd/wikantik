@@ -427,6 +427,73 @@ EOF
     echo "Next: bin/remote.sh deploy"
 }
 
+cmd_pages_push() {
+    local local_dir=""
+    local mirror=0
+    local assume_yes=0
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                cat <<'EOF'
+pages-push — rsync a local pages directory to REMOTE_PAGES_DIR.
+
+Usage:
+  bin/remote.sh [--dry-run] pages-push LOCAL_DIR
+  bin/remote.sh [--dry-run] pages-push LOCAL_DIR --mirror [--yes]
+
+Default: no --delete. Files present on the remote but missing locally survive.
+--mirror: opts in to rsync --delete. By default, prompts for confirmation
+          showing the files that would be deleted; --yes skips the prompt.
+EOF
+                return 0 ;;
+            --mirror) mirror=1; shift ;;
+            --yes)    assume_yes=1; shift ;;
+            -*) echo "pages-push: unknown flag: $1" >&2; exit 2 ;;
+            *) if [[ -z "${local_dir}" ]]; then local_dir="$1"; shift
+               else echo "pages-push: unexpected arg: $1" >&2; exit 2
+               fi ;;
+        esac
+    done
+    [[ -n "${local_dir}" ]] || { echo "pages-push: missing LOCAL_DIR" >&2; exit 2; }
+    [[ -d "${local_dir}" ]] || { echo "pages-push: not a directory: ${local_dir}" >&2; exit 2; }
+
+    local rsync_args=(-avz --update)
+    if [[ "${mirror}" -eq 1 ]]; then
+        if [[ "${assume_yes}" -ne 1 && "${DRY_RUN}" -ne 1 ]]; then
+            echo "pages-push --mirror would --delete files on ${REMOTE_HOST}:${REMOTE_PAGES_DIR}."
+            echo "Preview of deletions:"
+            _rsync -avzn --delete "${local_dir%/}/" \
+                "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PAGES_DIR}/" \
+                | grep -E '^deleting ' || echo "  (none — remote is already a subset of local)"
+            read -r -p "Proceed? [y/N] " yn
+            [[ "${yn}" =~ ^[Yy]$ ]] || { echo "Aborted."; return 0; }
+        fi
+        rsync_args+=(--delete)
+    fi
+
+    _rsync "${rsync_args[@]}" "${local_dir%/}/" \
+        "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PAGES_DIR}/"
+}
+
+cmd_pages_pull() {
+    local local_dir=""
+    case "${1:-}" in
+        -h|--help)
+            cat <<'EOF'
+pages-pull — rsync REMOTE_PAGES_DIR to a local directory. Read-only (never deletes locally).
+
+Usage: bin/remote.sh [--dry-run] pages-pull LOCAL_DIR
+EOF
+            return 0 ;;
+    esac
+    local_dir="${1:-}"
+    [[ -n "${local_dir}" ]] || { echo "pages-pull: missing LOCAL_DIR" >&2; exit 2; }
+    mkdir -p "${local_dir}"
+    _rsync -avz --update \
+        "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PAGES_DIR}/" \
+        "${local_dir%/}/"
+}
+
 # ---------- Subcommand dispatch ----------
 
 case "${SUBCOMMAND}" in
@@ -441,6 +508,8 @@ case "${SUBCOMMAND}" in
     bootstrap)  cmd_bootstrap "$@" ;;
     deploy)     cmd_deploy "$@" ;;
     rollback)   cmd_rollback "$@" ;;
+    pages-push) cmd_pages_push "$@" ;;
+    pages-pull) cmd_pages_pull "$@" ;;
     *) echo "remote.sh: unknown subcommand: ${SUBCOMMAND}" >&2
        echo "           run: bin/remote.sh --help" >&2
        exit 2 ;;

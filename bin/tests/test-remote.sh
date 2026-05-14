@@ -66,10 +66,11 @@ test_remote_sh_help_lists_subcommands() {
 # --- missing remote.env produces a clear error (no ssh attempt) ---
 test_missing_env_clear_error() {
     local tmp; tmp="$(mktemp -d)"
-    cp bin/remote.sh "${tmp}/remote.sh"
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
     # No remote.env in tmp. Calling a subcommand must error clearly.
     local out exit_code=0
-    out="$(cd "${tmp}" && ./remote.sh status 2>&1)" || exit_code=$?
+    out="$("${tmp}/bin/remote.sh" status 2>&1)" || exit_code=$?
     [[ "${exit_code}" -ne 0 ]] || fail "status with no remote.env returned 0; expected non-zero"
     echo "${out}" | grep -q "remote.env" \
         || fail "missing-env error did not mention remote.env: ${out}"
@@ -80,11 +81,12 @@ test_missing_env_clear_error() {
 # --- required var missing → clear error naming the var ---
 test_missing_required_var_clear_error() {
     local tmp; tmp="$(mktemp -d)"
-    cp bin/remote.sh "${tmp}/remote.sh"
-    # Empty remote.env: nothing defined.
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
+    # Empty remote.env at the repo-root equivalent: nothing defined.
     : > "${tmp}/remote.env"
     local out exit_code=0
-    out="$(cd "${tmp}" && ./remote.sh status 2>&1)" || exit_code=$?
+    out="$("${tmp}/bin/remote.sh" status 2>&1)" || exit_code=$?
     [[ "${exit_code}" -ne 0 ]] || fail "expected non-zero on empty remote.env"
     echo "${out}" | grep -q "REMOTE_HOST" \
         || fail "missing-var error did not name REMOTE_HOST: ${out}"

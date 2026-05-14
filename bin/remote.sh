@@ -35,12 +35,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# REPO_ROOT is the canonical repo-root candidate (script lives in bin/);
-# we also check $PWD because the user is expected to invoke from the
-# repo root, and the test harness stages remote.sh in a tmp dir and
-# invokes it with a sibling remote.env.
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${REPO_ROOT}"
 
 print_main_help() {
     awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
@@ -50,27 +46,16 @@ print_main_help() {
 
 REQUIRED_VARS=(REMOTE_HOST REMOTE_USER REMOTE_REPO_DIR REMOTE_PAGES_DIR REMOTE_BACKUP_DIR)
 
-# Resolve remote.env: prefer $PWD (the user's invocation directory or
-# the test's tmp dir), then the repo root. Sets REMOTE_ENV_FILE.
-resolve_env_file() {
-    if [[ -f "${PWD}/remote.env" ]]; then
-        REMOTE_ENV_FILE="${PWD}/remote.env"
-    elif [[ -f "${REPO_ROOT}/remote.env" ]]; then
-        REMOTE_ENV_FILE="${REPO_ROOT}/remote.env"
-    else
-        REMOTE_ENV_FILE=""
-    fi
-}
-
 load_env() {
-    resolve_env_file
-    if [[ -z "${REMOTE_ENV_FILE}" ]]; then
-        echo "remote.sh: remote.env not found (looked in ${PWD} and ${REPO_ROOT})." >&2
+    if [[ ! -f remote.env ]]; then
+        echo "remote.sh: remote.env not found in $(pwd)." >&2
         echo "           copy remote.env.example to remote.env and edit it." >&2
         exit 2
     fi
-    # shellcheck disable=SC1091
-    set -a; . "${REMOTE_ENV_FILE}"; set +a
+    set -a
+    # shellcheck source=/dev/null
+    . ./remote.env
+    set +a
 
     local missing=()
     for v in "${REQUIRED_VARS[@]}"; do
@@ -102,6 +87,7 @@ fi
 # Strip global flags
 ARGS=()
 while [[ $# -gt 0 ]]; do
+    # shellcheck disable=SC2034  # DRY_RUN consumed by later tasks (deploy/bootstrap)
     case "$1" in
         --dry-run) DRY_RUN=1; shift ;;
         *) ARGS+=("$1"); shift ;;

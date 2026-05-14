@@ -80,6 +80,62 @@ public final class RestSeedHelper {
     }
 
     /**
+     * Polls {@code GET /admin/users} (a cheap, always-wired admin endpoint that
+     * passes through {@code AdminAuthFilter}) until it returns 200, with a
+     * 3-second budget and 50 ms intervals.
+     *
+     * <p>Eliminates a JDBC-IT-profile race where the post-login session principal
+     * binding occasionally lags behind {@code LoginPage.performLogin}'s
+     * {@code data-authenticated=true} check — {@code performLogin} returns as
+     * soon as React's auth state flips, but {@code AdminAuthFilter}'s view of
+     * the session principal (which goes through {@code GroupManager.isUserInRole}
+     * on a DB-backed authorization manager) can briefly trail by a few ms. The
+     * symptom is an isolated 403 on the FIRST admin call right after login;
+     * subsequent calls in the same test session always succeed.
+     *
+     * <p>Idempotent and fast on the happy path: one HTTP round-trip when warm.
+     * Throws {@link IllegalStateException} if the budget expires without a 200,
+     * which signals a real auth misconfiguration rather than a propagation race.
+     */
+    public static void awaitAdminReady() {
+        final String script = """
+            const cb = arguments[arguments.length - 1];
+            const base = window.__WIKANTIK_BASE__ || '';
+            const deadline = Date.now() + 3000;
+            const poll = () => {
+                fetch(base + '/admin/users', {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                })
+                .then(r => {
+                    if (r.status === 200) { cb({ status: 200, body: '' }); return; }
+                    if (Date.now() > deadline) {
+                        r.text().then(b => cb({ status: r.status, body: b }));
+                        return;
+                    }
+                    setTimeout(poll, 50);
+                })
+                .catch(err => {
+                    if (Date.now() > deadline) { cb({ status: -1, body: String(err) }); return; }
+                    setTimeout(poll, 50);
+                });
+            };
+            poll();
+            """;
+        final Object result = com.codeborne.selenide.Selenide.executeAsyncJavaScript( script );
+        if ( result instanceof java.util.Map< ?, ? > m ) {
+            final Object status = m.get( "status" );
+            if ( status instanceof Number n && n.intValue() == 200 ) return;
+            throw new IllegalStateException(
+                "awaitAdminReady: 3s budget expired without 200 (last status="
+                + status + " body=" + m.get( "body" ) + ")" );
+        }
+        throw new IllegalStateException( "awaitAdminReady: unexpected JS result "
+            + ( result == null ? "null" : result.getClass().getName() ) );
+    }
+
+    /**
      * Seeds a synthetic hub-discovery proposal via the test-only fixture seam
      * at {@code /admin/knowledge-graph/hub-discovery/proposals/seed}. Driven from
      * the browser so the UI session cookie authorises the admin endpoint.
@@ -91,6 +147,7 @@ public final class RestSeedHelper {
     public static int seedHubDiscoveryProposal( final String suggestedName,
                                                  final String exemplarPage,
                                                  final java.util.List< String > members ) {
+        awaitAdminReady();
         final String script = """
             const cb = arguments[arguments.length - 1];
             const base = window.__WIKANTIK_BASE__ || '';
@@ -135,6 +192,7 @@ public final class RestSeedHelper {
      */
     public static String seedKgNode( final String name, final String nodeType,
                                       final String sourcePage ) {
+        awaitAdminReady();
         final String script = """
             const cb = arguments[arguments.length - 1];
             const base = window.__WIKANTIK_BASE__ || '';
@@ -171,6 +229,7 @@ public final class RestSeedHelper {
      * by {@code AdminAuthFilter}). Returns the raw JSON body.
      */
     public static String listProposals() {
+        awaitAdminReady();
         final String script = """
             const cb = arguments[arguments.length - 1];
             const base = window.__WIKANTIK_BASE__ || '';

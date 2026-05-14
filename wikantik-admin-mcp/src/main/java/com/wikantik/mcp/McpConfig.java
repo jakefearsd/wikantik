@@ -42,6 +42,12 @@ public class McpConfig {
     private static final String RESOURCE_NAME = "wikantik-mcp.properties";
 
     private final Properties props;
+    // Memoised result of instructions(): the file/classpath lookup runs at most
+    // once per McpConfig instance, even when callers ask repeatedly (and even
+    // when an override path is misconfigured). Prevents log spam at boot when
+    // multiple components (McpEndpointBootstrapper, McpServerInitializer)
+    // each call instructions() during startup.
+    private volatile String cachedInstructions;
 
     /**
      * Creates a config by loading bundled defaults and overlaying any classpath override.
@@ -108,6 +114,16 @@ public class McpConfig {
      * <p>If both sources are unreadable, returns {@code ""} and logs at warn level.</p>
      */
     public String instructions() {
+        String result = cachedInstructions;
+        if ( result != null ) return result;
+        synchronized ( this ) {
+            if ( cachedInstructions != null ) return cachedInstructions;
+            cachedInstructions = loadInstructionsOnce();
+            return cachedInstructions;
+        }
+    }
+
+    private String loadInstructionsOnce() {
         final String overridePath = props.getProperty( "mcp.instructions.file" );
         if ( overridePath != null && !overridePath.isBlank() ) {
             try ( final java.io.InputStream in =

@@ -127,6 +127,17 @@ public final class FrontmatterParser {
                 return new ParsedPage( Map.copyOf( ( Map< String, Object > ) parsed ), body );
             }
             return new ParsedPage( Map.of(), body );
+        } catch ( final MarkedYAMLException e ) {
+            final int line = e.getProblemMark() != null ? e.getProblemMark().getLine() + 1 : -1;
+            final int column = e.getProblemMark() != null ? e.getProblemMark().getColumn() + 1 : -1;
+            // Including line/column in the relaxed log so operators can locate the
+            // offending page without enabling DEBUG. First-line excerpt of the YAML
+            // block is the cheapest proxy for "which page" — typically the page's
+            // title field — when callers don't pass a context label.
+            final String firstLine = yamlBlock.lines().findFirst().orElse( "" ).strip();
+            LOG.warn( "Failed to parse YAML frontmatter at line {} col {} (near \"{}\"): {}",
+                    line, column, firstLine, e.getMessage() );
+            return new ParsedPage( Map.of(), body );
         } catch ( final Exception e ) {
             LOG.warn( "Failed to parse YAML frontmatter: {}", e.getMessage() );
             return new ParsedPage( Map.of(), body );

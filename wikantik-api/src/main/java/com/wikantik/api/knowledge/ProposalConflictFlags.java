@@ -30,14 +30,15 @@ public final class ProposalConflictFlags {
 
     private ProposalConflictFlags() { }
 
-    public static Map< String, Object > forProposal( final KnowledgeGraphService svc, final KgProposal p ) {
+    public static Map< String, Object > forProposal( final KnowledgeGraphService svc, final KgProposal p,
+                                                      final boolean adminBypass ) {
         final Map< String, Object > flags = new LinkedHashMap<>();
         if ( p == null || p.proposedData() == null ) return flags;
         try {
             if ( "new-node".equals( p.proposalType() ) ) {
                 final Object name = p.proposedData().get( "name" );
                 if ( name instanceof String s && !s.isBlank() ) {
-                    final KgNode existing = svc.getNodeByName( s );
+                    final KgNode existing = svc.getNodeByName( s, adminBypass );
                     flags.put( "node_exists", existing != null );
                     if ( existing != null ) flags.put( "existing_node_id", existing.id().toString() );
                 }
@@ -53,5 +54,10 @@ public final class ProposalConflictFlags {
             LOG.warn( "Failed to compute conflict flags for proposal {}: {}", p.id(), e.getMessage() );
         }
         return flags;
+    }
+
+    /** Backwards-compatible overload — bypass off. */
+    public static Map< String, Object > forProposal( final KnowledgeGraphService svc, final KgProposal p ) {
+        return forProposal( svc, p, false );
     }
 }

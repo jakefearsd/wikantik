@@ -123,7 +123,7 @@ class AdminKnowledgeResourceMockTest {
 
     @Test
     void getNodes_listingAppliesFiltersAndPagination() throws Exception {
-        Mockito.when( service.queryNodes( any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        Mockito.when( service.queryNodes( any(), any(), anyInt(), anyInt(), Mockito.eq( true ) ) ).thenReturn( List.of() );
 
         final HttpServletRequest req = request( "/nodes" );
         Mockito.doReturn( "Concept" ).when( req ).getParameter( "node_type" );
@@ -140,12 +140,13 @@ class AdminKnowledgeResourceMockTest {
                 && "active".equals( m.get( "status" ) ) ),
             Mockito.isNull(),
             Mockito.eq( 25 ),
-            Mockito.eq( 10 ) );
+            Mockito.eq( 10 ),
+            Mockito.eq( true ) );
     }
 
     @Test
     void getNode_returns404WhenMissing() throws Exception {
-        Mockito.when( service.getNodeByName( "Ghost" ) ).thenReturn( null );
+        Mockito.when( service.getNodeByName( "Ghost", true ) ).thenReturn( null );
         final JsonObject obj = call( request( "/nodes/Ghost" ), "GET" );
         assertEquals( 404, obj.get( "status" ).getAsInt() );
     }
@@ -153,7 +154,7 @@ class AdminKnowledgeResourceMockTest {
     @Test
     void getNode_returnsNodeWithEdges() throws Exception {
         final UUID id = UUID.randomUUID();
-        Mockito.when( service.getNodeByName( "Alpha" ) ).thenReturn( node( id, "Alpha" ) );
+        Mockito.when( service.getNodeByName( "Alpha", true ) ).thenReturn( node( id, "Alpha" ) );
         Mockito.when( service.getEdgesForNode( id, "both" ) ).thenReturn( List.of() );
         final JsonObject obj = call( request( "/nodes/Alpha" ), "GET" );
         assertEquals( "Alpha", obj.get( "name" ).getAsString() );
@@ -167,19 +168,19 @@ class AdminKnowledgeResourceMockTest {
         // contains "/" can't be fetched via /nodes/{name} — the request 400s
         // before the servlet runs. This branch dispatches on the ID instead.
         final UUID id = UUID.randomUUID();
-        Mockito.when( service.getNode( id ) ).thenReturn( node( id, "Has/Slash" ) );
+        Mockito.when( service.getNode( id, true ) ).thenReturn( node( id, "Has/Slash" ) );
         Mockito.when( service.getEdgesForNode( id, "both" ) ).thenReturn( List.of() );
         final JsonObject obj = call( request( "/nodes/by-id/" + id ), "GET" );
         assertEquals( "Has/Slash", obj.get( "name" ).getAsString() );
         assertTrue( obj.has( "edges" ) );
-        Mockito.verify( service ).getNode( id );
-        Mockito.verify( service, Mockito.never() ).getNodeByName( anyString() );
+        Mockito.verify( service ).getNode( id, true );
+        Mockito.verify( service, Mockito.never() ).getNodeByName( anyString(), Mockito.anyBoolean() );
     }
 
     @Test
     void getNodeById_returns404WhenMissing() throws Exception {
         final UUID id = UUID.randomUUID();
-        Mockito.when( service.getNode( id ) ).thenReturn( null );
+        Mockito.when( service.getNode( id, true ) ).thenReturn( null );
         final JsonObject obj = call( request( "/nodes/by-id/" + id ), "GET" );
         assertEquals( 404, obj.get( "status" ).getAsInt() );
     }
@@ -471,7 +472,7 @@ class AdminKnowledgeResourceMockTest {
                 Mockito.eq( "AlphaPage" ), Mockito.eq( Provenance.HUMAN_AUTHORED ), any() ) )
             .thenReturn( alphaNode );
         // After routing through the facade, the resource re-fetches the node for the response.
-        Mockito.when( service.getNode( id ) ).thenReturn( alphaNode );
+        Mockito.when( service.getNode( id, true ) ).thenReturn( alphaNode );
 
         final JsonObject body = new JsonObject();
         body.addProperty( "name", "Alpha" );

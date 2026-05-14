@@ -37,7 +37,7 @@ public class ProposalConflictFlagsTest {
         when( p.proposedData() ).thenReturn( Map.of( "name", "Raft" ) );
         final KgNode existing = Mockito.mock( KgNode.class );
         when( existing.id() ).thenReturn( UUID.randomUUID() );
-        when( svc.getNodeByName( "Raft" ) ).thenReturn( existing );
+        when( svc.getNodeByName( "Raft", false ) ).thenReturn( existing );
 
         final Map<String, Object> flags = ProposalConflictFlags.forProposal( svc, p );
         assertEquals( Boolean.TRUE, flags.get( "node_exists" ) );
@@ -75,9 +75,22 @@ public class ProposalConflictFlagsTest {
         final KgProposal p = Mockito.mock( KgProposal.class );
         when( p.proposalType() ).thenReturn( "new-node" );
         when( p.proposedData() ).thenReturn( Map.of( "name", "Raft" ) );
-        when( svc.getNodeByName( "Raft" ) ).thenReturn( null );
+        when( svc.getNodeByName( "Raft", false ) ).thenReturn( null );
 
         final Map<String, Object> flags = ProposalConflictFlags.forProposal( svc, p );
         assertFalse( flags.containsKey( "edge_previously_rejected" ) );
+    }
+
+    @Test
+    void forProposalThreadsBypassFlagThroughGetNodeByName() {
+        final KnowledgeGraphService svc = Mockito.mock( KnowledgeGraphService.class );
+        final KgProposal p = Mockito.mock( KgProposal.class );
+        Mockito.when( p.proposalType() ).thenReturn( "new-node" );
+        Mockito.when( p.proposedData() ).thenReturn( java.util.Map.of( "name", "Raft" ) );
+
+        ProposalConflictFlags.forProposal( svc, p, true );
+
+        Mockito.verify( svc ).getNodeByName( "Raft", true );
+        Mockito.verify( svc, Mockito.never() ).getNodeByName( "Raft", false );
     }
 }

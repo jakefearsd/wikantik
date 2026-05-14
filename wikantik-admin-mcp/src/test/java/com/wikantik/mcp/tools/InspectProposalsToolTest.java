@@ -73,7 +73,7 @@ public class InspectProposalsToolTest {
         when( p.proposedData() ).thenReturn( Map.of( "name", "Raft" ) );
         when( svc.getProposal( id ) ).thenReturn( p );
         when( svc.listReviews( id ) ).thenReturn( List.of() );
-        when( svc.getNodeByName( "Raft" ) ).thenReturn( null );
+        when( svc.getNodeByName( "Raft", true ) ).thenReturn( null );
 
         final McpSchema.CallToolResult r = tool.execute( Map.of( "ids", List.of( id.toString() ) ) );
         final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();

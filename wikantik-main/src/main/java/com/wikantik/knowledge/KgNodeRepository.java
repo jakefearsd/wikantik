@@ -76,7 +76,7 @@ public final class KgNodeRepository extends KgJdbcSupport {
                                       final boolean adminBypass ) {
         final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
                 .append( KgInclusionFilter.nodeFilterJoin( adminBypass ) )
-                .append( "WHERE" ).append( KgInclusionFilter.nodeFilterWhere( adminBypass ) );
+                .append( " WHERE" ).append( KgInclusionFilter.nodeFilterWhere( adminBypass ) );
         if ( filters != null ) {
             if ( filters.containsKey( "node_type" ) ) sql.append( " AND n.node_type = ?" );
             if ( filters.containsKey( "source_page" ) ) sql.append( " AND n.source_page = ?" );
@@ -103,7 +103,7 @@ public final class KgNodeRepository extends KgJdbcSupport {
                                        final boolean adminBypass ) {
         final StringBuilder sql = new StringBuilder( "SELECT n.* FROM kg_nodes n" )
                 .append( KgInclusionFilter.nodeFilterJoin( adminBypass ) )
-                .append( "WHERE" ).append( KgInclusionFilter.nodeFilterWhere( adminBypass ) )
+                .append( " WHERE" ).append( KgInclusionFilter.nodeFilterWhere( adminBypass ) )
                 .append( " AND ( LOWER( n.name ) LIKE ? OR LOWER( n.properties::text ) LIKE ? )" );
         if ( provenanceFilter != null && !provenanceFilter.isEmpty() ) {
             sql.append( " AND n.provenance IN (" );
@@ -147,7 +147,7 @@ public final class KgNodeRepository extends KgJdbcSupport {
     public KgNode getNode( final UUID id, final boolean adminBypass ) {
         final String sql = "SELECT n.* FROM kg_nodes n"
                 + KgInclusionFilter.nodeFilterJoin( adminBypass )
-                + "WHERE" + KgInclusionFilter.nodeFilterWhere( adminBypass )
+                + " WHERE" + KgInclusionFilter.nodeFilterWhere( adminBypass )
                 + " AND n.id = ?";
         try ( Connection conn = dataSource.getConnection();
               PreparedStatement ps = conn.prepareStatement( sql ) ) {
@@ -168,7 +168,7 @@ public final class KgNodeRepository extends KgJdbcSupport {
     public KgNode getNodeByName( final String name, final boolean adminBypass ) {
         final String sql = "SELECT n.* FROM kg_nodes n"
                 + KgInclusionFilter.nodeFilterJoin( adminBypass )
-                + "WHERE" + KgInclusionFilter.nodeFilterWhere( adminBypass )
+                + " WHERE" + KgInclusionFilter.nodeFilterWhere( adminBypass )
                 + " AND n.name = ?";
         try ( Connection conn = dataSource.getConnection();
               PreparedStatement ps = conn.prepareStatement( sql ) ) {

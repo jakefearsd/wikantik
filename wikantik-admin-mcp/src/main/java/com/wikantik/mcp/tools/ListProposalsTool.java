@@ -128,7 +128,7 @@ public class ListProposalsTool implements McpTool {
                 map.put( "reviewed_by", p.reviewedBy() );
                 map.put( "created", p.created() != null ? p.created().toString() : null );
                 map.put( "reviewed_at", p.reviewedAt() != null ? p.reviewedAt().toString() : null );
-                map.putAll( ProposalConflictFlags.forProposal( service, p ) );
+                map.putAll( ProposalConflictFlags.forProposal( service, p, true ) );
                 return map;
             } ).toList();
 

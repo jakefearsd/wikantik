@@ -291,7 +291,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                 sendJson( response, result );
                 return;
             }
-            final KgNode node = service.getNode( id );
+            final KgNode node = service.getNode( id, true );
             if ( node == null ) {
                 sendNotFound( response, "Node not found: " + id );
                 return;
@@ -306,7 +306,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         if ( segments.length >= 2 ) {
             // GET /admin/knowledge-graph/nodes/{name}
             final String name = segments[1];
-            final KgNode node = service.getNodeByName( name );
+            final KgNode node = service.getNodeByName( name, true );
             if ( node == null ) {
                 sendNotFound( response, "Node not found: " + name );
             } else {
@@ -330,7 +330,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             }
             final int limit = parseIntParam( request, "limit", 50 );
             final int offset = parseIntParam( request, "offset", 0 );
-            final List< KgNode > nodes = service.queryNodes( filters, null, limit, offset );
+            final List< KgNode > nodes = service.queryNodes( filters, null, limit, offset, true );
             final long total = service.countNodes( filters, null );
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "nodes", nodes.stream().map( this::nodeToMap ).toList() );
@@ -669,8 +669,8 @@ public class AdminKnowledgeResource extends RestServletBase {
             final UUID targetId = UUID.fromString( body.get( "targetId" ).getAsString() );
 
             // Resolve names and update frontmatter BEFORE merge (edges are deleted during merge)
-            final KgNode sourceNode = service.getNode( sourceId );
-            final KgNode targetNode = service.getNode( targetId );
+            final KgNode sourceNode = service.getNode( sourceId, true );
+            final KgNode targetNode = service.getNode( targetId, true );
             int pagesUpdated = 0;
             if ( sourceNode != null && targetNode != null ) {
                 pagesUpdated = renameFrontmatterReferences(
@@ -700,7 +700,7 @@ public class AdminKnowledgeResource extends RestServletBase {
                 sendError( response, HttpServletResponse.SC_CONFLICT, nodeResult.error().get() );
                 return;
             }
-            final KgNode node = service.getNode( nodeResult.nodeId().get() );
+            final KgNode node = service.getNode( nodeResult.nodeId().get(), true );
             if ( node == null ) {
                 sendError( response, HttpServletResponse.SC_CONFLICT,
                     "node not visible after insert (excluded source page or other policy filter)" );
@@ -1012,7 +1012,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         // Collect unique source pages to update (multiple edges may come from the same page)
         final Set< String > pagesToUpdate = new LinkedHashSet<>();
         for ( final KgEdge edge : inbound ) {
-            final KgNode srcNode = service.getNode( edge.sourceId() );
+            final KgNode srcNode = service.getNode( edge.sourceId(), true );
             if ( srcNode != null && srcNode.sourcePage() != null ) {
                 pagesToUpdate.add( srcNode.sourcePage().replace( ".md", "" ) );
             }
@@ -1164,7 +1164,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         map.put( "machine_model", p.machineModel() );
 
         if ( service != null ) {
-            final Map< String, Object > flags = ProposalConflictFlags.forProposal( service, p );
+            final Map< String, Object > flags = ProposalConflictFlags.forProposal( service, p, true );
             map.putAll( flags );
         }
         return map;

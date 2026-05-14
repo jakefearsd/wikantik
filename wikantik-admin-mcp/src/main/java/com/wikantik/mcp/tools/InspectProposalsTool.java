@@ -124,7 +124,7 @@ public class InspectProposalsTool implements McpTool {
             final Map< String, Object > entry = new LinkedHashMap<>();
             entry.put( "id", id.toString() );
             entry.put( "proposal", proposalToMap( p ) );
-            entry.put( "conflicts", ProposalConflictFlags.forProposal( service, p ) );
+            entry.put( "conflicts", ProposalConflictFlags.forProposal( service, p, true ) );
             entry.put( "prior_reviews", reviewsToMaps( service.listReviews( id ) ) );
             entry.put( "linked_entity", linkedEntity( p ) );
             proposals.add( entry );
@@ -170,7 +170,7 @@ public class InspectProposalsTool implements McpTool {
         if ( "new-node".equals( p.proposalType() ) && p.proposedData() != null ) {
             final Object name = p.proposedData().get( "name" );
             if ( name instanceof String s ) {
-                final KgNode existing = service.getNodeByName( s );
+                final KgNode existing = service.getNodeByName( s, true );
                 if ( existing != null ) {
                     return Map.of( "kind", "node",
                             "id", existing.id().toString(),

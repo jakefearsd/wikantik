@@ -134,7 +134,7 @@ class ListProposalsToolTest {
         when( p.proposedData() ).thenReturn( java.util.Map.of( "name", "Raft" ) );
         when( p.status() ).thenReturn( "pending" );
         when( svc.listProposals( "pending", null, 50, 0 ) ).thenReturn( java.util.List.of( p ) );
-        when( svc.getNodeByName( "Raft" ) ).thenReturn( Mockito.mock( com.wikantik.api.knowledge.KgNode.class ) );
+        when( svc.getNodeByName( "Raft", true ) ).thenReturn( Mockito.mock( com.wikantik.api.knowledge.KgNode.class ) );
 
         final var result = new ListProposalsTool( svc ).execute( java.util.Map.of( "status", "pending" ) );
         final String body = ( ( io.modelcontextprotocol.spec.McpSchema.TextContent )

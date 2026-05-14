@@ -98,3 +98,33 @@ test_remote_sh_present_and_parses
 test_remote_sh_help_lists_subcommands
 test_missing_env_clear_error
 test_missing_required_var_clear_error
+
+# --- dry-run for an arbitrary helper emits the ssh command without running ---
+make_fake_remote_env() {
+    local dir="$1"
+    cat > "${dir}/remote.env" <<EOF
+REMOTE_HOST=test.example.invalid
+REMOTE_USER=tester
+REMOTE_REPO_DIR=/tmp/repo
+REMOTE_PAGES_DIR=/tmp/pages
+REMOTE_BACKUP_DIR=/tmp/backups
+SSH_CONTROL_DIR=/tmp/cm
+EOF
+}
+
+test_helpers_emit_ssh_with_controlmaster() {
+    local tmp; tmp="$(mktemp -d)"
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
+    make_fake_remote_env "${tmp}"
+    local out exit_code=0
+    out="$("${tmp}/bin/remote.sh" --dry-run __selftest 2>&1)" || exit_code=$?
+    [[ "${exit_code}" -eq 0 ]] || fail "__selftest dry-run exit ${exit_code}: ${out}"
+    echo "${out}" | grep -q "ControlMaster=auto" \
+        || fail "_ssh did not include ControlMaster=auto: ${out}"
+    echo "${out}" | grep -q "tester@test.example.invalid" \
+        || fail "_ssh did not target REMOTE_USER@REMOTE_HOST: ${out}"
+    rm -rf "${tmp}"
+    ok "_ssh helper emits ControlMaster and target"
+}
+test_helpers_emit_ssh_with_controlmaster

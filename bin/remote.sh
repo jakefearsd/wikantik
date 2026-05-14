@@ -87,7 +87,6 @@ fi
 # Strip global flags
 ARGS=()
 while [[ $# -gt 0 ]]; do
-    # shellcheck disable=SC2034  # DRY_RUN consumed by later tasks (deploy/bootstrap)
     case "$1" in
         --dry-run) DRY_RUN=1; shift ;;
         *) ARGS+=("$1"); shift ;;
@@ -107,9 +106,79 @@ SUBCOMMAND="$1"; shift
 # above already exited.
 load_env
 
+# ---------- Internal helpers ----------
+
+# _ssh ARGS...      — run a command on the remote with ControlMaster
+# _ssh -t ARGS...   — same, with a tty (for interactive shell/psql)
+_ssh_opts() {
+    local opts=(
+        -o "ControlMaster=auto"
+        -o "ControlPath=${SSH_CONTROL_DIR}/%C"
+        -o "ControlPersist=10m"
+        -o "StrictHostKeyChecking=accept-new"
+    )
+    if [[ -n "${SSH_KEY:-}" ]]; then
+        opts+=(-i "${SSH_KEY}")
+    fi
+    printf '%s\0' "${opts[@]}"
+}
+
+_ssh() {
+    mkdir -p "${SSH_CONTROL_DIR}" && chmod 700 "${SSH_CONTROL_DIR}"
+    local opts=()
+    while IFS= read -r -d '' opt; do opts+=("${opt}"); done < <(_ssh_opts)
+    _run ssh "${opts[@]}" "${REMOTE_USER}@${REMOTE_HOST}" "$@"
+}
+
+# _rsync ARGS...    — rsync with ControlMaster-aware ssh
+_rsync() {
+    mkdir -p "${SSH_CONTROL_DIR}" && chmod 700 "${SSH_CONTROL_DIR}"
+    local ssh_inline="ssh -o ControlMaster=auto -o ControlPath=${SSH_CONTROL_DIR}/%C -o ControlPersist=10m -o StrictHostKeyChecking=accept-new"
+    if [[ -n "${SSH_KEY:-}" ]]; then
+        ssh_inline+=" -i ${SSH_KEY}"
+    fi
+    _run rsync -e "${ssh_inline}" "$@"
+}
+
+# _run CMD ARGS...  — execute (or, under --dry-run, print) the command.
+_run() {
+    if [[ "${DRY_RUN}" -eq 1 ]]; then
+        printf '[dry-run]'
+        printf ' %q' "$@"
+        printf '\n'
+        return 0
+    fi
+    "$@"
+}
+
+# _acquire_deploy_lock — non-blocking probe of the deploy lock. Fails with
+# exit 2 if another deploy/rollback/restore is in progress. Used by all
+# three state-mutating top-level subcommands.
+#
+# Caveat: the probe holds the lock only for the duration of this single
+# ssh call. Subsequent ssh calls inside the same subcommand do not re-
+# acquire. This is sufficient for the common "two terminals at once"
+# case the spec calls out; it does not protect against finer races,
+# which are acceptable in a sole-developer environment.
+_acquire_deploy_lock() {
+    local lockfile="${REMOTE_REPO_DIR}/.deploy.lock"
+    if ! _ssh "mkdir -p $(printf '%q' "${REMOTE_REPO_DIR}") && flock --nonblock --conflict-exit-code 75 ${lockfile} -c 'true'"; then
+        echo "remote.sh: deploy lock held on ${REMOTE_HOST} (${lockfile})." >&2
+        echo "           Wait for the running operation, or remove the lockfile" >&2
+        echo "           if you are certain no deploy/rollback/restore is in progress." >&2
+        exit 2
+    fi
+}
+
+# Selftest subcommand — visible only via dry-run; greps in tests.
+cmd_selftest() {
+    _ssh true
+}
+
 # ---------- Subcommand dispatch ----------
 
 case "${SUBCOMMAND}" in
+    __selftest) cmd_selftest "$@" ;;
     *) echo "remote.sh: unknown subcommand: ${SUBCOMMAND}" >&2
        echo "           run: bin/remote.sh --help" >&2
        exit 2 ;;

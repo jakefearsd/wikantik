@@ -217,6 +217,46 @@ class DefaultKnowledgeGraphServiceTest {
                 "Exception message must match spec wording, got: " + ex.getMessage() );
     }
 
+    // --- mergeNodes existence-check tests ---
+
+    @Test
+    void mergeNodes_throwsWhenSourceMissing() {
+        // Source UUID does not exist; target does.
+        final java.util.UUID source = java.util.UUID.fromString( "00000000-dead-0000-0000-000000000001" );
+        final KgNode target = service.upsertNode( "MergeTargetNode", "concept", "Test.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+
+        final IllegalStateException e = assertThrows( IllegalStateException.class,
+                () -> service.mergeNodes( source, target.id() ) );
+        assertTrue( e.getMessage().contains( "merge source not found" ), e.getMessage() );
+    }
+
+    @Test
+    void mergeNodes_throwsWhenTargetMissing() {
+        // Source exists; target UUID does not.
+        final KgNode source = service.upsertNode( "MergeSourceNode", "concept", "Test.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final java.util.UUID target = java.util.UUID.fromString( "00000000-dead-0000-0000-000000000002" );
+
+        final IllegalStateException e = assertThrows( IllegalStateException.class,
+                () -> service.mergeNodes( source.id(), target ) );
+        assertTrue( e.getMessage().contains( "merge target not found" ), e.getMessage() );
+    }
+
+    @Test
+    void mergeNodes_succeedsWhenBothPresent() {
+        // Both nodes exist; merge should transfer edges and delete source.
+        final KgNode source = service.upsertNode( "MergeSrcNode2", "concept", "Test.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+        final KgNode target = service.upsertNode( "MergeTgtNode2", "concept", "Test.md",
+                Provenance.HUMAN_AUTHORED, Map.of() );
+
+        assertDoesNotThrow( () -> service.mergeNodes( source.id(), target.id() ) );
+        // After merge, source node should no longer exist.
+        assertNull( service.getNode( source.id() ),
+                "Source node should be deleted after successful merge" );
+    }
+
     @Test
     void approveProposal_happyPath_pendingProposalSucceeds() {
         final KgProposal proposal = service.submitProposal( "new-node", "Test.md",

@@ -222,6 +222,12 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     @Override
     public void mergeNodes( final UUID sourceId, final UUID targetId ) {
+        if ( nodes.getNode( sourceId ) == null ) {
+            throw new IllegalStateException( "merge source not found: " + sourceId );
+        }
+        if ( nodes.getNode( targetId ) == null ) {
+            throw new IllegalStateException( "merge target not found: " + targetId );
+        }
         final List< KgEdge > outbound = edges.getEdgesForNode( sourceId, "outbound" );
         for ( final KgEdge edge : outbound ) {
             edges.upsertEdge( targetId, edge.targetId(), edge.relationshipType(),

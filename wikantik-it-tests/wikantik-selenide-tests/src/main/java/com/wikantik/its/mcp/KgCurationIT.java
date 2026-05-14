@@ -425,6 +425,31 @@ public class KgCurationIT extends WithMcpTestSetup {
     }
 
     // ------------------------------------------------------------------
+    // curate_nodes — merge with ghost (missing) source UUID yields a
+    // per-op error citing "merge source not found" (Task-5 guard).
+    // ------------------------------------------------------------------
+
+    @Test
+    public void curateNodesMergeWithGhostSourceIsPerOpError() {
+        final String ghostUuid = "00000000-0000-0000-0000-000000000000";
+        final String realTarget = WithMcpTestSetup.seededNodeId();
+
+        final Map< String, Object > result = mcp.callTool( "curate_nodes",
+                Map.of( "operations", List.of( Map.of(
+                        "action", "merge", "tag", "ghost",
+                        "source_id", ghostUuid,
+                        "target_id", realTarget ) ) ) );
+
+        final String body = result.toString();
+        Assertions.assertTrue( body.contains( "failed" ),
+                "Merge with ghost source should appear under 'failed' in the result envelope: " + body );
+        Assertions.assertTrue( body.contains( "merge source not found" ),
+                "Per-op error should cite 'merge source not found': " + body );
+        Assertions.assertTrue( body.contains( ghostUuid ),
+                "Per-op error should echo the ghost UUID: " + body );
+    }
+
+    // ------------------------------------------------------------------
     // verdict=judge is intentionally NOT covered at the IT layer — the
     // judge path requires an external LLM endpoint that the Cargo IT
     // environment cannot reach. Coverage lives at the unit-test layer in

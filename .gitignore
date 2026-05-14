@@ -19,6 +19,7 @@ tmp
 .env
 .env.*
 !.env.example
+/remote.env
 backups/
 docs/wikantik-pages/OLD/
 .superpowers/

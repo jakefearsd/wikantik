@@ -23,3 +23,23 @@ test_prod_pages_bind_mount() {
 }
 
 test_prod_pages_bind_mount
+
+# --- remote.env.example documents all required vars ---
+test_remote_env_example_complete() {
+    [[ -f remote.env.example ]] || fail "remote.env.example missing"
+    for var in REMOTE_HOST REMOTE_USER REMOTE_REPO_DIR REMOTE_PAGES_DIR REMOTE_BACKUP_DIR; do
+        grep -q "^${var}=" remote.env.example \
+            || fail "remote.env.example missing required var ${var}"
+    done
+    ok "remote.env.example documents required vars"
+}
+
+# --- .gitignore must ignore remote.env (not matched by .env.* glob) ---
+test_gitignore_blocks_remote_env() {
+    grep -qE '^/?remote\.env$' .gitignore \
+        || fail ".gitignore does not block remote.env (the .env.* glob does NOT match it)"
+    ok ".gitignore blocks remote.env"
+}
+
+test_remote_env_example_complete
+test_gitignore_blocks_remote_env

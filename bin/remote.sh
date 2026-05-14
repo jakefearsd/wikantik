@@ -534,6 +534,46 @@ EOF
         "backups/${date_arg:-}"
 }
 
+cmd_status() {
+    case "${1:-}" in
+        -h|--help)
+            cat <<'EOF'
+status — one-screen summary of the remote deployment.
+
+Usage: bin/remote.sh status
+
+Prints:
+  - docker compose ps                                    (container state)
+  - HEALTH_URL → curl status                             (app health)
+  - df -h on the REMOTE_PAGES_DIR partition              (disk free)
+  - du -sh REMOTE_PAGES_DIR REMOTE_BACKUP_DIR            (data size)
+  - last 10 wikantik log lines                           (recent activity)
+EOF
+            return 0 ;;
+    esac
+
+    echo "=== ${REMOTE_HOST} — container state ==="
+    _ssh "cd $(printf '%q' "${REMOTE_REPO_DIR}") && bin/container.sh -e prod ps"
+
+    echo
+    echo "=== health (${HEALTH_URL}) ==="
+    if [[ "${DRY_RUN}" -eq 1 ]]; then
+        printf '%s\n' "[dry-run] curl -sfo /dev/null -w 'HTTP %{http_code}\\n' ${HEALTH_URL}"
+    else
+        curl -sfo /dev/null -w 'HTTP %{http_code}\n' --max-time 5 "${HEALTH_URL}" \
+            || echo "(no response)"
+    fi
+
+    echo
+    echo "=== disk + data size ==="
+    _ssh "df -h $(printf '%q' "${REMOTE_PAGES_DIR}") || df -h /"
+    _ssh "du -sh $(printf '%q' "${REMOTE_PAGES_DIR}") $(printf '%q' "${REMOTE_BACKUP_DIR}") 2>/dev/null || true"
+
+    echo
+    echo "=== last 10 wikantik log lines ==="
+    _ssh "cd $(printf '%q' "${REMOTE_REPO_DIR}") && bin/container.sh -e prod logs --tail=10 wikantik"
+}
+
 cmd_restore() {
     case "${1:-}" in
         -h|--help)
@@ -570,6 +610,7 @@ case "${SUBCOMMAND}" in
     bootstrap)  cmd_bootstrap "$@" ;;
     deploy)     cmd_deploy "$@" ;;
     rollback)   cmd_rollback "$@" ;;
+    status)     cmd_status "$@" ;;
     pages-push) cmd_pages_push "$@" ;;
     pages-pull) cmd_pages_pull "$@" ;;
     backup-trigger) cmd_backup_trigger "$@" ;;

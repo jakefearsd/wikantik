@@ -342,3 +342,20 @@ test_backup_subcommands_dry_run() {
     ok "backup-trigger / backup-pull / restore dry-runs are well-formed"
 }
 test_backup_subcommands_dry_run
+
+test_status_dry_run() {
+    local tmp out
+    tmp="$(mktemp -d)"
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
+    make_fake_remote_env "${tmp}"
+    out="$("${tmp}/bin/remote.sh" --dry-run status 2>&1)" \
+        || fail "status dry-run non-zero: ${out}"
+    for needle in "container.sh -e prod ps" "/api/health" "df " "du " "logs --tail"; do
+        echo "${out}" | grep -qF "${needle}" \
+            || fail "status missing '${needle}': ${out}"
+    done
+    rm -rf "${tmp}"
+    ok "status dry-run gathers ps + health + df + pages-size + log tail"
+}
+test_status_dry_run

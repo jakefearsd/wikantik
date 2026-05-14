@@ -462,9 +462,20 @@ EOF
         if [[ "${assume_yes}" -ne 1 && "${DRY_RUN}" -ne 1 ]]; then
             echo "pages-push --mirror would --delete files on ${REMOTE_HOST}:${REMOTE_PAGES_DIR}."
             echo "Preview of deletions:"
-            _rsync -avzn --delete "${local_dir%/}/" \
-                "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PAGES_DIR}/" \
-                | grep -E '^deleting ' || echo "  (none — remote is already a subset of local)"
+            local preview_log
+            preview_log="$(mktemp)"
+            if ! _rsync -avzn --delete "${local_dir%/}/" \
+                    "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PAGES_DIR}/" \
+                    > "${preview_log}" 2>&1; then
+                echo "pages-push: preview rsync failed; aborting --mirror." >&2
+                sed 's/^/  /' "${preview_log}" >&2
+                rm -f "${preview_log}"
+                exit 1
+            fi
+            if ! grep -E '^deleting ' "${preview_log}"; then
+                echo "  (none — remote is already a subset of local)"
+            fi
+            rm -f "${preview_log}"
             read -r -p "Proceed? [y/N] " yn
             [[ "${yn}" =~ ^[Yy]$ ]] || { echo "Aborted."; return 0; }
         fi
@@ -517,21 +528,36 @@ cmd_backup_pull() {
 backup-pull — rsync a backup snapshot from REMOTE_BACKUP_DIR back to the dev box.
 
 Usage: bin/remote.sh [--dry-run] backup-pull [DATE]
-  DATE: YYYY-MM-DD subdir under REMOTE_BACKUP_DIR/daily/  (default: latest)
+  DATE: YYYY-MM-DD subdir under REMOTE_BACKUP_DIR/daily/  (default: latest dated snapshot)
 
 The snapshot is rsynced into ./backups/<DATE>/ locally.
 EOF
             return 0 ;;
     esac
     date_arg="${1:-}"
-    local remote_src="${REMOTE_BACKUP_DIR}/daily/"
-    if [[ -n "${date_arg}" ]]; then
-        remote_src="${REMOTE_BACKUP_DIR}/daily/${date_arg}/"
+
+    # If no DATE given, discover the lexically-greatest dated subdir on the remote.
+    # ls + grep + sort + tail keeps the heuristic simple and dependency-free; YYYY-MM-DD
+    # sorts lexically iff dates are well-formed, which the sidecar's backup.sh produces.
+    if [[ -z "${date_arg}" ]]; then
+        if [[ "${DRY_RUN}" -eq 1 ]]; then
+            date_arg="<latest>"
+            echo "[dry-run] (would discover latest dated snapshot on remote)"
+        else
+            date_arg="$(_ssh "ls -1 $(printf '%q' "${REMOTE_BACKUP_DIR}/daily") 2>/dev/null | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}\$' | sort | tail -1")"
+            if [[ -z "${date_arg}" ]]; then
+                echo "backup-pull: no dated snapshots found under ${REMOTE_BACKUP_DIR}/daily on ${REMOTE_HOST}." >&2
+                exit 1
+            fi
+            echo "backup-pull: using latest snapshot ${date_arg}"
+        fi
     fi
-    mkdir -p backups
+
+    local remote_src="${REMOTE_BACKUP_DIR}/daily/${date_arg}/"
+    mkdir -p "backups/${date_arg}"
     _rsync -avz --update \
         "${REMOTE_USER}@${REMOTE_HOST}:${remote_src}" \
-        "backups/${date_arg:-}"
+        "backups/${date_arg}/"
 }
 
 cmd_status() {

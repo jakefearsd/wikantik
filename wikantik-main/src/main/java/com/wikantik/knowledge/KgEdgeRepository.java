@@ -182,6 +182,24 @@ public final class KgEdgeRepository extends KgJdbcSupport {
             ps.setString( 5, propsJson );
             ps.executeUpdate();
         } catch ( final SQLException e ) {
+            // PG SQLState 23503 == foreign_key_violation. When an agent (typically MCP
+            // bulk curation) passes a non-existent source_id or target_id, the JDBC
+            // exception message is verbose and the WARN stacktrace drowns operator
+            // logs. Translate to a clean, actionable error and log at INFO instead.
+            if ( "23503".equals( e.getSQLState() ) ) {
+                final String msg = e.getMessage() == null ? "" : e.getMessage();
+                final String detail;
+                if ( msg.contains( "kg_edges_source_id_fkey" ) ) {
+                    detail = "Source node not found: " + sourceId;
+                } else if ( msg.contains( "kg_edges_target_id_fkey" ) ) {
+                    detail = "Target node not found: " + targetId;
+                } else {
+                    detail = "Edge endpoint not found (source=" + sourceId + " target=" + targetId + ")";
+                }
+                LOG.info( "Edge upsert refused — {} [rel={}, actor=via DefaultKgCurationOps]",
+                        detail, relationshipType );
+                throw new RuntimeException( detail, e );
+            }
             LOG.warn( "Failed to upsert edge {}->{} [{}]: {}", sourceId, targetId, relationshipType, e.getMessage(), e );
             throw new RuntimeException( "Failed to upsert edge: " + e.getMessage(), e );
         }

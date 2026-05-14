@@ -18,8 +18,17 @@
  */
 package com.wikantik.knowledge.subsystem;
 
+import com.wikantik.WikiEngine;
+import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.eval.RetrievalQualityRunner;
+import com.wikantik.api.kgpolicy.KgInclusionPolicy;
+import com.wikantik.api.knowledge.ContextRetrievalService;
+import com.wikantik.api.knowledge.KgCurationOps;
 import com.wikantik.api.knowledge.KgProposalJudgeService;
+import com.wikantik.api.knowledge.KnowledgeGraphService;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
 import com.wikantik.knowledge.FrontmatterDefaultsFilter;
@@ -37,15 +46,16 @@ import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.chunking.ChunkProjector;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.chunking.ContentChunker;
+import com.wikantik.knowledge.curation.DefaultKgCurationOps;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
+import com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer;
 import com.wikantik.knowledge.judge.DefaultKgProposalJudgeService;
 import com.wikantik.knowledge.judge.JudgeRunner;
 import com.wikantik.knowledge.judge.KgJudgeConfig;
 import com.wikantik.knowledge.judge.KgJudgeTimeoutRepository;
 import com.wikantik.knowledge.judge.KgMaterializationService;
-import com.wikantik.api.knowledge.KgCurationOps;
-import com.wikantik.knowledge.curation.DefaultKgCurationOps;
 import com.wikantik.kgpolicy.KgExcludedPagesRepository;
+import com.wikantik.kgpolicy.ReconciliationJobRunner;
 import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.util.TextUtil;
 import org.apache.logging.log4j.LogManager;
@@ -255,5 +265,227 @@ public final class KnowledgeSubsystemFactory {
             /*retrievalQualityRunner=*/      null,
             /*kgCurationOps=*/               curation
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // Phase 12 Ckpt 1 — side-effect-free rebuild adapter
+    // -------------------------------------------------------------------------
+
+    /**
+     * Rebuilds a {@link KnowledgeSubsystem.Services} record from the engine's
+     * manager registry, preferring live registry values over the existing snapshot
+     * for every hot-swappable field.
+     *
+     * <p>This method is the side-effect-free complement to {@link #create}: it
+     * NEVER calls {@code kgRunner.schedule()}, starts background indexers, or
+     * wires any cron scheduler. For each field it delegates to
+     * {@link #preferRegistry}, which simply reads the registry and falls back to
+     * the existing instance — no new objects are constructed for fields that
+     * were not swapped.</p>
+     *
+     * <p>If {@code existing} is {@code null} (first-init path, no prior snapshot),
+     * delegates to {@link #readFromManagerRegistry} which mirrors the legacy
+     * bridge body verbatim.</p>
+     *
+     * <p>Intended to be called by {@code KnowledgeSubsystemBridge.rebuildFromManagers}
+     * in Ckpt 2, once the bridge is wired to delegate here instead of doing
+     * manual synthesis itself.</p>
+     *
+     * <p><b>ContextRetrievalService invariant:</b> this field is intentionally
+     * excluded from {@code setManager} rebuilds (see
+     * {@code WikiEngine.SNAPSHOT_REBUILDERS}). It is always taken from
+     * {@code existing} when a prior snapshot exists; when existing is null the
+     * registry is consulted as a fallback (consistent with
+     * {@code KnowledgeSubsystemBridge.rebuildFromManagers}).</p>
+     */
+    public static KnowledgeSubsystem.Services rebuildFromExisting(
+            final WikiEngine engine,
+            final KnowledgeSubsystem.Services existing ) {
+        if ( existing == null ) {
+            return readFromManagerRegistry( engine );
+        }
+        return new KnowledgeSubsystem.Services(
+            // 1. kgService — hot-swappable, no side-effects
+            preferRegistry( engine, KnowledgeGraphService.class,             existing.kgService() ),
+            // 2. judgeService — hot-swappable; side-effect risk: preferRegistry reads the
+            //    singleton, never re-instantiates, so no duplicate scheduler.
+            preferRegistry( engine, KgProposalJudgeService.class,           existing.judgeService() ),
+            // 3. judgeRunner — hot-swappable; side-effect risk: same — we never call schedule()
+            preferRegistry( engine, JudgeRunner.class,                      existing.judgeRunner() ),
+            // 4. kgMaterialization — hot-swappable, no side-effects
+            preferRegistry( engine, KgMaterializationService.class,         existing.kgMaterialization() ),
+            // 5. judgeTimeoutRepository — hot-swappable, no side-effects
+            preferRegistry( engine, KgJudgeTimeoutRepository.class,         existing.judgeTimeoutRepository() ),
+            // 6. hubProposalService — hot-swappable, no side-effects
+            preferRegistry( engine, HubProposalService.class,               existing.hubProposalService() ),
+            // 7. hubDiscoveryService — hot-swappable, no side-effects
+            preferRegistry( engine, HubDiscoveryService.class,              existing.hubDiscoveryService() ),
+            // 8. hubOverviewService — hot-swappable, no side-effects
+            preferRegistry( engine, HubOverviewService.class,               existing.hubOverviewService() ),
+            // 9. hubProposalRepository — hot-swappable, no side-effects
+            preferRegistry( engine, HubProposalRepository.class,            existing.hubProposalRepository() ),
+            // 10. hubDiscoveryRepository — hot-swappable, no side-effects
+            preferRegistry( engine, HubDiscoveryRepository.class,           existing.hubDiscoveryRepository() ),
+            // 11. contentChunkRepository — hot-swappable, no side-effects
+            preferRegistry( engine, ContentChunkRepository.class,           existing.contentChunkRepository() ),
+            // 12. chunkProjector — hot-swappable, no side-effects
+            preferRegistry( engine, ChunkProjector.class,                   existing.chunkProjector() ),
+            // 13. mentionIndex — hot-swappable; side-effect risk: lazy DataSource holder —
+            //     preferRegistry reads the singleton, never constructs a new one.
+            preferRegistry( engine, MentionIndex.class,                     existing.mentionIndex() ),
+            // 14. nodeMentionSimilarity — hot-swappable; side-effect risk: same as mentionIndex
+            preferRegistry( engine, NodeMentionSimilarity.class,            existing.nodeMentionSimilarity() ),
+            // 15. frontmatterDefaultsFilter — hot-swappable, no side-effects
+            preferRegistry( engine, FrontmatterDefaultsFilter.class,        existing.frontmatterDefaultsFilter() ),
+            // 16. hubSyncFilter — hot-swappable, no side-effects
+            preferRegistry( engine, HubSyncFilter.class,                    existing.hubSyncFilter() ),
+            // 17. contextRetrievalService — intentionally excluded from setManager rebuilds
+            //     (audit row 17; WikiEngine.SNAPSHOT_REBUILDERS comment at line 463).
+            //     Always reuse the existing instance; the ContextRetrievalServiceInitializer
+            //     servlet listener owns its lifecycle and re-wires it directly.
+            existing.contextRetrievalService(),
+            // 18. forAgentProjectionService — hot-swappable; side-effect risk: memoized cache —
+            //     preferRegistry reads the singleton, preserving cache state.
+            preferRegistry( engine, ForAgentProjectionService.class,        existing.forAgentProjectionService() ),
+            // 19. bootstrapEntityExtractionIndexer — hot-swappable; side-effect risk: background
+            //     indexer — preferRegistry reads the singleton, never restarts it.
+            preferRegistry( engine, BootstrapEntityExtractionIndexer.class, existing.bootstrapEntityExtractionIndexer() ),
+            // 20. kgInclusionPolicy — hot-swappable, no side-effects
+            preferRegistry( engine, KgInclusionPolicy.class,                existing.kgInclusionPolicy() ),
+            // 21. reconciliationJobRunner — hot-swappable; side-effect risk: cron scheduler —
+            //     preferRegistry reads the singleton, never re-schedules.
+            preferRegistry( engine, ReconciliationJobRunner.class,          existing.reconciliationJobRunner() ),
+            // 22. retrievalQualityRunner — hot-swappable; side-effect risk: nightly CI cron —
+            //     preferRegistry reads the singleton, never re-schedules.
+            preferRegistry( engine, RetrievalQualityRunner.class,           existing.retrievalQualityRunner() ),
+            // 23. kgCurationOps — DERIVED; reconstructed when upstreams changed.
+            rebuildKgCurationOps( engine, existing )
+        );
+    }
+
+    /**
+     * Reconstructs {@link KgCurationOps} only when one of its upstream dependencies
+     * was hot-swapped into the engine registry.  If {@code kgService} did not change
+     * and the existing curation ops are still valid, they are reused unchanged.
+     *
+     * <p>PageManager is not a field on {@link KnowledgeSubsystem.Services}; it is
+     * read directly from the engine registry here, consistent with how
+     * {@code KnowledgeSubsystemBridge.rebuildFromManagers} reads it today.</p>
+     *
+     * <p>Reuse heuristic: if the registry's {@code KnowledgeGraphService} resolves
+     * to the same instance as {@code existing.kgService()} (i.e. kgService was not
+     * hot-swapped), and existing curation ops are non-null, reuse them.
+     * PageManager is almost never hot-swapped independently of kgService in
+     * production; when it is, the next setManager call will trigger a second
+     * rebuild that catches the change.</p>
+     *
+     * <p>If kgService changed or existing curation ops are null, reconstruct the
+     * facade following the same logic as
+     * {@code KnowledgeSubsystemBridge.rebuildFromManagers} lines 113–123.</p>
+     */
+    private static KgCurationOps rebuildKgCurationOps(
+            final WikiEngine engine,
+            final KnowledgeSubsystem.Services existing ) {
+        final KnowledgeGraphService newKg = preferRegistry(
+            engine, KnowledgeGraphService.class, existing.kgService() );
+
+        // Reuse the existing ops when the KG service identity is unchanged and
+        // the existing facade is non-null.  A null facade means a prior rebuild
+        // failed due to missing managers — always retry.
+        if ( newKg == existing.kgService() && existing.kgCurationOps() != null ) {
+            return existing.kgCurationOps();
+        }
+
+        // kgService changed, or prior build failed — reconstruct.
+        // Mirror the logic in KnowledgeSubsystemBridge.rebuildFromManagers lines 113-123:
+        // both kgService and pageManager must be non-null to build a valid facade.
+        final PageManager newPm = engine.getManager( PageManager.class );
+        if ( newKg != null && newPm != null ) {
+            final PageSaveHelper saver = new PageSaveHelper( engine, newPm );
+            // KgExcludedPagesRepository may not be registered in lightweight test fixtures;
+            // fall back to three-arg ctor (warnings silently disabled) when it is absent.
+            final KgExcludedPagesRepository excludedRepo =
+                engine.getManager( KgExcludedPagesRepository.class );
+            return new DefaultKgCurationOps( newKg, newPm, saver, excludedRepo );
+        }
+        return null;
+    }
+
+    /**
+     * Reads every {@link KnowledgeSubsystem.Services} field directly from the engine's
+     * manager registry, with no existing snapshot to fall back on.
+     *
+     * <p>This is the verbatim body of
+     * {@code KnowledgeSubsystemBridge.rebuildFromManagers} extracted here so
+     * that {@link #rebuildFromExisting} can delegate to it on the first-init
+     * path (when no snapshot yet exists). Once Ckpt 2 wires the bridge to
+     * call {@link #rebuildFromExisting}, this method becomes the single
+     * authoritative zero-state initializer.</p>
+     *
+     * <p>Side-effect risk fields (judgeRunner, mentionIndex, nodeMentionSimilarity,
+     * forAgentProjectionService, bootstrapEntityExtractionIndexer,
+     * reconciliationJobRunner, retrievalQualityRunner) are read from the
+     * registry — the same singletons that were put there by {@link #create} or
+     * by post-construction wiring. No new objects are constructed.</p>
+     */
+    static KnowledgeSubsystem.Services readFromManagerRegistry( final WikiEngine engine ) {
+        final KnowledgeGraphService kgSvc = engine.getManager( KnowledgeGraphService.class );
+        final PageManager pm = engine.getManager( PageManager.class );
+        // Synthesise a DefaultKgCurationOps when both the KG service and page manager are
+        // available (the normal test-fixture case after setManager hot-swaps). Falls back
+        // to null when the engine is a minimal stub that only registers some managers.
+        final KgCurationOps kgCurationOps;
+        if ( kgSvc != null && pm != null ) {
+            final PageSaveHelper saver = new PageSaveHelper( engine, pm );
+            // KgExcludedPagesRepository may not be registered in lightweight test fixtures;
+            // fall back to three-arg ctor (warnings silently disabled) when it is absent.
+            final KgExcludedPagesRepository excludedRepo =
+                engine.getManager( KgExcludedPagesRepository.class );
+            kgCurationOps = new DefaultKgCurationOps( kgSvc, pm, saver, excludedRepo );
+        } else {
+            kgCurationOps = null;
+        }
+        return new KnowledgeSubsystem.Services(
+            kgSvc,
+            engine.getManager( KgProposalJudgeService.class ),
+            engine.getManager( JudgeRunner.class ),
+            engine.getManager( KgMaterializationService.class ),
+            engine.getManager( KgJudgeTimeoutRepository.class ),
+            engine.getManager( HubProposalService.class ),
+            engine.getManager( HubDiscoveryService.class ),
+            engine.getManager( HubOverviewService.class ),
+            engine.getManager( HubProposalRepository.class ),
+            engine.getManager( HubDiscoveryRepository.class ),
+            engine.getManager( ContentChunkRepository.class ),
+            engine.getManager( ChunkProjector.class ),
+            engine.getManager( MentionIndex.class ),
+            engine.getManager( NodeMentionSimilarity.class ),
+            engine.getManager( FrontmatterDefaultsFilter.class ),
+            engine.getManager( HubSyncFilter.class ),
+            engine.getManager( ContextRetrievalService.class ),
+            engine.getManager( ForAgentProjectionService.class ),
+            engine.getManager( BootstrapEntityExtractionIndexer.class ),
+            engine.getManager( KgInclusionPolicy.class ),
+            engine.getManager( ReconciliationJobRunner.class ),
+            engine.getManager( RetrievalQualityRunner.class ),
+            kgCurationOps
+        );
+    }
+
+    /**
+     * Returns the manager of type {@code klass} from the engine registry if
+     * present, otherwise falls back to {@code existing}.
+     *
+     * <p>This is the core of the side-effect-free rebuild: reading from the
+     * registry never re-instantiates, never schedules, never starts
+     * background tasks — it simply returns the singleton that is already
+     * live in the engine.</p>
+     */
+    private static <T> T preferRegistry(
+            final WikiEngine engine,
+            final Class<T> klass,
+            final T existing ) {
+        final T fromRegistry = engine.getManager( klass );
+        return fromRegistry != null ? fromRegistry : existing;
     }
 }

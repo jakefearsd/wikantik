@@ -18,46 +18,19 @@
  */
 package com.wikantik.knowledge.subsystem;
 
-import com.wikantik.api.agent.ForAgentProjectionService;
 import com.wikantik.api.core.Engine;
-import com.wikantik.api.eval.RetrievalQualityRunner;
-import com.wikantik.api.kgpolicy.KgInclusionPolicy;
-import com.wikantik.api.knowledge.ContextRetrievalService;
-import com.wikantik.api.knowledge.KgCurationOps;
-import com.wikantik.api.knowledge.KgProposalJudgeService;
-import com.wikantik.api.knowledge.KnowledgeGraphService;
-import com.wikantik.api.managers.PageManager;
-import com.wikantik.api.pages.PageSaveHelper;
-import com.wikantik.knowledge.FrontmatterDefaultsFilter;
-import com.wikantik.knowledge.curation.DefaultKgCurationOps;
-import com.wikantik.kgpolicy.KgExcludedPagesRepository;
-import com.wikantik.knowledge.HubDiscoveryRepository;
-import com.wikantik.knowledge.HubDiscoveryService;
-import com.wikantik.knowledge.HubOverviewService;
-import com.wikantik.knowledge.HubProposalRepository;
-import com.wikantik.knowledge.HubProposalService;
-import com.wikantik.knowledge.HubSyncFilter;
-import com.wikantik.knowledge.MentionIndex;
-import com.wikantik.knowledge.chunking.ChunkProjector;
-import com.wikantik.knowledge.chunking.ContentChunkRepository;
-import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
-import com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer;
-import com.wikantik.knowledge.judge.JudgeRunner;
-import com.wikantik.knowledge.judge.KgJudgeTimeoutRepository;
-import com.wikantik.knowledge.judge.KgMaterializationService;
-import com.wikantik.kgpolicy.ReconciliationJobRunner;
 
 /**
- * Adapter that synthesises a sparse {@link KnowledgeSubsystem.Services}
- * record from {@link Engine#getManager(Class)} lookups.
+ * Delegates to {@link KnowledgeSubsystemFactory#rebuildFromExisting} for snapshot
+ * rebuild. Matches the structural pattern of the other 7 {@code *SubsystemBridge}
+ * classes after Phase 12 closed the asymmetry — see
+ * {@code docs/superpowers/specs/2026-05-14-subsystem-bridge-retirement-design.md}.
  *
  * <p>Used by {@code RestServletBase.getSubsystems()} when a test harness
  * built the engine via {@code TestEngine.setManager(...)} rather than a
  * full {@link Engine#initialize} cycle. Production code paths use the
  * authoritative {@code WikiSubsystems} bundle stashed on the
- * {@link jakarta.servlet.ServletContext} at boot — this bridge is the
- * legacy-test escape hatch, retained only until the registry deletion in
- * Phase 9.</p>
+ * {@link jakarta.servlet.ServletContext} at boot.</p>
  *
  * <p>Fields whose corresponding manager is not registered come back as
  * {@code null}, mirroring the legacy {@code getManager()} behavior and
@@ -98,53 +71,15 @@ public final class KnowledgeSubsystemBridge {
     }
 
     /**
-     * Synthesises a {@link KnowledgeSubsystem.Services} record directly from the
-     * {@code WikiEngine}'s manager registry. Called by
+     * Rebuilds a {@link KnowledgeSubsystem.Services} snapshot by delegating to
+     * {@link KnowledgeSubsystemFactory#rebuildFromExisting}. Called by
      * {@link com.wikantik.WikiEngine#setManager} whenever a knowledge-layer manager
-     * is hot-swapped (e.g. by a unit test installing a mock) so that the typed
-     * snapshot stays coherent without requiring a full re-initialization cycle.
+     * is hot-swapped so that the typed snapshot stays coherent without requiring a
+     * full re-initialization cycle. No side-effecting construction (cron scheduling,
+     * background indexer start) is performed.
      */
     public static KnowledgeSubsystem.Services rebuildFromManagers( final com.wikantik.WikiEngine engine ) {
-        final KnowledgeGraphService kgSvc = engine.getManager( KnowledgeGraphService.class );
-        final PageManager pm = engine.getManager( PageManager.class );
-        // Synthesise a DefaultKgCurationOps when both the KG service and page manager are
-        // available (the normal test-fixture case after setManager hot-swaps). Falls back
-        // to null when the engine is a minimal stub that only registers some managers.
-        final KgCurationOps kgCurationOps;
-        if ( kgSvc != null && pm != null ) {
-            final PageSaveHelper saver = new PageSaveHelper( engine, pm );
-            // KgExcludedPagesRepository may not be registered in lightweight test fixtures;
-            // fall back to three-arg ctor (warnings silently disabled) when it is absent.
-            final KgExcludedPagesRepository excludedRepo =
-                engine.getManager( KgExcludedPagesRepository.class );
-            kgCurationOps = new DefaultKgCurationOps( kgSvc, pm, saver, excludedRepo );
-        } else {
-            kgCurationOps = null;
-        }
-        return new KnowledgeSubsystem.Services(
-            kgSvc,
-            engine.getManager( KgProposalJudgeService.class ),
-            engine.getManager( JudgeRunner.class ),
-            engine.getManager( KgMaterializationService.class ),
-            engine.getManager( KgJudgeTimeoutRepository.class ),
-            engine.getManager( HubProposalService.class ),
-            engine.getManager( HubDiscoveryService.class ),
-            engine.getManager( HubOverviewService.class ),
-            engine.getManager( HubProposalRepository.class ),
-            engine.getManager( HubDiscoveryRepository.class ),
-            engine.getManager( ContentChunkRepository.class ),
-            engine.getManager( ChunkProjector.class ),
-            engine.getManager( MentionIndex.class ),
-            engine.getManager( NodeMentionSimilarity.class ),
-            engine.getManager( FrontmatterDefaultsFilter.class ),
-            engine.getManager( HubSyncFilter.class ),
-            engine.getManager( ContextRetrievalService.class ),
-            engine.getManager( ForAgentProjectionService.class ),
-            engine.getManager( BootstrapEntityExtractionIndexer.class ),
-            engine.getManager( KgInclusionPolicy.class ),
-            engine.getManager( ReconciliationJobRunner.class ),
-            engine.getManager( RetrievalQualityRunner.class ),
-            kgCurationOps
-        );
+        return KnowledgeSubsystemFactory.rebuildFromExisting(
+            engine, engine.getKnowledgeSubsystem() );
     }
 }

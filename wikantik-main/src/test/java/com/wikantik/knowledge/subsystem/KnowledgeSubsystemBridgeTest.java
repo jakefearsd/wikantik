@@ -19,9 +19,14 @@
 package com.wikantik.knowledge.subsystem;
 
 import com.wikantik.WikiEngine;
+import com.wikantik.api.eval.RetrievalQualityRunner;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.knowledge.HubOverviewService;
 import com.wikantik.knowledge.MentionIndex;
+import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
+import com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer;
+import com.wikantik.knowledge.judge.JudgeRunner;
+import com.wikantik.kgpolicy.ReconciliationJobRunner;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -31,14 +36,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Phase 11 Checkpoint 5 test for {@link KnowledgeSubsystemBridge}.
+ * Phase 12 Checkpoint 2 test for {@link KnowledgeSubsystemBridge}.
  *
- * <p>KnowledgeSubsystemBridge is intentionally NOT delegating to
- * {@link KnowledgeSubsystemFactory}: the factory is a full-construction pipeline
- * that creates new service instances (including scheduling a cron runner). The bridge
- * reads already-registered services from the engine's manager registry, which is the
- * correct behaviour for hot-swap rebuild paths. These tests verify the registry-read
- * behaviour directly.</p>
+ * <p>{@link KnowledgeSubsystemBridge#rebuildFromManagers} delegates to
+ * {@link KnowledgeSubsystemFactory#rebuildFromExisting}, which reads already-registered
+ * services from the engine's manager registry without re-invoking side-effecting
+ * construction (cron scheduling, background indexer start). These tests verify both
+ * the registry-read behaviour and the side-effect-absence guarantee.</p>
  */
 final class KnowledgeSubsystemBridgeTest {
 
@@ -71,5 +75,76 @@ final class KnowledgeSubsystemBridgeTest {
         assertNotNull( services );
         assertNull( services.kgService() );
         assertNull( services.hubOverviewService() );
+    }
+
+    @Test
+    void rebuildFromManagers_doesNotReInvokeFactorySideEffects() {
+        // Goal: assert that calling rebuildFromManagers after setManager
+        // hot-swaps a single manager does NOT spawn a duplicate JudgeRunner,
+        // ReconciliationJobRunner, RetrievalQualityRunner schedule, nor
+        // restart BootstrapEntityExtractionIndexer.
+        //
+        // Mechanism: the audit identifies 7 side-effect-risk fields. We
+        // can't easily mock a real WikiEngine and watch each side-effect
+        // observable, so the assertion is structural: the returned Services
+        // record's side-effect-risk fields are the SAME INSTANCES as the
+        // existing snapshot when their underlying registered class is
+        // unchanged.
+        final KnowledgeGraphService kgService = mock(KnowledgeGraphService.class);
+        final JudgeRunner judgeRunner = mock(JudgeRunner.class);
+        final ReconciliationJobRunner reconRunner = mock(ReconciliationJobRunner.class);
+        final RetrievalQualityRunner rqRunner = mock(RetrievalQualityRunner.class);
+        final BootstrapEntityExtractionIndexer indexer = mock(BootstrapEntityExtractionIndexer.class);
+        final MentionIndex mentionIndex = mock(MentionIndex.class);
+        final NodeMentionSimilarity nodeMentionSim = mock(NodeMentionSimilarity.class);
+
+        final WikiEngine engine = mock(WikiEngine.class);
+        when(engine.getManager(KnowledgeGraphService.class)).thenReturn(kgService);
+        when(engine.getManager(JudgeRunner.class)).thenReturn(judgeRunner);
+        when(engine.getManager(ReconciliationJobRunner.class)).thenReturn(reconRunner);
+        when(engine.getManager(RetrievalQualityRunner.class)).thenReturn(rqRunner);
+        when(engine.getManager(BootstrapEntityExtractionIndexer.class)).thenReturn(indexer);
+        when(engine.getManager(MentionIndex.class)).thenReturn(mentionIndex);
+        when(engine.getManager(NodeMentionSimilarity.class)).thenReturn(nodeMentionSim);
+        // First call (existing == null inside rebuildFromExisting) — establishes
+        // the snapshot. KnowledgeSubsystemBridge.fromLegacyEngine returns
+        // existing-typed snapshot if non-null, else falls back to rebuildFromManagers.
+        // For this test we directly call rebuildFromManagers so the (existing == null
+        // ⇒ readFromManagerRegistry) path runs.
+        when(engine.getKnowledgeSubsystem()).thenReturn(null);
+        final KnowledgeSubsystem.Services first = KnowledgeSubsystemBridge.rebuildFromManagers(engine);
+        assertNotNull(first);
+        assertSame(judgeRunner,    first.judgeRunner());
+        assertSame(reconRunner,    first.reconciliationJobRunner());
+        assertSame(rqRunner,       first.retrievalQualityRunner());
+        assertSame(indexer,        first.bootstrapEntityExtractionIndexer());
+        assertSame(mentionIndex,   first.mentionIndex());
+        assertSame(nodeMentionSim, first.nodeMentionSimilarity());
+
+        // Now simulate a setManager-triggered rebuild: pretend the engine has
+        // an existing snapshot (so rebuildFromExisting takes the preserve path).
+        when(engine.getKnowledgeSubsystem()).thenReturn(first);
+
+        // Hot-swap kgService only — every OTHER side-effect-risk field's
+        // registered manager is unchanged, so they should all be IDENTICAL
+        // INSTANCES to `first`.
+        final KnowledgeGraphService swappedKg = mock(KnowledgeGraphService.class);
+        when(engine.getManager(KnowledgeGraphService.class)).thenReturn(swappedKg);
+        final KnowledgeSubsystem.Services second = KnowledgeSubsystemBridge.rebuildFromManagers(engine);
+
+        assertSame(swappedKg, second.kgService(), "kgService was swapped");
+        // Side-effect-risk fields: same instances (no re-instantiation).
+        assertSame(first.judgeRunner(),                       second.judgeRunner(),
+            "judgeRunner side-effect re-invocation suspected");
+        assertSame(first.reconciliationJobRunner(),           second.reconciliationJobRunner(),
+            "reconciliationJobRunner side-effect re-invocation suspected");
+        assertSame(first.retrievalQualityRunner(),            second.retrievalQualityRunner(),
+            "retrievalQualityRunner side-effect re-invocation suspected");
+        assertSame(first.bootstrapEntityExtractionIndexer(),  second.bootstrapEntityExtractionIndexer(),
+            "bootstrap extractor side-effect re-invocation suspected");
+        assertSame(first.mentionIndex(),                      second.mentionIndex(),
+            "mentionIndex re-instantiation suspected");
+        assertSame(first.nodeMentionSimilarity(),             second.nodeMentionSimilarity(),
+            "nodeMentionSimilarity re-instantiation suspected");
     }
 }

@@ -187,3 +187,52 @@ test_bootstrap_dry_run() {
     ok "bootstrap dry-run does the right things, does not up -d"
 }
 test_bootstrap_dry_run
+
+test_deploy_dry_run_shape() {
+    local tmp out
+    tmp="$(mktemp -d)"
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
+    make_fake_remote_env "${tmp}"
+
+    # --skip-build avoids running mvn / docker build in dry-run mode.
+    out="$("${tmp}/bin/remote.sh" --dry-run deploy --skip-build 2>&1)" \
+        || fail "deploy dry-run non-zero: ${out}"
+
+    # Tag-rollback step
+    echo "${out}" | grep -q "docker tag wikantik:latest wikantik:rollback" \
+        || fail "deploy did not tag prior image as :rollback: ${out}"
+    # Image stream
+    echo "${out}" | grep -q "docker save wikantik:latest" \
+        || fail "deploy did not docker-save the image: ${out}"
+    echo "${out}" | grep -q "docker load" \
+        || fail "deploy did not docker-load on the remote: ${out}"
+    # Remote up
+    echo "${out}" | grep -q "container.sh -e prod up" \
+        || fail "deploy did not up -d on remote: ${out}"
+    # Lock acquisition
+    echo "${out}" | grep -q "flock" \
+        || fail "deploy did not acquire flock: ${out}"
+    # rsync .env + compose
+    echo "${out}" | grep -q "docker-compose.prod.yml" \
+        || fail "deploy did not rsync prod overlay: ${out}"
+
+    rm -rf "${tmp}"
+    ok "deploy dry-run includes lock, tag-rollback, image stream, up, sync"
+}
+
+test_deploy_help() {
+    local tmp out
+    tmp="$(mktemp -d)"
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
+    make_fake_remote_env "${tmp}"
+    out="$("${tmp}/bin/remote.sh" deploy --help 2>&1)" \
+        || fail "deploy --help non-zero"
+    echo "${out}" | grep -q "health-timeout" \
+        || fail "deploy --help does not document --health-timeout"
+    rm -rf "${tmp}"
+    ok "deploy --help documents flags"
+}
+test_deploy_dry_run_shape
+test_deploy_help

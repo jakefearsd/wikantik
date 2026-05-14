@@ -243,6 +243,104 @@ cmd_migrate() {
     _remote_container migrate "$@"
 }
 
+cmd_deploy() {
+    local skip_build=0
+    local health_timeout="${HEALTH_TIMEOUT}"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                cat <<EOF
+deploy — build locally, push image over ssh, up -d on remote, health-poll, auto-rollback on failure.
+
+Usage: bin/remote.sh [--dry-run] deploy [--skip-build] [--health-timeout=N]
+
+Options:
+  --skip-build           skip mvn + docker compose build (use existing wikantik:latest)
+  --health-timeout=N     seconds to wait for /api/health (default: ${HEALTH_TIMEOUT}, from remote.env)
+
+Flow:
+  1. mvn clean install -T 1C -DskipITs   (unless --skip-build)
+  2. docker compose build wikantik
+  3. flock --nonblock on the remote
+  4. rsync compose + .env to REMOTE_REPO_DIR
+  5. tag remote wikantik:latest as wikantik:rollback   (silent on first deploy)
+  6. docker save | ssh 'docker load'
+  7. container.sh -e prod up -d
+  8. poll HEALTH_URL every 3s up to --health-timeout
+  9. on failure: re-promote :rollback, print last 50 wikantik log lines, exit 1
+EOF
+                return 0 ;;
+            --skip-build) skip_build=1; shift ;;
+            --health-timeout=*) health_timeout="${1#*=}"; shift ;;
+            --health-timeout)   health_timeout="$2"; shift 2 ;;
+            *) echo "deploy: unknown flag: $1" >&2; exit 2 ;;
+        esac
+    done
+
+    # ---------- 1+2: local build ----------
+    if [[ "${skip_build}" -eq 0 ]]; then
+        _run mvn clean install -T 1C -DskipITs
+        _run docker compose -f docker-compose.yml build wikantik
+    else
+        echo "remote.sh: --skip-build set; reusing wikantik:latest from local docker daemon."
+    fi
+
+    # ---------- 3: acquire lock ----------
+    _acquire_deploy_lock
+
+    # ---------- 4: rsync compose + .env ----------
+    _rsync -avz --update --chmod=F644 \
+        docker-compose.yml docker-compose.prod.yml \
+        "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/"
+    if [[ -f .env ]]; then
+        _rsync -avz --chmod=F600 .env "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/.env"
+    fi
+
+    # ---------- 5: tag prior image as :rollback (silent on first deploy) ----------
+    _ssh "docker tag wikantik:latest wikantik:rollback 2>/dev/null || true"
+
+    # ---------- 6: stream image ----------
+    # No gzip — 1–10 Gb LAN, CPU > wire-time at compress=1. Reachable
+    # in dry-run by composing the commands and routing through _run.
+    if [[ "${DRY_RUN}" -eq 1 ]]; then
+        echo "[dry-run] docker save wikantik:latest | ssh ... 'docker load'"
+        # Emit a faux load line for tests/grep:
+        echo "[dry-run] (remote) docker load"
+    else
+        local ssh_inline="ssh -o ControlMaster=auto -o ControlPath=${SSH_CONTROL_DIR}/%C -o ControlPersist=10m -o StrictHostKeyChecking=accept-new"
+        if [[ -n "${SSH_KEY:-}" ]]; then ssh_inline+=" -i ${SSH_KEY}"; fi
+        docker save wikantik:latest | ${ssh_inline} "${REMOTE_USER}@${REMOTE_HOST}" 'docker load'
+    fi
+
+    # ---------- 7: up -d via remote container.sh ----------
+    _ssh "cd $(printf '%q' "${REMOTE_REPO_DIR}") && bin/container.sh -e prod up -d"
+
+    # ---------- 8: health poll ----------
+    if [[ "${DRY_RUN}" -eq 1 ]]; then
+        echo "[dry-run] poll ${HEALTH_URL} every 3s up to ${health_timeout}s"
+        return 0
+    fi
+    local deadline=$(( $(date +%s) + health_timeout ))
+    while (( $(date +%s) < deadline )); do
+        if curl -sfo /dev/null --max-time 5 "${HEALTH_URL}"; then
+            echo "Deploy healthy: ${HEALTH_URL} returned 200."
+            return 0
+        fi
+        sleep 3
+    done
+
+    # ---------- 9: failure → auto-rollback ----------
+    echo "remote.sh: ${HEALTH_URL} did not return 200 within ${health_timeout}s; rolling back." >&2
+    _ssh "docker image inspect wikantik:rollback >/dev/null 2>&1 \
+          && docker tag wikantik:rollback wikantik:latest \
+          && cd $(printf '%q' "${REMOTE_REPO_DIR}") \
+          && bin/container.sh -e prod up -d --force-recreate wikantik \
+          || echo 'no :rollback image present — manual recovery required.' >&2"
+    _ssh "cd $(printf '%q' "${REMOTE_REPO_DIR}") && bin/container.sh -e prod logs --tail=50 wikantik" >&2 || true
+    exit 1
+}
+
 cmd_bootstrap() {
     case "${1:-}" in
         -h|--help)
@@ -317,6 +415,7 @@ case "${SUBCOMMAND}" in
     psql)       cmd_psql "$@" ;;
     migrate)    cmd_migrate "$@" ;;
     bootstrap)  cmd_bootstrap "$@" ;;
+    deploy)     cmd_deploy "$@" ;;
     *) echo "remote.sh: unknown subcommand: ${SUBCOMMAND}" >&2
        echo "           run: bin/remote.sh --help" >&2
        exit 2 ;;

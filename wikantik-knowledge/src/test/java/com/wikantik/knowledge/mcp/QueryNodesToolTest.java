@@ -62,7 +62,7 @@ class QueryNodesToolTest {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
         final KgNode a = node( "Alpha", UUID.randomUUID() );
         final KgNode b = node( "Beta", UUID.randomUUID() );
-        when( svc.queryNodes( anyMap(), any(), anyInt(), anyInt() ) )
+        when( svc.queryNodes( anyMap(), any(), anyInt(), anyInt(), eq( false ) ) )
             .thenReturn( List.of( a, b ) );
 
         final McpSchema.CallToolResult result = new QueryNodesTool( svc ).execute(
@@ -77,7 +77,7 @@ class QueryNodesToolTest {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
         final UUID aId = UUID.randomUUID();
         final UUID bId = UUID.randomUUID();
-        when( svc.queryNodes( any(), any(), anyInt(), anyInt() ) )
+        when( svc.queryNodes( any(), any(), anyInt(), anyInt(), eq( false ) ) )
             .thenReturn( List.of( node( "Alpha", aId ), node( "Beta", bId ) ) );
 
         final MentionIndex idx = mock( MentionIndex.class );
@@ -94,7 +94,7 @@ class QueryNodesToolTest {
     @Test
     void execute_passesLimitOffsetAndProvenanceFilter() {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
-        when( svc.queryNodes( any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        when( svc.queryNodes( any(), any(), anyInt(), anyInt(), eq( false ) ) ).thenReturn( List.of() );
 
         final Map< String, Object > args = new HashMap<>();
         args.put( "provenance_filter", List.of( "human-authored" ) );
@@ -105,24 +105,46 @@ class QueryNodesToolTest {
         verify( svc ).queryNodes(
             isNull(),
             eq( Set.of( Provenance.HUMAN_AUTHORED ) ),
-            eq( 12 ), eq( 3 ) );
+            eq( 12 ), eq( 3 ), eq( false ) );
     }
 
     @Test
     void execute_appliesDefaultLimitAndOffsetWhenAbsent() {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
-        when( svc.queryNodes( any(), any(), anyInt(), anyInt() ) ).thenReturn( List.of() );
+        when( svc.queryNodes( any(), any(), anyInt(), anyInt(), eq( false ) ) ).thenReturn( List.of() );
         new QueryNodesTool( svc ).execute( Map.of() );
-        verify( svc ).queryNodes( isNull(), isNull(), eq( 50 ), eq( 0 ) );
+        verify( svc ).queryNodes( isNull(), isNull(), eq( 50 ), eq( 0 ), eq( false ) );
     }
 
     @Test
     void execute_returnsErrorOnServiceFailure() {
         final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
-        when( svc.queryNodes( any(), any(), anyInt(), anyInt() ) )
+        when( svc.queryNodes( any(), any(), anyInt(), anyInt(), eq( false ) ) )
             .thenThrow( new RuntimeException( "DB offline" ) );
         final McpSchema.CallToolResult result = new QueryNodesTool( svc ).execute( Map.of() );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "DB offline" ) );
+    }
+
+    @Test
+    void executePassesAdminBypassFlagWhenSet() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        when( svc.queryNodes( any(), any(), anyInt(), anyInt(), eq( true ) ) )
+                .thenReturn( List.of() );
+
+        new QueryNodesTool( svc, null, true ).execute( Map.of() );
+
+        verify( svc ).queryNodes( any(), any(), anyInt(), anyInt(), eq( true ) );
+    }
+
+    @Test
+    void executeDefaultsToBypassFalse() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        when( svc.queryNodes( any(), any(), anyInt(), anyInt(), eq( false ) ) )
+                .thenReturn( List.of() );
+
+        new QueryNodesTool( svc ).execute( Map.of() );
+
+        verify( svc ).queryNodes( any(), any(), anyInt(), anyInt(), eq( false ) );
     }
 }

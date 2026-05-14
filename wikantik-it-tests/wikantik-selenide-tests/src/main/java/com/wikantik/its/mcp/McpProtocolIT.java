@@ -44,7 +44,9 @@ public class McpProtocolIT extends WithMcpTestSetup {
             "list_proposals", "inspect_proposals", "propose_knowledge",
             "review_proposals", "curate_edges", "curate_nodes",
             // Agent-grade content phase 1 — verification stamping
-            "mark_page_verified"
+            "mark_page_verified",
+            // KG read tools with admin bypass — curators see excluded-page entities immediately
+            "query_nodes", "search_knowledge"
     );
 
     @Test

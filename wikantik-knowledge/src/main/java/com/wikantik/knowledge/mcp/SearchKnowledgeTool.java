@@ -43,15 +43,23 @@ public class SearchKnowledgeTool implements McpTool {
 
     private final KnowledgeGraphService service;
     private final MentionIndex mentionIndex;
+    private final boolean adminBypass;
 
     public SearchKnowledgeTool( final KnowledgeGraphService service ) {
-        this( service, null );
+        this( service, null, false );
     }
 
     public SearchKnowledgeTool( final KnowledgeGraphService service,
                                  final MentionIndex mentionIndex ) {
+        this( service, mentionIndex, false );
+    }
+
+    public SearchKnowledgeTool( final KnowledgeGraphService service,
+                                 final MentionIndex mentionIndex,
+                                 final boolean adminBypass ) {
         this.service = service;
         this.mentionIndex = mentionIndex;
+        this.adminBypass = adminBypass;
     }
 
     @Override
@@ -145,7 +153,9 @@ public class SearchKnowledgeTool implements McpTool {
                     "min_tier must be 'human' or 'machine'" );
             }
 
-            final List< KgNode > nodes = service.searchKnowledge( query, provenanceFilter, limit, minTier );
+            final List< KgNode > nodes = adminBypass
+                    ? service.searchKnowledge( query, provenanceFilter, limit, adminBypass )
+                    : service.searchKnowledge( query, provenanceFilter, limit, minTier );
             final List< KgNode > filtered = filterToMentioned( nodes );
             // D29: surface the scope-difference up-front so callers know to fall back to
             // retrieve_context for body-content matches when the KG returned nothing.

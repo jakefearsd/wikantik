@@ -41,15 +41,23 @@ public class QueryNodesTool implements McpTool {
 
     private final KnowledgeGraphService service;
     private final MentionIndex mentionIndex;
+    private final boolean adminBypass;
 
     public QueryNodesTool( final KnowledgeGraphService service ) {
-        this( service, null );
+        this( service, null, false );
     }
 
     public QueryNodesTool( final KnowledgeGraphService service,
                            final MentionIndex mentionIndex ) {
+        this( service, mentionIndex, false );
+    }
+
+    public QueryNodesTool( final KnowledgeGraphService service,
+                           final MentionIndex mentionIndex,
+                           final boolean adminBypass ) {
         this.service = service;
         this.mentionIndex = mentionIndex;
+        this.adminBypass = adminBypass;
     }
 
     @Override
@@ -122,7 +130,7 @@ public class QueryNodesTool implements McpTool {
             final int limit = McpToolUtils.getInt( arguments, "limit", 50 );
             final int offset = McpToolUtils.getInt( arguments, "offset", 0 );
 
-            final List< KgNode > nodes = service.queryNodes( filters, provenanceFilter, limit, offset );
+            final List< KgNode > nodes = service.queryNodes( filters, provenanceFilter, limit, offset, adminBypass );
             final List< KgNode > filtered;
             if ( mentionIndex == null ) {
                 filtered = nodes;

@@ -161,4 +161,30 @@ class SearchKnowledgeToolTest {
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "DB offline" ) );
     }
+
+    @Test
+    void executePassesAdminBypassFlagWhenSet() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        when( svc.searchKnowledge( any(), any(), anyInt(), eq( true ) ) )
+                .thenReturn( List.of() );
+
+        new SearchKnowledgeTool( svc, null, true ).execute( Map.of( "query", "q" ) );
+
+        verify( svc ).searchKnowledge( any(), any(), anyInt(), eq( true ) );
+    }
+
+    @Test
+    void executeDefaultsToBypassFalse() {
+        final KnowledgeGraphService svc = mock( KnowledgeGraphService.class );
+        when( svc.searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) ) ).thenReturn( List.of() );
+
+        new SearchKnowledgeTool( svc ).execute( Map.of( "query", "q" ) );
+
+        // adminBypass=false → Tier-based overload is called, not the boolean bypass overload
+        verify( svc, org.mockito.Mockito.never() ).searchKnowledge(
+                any(), any(), anyInt(), eq( false ) );
+        verify( svc ).searchKnowledge( any(), any(), anyInt(),
+                any( com.wikantik.api.knowledge.Tier.class ) );
+    }
 }

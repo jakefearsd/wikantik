@@ -311,3 +311,34 @@ test_pages_pull_dry_run() {
 test_pages_push_no_delete_by_default
 test_pages_push_mirror_passes_delete
 test_pages_pull_dry_run
+
+test_backup_subcommands_dry_run() {
+    local tmp out
+    tmp="$(mktemp -d)"
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
+    make_fake_remote_env "${tmp}"
+
+    out="$("${tmp}/bin/remote.sh" --dry-run backup-trigger 2>&1)" \
+        || fail "backup-trigger dry-run non-zero: ${out}"
+    echo "${out}" | grep -q "container.sh -e prod backup" \
+        || fail "backup-trigger did not invoke remote backup: ${out}"
+    echo "${out}" | grep -q "daily" \
+        || fail "backup-trigger default tier should be daily: ${out}"
+
+    out="$("${tmp}/bin/remote.sh" --dry-run backup-pull 2026-05-14 2>&1)" \
+        || fail "backup-pull dry-run non-zero: ${out}"
+    echo "${out}" | grep -q "/tmp/backups/" \
+        || fail "backup-pull did not source REMOTE_BACKUP_DIR: ${out}"
+
+    out="$("${tmp}/bin/remote.sh" --dry-run restore /backups/daily/2026-05-14 2>&1)" \
+        || fail "restore dry-run non-zero: ${out}"
+    echo "${out}" | grep -q "container.sh -e prod restore" \
+        || fail "restore did not invoke remote restore: ${out}"
+    echo "${out}" | grep -q "flock" \
+        || fail "restore did not acquire deploy lock: ${out}"
+
+    rm -rf "${tmp}"
+    ok "backup-trigger / backup-pull / restore dry-runs are well-formed"
+}
+test_backup_subcommands_dry_run

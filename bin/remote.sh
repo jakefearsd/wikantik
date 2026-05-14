@@ -494,6 +494,68 @@ EOF
         "${local_dir%/}/"
 }
 
+cmd_backup_trigger() {
+    case "${1:-}" in
+        -h|--help)
+            cat <<'EOF'
+backup-trigger — invoke the prod backup sidecar.
+
+Usage: bin/remote.sh [--dry-run] backup-trigger [TIER]
+  TIER: daily | weekly | monthly  (default: daily)
+EOF
+            return 0 ;;
+    esac
+    local tier="${1:-daily}"
+    _remote_container backup "${tier}"
+}
+
+cmd_backup_pull() {
+    local date_arg=""
+    case "${1:-}" in
+        -h|--help)
+            cat <<'EOF'
+backup-pull — rsync a backup snapshot from REMOTE_BACKUP_DIR back to the dev box.
+
+Usage: bin/remote.sh [--dry-run] backup-pull [DATE]
+  DATE: YYYY-MM-DD subdir under REMOTE_BACKUP_DIR/daily/  (default: latest)
+
+The snapshot is rsynced into ./backups/<DATE>/ locally.
+EOF
+            return 0 ;;
+    esac
+    date_arg="${1:-}"
+    local remote_src="${REMOTE_BACKUP_DIR}/daily/"
+    if [[ -n "${date_arg}" ]]; then
+        remote_src="${REMOTE_BACKUP_DIR}/daily/${date_arg}/"
+    fi
+    mkdir -p backups
+    _rsync -avz --update \
+        "${REMOTE_USER}@${REMOTE_HOST}:${remote_src}" \
+        "backups/${date_arg:-}"
+}
+
+cmd_restore() {
+    case "${1:-}" in
+        -h|--help)
+            cat <<'EOF'
+restore — invoke the prod backup sidecar's restore.sh with a remote backup path.
+
+Usage: bin/remote.sh [--dry-run] restore REMOTE_PATH
+  REMOTE_PATH: e.g. /backups/daily/2026-05-14  (path inside the backup sidecar)
+
+The wikantik container is brought down for restore and back up afterward.
+Acquires the same deploy lock as `deploy` and `rollback`.
+EOF
+            return 0 ;;
+    esac
+    local path="${1:-}"
+    [[ -n "${path}" ]] || { echo "restore: missing REMOTE_PATH" >&2; exit 2; }
+    _acquire_deploy_lock
+    _remote_container down
+    _remote_container restore "${path}"
+    _remote_container up -d
+}
+
 # ---------- Subcommand dispatch ----------
 
 case "${SUBCOMMAND}" in
@@ -510,6 +572,9 @@ case "${SUBCOMMAND}" in
     rollback)   cmd_rollback "$@" ;;
     pages-push) cmd_pages_push "$@" ;;
     pages-pull) cmd_pages_pull "$@" ;;
+    backup-trigger) cmd_backup_trigger "$@" ;;
+    backup-pull)    cmd_backup_pull "$@" ;;
+    restore)        cmd_restore "$@" ;;
     *) echo "remote.sh: unknown subcommand: ${SUBCOMMAND}" >&2
        echo "           run: bin/remote.sh --help" >&2
        exit 2 ;;

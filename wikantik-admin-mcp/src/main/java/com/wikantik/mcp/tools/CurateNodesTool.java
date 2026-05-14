@@ -123,6 +123,11 @@ public class CurateNodesTool implements McpTool, AuthorConfigurable {
     }
 
     private Map< String, Object > doUpsert( final Map< String, Object > op ) {
+        if ( op.containsKey( "node" ) ) {
+            return Map.of( "error",
+                "upsert fields belong at the top level of the operation, not nested under 'node'. "
+                + "Expected shape: {action: 'upsert', name: '...', node_type: '...', source_page: '...'}" );
+        }
         final String name = stringOrNull( op.get( "name" ) );
         if ( name == null || name.isBlank() ) return Map.of( "error", "upsert requires name" );
         final String nodeType = stringOrNull( op.get( "node_type" ) );

@@ -102,4 +102,17 @@ public class CurateEdgesToolTest {
         final McpSchema.CallToolResult r = tool.execute( Map.of( "operations", ops51 ) );
         assertTrue( r.isError() );
     }
+
+    @Test
+    void upsertRejectsNestedEdgeShapeWithGuidance() {
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "operations", List.of( Map.of(
+                        "action", "upsert", "tag", "bad",
+                        "edge", Map.of( "source_id", UUID.randomUUID().toString(),
+                                         "target_id", UUID.randomUUID().toString(),
+                                         "relationship_type", "rel" ) ) ) ) );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "top level" ), body );
+        assertTrue( body.contains( "not nested under" ) && body.contains( "edge" ), body );
+    }
 }

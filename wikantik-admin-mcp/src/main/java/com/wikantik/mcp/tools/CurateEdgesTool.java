@@ -125,6 +125,11 @@ public class CurateEdgesTool implements McpTool, AuthorConfigurable {
     }
 
     private Map< String, Object > doUpsert( final Map< String, Object > op ) {
+        if ( op.containsKey( "edge" ) ) {
+            return Map.of( "error",
+                "upsert fields belong at the top level of the operation, not nested under 'edge'. "
+                + "Expected shape: {action: 'upsert', source_id: '...', target_id: '...', relationship_type: '...'}" );
+        }
         final UUID src = parseUuid( op.get( "source_id" ) );
         final UUID tgt = parseUuid( op.get( "target_id" ) );
         final String rel = stringOrNull( op.get( "relationship_type" ) );

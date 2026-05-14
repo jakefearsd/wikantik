@@ -111,4 +111,16 @@ public class CurateNodesToolTest {
         final McpSchema.CallToolResult r = tool.execute( Map.of( "operations", ops51 ) );
         assertTrue( r.isError() );
     }
+
+    @Test
+    void upsertRejectsNestedNodeShapeWithGuidance() {
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "operations", List.of( Map.of(
+                        "action", "upsert", "tag", "bad",
+                        "node", Map.of( "name", "X", "node_type", "concept" ) ) ) ) );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "top level" ),
+                "Error should explain top-level shape: " + body );
+        assertTrue( body.contains( "not nested under" ) && body.contains( "node" ), body );
+    }
 }

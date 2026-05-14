@@ -110,6 +110,11 @@ load_env
 
 # _ssh ARGS...      — run a command on the remote with ControlMaster
 # _ssh -t ARGS...   — same, with a tty (for interactive shell/psql)
+#
+# _ssh_opts — canonical ssh option list used by _ssh.
+# Mirror any change here in the inline ssh string built by _rsync below
+# (rsync -e takes a string, not an argv array, so the two lists can't
+# share a representation).
 _ssh_opts() {
     local opts=(
         -o "ControlMaster=auto"
@@ -133,6 +138,8 @@ _ssh() {
 # _rsync ARGS...    — rsync with ControlMaster-aware ssh
 _rsync() {
     mkdir -p "${SSH_CONTROL_DIR}" && chmod 700 "${SSH_CONTROL_DIR}"
+    # Inline ssh string — keep in sync with _ssh_opts above. rsync -e
+    # requires a string, not an argv array, so we can't reuse _ssh_opts.
     local ssh_inline="ssh -o ControlMaster=auto -o ControlPath=${SSH_CONTROL_DIR}/%C -o ControlPersist=10m -o StrictHostKeyChecking=accept-new"
     if [[ -n "${SSH_KEY:-}" ]]; then
         ssh_inline+=" -i ${SSH_KEY}"
@@ -162,7 +169,9 @@ _run() {
 # which are acceptable in a sole-developer environment.
 _acquire_deploy_lock() {
     local lockfile="${REMOTE_REPO_DIR}/.deploy.lock"
-    if ! _ssh "mkdir -p $(printf '%q' "${REMOTE_REPO_DIR}") && flock --nonblock --conflict-exit-code 75 ${lockfile} -c 'true'"; then
+    local lockfile_q
+    lockfile_q="$(printf '%q' "${lockfile}")"
+    if ! _ssh "mkdir -p $(printf '%q' "${REMOTE_REPO_DIR}") && flock --nonblock --conflict-exit-code 75 ${lockfile_q} -c 'true'"; then
         echo "remote.sh: deploy lock held on ${REMOTE_HOST} (${lockfile})." >&2
         echo "           Wait for the running operation, or remove the lockfile" >&2
         echo "           if you are certain no deploy/rollback/restore is in progress." >&2

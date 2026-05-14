@@ -1,257 +1,218 @@
-# Phase 12: subsystem bridge retirement — implementation plan
+# Phase 12: KnowledgeSubsystemBridge consistency fix — implementation plan
 
 **Spec:** [docs/superpowers/specs/2026-05-14-subsystem-bridge-retirement-design.md](../specs/2026-05-14-subsystem-bridge-retirement-design.md)
-**Status:** draft
-**Estimated effort:** ~1 day end-to-end (Ckpt 2 sub-tasks run in parallel)
-**Goal:** delete the 8 `*SubsystemBridge` classes and move their `rebuildFromManagers` logic into private `WikiEngine` helpers; migrate production callers to typed accessors.
+**Status:** draft (revision 2 — scope corrected after callsite-inventory audit)
+**Estimated effort:** ~half day (Ckpt 1 parallelism is limited; Ckpt 2 is independent)
+**Goal:** make `KnowledgeSubsystemBridge.rebuildFromManagers` delegate to a new `KnowledgeSubsystemFactory.rebuildFromExisting` adapter so the 8 bridges share one structural pattern; document the bridges as a stable design.
 
-## File-by-file inventory
+## What revision 2 dropped
 
-The seven delegating bridges (Phase 11 Ckpt 5 — `c1ab97508`):
+Revision 1 proposed retiring all 8 `*SubsystemBridge` classes. A callsite
+inventory found **280 production callers across 100 files in 6 modules** —
+the bridges are the supported `Engine → typed-subsystem` accessor pattern,
+not vestigial code. Retiring them would require either 280 `(WikiEngine)`
+casts or a multi-week `Engine` API redesign. Neither is justified.
 
-| Bridge | LOC | Paired factory | Synth chain |
-|---|---|---|---|
-| `CoreSubsystemBridge` | ~80 | `CoreSubsystemFactory.create` | reads typed Core fields |
-| `AuthSubsystemBridge` | ~75 | `AuthSubsystemFactory.create` | depends on Core |
-| `PageSubsystemBridge` | ~70 | `PageSubsystemFactory.create` | depends on Core, Persistence |
-| `RenderingSubsystemBridge` | ~70 | `RenderingSubsystemFactory.create` | depends on Core, Page |
-| `SearchSubsystemBridge` | ~70 | `SearchSubsystemFactory.create` | depends on Core, Page |
-| `PageGraphSubsystemBridge` | ~70 | `PageGraphSubsystemFactory.create` | depends on Core, Page, Persistence |
-| `PersistenceSubsystem*` | — | no bridge file; `WikiEngine.getPersistenceSubsystem()` is direct | n/a |
+Phase 12 narrows to the one architectural inconsistency from Phase 11 Ckpt 5:
+`KnowledgeSubsystemBridge` reads the manager registry manually instead of
+delegating to its paired factory, because the factory has side effects. Fix
+the asymmetry by adding a side-effect-free `rebuildFromExisting` factory
+adapter.
 
-The eighth (manual reader, not a factory delegator):
+## Ckpt 0 — Field audit (Haiku, ~30 min)
 
-| Bridge | LOC | Note |
-|---|---|---|
-| `KnowledgeSubsystemBridge` | ~100 | 23-field manual read from typed `mgr_*` fields; factory excluded due to cron + repo side effects (Phase 11 Ckpt 5 commit message) |
+Read `KnowledgeSubsystem.Services` and `KnowledgeSubsystemFactory.create`.
+Produce a table mapping each of the 23 Services fields to:
+- Its current source in `KnowledgeSubsystemBridge.rebuildFromManagers` (always
+  `engine.getManager(X.class)` today, but verify).
+- Whether the field is hot-swappable via `WikiEngine.setManager(X.class, T)` —
+  consult the setManager dispatcher map at `WikiEngine.java:449+`.
+- Whether the field is a derived service whose identity depends on another
+  field (e.g. `KgCurationOps` is synthesised from `KgService + PageManager +
+  PageSaveHelper + KgExcludedPagesRepository`).
 
-Production caller sites (8 files, 14 call sites):
+Output: a markdown table written to
+`docs/superpowers/plans/2026-05-14-bridge-field-audit.md`. This is the
+authoritative input for Ckpt 1.
 
-| File | Bridges called |
-|---|---|
-| `wikantik-rest/.../RestServletBase.java` | Core, Auth, Page, Rendering, Search, PageGraph, Knowledge (6 bridge calls in one method, lines 162-195) |
-| `wikantik-admin-mcp/.../McpToolRegistry.java` | Knowledge |
-| `wikantik-knowledge/.../KnowledgeMcpInitializer.java` | Knowledge |
-| `wikantik-main/.../DefaultContextRetrievalService.java` | Knowledge |
-| `wikantik-main/.../plugin/RelationshipsPlugin.java` | Knowledge |
-| `wikantik-tools/.../SearchWikiTool.java` | Knowledge |
-| `wikantik-main/.../bootstrap/WikiBootstrapServletContextListener.java` | Knowledge (shutdown path, defensive null-check critical) |
-| `wikantik-main/.../WikiEngine.java` | All 8 (via the per-class consumer map at lines 449+ in `setManager`) |
+**Done when:** the field-audit doc lists all 23 fields with three columns
+(source / hot-swappable / derived-from), reviewed before Ckpt 1 starts.
 
-Test files referencing bridges:
+## Ckpt 1 — Add `KnowledgeSubsystemFactory.rebuildFromExisting` (Sonnet, ~2 hrs)
 
-| File | Action in this phase |
-|---|---|
-| `KnowledgeSubsystemBridgeTest.java` | merge into new `WikiEngineSetManagerRebuildTest` |
-| `CoreSubsystemBridgeTest.java` … `PageGraphSubsystemBridgeTest.java` (6 tests) | merge into new `WikiEngineSetManagerRebuildTest` |
-| `SearchWikiToolTest.java` | comment-only reference; update wording |
-
-## Ckpt 0 — Setup (Opus, ~30 min)
-
-1. Create a worktree at `.worktrees/phase-12-bridge-retirement`.
-2. Run `grep -rn "fromLegacyEngine\|rebuildFromManagers" wikantik-*/src/main` and persist the exact line numbers as `phase-12-callsite-snapshot.txt` in the worktree. Used by Ckpt 2 to detect drift.
-3. Add ArchUnit rule `no_wikiengine_cast_outside_main` to `wikantik-archtest`: enforces `(WikiEngine)` cast usages live only in `wikantik-main`. Should pass at zero today.
-4. Run a baseline `mvn clean install -DskipITs` and record `loc_main` from `bin/metrics/decomposition-progress.json`.
-
-**Done when:** worktree exists; snapshot file committed; ArchUnit rule passes; baseline metric captured.
-
-## Ckpt 1 — Shadow: 8 `rebuild*Subsystem` helpers on `WikiEngine` (Sonnet, ~3 hrs)
-
-Behaviour-zero refactor. Bridges still exist and still callable; `setManager`'s dispatcher stops going through them.
-
-### 1.1 — For each of the 7 delegating bridges
-
-Add a private static method to `WikiEngine.java`:
+Add a new public static method to `wikantik-main/src/main/java/com/wikantik/knowledge/subsystem/KnowledgeSubsystemFactory.java`:
 
 ```java
-private static CoreSubsystem.Services rebuildCoreSubsystem(WikiEngine e) {
-    return CoreSubsystemFactory.create(synthCoreDeps(e));
+public static KnowledgeSubsystem.Services rebuildFromExisting(
+        final WikiEngine engine,
+        final KnowledgeSubsystem.Services existing) {
+    if (existing == null) {
+        // First-init path — no existing snapshot to preserve. Mirror the
+        // bridge's current direct-read shape.
+        return readFromManagerRegistry(engine);
+    }
+    return new KnowledgeSubsystem.Services(
+        preferRegistry(engine, KnowledgeGraphService.class, existing.kgService()),
+        // ... 22 more fields, derived from the Ckpt 0 audit table ...
+        rebuildKgCurationOps(engine, existing));
 }
-private static CoreSubsystem.Deps synthCoreDeps(WikiEngine e) {
-    // body copied verbatim from CoreSubsystemBridge.synthDepsFromEngine,
-    // but cross-bridge calls (e.g. CoreSubsystemBridge.fromLegacyEngine)
-    // become typed accessors: e.getCoreSubsystem(), e.getPersistenceSubsystem(), ...
+
+private static <T> T preferRegistry(WikiEngine engine, Class<T> klass, T existing) {
+    final T fromRegistry = engine.getManager(klass);
+    return fromRegistry != null ? fromRegistry : existing;
+}
+
+private static KgCurationOps rebuildKgCurationOps(
+        WikiEngine engine, KnowledgeSubsystem.Services existing) {
+    // ... same logic as today's bridge but reads upstream from existing
+    //     when the upstream manager hasn't been swapped ...
+}
+
+// readFromManagerRegistry is the old bridge body, moved here verbatim
+// for the first-init path.
+private static KnowledgeSubsystem.Services readFromManagerRegistry(WikiEngine engine) { ... }
+```
+
+**No new side effects.** No `schedule` calls, no repository construction, no
+extractor startup. Only field-by-field synthesis from existing instances and the
+manager registry.
+
+For each derived service identified in Ckpt 0 (e.g. `KgCurationOps`), implement
+a per-field rebuild helper that:
+- If none of its upstream managers were swapped (i.e. all `preferRegistry`
+  calls returned the `existing` value), return the existing derived service.
+- Otherwise, reconstruct the derived service from the new upstream values.
+
+**Verification:** `mvn test-compile -pl wikantik-main -q` clean. No production
+behaviour change yet — bridge still calls its own `rebuildFromManagers`.
+
+**Done when:** `rebuildFromExisting` compiles cleanly; signatures match the
+audit table; no IDE warnings on missing fields.
+
+## Ckpt 2 — Rewire bridge + add side-effect test (Sonnet, ~1 hr)
+
+### 2.1 — Trim the bridge body
+
+`wikantik-main/src/main/java/com/wikantik/knowledge/subsystem/KnowledgeSubsystemBridge.java`:
+
+```java
+public static KnowledgeSubsystem.Services rebuildFromManagers(WikiEngine engine) {
+    return KnowledgeSubsystemFactory.rebuildFromExisting(
+        engine, engine.getKnowledgeSubsystem());
 }
 ```
 
-Repeat for `Auth`, `Page`, `Rendering`, `Search`, `PageGraph`. Total: 14 new private static methods on `WikiEngine` (one `rebuild*` + one `synth*Deps` per bridge), about 250 LOC of body relocation.
+Delete the now-dead 23-field synthesis body. Update the bridge's class-level
+javadoc to match the other 7 bridges' shape ("delegates to `XSubsystemFactory.rebuildFromExisting`").
 
-### 1.2 — Knowledge bridge body relocation
+### 2.2 — Add side-effect-absence test
 
-Copy `KnowledgeSubsystemBridge.rebuildFromManagers` verbatim into a private static `WikiEngine.rebuildKnowledgeSubsystem(WikiEngine e)`. Reads from the 23 typed `mgr_*` fields the engine already exposes. No factory call (matches the existing exclusion documented in commit `c1ab97508`).
-
-### 1.3 — Rewire the `setManager` consumer map
-
-The map at `WikiEngine.java:449+` currently dispatches:
-
-```java
-rebuildKnowledge = e -> { if (e.knowledgeSubsystem != null)
-    e.knowledgeSubsystem = KnowledgeSubsystemBridge.rebuildFromManagers(e); };
-```
-
-Rewrite to:
-
-```java
-rebuildKnowledge = e -> { if (e.knowledgeSubsystem != null)
-    e.knowledgeSubsystem = rebuildKnowledgeSubsystem(e); };
-```
-
-Eight lines change, one per subsystem.
-
-### 1.4 — Verification
-
-Run `mvn clean install -Pintegration-tests -fae`. Must be green. Bridges still exist but `setManager` no longer routes through them.
-
-**Done when:** 8 `rebuild*Subsystem` + 7 `synth*Deps` private methods on `WikiEngine`; setManager dispatcher rewired; full IT green.
-
-## Ckpt 2 — Caller migration (parallel sub-checkpoints, file-disjoint)
-
-Each sub-ckpt rewrites one caller file from `*Bridge.fromLegacyEngine(engine).xService()` to `((WikiEngine) engine).getXSubsystem().xService()`, with a defensive `instanceof WikiEngine` guard where the engine could be a non-`WikiEngine` (plugins, tests).
-
-The pattern at each call site:
-
-```java
-// before
-final var kg = KnowledgeSubsystemBridge.fromLegacyEngine(engine).kgService();
-
-// after
-if (!(engine instanceof WikiEngine we)) return /* same defensive fallback */;
-final var kg = we.getKnowledgeSubsystem().kgService();
-```
-
-For files with multiple bridge calls (`RestServletBase`), hoist the cast once at the top of the method.
-
-### 2a — `RestServletBase.getSubsystems()` (Haiku, ~30 min)
-
-File: `wikantik-rest/src/main/java/com/wikantik/rest/RestServletBase.java`
-Lines 162-195. Six bridge calls in one method. Replace all six with typed accessors via a single `WikiEngine` cast hoisted to the top of `getSubsystems()`. Keep the existing `engine instanceof WikiEngine` guard — that's already there for Persistence.
-
-Verification: `mvn test -pl wikantik-rest -Dtest='*Test'`.
-
-### 2b — admin-mcp callers (Haiku, ~30 min)
-
-File: `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java`
-Line 117. Single Knowledge bridge call. Replace with typed accessor.
-
-Also delete the obsolete `// future: switch to engine.getKnowledgeSubsystem() when KnowledgeSubsystemBridge retires in Phase 9` comment at lines 113-114.
-
-Verification: `mvn test -pl wikantik-admin-mcp -Dtest='*Test'`.
-
-### 2c — knowledge module callers (Haiku, ~30 min)
-
-Files:
-- `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/KnowledgeMcpInitializer.java` line 95
-- `wikantik-main/src/main/java/com/wikantik/knowledge/DefaultContextRetrievalService.java` line 134
-
-Both call `KnowledgeSubsystemBridge.fromLegacyEngine(engine)` once. Defensive cast required because both can be invoked with a mocked `Engine` in tests.
-
-Verification: `mvn test -pl wikantik-knowledge,wikantik-main -Dtest='KnowledgeMcpInitializerTest,DefaultContextRetrievalServiceTest'`.
-
-### 2d — tools module (Haiku, ~30 min)
-
-File: `wikantik-tools/src/main/java/com/wikantik/tools/SearchWikiTool.java`
-Lines 24 (import) and 69 (call). Single Knowledge bridge call. Also update the comment in `SearchWikiToolTest.java` that references `KnowledgeSubsystemBridge.fromLegacyEngine` (no behaviour change).
-
-Verification: `mvn test -pl wikantik-tools`.
-
-### 2e — wikantik-main internal callers (Sonnet, ~45 min)
-
-Files:
-- `wikantik-main/src/main/java/com/wikantik/plugin/RelationshipsPlugin.java` line 57 — plugin receives `WikiContext`, must tolerate a non-`WikiEngine` engine; cast must be guarded.
-- `wikantik-main/src/main/java/com/wikantik/bootstrap/WikiBootstrapServletContextListener.java` lines 153, 158 — **shutdown path; the typed subsystem snapshot may have already been torn down**, so the typed-accessor call must null-check the returned `KnowledgeSubsystem.Services` and skip `judgeRunner` / `retrievalQualityRunner` close calls when null. This is the highest-risk site in the migration.
-
-Verification: `mvn test -pl wikantik-main -Dtest='RelationshipsPluginTest,WikiBootstrapServletContextListenerTest'` then full IT for the boot/shutdown path.
-
-### Concurrency
-
-2a, 2b, 2c, 2d, 2e all run in parallel — file-disjoint, no `WikiEngine` churn (Ckpt 1 finished). Each sub-ckpt produces an independent commit on the worktree branch. Subagents must verify `phase-12-callsite-snapshot.txt` matches the actual file before touching it (drift detection).
-
-**Done when:** every callsite from the inventory is rewritten; no `*Bridge.fromLegacyEngine` references remain in `wikantik-*/src/main`; per-module `mvn test` is green.
-
-## Ckpt 3 — Delete bridge files (Haiku, ~30 min)
-
-After all Ckpt 2 sub-ckpts land:
-
-```bash
-git rm wikantik-main/src/main/java/com/wikantik/core/subsystem/CoreSubsystemBridge.java
-git rm wikantik-main/src/main/java/com/wikantik/auth/subsystem/AuthSubsystemBridge.java
-git rm wikantik-main/src/main/java/com/wikantik/page/subsystem/PageSubsystemBridge.java
-git rm wikantik-main/src/main/java/com/wikantik/render/subsystem/RenderingSubsystemBridge.java
-git rm wikantik-main/src/main/java/com/wikantik/search/subsystem/SearchSubsystemBridge.java
-git rm wikantik-main/src/main/java/com/wikantik/pagegraph/subsystem/PageGraphSubsystemBridge.java
-git rm wikantik-main/src/main/java/com/wikantik/knowledge/subsystem/KnowledgeSubsystemBridge.java
-# Also delete the seven paired *BridgeTest.java files
-git rm wikantik-main/src/test/java/com/wikantik/*/subsystem/*BridgeTest.java
-```
-
-Verification: `mvn clean install -DskipITs` — must compile + green at unit level.
-
-If a compile failure surfaces a missed caller, log it as a Ckpt 2 follow-up rather than fix it inline (preserves the "deletion is mechanical" invariant for review).
-
-**Done when:** all 7 `*Bridge.java` files deleted; 6+ paired test files deleted; build green.
-
-## Ckpt 4 — Snapshot-coherence test (Sonnet, ~45 min)
-
-Add `wikantik-main/src/test/java/com/wikantik/WikiEngineSetManagerRebuildTest.java` covering: for each of the 8 typed subsystems, calling `setManager(SomeServiceClass.class, mock)` after `WikiEngine.initialize(...)` triggers a coherent snapshot rebuild that surfaces the mocked service through the corresponding `getXSubsystem()` accessor.
-
-Eight test methods, one per subsystem. Each:
+New test method in `wikantik-main/src/test/java/com/wikantik/knowledge/subsystem/KnowledgeSubsystemBridgeTest.java`:
 
 ```java
 @Test
-void setManager_rebuilds_knowledge_subsystem_snapshot() {
+void rebuildFromManagers_doesNotReInvokeFactorySideEffects() {
+    // Build a WikiEngine with a pre-populated KnowledgeSubsystem snapshot.
+    // Track invocations on the cron ScheduledExecutorService, the
+    // BootstrapEntityExtractionIndexer, and repository constructors via
+    // Mockito spies.
     final WikiEngine engine = TestEngine.build();
-    final KnowledgeGraphService mock = mock(KnowledgeGraphService.class);
-    engine.setManager(KnowledgeGraphService.class, mock);
-    assertSame(mock, engine.getKnowledgeSubsystem().kgService());
+    final ScheduledExecutorService scheduler = spyOn(...);
+    final BootstrapEntityExtractionIndexer extractor = spyOn(...);
+
+    // Hot-swap one manager.
+    engine.setManager(KnowledgeGraphService.class, mock(KnowledgeGraphService.class));
+
+    // The setManager consumer fired rebuildFromManagers under the hood.
+    // Assert zero new schedule / extractor-start calls.
+    verify(scheduler, never()).schedule(any(), anyLong(), any());
+    verify(scheduler, never()).scheduleAtFixedRate(any(), anyLong(), anyLong(), any());
+    verify(extractor, never()).start();
+    // Add similar verifications for any other side-effectful constructor or
+    // start method identified in Ckpt 0.
 }
 ```
 
-The test lives in the same package as `WikiEngine` so it can verify private rebuild helpers fire (via the public side effect on `getXSubsystem()`).
+Existing tests (`rebuildFromManagers_readsFromRegistryDirectly`,
+`rebuildFromManagers_toleratesUnregisteredManagers`) keep passing without
+modification.
 
-This is the regression net the deleted `*BridgeTest` files used to provide.
+### 2.3 — Verification
 
-Verification: `mvn test -pl wikantik-main -Dtest=WikiEngineSetManagerRebuildTest`.
+`mvn test -pl wikantik-main -Dtest=KnowledgeSubsystemBridgeTest` — three test
+methods all green.
 
-**Done when:** 8 test methods green; coverage matches the pre-deletion `*BridgeTest` suite.
+**Done when:** bridge's `rebuildFromManagers` body ≤ 10 LOC; three tests green;
+side-effect test asserts zero re-invocation.
 
-## Ckpt 5 — Close-out (Opus, ~30 min)
+## Ckpt 3 — Documentation + close-out (Opus, ~30 min)
 
-1. Update `bin/metrics/decomposition-progress.json`: add `subsystem_bridges: 8 → 0`, `loc_main` delta, `archunit_frozen_violations` delta (recompute freeze first).
-2. Update `docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md`: add a Phase 12 section under the Phase 11 entry recording shipped commits + metrics.
-3. Update this plan's `Status:` to `complete (YYYY-MM-DD)`.
-4. Refresh the ArchUnit freeze store via `mvn test -pl wikantik-archtest -Dfreeze.refresh=true` (or equivalent) — some violations from `*Bridge.fromLegacyEngine` callers may naturally retire.
-5. Final `mvn clean install -Pintegration-tests -fae` green.
-6. Commit + push.
+### 3.1 — Decomposition design doc
 
-**Done when:** metrics + design doc + plan updated; full IT reactor green; commits pushed.
+Append a new section to `docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md` between Phase 11 and the "Phase plan" close-out:
+
+```
+### Bridge architecture (post-Phase-12 — stable design)
+
+The 8 *SubsystemBridge classes are the supported way for production callers
+holding an Engine reference to reach typed subsystem services. They survive
+Phase 11+ by design: the Engine API interface in wikantik-api deliberately
+cannot depend on subsystem modules.
+
+Every bridge follows one pattern: fromLegacyEngine(Engine) prefers the typed
+WikiEngine accessor and falls back to a side-effect-free rebuildFromManagers
+that delegates to its paired XSubsystemFactory.
+
+KnowledgeSubsystemBridge was the lone asymmetry until Phase 12 (commit XXX)
+moved its body into KnowledgeSubsystemFactory.rebuildFromExisting, restoring
+structural consistency with the other 7 bridges.
+
+Retiring the bridges would require either 280 (WikiEngine) casts at call sites
+or a multi-week Engine-API redesign exposing typed-subsystem accessors. Neither
+is justified by current product or operational concerns. The bridges are a
+stable design.
+```
+
+### 3.2 — Update breadcrumb commit message
+
+`5845353a3 docs(mcp): breadcrumb for Phase 9 KnowledgeSubsystemBridge retirement`
+predicted retirement that didn't happen. Add a brief note in the
+decomposition design doc's Phase 11 section noting the breadcrumb is
+superseded by the Phase 12 consistency fix.
+
+### 3.3 — Metrics
+
+Update `bin/metrics/decomposition-progress.json`:
+- `subsystem_bridges_uniform_pattern: 7 → 8`
+- `loc_main` delta (small — `rebuildFromExisting` body moves from bridge to
+  factory; the delta is the factory growth minus the bridge shrink)
+
+### 3.4 — Final verification
+
+`mvn clean install -Pintegration-tests -fae` green. Push.
+
+**Done when:** design doc updated; metrics file updated; full IT green; commits
+pushed.
 
 ## Concurrency summary
 
 ```
-Ckpt 0 ─→ Ckpt 1 ─→ ┌→ Ckpt 2a (RestServletBase, Haiku)             ┐
-       (Opus)  (Sonnet)│                                              │
-                       ├→ Ckpt 2b (admin-mcp, Haiku)                  ├─→ Ckpt 3 ─→ Ckpt 4 ─→ Ckpt 5
-                       ├→ Ckpt 2c (knowledge, Haiku)                  │  (Haiku)   (Sonnet)  (Opus)
-                       ├→ Ckpt 2d (tools, Haiku)                      │
-                       └→ Ckpt 2e (main internal, Sonnet)             ┘
+Ckpt 0 (Haiku, 30m) ─→ Ckpt 1 (Sonnet, 2h) ─→ Ckpt 2 (Sonnet, 1h) ─→ Ckpt 3 (Opus, 30m)
 ```
 
-Critical-path total: ~5 hours wall-clock if Ckpt 2 sub-ckpts truly run in parallel. Single-developer total: ~1 working day.
+Sequential. The work is too small for meaningful parallelism — each ckpt's
+output is the next ckpt's input.
 
-## Risks (cross-checkpoint)
-
-- **Ckpt 1 dependency ordering inside `WikiEngine`.** When `synth*Deps` for one subsystem needs another's typed snapshot (e.g. `synthAuthDeps` needs `getCoreSubsystem()`), the snapshot must be non-null by the time the helper runs. `WikiEngine.initialize()` already builds in DAG order (Phase 9 cleanup), so this should hold — but Ckpt 1's IT run is the only check. If it fails, the inversion can be papered over by reading from the `mgr_*` fields directly in the synth helper, matching what the bridge already does.
-- **Ckpt 2e shutdown ordering.** `WikiBootstrapServletContextListener` runs during context destroy. The typed snapshot field may already be null because `WikiEngine.shutdown()` cleared it. Today the bridge tolerates this via its fallback path. The replacement code must null-check `getKnowledgeSubsystem()` and skip the close calls. Add a unit test that simulates "snapshot already torn down" before the migration.
-- **Subagent parallelism on shared `WikiEngine.java`.** Ckpt 1 must be a single sequential commit by one agent; do NOT shard the 8 `rebuild*` helpers across parallel sub-ckpts in Ckpt 1 because they all edit `WikiEngine.java`. Ckpt 2 is safe to parallelize because every sub-ckpt touches different files.
-- **Worktree cleanup.** Per memory `feedback_subagent_worktree_cleanup.md`: every `.worktrees/agent-*` from Ckpt 2 sub-agents must be force-removed via `git worktree remove -f -f` before Ckpt 5 measures metrics.
+**Total wall-clock:** ~4 hours.
 
 ## Done when (phase-level)
 
-- All 7 `*Bridge.java` files deleted (8 if you count `KnowledgeSubsystemBridge`).
-- 6+ `*BridgeTest.java` files deleted.
-- `WikiEngine.java` carries 8 private `rebuild*Subsystem` static methods (plus 7 paired `synth*Deps`).
-- `WikiEngineSetManagerRebuildTest` ships with 8 test methods (one per subsystem).
-- Zero production callers of `*Bridge.fromLegacyEngine` (grep enforced).
-- ArchUnit `no_get_manager_anywhere` still at zero violations; new `no_wikiengine_cast_outside_main` passing.
+- `KnowledgeSubsystemBridge.rebuildFromManagers` body ≤ 10 LOC, delegates to
+  `KnowledgeSubsystemFactory.rebuildFromExisting`.
+- `KnowledgeSubsystemFactory.rebuildFromExisting` exists, with field-by-field
+  audit table preserved as `docs/superpowers/plans/2026-05-14-bridge-field-audit.md`.
+- `rebuildFromManagers_doesNotReInvokeFactorySideEffects` test passes.
+- Decomposition design doc has a new "Bridge architecture (post-Phase-12)"
+  section formally documenting the bridges as a stable design.
 - Full IT reactor green.
-- `bin/metrics/decomposition-progress.json` updated; design doc updated.
+- Commits pushed.

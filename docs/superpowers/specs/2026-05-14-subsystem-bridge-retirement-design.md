@@ -1,284 +1,304 @@
 ---
-title: Subsystem bridge retirement (Phase 12)
+title: KnowledgeSubsystemBridge consistency fix (Phase 12)
 date: 2026-05-14
 status: draft
+revision: 2 — scope corrected after callsite-inventory audit revealed 280 production callers
 ---
 
-# Subsystem bridge retirement
+# KnowledgeSubsystemBridge consistency fix
+
+## What changed in revision 2
+
+Revision 1 proposed retiring all 8 `*SubsystemBridge` classes. A pre-implementation
+inventory found **280 production call sites of `*Bridge.fromLegacyEngine(engine)`
+across ~100 files in 6 modules** — not the ~14 sites the original spec assumed.
+Per-bridge count: Page 91 · Core 77 · Auth 43 · Rendering 25 · PageGraph 23 ·
+Search 11 · Knowledge 8.
+
+The bridges are **not vestigial.** The `Engine` interface lives in `wikantik-api`,
+which deliberately cannot depend on subsystem modules (would create cyclic
+dependencies). Production callers — plugins, `Default*Manager` classes, servlets,
+filters, REST resources — hold an `Engine` reference and have no other ergonomic
+way to reach typed subsystems. The bridges encapsulate the `Engine → WikiEngine`
+cast and the typed-accessor fallback. Phase 11 Ckpt 5 (`c1ab97508`) intentionally
+preserved this pattern after making 7 of the 8 bridges thin factory-delegation
+shims.
+
+Retiring all 8 bridges means either adding 280 `(WikiEngine) engine` casts (ugly,
+brittle, removes a well-defined encapsulation point) or migrating all 280 callers
+to constructor injection (multi-week refactor across plugin / manager / servlet
+APIs). Neither matches the cost/benefit of the original audit observation.
+
+This revision narrows Phase 12 to the **one genuine architectural inconsistency**
+the audit identified: `KnowledgeSubsystemBridge` is the only bridge that reads
+the `WikiEngine` manager registry manually instead of delegating to its paired
+factory. The other 7 bridges share a uniform `factory.create(synthDepsFromEngine(e))`
+shape after Phase 11. Fix the asymmetry, document the bridges as the supported
+`Engine → typed-subsystem` API, close the architectural question.
 
 ## Problem
 
-After Phases 1–11 of the wikantik-main decomposition (complete 2026-05-08),
-the `WikiEngine.managers` map is gone, `getManager(Class<T>)` no longer
-exists on the `Engine` API interface, every cross-cutting service flows
-through a typed `*Subsystem.Services` record, and ArchUnit forbids new
-registry-style lookups.
+After Phase 11 Ckpt 5, every `*SubsystemBridge` follows this shape:
 
-Eight `*SubsystemBridge` adapter classes survive that work:
+```java
+public static XSubsystem.Services fromLegacyEngine(Engine engine) {
+    if (!(engine instanceof WikiEngine we)) return /* defensive empty */;
+    final var typed = we.getXSubsystem();
+    if (typed != null) return typed;
+    return rebuildFromManagers(we);
+}
 
-- `CoreSubsystemBridge`
-- `AuthSubsystemBridge`
-- `PersistenceSubsystem` (no separate bridge file — direct accessor on `WikiEngine`)
-- `PageSubsystemBridge`
-- `RenderingSubsystemBridge`
-- `SearchSubsystemBridge`
-- `PageGraphSubsystemBridge`
-- `KnowledgeSubsystemBridge`
+public static XSubsystem.Services rebuildFromManagers(WikiEngine engine) {
+    return XSubsystemFactory.create(synthDepsFromEngine(engine));
+}
 
-Phase 11 Ckpt 5 (commit `c1ab97508`) made seven of them thin shims that
-delegate to their paired `*SubsystemFactory.create(...)` with a
-`synthDepsFromEngine` adapter. `KnowledgeSubsystemBridge` was intentionally
-excluded from that delegation pass because its factory is a
-full-construction pipeline (cron schedulers, repository wiring, embedding
-service startup) — not a registry reader — so re-running it for every
-caller would have unpredictable side effects.
+private static XSubsystem.Deps synthDepsFromEngine(WikiEngine engine) {
+    return new XSubsystem.Deps(
+        // read fields from other typed subsystems via *Bridge.fromLegacyEngine
+        // or via engine.getYSubsystem() accessors
+        ...);
+}
+```
 
-The bridges now serve a single residual purpose: they bridge the gap
-between a caller holding only the `Engine` API reference and the typed
-`Wiki*Subsystem.Services` snapshots stashed on `WikiEngine` at boot.
-Every call site that retains a bridge dependency takes one of two forms:
+Seven bridges (Core, Auth, Page, Rendering, Search, PageGraph) all match. They
+were converted to this shape in Phase 11 Ckpt 5 (commit `c1ab97508`) which
+delivered ~150 LOC of CPD deduplication.
 
-1. `((Wiki|Some)Bridge).fromLegacyEngine(engine).xService()` — production
-   lookups (REST resources, MCP wiring, plugins).
-2. `(Wiki|Some)Bridge.rebuildFromManagers(engine)` — called only by
-   `WikiEngine.setManager(Class, T)` (line 465 in `WikiEngine.java`) to
-   keep a typed snapshot coherent after a test-fixture hot-swap.
+`KnowledgeSubsystemBridge` is the outlier. Its `rebuildFromManagers` reads 23
+manager fields directly from `WikiEngine` and synthesises a `KnowledgeSubsystem.Services`
+record by hand:
 
-Both forms are stable but architecturally redundant: `WikiEngine` already
-has typed `getKnowledgeSubsystem()` / `getCoreSubsystem()` / etc.
-accessors that production callers can use directly when they cast
-`Engine` → `WikiEngine`. The bridge mostly exists to encapsulate that
-cast and to host the test-fixture rebuild path.
+```java
+public static KnowledgeSubsystem.Services rebuildFromManagers(WikiEngine engine) {
+    final KgCurationOps kgCurationOps = /* synthesised inline */;
+    return new KnowledgeSubsystem.Services(
+        engine.getManager(KnowledgeGraphService.class),
+        engine.getManager(KgProposalJudgeService.class),
+        engine.getManager(JudgeRunner.class),
+        engine.getManager(KgMaterializationService.class),
+        // ... 19 more getManager calls ...
+        kgCurationOps);
+}
+```
 
-This spec retires the bridges in a single coordinated cut. After this
-phase, production callers reach typed subsystems through `WikiEngine`
-directly; the test-fixture rebuild logic moves into `WikiEngine` itself
-as a private helper. No public surface changes.
+The Phase 11 commit message explained why: `KnowledgeSubsystemFactory.create` has
+side effects (cron scheduler, repository wiring, embedding-service startup) that
+would re-fire on every `rebuildFromManagers` call. Manual synthesis was the safe
+default at the time.
+
+Three architectural consequences of leaving this as-is:
+
+1. **No CPD deduplication for Knowledge.** The other 6 bridges share scaffolding
+   via their factory adapters; Knowledge's 23-field reader is unique LOC.
+2. **`KnowledgeSubsystemBridgeTest`'s contract differs from the others.** Tests
+   document the manual-read invariant; the other 7 bridges' tests document the
+   factory-delegation invariant. New contributors must learn two patterns.
+3. **The Phase 11 close-out left this as a known asymmetry** with no recorded
+   path to fix it. The breadcrumb commit `5845353a3` ("docs(mcp): breadcrumb for
+   Phase 9 KnowledgeSubsystemBridge retirement") is now mis-named — there is no
+   Phase-9 retirement; just an asymmetry waiting for resolution.
 
 ## Goals
 
-1. Delete the eight `*SubsystemBridge` classes from production.
-2. Production callers acquire typed subsystem services through one of:
-   - `((WikiEngine) engine).getXSubsystem()` (when the caller has only an
-     `Engine` reference).
-   - Constructor injection (preferred for new code).
-3. Keep `WikiEngine.setManager(Class, T)` hot-swap coherence for the 178
-   test files that depend on it — the `rebuildFromManagers` logic moves
-   into a private method on `WikiEngine` itself.
-4. Replace the two test files that reference the bridge directly with
-   tests against the new `WikiEngine` internal rebuild path.
-5. No production behaviour change. No new public API. No new failure
-   modes during engine startup or shutdown.
+1. Make `KnowledgeSubsystemBridge` structurally match the other 7 bridges so the
+   bridge layer presents one consistent pattern.
+2. Preserve the property that calling `rebuildFromManagers` does NOT re-fire the
+   cron scheduler, repository wiring, or embedding-service startup (the reason
+   it was excluded from Phase 11 Ckpt 5).
+3. Document the `*SubsystemBridge` layer as the supported `Engine → typed-subsystem`
+   accessor pattern in `wikantik-main`, with `wikantik-archtest` rules pinning the
+   contract.
+4. Update the decomposition design doc to formally close the bridge architecture
+   question with "8 bridges, uniform pattern, deletion deferred indefinitely
+   pending Engine-API redesign."
 
 ## Non-goals
 
-- Decomposing `WikiEngine` further (it is still ~2,000 LOC; that is its
-  own follow-up).
-- Adding `getXSubsystem()` accessors to the `Engine` API interface (would
-  pull every subsystem record into the API module's dependency graph).
-- Touching `*SubsystemFactory.create(...)` — the factories already match
-  their callers; the bridges just stop wrapping them.
-- Migrating callers off the `Engine` interface entirely (constructor
-  injection is preferred for new code; existing callers stay on `Engine`
-  with a single internal cast).
-- Test-fixture overhaul. `TestEngine.setManager(...)` keeps its current
-  shape; only the implementation of the rebuild side effect moves.
+- Retiring any of the 8 bridges. (See revision-2 rationale above.)
+- Migrating any of the 280 production call sites of `*Bridge.fromLegacyEngine`
+  to typed accessors or constructor injection.
+- Touching the `Engine` API interface.
+- Touching `WikiEngine.setManager(Class, T)` or its consumer-map dispatcher.
+- Adding `getXSubsystem()` methods to the `Engine` API. (Would create cyclic
+  module dependencies — Engine lives in `wikantik-api`.)
+- Decomposing `WikiEngine` further. (Phase 13 territory; see decomposition
+  design doc.)
 
 ## Current state at start-of-phase
 
-`KnowledgeSubsystemBridge` (~ 100 LOC, two public methods):
-- `fromLegacyEngine(Engine)` → tries `wikiEngine.getKnowledgeSubsystem()`,
-  falls back to `rebuildFromManagers`. Used by 7 production callers
-  (`RestServletBase`, `McpToolRegistry`, `KnowledgeMcpInitializer`,
-  `DefaultContextRetrievalService`, `RelationshipsPlugin`, `SearchWikiTool`,
-  `WikiBootstrapServletContextListener` shutdown path).
-- `rebuildFromManagers(WikiEngine)` → reads 23 typed `mgr_*` fields off
-  `WikiEngine`. Called by `WikiEngine.setManager(...)` line 465 to keep
-  the snapshot coherent after a hot-swap. Also the fallback inside
-  `fromLegacyEngine` when the typed snapshot is `null`.
+`KnowledgeSubsystemBridge.java` — ~100 LOC, two public methods:
 
-The other seven bridges (`CoreSubsystemBridge`, `AuthSubsystemBridge`,
-`PageSubsystemBridge`, `RenderingSubsystemBridge`, `SearchSubsystemBridge`,
-`PageGraphSubsystemBridge`, and the implicit `PersistenceSubsystem`
-accessor) all delegate to their paired `*SubsystemFactory.create(...)`
-via a private `synthDepsFromEngine` adapter (Phase 11 Ckpt 5,
-`c1ab97508`). Each is ≤ 50 LOC. Each has a paired `*BridgeTest` covering
-the delegation contract.
+- `fromLegacyEngine(Engine)` matches the standard shape (typed accessor first,
+  fall back to `rebuildFromManagers`).
+- `rebuildFromManagers(WikiEngine)` reads 23 manager fields directly. **This is
+  the only place in the bridge layer that calls `engine.getManager(...)` instead
+  of going through a factory.**
 
-178 test files use `TestEngine.setManager(...)` to install a mocked
-service. After the call, `WikiEngine.setManager` triggers a snapshot
-rebuild via the bridge. Two test files reference the bridge directly:
-`KnowledgeSubsystemBridgeTest` and `SearchWikiToolTest`.
+`KnowledgeSubsystemFactory.java` exists and has a `create(Deps)` method. Its
+constructor side effects are:
 
-ArchUnit's `no_get_manager_anywhere` rule passes with zero violations
-in `wikantik-main`. The freeze store still carries 129 violations from
-Phases 1–10 (legacy, frozen).
+- Builds repositories from a `DataSource` reference held in `Deps.persistence()`.
+- Schedules `JudgeRunner` cron via a `ScheduledExecutorService`.
+- Starts `BootstrapEntityExtractionIndexer` if enabled.
+
+These side effects must NOT re-fire on every `rebuildFromManagers` call.
 
 ## Design
 
-### Production lookup path
+### Option A — Adapter factory method (recommended)
 
-Every production caller that today does
+Add a second factory method `KnowledgeSubsystemFactory.rebuildFromExisting(WikiEngine, KnowledgeSubsystem.Services existing)` that synthesises a new `Services` record from existing field values + the engine's current manager registry, without re-invoking any side-effectful construction. The bridge's `rebuildFromManagers` delegates to this.
 
-```java
-KnowledgeSubsystemBridge.fromLegacyEngine(engine).kgService();
-```
-
-rewrites to
+Mechanically:
 
 ```java
-((WikiEngine) engine).getKnowledgeSubsystem().kgService();
-```
+// New in KnowledgeSubsystemFactory.java
+static KnowledgeSubsystem.Services rebuildFromExisting(
+        WikiEngine engine,
+        KnowledgeSubsystem.Services existing) {
+    // existing may be null on first init; in that case fall back to a
+    // direct manager-read just like today.
+    if (existing == null) return readFromManagerRegistry(engine);
 
-For callers that already have a `WikiEngine` reference (most servlets
-hold the engine via the bootstrapped `WikiSubsystems` servlet-context
-attribute), the cast is a no-op. For callers that hold only an
-`Engine` (plugins, the MCP tool registry), a single guarded cast at the
-top of the method replaces the bridge call:
-
-```java
-if (!(engine instanceof WikiEngine we)) {
-    // Same defensive return the bridge previously provided.
-    return null;
+    // Most fields stay the same; only the field whose typed manager was
+    // hot-swapped via setManager has changed. Read each field from the
+    // registry: if non-null, prefer the registry value (the test just
+    // installed it); otherwise keep the existing field.
+    return new KnowledgeSubsystem.Services(
+        preferRegistry(engine, KnowledgeGraphService.class, existing.kgService()),
+        preferRegistry(engine, KgProposalJudgeService.class, existing.judgeService()),
+        // ... 21 more fields ...
+        rebuildKgCurationOps(engine, existing));
 }
-final var kg = we.getKnowledgeSubsystem();
-```
 
-This pattern repeats in seven sites for `KnowledgeSubsystemBridge` and
-in roughly the same number of sites for each of the other seven bridges.
-
-### Hot-swap coherence
-
-`WikiEngine.setManager(Class<T>, T)` currently dispatches to a per-class
-`BiConsumer<WikiEngine, Object>` rebuild map (Phase 11 Ckpt 1). For
-Knowledge-layer classes the consumer body is:
-
-```java
-e -> { if (e.knowledgeSubsystem != null) e.knowledgeSubsystem =
-    KnowledgeSubsystemBridge.rebuildFromManagers(e); };
-```
-
-After this phase, the call moves to a private `WikiEngine` method:
-
-```java
-private static KnowledgeSubsystem.Services rebuildKnowledgeSubsystem(WikiEngine e) {
-    // body verbatim from KnowledgeSubsystemBridge.rebuildFromManagers
+private static <T> T preferRegistry(WikiEngine engine, Class<T> klass, T existing) {
+    final T fromRegistry = engine.getManager(klass);
+    return fromRegistry != null ? fromRegistry : existing;
 }
 ```
 
-and the consumer becomes
+Then `KnowledgeSubsystemBridge.rebuildFromManagers` becomes:
 
 ```java
-e -> { if (e.knowledgeSubsystem != null) e.knowledgeSubsystem =
-    rebuildKnowledgeSubsystem(e); };
+public static KnowledgeSubsystem.Services rebuildFromManagers(WikiEngine engine) {
+    return KnowledgeSubsystemFactory.rebuildFromExisting(
+        engine, engine.getKnowledgeSubsystem());
+}
 ```
 
-The seven other bridges receive the same treatment — their
-`synthDepsFromEngine` + `factory.create(deps)` logic moves into a
-matching private `WikiEngine.rebuild*Subsystem` static helper, then the
-bridge file is deleted.
+Three-line method body. Matches the shape of the other 7 bridges (single delegate
+to factory). No cron / repo / extractor side effects re-fire because
+`rebuildFromExisting` reuses the existing instances for unchanged fields and only
+swaps the hot-swapped one.
+
+### Option B — Document the asymmetry instead
+
+Leave the code alone. Add a long-form javadoc on `KnowledgeSubsystemBridge`
+explaining why it differs from the other 7 bridges. Add an ArchUnit rule
+"KnowledgeSubsystemBridge is the only allowed caller of `WikiEngine.getManager`
+outside `WikiEngine` itself" to pin the asymmetry as intentional rather than
+accidental.
+
+Effort: ~1 hour. Doesn't actually fix the inconsistency, but closes the question
+as "intentional, documented, enforced."
+
+### Decision
+
+**Option A is recommended** because it produces structural consistency at low
+cost. The `preferRegistry` helper is ~5 LOC and makes the side-effect-avoidance
+explicit. The bridge file shrinks to ~30 LOC matching the other 7 in size.
+
+Option B is the fallback if Option A's `rebuildFromExisting` implementation
+encounters a Knowledge-specific field that legitimately requires side-effectful
+re-construction (e.g. a derived service that has no stable identity through a
+hot-swap). In that case, fall back to Option B with the discovered field
+documented in the javadoc.
 
 ### Test impact
 
-`TestEngine.setManager(...)` continues to work unchanged. The rebuild
-side effect now lives in `WikiEngine` private methods that
-`setManager(...)` already calls. Tests neither know nor care.
+`KnowledgeSubsystemBridgeTest` already covers:
+- `rebuildFromManagers_readsFromRegistryDirectly` — verifies hot-swapped fields
+  surface in the snapshot.
+- `rebuildFromManagers_toleratesUnregisteredManagers` — verifies null fields stay
+  null.
 
-Two tests need targeted updates:
+Both contracts must still hold after the refactor. Add one new test:
+`rebuildFromManagers_doesNotReInvokeFactorySideEffects` — uses a mocked
+`ScheduledExecutorService` injected into the test's `WikiEngine` to verify zero
+new `schedule` calls fire during a snapshot rebuild.
 
-1. `KnowledgeSubsystemBridgeTest` — rewrites against
-   `WikiEngine.rebuildKnowledgeSubsystem(engine)` via package-private
-   visibility (the test moves to the same package as `WikiEngine`).
-2. `SearchWikiToolTest` — the bridge reference is in a comment only; the
-   comment updates to describe the typed `getKnowledgeSubsystem()` path.
+The other 7 `*BridgeTest` files remain untouched.
 
-### Order of operations
+### Documentation
 
-1. Move the eight `rebuildFromManagers` bodies into private static
-   methods on `WikiEngine` (one per subsystem). Behaviour-zero step —
-   the bridge classes still exist and still delegate, but now they
-   delegate to `WikiEngine.rebuild*` instead of doing the work
-   themselves.
-2. Rewrite every production caller of `*Bridge.fromLegacyEngine(engine)`
-   to `((WikiEngine) engine).getXSubsystem()` (or constructor injection
-   where the caller is a fresh helper class).
-3. Delete the eight `*SubsystemBridge` classes.
-4. Update `KnowledgeSubsystemBridgeTest` and `SearchWikiToolTest`.
-5. Run ArchUnit + full IT reactor. Update the freeze store if any
-   frozen violations naturally drop out.
-6. Update the decomposition design doc to record Phase 12 outcome.
+Update `docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md`
+with a new section between Phase 11 and the "Phase plan" close-out:
+
+```
+### Bridge architecture (post-Phase-11 — stable design)
+
+The 8 `*SubsystemBridge` classes are the supported way for production callers
+holding an `Engine` reference to reach typed subsystem services. They survive
+Phase 11 by design: the `Engine` API interface deliberately cannot depend on
+subsystem modules.
+
+Every bridge follows the pattern: fromLegacyEngine(Engine) prefers the typed
+WikiEngine accessor; falls back to a side-effect-free rebuildFromManagers.
+
+KnowledgeSubsystemBridge was the lone asymmetry until Phase 12 (2026-05-XX)
+moved its body into KnowledgeSubsystemFactory.rebuildFromExisting.
+
+Retiring the bridges would require either 280 (WikiEngine) casts or a
+multi-week Engine-API redesign with subsystem accessors. Neither is justified
+by the current cost/benefit. The bridges are a stable design.
+```
 
 ## Risks
 
-- **Cast safety in plugins.** `RelationshipsPlugin` receives `WikiContext`
-  and reaches `context.getEngine()`. The current bridge tolerates a
-  non-`WikiEngine` engine by returning an all-null services record. The
-  replacement cast must keep the same defensive behaviour — return `null`
-  from a typed accessor rather than throwing `ClassCastException`. Easy
-  to get wrong if a reviewer assumes "production always has WikiEngine."
-- **Shutdown ordering.** `WikiBootstrapServletContextListener` reaches
-  the bridge during context destroy to close `JudgeRunner` and
-  `RetrievalQualityRunner`. The replacement must work when the typed
-  snapshot has already been torn down — use the direct typed accessor
-  with a null-check.
-- **WikiContext.getEngine() return type.** `WikiContext` currently
-  returns `Engine` (the API). All bridge callers cast to `WikiEngine`.
-  If `WikiContext.getEngine()` ever begins returning a different concrete
-  type (e.g. for an embedded engine variant), the casts break silently.
-  Add an ArchUnit rule "any `(WikiEngine)` cast lives only in
-  `wikantik-main`" so external module casts are forbidden — this lets
-  future-us see the breakage at build time.
-- **Test-fixture invisibility.** The bridge tests currently document
-  what `rebuildFromManagers` does. Moving the logic to private
-  `WikiEngine` methods means the public surface shrinks and the test
-  set shrinks alongside it. Risk: a future refactor of
-  `WikiEngine.setManager` accidentally drops the rebuild call without
-  any failing test. Mitigation: package-private exposure plus a single
-  `WikiEngineSetManagerRebuildTest` that mocks one service per
-  subsystem and asserts the snapshot stays coherent after every
-  `setManager` call.
-- **ArchUnit freeze store churn.** The freeze contains 129 legacy
-  violations. Deleting bridges may naturally retire some — recompute
-  the freeze rather than letting CI surface them as "fixed" violations.
+- **Field identity through hot-swap.** Some `KnowledgeSubsystem.Services` fields
+  may not be hot-swappable via `setManager` (e.g. derived services whose
+  identity depends on a constructor argument from the swapped manager). If
+  `preferRegistry` returns the new value but its dependents still point at the
+  old, the snapshot is inconsistent. Mitigation: per-field audit in Ckpt 1 to
+  identify any derived services; for each, decide either (a) re-derive when its
+  source changes, or (b) document as non-hot-swappable in the test contract.
+- **Mocked factory side effects in tests.** The other 7 bridges' tests don't
+  worry about side effects because their factories are pure. Knowledge's factory
+  is not. The new `doesNotReInvokeFactorySideEffects` test must mock or stub the
+  side-effectful pieces (`ScheduledExecutorService`, repository constructors,
+  extractor startup) to assert zero re-invocation. Brittle if the factory's
+  internals change.
 
 ## Done when
 
-- The eight `*SubsystemBridge.java` files are deleted.
-- Production callers compile and run with `((WikiEngine) engine).getXSubsystem()`
-  or constructor-injected services.
-- `WikiEngine` carries one private `rebuild*Subsystem(WikiEngine)` method
-  per subsystem; `setManager` dispatchers call those.
-- `KnowledgeSubsystemBridgeTest` becomes `WikiEngineKnowledgeRebuildTest`
-  (or merges into a single `WikiEngineSetManagerRebuildTest`).
+- `KnowledgeSubsystemBridge.rebuildFromManagers` body is ≤ 10 LOC and delegates
+  to `KnowledgeSubsystemFactory.rebuildFromExisting`.
+- `KnowledgeSubsystemFactory.rebuildFromExisting` exists with `preferRegistry`
+  semantics and zero side-effect re-invocation.
+- New test `rebuildFromManagers_doesNotReInvokeFactorySideEffects` ships and
+  passes.
+- Existing `KnowledgeSubsystemBridgeTest` tests still pass with no modification.
+- Decomposition design doc gains a "Bridge architecture (post-Phase-11)"
+  section documenting bridges as a stable design.
 - `mvn clean install -Pintegration-tests -fae` is green.
-- ArchUnit `no_get_manager_anywhere` still passes; new rule "no
-  `(WikiEngine)` cast outside `wikantik-main`" added and passing.
-- `bin/metrics/decomposition-progress.json` records `subsystem_bridges`
-  going from 8 → 0.
-- Decomposition design doc gets a "Phase 12" section recording outcome
-  and final metrics.
 
 ## Phases beyond this
 
-After Phase 12, the remaining decomposition tail:
+Phase 12 (this) closes the asymmetry but explicitly does NOT retire the bridges.
+Other decomposition tail items remain candidates for future phases:
 
-- **WikiEngine slimming (Phase 13, est. 2 days).** `WikiEngine.java` is
-  still ~2,000 LOC (vs the Phase 9 goal of "under 300 LOC"). The
-  `initialize()` body, the 23 typed `mgr_*` field declarations, and the
-  per-class `setManager` writer map dominate. Candidates: extract a
-  `WikiEngineBootstrap` helper for `initialize()`; reify `mgr_*` fields
-  into a typed record; extract a `SubsystemSnapshotRegistry` for the
-  rebuild dispatcher.
-- **WikiContext slimming (Phase 14, est. 1–2 days).** Phase 10 split
-  `WikiContext` into `RequestScope` + `PageScope` + `RenderingScope` but
-  `WikiContext.java` grew from 821 → 875 LOC because of delegation
-  boilerplate. The delegation can drop if call sites adopt the scope
-  classes directly; ~50 call sites across `wikantik-rest` and
-  `wikantik-main`.
-- **ArchUnit freeze sweep (Phase 15, est. 1 day).** 129 frozen
-  legacy violations from Phases 1–10. Re-evaluate which still apply;
-  delete the rest.
+- **Phase 13 — WikiEngine slimming (est. 2 days).** `WikiEngine.java` is ~2,000
+  LOC vs the Phase 9 goal of "under 300 LOC". Extract `WikiEngineBootstrap`,
+  reify `mgr_*` fields, extract `SubsystemSnapshotRegistry`.
+- **Phase 14 — WikiContext slimming (est. 1–2 days).** Phase 10 left
+  `WikiContext.java` at 875 LOC due to delegation boilerplate. Migrate ~50 call
+  sites to the scope classes directly.
+- **Phase 15 — ArchUnit freeze sweep (est. 1 day).** 129 frozen legacy
+  violations. Re-evaluate, delete the rest.
 
-None of these is blocking. Phase 12 is the natural next pick because
-it closes the open architectural question ("why do we still have
-bridges?") with the smallest blast radius.
+**Phase 16 (conditional) — Engine API redesign.** If a future scope change
+demands that production callers stop holding `Engine` references and start
+holding typed-subsystem services directly (constructor injection across plugins,
+managers, filters, servlets), THEN the bridges become retirable. Estimated
+multi-week effort. Not currently justified by any product or operational
+concern.

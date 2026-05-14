@@ -5,6 +5,12 @@ export const PRESETS = Object.freeze({
   TAGS: 'tags',
 });
 
+export const ENDPOINT_CLASSES = Object.freeze({
+  ALL: 'all',
+  HIDE_ARTICLE_ARTICLE: 'hide-article-article',
+  CONCEPT_ONLY: 'concept-only',
+});
+
 export const INITIAL_FILTER_STATE = Object.freeze({
   preset: PRESETS.FULL,
   hubsOnly: false,
@@ -17,6 +23,7 @@ export const INITIAL_FILTER_STATE = Object.freeze({
   searchText: '',
   hiddenEdgeTypes: new Set(),
   showOrphansStubs: true,
+  endpointClass: ENDPOINT_CLASSES.ALL,
   visualMode: 'hide',
 });
 
@@ -32,6 +39,7 @@ function clonePresetSlots(state) {
     searchText: '',
     hiddenEdgeTypes: new Set(state.hiddenEdgeTypes),
     showOrphansStubs: state.showOrphansStubs,
+    endpointClass: state.endpointClass ?? ENDPOINT_CLASSES.ALL,
   };
 }
 
@@ -94,4 +102,9 @@ export function setEdgeTypeHidden(state, type, hidden) {
   if (hidden) next.add(type);
   else next.delete(type);
   return { ...state, hiddenEdgeTypes: next };
+}
+
+export function setEndpointClass(state, endpointClass) {
+  const valid = Object.values(ENDPOINT_CLASSES).includes(endpointClass);
+  return { ...state, endpointClass: valid ? endpointClass : ENDPOINT_CLASSES.ALL };
 }

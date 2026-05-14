@@ -1,4 +1,4 @@
-import { PRESETS } from './filter-state.js';
+import { PRESETS, ENDPOINT_CLASSES } from './filter-state.js';
 
 const CLUSTER_PALETTE = [
   '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed',
@@ -109,6 +109,16 @@ export function applyFilters(snapshot, state, focusNodeId = null) {
     }
   }
 
+  // 2b) Endpoint-class filter — KG dropdown. CONCEPT_ONLY removes article-typed
+  // nodes entirely (their edges are dropped by step 6's both-endpoints-visible
+  // check). HIDE_ARTICLE_ARTICLE only acts in step 6 on edges; articles stay.
+  const endpointClass = state.endpointClass ?? ENDPOINT_CLASSES.ALL;
+  if (endpointClass === ENDPOINT_CLASSES.CONCEPT_ONLY) {
+    for (const n of snapshot.nodes) {
+      if (n.type === 'article') visibleNodeIds.delete(n.id);
+    }
+  }
+
   // 3) Focus pin — always include focus node
   if (focusNodeId && allIds.has(focusNodeId)) {
     visibleNodeIds.add(focusNodeId);
@@ -131,10 +141,18 @@ export function applyFilters(snapshot, state, focusNodeId = null) {
 
   // 6) Edges
   const hiddenEdgeTypes = state.hiddenEdgeTypes;
+  const nodeTypeById = endpointClass === ENDPOINT_CLASSES.HIDE_ARTICLE_ARTICLE
+    ? new Map(snapshot.nodes.map(n => [n.id, n.type]))
+    : null;
   const visibleEdgeIds = new Set();
   const fadedEdgeIds = new Set();
   for (const e of snapshot.edges) {
     if (hiddenEdgeTypes.has(e.relationshipType)) continue;
+    if (nodeTypeById) {
+      const srcArticle = nodeTypeById.get(e.source) === 'article';
+      const tgtArticle = nodeTypeById.get(e.target) === 'article';
+      if (srcArticle && tgtArticle) continue;
+    }
     const srcVis = visibleNodeIds.has(e.source);
     const tgtVis = visibleNodeIds.has(e.target);
     if (!srcVis || !tgtVis) continue;

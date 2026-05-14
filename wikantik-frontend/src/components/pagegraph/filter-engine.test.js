@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { applyFilters } from './filter-engine.js';
-import { INITIAL_FILTER_STATE, applyPreset, PRESETS, toggleCluster, setTags } from './filter-state.js';
+import {
+  INITIAL_FILTER_STATE, ENDPOINT_CLASSES,
+  applyPreset, PRESETS, toggleCluster, setTags, setEndpointClass,
+} from './filter-state.js';
 
 function node(id, extra = {}) {
   return {
@@ -206,5 +209,54 @@ describe('applyFilters', () => {
     const r = applyFilters({ nodes: [], edges: [] }, INITIAL_FILTER_STATE);
     expect(r.visibleNodeIds.size).toBe(0);
     expect(r.visibleEdgeIds.size).toBe(0);
+  });
+
+  describe('endpoint-class filter (KG edge dropdown)', () => {
+    function mixedSnap() {
+      return snap(
+        [
+          node('a1', { type: 'article' }),
+          node('a2', { type: 'article' }),
+          node('c1', { type: 'concept' }),
+          node('c2', { type: 'concept' }),
+        ],
+        [
+          edge('aa', 'a1', 'a2', 'related_to'),
+          edge('ac', 'a1', 'c1', 'uses'),
+          edge('cc', 'c1', 'c2', 'enables'),
+        ],
+      );
+    }
+
+    it('ALL keeps every edge (default)', () => {
+      const r = applyFilters(mixedSnap(), INITIAL_FILTER_STATE);
+      expect(r.visibleEdgeIds).toEqual(new Set(['aa', 'ac', 'cc']));
+      expect(r.visibleNodeIds.size).toBe(4);
+    });
+
+    it('HIDE_ARTICLE_ARTICLE drops only article<->article edges; articles still visible', () => {
+      const state = setEndpointClass(INITIAL_FILTER_STATE, ENDPOINT_CLASSES.HIDE_ARTICLE_ARTICLE);
+      const r = applyFilters(mixedSnap(), state);
+      expect(r.visibleEdgeIds.has('aa')).toBe(false);
+      expect(r.visibleEdgeIds.has('ac')).toBe(true);
+      expect(r.visibleEdgeIds.has('cc')).toBe(true);
+      expect(r.visibleNodeIds.has('a1')).toBe(true);
+      expect(r.visibleNodeIds.has('a2')).toBe(true);
+    });
+
+    it('CONCEPT_ONLY hides article nodes and any edge touching them', () => {
+      const state = setEndpointClass(INITIAL_FILTER_STATE, ENDPOINT_CLASSES.CONCEPT_ONLY);
+      const r = applyFilters(mixedSnap(), state);
+      expect(r.visibleNodeIds.has('a1')).toBe(false);
+      expect(r.visibleNodeIds.has('a2')).toBe(false);
+      expect(r.visibleNodeIds.has('c1')).toBe(true);
+      expect(r.visibleNodeIds.has('c2')).toBe(true);
+      expect(r.visibleEdgeIds).toEqual(new Set(['cc']));
+    });
+
+    it('setEndpointClass rejects unknown values, defaulting to ALL', () => {
+      const state = setEndpointClass(INITIAL_FILTER_STATE, 'bogus');
+      expect(state.endpointClass).toBe(ENDPOINT_CLASSES.ALL);
+    });
   });
 });

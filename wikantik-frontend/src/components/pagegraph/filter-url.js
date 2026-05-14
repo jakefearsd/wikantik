@@ -1,7 +1,7 @@
-import { INITIAL_FILTER_STATE, applyPreset, PRESETS } from './filter-state.js';
+import { INITIAL_FILTER_STATE, ENDPOINT_CLASSES, applyPreset, PRESETS } from './filter-state.js';
 
 const PRESERVED_KEYS = ['focus'];
-const MANAGED_KEYS = ['preset', 'hop', 'cluster', 'unclustered', 'tags', 'type', 'status', 'search'];
+const MANAGED_KEYS = ['preset', 'hop', 'cluster', 'unclustered', 'tags', 'type', 'status', 'search', 'endpoints'];
 
 function asCsv(set) {
   return [...set].join(',');
@@ -24,6 +24,9 @@ export function filterStateToParams(state, existing = new URLSearchParams()) {
   if (state.types.size > 0) params.set('type', asCsv(state.types));
   if (state.statuses.size > 0) params.set('status', asCsv(state.statuses));
   if (state.searchText) params.set('search', state.searchText);
+  if (state.endpointClass && state.endpointClass !== ENDPOINT_CLASSES.ALL) {
+    params.set('endpoints', state.endpointClass);
+  }
   return params;
 }
 
@@ -43,6 +46,10 @@ export function paramsToFilterState(params) {
   if (statuses.length) s = { ...s, statuses: new Set(statuses) };
   const search = params.get('search');
   if (search) s = { ...s, searchText: search };
+  const endpoints = params.get('endpoints');
+  if (endpoints && Object.values(ENDPOINT_CLASSES).includes(endpoints)) {
+    s = { ...s, endpointClass: endpoints };
+  }
   return s;
 }
 

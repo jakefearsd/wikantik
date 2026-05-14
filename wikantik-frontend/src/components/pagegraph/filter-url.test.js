@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { filterStateToParams, paramsToFilterState } from './filter-url.js';
-import { INITIAL_FILTER_STATE, applyPreset, setTags, toggleCluster, PRESETS } from './filter-state.js';
+import {
+  INITIAL_FILTER_STATE, ENDPOINT_CLASSES,
+  applyPreset, setTags, toggleCluster, setEndpointClass, PRESETS,
+} from './filter-state.js';
 
 describe('filter-url', () => {
   it('round-trips backbone preset with +1 hop', () => {
@@ -51,5 +54,25 @@ describe('filter-url', () => {
     const restored = paramsToFilterState(new URLSearchParams());
     expect(restored.preset).toBe(PRESETS.FULL);
     expect(restored.clusters.size).toBe(0);
+  });
+
+  it('round-trips endpoint-class filter via ?endpoints', () => {
+    const s = setEndpointClass(INITIAL_FILTER_STATE, ENDPOINT_CLASSES.CONCEPT_ONLY);
+    const params = filterStateToParams(s);
+    expect(params.get('endpoints')).toBe('concept-only');
+    const restored = paramsToFilterState(params);
+    expect(restored.endpointClass).toBe(ENDPOINT_CLASSES.CONCEPT_ONLY);
+  });
+
+  it('omits ?endpoints when default (all)', () => {
+    const params = filterStateToParams(INITIAL_FILTER_STATE);
+    expect(params.has('endpoints')).toBe(false);
+  });
+
+  it('ignores invalid ?endpoints value, falls back to ALL', () => {
+    const input = new URLSearchParams();
+    input.set('endpoints', 'totally-bogus');
+    const restored = paramsToFilterState(input);
+    expect(restored.endpointClass).toBe(ENDPOINT_CLASSES.ALL);
   });
 });

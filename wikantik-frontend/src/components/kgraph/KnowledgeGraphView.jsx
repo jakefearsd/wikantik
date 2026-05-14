@@ -13,7 +13,7 @@ import GraphZoomSlider from '../pagegraph/GraphZoomSlider.jsx';
 import KgGraphDetailsDrawer from './KgGraphDetailsDrawer.jsx';
 import GraphErrorBoundary from '../pagegraph/GraphErrorBoundary.jsx';
 import GraphLoadingFallback from '../pagegraph/GraphLoadingFallback.jsx';
-import { setEdgeTypeHidden, setShowOrphansStubs } from '../pagegraph/filter-state.js';
+import { setEdgeTypeHidden, setShowOrphansStubs, setEndpointClass } from '../pagegraph/filter-state.js';
 import KgErrorState from './KgErrorState.jsx';
 import '../pagegraph/graph.css';
 import './kg-graph.css';
@@ -152,6 +152,10 @@ export default function KnowledgeGraphView() {
     setFilterState(prev => setShowOrphansStubs(prev, !prev.showOrphansStubs));
   }, []);
 
+  const handleEndpointClassChange = useCallback((value) => {
+    setFilterState(prev => setEndpointClass(prev, value));
+  }, []);
+
   const handleTierChange = useCallback((tier) => {
     setMinTier(tier);
     const params = new URLSearchParams(window.location.search);
@@ -202,6 +206,8 @@ export default function KnowledgeGraphView() {
           minTier={minTier}
           onTierChange={handleTierChange}
           nodeCount={snapshot?.nodeCount || 0}
+          endpointClass={filterState.endpointClass}
+          onEndpointClassChange={handleEndpointClassChange}
         />
         <GraphCanvas
           elements={elements}

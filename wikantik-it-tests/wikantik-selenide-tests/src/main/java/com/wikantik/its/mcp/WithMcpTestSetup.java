@@ -67,6 +67,13 @@ public class WithMcpTestSetup {
     /** Target-node UUID used by curate_edges upsert and delete_and_reject tests. */
     private static final String SEEDED_UPSERT_TGT_NODE_ID = "dddddddd-1002-0000-0000-000000000002";
 
+    /**
+     * Page-typed (node_type='article') node UUID used by the mixed-edge guard IT.
+     * Paired with {@link #SEEDED_UPSERT_SRC_NODE_ID} (concept) it straddles the
+     * page/entity boundary so KgEdgeRepository's 2026-05-11 guard fires.
+     */
+    private static final String SEEDED_UPSERT_PAGE_NODE_ID = "dddddddd-1003-0000-0000-000000000003";
+
     /** Source-node UUID used by curate_nodes merge happy-path coverage. */
     private static final String SEEDED_MERGE_SRC_NODE_ID = "dddddddd-2001-0000-0000-000000000001";
 
@@ -156,6 +163,10 @@ public class WithMcpTestSetup {
 
     public static String seededUpsertTgtNodeId() {
         return SEEDED_UPSERT_TGT_NODE_ID;
+    }
+
+    public static String seededUpsertPageNodeId() {
+        return SEEDED_UPSERT_PAGE_NODE_ID;
     }
 
     public static String seededMergeSrcNodeId() {

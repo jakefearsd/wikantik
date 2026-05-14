@@ -312,6 +312,55 @@ public class KgCurationIT extends WithMcpTestSetup {
                 "Expected attempted=1 in curate_edges audit line: " + tail );
     }
 
+    // ------------------------------------------------------------------
+    // curate_edges — mixed-edge guard refusal pairs with the Mockito unit
+    // test in DefaultKgCurationOpsTest. KgEdgeRepository's 2026-05-11 guard
+    // returns null when source and target straddle the page/entity boundary
+    // (exactly one side is node_type='concept'). DefaultKgCurationOps turns
+    // that into EdgeResult.fail(...) citing the policy; the bulk tool
+    // surfaces the message in failed[].error and flips the envelope to
+    // isError=true since all ops failed.
+    // ------------------------------------------------------------------
+
+    @Test
+    public void curateEdgesUpsertRefusesMixedPageEntityEdgeWithCitedPolicy() {
+        // Mix the page-typed seed (article) with the concept-typed seed.
+        // callToolExpectingError is required because the all-failed bulk
+        // result sets isError=true (CurateEdgesTool.java:127, :136).
+        final Map< String, Object > result = mcp.callToolExpectingError( "curate_edges",
+                Map.of( "operations", List.of(
+                        Map.of( "action", "upsert", "tag", "mixed-1",
+                                "source_id", WithMcpTestSetup.seededUpsertPageNodeId(),
+                                "target_id", WithMcpTestSetup.seededUpsertSrcNodeId(),
+                                "relationship_type", "related_to" ) ) ) );
+
+        Assertions.assertEquals( "failed", result.get( "status" ),
+                "all-failed bulk result must carry status=failed: " + result );
+
+        @SuppressWarnings( "unchecked" )
+        final List< Map< String, Object > > succeeded =
+                ( List< Map< String, Object > > ) result.get( "succeeded" );
+        Assertions.assertNotNull( succeeded, "succeeded array missing: " + result );
+        Assertions.assertTrue( succeeded.isEmpty(),
+                "no op should have succeeded: " + result );
+
+        @SuppressWarnings( "unchecked" )
+        final List< Map< String, Object > > failed =
+                ( List< Map< String, Object > > ) result.get( "failed" );
+        Assertions.assertNotNull( failed, "failed array missing: " + result );
+        Assertions.assertEquals( 1, failed.size(),
+                "single op should yield one failure entry: " + result );
+
+        final Map< String, Object > entry = failed.get( 0 );
+        Assertions.assertEquals( "mixed-1", entry.get( "tag" ),
+                "failed entry must echo the request tag: " + entry );
+        final String error = String.valueOf( entry.get( "error" ) );
+        Assertions.assertTrue( error.contains( "page/entity boundary" )
+                        || error.toLowerCase().contains( "mixed page" ),
+                "failed entry must cite the page/entity boundary policy so the "
+                        + "agent learns the topology was wrong (not the predicate); got: " + error );
+    }
+
     @Test
     public void curateEdgesDeleteAndRejectWritesRejection() {
         // Create an edge we can then delete_and_reject, capturing its id from

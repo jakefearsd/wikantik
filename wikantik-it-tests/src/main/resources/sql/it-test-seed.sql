@@ -206,6 +206,16 @@ VALUES
   ('dddddddd-1002-0000-0000-000000000002', 'KgUpsertTgtNode',  'concept', 'KgCurationSeedPage', 'human-authored')
 ON CONFLICT (name) DO NOTHING;
 
+-- Page-typed seed (node_type != 'concept') used by the mixed-edge guard IT.
+-- Pair this with KgUpsertSrcNode (concept) to trigger the 2026-05-11 guard
+-- in KgEdgeRepository.isMixedEdgeEndpoints, which the curation MCP path
+-- surfaces as a structured EdgeResult.fail(...) citing the page/entity
+-- boundary policy.
+INSERT INTO kg_nodes (id, name, node_type, source_page, provenance)
+VALUES
+  ('dddddddd-1003-0000-0000-000000000003', 'KgUpsertPageNode', 'article', 'KgUpsertPageNode',   'human-authored')
+ON CONFLICT (name) DO NOTHING;
+
 -- Seed nodes used for curate_nodes merge happy-path coverage. Two distinct
 -- nodes so source != target and the merge can succeed.
 INSERT INTO kg_nodes (id, name, node_type, source_page, provenance)

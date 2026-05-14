@@ -43,14 +43,16 @@ public final class ExtractionPromptBuilder {
     /**
      * Closed relation-type vocabulary, kept in sync with the
      * {@code kg_edges_relationship_type_check} CHECK constraint added in
-     * V027. Editing this list requires editing the constraint and re-running
+     * V027 and extended in V030 with {@code generalizes}. Editing this list
+     * requires editing the constraint and re-running
      * {@code bin/db/normalize-relationship-types.sql} on existing data.
      */
     public static final String[] RELATION_TYPES = {
         "related_to", "part_of", "contains", "is_a", "instance_of",
         "requires",   "enables", "uses",     "produces", "replaces",
         "precedes",   "extends", "implements", "alternative_to", "contrasts_with",
-        "compatible_with", "mitigates", "defines", "applies_to", "located_in"
+        "compatible_with", "mitigates", "defines", "applies_to", "located_in",
+        "generalizes"
     };
 
     public static final String SYSTEM_PROMPT =
@@ -73,6 +75,7 @@ public final class ExtractionPromptBuilder {
       + "    contains          — A contains/includes B (directional emphasis on container)\n"
       + "    is_a              — A is a subtype/kind of B\n"
       + "    instance_of       — A is a concrete example/instance of B\n"
+      + "    generalizes       — A is a generalization/abstraction of B (inverse of is_a / instance_of)\n"
       + "    requires          — A requires/depends on B\n"
       + "    enables           — A enables/allows/supports B\n"
       + "    uses              — A uses/invokes/operates on B\n"

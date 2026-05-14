@@ -125,8 +125,9 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     /**
      * The closed relationship-type vocabulary enforced by the
-     * {@code kg_edges_relationship_type_check} CHECK constraint added in V027.
-     * Surfaced in {@link #discoverSchema()} so admin UIs (Edge Explorer's
+     * {@code kg_edges_relationship_type_check} CHECK constraint (V027,
+     * extended in V030 with {@code generalizes}). Surfaced in
+     * {@link #discoverSchema()} so admin UIs (Edge Explorer's
      * relationship-type dropdown) always have the full vocabulary, not just
      * types that happen to exist in the current graph.
      */
@@ -134,7 +135,8 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             "related_to", "part_of", "contains", "is_a", "instance_of",
             "requires", "enables", "uses", "produces", "replaces",
             "precedes", "extends", "implements", "alternative_to", "contrasts_with",
-            "compatible_with", "mitigates", "defines", "applies_to", "located_in"
+            "compatible_with", "mitigates", "defines", "applies_to", "located_in",
+            "generalizes"
     );
 
     @Override

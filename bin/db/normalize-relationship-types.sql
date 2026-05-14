@@ -1,6 +1,7 @@
 -- Operator script: one-shot normalization of kg_edges.relationship_type and
--- kg_proposals.proposed_data->>'relationship' to the closed 20-type vocabulary
--- enforced by V027__kg_relationship_type_check.sql.
+-- kg_proposals.proposed_data->>'relationship' to the closed 21-type vocabulary
+-- enforced by V027__kg_relationship_type_check.sql (extended in V030 with
+-- `generalizes`).
 --
 -- Per `feedback_no_data_backfill_in_migrations`: this is a data fixup, NOT a
 -- versioned migration. Run once against an existing database, then apply V027.
@@ -16,14 +17,15 @@
 BEGIN;
 
 -- --------------------------------------------------------------------------
--- Closed vocabulary (20 types). Keep this list in sync with V027's CHECK
--- constraint and the entity-extractor prompt.
+-- Closed vocabulary (21 types). Keep this list in sync with V027/V030's
+-- CHECK constraint and the entity-extractor prompt.
 -- --------------------------------------------------------------------------
 --   related_to       part_of         contains          is_a
 --   instance_of      requires        enables           uses
 --   produces         replaces        precedes          extends
 --   implements       alternative_to  contrasts_with    compatible_with
 --   mitigates        defines         applies_to        located_in
+--   generalizes
 -- --------------------------------------------------------------------------
 
 CREATE TEMP TABLE _rt_map (
@@ -106,6 +108,19 @@ INSERT INTO _rt_map(norm_in, canonical) VALUES
     ('is_a_canonical_example_of',        'instance_of'),
     ('example',                          'instance_of'),
     ('are_examples_of',                  'instance_of'),
+
+    -- generalizes (inverse of is_a / instance_of; A is the abstraction)
+    ('generalizes',                      'generalizes'),
+    ('generalises',                      'generalizes'),
+    ('is_a_generalization_of',           'generalizes'),
+    ('is_a_generalisation_of',           'generalizes'),
+    ('abstracts',                        'generalizes'),
+    ('abstraction_of',                   'generalizes'),
+    ('is_an_abstraction_of',             'generalizes'),
+    ('has_subtype',                      'generalizes'),
+    ('has_instance',                     'generalizes'),
+    ('supertype_of',                     'generalizes'),
+    ('is_supertype_of',                  'generalizes'),
 
     -- requires (hard dependency)
     ('requires',                         'requires'),
@@ -390,7 +405,8 @@ SELECT 'LEAKED — not in closed vocab:' AS msg, relationship_type, COUNT(*) AS 
     'related_to','part_of','contains','is_a','instance_of',
     'requires','enables','uses','produces','replaces',
     'precedes','extends','implements','alternative_to','contrasts_with',
-    'compatible_with','mitigates','defines','applies_to','located_in'
+    'compatible_with','mitigates','defines','applies_to','located_in',
+    'generalizes'
  )
  GROUP BY relationship_type;
 

@@ -6,6 +6,158 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-14** — feat(mcp): list_orphaned_kg_nodes admin tool for degree-0 KG triage
+
+**2026-05-14** — fix(deploy): backup-pull latest-snapshot discovery; harden pages-push --mirror preview
+
+**2026-05-14** — docs: note bin/remote.sh in CLAUDE.md; final shellcheck pass
+
+**2026-05-14** — feat(deploy): status subcommand for at-a-glance remote health
+
+**2026-05-14** — feat(deploy): backup-trigger, backup-pull, restore subcommands
+
+**2026-05-14** — feat(deploy): pages-push (no --delete default) and pages-pull
+
+**2026-05-14** — feat(deploy): rollback subcommand
+
+**2026-05-14** — feat(deploy): deploy subcommand with tag-rollback, image stream, health-poll, auto-rollback
+
+**2026-05-14** — feat(deploy): bootstrap subcommand for first-time remote setup
+
+**2026-05-14** — feat(deploy): pass-through subcommands (up/down/restart/logs/shell/psql/migrate)
+
+**2026-05-14** — fix(deploy): quote remote lockfile path; document ssh-options duplication
+
+**2026-05-14** — feat(deploy): internal helpers (_ssh, _rsync, _run, _acquire_deploy_lock)
+
+**2026-05-14** — fix(deploy): keep cd $REPO_ROOT; correct test setup
+
+**2026-05-14** — feat(deploy): bin/remote.sh skeleton with --help and env loading
+
+**2026-05-14** — feat(deploy): add remote.env template and gitignore the live file
+
+**2026-05-14** — feat(deploy): bind-mount pages dir in prod compose overlay
+
+**2026-05-14** — docs: spec + plan for remote container admin tooling
+
+**2026-05-14** — test(it): wire-level IT for mixed page/entity edge refusal
+
+**2026-05-14** — fix(kg): explicit refusal when mixed page/entity edge guard fires
+
+**2026-05-14** — feat(kg): allow 'generalizes' as a relationship_type (V030)
+
+**2026-05-14** — feat(ui): KG viewer dropdown to filter by edge endpoint-class
+
+**2026-05-14** — test(it): wire-level visibility IT proves admin-bypass on query_nodes + search_knowledge
+
+**2026-05-14** — feat(kg): node_type vocabulary regex at upsertNode + propose_knowledge
+
+**2026-05-14** — docs(kg): document admin-bypass on read paths + bump tool count to 24
+
+**2026-05-14** — chore(ops): one-shot script to clean legacy node_type pollution
+
+**2026-05-14** — feat(kg): wire admin-bypass on REST + curator MCP read paths
+
+**2026-05-14** — feat(mcp): register admin-bypass query_nodes + search_knowledge on /wikantik-admin-mcp
+
+**2026-05-14** — fix(mcp): curate_{nodes,edges}.upsert returns helpful error on nested shape
+
+**2026-05-14** — fix(kg): refuse mergeNodes when source or target UUID is missing
+
+**2026-05-14** — feat(kg): admin-bypass overloads on KgNodeRepository + KnowledgeGraphService
+
+**2026-05-14** — feat(kg): KgInclusionFilter admin-bypass accessor + bypass fragments
+
+**2026-05-14** — docs(plans): KG curation operability implementation plan
+
+**2026-05-14** — docs(specs): KG curation operability design
+
+**2026-05-14** — test(it): wire-level coverage for /tools/* access filter
+
+**2026-05-14** — test(it): wire-level coverage for /api/changes RAG / SEO sync feed
+
+**2026-05-14** — test(it): wire-level coverage for previously-untested /admin endpoints
+
+**2026-05-14** — test(it): wire-level coverage for /knowledge-mcp read tools
+
+**2026-05-14** — test(it): wire-level coverage for /wikantik-admin-mcp read + write tools
+
+**2026-05-13** — fix(mcp): collapse instruction-file lookup to property + bundled resource
+
+**2026-05-13** — test(mcp): document and verify IPv6 CIDR support
+
+**2026-05-13** — fix(mcp): Caffeine-backed rate limiter with bounded eviction
+
+**2026-05-13** — fix(mcp): fail-closed returns discriminating 503 body + Retry-After
+
+**2026-05-13** — docs(mcp): breadcrumb for Phase 9 KnowledgeSubsystemBridge retirement
+
+**2026-05-13** — docs(plans): MCP infrastructure hardening implementation plan
+
+**2026-05-13** — docs(specs): MCP infrastructure hardening design
+
+**2026-05-13** — test(it): cover already-reviewed per-id error in review_proposals
+
+**2026-05-13** — fix(kg): refuse re-review of already-reviewed proposals per design spec
+
+**2026-05-13** — test(it): broaden KG curation MCP coverage to §6 edge cases
+
+**2026-05-13** — fix(it): scroll modal Confirm into view before clicking in EdgeCurationBrowserIT
+
+**2026-05-13** — fix(it): point KG curation IT at actual Cargo security log path
+
+**2026-05-13** — docs(mcp-instructions): describe inspect/review/curate KG curation tools
+
+**2026-05-13** — fix(kg-curation): return null cleanly for missing proposal id in approve/reject
+
+**2026-05-13** — chore(build): drop stale styles/static reference from war packaging
+
+**2026-05-13** — test(it): wire-level Cargo IT for KG curation MCP tools
+
+**2026-05-13** — feat(kg-curation): surface kg_excluded_pages warning on approve
+
+**2026-05-13** — refactor(kg-curation): route REST through KgCurationOps + ProposalConflictFlags
+
+**2026-05-13** — docs: bump /wikantik-admin-mcp tool count + cross-link from KgInclusionPolicy
+
+**2026-05-13** — test(it): expect KG curation tools in MCP tool list
+
+**2026-05-13** — feat(mcp): register inspect/review/curate-edges/curate-nodes tools
+
+**2026-05-13** — fix(kg-curation): grammar in review_proposals message + relocate ProposalConflictFlagsTest
+
+**2026-05-13** — feat(mcp): curate_edges bulk heterogeneous edge curation tool
+
+**2026-05-13** — feat(mcp): inspect_proposals deep-dive bulk read tool
+
+**2026-05-13** — feat(mcp): curate_nodes bulk heterogeneous node curation tool
+
+**2026-05-13** — fix(kg-curation): align ProposalConflictFlags blank-name guard + McpAudit bulk-log prefix
+
+**2026-05-13** — feat(mcp): bulk-limit config (default 50) + logBulkWrite audit
+
+**2026-05-13** — feat(kg-curation): shared ProposalConflictFlags helper
+
+**2026-05-13** — feat(kg-curation): node ops on facade (upsert/delete/merge)
+
+**2026-05-13** — feat(kg-curation): edge ops on facade (upsert/confirm/delete/delete-and-reject)
+
+**2026-05-13** — feat(kg-curation): move edge-approval frontmatter write-back into facade
+
+**2026-05-13** — feat(kg-curation): KgCurationOps facade with proposal review methods
+
+**2026-05-13** — docs(plans): KG curation on MCP implementation plan
+
+**2026-05-13** — docs(specs): KG curation on MCP design
+
+**2026-05-12** — test(it): scope EdgeCurationBrowserIT Confirm click to the modal
+
+**2026-05-12** — feat(kg-admin): pending-proposal breakdown and clarity pass on the schema header
+
+**2026-05-12** — feat(node-explorer): show mention chunks and edge-deletion impact
+
+**2026-05-12** — docs(content): refresh News.md with today's edge-curation work
+
 **2026-05-12** — feat(edge-curation): one-click Confirm to elevate edges to human-curated
 
 **2026-05-12** — feat(edge-curation): proposal-page fallback for unattributed concept nodes
@@ -2968,46 +3120,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-11-22** — Add local configuration and documentation files
 
 **2025-11-22** — This update adds the ability to prefer Markdown pages when they are present on the disk, but lacks a good way of adding the links. Rendering is tested and seems to work well both in automation and manually by downloading Google Docs as Markdown and pasting them onto the file system they are correctly rendered by the wiki.
-
-**2025-11-13** — Merge pull request #437 from spyhunter99/feature/JSPWIKI-1220
-
-**2025-11-13** — fixes a typo in the change log
-
-**2025-11-13** — Merge pull request #421 from spyhunter99/feature/JSPWIKI-1220
-
-**2025-11-13** — updates the change log and release version
-
-**2025-11-13** — Merge branch 'master' into feature/JSPWIKI-1220
-
-**2025-11-13** — Merge pull request #422 from spyhunter99/feature/JSPWIKI-1129
-
-**2025-11-13** — JSPWIKI-1220 fixes the absolute urls for atom feeds
-
-**2025-11-13** — JSPWIKI-1220 should fix the url validation issue
-
-**2025-11-13** — should fix the build
-
-**2025-11-13** — docker config is ssl only now
-
-**2025-11-13** — this should address the docker configuration. unfortunately i don't have a way to test this
-
-**2025-11-13** — Update jspwiki-main/src/main/resources/ini/jspwiki.properties
-
-**2025-11-13** — Merge pull request #428 from spyhunter99/feature/securityImprovements
-
-**2025-11-13** — Merge pull request #432 from spyhunter99/feature/JSPWIKI-1237
-
-**2025-11-13** — Merge pull request #435 from spyhunter99/bug/JSPWIKI-1238-i18n2
-
-**2025-11-13** — Merge pull request #436 from spyhunter99/JSPWIKI-388
-
-**2025-11-13** — compile fix for unit tests
-
-**2025-11-13** — Merge branch 'master' into JSPWIKI-388
-
-**2025-11-13** — adds documentation notes
-
-**2025-11-13** — SPWIKI-1238 addresses the missing i18n keys for all existing resource files and adds a unit test to complain about missing stuff in the future
-
-**2025-11-12** — JSPWIKI-1237 adds the owasp recommended http response headers
 

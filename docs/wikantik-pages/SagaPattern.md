@@ -1,82 +1,63 @@
 ---
-canonical_id: 01KQE9S4WNC4T07JWD6YZF044N
-related:
-- EventDrivenArchitecture
-- MicroservicesArchitecture
-- DomainAndIntegrationEvents
-- CqrsPattern
-title: Saga Pattern
-hubs:
-- SoftwareArchitectureHub
-status: active
-date: '2026-04-26'
-summary: Architectural analysis of distributed transactions via Sagas, comparing choreography and orchestration implementation patterns.
-auto-generated: false
-tags:
-- saga-pattern
-- distributed-systems
-- microservices
-- transactions
+title: The Saga Pattern
 type: article
-cluster: software-architecture
+cluster: distributed-systems
+status: published
+date: '2026-05-10'
+summary: A pattern for managing distributed transactions across microservices through a sequence of local transactions and compensating actions.
+tags:
+- distributed-systems
+- transactions
+- microservices
+- reliability
+- event-driven
+relations:
+- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
+- {type: alternative_to, target_id: "Two-Phase Commit"}
+- {type: related_to, target_id: 01KS7X5P5S838D4EYVWFA9F36E} # CQRS/ES
+canonical_id: 01KS7X5P5S838D4EYVWFA9F36E
 ---
 
-The Saga pattern manages distributed transactions across microservices by breaking a global transaction into a sequence of local transactions. Each step has a corresponding **Compensating Transaction** to undo its effects if a subsequent step fails.
+# The Saga Pattern: Distributed Consistency without 2PC
 
-## Core Concepts
+In a microservices architecture, a single business process (e.g., "Order Fulfillment") often spans multiple services, each with its own database. Traditional **Two-Phase Commit (2PC)** is often avoided in 2026 due to its blocking nature and poor scalability. The **Saga Pattern** provides an alternative by treating a distributed transaction as a sequence of local transactions.
 
-1. **Local Transaction:** An atomic change within a single service and its private database.
-2. **Compensating Transaction:** An operation that semantically reverses a successful local transaction (e.g., `RefundPayment` reverses `ChargePayment`).
-3. **Pivot Transaction:** The "point of no return." Once this step succeeds, the saga must complete; it cannot be compensated.
+## 1. Core Concept
 
-## Implementation Styles
+A Saga is a sequence of local transactions $T_1, T_2, ..., T_n$. Each local transaction updates the database and publishes an event or message to trigger the next step.
+*   **Success Path:** If all $T_i$ succeed, the business process is complete.
+*   **Failure Path:** If $T_i$ fails, the Saga must execute **Compensating Transactions** $C_{i-1}, ..., C_1$ to undo the changes made by the preceding steps.
 
-### 1. Choreography (Event-Driven)
-Each service participates in the saga by listening to events and emitting new ones. There is no central coordinator.
-- **Pros:** Decentralized, simple for small flows (2-3 steps).
-- **Cons:** Cyclic dependencies are common; observability is poor ("What is the state of Order #123?").
+## 2. Implementation Strategies
 
-### 2. Orchestration (Command-Driven)
-A central **Saga Orchestrator** manages the state machine and tells participants when to execute.
-- **Pros:** Centralized logic, easy to debug, supports complex branching and retries.
-- **Cons:** Tighter coupling to the orchestrator; requires durable state management for the orchestrator itself.
+### A. Choreography (Event-Based)
+There is no central coordinator. Each service produces and listens to events from other services.
+*   **Pros:** Highly decoupled; easy to add/remove participants.
+*   **Cons:** Can lead to "spaghetti events" where the business flow is hard to visualize.
 
-**State Machine (Orchestration):**
-```mermaid
-graph TD
-    Start[Start] --> Step1[Reserve Inventory]
-    Step1 -- Success --> Step2[Charge Payment]
-    Step1 -- Failure --> End[Fail]
-    Step2 -- Success --> Step3[Ship Package]
-    Step2 -- Failure --> Comp1[Release Inventory]
-    Step3 -- Failure --> Comp2[Refund Payment]
-    Comp2 --> Comp1
-    Comp1 --> End
-```
+### B. Orchestration (Command-Based)
+A central **Orchestrator** (State Machine) manages the Saga logic. It sends commands to services and handles their responses.
+*   **Pros:** Centralized visibility; easy to implement complex logic (parallel steps, conditional branches).
+*   **Cons:** Risk of a "distributed monolith" if the orchestrator becomes too heavy.
+*   **2026 Standard:** Use for workflows with 4+ steps or strict audit requirements (e.g., via *Temporal* or *AWS Step Functions*).
 
-## Critical Requirements
+## 3. The 2026 Transaction Model
 
-### 1. Idempotency
-Steps and compensations will be retried. Services must use **[IdempotencyPatterns](IdempotencyPatterns)** (e.g., Fencing Tokens or Deduplication Tables) to ensure that processing the same message twice does not result in duplicate side effects.
+To simplify recovery, modern Sagas categorize steps into three types:
 
-### 2. Isolation (The Lack Thereof)
-Sagas lack the "I" (Isolation) in ACID. Intermediate states (e.g., "Payment Charged" but "Inventory Not Yet Shipped") are visible to other transactions.
-- **Countermeasure:** Use semantic locks (e.g., setting an order status to `PENDING`) to prevent other processes from modifying the data during the saga.
+| Type | Description |
+| :--- | :--- |
+| **Compensatable** | Steps that can be undone (e.g., "Reserve Item"). Requires a matching $C_i$. |
+| **Pivot** | The "Point of No Return." If this succeeds, the Saga *must* complete. |
+| **Retriable** | Steps after the pivot (e.g., "Send Receipt"). Designed to eventually succeed via retries. |
 
-## Tools for Orchestration
-- **Temporal / Cadence:** The industry standard for durable execution. It treats sagas as code that can run for seconds or months.
-- **AWS Step Functions:** Managed JSON-based state machines.
-- **Camunda:** BPMN-based workflow engine.
+## 4. Critical Dependencies
 
-## Comparison: Saga vs. 2PC
+Sagas are fragile without two supporting patterns:
+1.  **Transactional Outbox:** Ensures the database update and event publication happen atomically.
+2.  **Idempotent Consumers:** Ensures that retrying an event (at-least-once delivery) does not result in duplicate side effects (e.g., charging a customer twice).
 
-| Metric | Saga Pattern | Two-Phase Commit (2PC) |
-|---|---|---|
-| **Consistency** | Eventual | Strong (Atomic) |
-| **Availability** | High (Non-blocking) | Low (Locks resources) |
-| **Scale** | High (Distributed) | Low (Coordinator bottleneck) |
-| **Failure Handling** | Compensation | Rollback |
-
-## When to Use
-- **Use Sagas** for long-running business processes that cross multiple databases or services.
-- **Avoid Sagas** for operations within a single database; use native ACID transactions instead.
+## See Also
+*   [Distributed Systems Hub](DistributedSystemsHub) — Pattern catalog.
+*   [CQRS and Event Sourcing](CQRSAndEventSourcing) — Often used to store Saga state.
+*   [Idempotent Receiver](IdempotentReceiver) — Mandatory for Saga participants.

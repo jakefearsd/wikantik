@@ -1,20 +1,14 @@
 ---
-title: Ruby: Performance Maturity and Infrastructure Autonomy
+canonical_id: 01KREVEHHB0W68SPTJGKHDJR1Y
+auto-generated: true
 type: article
-cluster: computer-science-foundations
-status: published
-date: '2026-05-10'
-summary: An exploration of Ruby 3.x/4.x in 2026, focusing on YJIT performance gains, the "Solid Trifecta" of Rails 8, and its resurgence as a rapid prototyping engine for AI agents.
 tags:
-- ruby
-- rails
-- performance-benchmarks
+- rubi
 - yjit
-- web-development
-relations:
-- {type: extension_of, target_id: 01KQEKGD8QYAS6P09AM61S5E2W} # CS Foundations Hub
-- {type: influenced_by, target_id: LispProgrammingLanguage}
-canonical_id: 01KS6W8Z8QYAS6P09AM61S5E2R
+- '2026'
+summary: The YJIT Breakthrough YJIT has transitioned from an experiment to the production
+  standard.
+title: Ruby Language Architecture
 ---
 
 # Ruby: Performance Maturity and Infrastructure Autonomy

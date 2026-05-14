@@ -1,21 +1,14 @@
 ---
-title: Python: The Universal AI Operating System
+canonical_id: 01KREVEHD68DXYJ6EPAN4VPZBV
+auto-generated: true
 type: article
-cluster: computer-science-foundations
-status: published
-date: '2026-05-10'
-summary: An analysis of Python's 2026 transformation through PEP 703 (No-GIL), the maturity of the Faster CPython JIT, and its role as the primary control plane for agentic AI.
 tags:
 - python
-- artificial-intelligence
-- performance-optimization
-- jit-compiler
-- gil
-relations:
-- {type: extension_of, target_id: 01KQEKGD8QYAS6P09AM61S5E2W} # CS Foundations Hub
-- {type: related_to, target_id: LispProgrammingLanguage}
-- {type: component_of, target_id: 01KQEKGDAZH3G3X2J4VFM9MP88} # Generative AI Hub
-canonical_id: 01KS6V8Z8QYAS6P09AM61S5E2Q
+- ai
+- thread
+summary: 'The "No-GIL" Revolution: True Parallelism Python 3.14 (released late 2025)
+  solidified the Free-threaded build (PEP 703) as a supported production standard.'
+title: Python Language Architecture
 ---
 
 # Python: The Universal AI Operating System

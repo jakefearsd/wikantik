@@ -2,7 +2,7 @@
 summary: Central index for the distributed systems cluster — covering core theory
   (CAP, PACELC), consensus algorithms (Paxos, Raft), consistency models, replication
   strategies, and the engineering of fault-tolerant systems at scale.
-date: '2026-04-29'
+date: '2026-05-10'
 cluster: distributed-systems
 related:
 - DataEngineeringHub
@@ -31,54 +31,53 @@ Distributed systems are collections of independent computers that appear to user
 
 The fundamental theorems and laws that govern distributed behavior.
 
-- [Distributed Computing Evolution](DistributedComputingEvolution) — The historical arc from mainframes to global cloud-native architectures
 - [CAP Theorem](CapTheorem) — The foundational trade-off between Consistency, Availability, and Partition Tolerance
-- [PACELC Theorem](PacelcTheorem) — Expanding CAP to account for the Latency vs. Consistency trade-off during normal operation
-- [Lamport Clocks](LamportClocks) — Logical time and the partial ordering of events in distributed systems
-- [Vector Clocks](VectorClocks) — Detecting causality and conflicts in concurrent operations
+- [PACELC Theorem](PacelcTheorem) — Expanding CAP to account for the Latency vs. Consistency trade-off
+- [Lamport Clocks and Vector Clocks](LamportAndVectorClocks) — Logical time, partial ordering, and detecting causality
+- [Hybrid Logical Clocks (HLC)](HybridLogicalClocks) — Bridging physical and logical time for cloud-native databases
 - [Clock Synchronization](ClockSynchronization) — The challenges of physical time: NTP, PTP, and TrueTime
 
-## Consensus and Coordination
+## Consensus and Replication
 
 Agreeing on state across multiple non-trusting or failing nodes.
 
+- [Majority Quorum](MajorityQuorum) — The mathematical foundation for consistency ($R + W > N$)
+- [Write-Ahead Log (WAL)](WriteAheadLog) — Ensuring durability through sequential log appends
+- [Leader and Followers](LeaderAndFollowers) — Managing state changes and replication lag
 - [Paxos and Raft](PaxosAndRaft) — Deep dive into the two most influential consensus protocols
-- [Leader Election Algorithms](LeaderElectionAlgorithms) — Strategies for picking a single "coordinator" node in a cluster
-- [Byzantine Fault Tolerance](ByzantineFaultTolerance) — Reaching consensus in the presence of malicious or arbitrary failures
-- [Two-Phase Commit Protocol](TwoPhaseCommitProtocol) — Atomic transactions across multiple distributed resources
-- [Gossip Protocol](GossipProtocol) — Epidemic-style information dissemination for discovery and health checking
+- [Generation Clock (Epoch)](GenerationClock) — Detecting "zombie" leaders and fencing stale requests
+- [Byzantine Fault Tolerance](ByzantineFaultTolerance) — Reaching consensus in the presence of malicious failures
 
-## Data Consistency and Replication
+## Data Consistency and Scaling
 
 Managing shared state across space and time.
 
 - [Consistency Models](ConsistencyModels) — From Strict and Sequential to Eventual and Causal consistency
-- [Eventual Consistency](EventualConsistency) — Engineering for high availability and the "last-writer-wins" paradigm
+- [Database Sharding and Consistent Hashing](DatabaseSharding) — Horizontally partitioning data with minimal re-mapping cost
+- [CQRS and Event Sourcing](CQRSAndEventSourcing) — High-throughput reactive state and audit-perfect history
 - [CRDT Data Structures](CrdtDataStructures) — Conflict-free Replicated Data Types for mathematically sound state merging
-- [Read Replicas and Replication](ReadReplicasAndReplication) — Scaling read throughput and improving disaster recovery
-- [Consistent Hashing](ConsistentHashing) — Minimizing re-sharding when nodes join or leave a cluster
+- [Eventual Consistency](EventualConsistency) — Engineering for high availability and "last-writer-wins"
 
 ## Distribution Patterns
 
-Practical architectures for scalable systems.
+Practical architectures for scalable and reliable systems.
 
-- [Distributed Computing Algorithms](DistributedComputingAlgorithms) — Specialized algorithms for sharding, partitioning, and load balancing
-- [Kent Beck's Distributed Patterns](KentBeckDistributedPatterns) — Evolutionary architecture, the 3X Framework, and fractal design principles
-- [Concurrency in Distributed Systems](ConcurrencyDistributed) — Managing parallel execution and race conditions at scale
+- [The Saga Pattern](SagaPattern) — Managing distributed transactions via local steps and compensation
+- [Idempotent Receiver](IdempotentReceiver) — Guaranteeing safety under at-least-once delivery
 - [Actor Model Programming](ActorModelProgramming) — Using isolated actors and message passing to simplify concurrency
-- [Erlang Programming Language](ErlangProgrammingLanguage) — The canonical implementation of the actor model for fault-tolerant systems
-- [LISP Programming Language](LispProgrammingLanguage) — The historical foundation for symbolic AI and the evolution of memory architectures
-- [Event Sourcing](EventSourcing) — Representing state as a sequence of immutable events
-- [Database Sharding](DatabaseSharding) — Horizontal partitioning of data across multiple database instances
+- [Erlang Programming Language](ErlangProgrammingLanguage) — The canonical implementation of the actor model
+- [LISP Programming Language](LispProgrammingLanguage) — The historical foundation for symbolic and neuro-symbolic AI
 
 ## Resilience and Reliability
 
-- [Graceful Degradation](GracefulDegradation) — Maintaining system utility when components fail
+- [Bulkhead Pattern](BulkheadPattern) — Partitioning resources to contain the blast radius of failures
+- [Sidecar and Ambassador Patterns](SidecarPattern) — Offloading operational plumbing to helper containers
+- [Phi Accrual Failure Detector](PhiAccrualFailureDetector) — Probabilistic liveness detection for jittery networks
 - [Circuit Breaker Pattern](CircuitBreakerPattern) — Preventing cascading failures in distributed call chains
-- [Load Balancing Strategies](LoadBalancingStrategies) — Distributing work effectively across a cluster
+- [Graceful Degradation](GracefulDegradation) — Maintaining system utility when components fail
 
 ## Adjacent Hubs
 
+- [Generative AI Hub](GenerativeAIHub) — Orchestrating agentic workforces at scale
 - [Data Engineering Hub](DataEngineeringHub) — Building data pipelines on distributed substrates
 - [Networking Hub](NetworkingHub) — The underlying communication layer
-- [Data Structures Hub](DataStructuresHub) — The local structures that serve as nodes in the larger system

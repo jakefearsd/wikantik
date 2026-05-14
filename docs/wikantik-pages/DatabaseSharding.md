@@ -1,112 +1,65 @@
 ---
-canonical_id: 01KQ12YDTKJP7GTEMGPMJV5FBV
-title: Database Sharding
+title: Database Sharding and Consistent Hashing
 type: article
-cluster: databases
-status: active
-date: '2026-05-15'
+cluster: distributed-systems
+status: published
+date: '2026-05-10'
+summary: A deep-dive into horizontal partitioning (Sharding) and the mathematical mechanism (Consistent Hashing) that enables elastic scalability with minimal data movement.
 tags:
-- database
+- distributed-systems
 - sharding
-- partitioning
-- horizontal-scaling
 - consistent-hashing
-auto-generated: false
-summary: Horizontal scaling for write-heavy workloads. Detailed comparison of sharding
-  schemes, consistent hashing implementation, and operational resharding strategies.
-related:
-- DatabasePartitioning
-- ConsistentHashing
-- DatabaseReplication
-- DatabaseDesign
-- DatabaseIndexingStrategies
-hubs:
-- DatabasesHub
+- storage-architecture
+- horizontal-scaling
+relations:
+- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
+- {type: related_to, target_id: 01KS7P9Z8QYAS6P09AM61S5E2V} # Leader/Follower
+canonical_id: 01KS7Z7R7U838D4EYVWFA9F36G
 ---
-# Database Sharding
 
-Sharding is the architectural decision to partition a single logical dataset across multiple physical database instances. Unlike replication, which scales read throughput, sharding scales **write throughput** and **storage capacity**.
+# Database Sharding and Consistent Hashing
 
-## 1. The Sharding Readiness Checklist
+As datasets exceed the storage and throughput limits of a single machine, systems must employ **Sharding**—the horizontal partitioning of data across a cluster of nodes. The primary technical challenge of sharding is deciding which piece of data lives on which node while maintaining the ability to scale elastically.
 
-Before introducing the complexity of shards, verify that you have exhausted simpler scaling paths:
+## 1. Sharding Strategies
 
-| Check | Metric for Action | Alternative |
-|---|---|---|
-| **Write IOPS** | $>80\%$ of disk throughput sustained | Increase volume IOPS (e.g., io2 Block Express) |
-| **CPU Saturation** | $>70\%$ average on largest instance | Vertical scale (e.g., `r7g.16xlarge`) |
-| **Index Bloat** | Index size $>$ RAM | Partitioning (Local to one instance) |
-| **Vacuum/Maintenance** | Autovacuum cannot keep up with bloat | Partitioning or Cold Data Archival |
+### Range-Based Sharding
+Data is divided into continuous ranges based on a **Shard Key** (e.g., Users A–M on Node 1, N–Z on Node 2).
+*   **Strength:** Highly efficient for range queries.
+*   **Weakness:** Prone to **Hotspots**. If all new users start with the letter 'Z', Node 2 will be overloaded while Node 1 sits idle.
 
-## 2. Sharding Schemes: A Technical Comparison
+### Directory-Based Sharding
+A central "Lookup Service" tracks the mapping of keys to shards.
+*   **Strength:** Total flexibility; individual rows can be moved between nodes easily.
+*   **Weakness:** The directory becomes a performance bottleneck and a single point of failure.
 
-| Scheme | Logic | Best For | Operational Pain |
-|---|---|---|---|
-| **Range** | `[0-10k] -> S1`, `[10k-20k] -> S2` | Time-series, ordered scans | Hot spots at the "end" of the range |
-| **Hash** | `hash(key) % N -> Shard` | Uniform distribution | Resharding requires moving $100\%$ of data |
-| **Consistent Hash** | Virtual nodes on a ring | Elastic scaling | Implementation complexity |
-| **Directory** | `LookupTable[key] -> ShardID` | Multi-tenant (uneven sizes) | The lookup table becomes a bottleneck |
+### Hash-Based Sharding (Naive)
+Uses a simple modulo formula: `node_id = hash(key) % N`, where $N$ is the number of nodes.
+*   **The Modulo Problem:** If you add or remove a node (changing $N$), the mapping for nearly every key in the system changes, triggering a catastrophic cluster-wide data migration.
 
-## 3. Implementation: Consistent Hashing
+## 2. The Consistent Hashing Solution
 
-Consistent hashing minimizes data movement during resharding. Only $K/N$ keys need to be remapped when adding a shard (where $K$ is total keys and $N$ is shards).
+Consistent Hashing solves the "Modulo Problem" by decoupling keys from the number of physical nodes.
 
-```python
-import hashlib
-import bisect
+### The Hash Ring
+1.  **Ring Mapping:** Both data keys and node IDs are hashed onto a logical circle (the **Hash Ring**) ranging from $0$ to $2^{n}-1$.
+2.  **Assignment:** To find the location of a key, you hash it to a point on the ring and travel **clockwise** until you hit the first node. That node "owns" the key.
+3.  **Elasticity:** When a node is added, it only "steals" a small arc of keys from its immediate neighbor. On average, only **$1/N$** of the data must be moved.
 
-class ConsistentHashRing:
-    def __init__(self, shards, replicas=100):
-        self.replicas = replicas
-        self.ring = {}
-        self.sorted_keys = []
-        for shard in shards:
-            self.add_shard(shard)
+### Virtual Nodes (vNodes)
+To prevent uneven data distribution (where one node owns a larger slice of the ring than others), each physical server is hashed multiple times to different locations.
+*   **Benefit:** If a node fails, its load is balanced across multiple other nodes in the cluster rather than overwhelming a single neighbor.
 
-    def _hash(self, key):
-        return int(hashlib.md5(key.encode()).hexdigest(), 16)
+## 3. Comparison Summary
 
-    def add_shard(self, shard):
-        for i in range(self.replicas):
-            h = self._hash(f"{shard}:{i}")
-            self.ring[h] = shard
-            bisect.insort(self.sorted_keys, h)
+| Feature | Naive Modulo | Consistent Hashing |
+| :--- | :--- | :--- |
+| **Scaling Cost** | **Extreme** (Remap all data) | **Minimal** (Remap $1/N$ data) |
+| **Complexity** | Low | High (Ring management) |
+| **Data Balance** | Uniform (Fixed) | Uniform (via vNodes) |
+| **Industry Standard**| Legacy / Small scale | **Cassandra, DynamoDB, Riak** |
 
-    def get_shard(self, key):
-        h = self._hash(key)
-        idx = bisect.bisect_right(self.sorted_keys, h)
-        if idx == len(self.sorted_keys):
-            idx = 0
-        return self.ring[self.sorted_keys[idx]]
-
-# Usage
-ring = ConsistentHashRing(["shard-0", "shard-1", "shard-2"])
-target = ring.get_shard("user_12345")
-```
-
-## 4. The Irrevocable Choice: The Shard Key
-
-The **Shard Key** determines the data locality. Choosing the wrong key leads to "Fan-out Queries" (querying every shard to find one result).
-
-*   **Good Key:** `tenant_id` (in multi-tenant SaaS), `user_id` (in social apps).
-*   **Bad Key:** `created_at` (all writes hit the newest shard), `is_active` (low cardinality).
-
-## 5. Resharding Strategy: The Online Path
-
-To move from 4 shards to 8 without downtime:
-1.  **Dual Writes:** Update application logic to write new data to both the old shard and the new destination shard.
-2.  **Snapshot & Backfill:** Copy historical data from the old shard to the new one.
-3.  **Verification:** Compare checksums of the migrated data.
-4.  **Cutover:** Flip the read path to the new shard.
-5.  **Cleanup:** Stop dual writes and delete old data.
-
-## 6. Recommended Substrates
-*   **Citus (Postgres):** Distributed Postgres as an extension. Handles the routing and parallel execution.
-*   **Vitess (MySQL):** The gold standard for MySQL sharding (used by YouTube/Slack).
-*   **CockroachDB / TiDB:** New-SQL databases that shard automatically at the storage layer using Raft.
-
-## Further Reading
-* [DatabasePartitioning](DatabasePartitioning)
-* [ConsistentHashing](ConsistentHashing)
-* [DatabaseReplication](DatabaseReplication)
-* [DatabaseIndexingStrategies](DatabaseIndexingStrategies)
+## See Also
+*   [Distributed Systems Hub](DistributedSystemsHub) — Scaling foundations.
+*   [Majority Quorum](MajorityQuorum) — Managing consistency across shards.
+*   [Leader and Followers](LeaderAndFollowers) — Using replication within a shard.

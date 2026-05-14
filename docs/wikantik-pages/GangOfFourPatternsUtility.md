@@ -1,21 +1,13 @@
 ---
-title: Gang of Four Patterns: 2026 Utility and Performance
+canonical_id: 01KREVEGSFQVY48P8MHV4J4DSQ
+auto-generated: true
 type: article
-cluster: computer-science-foundations
-status: published
-date: '2026-05-10'
-summary: A re-evaluation of the 23 GoF design patterns in the context of modern 2026 hardware, functional programming influence, and high-performance system requirements.
 tags:
-- design-patterns
-- software-architecture
-- gof
-- performance-optimization
-- object-oriented-programming
-relations:
-- {type: extension_of, target_id: 01KQEKGD8QYAS6P09AM61S5E2W} # CS Foundations Hub
-- {type: alternative_to, target_id: FunctionalProgrammingFoundations}
-- {type: influenced_by, target_id: LispProgrammingLanguage}
-canonical_id: 01KS6R9Z8QYAS6P09AM61S5E2N
+- pattern
+- util
+- modern
+summary: 'The Strategy Pattern (The Architect''s Pivot) Utility: Highest.'
+title: Gang Of Four Patterns Utility
 ---
 
 # Gang of Four Patterns: 2026 Utility and Performance

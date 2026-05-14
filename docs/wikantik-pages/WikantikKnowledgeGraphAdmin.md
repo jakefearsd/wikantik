@@ -1,13 +1,26 @@
 ---
-canonical_id: 01KQ0P44YXH9WR0JWF0A6EBVMV
-cluster: wikantik-development
 title: Wikantik Knowledge Graph Administration
+cluster: wikantik-development
+date: 2026-04-08T00:00:00Z
+related_to:
+- IndexFundPortfolioConstruction
+- node
 type: article
-tags: [knowledge-graph, administration, embeddings, ai, graph-management, operations]
-date: 2026-04-08
 status: active
-summary: Comprehensive step-by-step guide for administering the Wikantik knowledge graph to maximize its value for AI agents and human users supporting business operations and software development.
-related: [ArtificialIntelligence, AiAugmentedWorkflows]
+canonical_id: 01KQ0P44YXH9WR0JWF0A6EBVMV
+related:
+- ArtificialIntelligence
+- AiAugmentedWorkflows
+summary: Comprehensive step-by-step guide for administering the Wikantik knowledge
+  graph to maximize its value for AI agents and human users supporting business operations
+  and software development.
+tags:
+- knowledge-graph
+- administration
+- embeddings
+- ai
+- graph-management
+- operations
 ---
 
 # Wikantik Knowledge Graph Administration

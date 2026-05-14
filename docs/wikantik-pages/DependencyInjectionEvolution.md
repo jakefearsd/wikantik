@@ -1,23 +1,15 @@
 ---
-title: Dependency Injection: Evolution, Performance, and 2026 Trends
+canonical_id: 01KREVEGHW3DE0W0G0NAHW848M
+auto-generated: true
 type: article
-cluster: computer-science-foundations
-status: published
-date: '2026-05-10'
-summary: A deep-research analysis of Dependency Injection's 20-year journey from XML-based "magic" to 2026's "zero-overhead" compile-time resolution.
 tags:
-- dependency-injection
-- software-architecture
-- cloud-native
-- performance-benchmarks
-- design-patterns
-- technical-evolution
-relations:
-- {type: extension_of, target_id: 01KQEKGD8QYAS6P09AM61S5E2W} # CS Foundations Hub
-- {type: influenced_by, target_id: FunctionalProgrammingFoundations}
-- {type: component_of, target_id: DistributedSystemsHub}
-- {type: related_to, target_id: GangOfFourPatternsUtility}
-canonical_id: 01KS6T9Z8QYAS6P09AM61S5E2P
+- di
+- '2026'
+- depend
+summary: Once a controversial "magic" framework in the early 2000s, DI has evolved
+  into the definitive architectural pillar for testability, modularity, and—in 2026—cloud-native
+  performance.
+title: Dependency Injection Evolution
 ---
 
 # Dependency Injection: The 20-Year Evolution of Inversion

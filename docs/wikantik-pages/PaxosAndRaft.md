@@ -1,88 +1,73 @@
 ---
-canonical_id: 01KQ12YDW4P2B6GRRJY43T5TTB
-title: Paxos and Raft
+title: Paxos and Raft: Distributed Consensus
 type: article
 cluster: distributed-systems
-status: active
-date: '2026-05-24'
+status: published
+date: '2026-05-10'
+summary: A technical comparison of the two primary consensus algorithms used to achieve fault-tolerant state machine replication in distributed clusters.
 tags:
+- distributed-systems
 - consensus
 - paxos
 - raft
-- distributed-systems
-- replication
-summary: Technical comparison of Paxos and Raft consensus protocols, their implementation trade-offs in modern databases (CockroachDB, etcd), and failure mode analysis.
-auto-generated: false
+- state-machine-replication
+relations:
+- {type: component_of, target_id: 01KQEKGD9XWDSFGH7TWHH63NZT} # Distributed Systems Hub
+- {type: related_to, target_id: 01KS7P9Z8QYAS6P09AM61S5E2V} # Leader and Followers
+- {type: related_to, target_id: 01KS7M5J8QYAS6P09AM61S5E2T} # WAL
+canonical_id: 01KS6S8Z8QYAS6P09AM61S5E2O
 ---
-# Paxos and Raft
 
-Consensus algorithms allow a distributed system to agree on a single value or a sequence of operations despite node failures or network partitions. **Paxos** (the foundation) and **Raft** (the ergonomic standard) are the two protocols powering almost all linearizable systems in production.
+# Paxos and Raft: The Engines of Consensus
 
-## Paxos: The Theoretical Root
+Consensus is the core challenge of distributed systems: ensuring that a cluster of non-trusting or failing nodes can agree on a single value or a sequence of operations. This agreement is required for [Leader Election](LeaderAndFollowers) and **State Machine Replication (SMR)**.
 
-Proposed by Leslie Lamport, Paxos is a family of protocols. "Basic Paxos" only agrees on a single value; "Multi-Paxos" extends this to a sequence of values (a log).
+Two algorithms dominate the field: **Paxos**, the mathematically flexible original, and **Raft**, the "understandable" successor.
 
-- **Role Flexibility:** Paxos does not require a strict leader. Any node can be a Proposer.
-- **Complexity:** The protocol is famously difficult to implement correctly because the specification leaves gaps for membership changes and log compaction.
-- **Production Use:** Google's **Chubby** and **Spanner** are the primary users of refined Multi-Paxos variants.
+## 1. Paxos: The Theoretical Powerhouse
 
-## Raft: Designed for Implementation
+Proposed by Leslie Lamport in 1989, Paxos is a family of protocols designed for total flexibility.
 
-Raft was designed as an alternative to Paxos with "understandability" as a primary goal. It decomposes consensus into three sub-problems: **Leader Election**, **Log Replication**, and **Safety**.
+### Core Paxos Roles
+*   **Proposer:** Receives client requests and attempts to convince the cluster to accept them.
+*   **Acceptor:** Votes on proposals and acts as the durable memory of the cluster.
+*   **Learner:** Learns the outcome of the vote and applies it to the state machine.
 
-- **Strong Leader:** All writes flow through a single leader. This simplifies the state machine but creates a potential bottleneck.
-- **Log Continuity:** Raft enforces that logs have no "gaps," making recovery significantly simpler than in Paxos.
-- **Production Use:** **etcd** (Kubernetes), **CockroachDB**, **Consul**, and **TiKV**.
+### Multi-Paxos and Optimization
+Standard Paxos agrees on only one value. **Multi-Paxos** chains these agreements together to form a log. In 2026, Multi-Paxos is preferred for high-performance systems because it allows for:
+*   **Out-of-Order Confirmation:** Unlike Raft, Multi-Paxos can confirm log index $N+1$ before $N$, allowing for massive pipelining.
+*   **WAN Flexibility:** Variants like *Fast Paxos* can save network round-trips (RTTs) in global deployments by allowing any node to initiate a proposal.
 
-## Comparison Table
+## 2. Raft: Design for Understandability
 
-| Feature | Paxos (Multi-Paxos) | Raft |
-|---|---|---|
-| **Leader Requirement** | Weak/Optional (can have multiple proposers) | Strong (Strict single leader) |
-| **Log Structure** | Can have gaps | Must be contiguous |
-| **Understandability** | Low (Academic/Hard) | High (Designed for engineers) |
-| **Membership Changes** | Often handled as a separate, custom layer | Integrated (Joint Consensus) |
-| **Failover Latency** | Can be very low with leases | Dependent on heartbeat/timeout settings |
+Introduced by Ongaro and Ousterhout in 2014, Raft was designed specifically to be easier to implement correctly than Paxos.
 
-## Implementation Detail: Raft Log Replication
+### The Strong Leader
+Raft centers all activity around a **Strong Leader**. 
+1.  **Leader Election:** Nodes use randomized timeouts to elect a leader.
+2.  **Log Replication:** The leader receives commands, appends them to its local [Write-Ahead Log (WAL)](WriteAheadLog), and replicates them to followers.
+3.  **Safety:** Raft ensures that a node can only be elected leader if it contains all previously committed log entries.
 
-In Raft, the leader appends a client command to its log and sends `AppendEntries` RPCs to followers. A command is **committed** only after it is replicated to a majority of nodes.
+### Head-of-Line Blocking
+Because Raft enforces a strict sequential log order, a single slow follower or a lost packet can stall the entire pipeline. This makes Raft slightly less performant than Multi-Paxos at extreme scales.
 
-```go
-// Simplified Raft AppendEntries logic (Go-ish)
-func (l *Leader) Replicate(command Command) {
-    l.log.Append(Entry{Term: l.currentTerm, Data: command})
-    
-    successCount := 1 // Count self
-    for _, follower := range l.peers {
-        go func(f *Peer) {
-            if f.CallAppendEntries(l.log.Last()) {
-                atomic.AddInt32(&successCount, 1)
-            }
-        }(follower)
-    }
-    
-    // Wait for majority before responding to client
-    for int(atomic.LoadInt32(&successCount)) <= len(l.peers)/2 {
-        time.Sleep(1 * time.Millisecond)
-    }
-    l.commitIndex = l.log.LastIndex()
-}
-```
+## 3. Technical Comparison (2026 Standards)
 
-## Critical Failure Modes
+| Feature | Multi-Paxos | Raft |
+| :--- | :--- | :--- |
+| **Philosophy** | Theoretical Flexibility | Understandable Integrity |
+| **Throughput** | **Higher** (Pipelining / Out-of-order) | Moderate (Strict sequentiality) |
+| **Recovery** | Predictable (Deterministic) | Variable (Randomized timeouts) |
+| **WAN Usage** | **Preferred** (Fast Paxos variants) | Limited (Leader bottleneck) |
+| **Impl. Risk** | Extreme ("Paxos Made Live") | Low (Mature libraries like `etcd`) |
 
-### 1. Split Brain (Partitioning)
-In a 5-node cluster, if 2 nodes are partitioned from the other 3, the group of 2 cannot reach a majority and will stop accepting writes. The group of 3 remains operational. This is the **CP (Consistency/Partition-tolerance)** behavior from the CAP theorem.
+## 4. Selection Framework: Which should you use?
 
-### 2. Leader Flapping
-If the network is flaky, the cluster might spend all its time electing new leaders without ever committing a log entry. 
-**Mitigation:** Use randomized election timeouts (e.g., 150ms to 300ms) to prevent multiple nodes from starting elections simultaneously.
+*   **Choose Raft** if you are building metadata services, configuration stores (like `consul` or `etcd`), or standard business microservices. The performance difference is negligible for 95% of applications, and implemented safety is guaranteed.
+*   **Choose Paxos** if you are building a **high-performance distributed database** (like Spanner, OceanBase, or TiDB) where Tail Latency in multi-region deployments is your primary competitive constraint.
 
-### 3. Log Divergence
-If a leader crashes after sending `AppendEntries` to only one node, the next leader must force all followers to match its log. Raft handles this by finding the last common index and overwriting everything after it on the followers.
-
-## Further Reading
-- [[ConsistentHashing]] — How to partition data once consensus is achieved.
-- [[CapTheorem]] — The theoretical bounds of distributed systems.
-- [[ByzantineFaultTolerance]] — What happens when nodes are malicious, not just failing.
+## See Also
+*   [Distributed Systems Hub](DistributedSystemsHub) — Central index.
+*   [Majority Quorum](MajorityQuorum) — The voting mechanism used by both protocols.
+*   [Leader and Followers](LeaderAndFollowers) — The operational pattern resulting from consensus.
+*   [Generation Clock](GenerationClock) — Preventing "zombie" leaders in both protocols.

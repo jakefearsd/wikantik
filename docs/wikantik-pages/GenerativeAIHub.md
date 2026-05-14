@@ -1,86 +1,46 @@
 ---
-summary: Central index for the generative AI cluster — covering Large Language Models
-  (LLMs), diffusion models, retrieval-augmented generation (RAG), prompt engineering,
-  and the practical adoption of generative technologies.
-date: '2026-04-29'
-cluster: generative-ai
-related:
-- AgenticAiHub
-- MLHub
-- DataEngineeringHub
-canonical_id: 01KQEKGDAZH3G3X2J4VFM9MP88
-type: hub
 title: Generative AI Hub
+type: hub
+cluster: generative-ai
+status: active
+date: '2026-05-10'
+summary: Central index for generative AI architectures, agentic orchestration, and retrieval-augmented systems in the distributed cloud.
 tags:
 - generative-ai
 - llm
 - rag
-- ai-adoption
+- agents
 - hub
-status: active
-hubs:
-- AgenticAiHub
+canonical_id: 01KQEKGDAZH3G3X2J4VFM9MP88
 ---
+
 # Generative AI Hub
 
-Generative AI has transformed computing by enabling systems that can create high-quality text, code, images, and audio. This hub organizes Wikantik's content on the underlying models, the techniques for grounding them in real-world data, and the frameworks for responsible adoption.
+Generative AI has evolved from static prompt engineering into a sophisticated branch of distributed systems. This hub organizes Wikantik's content on the architectural patterns, orchestration protocols, and data strategies required to build reliable, scalable, and factually grounded AI systems.
 
-## Foundations and Large Language Models
+## Agentic Architectures
 
-The core technologies driving the generative revolution.
+Coordinating autonomous digital workforces.
 
-- [Understanding Generative AI](UnderstandingGenerativeAi) — High-level introduction to the capabilities and paradigms of generative systems
-- [Natural Language Processing](NaturalLanguageProcessing) — The evolution from statistical NLP to modern Large Language Models (LLMs)
-- [Transformer Architecture](TransformerArchitecture) — The self-attention mechanism that serves as the universal substrate for generative AI
-- [LLMs Since 2020](LlmsSinceTwentyTwenty) — A historical and technical overview of the rapid scaling in model capability
-- [Multimodal Embeddings](MultimodalEmbeddings) — Shared vector spaces across vision and language
-- [Open Source LLMs](OpenSourceLLMs) — The rise of high-capability, open-weights models like Llama, Mistral, and Qwen
-- [Open Source LLM Ecosystem](OpenSourceLlmEcosystem) — The tools, runtimes, and communities supporting open model deployment
+- [Agentic Orchestration](AgenticOrchestration) — Centralized supervision vs. decentralized choreography patterns for multi-agent systems
+- [The Saga Pattern](SagaPattern) — Managing state and long-running transactions in complex agent workflows
 
-## Context and Retrieval (RAG)
+## Retrieval and Knowledge Grounding
 
-Grounding generative models in private or up-to-date knowledge.
+Connecting LLMs to real-world and private data.
 
-- [RAG Implementation Patterns](RagImplementationPatterns) — Practical architectures for Retrieval-Augmented Generation
-- [Embeddings in GenAI](EmbeddingsInGenAI) — Representing meaning as vectors for search and retrieval
-- [Embeddings and Vector Databases](EmbeddingsVectorDB) — Infrastructure for storing and querying high-dimensional vector data
-- [Vector Indexing Internals](VectorIndexingInternals) — Deep dive into HNSW and IVF-PQ algorithms
-- [HNSW](HNSW) — Hierarchical Navigable Small World graphs in depth
-- [GraphRAG](GraphRAG) — Combining vector search with knowledge graphs for deeper relational retrieval
-- [Advanced Search Term Engineering](AdvancedSearchTermEngineering) — Multi-stage query optimization for state-of-the-art retrieval
-- [LocalRAG](LocalRAG) — Privacy-focused, on-device retrieval architectures
-- [Prompt Caching](PromptCaching) — Reducing latency and cost by reusing model states across similar queries
-- [Context Window Management](ContextWindowManagement) — Strategies for maximizing the effective use of finite model attention
-- [Context Compression](ContextCompression) — Technical methods for squeezing more information into the prompt
+- [Retrieval-Augmented Generation (RAG)](RetrievalAugmentedGeneration) — The standard distributed pattern for factually grounding AI models
+- [CQRS and Event Sourcing](CQRSAndEventSourcing) — Managing the high-throughput ingestion and transformation of grounding data
 
-## Fine-Tuning and Model Efficiency
+## Language and Logic Foundations
 
-Specializing models for specific tasks or hardware.
+The tools and logic of AI synthesis.
 
-- [LLM Fine-Tuning](LLMFineTuning) — Techniques for adapting pretrained models to specialized domains or styles
-- [Fine-Tuning Large Language Models](FineTuningLargeLanguageModels) — Advanced research and practical protocols for model adaptation
-- [Model Quantization](ModelQuantization) — Compressing models for efficient edge and high-throughput deployment
-- [Synthetic Data Generation](SyntheticDataGeneration) — Using models to create training data for other models
+- [LISP Programming Language](LispProgrammingLanguage) — The historical foundation of symbolic AI and modern neuro-symbolic systems
+- [Python: The Universal AI Operating System](PythonLanguageArchitecture) — The primary control plane and orchestration layer for 2026 AI
+- [Ruby: Rapid AI Prototyping](RubyLanguageArchitecture) — expressed syntax for rapid agent tool synthesis
 
-## Adoption and Practice
+## Performance and Scale
 
-Integrating generative AI into workflows and organizations.
-
-- [Generative AI Adoption Guide](GenerativeAiAdoptionGuide) — Frameworks for evaluating and implementing AI within teams
-- [Generative AI Tools for Individuals](GenerativeAiToolsForIndividuals) — Practical guide to the personal productivity gains available from AI
-- [Claude Code Workflows](ClaudeCodeWorkflows) — Specialized patterns for AI-assisted software development
-- [AI for Documentation](AiForDocumentation) — Automating the creation and maintenance of technical content
-
-## Safety and Governance
-
-Ensuring generative systems are reliable, safe, and compliant.
-
-- [AI Safety and Alignment](AiSafetyAndAlignment) — Techniques for ensuring models behave according to human intent
-- [AI Governance Frameworks](AiGovernanceFrameworks) — Organizational structures for managing AI risk and compliance
-- [AI Content Moderation Systems](AiContentModerationSystems) — Using AI to detect and filter harmful or policy-violating content
-
-## Adjacent Hubs
-
-- [Agentic AI Hub](AgenticAiHub) — Moving from generation to autonomous action
-- [ML Hub](MLHub) — Foundational machine learning theory
-- [Data Engineering Hub](DataEngineeringHub) — Building the pipelines that support RAG and training
+- [Distributed Systems Hub](DistributedSystemsHub) — Scaling the infrastructure that powers LLMs
+- [Phi Accrual Failure Detector](PhiAccrualFailureDetector) — Managing agent-to-tool liveness in jittery networks

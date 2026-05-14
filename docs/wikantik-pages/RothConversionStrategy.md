@@ -1,130 +1,69 @@
 ---
-canonical_id: 01KQ0P44VXGRJWXQXJFE9QSNTX
-summary: Strategic framework for Roth conversions — when to convert, how much, tax
-  bracket targeting, IRMAA implications, and the gap-years opportunity
-date: 2026-03-14T00:00:00Z
+title: Roth Conversion Strategy
+type: article
+cluster: retirement-planning
+status: published
+date: '2026-05-10'
+summary: A comprehensive framework for timing Roth conversions, targeting tax brackets, managing the "Tax Torpedo" of Social Security, and avoiding IRMAA cliffs.
 tags:
 - personal-finance
 - retirement-planning
 - roth-conversion
 - tax-strategy
-related:
-- RetirementPlanningGuide
-- RothConversionLadder
-- RequiredMinimumDistributions
-- MedicarePlanningAndHealthcare
-- RetirementWithdrawalSequencing
-- AccountTypeStrategy
-type: article
-cluster: retirement-planning
-status: active
-part-of:
-- RetirementPlanningGuide
+- irmaa
+relations:
+- {type: component_of, target_id: "RetirementPlanningGuide"}
+- {type: related_to, target_id: 01KQ0P44VW76C0E6HNSB8R6EJ8} # Roth Conversion Ladder
+- {type: related_to, target_id: 01KQ0P44M86FN49B5KBJR74VB9} # Backdoor Roth
+canonical_id: 01KQ0P44VXGRJWXQXJFE9QSNTX
 ---
-# Roth Conversion Strategy
 
-A Roth conversion moves money from a Traditional IRA (or 401(k)) to a Roth IRA. You pay income tax on the amount converted now, but all future growth and withdrawals are tax-free. The question is never *whether* Roth conversions are good — they can be excellent or terrible. The question is *when* and *how much*.
+# Roth Conversion Strategy: Bracket Targeting and Cliff Avoidance
 
-For the specific mechanics of the Roth conversion ladder used for early retirement access, see [The Roth Conversion Ladder](RothConversionLadder). This article focuses on the broader strategic framework.
+A Roth conversion moves money from a pre-tax account (Traditional IRA/401(k)) to an after-tax account (Roth IRA). You pay income tax on the converted amount today, but all future growth and withdrawals are tax-free. The strategic question is never *whether* conversions are universally good, but rather *when* to execute them to minimize lifetime taxation.
 
-## The Gap-Years Opportunity
+## 1. The "Gap Years" Opportunity
 
-The single most valuable window for Roth conversions is the period between when you stop earning employment income and when Social Security and required minimum distributions begin. During these years, your taxable income drops to near zero, creating an unusually low-tax environment.
+The single most valuable window for Roth conversions is the "Gap Years": the period between retiring (losing W-2 income) and claiming Social Security / starting Required Minimum Distributions (RMDs at age 73).
 
-**Example: Sarah, age 62, just retired**
-- No employment income
-- Not yet claiming Social Security (planning to wait until 67)
-- RMDs don't start until 73
-- Has $1.2M in Traditional IRA, $200K in Roth IRA, $300K in taxable
+During this 5 to 15-year window, your taxable income drops to near zero. You can systematically convert Traditional IRA funds to "fill up" the historically low 10%, 12%, and 22% tax brackets.
 
-Sarah has an 11-year window (age 62-72) where she can convert Traditional IRA funds at historically low tax rates. After 73, RMDs will force taxable income whether she wants it or not.
+## 2. Tax Bracket Targeting (2026 Mechanics)
 
-### The Tax Bracket Targeting Strategy
+The goal is to convert exactly enough to hit the top of your target tax bracket, without spilling over.
 
-The goal is to "fill up" low tax brackets with conversions each year without spilling into the next bracket.
+**Example (Married Filing Jointly, 2026):**
+If the 12% bracket ends at $96,950 of taxable income, and the standard deduction is $30,000, you can have up to **$126,950** of gross income before paying a single dime at the 22% rate.
+*   If your other income (pension, dividends) is $40,000, you have **$86,950** of "space" to fill with a Roth conversion.
+*   By executing this annually over a decade, you can move nearly $1M out of a taxable status at an effective rate under 12%.
 
-**2026 Federal Tax Brackets (Married Filing Jointly):**
+## 3. The Social Security "Tax Torpedo"
 
-| Taxable Income | Rate | Conversion Space After Standard Deduction ($30,000) |
-|---------------|------|-----------------------------------------------------|
-| $0 - $23,850 | 10% | Convert up to $53,850 total income at 10% or less |
-| $23,851 - $96,950 | 12% | Convert up to $126,950 total income at 12% or less |
-| $96,951 - $206,700 | 22% | Convert up to $236,700 total income at 22% or less |
-| $206,701 - $394,600 | 24% | Conversion at this rate is rarely optimal |
+A massive risk for retirees doing conversions in their late 60s is the **Tax Torpedo**.
 
-**Common strategies:**
-- **Conservative**: Fill only the 10% and 12% brackets (~$127K for MFJ). Ultra-low cost, but slow for large IRAs.
-- **Moderate**: Fill through the 22% bracket (~$237K for MFJ). Faster depletion, pays for itself if you expect to be in 22%+ brackets during RMDs.
-- **Aggressive**: Fill through 24% bracket. Only sensible if you have a very large IRA and expect RMDs to push you into 32%+.
+The IRS uses "Provisional Income" (AGI + Tax-Exempt Interest + 50% of Social Security) to determine how much of your Social Security benefit is taxable (up to 85%).
+*   **The Danger:** If you are in the phase-in window (e.g., $32k-$44k for couples), an extra $1,000 from a Roth conversion increases your AGI by $1,000, but it *also* causes another $850 of your Social Security to become taxable.
+*   **The Result:** You are taxed on $1,850 for every $1,000 you convert. This can spike your marginal tax rate to over 40% even if you are theoretically in the 22% bracket.
 
-**Sarah's plan (moderate strategy, MFJ with spouse):**
-- Convert ~$125,000 per year for 10 years
-- Total tax cost: ~$15,000/year (effective rate ~12%)
-- Converts $1.25M to Roth by age 72
-- Result: Minimal RMDs, massive tax-free growth, lower lifetime tax bill
+**Strategy:** Do your heavy conversions *before* claiming Social Security, or delay Social Security to age 70 to widen the conversion window.
 
-## The Pro-Rata Rule Trap
-
-If you have *any* after-tax (non-deductible) contributions in *any* Traditional IRA, the pro-rata rule applies. You cannot cherry-pick which dollars to convert.
-
-**How it works:** The IRS treats ALL your Traditional IRAs as one pool. If 10% of your total Traditional IRA balance is after-tax contributions, then 10% of any conversion is tax-free and 90% is taxable — regardless of which IRA you convert from.
-
-**Example:**
-- Traditional IRA #1: $90,000 (all pre-tax)
-- Traditional IRA #2: $10,000 (all after-tax/non-deductible)
-- You convert $10,000 hoping it's all the after-tax money
-- IRS says: 10% of conversion ($1,000) is tax-free, 90% ($9,000) is taxable
-
-**Solutions:**
-1. Roll after-tax IRA funds into a Roth IRA and pre-tax funds into an employer 401(k) (if available) — eliminates the pro-rata problem
-2. Accept the pro-rata math and convert anyway — the long-term benefit usually outweighs the near-term tax cost
-3. Convert everything over several years — eventually all money ends up in Roth regardless
-
-## IRMAA: The Hidden Two-Year-Lag Tax
+## 4. IRMAA: The Hidden Two-Year-Lag Tax
 
 Income-Related Monthly Adjustment Amounts (IRMAA) are surcharges on Medicare Part B and Part D premiums. They are based on your Modified Adjusted Gross Income (MAGI) from **two years prior**.
 
-This means a large Roth conversion in 2026 increases your Medicare premiums in 2028.
+*   **The Cliff:** IRMAA operates on strict cliffs, not marginal brackets. If the threshold is $206,000 and your Roth conversion pushes your MAGI to $206,001, you (and your spouse) will owe the full Tier 1 surcharge (roughly $1,680/year) just for crossing the line by one dollar.
+*   **The 63 Rule:** Because of the two-year lag, conversions done at age 63 will determine your Medicare premiums at age 65. From age 63 onward, every conversion must be modeled against IRMAA brackets.
 
-**2026 IRMAA Thresholds (approximate, MFJ):**
+## 5. The Decision Matrix
 
-| MAGI | Monthly Part B Surcharge (per person) | Annual Extra Cost (couple) |
-|------|---------------------------------------|---------------------------|
-| Up to $206,000 | $0 | $0 |
-| $206,001 - $258,000 | +$70 | +$1,680 |
-| $258,001 - $322,000 | +$175 | +$4,200 |
-| $322,001 - $386,000 | +$280 | +$6,720 |
-| $386,001 - $750,000 | +$385 | +$9,240 |
-| Above $750,000 | +$420 | +$10,080 |
+| Scenario | Convert? | Strategic Rationale |
+| :--- | :--- | :--- |
+| **Early Retirement Gap Years** | **Yes** | Capitalizing on the 0%, 10%, and 12% brackets. |
+| **Large IRA / Looming RMDs** | **Yes** | Defusing the "RMD Tax Bomb" that would force you into 32%+ brackets at age 73. |
+| **Legacy Planning** | **Yes** | Under the SECURE Act, heirs must drain inherited IRAs in 10 years. Leaving a Roth protects them during their peak earning years. |
+| **Paying tax from the IRA** | **No** | If you must withhold taxes from the conversion itself, you lose the compounding power. Pay taxes from a taxable brokerage. |
 
-**Key implication**: If you are doing Roth conversions after age 63, you need to model the IRMAA impact. A conversion that saves $5,000 in future taxes but triggers $4,200 in IRMAA surcharges is barely worth it.
-
-**Strategy**: Keep conversions below the first IRMAA threshold, OR accept the lowest IRMAA tier as a cost of doing business if the long-term tax savings are substantial. See [Medicare Planning and Healthcare](MedicarePlanningAndHealthcare) for full IRMAA details.
-
-## When Roth Conversions Make Sense
-
-| Scenario | Convert? | Why |
-|----------|----------|-----|
-| Gap years between retirement and SS/RMDs | **Yes** | Lowest-tax-rate window of your life |
-| Large Traditional IRA that will generate big RMDs | **Yes** | Defuse the RMD tax bomb before it starts |
-| You expect tax rates to rise in the future | **Yes** | Pay today's known rate vs. tomorrow's unknown rate |
-| You want to leave tax-free assets to heirs | **Yes** | Roth IRAs stretch over 10 years tax-free (SECURE Act) |
-| You're already in a high tax bracket this year | **No** | Converting at 32%+ is rarely optimal |
-| You'd need to sell investments to pay the conversion tax | **Caution** | Pay tax from non-retirement funds if possible |
-| You're 62-63 and approaching Medicare | **Calculate** | Model the IRMAA impact carefully |
-
-## The Roth Conversion Decision Checklist
-
-1. **What is your current marginal tax rate?** If below 22%, conversions are almost always beneficial.
-2. **What do you expect your RMD-era tax rate to be?** Estimate your IRA balance at 73 and calculate the forced distribution.
-3. **Will the conversion trigger IRMAA?** Check the thresholds if you're 63+.
-4. **Does the pro-rata rule apply?** Check for non-deductible IRA contributions.
-5. **Can you pay the tax from non-retirement funds?** Paying from taxable accounts preserves the full conversion in the Roth.
-6. **How does this affect your ACA subsidies?** If pre-Medicare, conversion income is MAGI. See [Medicare Planning and Healthcare](MedicarePlanningAndHealthcare).
-
-## Further Reading
-
-- [The Roth Conversion Ladder](RothConversionLadder) — Step-by-step mechanics for early retirement access
-- [Required Minimum Distributions](RequiredMinimumDistributions) — The RMD rules that make conversions urgent
-- [Retirement Withdrawal Sequencing](RetirementWithdrawalSequencing) — How conversions fit into overall withdrawal strategy
-- [Retirement Planning Guide](RetirementPlanningGuide) — Hub page for the full cluster
+## See Also
+*   [Roth Conversion Ladder](RothConversionLadder) — Using conversions for penalty-free early access.
+*   [Backdoor Roth Strategies](BackdoorRothStrategies) — Bypassing contribution income limits.
+*   [Medicare Planning and Healthcare](MedicarePlanningAndHealthcare) — Deep dive into IRMAA cliffs.

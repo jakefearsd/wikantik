@@ -152,3 +152,38 @@ test_passthrough_dry_run() {
     ok "pass-through subcommands invoke remote container.sh"
 }
 test_passthrough_dry_run
+
+test_bootstrap_dry_run() {
+    local tmp out
+    tmp="$(mktemp -d)"
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
+    make_fake_remote_env "${tmp}"
+
+    out="$("${tmp}/bin/remote.sh" --dry-run bootstrap 2>&1)" \
+        || fail "bootstrap dry-run non-zero: ${out}"
+
+    # Must check for docker on remote
+    echo "${out}" | grep -q "command -v docker" \
+        || fail "bootstrap did not check for remote docker: ${out}"
+    # Must create the three remote dirs
+    echo "${out}" | grep -q "mkdir -p" \
+        || fail "bootstrap did not create remote dirs: ${out}"
+    echo "${out}" | grep -q "/tmp/pages" \
+        || fail "bootstrap did not reference REMOTE_PAGES_DIR: ${out}"
+    echo "${out}" | grep -q "/tmp/backups" \
+        || fail "bootstrap did not reference REMOTE_BACKUP_DIR: ${out}"
+    # Must rsync compose files
+    echo "${out}" | grep -q "docker-compose.yml" \
+        || fail "bootstrap did not rsync compose files: ${out}"
+    echo "${out}" | grep -q "docker-compose.prod.yml" \
+        || fail "bootstrap did not rsync prod overlay: ${out}"
+    # Must NOT run up -d
+    if echo "${out}" | grep -q "container.sh -e prod up"; then
+        fail "bootstrap must NOT run up -d (that's deploy's job): ${out}"
+    fi
+
+    rm -rf "${tmp}"
+    ok "bootstrap dry-run does the right things, does not up -d"
+}
+test_bootstrap_dry_run

@@ -243,6 +243,68 @@ cmd_migrate() {
     _remote_container migrate "$@"
 }
 
+cmd_bootstrap() {
+    case "${1:-}" in
+        -h|--help)
+            cat <<'EOF'
+bootstrap — first-time remote setup. Idempotent; safe to re-run.
+
+Usage: bin/remote.sh bootstrap [--dry-run]
+
+Steps:
+  1. Verify `docker` and `docker compose` are present on REMOTE_HOST.
+  2. Create REMOTE_REPO_DIR, REMOTE_PAGES_DIR, REMOTE_BACKUP_DIR on the remote.
+  3. Create local SSH_CONTROL_DIR (mode 0700) if absent.
+  4. rsync docker-compose.yml + docker-compose.prod.yml + docker/ + bin/ + .env
+     to REMOTE_REPO_DIR.
+
+Does NOT:
+  - Install docker (distro-specific; if step 1 fails the script tells you what to install).
+  - Run `up -d` — that happens on the first `deploy` invocation, which is when the
+    wikantik image first lands on the remote.
+EOF
+            return 0
+            ;;
+    esac
+
+    # Local: ensure the ControlMaster dir exists with 0700 (the _ssh helper also
+    # does this, but doing it up-front keeps bootstrap self-contained).
+    if [[ "${DRY_RUN}" -eq 0 ]]; then
+        mkdir -p "${SSH_CONTROL_DIR}" && chmod 700 "${SSH_CONTROL_DIR}"
+    else
+        echo "[dry-run] mkdir -p ${SSH_CONTROL_DIR} && chmod 700 ${SSH_CONTROL_DIR}"
+    fi
+
+    # 1. Verify docker on remote
+    _ssh "command -v docker >/dev/null 2>&1 || { echo 'docker not found on ${REMOTE_HOST} — install docker + docker compose, then re-run bootstrap.' >&2; exit 2; }"
+    _ssh "docker compose version >/dev/null 2>&1 || { echo 'docker compose plugin not found on ${REMOTE_HOST} — install it, then re-run bootstrap.' >&2; exit 2; }"
+
+    # 2. Create remote directories
+    _ssh "mkdir -p $(printf '%q' "${REMOTE_REPO_DIR}") $(printf '%q' "${REMOTE_PAGES_DIR}") $(printf '%q' "${REMOTE_BACKUP_DIR}")"
+
+    # 3. rsync compose stack + bin + docker/ + .env (if present)
+    local files=(docker-compose.yml docker-compose.prod.yml)
+    # bin/ and docker/ contain helper scripts the remote container.sh invokes
+    _rsync -avz --update --chmod=F644 \
+        "${files[@]}" \
+        "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/"
+    _rsync -avz --update --chmod=F755 \
+        --include='*/' --include='*.sh' --include='*.sql' --exclude='*' \
+        bin/ "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/bin/"
+    _rsync -avz --update \
+        docker/ "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/docker/"
+
+    if [[ -f .env ]]; then
+        _rsync -avz --chmod=F600 .env "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/.env"
+    else
+        echo "remote.sh: warning — no local .env; remote will not start without one." >&2
+        echo "           Create .env locally (copy from .env.example) and re-run bootstrap." >&2
+    fi
+
+    echo "Bootstrap complete on ${REMOTE_HOST}."
+    echo "Next: bin/remote.sh deploy"
+}
+
 # ---------- Subcommand dispatch ----------
 
 case "${SUBCOMMAND}" in
@@ -254,6 +316,7 @@ case "${SUBCOMMAND}" in
     shell)      cmd_shell "$@" ;;
     psql)       cmd_psql "$@" ;;
     migrate)    cmd_migrate "$@" ;;
+    bootstrap)  cmd_bootstrap "$@" ;;
     *) echo "remote.sh: unknown subcommand: ${SUBCOMMAND}" >&2
        echo "           run: bin/remote.sh --help" >&2
        exit 2 ;;

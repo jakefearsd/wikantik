@@ -196,6 +196,29 @@ also accepts `--help`. Underlying compose files at the repo root
 `docker/entrypoint.sh` are still the source of truth — `bin/container.sh`
 is just an ergonomic facade.
 
+### Remote container deployment over ssh
+
+`bin/remote.sh` is the single entry point for deploying and administering
+Wikantik on a remote host over ssh. It wraps `bin/container.sh` on the
+remote and adds image transfer (`docker save | ssh 'docker load'`), pages
+rsync, and a deploy lock. Configuration lives in `remote.env` at the repo
+root (copy from `remote.env.example`; gitignored). Every state-changing
+subcommand accepts `--dry-run`.
+
+```bash
+bin/remote.sh --help                          # subcommand list
+bin/remote.sh bootstrap                       # first-time remote setup
+bin/remote.sh deploy                          # local build → ssh push → up -d → health-poll
+bin/remote.sh status                          # container ps + health + disk
+bin/remote.sh pages-push docs/wikantik-pages  # rsync pages to remote (no --delete by default)
+bin/remote.sh rollback                        # re-promote :rollback image
+```
+
+Prod content lives at `${WIKANTIK_PAGES_DIR}` on the remote host as a
+bind mount — so `rsync` is the source of truth for the page tree,
+independent of container lifecycle. Design doc:
+[docs/superpowers/specs/2026-05-14-remote-container-admin-design.md](docs/superpowers/specs/2026-05-14-remote-container-admin-design.md).
+
 ### `bin/` script conventions
 
 - Every script under `bin/` and `docker/` responds to `-h` / `--help`

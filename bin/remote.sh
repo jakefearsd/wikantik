@@ -341,6 +341,30 @@ EOF
     exit 1
 }
 
+cmd_rollback() {
+    case "${1:-}" in
+        -h|--help)
+            cat <<'EOF'
+rollback — re-promote wikantik:rollback to wikantik:latest, force-recreate the service.
+
+Usage: bin/remote.sh [--dry-run] rollback
+
+Fails if no :rollback image exists on the remote (means no successful prior
+deploy has been recorded). In that case, recovery is manual: re-deploy a
+known-good build or restore from backup. Acquires the same deploy lock
+as `deploy` and `restore`.
+EOF
+            return 0 ;;
+    esac
+
+    _acquire_deploy_lock
+    _ssh "docker image inspect wikantik:rollback >/dev/null 2>&1 \
+          || { echo 'no wikantik:rollback image on ${REMOTE_HOST} — nothing to roll back to.' >&2; exit 1; }"
+    _ssh "docker tag wikantik:rollback wikantik:latest"
+    _ssh "cd $(printf '%q' "${REMOTE_REPO_DIR}") && bin/container.sh -e prod up -d --force-recreate wikantik"
+    echo "Rollback complete on ${REMOTE_HOST}."
+}
+
 cmd_bootstrap() {
     case "${1:-}" in
         -h|--help)
@@ -416,6 +440,7 @@ case "${SUBCOMMAND}" in
     migrate)    cmd_migrate "$@" ;;
     bootstrap)  cmd_bootstrap "$@" ;;
     deploy)     cmd_deploy "$@" ;;
+    rollback)   cmd_rollback "$@" ;;
     *) echo "remote.sh: unknown subcommand: ${SUBCOMMAND}" >&2
        echo "           run: bin/remote.sh --help" >&2
        exit 2 ;;

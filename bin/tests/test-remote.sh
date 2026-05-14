@@ -236,3 +236,22 @@ test_deploy_help() {
 }
 test_deploy_dry_run_shape
 test_deploy_help
+
+test_rollback_dry_run() {
+    local tmp out
+    tmp="$(mktemp -d)"
+    mkdir -p "${tmp}/bin"
+    cp bin/remote.sh "${tmp}/bin/remote.sh"
+    make_fake_remote_env "${tmp}"
+    out="$("${tmp}/bin/remote.sh" --dry-run rollback 2>&1)" \
+        || fail "rollback dry-run non-zero: ${out}"
+    echo "${out}" | grep -q "docker tag wikantik:rollback wikantik:latest" \
+        || fail "rollback did not re-promote :rollback: ${out}"
+    echo "${out}" | grep -q "force-recreate wikantik" \
+        || fail "rollback did not force-recreate wikantik: ${out}"
+    echo "${out}" | grep -q "flock" \
+        || fail "rollback did not acquire deploy lock: ${out}"
+    rm -rf "${tmp}"
+    ok "rollback dry-run re-promotes :rollback, recreates, acquires lock"
+}
+test_rollback_dry_run

@@ -1,5 +1,6 @@
-# Prod overrides: resource limits, host paths, backup service
-# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Prod overrides: resource limits, host bind mounts, backup service
+# Usage: WIKANTIK_PAGES_DIR=/srv/wikantik/pages docker compose \
+#          -f docker-compose.yml -f docker-compose.prod.yml up -d
 services:
   db:
     restart: always
@@ -17,6 +18,13 @@ services:
       resources:
         limits:
           memory: 1G
+    volumes:
+      # Pages live on the host so they can be moved with rsync independently
+      # of the container lifecycle. wikantik-work / wikantik-logs stay as
+      # named volumes (regeneratable, no operator interest in their contents).
+      - ${WIKANTIK_PAGES_DIR:-/srv/wikantik/pages}:/var/wikantik/pages
+      - wikantik-work:/var/wikantik/work
+      - wikantik-logs:/var/wikantik/logs
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
       interval: 30s
@@ -37,8 +45,8 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:-CHANGEME}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
     volumes:
-      - wikantik-pages:/var/wikantik/pages
-      - ${BACKUP_DIR:-./backups}:/backups
+      - ${WIKANTIK_PAGES_DIR:-/srv/wikantik/pages}:/var/wikantik/pages
+      - ${BACKUP_DIR:-/srv/wikantik/backups}:/backups
       - ./docker/backup/backup.sh:/usr/local/bin/backup.sh:ro
       - ./docker/backup/restore.sh:/usr/local/bin/restore.sh:ro
       - ./docker/backup/crontab:/etc/crontabs/root:ro

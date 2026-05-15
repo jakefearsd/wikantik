@@ -727,3 +727,40 @@
 [data-theme="dark"] .version-purge-target {
   background: #2A2020;
 }
+
+/* ============================================================
+   LLM Activity — table row states
+   ============================================================ */
+
+/* Failed call — danger-tinted row, matching the .admin-message.error palette */
+.admin-table tr.row-error td {
+  background: #FEE;
+}
+
+[data-theme="dark"] .admin-table tr.row-error td {
+  background: #3A2020;
+}
+
+/* In-flight call — subtle accent-tinted, italic to read as provisional */
+.admin-table tr.row-inflight td {
+  background: var(--sage-light);
+  font-style: italic;
+}
+
+/* Expansion row — recessed background and smaller font so prompt/response
+   detail reads as secondary content */
+.admin-table tr.row-detail td {
+  background: var(--bg-sidebar);
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+}
+
+/* Inline error span in the Status cell */
+.row-error-message {
+  color: #C44;
+  font-size: 0.825rem;
+}
+
+[data-theme="dark"] .row-error-message {
+  color: #F88;
+}

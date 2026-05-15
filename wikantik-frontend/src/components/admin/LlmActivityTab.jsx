@@ -59,12 +59,18 @@ export default function LlmActivityTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (error) return <div className="admin-error">{error}</div>;
+  if (error) {
+    return (
+      <div className="admin-message error" role="alert">
+        {error}
+      </div>
+    );
+  }
   if (!snapshot) return <div className="admin-loading">Loading LLM activity…</div>;
 
   if (!snapshot.enabled) {
     return (
-      <div className="admin-notice">
+      <div className="admin-message warning" role="status">
         LLM activity recording is disabled. Set{' '}
         <code>wikantik.llm_activity.enabled = true</code> to enable it.
       </div>
@@ -76,7 +82,7 @@ export default function LlmActivityTab() {
 
   return (
     <div>
-      <div className="admin-subhead" style={{ marginBottom: 'var(--space-md)' }}>
+      <div className="admin-section-header">
         <strong>{snapshot.inFlight || 0} in-flight</strong>
         {' · '}
         {calls.length} calls in the last {snapshot.windowMinutes} min

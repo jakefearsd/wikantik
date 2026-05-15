@@ -709,6 +709,13 @@ export const api = {
     getExtractionStatus: () =>
       request('/admin/knowledge-graph/extract-mentions'),
 
+    getLlmActivity: ({ limit = 200, subsystem, status } = {}) => {
+      const params = new URLSearchParams({ limit });
+      if (subsystem) params.set('subsystem', subsystem);
+      if (status) params.set('status', status);
+      return request(`/admin/llm-activity?${params}`);
+    },
+
     startExtraction: (force = false) =>
       request(`/admin/knowledge-graph/extract-mentions${force ? '?force=true' : ''}`,
               { method: 'POST' }),

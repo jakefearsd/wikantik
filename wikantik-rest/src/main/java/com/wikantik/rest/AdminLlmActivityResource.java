@@ -28,6 +28,9 @@ import com.wikantik.llm.activity.LlmCallView;
 import com.wikantik.llm.activity.Subsystem;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 
 /**
@@ -43,6 +46,7 @@ public class AdminLlmActivityResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
     private static final int DEFAULT_LIMIT = 200;
+    private static final Logger LOG = LogManager.getLogger( AdminLlmActivityResource.class );
 
     /** Test seam — {@code doGet} is protected on the servlet base. */
     void doGetForTesting( final HttpServletRequest req, final HttpServletResponse resp )
@@ -61,6 +65,7 @@ public class AdminLlmActivityResource extends RestServletBase {
             try {
                 limit = Integer.parseInt( limitRaw.trim() );
             } catch ( final NumberFormatException e ) {
+                LOG.warn( "Invalid 'limit' query parameter '{}', using default {}", limitRaw, DEFAULT_LIMIT );
                 limit = DEFAULT_LIMIT;
             }
         }
@@ -116,6 +121,7 @@ public class AdminLlmActivityResource extends RestServletBase {
         try {
             return Subsystem.valueOf( raw.trim().toUpperCase( java.util.Locale.ROOT ) );
         } catch ( final IllegalArgumentException e ) {
+            LOG.warn( "Unknown 'subsystem' query parameter '{}', ignoring filter", raw );
             return null;
         }
     }
@@ -127,6 +133,7 @@ public class AdminLlmActivityResource extends RestServletBase {
         try {
             return CallStatus.valueOf( raw.trim().toUpperCase( java.util.Locale.ROOT ) );
         } catch ( final IllegalArgumentException e ) {
+            LOG.warn( "Unknown 'status' query parameter '{}', ignoring filter", raw );
             return null;
         }
     }

@@ -7,6 +7,7 @@ import ContentEmbeddingsTab from './ContentEmbeddingsTab';
 import HubProposalsTab from './HubProposalsTab';
 import HubDiscoveryTab from './HubDiscoveryTab';
 import ExtractionTab from './ExtractionTab';
+import LlmActivityTab from './LlmActivityTab';
 import '../../styles/admin.css';
 
 const TABS = [
@@ -24,6 +25,8 @@ const TABS = [
     description: 'Generate and manage hub membership proposals that suggest which pages belong to topic hubs based on content similarity. Approve or reject proposals individually, in bulk, or by setting a percentile threshold to auto-approve the strongest matches.' },
   { id: 'hub-discovery', label: 'Hub Discovery',
     description: 'Run cluster-based discovery to find new topic hubs across the wiki. Review discovered clusters as proposal cards, accept promising hubs, dismiss irrelevant ones, and manage existing hub memberships. Previously dismissed proposals are tracked to avoid rediscovery.' },
+  { id: 'llm-activity', label: 'LLM Activity',
+    description: 'Live view of recent and in-flight LLM calls — entity extraction, proposal judging, and embeddings — for roughly the last hour. Held in memory only; cleared on restart.' },
 ];
 
 export default function AdminKnowledgePage() {
@@ -81,6 +84,7 @@ export default function AdminKnowledgePage() {
       {activeTab === 'content-embeddings' && <ContentEmbeddingsTab />}
       {activeTab === 'hub-proposals' && <HubProposalsTab />}
       {activeTab === 'hub-discovery' && <HubDiscoveryTab />}
+      {activeTab === 'llm-activity' && <LlmActivityTab />}
     </div>
   );
 }

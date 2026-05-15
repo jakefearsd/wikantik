@@ -1,22 +1,31 @@
 ---
+cluster: Artificial Intelligence
+uses:
+- Wikantik
+- tool
+summary: Technical overview of how AI agents interact with external systems through
+  defined tool schemas and protocols like MCP.
 related:
 - GenerativeAI
 - AgenticArchitecture
 - LangChainFundamentals
-cluster: Artificial Intelligence
-canonical_id: 01J7KQTCD38PBFSD7TD6ACJFDE
-type: article
+produces:
+- observation
 tags:
 - ai
 - agents
 - mcp
 - automation
 - architecture
-summary: Technical overview of how AI agents interact with external systems through
-  defined tool schemas and protocols like MCP.
-status: active
+enables:
+- Tool Use
 date: 2026-05-15T00:00:00Z
+canonical_id: 01J7KQTCD38PBFSD7TD6ACJFDE
+related_to:
+- Function Calling
+type: article
 title: 'Tool Use: Agentic Capabilities and Protocols'
+status: active
 ---
 
 # Tool Use: Agentic Capabilities and Protocols

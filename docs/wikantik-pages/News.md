@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-15** — content: add hub pages, new wiki articles, and refresh existing pages
+
 **2026-05-15** — fix(mcp): expand curate_nodes tool description with shape + node_type regex
 
 **2026-05-15** — fix(kg): revert pre-flight vocab check; translate DB CHECK violation instead

@@ -109,6 +109,39 @@ class MentionAttributorTest {
     }
 
     @Test
+    void repeatedCallsWithSameNamesYieldIdenticalResults() {
+        final UUID chunkId = UUID.randomUUID();
+        final UUID nodeId = UUID.randomUUID();
+        final List<MentionAttributor.NameMapping> names =
+            List.of(new MentionAttributor.NameMapping(nodeId, "Kafka"));
+        final List<MentionAttributor.ChunkMention> first =
+            attr.attribute(chunkId, "Kafka and Kafka.", names);
+        final List<MentionAttributor.ChunkMention> second =
+            attr.attribute(chunkId, "Kafka and Kafka.", names);
+        final List<MentionAttributor.ChunkMention> third =
+            attr.attribute(chunkId, "Kafka and Kafka.", names);
+        assertEquals(2, first.size());
+        assertEquals(first, second, "repeated calls must be deterministic");
+        assertEquals(first, third);
+    }
+
+    @Test
+    void interleavedDifferentNameSetsDoNotCrossContaminate() {
+        final UUID chunkId = UUID.randomUUID();
+        final UUID kafka = UUID.randomUUID();
+        final UUID spark = UUID.randomUUID();
+        final List<MentionAttributor.NameMapping> k =
+            List.of(new MentionAttributor.NameMapping(kafka, "Kafka"));
+        final List<MentionAttributor.NameMapping> s =
+            List.of(new MentionAttributor.NameMapping(spark, "Spark"));
+        assertEquals(1, attr.attribute(chunkId, "Kafka here", k).size());
+        assertEquals(1, attr.attribute(chunkId, "Spark here", s).size());
+        // Re-querying after an interleaved call must still be correct.
+        assertEquals(1, attr.attribute(chunkId, "Kafka here", k).size());
+        assertTrue(attr.attribute(chunkId, "Spark here", k).isEmpty());
+    }
+
+    @Test
     void multipleNamesAreAttributedIndependently() {
         final UUID chunkId = UUID.randomUUID();
         final UUID a = UUID.randomUUID();

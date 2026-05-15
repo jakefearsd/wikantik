@@ -1,5 +1,5 @@
 ---
-title: Paxos and Raft: Distributed Consensus
+title: "Paxos and Raft: Distributed Consensus"
 type: article
 cluster: distributed-systems
 status: published

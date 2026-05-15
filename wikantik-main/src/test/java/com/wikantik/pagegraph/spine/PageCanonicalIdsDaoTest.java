@@ -268,4 +268,37 @@ class PageCanonicalIdsDaoTest {
             capturingAppender.stop();
         }
     }
+
+    /**
+     * Case 5: canonical_id ALREADY exists in DB under one slug, page on disk is now renamed
+     * to a slug already owned by a different canonical_id. The UPDATE branch must detect
+     * the conflict pre-emptively and return SKIPPED_STALE_SLUG_OWNER cleanly — without the
+     * unique-constraint PSQLException stacktrace observed 2026-05-15 boot (PaxosAndRaft).
+     */
+    @Test
+    void upsert_existingCanonicalId_renamesTo_slugOwnedByDifferentCanonicalId_returnsSkipped() {
+        final String renamingId = ID_STALE;
+        final String otherId    = ID_FRESH;
+        final String oldSlug    = "OriginalSlug";
+        final String targetSlug = "ConflictedSlug";
+
+        dao.upsert( renamingId, oldSlug,    "Original Page",    "article", null );
+        dao.upsert( otherId,    targetSlug, "Other Page",       "article", null );
+
+        final PageCanonicalIdsDao.UpsertResult result = dao.upsert(
+                renamingId, targetSlug, "Original Page (renamed)", "article", null );
+
+        assertEquals( PageCanonicalIdsDao.UpsertResult.SKIPPED_STALE_SLUG_OWNER, result,
+                "UPDATE-branch rename collision must signal SKIPPED so callers can suppress "
+                + "FK-bound cascades (mirror of the INSERT-branch behavior)" );
+
+        final Optional< PageCanonicalIdsDao.Row > renamingRow = dao.findByCanonicalId( renamingId );
+        assertTrue( renamingRow.isPresent(), "renaming row must still exist" );
+        assertEquals( oldSlug, renamingRow.get().currentSlug(),
+                "renaming row's slug must remain the OLD slug (rename was rejected)" );
+        final Optional< PageCanonicalIdsDao.Row > otherRow = dao.findByCanonicalId( otherId );
+        assertTrue( otherRow.isPresent() );
+        assertEquals( targetSlug, otherRow.get().currentSlug(),
+                "other row's slug must remain unchanged" );
+    }
 }

@@ -110,13 +110,37 @@ public class PageCanonicalIdsDao {
                     if ( prev.currentSlug().equals( currentSlug ) ) {
                         LOG.debug( "upsert({}, {}): canonical_id and slug unchanged — updating metadata only",
                                    canonicalId, currentSlug );
-                    } else if ( !slugHistoryRowExists( c, canonicalId, prev.currentSlug() ) ) {
-                        try ( PreparedStatement ps = c.prepareStatement(
-                                "INSERT INTO page_slug_history (canonical_id, previous_slug) " +
-                                "VALUES (?, ?)" ) ) {
-                            ps.setString( 1, canonicalId );
-                            ps.setString( 2, prev.currentSlug() );
-                            ps.executeUpdate();
+                    } else {
+                        // Mirror of the INSERT-branch slug-owner check: when this canonical_id
+                        // already exists in the DB but its slug is changing to one already
+                        // claimed by a *different* canonical_id, the UPDATE on current_slug
+                        // would explode with page_canonical_ids_current_slug_key. That fires
+                        // a verbose PSQLException stacktrace into catalina.out (seen 2026-05-15
+                        // boot — PaxosAndRaft).  Detect pre-emptively, WARN with the same
+                        // recovery hint as the INSERT branch, and skip the write.
+                        final Optional< Row > slugOwner = findBySlug( c, currentSlug );
+                        if ( slugOwner.isPresent()
+                                && !slugOwner.get().canonicalId().equals( canonicalId ) ) {
+                            final String ownerId = slugOwner.get().canonicalId();
+                            LOG.warn( "upsert({}, {}): rename target slug '{}' is already claimed by "
+                                    + "canonical_id '{}'. Frontmatter and DB are out of sync — "
+                                    + "skipping DB write so the in-memory projection continues "
+                                    + "cleanly. To fix: run bin/db/one-shots/reconcile_page_canonical_ids.sh "
+                                    + "(or manually DELETE the stale row from page_canonical_ids "
+                                    + "WHERE canonical_id='{}' AND current_slug='{}').",
+                                      canonicalId, currentSlug, currentSlug,
+                                      ownerId, ownerId, currentSlug );
+                            c.commit();
+                            return UpsertResult.SKIPPED_STALE_SLUG_OWNER;
+                        }
+                        if ( !slugHistoryRowExists( c, canonicalId, prev.currentSlug() ) ) {
+                            try ( PreparedStatement ps = c.prepareStatement(
+                                    "INSERT INTO page_slug_history (canonical_id, previous_slug) " +
+                                    "VALUES (?, ?)" ) ) {
+                                ps.setString( 1, canonicalId );
+                                ps.setString( 2, prev.currentSlug() );
+                                ps.executeUpdate();
+                            }
                         }
                     }
                     try ( PreparedStatement ps = c.prepareStatement(

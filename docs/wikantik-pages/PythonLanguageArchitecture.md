@@ -1,4 +1,12 @@
 ---
+title: Python Language Architecture
+related_to:
+- Rust
+- FunctionalProgrammingFoundations
+implements:
+- PEP 703
+applies_to:
+- Agentic AI
 canonical_id: 01KREVEHD68DXYJ6EPAN4VPZBV
 auto-generated: true
 type: article
@@ -8,7 +16,8 @@ tags:
 - thread
 summary: 'The "No-GIL" Revolution: True Parallelism Python 3.14 (released late 2025)
   solidified the Free-threaded build (PEP 703) as a supported production standard.'
-title: Python Language Architecture
+produces:
+- Free-threaded build
 ---
 
 # Python: The Universal AI Operating System

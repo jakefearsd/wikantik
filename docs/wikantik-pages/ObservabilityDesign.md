@@ -1,10 +1,12 @@
 ---
-cluster: devops-sre
-canonical_id: 01KQ0P44T771NATW10QVZEVR5Y
 summary: Wikantik Observability System Design
+canonical_id: 01KQ0P44T771NATW10QVZEVR5Y
+cluster: devops-sre
+type: article
 tags:
 - uncategorized
-type: article
+hubs:
+- InfrastructureSreHub
 ---
 # Wikantik Observability System Design
 
@@ -344,7 +346,7 @@ query_range:
         enabled: true
         max_size_mb: 100
 
-schema_config:
+s_config:
   configs:
     - from: 2024-01-01
       store: tsdb
@@ -459,47 +461,47 @@ sudo mv node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/lo
   - File**: `/etc/systemd/system/loki.service`
 
 ```ini
-[Unit](Unit)
+[Unit]
 Description=Loki Log Aggregation System
 After=network.target
 
-[Service](Service)
+[Service]
 Type=simple
 User=loki
 ExecStart=/usr/local/bin/loki -config.file=/etc/loki/loki.yaml
 Restart=on-failure
 RestartSec=5
 
-[Install](Install)
+[Install]
 WantedBy=multi-user.target
 ```
 
   - File**: `/etc/systemd/system/promtail.service`
 
 ```ini
-[Unit](Unit)
+[Unit]
 Description=Promtail Log Collector
 After=network.target
 
-[Service](Service)
+[Service]
 Type=simple
 User=promtail
 ExecStart=/usr/local/bin/promtail -config.file=/etc/promtail/promtail.yaml
 Restart=on-failure
 RestartSec=5
 
-[Install](Install)
+[Install]
 WantedBy=multi-user.target
 ```
 
   - File**: `/etc/systemd/system/prometheus.service`
 
 ```ini
-[Unit](Unit)
+[Unit]
 Description=Prometheus Monitoring System
 After=network.target
 
-[Service](Service)
+[Service]
 Type=simple
 User=prometheus
 ExecStart=/usr/local/bin/prometheus \
@@ -509,25 +511,25 @@ ExecStart=/usr/local/bin/prometheus \
 Restart=on-failure
 RestartSec=5
 
-[Install](Install)
+[Install]
 WantedBy=multi-user.target
 ```
 
   - File**: `/etc/systemd/system/node_exporter.service`
 
 ```ini
-[Unit](Unit)
+[Unit]
 Description=Node Exporter
 After=network.target
 
-[Service](Service)
+[Service]
 Type=simple
 User=node_exporter
 ExecStart=/usr/local/bin/node_exporter
 Restart=on-failure
 RestartSec=5
 
-[Install](Install)
+[Install]
 WantedBy=multi-user.target
 ```
 
@@ -673,7 +675,7 @@ These panels provide visibility into article traffic and geographic distribution
 
 4. **Requests by Page (from Promtail metrics)**
    ```promql
-   topk(10, sum by (page) (rate(promtail_custom_http_requests_by_page[5m])))
+   topk(10, sum by (page) (rate(promtail_custom_http_requests_by_page[5m])))\
    ```
 
 5. **System Resources**
@@ -874,7 +876,7 @@ With this design, you can answer:
 | Where are my visitors located? | Cloudflare's `CF-IPCountry` header provides country codes |
 | What's trending this week? | Time-series queries on page access counts |
 | Which countries read specific pages? | Cross-reference `country` and `page` labels |
-| What's my peak traffic time? | Time-series visualization of request rates |
+| What's peak traffic time? | Time-series visualization of request rates |
 
   - Geographic Data Source**: Cloudflare automatically adds the `CF-IPCountry` header to every request, providing accurate country-level geolocation without any additional GeoIP database or service required.
 

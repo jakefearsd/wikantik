@@ -1,11 +1,25 @@
 ---
-title: Topology
-cluster: mathematics
-tags: [topology, poincare-conjecture, tda, persistent-homology, manifolds, homeomorphisms]
+canonical_id: 01KRN9CBQJZ21E1KYFRJ4R1160
 status: active
+hubs:
+- PhysicsHub
 date: '2026-05-14'
-summary: A conceptual deep-dive into Topology, focusing on spatial intuition, continuous deformations, and the "shape" of data in medicine and robotics.
-related: [DifferentialGeometry, TopologyMathematics, MathematicsHub, PhysicsHub]
+related:
+- DifferentialGeometry
+- TopologyMathematics
+- MathematicsHub
+- PhysicsHub
+cluster: mathematics
+tags:
+- topology
+- poincare-conjecture
+- tda
+- persistent-homology
+- manifolds
+- homeomorphisms
+title: Topology
+summary: A conceptual deep-dive into Topology, focusing on spatial intuition, continuous
+  deformations, and the "shape" of data in medicine and robotics.
 ---
 
 # Topology: The Architecture of Connectivity

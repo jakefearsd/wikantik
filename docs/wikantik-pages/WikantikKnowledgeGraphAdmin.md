@@ -1,19 +1,28 @@
 ---
-title: Wikantik Knowledge Graph Administration
-cluster: wikantik-development
-date: 2026-04-08T00:00:00Z
-related_to:
-- IndexFundPortfolioConstruction
-- node
-type: article
-status: active
-canonical_id: 01KQ0P44YXH9WR0JWF0A6EBVMV
+contrasts_with:
+- related
 related:
 - ArtificialIntelligence
 - AiAugmentedWorkflows
+date: 2026-04-08T00:00:00Z
 summary: Comprehensive step-by-step guide for administering the Wikantik knowledge
   graph to maximize its value for AI agents and human users supporting business operations
   and software development.
+canonical_id: 01KQ0P44YXH9WR0JWF0A6EBVMV
+uses:
+- list_proposals
+- propose_knowledge
+- MCP server
+- rejection history
+- Ollama
+- AI proposals
+status: active
+type: article
+part_of:
+- Knowledge
+title: Wikantik Knowledge Graph Administration
+produces:
+- Proposals
 tags:
 - knowledge-graph
 - administration
@@ -21,6 +30,17 @@ tags:
 - ai
 - graph-management
 - operations
+related_to:
+- IndexFundPortfolioConstruction
+- node
+- RestApi
+- Content
+- Structure
+- provenance
+- AssetAllocation
+cluster: wikantik-development
+enables:
+- AI agents
 ---
 
 # Wikantik Knowledge Graph Administration

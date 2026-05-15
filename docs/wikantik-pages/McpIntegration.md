@@ -1,16 +1,11 @@
 ---
-canonical_id: 01KQ0P44SBG2CF3EAWZF9SYJND
-summary: Operator + agent guide for wiring Claude Code, Gemini CLI, and OpenAPI-only clients into Wikantik's three tool surfaces (~36 tools)
-tags:
-- development
-- mcp
-- ai
-- agent-integration
-- tools
-type: article
-status: deployed
-cluster: wikantik-development
+summary: Operator + agent guide for wiring Claude Code, Gemini CLI, and OpenAPI-only
+  clients into Wikantik's three tool surfaces (~36 tools)
 date: '2026-04-29'
+cluster: wikantik-development
+depends-on:
+- KnowledgeGraphCore
+- StructuralSpineDesign
 related:
 - WikantikDevelopment
 - KnowledgeGraphCore
@@ -21,9 +16,17 @@ related:
 - KgInclusionPolicy
 - GoodMcpDesign
 - About
-depends-on:
-- KnowledgeGraphCore
-- StructuralSpineDesign
+canonical_id: 01KQ0P44SBG2CF3EAWZF9SYJND
+type: article
+tags:
+- development
+- mcp
+- ai
+- agent-integration
+- tools
+status: deployed
+hubs:
+- WikantikDevelopmentHub
 ---
 # MCP Integration
 

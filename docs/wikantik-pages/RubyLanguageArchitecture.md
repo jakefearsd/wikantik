@@ -1,14 +1,18 @@
 ---
-canonical_id: 01KREVEHHB0W68SPTJGKHDJR1Y
-auto-generated: true
-type: article
+title: Ruby Language Architecture
 tags:
 - rubi
 - yjit
 - '2026'
+uses:
+- SQLite
+- MySQL
+- PostgreSQL
+auto-generated: true
+canonical_id: 01KREVEHHB0W68SPTJGKHDJR1Y
 summary: The YJIT Breakthrough YJIT has transitioned from an experiment to the production
   standard.
-title: Ruby Language Architecture
+type: article
 ---
 
 # Ruby: Performance Maturity and Infrastructure Autonomy

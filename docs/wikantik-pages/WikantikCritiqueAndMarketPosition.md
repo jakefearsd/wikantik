@@ -1,7 +1,9 @@
 ---
+canonical_id: 01KQTCCQ3H9K0M9E95ZCK3KHN5
 verified_by: gemini-cli-mcp-client
 verified_at: '2026-05-04T21:10:44.598011331Z'
-canonical_id: 01KQTCCQ3H9K0M9E95ZCK3KHN5
+hubs:
+- WikantikPlatformHub
 ---
 -----
 canonical_id: 01KQTCCQ3H9K0M9E95ZCK3KHN5

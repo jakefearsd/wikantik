@@ -1,8 +1,13 @@
 ---
+summary: Technical guide to Dependency Injection (DI) and Inversion of Control (IoC).
+  Covers constructor injection, lifecycles (Singleton/Transient), and Guice/Spring
+  patterns.
+date: 2025-05-15T00:00:00Z
 cluster: design-patterns
+auto-generated: false
 canonical_id: 01KQ0P44PH044M4T08CZ5W1NBJ
-title: Dependency Injection Patterns
 type: article
+title: Dependency Injection Patterns
 tags:
 - design-patterns
 - dependency-injection
@@ -10,9 +15,8 @@ tags:
 - decoupling
 - software-architecture
 status: active
-date: 2025-05-15
-summary: Technical guide to Dependency Injection (DI) and Inversion of Control (IoC). Covers constructor injection, lifecycles (Singleton/Transient), and Guice/Spring patterns.
-auto-generated: false
+hubs:
+- ArchitectureHub
 ---
 
 # Dependency Injection: Decoupling Systems

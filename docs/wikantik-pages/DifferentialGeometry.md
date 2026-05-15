@@ -1,22 +1,26 @@
 ---
+summary: A deep-dive into the calculus of curved spaces, covering manifolds, metric
+  tensors, curvature invariants, and their fundamental role in General Relativity
+  and Robotics.
+date: '2026-05-10'
 cluster: mathematics
+related:
+- AppliedMathSurvey
+- TopologyMathematics
+- TensorTheory
+- CalculusRefreshForCS
+- PhysicsHub
 canonical_id: 01KQ0P44PNH5Z7WQQMY43G947G
-title: Differential Geometry
 type: article
+title: Differential Geometry
 tags:
 - mathematics
 - differential-geometry
 - manifolds
 - riemannian-geometry
 - relativity
-summary: A deep-dive into the calculus of curved spaces, covering manifolds, metric tensors, curvature invariants, and their fundamental role in General Relativity and Robotics.
 status: active
-date: '2026-05-10'
-related:
-- AppliedMathSurvey
-- TopologyMathematics
-- TensorTheory
-- CalculusRefreshForCS
+hubs:
 - PhysicsHub
 ---
 

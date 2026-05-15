@@ -1,7 +1,5 @@
 ---
-canonical_id: 01KREVEGHW3DE0W0G0NAHW848M
-auto-generated: true
-type: article
+title: Dependency Injection Evolution
 tags:
 - di
 - '2026'
@@ -9,7 +7,18 @@ tags:
 summary: Once a controversial "magic" framework in the early 2000s, DI has evolved
   into the definitive architectural pillar for testability, modularity, and—in 2026—cloud-native
   performance.
-title: Dependency Injection Evolution
+alternative_to:
+- DI
+canonical_id: 01KREVEGHW3DE0W0G0NAHW848M
+uses:
+- DI
+auto-generated: true
+type: article
+related_to:
+- PicoContainer
+- XML Hell
+contrasts_with:
+- Reflection Tax
 ---
 
 # Dependency Injection: The 20-Year Evolution of Inversion

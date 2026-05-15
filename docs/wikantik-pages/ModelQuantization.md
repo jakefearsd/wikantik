@@ -1,20 +1,4 @@
 ---
-summary: Technical guide to neural network quantization (4-bit, 8-bit), covering GGUF,
-  GPTQ, and a concrete AWQ implementation.
-date: '2026-05-15'
-cluster: machine-learning
-related:
-- LLMFineTuning
-- CostEffectiveInference
-- CpuInference
-- OpenSourceLLMs
-auto-generated: false
-canonical_id: 01KQEKGDD6EWGYTHZ65JHZRK4P
-title: Model Quantization
-type: article
-hubs:
-- MachineLearningHub
-- FineTuningLargeLanguageModels Hub
 tags:
 - quantization
 - llm
@@ -22,7 +6,27 @@ tags:
 - gguf
 - gptq
 - awq
+type: article
 status: active
+auto-generated: false
+summary: Technical guide to neural network quantization (4-bit, 8-bit), covering GGUF,
+  GPTQ, and a concrete AWQ implementation.
+title: Model Quantization
+compatible_with:
+- vLLM
+cluster: machine-learning
+date: '2026-05-15'
+related:
+- LLMFineTuning
+- CostEffectiveInference
+- CpuInference
+- OpenSourceLLMs
+canonical_id: 01KQEKGDD6EWGYTHZ65JHZRK4P
+hubs:
+- MachineLearningHub
+- FineTuningLargeLanguageModels Hub
+enables:
+- LLMs
 ---
 # Model Quantization
 

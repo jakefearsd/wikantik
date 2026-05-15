@@ -1,10 +1,22 @@
 ---
-title: Smalltalk
-cluster: computer-science
-tags: [programming-languages, smalltalk, oop, xerox-parc, live-coding, ide, computer-history]
+canonical_id: 01KRN9CBK8HM8ZEKPD0T1KPXFZ
+summary: The pioneer of 'Pure' Object-Oriented Programming (1972). Created at Xerox
+  PARC, it defined the modern graphical IDE, virtual machines, and the 'Everything
+  is an Object' philosophy.
+hubs:
+- ArchitectureHub
 status: active
-date: 2026-05-08
-summary: The pioneer of 'Pure' Object-Oriented Programming (1972). Created at Xerox PARC, it defined the modern graphical IDE, virtual machines, and the 'Everything is an Object' philosophy.
+cluster: computer-science
+title: Smalltalk
+tags:
+- programming-languages
+- smalltalk
+- oop
+- xerox-parc
+- live-coding
+- ide
+- computer-history
+date: 2026-05-08T00:00:00Z
 ---
 
 # Smalltalk: The Architect of the Modern Environment

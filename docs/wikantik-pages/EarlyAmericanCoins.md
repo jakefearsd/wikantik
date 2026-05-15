@@ -1,17 +1,20 @@
 ---
+date: 2025-05-15T00:00:00Z
+summary: Technical analysis of early U.S. coinage, focusing on the Fugio Cent of 1787,
+  the 1792 patterns, and the metallurgical shifts of the first federal issues.
 cluster: american-coinage
+auto-generated: false
 canonical_id: 01KQ0P44Q0844HD4VJC2309YEN
-title: Early American Coins
 type: article
+title: Early American Coins
 tags:
 - coin-collecting
 - numismatics
 - early-american
 - fugio-cent
 - us-mint
-date: 2025-05-15
-summary: Technical analysis of early U.S. coinage, focusing on the Fugio Cent of 1787, the 1792 patterns, and the metallurgical shifts of the first federal issues.
-auto-generated: false
+hubs:
+- AmericanCoinageHub
 ---
 
 # Technical Analysis of Early American Coinage (1787–1795)

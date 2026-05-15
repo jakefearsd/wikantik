@@ -9,8 +9,8 @@ related:
 - NetworkingHub
 - DataStructuresHub
 canonical_id: 01KQEKGD9XWDSFGH7TWHH63NZT
-type: hub
 title: Distributed Systems Hub
+type: hub
 tags:
 - distributed-systems
 - cloud-computing
@@ -18,10 +18,11 @@ tags:
 - consistency
 - fault-tolerance
 - hub
-status: active
 hubs:
 - DataStructuresHub
 - CloudPlatformsHub
+- EngineeringDisciplineHub
+status: active
 ---
 # Distributed Systems Hub
 

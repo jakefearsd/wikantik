@@ -1,18 +1,19 @@
 ---
-cluster: generative-ai
-canonical_id: 01KQ0P44P0FBQ5MKCX6JA0WJ0F
-title: Context Window Management
-type: article
 tags:
 - generative-ai
 - llm
 - rag
 - prompt-engineering
 - nlp
-status: active
-date: 2025-05-15
-summary: Technical strategies for managing LLM context limits. Covers RAG chunking, semantic pruning, and long-context performance analysis.
+type: article
 auto-generated: false
+summary: Technical strategies for managing LLM context limits. Covers RAG chunking,
+  semantic pruning, and long-context performance analysis.
+status: active
+date: 2025-05-15T00:00:00Z
+title: Context Window Management
+cluster: generative-ai
+canonical_id: 01KQ0P44P0FBQ5MKCX6JA0WJ0F
 ---
 
 # Context Window Management: Information Density
@@ -50,5 +51,5 @@ This keeps each individual prompt high-density and reduces hallucination risk.
 ---
 **See Also:**
 - [Embeddings Vector DB](EmbeddingsVectorDB) — The indexing layer.
-- [Generative Ai Fundamentals](GenerativeAi) — Base model mechanics.
+- [Generative AI Fundamentals](GenerativeAI) — Base model mechanics.
 - [Knowledge Extraction From Text](KnowledgeExtractionFromText) — Building the context pool.

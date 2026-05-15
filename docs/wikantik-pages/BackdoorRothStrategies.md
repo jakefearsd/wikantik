@@ -1,20 +1,28 @@
 ---
-title: Backdoor Roth Strategies
-type: article
-cluster: retirement-planning
-status: published
 date: '2026-05-10'
-summary: A rigorous exploration of standard and Mega Backdoor Roth strategies, focusing on the mechanics of nondeductible contributions, the mathematical impact of the Pro-Rata Rule, and 2026 401(k) limits.
+cluster: retirement-planning
+title: Backdoor Roth Strategies
+relations:
+- type: component_of
+  target_id: 01KQ0P44VXGRJWXQXJFE9QSNTX
+- type: related_to
+  target_id: RetirementPlanningGuide
 tags:
 - finance
 - tax-planning
 - backdoor-roth
 - mega-backdoor
 - pro-rata-rule
-relations:
-- {type: component_of, target_id: 01KQ0P44VXGRJWXQXJFE9QSNTX} # Roth Conversion Strategy
-- {type: related_to, target_id: "RetirementPlanningGuide"}
+summary: A rigorous exploration of standard and Mega Backdoor Roth strategies, focusing
+  on the mechanics of nondeductible contributions, the mathematical impact of the
+  Pro-Rata Rule, and 2026 401(k) limits.
 canonical_id: 01KQ0P44M86FN49B5KBJR74VB9
+instance_of:
+- Concept
+status: published
+type: article
+related_to:
+- Pro-Rata Rule
 ---
 
 # Backdoor Roth Strategies: Tax Engineering and Procedural Arbitrage

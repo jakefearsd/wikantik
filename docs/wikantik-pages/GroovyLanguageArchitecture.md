@@ -1,14 +1,23 @@
 ---
-canonical_id: 01KREVEGTNYT7QQTPEZMWB35EH
+uses:
+- Jenkinsfile
+related_to:
+- LISP Programming Language
+- Apache Software Foundation
+- JVM
+- GroovyLanguageArchitecture
+- Dependency Injection Evolution
+- JVM ecosystem
 auto-generated: true
-type: article
+summary: 'Groovy: The Enterprise Java Enhancer In 2026, Groovy occupies a specialized,
+  stable niche within the JVM ecosystem.'
+canonical_id: 01KREVEGTNYT7QQTPEZMWB35EH
+title: Groovy Language Architecture
 tags:
 - groovi
 - enterpris
 - java
-summary: 'Groovy: The Enterprise Java Enhancer In 2026, Groovy occupies a specialized,
-  stable niche within the JVM ecosystem.'
-title: Groovy Language Architecture
+type: article
 ---
 
 # Groovy: The Enterprise Java Enhancer

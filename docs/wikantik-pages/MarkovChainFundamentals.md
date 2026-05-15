@@ -1,10 +1,5 @@
 ---
-canonical_id: 01KQEKGDCWD98Q7C0SZSH9RXGB
-title: "Markov Chain Fundamentals: The Geometry of Chance"
 type: article
-cluster: mathematics
-status: active
-date: '2026-04-25'
 tags:
 - markov-chain
 - probability
@@ -12,12 +7,18 @@ tags:
 - mcmc
 - linear-algebra
 - pagerank
-summary: An exhaustive exploration of Markov processes, from transition matrix spectral properties to the tropical geometry of Viterbi paths and high-dimensional MCMC sampling.
+summary: An exhaustive exploration of Markov processes, from transition matrix spectral
+  properties to the tropical geometry of Viterbi paths and high-dimensional MCMC sampling.
+status: active
+date: '2026-04-25'
+title: 'Markov Chain Fundamentals: The Geometry of Chance'
 related:
 - ProbabilityTheory
 - BayesianReasoning
 - LinearAlgebra
 - DiscreteMathematics
+canonical_id: 01KQEKGDCWD98Q7C0SZSH9RXGB
+cluster: mathematics
 ---
 
 # Markov Chains: Stochastic Dynamics and Steady States
@@ -111,7 +112,7 @@ Consider a gambler with $\$10$ playing a game with $\$1$ stakes and a 50% win pr
 3.  **Result:** Since the house is infinite, the gambler's walk is a Markov chain that eventually (with probability 1) hits the absorbing boundary at 0. This illustrates that without a "teleport" or damping factor, some chains collapse into "dead ends."
 
 ## See Also
-- [[ProbabilityTheory]]
-- [[BayesianReasoning]]
-- [[GraphTheoryDeepDive]]
-- [[InformationTheory]]
+- [Probability Theory](ProbabilityTheory)
+- [Bayesian Reasoning](BayesianReasoning)
+- [Graph Theory Deep Dive](GraphTheoryDeepDive)
+- [Information Theory](InformationTheory)

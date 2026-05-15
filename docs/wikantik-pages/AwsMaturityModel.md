@@ -1,4 +1,8 @@
 ---
+date: '2026-05-10'
+summary: An exhaustive engineering guide to AWS adoption — covering the technical
+  bootstrap of Landing Zones (Day 0), operational limits of Control Tower (Day 2),
+  and AI-driven autonomous governance.
 tags:
 - aws
 - cloud-maturity
@@ -16,10 +20,8 @@ related:
 - TerraformFundamentals
 title: 'AWS Maturity Model: Engineering Bootstrap to Autonomous Governance'
 status: active
-date: '2026-05-10'
-summary: An exhaustive engineering guide to AWS adoption — covering the technical
-  bootstrap of Landing Zones (Day 0), operational limits of Control Tower (Day 2),
-  and AI-driven autonomous governance.
+requires:
+- AWS Control Tower
 ---
 # AWS Maturity Model: Engineering Bootstrap to Autonomous Governance
 

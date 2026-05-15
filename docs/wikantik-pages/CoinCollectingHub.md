@@ -1,10 +1,13 @@
 ---
-status: active
-canonical_id: 01KR79P65890NNHWXVY39Z20PA
+date: '2026-05-10'
 summary: Central technical index for the numismatic cluster — covering the economic
   history of metallurgical cycles, the logistics of global trade coins, and the AI-driven
   grading standards of 2026.
+cluster: numismatics
+canonical_id: 01KR79P65890NNHWXVY39Z20PA
+type: hub
 title: Coin Collecting and Economic History Hub
+status: active
 tags:
 - numismatics
 - economics
@@ -12,9 +15,8 @@ tags:
 - grading-standards
 - historical-eras
 - hub
-type: hub
-cluster: numismatics
-date: '2026-05-10'
+hubs:
+- AmericanCoinageHub
 ---
 # Coin Collecting and Economic History Hub
 

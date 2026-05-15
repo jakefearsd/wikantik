@@ -28,18 +28,18 @@ four operability defects that make admin work feel hostile:
 
 Live corpus inspection on 2026-05-14 found existing pollution from issue #3:
 
-| node_type | count | classification |
-|-----------|------:|---------------|
-| `concept` | 1190 | legit |
-| `article` | 868 | legit |
-| (empty string) | 71 | pollution |
-| `hub` | 21 | legit |
-| `reference` | 2 | legit |
-| `concept,` | 2 | pollution (comma typo) |
-| `implementation-plan` | 1 | legit (hyphen) |
-| `intelligence-summary` | 1 | legit (hyphen) |
-| `Product` | 1 | pollution (uppercase first) |
-| `not_a_valid_type_hopefully` | 1 | pollution (test injection) |
+| node_type                    | count | classification              |
+| ---------------------------- | -----:| --------------------------- |
+| `concept`                    | 1190  | legit                       |
+| `article`                    | 868   | legit                       |
+| (empty string)               | 71    | pollution                   |
+| `hub`                        | 21    | legit                       |
+| `reference`                  | 2     | legit                       |
+| `concept,`                   | 2     | pollution (comma typo)      |
+| `implementation-plan`        | 1     | legit (hyphen)              |
+| `intelligence-summary`       | 1     | legit (hyphen)              |
+| `Product`                    | 1     | pollution (uppercase first) |
+| `not_a_valid_type_hopefully` | 1     | pollution (test injection)  |
 
 The pollution is real and small enough to clean by hand in one operator pass.
 
@@ -141,20 +141,25 @@ threading the flag through.
 - `AdminKnowledgeResource` — all `/admin/knowledge-graph/*` reads
   (`handleGetNodes`, `handleGetEdges`, etc.). REST is already gated by
   `AdminAuthFilter` so the bypass is always safe here.
+
 - `KgCurationOps` facade — any read it performs on the curation path
   (currently mostly write paths; verify).
+
 - `InspectProposalsTool` — calls `getNodeByName` for `linked_entity` lookup.
   This is curator-facing; use bypass so a freshly-created node is visible.
+
 - `ListProposalsTool` — calls `ProposalConflictFlags.forProposal(service, p)`
   which in turn calls `getNodeByName`. Should this use bypass? The
   `node_exists` flag is most useful to a curator deciding whether to approve;
   use bypass.
+
 - **New tool registrations on `/wikantik-admin-mcp`.** `query_nodes` and
   `search_knowledge` currently live only on `/knowledge-mcp`. Register
   admin-bypass copies of both on `/wikantik-admin-mcp` so curators have
   a "verify what I just wrote" path without changing the existing
   agent-facing semantics. Two new tool registrations in
   `McpToolRegistry.java`:
+  
   - `QueryNodesTool(kgService, /*adminBypass=*/ true)` → read-only list
   - `SearchKnowledgeTool(kgService, /*adminBypass=*/ true)` → read-only list
   
@@ -318,12 +323,12 @@ No other behavioural change.
 
 ## Testing
 
-| Fix | Unit tests | IT |
-|-----|-----------|----|
-| 1 | `KgNodeRepositoryBypassTest` covering: bypass=false hides excluded-page node; bypass=true exposes it; `getNode` bypass overload; `getNodeByName` bypass overload; mixed seed (allowed + excluded) returns only allowed when bypass=false, both when bypass=true. | `KgCurationVisibilityIT` (new file in selenide-tests/.../mcp): seeds one node on `KgVisibilityExcludedPage` (added to `kg_excluded_pages`) and one on `KgVisibilityAllowedPage`. Calls `query_nodes` via `/wikantik-admin-mcp` → both visible. Calls `query_nodes` via `/knowledge-mcp` → only the allowed node. Equivalent REST check via `/admin/knowledge-graph/nodes`. |
-| 2 | `DefaultKnowledgeGraphServiceTest.mergeNodes_throwsWhenSourceMissing` + `…targetMissing` + happy path still works. | `KgCurationIT.curateNodesMergeWithGhostSourceIsPerOpError` — bulk-merge containing one valid + one ghost source; valid succeeds, ghost lands in `failed[]` with explicit message. |
-| 3 | `DefaultKnowledgeGraphServiceTest.upsertNode_rejectsTrailingCommaTypo`, `…rejectsEmptyString`, `…rejectsUppercaseFirstLetter`, `…allowsHyphen`, `…allowsHappyPath`. Plus `ProposeKnowledgeToolTest` for the symmetric proposal-time validation. | `KgCurationIT.curateNodesUpsertWithPollutedTypeIsPerOpError` — bulk op with `node_type: "concept,"` lands in `failed[]` with the regex message. |
-| 4 | `CurateNodesToolTest.upsert_rejectsNestedNodeShape`, `CurateEdgesToolTest.upsert_rejectsNestedEdgeShape`. | (covered by unit; no new IT.) |
+| Fix | Unit tests                                                                                                                                                                                                                                                       | IT                                                                                                                                                                                                                                                                                                                                                                         |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `KgNodeRepositoryBypassTest` covering: bypass=false hides excluded-page node; bypass=true exposes it; `getNode` bypass overload; `getNodeByName` bypass overload; mixed seed (allowed + excluded) returns only allowed when bypass=false, both when bypass=true. | `KgCurationVisibilityIT` (new file in selenide-tests/.../mcp): seeds one node on `KgVisibilityExcludedPage` (added to `kg_excluded_pages`) and one on `KgVisibilityAllowedPage`. Calls `query_nodes` via `/wikantik-admin-mcp` → both visible. Calls `query_nodes` via `/knowledge-mcp` → only the allowed node. Equivalent REST check via `/admin/knowledge-graph/nodes`. |
+| 2   | `DefaultKnowledgeGraphServiceTest.mergeNodes_throwsWhenSourceMissing` + `…targetMissing` + happy path still works.                                                                                                                                               | `KgCurationIT.curateNodesMergeWithGhostSourceIsPerOpError` — bulk-merge containing one valid + one ghost source; valid succeeds, ghost lands in `failed[]` with explicit message.                                                                                                                                                                                          |
+| 3   | `DefaultKnowledgeGraphServiceTest.upsertNode_rejectsTrailingCommaTypo`, `…rejectsEmptyString`, `…rejectsUppercaseFirstLetter`, `…allowsHyphen`, `…allowsHappyPath`. Plus `ProposeKnowledgeToolTest` for the symmetric proposal-time validation.                  | `KgCurationIT.curateNodesUpsertWithPollutedTypeIsPerOpError` — bulk op with `node_type: "concept,"` lands in `failed[]` with the regex message.                                                                                                                                                                                                                            |
+| 4   | `CurateNodesToolTest.upsert_rejectsNestedNodeShape`, `CurateEdgesToolTest.upsert_rejectsNestedEdgeShape`.                                                                                                                                                        | (covered by unit; no new IT.)                                                                                                                                                                                                                                                                                                                                              |
 
 All ITs run sequentially per CLAUDE.md (`mvn clean install -Pintegration-tests -fae`).
 

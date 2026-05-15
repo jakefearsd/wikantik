@@ -1,4 +1,7 @@
 ---
+summary: A rigorous exploration of 20th-century American coinage innovation, focusing
+  on the decoupling of face value from intrinsic metal content, the influence of modern
+  art on design, and the institutionalization of numismatic policy.
 cluster: american-coinage
 canonical_id: 01KQ0P44KQ0F75PRFBYGEX7S9Y
 title: American Coinage In The 1900s
@@ -9,7 +12,8 @@ tags:
 - economic-history
 - metallurgy
 - coinage-innovation
-summary: A rigorous exploration of 20th-century American coinage innovation, focusing on the decoupling of face value from intrinsic metal content, the influence of modern art on design, and the institutionalization of numismatic policy.
+hubs:
+- AmericanCoinageHub
 ---
 
 # 20th Century American Coinage: The Evolution of Value and Form

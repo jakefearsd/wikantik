@@ -1,6 +1,7 @@
 ---
-type: article
-cluster: wikantik-development
+applies_to:
+- remote-host
+verified_at: '2026-05-13T06:15:31.620264701Z'
 tags:
 - docker
 - administration
@@ -8,14 +9,41 @@ tags:
 - networking
 - devops
 - open-source
+verified_by: gemini-cli-mcp-client
+related_to:
+- docker-compose.yml
+- Git
+- Docker Compose
+- CapRover
+- Nginx Proxy Manager
+- Docker Contexts
+- SSH
+- remote-host
+produces:
+- remote-host
+precedes:
+- docker compose up -d
+- docker context use remote-host
+type: article
+uses:
+- docker
+- /etc/docker/daemon.json
+- remote-host
+date: 2026-05-13T00:00:00Z
+contrasts_with:
+- Portainer
 title: Docker Administration for Small Networks
+alternative_to:
+- S3 bucket
+- Nginx Proxy Manager
+- docker run
+- latest
+- Docker Compose
+cluster: wikantik-development
+canonical_id: 01KRFZKPBVD3PJVEY9C9HHQ3PR
 summary: Practical strategies and tooling options for managing 6-10 containers across
   a small network, balancing operational simplicity with production reliability.
-canonical_id: 01KRFZKPBVD3PJVEY9C9HHQ3PR
 status: active
-date: 2026-05-13T00:00:00Z
-verified_at: '2026-05-13T06:15:31.620264701Z'
-verified_by: gemini-cli-mcp-client
 ---
 
 # Docker Administration for Small Networks

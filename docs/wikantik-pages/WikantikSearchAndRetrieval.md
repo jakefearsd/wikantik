@@ -1,5 +1,7 @@
 ---
 canonical_id: 01KQTCB8K3TXN8SKQFJ7WZ7FJC
+hubs:
+- WikantikPlatformHub
 ---
 
 # Wikantik Search and Retrieval

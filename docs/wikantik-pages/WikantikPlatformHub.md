@@ -1,20 +1,21 @@
 ---
-canonical_id: 01KQTCA4WNJWEPHWKVP4KYJ22Y
-summary: Central hub for Wikantik platform documentation, encompassing system architecture, hybrid search, and knowledge graph engineering.
-type: hub
 date: 2026-05-02T00:00:00Z
+canonical_id: 01KQTCA4WNJWEPHWKVP4KYJ22Y
 status: active
-cluster: wikantik-platform
-title: Wikantik Platform Hub
-related:
-- 01KQTCAKV3BVHYPW20PHSFGXJR
-- 01KQTCB8K3TXN8SKQFJ7WZ7FJC
-- 01KQTCBW5GBFJVWYB8V1CP49P5
-- 01KQTCC38PBFSD7TD6ACJFCZZ3
-- 01KQTCCQ3H9K0M9E95ZCK3KHN5
-verified_at: '2026-05-02T00:00:00Z'
 verified_by: jakefear
+summary: Central hub for Wikantik platform documentation, encompassing system architecture,
+  hybrid search, and knowledge graph engineering.
+type: hub
+related:
+- WikantikArchitecture
+- WikantikSearchAndRetrieval
+- WikantikKnowledgeGraph
+- WikantikEvolutionFromJSPWiki
+- WikantikCritiqueAndMarketPosition
+title: Wikantik Platform Hub
+cluster: wikantik-platform
 auto-generated: false
+verified_at: '2026-05-02T00:00:00Z'
 ---
 
 # Wikantik Platform Hub

@@ -6,6 +6,44 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-15** — fix(mcp): expand curate_nodes tool description with shape + node_type regex
+
+**2026-05-15** — fix(kg): revert pre-flight vocab check; translate DB CHECK violation instead
+
+**2026-05-15** — fix(spine): detect rename collision in UPDATE branch of PageCanonicalIdsDao
+
+**2026-05-15** — fix(kg): pre-validate relationship_type against closed vocab
+
+**2026-05-15** — fix(pages): quote PaxosAndRaft title (unquoted colon broke YAML)
+
+**2026-05-15** — fix(logs): catalina.out repairs — Vector API, drift detector, edge tool description
+
+**2026-05-15** — fix(logs): catalina.out noise reduction — yaml line/col + cached instructions
+
+**2026-05-15** — fix(kg): translate kg_edges FK violations into clean per-op errors
+
+**2026-05-15** — fix(spine): suppress page_verification FK violations when canonical_id is stale
+
+**2026-05-15** — test(it): awaitAdminReady polling to eliminate post-login session race
+
+**2026-05-14** — docs(decomp): replace XXXXXX placeholder with Phase 12 commit hash 73ef2c24d
+
+**2026-05-14** — refactor(decomp): Phase 12 — KnowledgeSubsystemBridge consistency fix
+
+**2026-05-14** — docs(spec+plan): Phase 12 revision 2 — scope down to Knowledge asymmetry fix
+
+**2026-05-14** — docs(plans): Phase 12 — subsystem bridge retirement implementation plan
+
+**2026-05-14** — docs(specs): Phase 12 — subsystem bridge retirement design
+
+**2026-05-14** — chore: gitignore *.skill (local CLI skill bundles)
+
+**2026-05-14** — chore: gitignore .gemini/ (local Gemini CLI workspace)
+
+**2026-05-14** — docs(content): expand wiki pages — distributed-systems patterns + finance + retrieval
+
+**2026-05-14** — refactor: cross-cutting code-quality pass driven by 72h audit
+
 **2026-05-14** — feat(mcp): list_orphaned_kg_nodes admin tool for degree-0 KG triage
 
 **2026-05-14** — fix(deploy): backup-pull latest-snapshot discovery; harden pages-push --mirror preview

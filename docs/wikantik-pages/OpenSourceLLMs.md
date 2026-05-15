@@ -1,27 +1,28 @@
 ---
-canonical_id: 01KQEKGDDT00GHX6TY2FARC8PB
-title: Open Source LLMs
-type: article
-cluster: agentic-ai
-status: active
-date: '2026-04-25'
-tags:
-- open-source-llm
-- llama
-- mistral
-- qwen
-- self-hosted
 summary: The open-weights LLM landscape in 2026 — Llama, Mistral, Qwen, DeepSeek,
   the licensing shifts, and the production decisions (which model, what hardware,
   serving stack) that decide whether self-hosting wins or loses.
+date: '2026-04-25'
+cluster: agentic-ai
 related:
 - LLMFineTuning
 - ModelQuantization
 - CostEffectiveInference
 - CpuInference
 - LlmTokenEconomicsAndPricing
+canonical_id: 01KQEKGDDT00GHX6TY2FARC8PB
+title: Open Source LLMs
+type: article
+tags:
+- open-source-llm
+- llama
+- mistral
+- qwen
+- self-hosted
 hubs:
 - AgenticAiHub
+- AIInfrastructureHub
+status: active
 ---
 # Open Source LLMs
 

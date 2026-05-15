@@ -1,23 +1,26 @@
 ---
+summary: Authoritative reference for Wikantik page authoring—Markdown syntax, internal
+  linking, math, plugins, and frontmatter schema.
+date: 2026-05-02T00:00:00Z
+cluster: wikantik-development
+related:
+- FrontmatterAndKnowledgeGraphs
+- StructuralSpineDesign
+- WikantikDevelopmentHub
+auto-generated: false
 canonical_id: 01KQ0P44XMGA8E1E7GAT4AYV43
 title: Text Formatting Rules
 type: article
-cluster: wikantik-development
-status: active
-date: 2026-05-02T00:00:00Z
-summary: Authoritative reference for Wikantik page authoring—Markdown syntax, internal linking, math, plugins, and frontmatter schema.
 tags:
-  - wikantik
-  - markdown
-  - authoring
-  - reference
-  - frontmatter
-  - plugins
-related:
-  - FrontmatterAndKnowledgeGraphs
-  - StructuralSpineDesign
-  - WikantikDevelopmentHub
-auto-generated: false
+- wikantik
+- markdown
+- authoring
+- reference
+- frontmatter
+- plugins
+status: active
+hubs:
+- WikantikDevelopmentHub
 ---
 
 # Text Formatting Rules

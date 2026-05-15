@@ -46,17 +46,47 @@ public class CurateNodesTool implements McpTool, AuthorConfigurable {
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "operations", Map.of(
                 "type", "array",
-                "description", "1.." + bulkLimit + " heterogeneous node ops. Each item has `action` " +
-                        "(upsert|delete|merge) plus action-specific fields and an optional `tag`.",
+                "description",
+                        "1.." + bulkLimit + " heterogeneous node ops. Each item is a flat object with " +
+                        "`action` (upsert|delete|merge), an optional `tag` (free-form identifier for " +
+                        "this op — echoed in succeeded[]/failed[] so you can correlate results back to " +
+                        "your input; DO NOT concatenate it into other fields), and action-specific " +
+                        "top-level fields. " +
+                        "For action=upsert: `name` (display name), `node_type` (must match " +
+                        "`^[a-z][a-z0-9_-]{0,30}$` — e.g. 'concept', 'organization', 'person'; " +
+                        "NOT 'concept,tag:...' or similar concatenations), `source_page` (CamelCase " +
+                        "page name), optional `properties` (object). " +
+                        "For action=delete: `id` (UUID). " +
+                        "For action=merge: `source` (UUID, will be deleted), `target` (UUID, will absorb).",
                 "items", Map.of( "type", "object" )
         ) );
 
+        // Concrete worked example — the model reads this before assembling arguments and
+        // first-call success rate jumps materially when the shape is shown verbatim.
+        // Mirrors what fixed the recurring "node_type='concept,tag:promote-X-Y'" failures.
+        final Map< String, Object > exampleIn = Map.of(
+                "operations", List.of(
+                        Map.of(
+                                "action", "upsert",
+                                "tag", "promote-meta-439",
+                                "name", "Metaheuristic Optimization",
+                                "node_type", "concept",
+                                "source_page", "OptimizationAlgorithms"
+                        )
+                )
+        );
         final Map< String, Object > exampleOut = Map.of(
                 "status", "completed",
-                "succeeded", List.of( Map.of( "tag", "node-1", "action", "upsert",
+                "succeeded", List.of( Map.of( "tag", "promote-meta-439", "action", "upsert",
                         "id", "8f3c2a1b-..." ) ),
                 "failed", List.of(),
                 "message", "1 of 1 node operations applied" );
+        final Map< String, Object > inputSchemaMap = new LinkedHashMap<>();
+        inputSchemaMap.put( "type", "object" );
+        inputSchemaMap.put( "properties", properties );
+        inputSchemaMap.put( "required", List.of( "operations" ) );
+        inputSchemaMap.put( "examples", List.of( exampleIn ) );
+
         final Map< String, Object > outputSchema = new LinkedHashMap<>();
         outputSchema.put( "type", "object" );
         outputSchema.put( "examples", List.of( exampleOut ) );
@@ -64,7 +94,12 @@ public class CurateNodesTool implements McpTool, AuthorConfigurable {
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Bulk heterogeneous node curation. Actions: " +
-                        "`upsert` (HUMAN_AUTHORED), `delete`, `merge` (source → target, frontmatter rewritten)." )
+                        "`upsert` (HUMAN_AUTHORED), `delete`, `merge` (source → target, frontmatter rewritten). " +
+                        "Each operation is a FLAT object: `action`, optional `tag` (correlation only — " +
+                        "NEVER concatenate into other fields), and action-specific top-level fields " +
+                        "(`name`/`node_type`/`source_page` for upsert; `id` for delete; `source`/`target` for merge). " +
+                        "`node_type` MUST match `^[a-z][a-z0-9_-]{0,30}$` (e.g. 'concept', 'organization') — " +
+                        "values like 'concept,tag:...' are rejected." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties,
                         List.of( "operations" ), null, null, null ) )
                 .outputSchema( outputSchema )

@@ -63,13 +63,18 @@ public class CurateEdgesTool implements McpTool, AuthorConfigurable {
 
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
-                .description( "Bulk heterogeneous edge curation. Actions: " +
+                .description( "Bulk Knowledge Graph edge curation (entity→entity only). Actions: " +
                         "`upsert` (HUMAN_CURATED), `confirm` (elevate to human-curated), `delete`, " +
                         "`delete_and_reject` (delete + write rejection record). " +
-                        "Endpoints MUST be homogeneous: page→page (Page Graph) or " +
-                        "entity→entity (Knowledge Graph). Mixed page/entity edges are " +
-                        "rejected — use `add_outbound_link` for page→page wikilinks, or " +
-                        "`propose_knowledge` / `curate_edges` between two entity nodes." )
+                        "Endpoints MUST be homogeneous — both must be Knowledge Graph entity " +
+                        "nodes (node_type other than 'page'). Mixed page/entity edges are " +
+                        "rejected by the database guard. " +
+                        "If you need to link two wiki pages (Page Graph), this tool is the " +
+                        "wrong surface — edit the source page's markdown body with " +
+                        "`update_page` and add a `[label](TargetPage)` wikilink instead; " +
+                        "those edges are derived from page text on save. " +
+                        "Before upserting, verify each endpoint is an entity node by calling " +
+                        "`query_nodes` and confirming `node_type` is NOT 'page'." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties,
                         List.of( "operations" ), null, null, null ) )
                 .outputSchema( outputSchema )

@@ -19,10 +19,14 @@
 package com.wikantik.mcp;
 
 import com.wikantik.TestEngine;
+import com.wikantik.mcp.tools.CurateEdgesTool;
+import com.wikantik.mcp.tools.CurateNodesTool;
+import com.wikantik.mcp.tools.InspectProposalsTool;
 import com.wikantik.mcp.tools.ListOrphanedKgNodesTool;
 import com.wikantik.mcp.tools.ListProposalsTool;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.ProposeKnowledgeTool;
+import com.wikantik.mcp.tools.ReviewProposalsTool;
 import com.wikantik.mcp.tools.kg.QueryNodesTool;
 import com.wikantik.mcp.tools.kg.SearchKnowledgeTool;
 import org.junit.jupiter.api.AfterEach;
@@ -154,6 +158,10 @@ class InstructionsRegistryDriftTest {
         names.add( QueryNodesTool.TOOL_NAME );
         names.add( SearchKnowledgeTool.TOOL_NAME );
         names.add( ListOrphanedKgNodesTool.TOOL_NAME );
+        names.add( InspectProposalsTool.TOOL_NAME );
+        names.add( ReviewProposalsTool.TOOL_NAME );
+        names.add( CurateEdgesTool.TOOL_NAME );
+        names.add( CurateNodesTool.TOOL_NAME );
         return names;
     }
 

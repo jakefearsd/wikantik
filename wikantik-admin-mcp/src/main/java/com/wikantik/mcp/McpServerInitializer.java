@@ -198,7 +198,12 @@ public class McpServerInitializer implements ServletContextListener {
     static final java.util.Set< String > TOOL_NAME_PREFIXES = java.util.Set.of(
             "get_", "list_", "search_", "find_", "write_", "delete_", "rename_", "diff_",
             "verify_", "ping_", "preview_", "propose_", "mark_", "update_", "read_",
-            "retrieve_", "traverse_", "discover_", "query_" );
+            "retrieve_", "traverse_", "discover_", "query_",
+            // KG curation tool families. Without these the live drift detector logs a
+            // false-positive "registered but NOT mentioned" WARN at boot for
+            // inspect_proposals / review_proposals / curate_edges / curate_nodes,
+            // even though the instructions text describes all four.
+            "inspect_", "review_", "curate_" );
 
     /**
      * Snapshot of how the static instructions text and the live tool registry agree.

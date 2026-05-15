@@ -26,6 +26,7 @@ CONTEXT_DEST="${TOMCAT_DIR}/conf/Catalina/localhost/ROOT.xml"
 PROPS_DEST="${TOMCAT_DIR}/lib/wikantik-custom.properties"
 MCP_PROPS_DEST="${TOMCAT_DIR}/lib/wikantik-mcp.properties"
 LOG4J2_DEST="${TOMCAT_DIR}/lib/log4j2.xml"
+SETENV_DEST="${TOMCAT_DIR}/bin/setenv.sh"
 TOMCAT_CONTEXT_DEST="${TOMCAT_DIR}/conf/context.xml"
 TOMCAT_SERVER_DEST="${TOMCAT_DIR}/conf/server.xml"
 LOG_DIR="${TOMCAT_DIR}/logs/wikantik"
@@ -42,6 +43,7 @@ PRESERVED_PATHS=(
     "lib/log4j2.xml"                      # logging config
     "lib/postgresql.jar"                  # JDBC driver
     "conf/Catalina/localhost/ROOT.xml"    # context with DB password
+    "bin/setenv.sh"                       # JAVA_OPTS additions (Vector API, etc.)
     "data"                                 # jspwiki-files / attachments / workdir
     "logs/wikantik"                        # app logs
 )
@@ -357,6 +359,17 @@ if [[ ! -f "${MCP_PROPS_DEST}" ]]; then
     print_status "Created ${MCP_PROPS_DEST}"
 else
     print_status "MCP properties file already exists (not overwritten)"
+fi
+
+# Copy bin/setenv.sh template if destination doesn't exist. Tomcat's catalina.sh
+# sources this on every launch — primary use is enabling the JDK incubator
+# Vector API for Lucene 10. Preserved across --upgrade-tomcat.
+if [[ ! -f "${SETENV_DEST}" ]]; then
+    cp "${CONFIG_DIR}/setenv.sh.template" "${SETENV_DEST}"
+    chmod +x "${SETENV_DEST}"
+    print_status "Created ${SETENV_DEST} (Vector API enabled)"
+else
+    print_status "setenv.sh already exists (not overwritten)"
 fi
 
 # Tomcat's own conf/context.xml template — adds the SameSite=strict cookie

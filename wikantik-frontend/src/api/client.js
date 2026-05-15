@@ -601,9 +601,6 @@ export const api = {
     getEdgeAudit: (id, limit = 20) =>
       request(`/admin/knowledge-graph/edges/${id}/audit?limit=${limit}`),
 
-    projectAll: () =>
-      request('/admin/knowledge-graph/project-all', { method: 'POST' }),
-
     clearAll: () =>
       request('/admin/knowledge-graph/clear-all', { method: 'POST' }),
 

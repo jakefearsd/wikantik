@@ -12,7 +12,6 @@ vi.mock('../../api/client', () => ({
       getNodeMentions: vi.fn(),
       getSimilarNodes: vi.fn(),
       deleteNode: vi.fn(),
-      projectAll: vi.fn(),
     },
   },
 }));
@@ -103,15 +102,6 @@ describe('GraphExplorer', () => {
     await waitFor(() => screen.getByText('Alpha'));
     const status = screen.getByRole('columnheader', { name: /^Status$/ });
     expect(status.getAttribute('title')).toMatch(/frontmatter|page.*status/i);
-  });
-
-  it('Project All Pages button is renamed to "Sync frontmatter to graph"', async () => {
-    render(<GraphExplorer />);
-    await screen.findByTestId('kg-schema-header');
-    expect(screen.queryByRole('button', { name: /^Project All Pages$/ })).toBeNull();
-    expect(
-      screen.getByRole('button', { name: /Sync frontmatter to graph/i }),
-    ).toBeInTheDocument();
   });
 
   it('detail-pane empty state describes what the pane will contain', async () => {

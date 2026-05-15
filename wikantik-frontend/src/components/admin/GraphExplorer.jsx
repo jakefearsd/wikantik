@@ -13,8 +13,6 @@ export default function GraphExplorer() {
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedNode, setSelectedNode] = useState(null);
-  const [projecting, setProjecting] = useState(false);
-  const [projectResult, setProjectResult] = useState(null);
 
   const fetchNodes = useCallback(
     async ({ page: currentPage, pageSize, search }) => {
@@ -58,20 +56,6 @@ export default function GraphExplorer() {
   useEffect(() => {
     loadSchema();
   }, [loadSchema]);
-
-  const handleProjectAll = async () => {
-    setProjecting(true);
-    setProjectResult(null);
-    try {
-      const result = await api.knowledge.projectAll();
-      setProjectResult(result);
-      await Promise.all([loadSchema(), reloadNodes()]);
-    } catch (err) {
-      setProjectResult({ error: err.message });
-    } finally {
-      setProjecting(false);
-    }
-  };
 
   // Accepts either a node object (preferred — uses the slash-safe by-id
   // lookup) or a bare name (legacy callers like NodeDetail's navigate). Tomcat
@@ -263,31 +247,6 @@ export default function GraphExplorer() {
             <div>
               <strong>Relationship types:</strong>{' '}
               {(schema.relationshipTypes || schema.relationship_types || []).join(', ') || 'none'}
-            </div>
-            <div style={{ marginTop: '8px' }}>
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={handleProjectAll}
-                disabled={projecting}
-                title="Walks every wiki page and copies its frontmatter (canonical_id, cluster, tags, status) onto the matching Knowledge Graph node."
-              >
-                {projecting ? 'Syncing frontmatter…' : 'Sync frontmatter to graph'}
-              </button>
-              {projectResult && !projectResult.error && (
-                <span style={{ marginLeft: '8px', fontSize: '0.85em' }}>
-                  Scanned {projectResult.scanned} pages, updated {projectResult.projected} nodes from frontmatter
-                  {projectResult.errors?.length > 0 && (
-                    <span style={{ color: 'var(--accent)' }}>
-                      {' '}({projectResult.errors.length} errors)
-                    </span>
-                  )}
-                </span>
-              )}
-              {projectResult?.error && (
-                <span style={{ marginLeft: '8px', color: 'var(--error, #c0392b)', fontSize: '0.85em' }}>
-                  Error: {projectResult.error}
-                </span>
-              )}
             </div>
           </div>
         )}

@@ -107,6 +107,13 @@ public class InspectProposalsTool implements McpTool {
 
         for ( final Object idEl : rawList ) {
             final String idStr = idEl == null ? null : idEl.toString();
+            // A null array element can't be a UUID; UUID.fromString(null) throws
+            // NullPointerException (not IllegalArgumentException), so guard first
+            // and report it as missing like any other unparseable id.
+            if ( idStr == null ) {
+                missing.add( null );
+                continue;
+            }
             UUID id;
             try {
                 id = UUID.fromString( idStr );

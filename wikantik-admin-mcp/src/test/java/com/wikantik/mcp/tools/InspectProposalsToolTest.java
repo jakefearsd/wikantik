@@ -92,6 +92,19 @@ public class InspectProposalsToolTest {
         assertTrue( body.contains( "\"missing\":[\"not-a-uuid\"]" ), body );
     }
 
+    // A null element in the ids array must be reported as missing, not crash
+    // the tool: UUID.fromString(null) throws NullPointerException, which the
+    // IllegalArgumentException catch does not cover.
+    @Test
+    void nullIdElementLandsInMissingArrayNotThrown() {
+        final List< Object > ids = new ArrayList<>();
+        ids.add( null );
+        final McpSchema.CallToolResult r = tool.execute( Map.of( "ids", ids ) );
+        assertFalse( r.isError() );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "\"missing\":[null]" ), body );
+    }
+
     // Covers InspectProposalsTool.java:169-183 — linkedEntity() surfaces an
     // existing KG node when the proposal's proposed_data.name resolves via
     // getNodeByName.

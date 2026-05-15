@@ -135,6 +135,17 @@ public class ReviewProposalsTool implements McpTool, AuthorConfigurable {
 
         for ( final Object idEl : rawList ) {
             final String idStr = idEl == null ? null : idEl.toString();
+            // A null array element can't be a UUID; UUID.fromString(null) throws
+            // NullPointerException (not IllegalArgumentException), so guard first
+            // and record it as a per-id failure like any other unparseable id.
+            if ( idStr == null ) {
+                LOG.warn( "review_proposals: null id element in ids array" );
+                final Map< String, Object > f = new LinkedHashMap<>();
+                f.put( "id", null );
+                f.put( "error", "Invalid UUID: null" );
+                failed.add( f );
+                continue;
+            }
             UUID id;
             try { id = UUID.fromString( idStr ); }
             catch ( final IllegalArgumentException e ) {

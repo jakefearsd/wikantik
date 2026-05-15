@@ -131,6 +131,19 @@ public class ReviewProposalsToolTest {
         assertTrue( body.contains( "Invalid UUID" ), body );
     }
 
+    // A null element in the ids array must yield a per-id failure, not crash
+    // the tool: UUID.fromString(null) throws NullPointerException, which the
+    // IllegalArgumentException catch does not cover.
+    @Test
+    void nullIdElementYieldsPerIdFailureNotThrown() {
+        final List< Object > ids = new java.util.ArrayList<>();
+        ids.add( null );
+        final McpSchema.CallToolResult r = tool.execute( Map.of(
+                "verdict", "judge", "ids", ids ) );
+        final String body = ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+        assertTrue( body.contains( "Invalid UUID" ), body );
+    }
+
     // Covers ReviewProposalsTool.java:163-166 — verdict "judge" must dispatch
     // to ops.tryJudgeProposal (not tryApprove or tryRejectProposal).
     @Test

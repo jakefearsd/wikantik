@@ -131,7 +131,14 @@ public final class KnowledgeSubsystemFactory {
             final HttpClient http = HttpClient.newBuilder()
                 .connectTimeout( Duration.ofSeconds( judgeCfg.timeoutSeconds() ) )
                 .build();
-            kgJudge = new DefaultKgProposalJudgeService( http, judgeCfg, judgeTimeoutRepo );
+            final com.wikantik.api.knowledge.KgProposalJudgeService rawJudge =
+                new DefaultKgProposalJudgeService( http, judgeCfg, judgeTimeoutRepo );
+            final com.wikantik.llm.activity.LlmActivityLog judgeActivityLog =
+                com.wikantik.llm.activity.LlmActivityLogHolder.getOrCreate( props );
+            kgJudge = judgeActivityLog.enabled()
+                ? new com.wikantik.llm.activity.RecordingKgProposalJudgeService(
+                      rawJudge, judgeActivityLog, "ollama", judgeCfg.model() )
+                : rawJudge;
             kgRunner = new JudgeRunner( kgProposals, kgRejections, kgJudge, kgMat, judgeCfg );
             kgRunner.schedule();
             LOG.info( "KG judge service enabled: model={} endpoint={} cron={}m",

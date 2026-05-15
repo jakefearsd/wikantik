@@ -222,12 +222,22 @@ public final class KnowledgeWiringHelper {
             LOG.info( "Entity extraction disabled (wikantik.knowledge.extractor.backend=disabled)" );
             return;
         }
-        final Optional< com.wikantik.api.knowledge.EntityExtractor > extractorOpt =
+        Optional< com.wikantik.api.knowledge.EntityExtractor > extractorOpt =
             EntityExtractorFactory.create( extractorCfg );
         if ( extractorOpt.isEmpty() ) {
             LOG.warn( "Entity extraction configured ({}), but no usable backend; skipping wiring",
                       extractorCfg.backend() );
             return;
+        }
+        final com.wikantik.llm.activity.LlmActivityLog activityLog =
+            com.wikantik.llm.activity.LlmActivityLogHolder.getOrCreate( props );
+        if ( activityLog.enabled() ) {
+            final String exBackend = extractorCfg.backend();
+            final String exModel = EntityExtractorConfig.BACKEND_CLAUDE.equalsIgnoreCase( exBackend )
+                ? extractorCfg.claudeModel() : extractorCfg.ollamaModel();
+            extractorOpt = extractorOpt.map( e ->
+                new com.wikantik.llm.activity.RecordingEntityExtractor( e, activityLog, exBackend, exModel ) );
+            LOG.info( "LLM activity recording enabled for entity extraction" );
         }
         final ChunkEntityMentionRepository mentionRepo =
             new ChunkEntityMentionRepository( ds );

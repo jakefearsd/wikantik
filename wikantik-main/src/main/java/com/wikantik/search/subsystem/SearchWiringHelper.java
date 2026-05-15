@@ -113,8 +113,13 @@ public final class SearchWiringHelper {
             // Master flag off — nothing to wire.
             return;
         }
-        final TextEmbeddingClient client = clientOpt.get();
         final String modelCode = cfg.model().code();
+        final com.wikantik.llm.activity.LlmActivityLog embedActivityLog =
+            com.wikantik.llm.activity.LlmActivityLogHolder.getOrCreate( props );
+        final TextEmbeddingClient client = embedActivityLog.enabled()
+            ? new com.wikantik.llm.activity.RecordingEmbeddingClient(
+                  clientOpt.get(), embedActivityLog, cfg.backend(), modelCode )
+            : clientOpt.get();
 
         final EmbeddingIndexService indexService =
             new EmbeddingIndexService( ds, client, cfg.batchSize() );

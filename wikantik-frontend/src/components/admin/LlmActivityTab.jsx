@@ -10,6 +10,27 @@ const SUBSYSTEM_LABELS = {
   EMBEDDING: 'embedding',
 };
 
+const SUBSYSTEM_BADGE_CLASS = {
+  ENTITY_EXTRACTION: 'llm-badge-extraction',
+  PROPOSAL_JUDGE: 'llm-badge-judge',
+  EMBEDDING: 'llm-badge-embedding',
+};
+
+// Filter chip options: { value, label }. 'all' matches everything.
+const SUBSYSTEM_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'ENTITY_EXTRACTION', label: 'Extraction' },
+  { value: 'PROPOSAL_JUDGE', label: 'Judge' },
+  { value: 'EMBEDDING', label: 'Embedding' },
+];
+
+const STATUS_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'OK', label: 'OK' },
+  { value: 'ERROR', label: 'Error' },
+  { value: 'IN_FLIGHT', label: 'In-flight' },
+];
+
 function fmtTime(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -26,6 +47,8 @@ export default function LlmActivityTab() {
   const [snapshot, setSnapshot] = useState(null);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(null);
+  const [subsystemFilter, setSubsystemFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const pollRef = useRef(null);
   const activeRef = useRef(false);
 
@@ -80,6 +103,14 @@ export default function LlmActivityTab() {
   const calls = snapshot.calls || [];
   const errorCount = calls.filter((c) => c.status === 'ERROR').length;
 
+  // Client-side filtering of the already-fetched list. 'all' matches everything.
+  const filtered = calls.filter(
+    (c) =>
+      (subsystemFilter === 'all' || c.subsystem === subsystemFilter) &&
+      (statusFilter === 'all' || c.status === statusFilter),
+  );
+  const filterActive = subsystemFilter !== 'all' || statusFilter !== 'all';
+
   return (
     <div>
       <div className="admin-section-header">
@@ -90,8 +121,27 @@ export default function LlmActivityTab() {
         {errorCount} error{errorCount === 1 ? '' : 's'}
       </div>
 
-      {calls.length === 0 ? (
-        <div className="admin-empty">No LLM calls recorded in the current window.</div>
+      <div className="llm-filter-bar">
+        <FilterChipGroup
+          label="Subsystem"
+          options={SUBSYSTEM_FILTERS}
+          selected={subsystemFilter}
+          onSelect={setSubsystemFilter}
+        />
+        <FilterChipGroup
+          label="Status"
+          options={STATUS_FILTERS}
+          selected={statusFilter}
+          onSelect={setStatusFilter}
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="admin-empty">
+          {filterActive
+            ? 'No LLM calls match the current filter.'
+            : 'No LLM calls recorded in the current window.'}
+        </div>
       ) : (
         <table className="admin-table">
           <thead>
@@ -105,7 +155,7 @@ export default function LlmActivityTab() {
             </tr>
           </thead>
           <tbody>
-            {calls.map((c) => (
+            {filtered.map((c) => (
               <ActivityRow
                 key={c.seq}
                 call={c}
@@ -116,6 +166,25 @@ export default function LlmActivityTab() {
           </tbody>
         </table>
       )}
+    </div>
+  );
+}
+
+function FilterChipGroup({ label, options, selected, onSelect }) {
+  return (
+    <div className="llm-filter-group">
+      <span className="llm-filter-label">{label}</span>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          className={`llm-chip${selected === opt.value ? ' llm-chip-active' : ''}`}
+          aria-pressed={selected === opt.value}
+          onClick={() => onSelect(opt.value)}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -131,7 +200,15 @@ function ActivityRow({ call, expanded, onToggle }) {
     <>
       <tr className={rowClass} onClick={onToggle} style={{ cursor: 'pointer' }}>
         <td>{fmtTime(call.startedAt)}</td>
-        <td>{SUBSYSTEM_LABELS[call.subsystem] || call.subsystem}</td>
+        <td>
+          <span
+            className={`llm-badge ${
+              SUBSYSTEM_BADGE_CLASS[call.subsystem] || ''
+            }`}
+          >
+            {SUBSYSTEM_LABELS[call.subsystem] || call.subsystem}
+          </span>
+        </td>
         <td>{call.model}</td>
         <td>{call.operation}</td>
         <td>{fmtDuration(call.durationMs, call.status)}</td>

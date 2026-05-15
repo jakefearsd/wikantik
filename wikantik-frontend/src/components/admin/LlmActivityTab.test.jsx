@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import LlmActivityTab from './LlmActivityTab';
 
@@ -62,6 +62,55 @@ describe('LlmActivityTab', () => {
     api.knowledge.getLlmActivity.mockResolvedValue(payload([]));
     render(<LlmActivityTab />);
     await waitFor(() => expect(screen.getByText(/No LLM calls/i)).toBeInTheDocument());
+  });
+
+  it('filters table rows by subsystem when a chip is clicked', async () => {
+    api.knowledge.getLlmActivity.mockResolvedValue(
+      payload([
+        call({ seq: 1, subsystem: 'ENTITY_EXTRACTION', model: 'gemma4-assist' }),
+        call({ seq: 2, subsystem: 'EMBEDDING', model: 'nomic' }),
+      ]),
+    );
+    render(<LlmActivityTab />);
+    await waitFor(() => expect(screen.getByText('gemma4-assist')).toBeInTheDocument());
+    expect(screen.getByText('nomic')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Embedding' }));
+
+    await waitFor(() => expect(screen.queryByText('gemma4-assist')).not.toBeInTheDocument());
+    expect(screen.getByText('nomic')).toBeInTheDocument();
+  });
+
+  it('filters table rows by status when a chip is clicked', async () => {
+    api.knowledge.getLlmActivity.mockResolvedValue(
+      payload([
+        call({ seq: 1, status: 'OK', model: 'gemma4-assist' }),
+        call({ seq: 2, status: 'ERROR', model: 'nomic', errorMessage: 'boom' }),
+      ]),
+    );
+    render(<LlmActivityTab />);
+    await waitFor(() => expect(screen.getByText('gemma4-assist')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Error' }));
+
+    await waitFor(() => expect(screen.queryByText('gemma4-assist')).not.toBeInTheDocument());
+    expect(screen.getByText('nomic')).toBeInTheDocument();
+  });
+
+  it('keeps header totals unfiltered while a filter is active', async () => {
+    api.knowledge.getLlmActivity.mockResolvedValue(
+      payload([
+        call({ seq: 1, subsystem: 'ENTITY_EXTRACTION', model: 'gemma4-assist' }),
+        call({ seq: 2, subsystem: 'EMBEDDING', model: 'nomic' }),
+      ]),
+    );
+    render(<LlmActivityTab />);
+    await waitFor(() => expect(screen.getByText('gemma4-assist')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Embedding' }));
+
+    // Header still reflects the full unfiltered total of 2 calls.
+    expect(screen.getByText(/2 calls/)).toBeInTheDocument();
   });
 
   it('summarises in-flight and error counts in the header', async () => {

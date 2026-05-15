@@ -764,3 +764,89 @@
 [data-theme="dark"] .row-error-message {
   color: #F88;
 }
+
+/* Filter chip bar — subsystem/status client-side filters above the table */
+.llm-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.llm-filter-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.llm-filter-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  margin-right: 0.15rem;
+}
+
+.llm-chip {
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-sidebar);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.llm-chip:hover {
+  border-color: var(--accent);
+}
+
+.llm-chip-active {
+  background: var(--sage-light);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Subsystem badge — muted per-subsystem colours, readable contrast */
+.llm-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 4px;
+  background: var(--border, #E0E0E0);
+  color: var(--text-secondary, #555);
+}
+
+.llm-badge-extraction {
+  background: #DCE9F2;
+  color: #2C5777;
+}
+
+.llm-badge-judge {
+  background: #EBE2F2;
+  color: #5B3E77;
+}
+
+.llm-badge-embedding {
+  background: #E2F0E4;
+  color: #356B40;
+}
+
+[data-theme="dark"] .llm-badge-extraction {
+  background: #1F3140;
+  color: #9CC4DF;
+}
+
+[data-theme="dark"] .llm-badge-judge {
+  background: #322840;
+  color: #C0A8DB;
+}
+
+[data-theme="dark"] .llm-badge-embedding {
+  background: #1F3324;
+  color: #93C79E;
+}

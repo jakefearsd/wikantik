@@ -18,7 +18,9 @@
  */
 package com.wikantik.api.knowledge;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Single source of truth for the closed relationship-type vocabulary enforced by the
@@ -48,6 +50,53 @@ public final class RelationshipTypeVocabulary {
             "contrasts_with", "compatible_with", "mitigates", "defines",
             "applies_to", "located_in"
     );
+
+    private static final Set< String > CLOSED_VOCAB_SET = Set.copyOf( CLOSED_VOCAB );
+
+    /** Whether the candidate is in the closed vocabulary. {@code null} returns {@code false}. */
+    public static boolean isValid( final String candidate ) {
+        return candidate != null && CLOSED_VOCAB_SET.contains( candidate );
+    }
+
+    /**
+     * Returns up to {@code limit} closest matches to {@code candidate} from the closed vocabulary,
+     * ranked by ascending Levenshtein distance. Used to render "did you mean…" hints in the
+     * error message when the caller submits an unknown relationship type — keeps agents from
+     * having to read the full 21-entry vocabulary on every typo.
+     */
+    public static List< String > closestMatches( final String candidate, final int limit ) {
+        if ( candidate == null || candidate.isBlank() ) return List.of();
+        final String lower = candidate.toLowerCase();
+        record Scored( String name, int distance ) {}
+        final List< Scored > scored = new ArrayList<>( CLOSED_VOCAB.size() );
+        for ( final String v : CLOSED_VOCAB ) {
+            scored.add( new Scored( v, levenshtein( lower, v ) ) );
+        }
+        scored.sort( ( a, b ) -> Integer.compare( a.distance, b.distance ) );
+        final List< String > out = new ArrayList<>( limit );
+        for ( int i = 0; i < scored.size() && out.size() < limit; i++ ) {
+            out.add( scored.get( i ).name );
+        }
+        return out;
+    }
+
+    private static int levenshtein( final String a, final String b ) {
+        final int la = a.length(), lb = b.length();
+        if ( la == 0 ) return lb;
+        if ( lb == 0 ) return la;
+        int[] prev = new int[ lb + 1 ];
+        int[] curr = new int[ lb + 1 ];
+        for ( int j = 0; j <= lb; j++ ) prev[ j ] = j;
+        for ( int i = 1; i <= la; i++ ) {
+            curr[ 0 ] = i;
+            for ( int j = 1; j <= lb; j++ ) {
+                final int cost = a.charAt( i - 1 ) == b.charAt( j - 1 ) ? 0 : 1;
+                curr[ j ] = Math.min( Math.min( curr[ j - 1 ] + 1, prev[ j ] + 1 ), prev[ j - 1 ] + cost );
+            }
+            final int[] tmp = prev; prev = curr; curr = tmp;
+        }
+        return prev[ lb ];
+    }
 
     /**
      * Indented, multi-line bullet description suitable for system prompts. One line

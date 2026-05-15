@@ -151,6 +151,29 @@ public class DefaultKgCurationOpsTest {
     }
 
     @Test
+    void tryUpsertEdgeReportsRelationshipVocabularyViolationCleanly() {
+        // KgEdgeRepository's pre-flight check throws IllegalArgumentException when the
+        // relationship_type is outside the closed vocabulary. DefaultKgCurationOps.wrap()
+        // unwraps to the deepest cause message, so the agent sees the actionable hint
+        // ("Did you mean ..." / "Allowed: ...") instead of an opaque internal error.
+        // Mirrors the 2026-05-15 catalina.out blocker where Gemini was approving proposals
+        // with relationship_type='fixes' / 'plans' and getting PSQLException stacktraces.
+        when( kg.upsertEdge( any(), any(), any(), any(), any() ) ).thenThrow(
+                new IllegalArgumentException(
+                    "Relationship type 'fixes' is not in the closed vocabulary."
+                    + " Did you mean: contains, mitigates, is_a? Allowed: related_to, part_of, ..." ) );
+        final KgCurationOps.EdgeResult r = ops.tryUpsertEdge(
+                UUID.randomUUID(), UUID.randomUUID(), "fixes", java.util.Map.of(), "alice" );
+        assertTrue( r.error().isPresent(), "vocab violation must yield an error" );
+        final String msg = r.error().get();
+        assertTrue( msg.contains( "'fixes'" ), "error must cite the offending value; got: " + msg );
+        assertTrue( msg.toLowerCase().contains( "closed vocabulary" ),
+                "error must label the rule; got: " + msg );
+        assertTrue( msg.contains( "Did you mean" ),
+                "error must include suggestions; got: " + msg );
+    }
+
+    @Test
     void tryUpsertEdgeReportsDuplicateKeyAsErrorMessage() {
         when( kg.upsertEdge( any(), any(), any(), any(), any() ) )
                 .thenThrow( new RuntimeException( "duplicate key value violates unique constraint" ) );

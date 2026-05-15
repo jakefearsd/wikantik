@@ -152,6 +152,29 @@ public final class KgEdgeRepository extends KgJdbcSupport {
      * is not thrown — it exists solely to capture the call stack so operators can
      * trace the offending flow in the catalina logs.
      */
+    /**
+     * Pre-flight check against the closed relationship-type vocabulary. The {@code
+     * kg_edges_relationship_type_check} CHECK constraint enforces this server-side,
+     * but the DB error (PSQLException + opaque SQLState 23514) is unfriendly for
+     * agents. Throwing IllegalArgumentException with the offending value, the
+     * top-3 nearest matches, and the full vocabulary turns this into an actionable
+     * agent-facing error — usually surfaced through DefaultKgCurationOps as the
+     * per-op {@code error} field on bulk-curation responses.
+     */
+    private static void rejectIfRelationshipTypeNotInClosedVocab( final String relationshipType ) {
+        if ( com.wikantik.api.knowledge.RelationshipTypeVocabulary.isValid( relationshipType ) ) return;
+        final java.util.List< String > suggestions =
+            com.wikantik.api.knowledge.RelationshipTypeVocabulary.closestMatches( relationshipType, 3 );
+        final String suggestionPart = suggestions.isEmpty()
+            ? ""
+            : " Did you mean: " + String.join( ", ", suggestions ) + "?";
+        throw new IllegalArgumentException(
+            "Relationship type '" + relationshipType + "' is not in the closed vocabulary."
+            + suggestionPart
+            + " Allowed: "
+            + String.join( ", ", com.wikantik.api.knowledge.RelationshipTypeVocabulary.CLOSED_VOCAB ) + "." );
+    }
+
     private void warnMixedEdgeRejected( final UUID sourceId, final UUID targetId,
                                          final String relationshipType ) {
         LOG.warn( "Rejected mixed page/entity edge {}->{} [{}]: writes that cross the "
@@ -163,6 +186,7 @@ public final class KgEdgeRepository extends KgJdbcSupport {
 
     public KgEdge upsertEdge( final UUID sourceId, final UUID targetId, final String relationshipType,
                               final Provenance provenance, final Map< String, Object > properties ) {
+        rejectIfRelationshipTypeNotInClosedVocab( relationshipType );
         if ( isMixedEdgeEndpoints( sourceId, targetId ) ) {
             warnMixedEdgeRejected( sourceId, targetId, relationshipType );
             return null;
@@ -224,6 +248,7 @@ public final class KgEdgeRepository extends KgJdbcSupport {
                                           final String relationshipType, final Provenance provenance,
                                           final Map< String, Object > properties,
                                           final String tier, final UUID provenanceProposalId ) {
+        rejectIfRelationshipTypeNotInClosedVocab( relationshipType );
         if ( isMixedEdgeEndpoints( sourceId, targetId ) ) {
             warnMixedEdgeRejected( sourceId, targetId, relationshipType );
             return;

@@ -169,3 +169,25 @@ describe('api.admin.getChunkOutliers', () => {
     );
   });
 });
+
+describe('api.knowledge.listProposalsFiltered', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('forwards offset to the server so pagination advances past page 0', async () => {
+    global.fetch.mockResolvedValue(
+      mockFetchResponse({ status: 200, body: { proposals: [], total_count: 0 } }),
+    );
+    await api.knowledge.listProposalsFiltered({
+      status: 'pending',
+      limit: 25,
+      offset: 25,
+    });
+    const url = global.fetch.mock.calls[0][0];
+    expect(url).toContain('offset=25');
+  });
+});

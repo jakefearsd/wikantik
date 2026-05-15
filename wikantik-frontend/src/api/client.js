@@ -531,6 +531,7 @@ export const api = {
       if (opts?.machineStatus) params.set('machine_status', opts.machineStatus);
       if (opts?.sourcePage) params.set('source_page', opts.sourcePage);
       if (opts?.limit) params.set('limit', String(opts.limit));
+      if (opts?.offset) params.set('offset', String(opts.offset));
       if (opts?.includeMachineRejected) params.set('include_machine_rejected', 'true');
       return request(`/admin/knowledge-graph/proposals?${params}`);
     },

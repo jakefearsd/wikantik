@@ -6,6 +6,10 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-15** — fix(admin): remove orphaned "Sync frontmatter to graph" button
+
+**2026-05-15** — content: log latest commit in News, normalize ToolUse frontmatter
+
 **2026-05-15** — content: add hub pages, new wiki articles, and refresh existing pages
 
 **2026-05-15** — fix(mcp): expand curate_nodes tool description with shape + node_type regex

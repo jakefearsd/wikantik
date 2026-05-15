@@ -153,26 +153,22 @@ public final class KgEdgeRepository extends KgJdbcSupport {
      * trace the offending flow in the catalina logs.
      */
     /**
-     * Pre-flight check against the closed relationship-type vocabulary. The {@code
-     * kg_edges_relationship_type_check} CHECK constraint enforces this server-side,
-     * but the DB error (PSQLException + opaque SQLState 23514) is unfriendly for
-     * agents. Throwing IllegalArgumentException with the offending value, the
-     * top-3 nearest matches, and the full vocabulary turns this into an actionable
-     * agent-facing error — usually surfaced through DefaultKgCurationOps as the
-     * per-op {@code error} field on bulk-curation responses.
+     * Builds the agent-facing message for a {@code kg_edges_relationship_type_check}
+     * CHECK-constraint violation. Includes the offending value, the top-3 nearest
+     * matches by Levenshtein distance, and the full closed vocabulary so the agent
+     * has both a quick hint and an authoritative list. Called from the SQLState 23514
+     * catch blocks of {@link #upsertEdge} and {@link #upsertEdgeWithProvenance}.
      */
-    private static void rejectIfRelationshipTypeNotInClosedVocab( final String relationshipType ) {
-        if ( com.wikantik.api.knowledge.RelationshipTypeVocabulary.isValid( relationshipType ) ) return;
+    private static String relationshipTypeViolationMessage( final String relationshipType ) {
         final java.util.List< String > suggestions =
             com.wikantik.api.knowledge.RelationshipTypeVocabulary.closestMatches( relationshipType, 3 );
         final String suggestionPart = suggestions.isEmpty()
             ? ""
             : " Did you mean: " + String.join( ", ", suggestions ) + "?";
-        throw new IllegalArgumentException(
-            "Relationship type '" + relationshipType + "' is not in the closed vocabulary."
+        return "Relationship type '" + relationshipType + "' is not in the closed vocabulary."
             + suggestionPart
             + " Allowed: "
-            + String.join( ", ", com.wikantik.api.knowledge.RelationshipTypeVocabulary.CLOSED_VOCAB ) + "." );
+            + String.join( ", ", com.wikantik.api.knowledge.RelationshipTypeVocabulary.CLOSED_VOCAB ) + ".";
     }
 
     private void warnMixedEdgeRejected( final UUID sourceId, final UUID targetId,
@@ -186,7 +182,6 @@ public final class KgEdgeRepository extends KgJdbcSupport {
 
     public KgEdge upsertEdge( final UUID sourceId, final UUID targetId, final String relationshipType,
                               final Provenance provenance, final Map< String, Object > properties ) {
-        rejectIfRelationshipTypeNotInClosedVocab( relationshipType );
         if ( isMixedEdgeEndpoints( sourceId, targetId ) ) {
             warnMixedEdgeRejected( sourceId, targetId, relationshipType );
             return null;
@@ -224,6 +219,19 @@ public final class KgEdgeRepository extends KgJdbcSupport {
                         detail, relationshipType );
                 throw new RuntimeException( detail, e );
             }
+            // SQLState 23514 == check_violation. The kg_edges_relationship_type_check CHECK
+            // constraint enforces the closed vocabulary at the DB layer. We don't pre-validate
+            // in Java because many code paths (especially tests against H2, where the V027
+            // CHECK isn't part of the test schema) use synthetic rel types deliberately.
+            // Translating the DB error here gives agents the same friendly message in
+            // production without breaking any caller that doesn't hit the constraint.
+            if ( "23514".equals( e.getSQLState() )
+                    && e.getMessage() != null
+                    && e.getMessage().contains( "kg_edges_relationship_type_check" ) ) {
+                final String detail = relationshipTypeViolationMessage( relationshipType );
+                LOG.info( "Edge upsert refused — {} [actor=via DefaultKgCurationOps]", detail );
+                throw new RuntimeException( detail, e );
+            }
             LOG.warn( "Failed to upsert edge {}->{} [{}]: {}", sourceId, targetId, relationshipType, e.getMessage(), e );
             throw new RuntimeException( "Failed to upsert edge: " + e.getMessage(), e );
         }
@@ -248,7 +256,6 @@ public final class KgEdgeRepository extends KgJdbcSupport {
                                           final String relationshipType, final Provenance provenance,
                                           final Map< String, Object > properties,
                                           final String tier, final UUID provenanceProposalId ) {
-        rejectIfRelationshipTypeNotInClosedVocab( relationshipType );
         if ( isMixedEdgeEndpoints( sourceId, targetId ) ) {
             warnMixedEdgeRejected( sourceId, targetId, relationshipType );
             return;
@@ -272,6 +279,16 @@ public final class KgEdgeRepository extends KgJdbcSupport {
             else ps.setObject( 7, provenanceProposalId );
             ps.executeUpdate();
         } catch ( final SQLException e ) {
+            // SQLState 23514 == check_violation. Mirror upsertEdge: translate the
+            // kg_edges_relationship_type_check CHECK violation into the agent-friendly
+            // message with suggestions + full vocabulary.
+            if ( "23514".equals( e.getSQLState() )
+                    && e.getMessage() != null
+                    && e.getMessage().contains( "kg_edges_relationship_type_check" ) ) {
+                final String detail = relationshipTypeViolationMessage( relationshipType );
+                LOG.info( "Edge upsert refused — {} [actor=via DefaultKgCurationOps]", detail );
+                throw new RuntimeException( detail, e );
+            }
             LOG.warn( "Failed to upsertEdgeWithProvenance ({},{},{}): {}",
                 sourceId, targetId, relationshipType, e.getMessage(), e );
             throw new RuntimeException( "Failed to upsertEdgeWithProvenance: " + e.getMessage(), e );

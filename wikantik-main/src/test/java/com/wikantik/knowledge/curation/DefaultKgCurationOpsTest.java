@@ -152,14 +152,14 @@ public class DefaultKgCurationOpsTest {
 
     @Test
     void tryUpsertEdgeReportsRelationshipVocabularyViolationCleanly() {
-        // KgEdgeRepository's pre-flight check throws IllegalArgumentException when the
-        // relationship_type is outside the closed vocabulary. DefaultKgCurationOps.wrap()
-        // unwraps to the deepest cause message, so the agent sees the actionable hint
-        // ("Did you mean ..." / "Allowed: ...") instead of an opaque internal error.
-        // Mirrors the 2026-05-15 catalina.out blocker where Gemini was approving proposals
-        // with relationship_type='fixes' / 'plans' and getting PSQLException stacktraces.
+        // KgEdgeRepository catches SQLState 23514 (kg_edges_relationship_type_check
+        // violation) and rethrows a RuntimeException with the closed-vocabulary message.
+        // DefaultKgCurationOps.wrap() unwraps to the deepest cause-chain message, so the
+        // agent sees the actionable hint ("Did you mean ..." / "Allowed: ...") instead of
+        // an opaque PSQLException stacktrace. Mirrors the 2026-05-15 catalina.out blocker
+        // where Gemini was approving proposals with relationship_type='fixes' / 'plans'.
         when( kg.upsertEdge( any(), any(), any(), any(), any() ) ).thenThrow(
-                new IllegalArgumentException(
+                new RuntimeException(
                     "Relationship type 'fixes' is not in the closed vocabulary."
                     + " Did you mean: contains, mitigates, is_a? Allowed: related_to, part_of, ..." ) );
         final KgCurationOps.EdgeResult r = ops.tryUpsertEdge(

@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
@@ -152,6 +153,9 @@ public class WikiPageFormatFilter implements Filter {
             resp.sendError( HttpServletResponse.SC_NOT_FOUND, "Page not found: " + pageName );
             return;
         }
+        // Page-view metric: a raw-content read counts as a page view too.
+        firePageRequested( eng, page.getName() );
+
         final String rawText = pm.getPureText( page );
         final ParsedPage parsed = FrontmatterParser.parse( rawText == null ? "" : rawText );
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
@@ -160,6 +164,23 @@ public class WikiPageFormatFilter implements Filter {
             writeMarkdown( resp, page, parsed, baseUrl );
         } else {
             writeJson( resp, page, parsed );
+        }
+    }
+
+    /**
+     * Fires a {@link WikiPageEvent#PAGE_REQUESTED} event so the Micrometer
+     * {@code wikantik.page.views} counter also counts raw-content reads of
+     * {@code /wiki/{slug}?format=md|json}. Best-effort — never breaks the response.
+     */
+    private void firePageRequested( final Engine engine, final String pageName ) {
+        try {
+            // Fire with the engine as the client: WikiEventManager routes by client
+            // object, and WikiMetrics registers its listener on the engine.
+            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).eventBus()
+                    .fireEvent( engine, new WikiPageEvent( engine, WikiPageEvent.PAGE_REQUESTED, pageName ) );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "WikiPageFormatFilter: failed to fire PAGE_REQUESTED for '{}': {}",
+                    pageName, e.getMessage() );
         }
     }
 

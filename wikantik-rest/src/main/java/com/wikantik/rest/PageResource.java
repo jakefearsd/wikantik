@@ -23,6 +23,7 @@ import com.google.gson.JsonObject;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
@@ -129,6 +130,9 @@ public class PageResource extends RestServletBase {
             }
             rawText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
         }
+
+        // Page-view metric: notify listeners (WikiMetrics) that a page was read.
+        firePageRequested( engine, page.getName() );
 
         final ParsedPage parsed = FrontmatterParser.parse( rawText );
 
@@ -366,6 +370,22 @@ public class PageResource extends RestServletBase {
     }
 
     /** D22: read the configured max-bytes property, falling back to the default. */
+    /**
+     * Fires a {@link WikiPageEvent#PAGE_REQUESTED} event so observers — notably the
+     * Micrometer {@code wikantik.page.views} counter — see reader / agent page reads.
+     * Best-effort: a metrics-path failure must never break serving the page.
+     */
+    private void firePageRequested( final Engine engine, final String pageName ) {
+        try {
+            // Fire with the engine as the client: WikiEventManager routes by client
+            // object, and WikiMetrics registers its listener on the engine.
+            com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).eventBus()
+                    .fireEvent( engine, new WikiPageEvent( engine, WikiPageEvent.PAGE_REQUESTED, pageName ) );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Failed to fire PAGE_REQUESTED event for '{}': {}", pageName, e.getMessage() );
+        }
+    }
+
     static int parseMaxPageBytes( final Engine engine ) {
         if ( engine == null ) {
             return DEFAULT_MAX_PAGE_BYTES;

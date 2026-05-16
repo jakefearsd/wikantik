@@ -69,6 +69,12 @@
      <filter-name>RequestMetricsFilter</filter-name>
      <url-pattern>/api/*</url-pattern>
      <url-pattern>/wiki/*</url-pattern>
+     <url-pattern>/admin/*</url-pattern>
+     <url-pattern>/tools/*</url-pattern>
+     <url-pattern>/wikantik-admin-mcp</url-pattern>
+     <url-pattern>/wikantik-admin-mcp/*</url-pattern>
+     <url-pattern>/knowledge-mcp</url-pattern>
+     <url-pattern>/knowledge-mcp/*</url-pattern>
    </filter-mapping>
 
    <!-- HTTP Basic authentication: converts Authorization: Basic headers into

@@ -233,6 +233,33 @@
       ],
       "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "type": "row", "id": 40, "title": "Agent & HTTP traffic",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 48 }
+    },
+    {
+      "type": "timeseries", "id": 41, "title": "Searches / s",
+      "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 49 },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(http_server_requests_seconds_count{job=\"wikantik\",uri=\"/api/search\"}[5m]))", "legendFormat": "searches/s",
+          "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] }, "tooltip": { "mode": "single" } }
+    },
+    {
+      "type": "timeseries", "id": 42, "title": "Agent & admin traffic by endpoint",
+      "description": "MCP, OpenAPI tool server, and admin HTTP request rate. Requires the RequestMetricsFilter coverage added in 2.0.1+.",
+      "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 49 },
+      "targets": [
+        { "refId": "A", "expr": "sum by (uri) (rate(http_server_requests_seconds_count{job=\"wikantik\",uri=~\"(/wikantik-admin-mcp|/knowledge-mcp|/tools|/admin).*\"}[5m]))", "legendFormat": "{{uri}}",
+          "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] }, "tooltip": { "mode": "multi" } }
     }
   ]
 }

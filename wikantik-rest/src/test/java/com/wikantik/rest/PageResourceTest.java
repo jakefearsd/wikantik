@@ -25,6 +25,8 @@ import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.auth.Users;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.event.WikiEventManager;
+import com.wikantik.event.WikiPageEvent;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,6 +43,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -66,6 +69,7 @@ class PageResourceTest {
         if ( engine != null ) {
             final PageManager pm = engine.getManager( PageManager.class );
             try { pm.deletePage( "RestTestPage" ); } catch ( final Exception e ) { /* ignore */ }
+            try { pm.deletePage( "RestEventPage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestTestFrontmatter" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestPutPage" ); } catch ( final Exception e ) { /* ignore */ }
             try { pm.deletePage( "RestDeletePage" ); } catch ( final Exception e ) { /* ignore */ }
@@ -94,6 +98,41 @@ class PageResourceTest {
         assertTrue( obj.get( "content" ).getAsString().contains( "Hello from REST test." ) );
         assertTrue( obj.get( "exists" ).getAsBoolean() );
         assertTrue( obj.get( "version" ).getAsInt() >= 1 );
+    }
+
+    @Test
+    void testGetPageFiresPageRequestedEvent() throws Exception {
+        // Regression: wikantik_page_views_total stayed 0 because no code path
+        // ever fired PAGE_REQUESTED. A GET of an existing page must fire it.
+        engine.saveText( "RestEventPage", "Body for the page-view event test." );
+
+        final AtomicInteger pageRequested = new AtomicInteger();
+        WikiEventManager.addWikiEventListener( engine, event -> {
+            if ( event instanceof WikiPageEvent && event.getType() == WikiPageEvent.PAGE_REQUESTED ) {
+                pageRequested.incrementAndGet();
+            }
+        } );
+
+        doGet( "RestEventPage" );
+
+        assertEquals( 1, pageRequested.get(),
+                "GET /api/pages/{name} must fire exactly one PAGE_REQUESTED event "
+                + "so wikantik_page_views_total increments" );
+    }
+
+    @Test
+    void testGetMissingPageDoesNotFirePageRequested() throws Exception {
+        final AtomicInteger pageRequested = new AtomicInteger();
+        WikiEventManager.addWikiEventListener( engine, event -> {
+            if ( event instanceof WikiPageEvent && event.getType() == WikiPageEvent.PAGE_REQUESTED ) {
+                pageRequested.incrementAndGet();
+            }
+        } );
+
+        doGet( "NoSuchRestEventPage" );
+
+        assertEquals( 0, pageRequested.get(),
+                "A 404 must not count as a page view" );
     }
 
     @Test

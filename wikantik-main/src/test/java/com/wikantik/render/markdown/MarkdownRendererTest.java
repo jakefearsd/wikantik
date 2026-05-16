@@ -268,6 +268,25 @@ public class MarkdownRendererTest {
     }
 
     @Test
+    public void testTocPluginHonorsTitleParameter() throws Exception {
+        final String src = "[{TableOfContents title='My Contents'}]()\n" +
+                            "# Header 1\n";
+        final String html = translate( src );
+        Assertions.assertTrue( html.contains( "<h4 id=\"section-TOC\">My Contents</h4>" ),
+                "TOC should use the custom title; got: " + html );
+    }
+
+    @Test
+    public void testTocPluginHonorsNumberedParameter() throws Exception {
+        final String src = "[{TableOfContents numbered=true}]()\n" +
+                            "# Header 1\n" +
+                            "## Header 2\n";
+        final String html = translate( src );
+        Assertions.assertTrue( html.contains( "<ol>" ),
+                "Numbered TOC should render an ordered list; got: " + html );
+    }
+
+    @Test
     public void testMarkupExtensionNonExistentPlugin() throws Exception {
         final String src = "[{PampleSlugin text=test}]()";
         Assertions.assertEquals( "<p><span class=\"error\">Wikantik : testpage - Plugin insertion failed: Could not find plugin PampleSlugin</span></p>\n", translate( src ) );

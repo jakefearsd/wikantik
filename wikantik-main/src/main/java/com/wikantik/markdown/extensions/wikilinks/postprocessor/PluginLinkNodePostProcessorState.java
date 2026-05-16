@@ -30,8 +30,11 @@ import com.wikantik.api.plugin.Plugin;
 import com.wikantik.markdown.nodes.WikantikLink;
 import com.wikantik.parser.PluginContent;
 import com.wikantik.preferences.Preferences;
+import com.wikantik.util.TextUtil;
 
 import java.text.MessageFormat;
+import java.util.Collections;
+import java.util.Map;
 import java.util.ResourceBundle;
 
 
@@ -109,13 +112,20 @@ public class PluginLinkNodePostProcessorState implements NodePostProcessorState<
     void handleTableOfContentsPlugin(final NodeTracker state, final WikantikLink link) {
         if( !wysiwygEditorMode ) {
             final ResourceBundle rb = Preferences.getBundle( wikiContext, Plugin.CORE_PLUGINS_RESOURCEBUNDLE );
+
+            final Map< String, String > params = parseTocParameters( link );
+            final String customTitle = params.get( "title" );
+            final String titleText = customTitle != null ? TextUtil.replaceEntities( customTitle )
+                                                          : rb.getString( "tableofcontents.title" );
+            final String numbered = params.get( "numbered" );
+            final boolean isNumbered = "true".equalsIgnoreCase( numbered ) || "yes".equalsIgnoreCase( numbered );
+            final String tocOptions = isNumbered ? "levels=1-3 numbered" : "levels=1-3";
+
             final WikiHtmlInline divToc = WikiHtmlInline.of( "<div class=\"toc\">\n" );
             final WikiHtmlInline divCollapseBox = WikiHtmlInline.of( "<div class=\"collapsebox\">\n" );
             final WikiHtmlInline divsClosing = WikiHtmlInline.of( "</div>\n</div>\n" );
-            final WikiHtmlInline h4Title = WikiHtmlInline.of( "<h4 id=\"section-TOC\">" + // FIXME proper plugin parameters handling
-                                                                   rb.getString( "tableofcontents.title" ) +
-                                                                   "</h4>\n" );
-            final TocBlock toc = new TocBlock( CharSubSequence.of( "[TOC]" ), CharSubSequence.of( "levels=1-3" ) );
+            final WikiHtmlInline h4Title = WikiHtmlInline.of( "<h4 id=\"section-TOC\">" + titleText + "</h4>\n" );
+            final TocBlock toc = new TocBlock( CharSubSequence.of( "[TOC]" ), CharSubSequence.of( tocOptions ) );
 
             link.insertAfter( divToc );
             divToc.insertAfter( divCollapseBox );
@@ -127,6 +137,28 @@ public class PluginLinkNodePostProcessorState implements NodePostProcessorState<
             NodePostProcessorStateCommonOperations.inlineLinkTextOnWysiwyg( state, link, wysiwygEditorMode );
         }
         removeLink( state, link );
+    }
+
+    /**
+     * Parses the parameters of a {@code [{TableOfContents ...}]} markup link.
+     * Returns an empty map (and logs a warning) if parsing fails, so the TOC
+     * still renders with default options rather than throwing.
+     *
+     * @param link the TableOfContents plugin link node.
+     * @return the parsed parameter map, never {@code null}.
+     */
+    private Map< String, String > parseTocParameters( final WikantikLink link ) {
+        final String markup = link.getText().toString();
+        try {
+            final PluginContent pc = PluginContent.parsePluginLine( wikiContext, markup, -1 );
+            if( pc != null ) {
+                return pc.getParameters();
+            }
+        } catch( final PluginException e ) {
+            LOG.warn( "Could not parse TableOfContents parameters from '{}'; rendering TOC with defaults",
+                      markup, e );
+        }
+        return Collections.emptyMap();
     }
 
     void removeLink(final NodeTracker state, final WikantikLink link) {

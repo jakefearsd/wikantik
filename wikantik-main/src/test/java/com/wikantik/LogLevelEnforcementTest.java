@@ -114,7 +114,6 @@ public class LogLevelEnforcementTest {
             "ContextualDiffProvider.java",
             "TraditionalDiffProvider.java",
             // Plugins — plugin execution failures
-            "TableOfContents.java",
             "RecentArticles.java",
             "AbstractReferralPlugin.java",
             // Parser internals

@@ -18,7 +18,6 @@
  */
 package com.wikantik.parser;
 
-import com.wikantik.StringTransmutator;
 import com.wikantik.TestEngine;
 import com.wikantik.WikiPage;
 import com.wikantik.api.core.Context;
@@ -38,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Additional tests for {@link MarkupParser} covering uncovered branches:
  * compileGlobPattern (all special characters), makeError, cleanLink, wikifyLink,
  * getInlineImagePatterns (lazy init), addLinkHook (null guard),
- * addHeadingListener, callMutatorChain, enableImageInlining/isImageInlining,
+ * callMutatorChain, enableImageInlining/isImageInlining,
  * disableAccessRules/isParseAccessRules, setInputReader, getPosition.
  */
 class MarkupParserAdditionalTest {
@@ -175,20 +174,6 @@ class MarkupParserAdditionalTest {
         assertDoesNotThrow( () -> parser.addLocalLinkHook( null ) );
         assertDoesNotThrow( () -> parser.addExternalLinkHook( null ) );
         assertDoesNotThrow( () -> parser.addAttachmentLinkHook( null ) );
-    }
-
-    // -----------------------------------------------------------------------
-    // addHeadingListener – null listener is silently ignored
-    // -----------------------------------------------------------------------
-
-    @Test
-    void addHeadingListenerWithNullIsIgnored() throws Exception {
-        final WikiPage page = new WikiPage( engine, "NullListenerPage" );
-        final Context ctx = Wiki.context().create( engine, page );
-        final com.wikantik.parser.markdown.MarkdownParser parser =
-                new com.wikantik.parser.markdown.MarkdownParser( ctx, new StringReader( "test" ) );
-
-        assertDoesNotThrow( () -> parser.addHeadingListener( null ) );
     }
 
     // -----------------------------------------------------------------------

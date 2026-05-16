@@ -57,8 +57,6 @@ public abstract class MarkupParser {
     protected final ArrayList< StringTransmutator > externalLinkMutatorChain = new ArrayList<>();
     protected final ArrayList< StringTransmutator > attachmentLinkMutatorChain = new ArrayList<>();
     protected final ArrayList< StringTransmutator > linkMutators = new ArrayList<>();
-    protected final ArrayList< HeadingListener > headingListenerChain = new ArrayList<>();
-
     protected boolean inlineImages = true;
     protected boolean parseAccessRules = true;
     /** Keeps image regexp Patterns */
@@ -198,17 +196,6 @@ public abstract class MarkupParser {
     void addLinkHook( final List< StringTransmutator > mutatorChain, final StringTransmutator mutator ) {
         if( mutator != null ) {
             mutatorChain.add( mutator );
-        }
-    }
-
-    /**
-     *  Adds a HeadingListener to the parser chain.  It will be called whenever a parsed header is found.
-     *
-     *  @param listener The listener to add.
-     */
-    public void addHeadingListener( final HeadingListener listener ) {
-        if( listener != null ) {
-            headingListenerChain.add( listener );
         }
     }
 

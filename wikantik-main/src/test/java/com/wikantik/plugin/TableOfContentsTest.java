@@ -47,8 +47,20 @@ public class TableOfContentsTest
         final String src="[{TableOfContents}]()\n\n# Heading\n\n## Subheading\n\n### Subsubheading";
         testEngine.saveText( "Test", src );
         final String res = testEngine.getI18nHTML( "Test" );
-        Assertions.assertTrue( res.contains( "toc" ), "Should contain TOC" );
-        Assertions.assertTrue( res.contains( "subheading" ), "Should contain subheading" );
+        Assertions.assertTrue( res.contains( "<div class=\"toc\">" ), "Should contain TOC div" );
+        Assertions.assertTrue( res.contains( "<a href=\"#heading\">Heading</a>" ),
+                "TOC should link to the heading anchor; got: " + res );
+        Assertions.assertTrue( res.contains( "<a href=\"#subheading\">Subheading</a>" ),
+                "TOC should link to the subheading anchor; got: " + res );
+    }
+
+    @Test
+    public void testTocWithNoHeadings() throws Exception {
+        final String src = "[{TableOfContents}]()\n\nJust some plain text without headings.";
+        testEngine.saveText( "Test", src );
+        final String res = testEngine.getI18nHTML( "Test" );
+        Assertions.assertTrue( res.contains( "<div class=\"toc\">" ),
+                "TOC div should still render with no headings; got: " + res );
     }
 
     @Test

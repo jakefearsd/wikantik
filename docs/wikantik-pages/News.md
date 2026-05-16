@@ -6,6 +6,10 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-16** — docs: correct scheduled retrieval-quality CI class name in CLAUDE.md
+
+**2026-05-16** — content: log release/upgrade wrappers in News
+
 **2026-05-16** — docs: document the wrapper-based release and upgrade flow
 
 **2026-05-16** — deploy: add release/upgrade wrappers, harden remote.sh bootstrap

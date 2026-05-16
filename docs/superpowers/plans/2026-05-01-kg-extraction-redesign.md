@@ -3489,7 +3489,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 JAR="${ROOT_DIR}/wikantik-extract-cli/target/wikantik-extract-cli.jar"
 
-if [[ ! -f "${JAR}" ]] || \
+if [ ! -f "${JAR}" ]( ! -f "${JAR}" ) || \
    find "${ROOT_DIR}/wikantik-extract-cli/src" -name '*.java' -newer "${JAR}" -print -quit | grep -q .; then
     (cd "${ROOT_DIR}" && mvn install -pl wikantik-extract-cli -am -Dmaven.test.skip -q)
 fi

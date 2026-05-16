@@ -106,7 +106,7 @@ Mature 2026 stacks utilize **AI Executors** to self-fund AI investments.
 3.  **Managed Service Fallacy**: Assuming RDS is always cheaper than EC2 + Postgres. RDS is cheaper in *Ops Hours*, but at extreme scale (>10 TB), the direct license/compute markup of managed services can degrade ROI by 30%.
 
 ## See Also
-- [[CloudCostOptimization]] — Technical Spot/Egress levers.
-- [[AwsMaturityModel]] — Phased implementation guide.
-- [[GcpMaturityModel]] — BigQuery Editions math.
-- [[CloudMigrationStrategies]] — Calculating the 6 R's.
+- [CloudCostOptimization](CloudCostOptimization) — Technical Spot/Egress levers.
+- [AwsMaturityModel](AwsMaturityModel) — Phased implementation guide.
+- [GcpMaturityModel](GcpMaturityModel) — BigQuery Editions math.
+- [CloudMigrationStrategies](CloudMigrationStrategies) — Calculating the 6 R's.

@@ -111,7 +111,7 @@ Automate the remediation of the **GCP Recommender** signals.
 *   **Case Study**: If the Recommender flags a VM as "Unutilized" for 14 days, a Cloud Function automatically snapshots the disk, deletes the VM, and pings the owner on Google Chat with a "One-Click Restore" link.
 
 ## See Also
-- [[GcpFundamentals]] — Core service mapping.
-- [[CloudRoiFramework]] — Comparative unit economics.
-- [[MultiCloudStrategies]] — Anthos and cross-cloud mesh.
-- [[InfrastructureAsCode]] — Managing the hierarchy via Terraform.
+- [GcpFundamentals](GcpFundamentals) — Core service mapping.
+- [CloudRoiFramework](CloudRoiFramework) — Comparative unit economics.
+- [MultiCloudStrategies](MultiCloudStrategies) — Anthos and cross-cloud mesh.
+- [InfrastructureAsCode](InfrastructureAsCode) — Managing the hierarchy via Terraform.

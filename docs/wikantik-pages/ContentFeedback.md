@@ -47,7 +47,7 @@ Wikantik uses single brackets `[PageName](PageName)`, not double brackets `[[Pag
 **Fix Required:**
 ```
 # Wrong (Markdown/MediaWiki)
-[[Columbian Exchange]]
+[Columbian Exchange](Columbian Exchange)
 
 # Correct (Wikantik)
 [Columbian Exchange]

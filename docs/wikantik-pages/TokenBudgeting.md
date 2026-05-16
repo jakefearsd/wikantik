@@ -29,8 +29,7 @@ The mapping from "words" to "tokens" is non-linear and model-dependent.
 In Transformer models, the **Key-Value (KV) Cache** stores the pre-computed attention vectors for all tokens in the current context.
 
 ### 2.1 Memory Footprint
-The KV cache size is $\mathcal{O}(L)$ (sequence length). For a 70B parameter model:
-$$\text{Memory per token} \approx 2 \times \text{layers} \times \text{heads} \times d_{head} \times \text{precision\_bytes}$$
+The KV cache size is $\mathcal{O}(L)$(sequence length). For a 70B parameter model:$$\text{Memory per token} \approx 2 \times \text{layers} \times \text{heads} \times d_{head} \times \text{precision\_bytes}$$
 At a 32k context, the cache for a single request can exceed 10GB of VRAM.
 
 ## 3. Cache Eviction Strategies

@@ -74,10 +74,7 @@ For processes incorporating Machine Learning:
 
 ## IV. Quantitative Quality Control
 
-### A. Process Capability Indices
-$$\text{Cpk} = \min \left( \frac{\text{USL} - \mu}{\text{3}\sigma}, \frac{\mu - \text{LSL}}{\text{3}\sigma} \right)$$
-Use ANOVA to decompose total variance ($\sigma^2_{total}$) into process, machine, human, and environmental factors to target improvement efforts effectively.
+### A. Process Capability Indices$$\text{Cpk} = \min \left( \frac{\text{USL} - \mu}{\text{3}\sigma}, \frac{\mu - \text{LSL}}{\text{3}\sigma} \right)$$Use ANOVA to decompose total variance ($\sigma^2_{total}$) into process, machine, human, and environmental factors to target improvement efforts effectively.
 
-### B. Resilience Index
-$$\text{Resilience Index} (R) = \frac{\text{Performance}_{\text{Post-Shock}}}{\text{Performance}_{\text{Baseline}}} \times e^{-\frac{T_{\text{Recovery}}}{\text{Time Constant}}}$$
+### B. Resilience Index$$\text{Resilience Index} (R) = \frac{\text{Performance}_{\text{Post-Shock}}}{\text{Performance}_{\text{Baseline}}} \times e^{-\frac{T_{\text{Recovery}}}{\text{Time Constant}}}$$
 This metric measures the system's ability to absorb operational shocks and return to baseline performance.

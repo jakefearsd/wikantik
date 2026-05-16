@@ -19,7 +19,7 @@ on retrieval, navigation, or admin tooling. Use the right name.
 
 **A graph whose edges are real page-to-page wikilinks.**
 
-- **Sources.** Wikilinks parsed from page bodies (`[[OtherPage]]`,
+- **Sources.** Wikilinks parsed from page bodies (`[OtherPage](OtherPage)`,
   `[OtherPage]`, etc.). Period.
 - **Companion structure** (not edges of the Page Graph itself, but
   co-resident in the same subsystem): the `canonical_id` field in

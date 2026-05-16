@@ -61,7 +61,7 @@ Use the following naming convention to prevent metric collisions:
 
 ## 3. Health Check Integration
 
-Metrics alone are insufficient. Services must implement the **Health Check Triad** as defined in [[HealthCheckPatterns]]:
+Metrics alone are insufficient. Services must implement the **Health Check Triad** as defined in [HealthCheckPatterns](HealthCheckPatterns):
 
 | Probe | Path | Logic |
 | :--- | :--- | :--- |
@@ -84,6 +84,6 @@ For an agent instrumenting a new service (e.g., **operatorvoice**), the prompt s
 > "Following the `ObservabilityAndMonitoringBlueprint`, instrument this Python service with OpenTelemetry to track RED metrics for the voice-interaction loops and expose a `/health/ready` endpoint that verifies the STT and TTS service connectivity."
 
 ## See Also
-- [[HealthCheckPatterns]] — Deep-dive on probe implementation.
-- [[CloudMonitoring]] — Survey of available cloud tools.
-- [[AiObservabilityInProduction]] — Specific metrics for LLM and Agentic systems.
+- [HealthCheckPatterns](HealthCheckPatterns) — Deep-dive on probe implementation.
+- [CloudMonitoring](CloudMonitoring) — Survey of available cloud tools.
+- [AiObservabilityInProduction](AiObservabilityInProduction) — Specific metrics for LLM and Agentic systems.

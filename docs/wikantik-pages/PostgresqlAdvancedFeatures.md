@@ -117,7 +117,7 @@ USING hnsw (embedding vector_cosine_ops);
 -- Top-10 most similar
 SELECT id, content, 1 - (embedding <=> $1) AS similarity
 FROM chunks
-ORDER BY embedding <=> $1
+ORDER BY embedding <=>$1
 LIMIT 10;
 ```
 
@@ -246,13 +246,11 @@ CREATE TABLE orders_history (
     changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE FUNCTION log_orders_history() RETURNS TRIGGER AS $$
-BEGIN
+CREATE FUNCTION log_orders_history() RETURNS TRIGGER AS $$BEGIN
     INSERT INTO orders_history (order_id, snapshot, op)
     VALUES (COALESCE(NEW.id, OLD.id), to_jsonb(COALESCE(NEW, OLD)), TG_OP::TEXT);
     RETURN COALESCE(NEW, OLD);
-END;
-$$ LANGUAGE plpgsql;
+END;$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER orders_history_trigger
 AFTER INSERT OR UPDATE OR DELETE ON orders

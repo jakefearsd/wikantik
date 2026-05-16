@@ -22,12 +22,12 @@ Last-mile delivery is the most expensive and complex segment of the supply chain
 
 ### The Traveling Salesperson Problem (TSP)
 The goal is to visit a set of stops ($n$) and return to the depot via the shortest possible route.
-- **Complexity:** $O(n!)$—computationally impossible for large $n$ via brute force.
+- **Complexity:**$O(n!)$—computationally impossible for large$n$via brute force.
 - **Heuristics:** Modern dispatchers use **Christofides Algorithm** (guarantees a solution within 1.5x of optimal) or **Ant Colony Optimization** for real-time routing.
 
 ### The Vehicle Routing Problem (VRP)
-Extends TSP to a fleet of $m$ vehicles.
-- **VRP with Time Windows (VRPTW):** Adds the constraint that stop $i$ must be reached between times $T_1$ and $T_2$.
+Extends TSP to a fleet of$m$vehicles.
+- **VRP with Time Windows (VRPTW):** Adds the constraint that stop$i$must be reached between times$T_1$and$T_2$.
 - **Impact:** Tight time windows (e.g., 1-hour grocery delivery) drastically reduce "Route Density" and increase costs.
 
 ## 2. Route Density Math
@@ -37,9 +37,7 @@ Route Density is the primary metric for last-mile profitability.
 - **Stem Time:** Time spent driving from the depot to the first stop and from the last stop back to the depot.
 - **On-Route Time:** Time spent driving between stops and performing the "door-to-door" action.
 
-### The Optimization Formula
-$$\text{Cost Per Drop} = \frac{(\text{Driver Wage} \times \text{Route Time}) + (\text{Distance} \times \text{Fuel Cost})}{\text{Total Drops}}$$
-
+### The Optimization Formula$$\text{Cost Per Drop} = \frac{(\text{Driver Wage} \times \text{Route Time}) + (\text{Distance} \times \text{Fuel Cost})}{\text{Total Drops}}$$
 ## 3. Concrete Example: Urban vs. Suburban Routing
 1.  **Urban Route:** 50 stops within 2 miles. **Drop Density:** 25 stops/sq mile. **Result:** Low fuel cost, high "Last 100 Meter" labor cost (lobby/elevator wait).
 2.  **Suburban Route:** 50 stops across 40 miles. **Drop Density:** 1.25 stops/sq mile. **Result:** High fuel and vehicle wear, low "Last 100 Meter" cost (front porch drops).
@@ -56,7 +54,7 @@ $$\text{Cost Per Drop} = \frac{(\text{Driver Wage} \times \text{Route Time}) + (
 | **Drone Delivery** | High-value, light-weight | Bypasses road congestion |
 
 ## See Also
-- [[VehicleRoutingProblem]]
-- [[TransportationManagement]]
-- [[MicroFulfillmentCenters]]
-- [[SupplyChainResilience]]
+- [VehicleRoutingProblem](VehicleRoutingProblem)
+- [TransportationManagement](TransportationManagement)
+- [MicroFulfillmentCenters](MicroFulfillmentCenters)
+- [SupplyChainResilience](SupplyChainResilience)

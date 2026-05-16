@@ -66,6 +66,6 @@ If a user invokes their "Right to be Forgotten" (GDPR Article 17), you must dele
 **Requirement:** Every chunk in your vector store must be tagged with a `user_id` or `source_document_id`. A simple `DELETE FROM vectors WHERE user_id = 42` is mandatory; a full index rebuild is often required to reclaim disk space after large deletions.
 
 ## Further Reading
-- [[PrivacyPreservingLLM]] — Differential privacy and local model hosting.
-- [[AiGovernanceFrameworks]] — Building an internal AI oversight board.
-- [[AgentObservability]] — Logging for compliance without leaking PII.
+- [PrivacyPreservingLLM](PrivacyPreservingLLM) — Differential privacy and local model hosting.
+- [AiGovernanceFrameworks](AiGovernanceFrameworks) — Building an internal AI oversight board.
+- [AgentObservability](AgentObservability) — Logging for compliance without leaking PII.

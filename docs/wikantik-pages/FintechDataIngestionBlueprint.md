@@ -116,7 +116,7 @@ For an agent building **wealthview**, the prompt should be:
 > "Using the `FintechDataIngestionBlueprint`, implement a Python FastAPI endpoint that receives a Plaid `public_token`, exchanges it for an `access_token`, and performs the initial `NormalizedAccount` sync using Pydantic validation."
 
 ## See Also
-- [[WealthviewHub]] — Central project index.
-- [[NetWorthTracking]] — The primary consumer of this data.
-- [[DataEngineeringHub]] — Foundational pipeline patterns.
-- [[ApplicationSecurityFundamentals]] — For KMS and encryption details.
+- [WealthviewHub](WealthviewHub) — Central project index.
+- [NetWorthTracking](NetWorthTracking) — The primary consumer of this data.
+- [DataEngineeringHub](DataEngineeringHub) — Foundational pipeline patterns.
+- [ApplicationSecurityFundamentals](ApplicationSecurityFundamentals) — For KMS and encryption details.

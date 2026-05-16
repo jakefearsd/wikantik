@@ -36,11 +36,7 @@ California's tax system is highly progressive. For high earners, the federal and
 The TEY allows an investor to compare a tax-free bond to a taxable one (like a CD or Corporate Bond).
 
 **The Formula:**
-$$
-\text{TEY} = \frac{\text{Tax-Free Yield}}{1 - (\text{Marginal Fed Rate} + \text{Marginal State Rate})}
-$$
-
----
+$$\text{TEY} = \frac{\text{Tax-Free Yield}}{1 - (\text{Marginal Fed Rate} + \text{Marginal State Rate})}$$---
 
 ## II. Strategy A: California Municipal Bonds (Double Tax-Free)
 
@@ -96,8 +92,7 @@ An investor needs \$100,000/year in pre-tax income and is in the 37% Fed + 13.3%
 
 *   **Option 1: High Yield Savings (Fully Taxable)**
     *   Yield: 4.50%
-    *   After-Tax Yield: $4.50\% \times (1 - 0.541) = \mathbf{2.06\%}$
-    *   Capital required for \$100k income: **\$4.85 Million**
+    *   After-Tax Yield: $4.50\% \times (1 - 0.541) = \mathbf{2.06\%}$*   Capital required for \$100k income: **\$4.85 Million**
 
 *   **Option 2: CA Muni Fund (VCADX) (Double Tax-Free)**
     *   Yield: 3.14%

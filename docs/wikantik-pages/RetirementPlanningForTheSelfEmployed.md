@@ -62,7 +62,7 @@ The SECURE Act 2.0 (passed late 2022) introduced two major changes for the self-
 | You need the ability to take a plan loan. | You have employees (Solo 401k is only for owner/spouse). |
 
 ## See Also
-- [[TaxPlanningFundamentals]]
-- [[AssetAllocation]]
-- [[BackdoorRothStrategies]]
-- [[SmallBusinessOwnerRetirement]]
+- [TaxPlanningFundamentals](TaxPlanningFundamentals)
+- [AssetAllocation](AssetAllocation)
+- [BackdoorRothStrategies](BackdoorRothStrategies)
+- [SmallBusinessOwnerRetirement](SmallBusinessOwnerRetirement)

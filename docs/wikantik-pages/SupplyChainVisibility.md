@@ -45,8 +45,9 @@ We categorize visibility into four escalating layers of maturity:
 Visibility is achieved through the coupling of physical data capture and immutable record-keeping.
 *   **IoT Sensor Fusion:** Moving beyond location to **Condition-Based Monitoring (CBM)**. Sensors measure temperature, shock, and gas concentrations, processing data via **Edge Computing** to transmit only high-signal alerts, minimizing bandwidth consumption.
 *   **DLT and Smart Contracts:** Implementing [Blockchain and Provenance](BlockchainProvenance) to create a shared, cryptographically secured ledger. **Smart Contracts** enable self-executing agreements:
-    $$\text{Payment} \iff (\text{Temp} \le 8^\circ\text{C}) \land (\text{Location} = \text{Terminal\_A}) \land (\text{Audit} = \text{Pass})$$
-
+    $$
+    \text{Payment} \iff (\text{Temp} \le 8^\circ\text{C}) \land (\text{Location} = \text{Terminal\_A}) \land (\text{Audit} = \text{Pass})
+    $$
 ---
 
 ## III. Optimization and Interoperability

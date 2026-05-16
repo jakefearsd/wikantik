@@ -41,7 +41,9 @@ The industry standard for measuring protein quality is the **PDCAAS** (Protein D
 
 ### PDCAAS Calculation
 The formula for PDCAAS is:
-$$PDCAAS = \text{Amino Acid Score (AAS)} \times \text{True Fecal Digestibility}$$
+$$
+PDCAAS = \text{Amino Acid Score (AAS)} \times \text{True Fecal Digestibility}
+$$
 The AAS is determined by the ratio of the most limiting amino acid in the test protein to the same amino acid in a reference pattern (usually egg white or the WHO requirement).
 
 ### Comparative PDCAAS Scores

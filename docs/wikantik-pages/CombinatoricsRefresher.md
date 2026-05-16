@@ -103,7 +103,7 @@ Consider an 8-character password.
 By increasing the "base" of our combinatorial choice from 26 to 95, we have increased the search space by a factor of over **30,000**, fundamentally changing the feasibility of a brute-force attack from hours to years.
 
 ## See Also
-- [[DiscreteMatchRefresher]]
-- [[ProbabilityTheory]]
-- [[InformationTheory]]
-- [[AlgorithmComplexity]]
+- [DiscreteMatchRefresher](DiscreteMatchRefresher)
+- [ProbabilityTheory](ProbabilityTheory)
+- [InformationTheory](InformationTheory)
+- [AlgorithmComplexity](AlgorithmComplexity)

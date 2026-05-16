@@ -33,11 +33,7 @@ Multimodal embeddings map inputs from distinct sensors (cameras, microphones, te
 Modern multimodal models (CLIP, SigLIP, ImageBind) consist of independent encoders for each modality, followed by a **projection layer** that aligns their outputs.
 
 ### CLIP (Contrastive Language-Image Pretraining)
-CLIP uses a dual-encoder architecture. The training objective is to maximize the cosine similarity of $N$ correct pairs in a batch while minimizing the similarity of the $N^2 - N$ incorrect pairs.
-
-$$ \mathcal{L} = \frac{1}{2N} \sum_{i=1}^N \left( \log \frac{\exp(\cos(\mathbf{t}_i, \mathbf{v}_i)/\tau)}{\sum_{j=1}^N \exp(\cos(\mathbf{t}_i, \mathbf{v}_j)/\tau)} + \log \frac{\exp(\cos(\mathbf{t}_i, \mathbf{v}_i)/\tau)}{\sum_{j=1}^N \exp(\cos(\mathbf{t}_j, \mathbf{v}_i)/\tau)} \right) $$
-
-where $\mathbf{t}$ is text, $\mathbf{v}$ is vision, and $\tau$ is a learnable temperature parameter.
+CLIP uses a dual-encoder architecture. The training objective is to maximize the cosine similarity of$N$correct pairs in a batch while minimizing the similarity of the$N^2 - N$incorrect pairs.$$\mathcal{L} = \frac{1}{2N} \sum_{i=1}^N \left( \log \frac{\exp(\cos(\mathbf{t}_i, \mathbf{v}_i)/\tau)}{\sum_{j=1}^N \exp(\cos(\mathbf{t}_i, \mathbf{v}_j)/\tau)} + \log \frac{\exp(\cos(\mathbf{t}_i, \mathbf{v}_i)/\tau)}{\sum_{j=1}^N \exp(\cos(\mathbf{t}_j, \mathbf{v}_i)/\tau)} \right)$$where$\mathbf{t}$is text,$\mathbf{v}$is vision, and$\tau$is a learnable temperature parameter.
 
 ### SigLIP (Sigmoid Loss)
 SigLIP (Google, 2023) replaces the softmax over the whole batch with a simple pairwise sigmoid loss. This allows for much larger batch sizes and better stability on small GPUs.
@@ -98,7 +94,7 @@ Avoid separate text and image search results that are merely concatenated. Use *
 
 ## 5. Deployment Checklist
 1.  **Normalization:** Always normalize vectors to unit length ($L_2$) before indexing if using Cosine Similarity.
-2.  **Quantization:** Use `int8` or Binary Quantization for the vector index to reduce memory footprint by 4x-32x with $<1\%$ recall drop.
+2.  **Quantization:** Use `int8` or Binary Quantization for the vector index to reduce memory footprint by 4x-32x with$<1\%$ recall drop.
 3.  **OCR Pre-processing:** Multimodal models like CLIP are notoriously bad at reading small text within images. For screenshots, append OCR-extracted text to the image metadata for hybrid search.
 
 ## Further Reading

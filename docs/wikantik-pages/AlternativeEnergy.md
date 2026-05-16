@@ -44,7 +44,9 @@ For off-grid and backup systems, **LiFePO4 (LFP)** has superseded Lead-Acid (AGM
 A resilient system must handle consecutive cloudy days.
 *   **Load Calculation:** If daily use is 1.5 kWh, a 3-day buffer requires **4.5 kWh** of storage (approx. four 100Ah LFP batteries).
 *   **Solar Replenishment:** To recharge that 1.5 kWh daily load in 5 peak sun hours:
-    $$\text{Watts Required} = \frac{1500\text{ Wh}}{5\text{ hrs} \times 0.75\text{ (efficiency)}} \approx 400\text{W}$$
+    $$
+    \text{Watts Required} = \frac{1500\text{ Wh}}{5\text{ hrs} \times 0.75\text{ (efficiency)}} \approx 400\text{W}
+    $$
 *   **Concrete Layout:** Two 200W panels in **Series** (to increase voltage for MPPT efficiency) or **Parallel** (to mitigate shading impact on one panel).
 
 ## 4. Inverters and Efficiency

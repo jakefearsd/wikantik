@@ -56,7 +56,7 @@ Target states increasingly deploy "Sanction-Proofing" strategies:
 | **Energy Embargo** | Cost-push inflation | Energy sector outperformance |
 
 ## See Also
-- [[GeopoliticalRiskAndInvesting]]
-- [[EconomicHistory]]
-- [[ConflictMarketPatterns]]
-- [[RussiaUkraineWarMarkets]]
+- [GeopoliticalRiskAndInvesting](GeopoliticalRiskAndInvesting)
+- [EconomicHistory](EconomicHistory)
+- [ConflictMarketPatterns](ConflictMarketPatterns)
+- [RussiaUkraineWarMarkets](RussiaUkraineWarMarkets)

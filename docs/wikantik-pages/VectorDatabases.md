@@ -78,6 +78,6 @@ Higher dimensionality (e.g., 3072) provides better semantic resolution but incre
 **Product Quantization (PQ)** or **Scalar Quantization (SQ)** compresses vectors (e.g., from 32-bit floats to 8-bit ints). This can reduce memory usage by 4x with only a 1-2% drop in recall.
 
 ## Further Reading
-- [[EmbeddingsVectorDB]] — How to generate high-quality vectors.
-- [[RagImplementationPatterns]] — Connecting vector DBs to LLMs.
-- [[HybridRetrieval]] — Combining Keyword search (BM25) with Vector search.
+- [EmbeddingsVectorDB](EmbeddingsVectorDB) — How to generate high-quality vectors.
+- [RagImplementationPatterns](RagImplementationPatterns) — Connecting vector DBs to LLMs.
+- [HybridRetrieval](HybridRetrieval) — Combining Keyword search (BM25) with Vector search.

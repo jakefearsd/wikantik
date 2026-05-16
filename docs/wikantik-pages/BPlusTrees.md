@@ -62,6 +62,6 @@ The primary constraint of traditional databases is the **I/O Bottleneck**.
 In a modern [Vector Database](VectorDatabases) like `pgvector`, B+ Trees are used to index the **metadata** (like `user_id` or `timestamp`), while HNSW handles the **semantic** search over the embeddings.
 
 ## See Also
-- [[DataStructuresHub]] — Other fundamental structures.
-- [[VectorIndexingInternals]] — The modern alternative for AI.
-- [[DatabaseIndexingStrategies]] — How B+ Trees are used in SQL.
+- [DataStructuresHub](DataStructuresHub) — Other fundamental structures.
+- [VectorIndexingInternals](VectorIndexingInternals) — The modern alternative for AI.
+- [DatabaseIndexingStrategies](DatabaseIndexingStrategies) — How B+ Trees are used in SQL.

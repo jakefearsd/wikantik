@@ -32,7 +32,7 @@ The Zettelkasten (Slip-box) method treats every note as an **Atomic Unit of Know
 
 To prevent the graph from becoming unmanageable "spaghetti," we use structural layers.
 
-*   **MOCs (Maps of Content):** Index notes that act as hubs for a specific topic (e.g., `[[Machine Learning MOC]]`). They provide a curated entry point into the graph.
+*   **MOCs (Maps of Content):** Index notes that act as hubs for a specific topic (e.g., `[Machine Learning MOC](Machine Learning MOC)`). They provide a curated entry point into the graph.
 *   **PARA (Projects, Areas, Resources, Archives):** An organizational framework by Tiago Forte that categorizes notes by their *actionability* rather than just their topic.
 
 ## 3. Programmatic Automation: Dataview
@@ -58,7 +58,7 @@ SORT date_created DESC
 | Feature | Obsidian Approach | Benefit |
 | :--- | :--- | :--- |
 | **Storage** | Local Markdown (.md) | Future-proof, no vendor lock-in |
-| **Linking** | Bi-directional `[[ ]]` | Bidirectional context discovery |
+| **Linking** | Bi-directional `[ ]( )` | Bidirectional context discovery |
 | **Schema** | YAML Frontmatter | Queryable metadata (Dataview) |
 | **Expansion** | Community Plugins | Extensible functionality (AI/Sync)|
 

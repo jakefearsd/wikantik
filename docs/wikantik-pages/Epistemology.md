@@ -66,8 +66,8 @@ LLMs are inductive engines. They predict the future based on the past. Hume's cr
 | **Anchor** | Entropy minimization | Verifiable evidence (RAG/KG) |
 
 ## See Also
-- [[Logic]]
-- [[PhilosophyOfScience]]
-- [[InformationTheory]]
-- [[KnowledgeGraphCore]]
-- [[AiHallucinationMitigation]]
+- [Logic](Logic)
+- [PhilosophyOfScience](PhilosophyOfScience)
+- [InformationTheory](InformationTheory)
+- [KnowledgeGraphCore](KnowledgeGraphCore)
+- [AiHallucinationMitigation](AiHallucinationMitigation)

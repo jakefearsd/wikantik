@@ -22,8 +22,7 @@ An "Embedding" is a dense, high-dimensional vector representation ($\mathbb{R}^d
 
 The performance of your vector search depends on matching the search metric to the model's training objective.
 
-- **Cosine Similarity:** Measures the angle between vectors. Robust to variations in text length but slower to calculate than dot product.
-    $$\text{sim}(A, B) = \frac{A \cdot B}{\|A\| \|B\|}$$
+- **Cosine Similarity:** Measures the angle between vectors. Robust to variations in text length but slower to calculate than dot product.$$\text{sim}(A, B) = \frac{A \cdot B}{\|A\| \|B\|}$$
 - **Inner Product (Dot Product):** Measures both angle and magnitude. Often used for models trained with contrastive learning. If vectors are normalized to unit length, Dot Product is mathematically equivalent to Cosine Similarity and significantly faster to compute.
 - **Euclidean Distance (L2):** Measures the straight-line distance. Sensitive to vector magnitude; less common for pure text search but useful in multi-modal contexts.
 

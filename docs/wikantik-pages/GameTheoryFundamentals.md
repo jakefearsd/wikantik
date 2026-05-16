@@ -89,7 +89,7 @@ The movement of a population's strategy mix is modeled on a **Simplex** (a trian
 *   **Visual Intuition:** Imagine the simplex as a surface. The Replicator Dynamics define a "vector field" across this surface. Points of equilibrium are where the "wind" stops; stable equilibria (**Evolutionarily Stable Strategies**) are where all nearby flow lines point inward to a **Sink**.
 
 ## See Also
-- [[AppliedMathSurvey]] — The map of mathematical tools.
-- [[ProbabilityTheory]] — The foundation of mixed strategies.
-- [[OptimizationAlgorithms]] — The engine of agent learning.
-- [[MathematicsHub]] — Central index for math topics.
+- [AppliedMathSurvey](AppliedMathSurvey) — The map of mathematical tools.
+- [ProbabilityTheory](ProbabilityTheory) — The foundation of mixed strategies.
+- [OptimizationAlgorithms](OptimizationAlgorithms) — The engine of agent learning.
+- [MathematicsHub](MathematicsHub) — Central index for math topics.

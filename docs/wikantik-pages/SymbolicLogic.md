@@ -31,9 +31,9 @@ Symbolic logic is the formalization of reasoning through the manipulation of sym
 Symbolic logic is often viewed as "linear" strings of characters, but its underlying structure is profoundly geometric.
 
 ### 1.1 The Hypercube of Possibilities
-For any system with $n$ atomic propositions, the space of all possible truth assignments can be mapped onto the vertices of an **$n$-dimensional hypercube**.
-- **1 Proposition ($P$):** A 1D line segment. Vertices are $T$ and $F$.
-- **2 Propositions ($P, Q$):** A 2D square. The four vertices $(T,T), (T,F), (F,T), (F,F)$ represent the complete "logical universe."
+For any system with $n$atomic propositions, the space of all possible truth assignments can be mapped onto the vertices of an **$n$-dimensional hypercube**.
+- **1 Proposition ($P$):** A 1D line segment. Vertices are$T$and$F$.
+- **2 Propositions ($P, Q$):** A 2D square. The four vertices$(T,T), (T,F), (F,T), (F,F)$represent the complete "logical universe."
 - **Inference as Movement:** A logical operation (like negation) is a **reflection** across an axis. A deduction is a **path** from a set of vertices (premises) to a target vertex (conclusion).
 
 ### 1.2 Proof Trees as Topology
@@ -61,16 +61,16 @@ The "strength" of a logic is measured by its expressive power versus its computa
 ## 3. Major Branches and Systems
 
 ### 3.1 Propositional and Predicate Logic
-- **Propositional:** The calculus of $P \land Q$. Decidable but lacks internal structure.
-- **First-Order (FOL):** Adds $\forall$ (forall) and $\exists$ (exists). Sufficient for almost all of mathematics (ZFC).
+- **Propositional:** The calculus of$P \land Q$. Decidable but lacks internal structure.
+- **First-Order (FOL):** Adds$\forall$(forall) and$\exists$(exists). Sufficient for almost all of mathematics (ZFC).
 
 ### 3.2 Modal and Non-Classical Logics
-Modal logic introduces the operators $\Box$ (Necessity) and $\Diamond$ (Possibility). 
-- **Epistemic Logic:** Reasoning about "Knowledge" ($K_a \phi$: agent $a$ knows $\phi$).
-- **Deontic Logic:** Reasoning about "Obligation" ($O \phi$: it is obligatory that $\phi$).
+Modal logic introduces the operators$\Box$(Necessity) and$\Diamond$(Possibility). 
+- **Epistemic Logic:** Reasoning about "Knowledge" ($K_a \phi$: agent$a$knows$\phi$).
+- **Deontic Logic:** Reasoning about "Obligation" ($O \phi$: it is obligatory that$\phi$).
 
 ### 3.3 Intuitionistic Logic
-Rejects the **Law of Excluded Middle** ($P \lor \neg P$). In this system, a proof of $P \lor Q$ must explicitly construct either a proof of $P$ or a proof of $Q$. This is the foundation of **Constructive Mathematics** and modern type-theoretic theorem provers like Coq and Lean.
+Rejects the **Law of Excluded Middle** ($P \lor \neg P$). In this system, a proof of$P \lor Q$must explicitly construct either a proof of$P$or a proof of$Q$. This is the foundation of **Constructive Mathematics** and modern type-theoretic theorem provers like Coq and Lean.
 
 ## 4. Real-World Applications
 
@@ -93,14 +93,11 @@ A logic is defined by its **Inference Rules**. The most common systems are:
 
 ### 5.1 Natural Deduction
 Models human-like reasoning.
-- **Modus Ponens:** From $\phi$ and $\phi \to \psi$, derive $\psi$.
-- **$\land$-Elimination:** From $\phi \land \psi$, derive $\phi$.
+- **Modus Ponens:** From$\phi$and$\phi \to \psi$, derive$\psi$.
+- **$\land$-Elimination:** From$\phi \land \psi$, derive$\phi$.
 
 ### 5.2 Sequent Calculus
-A more symmetric formalism used in proof theory to study the properties of the logic itself (e.g., **Cut-Elimination**).
-
-$$ \frac{\Gamma \vdash \Delta, A \quad A, \Sigma \vdash \Pi}{\Gamma, \Sigma \vdash \Delta, \Pi} \text{ (Cut Rule)} $$
-
+A more symmetric formalism used in proof theory to study the properties of the logic itself (e.g., **Cut-Elimination**).$$\frac{\Gamma \vdash \Delta, A \quad A, \Sigma \vdash \Pi}{\Gamma, \Sigma \vdash \Delta, \Pi} \text{ (Cut Rule)}$$
 ## 6. Limits of Symbolism: Gödel’s Shadow
 
 No discussion of symbolic logic is complete without **Gödel’s Incompleteness Theorems**:

@@ -57,7 +57,7 @@ Mean Reversion is the statistical tendency for prices to return to their histori
 | **Dominant Noise** | Rumors, Newsletters | Viral social media, AI-generated "Slop" |
 
 ## See Also
-- [[BehavioralFinanceForInvestors]]
-- [[QuantitativeFinance]]
-- [[SentimentAnalysisWithMachineLearning]]
-- [[SentimentAnalysisWithMachineLearning]]
+- [BehavioralFinanceForInvestors](BehavioralFinanceForInvestors)
+- [QuantitativeFinance](QuantitativeFinance)
+- [SentimentAnalysisWithMachineLearning](SentimentAnalysisWithMachineLearning)
+- [SentimentAnalysisWithMachineLearning](SentimentAnalysisWithMachineLearning)

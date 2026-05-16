@@ -23,7 +23,7 @@ For small-scale manufacturers and hardware startups, the choice of production te
 Injection molding requires a high initial investment in tooling (the mold).
 
 ### 1.1 Cost Structure
-*   **Fixed Cost (CapEx):** High. A CNC-machined steel or aluminum mold can cost $5,000 to $50,000+.
+*   **Fixed Cost (CapEx):** High. A CNC-machined steel or aluminum mold can cost $5,000 to$50,000+.
 *   **Variable Cost (OpEx):** Very Low. Material and energy costs per unit are minimal (pennies).
 *   **Total Cost:** $TC = Fixed\_Cost + (Variable\_Cost \times Volume)$.
 
@@ -36,7 +36,7 @@ Additive manufacturing (FDM, SLA, SLS) bypasses the need for tooling.
 
 ### 2.1 Cost Structure
 *   **Fixed Cost (CapEx):** Negligible (setup time, software).
-*   **Variable Cost (OpEx):** High. Specialised filaments/resins and long print times (labor/electricity per hour) make per-unit costs significant ($1 to $20+).
+*   **Variable Cost (OpEx):** High. Specialised filaments/resins and long print times (labor/electricity per hour) make per-unit costs significant ($1 to$20+).
 *   **Total Cost:** $TC \approx Variable\_Cost \times Volume$.
 
 ### 2.2 The "Complexity is Free" Paradigm
@@ -44,9 +44,7 @@ Unlike molding, 3D printing costs are independent of geometry complexity. A high
 
 ## 3. The Cross-Over Point
 
-The decision to move from 3D printing (prototyping/low-volume) to injection molding (mass production) is determined by the **Cross-Over Volume ($V_c$)**:
-$$V_c = \frac{CapEx_{molding}}{OpEx_{printing} - OpEx_{molding}}$$
-
+The decision to move from 3D printing (prototyping/low-volume) to injection molding (mass production) is determined by the **Cross-Over Volume ($V_c$)**:$$V_c = \frac{CapEx_{molding}}{OpEx_{printing} - OpEx_{molding}}$$
 *   **Low Volume (< 500 units):** 3D printing is typically more economical.
 *   **High Volume (> 5,000 units):** Injection molding is mandatory for profitability.
 *   **The "Valley of Death" (500 - 5,000 units):** This is where Bridge Tooling (aluminum molds or 3D-printed molds) is utilized.

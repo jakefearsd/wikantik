@@ -31,11 +31,7 @@ This article explores the rigorous mathematical foundations of FP, quantifies th
 The power of FP is rooted in the **Curry-Howard-Lambek Correspondence**, which establishes a structural isomorphism between three seemingly disparate fields.
 
 ### The Logic of Computation
-Every functional program is built on **Lambda Calculus** ($\lambda$), developed by Alonzo Church in the 1930s.
-
-$$ (\lambda x. M) N \implies M[x := N] $$
-
-The fundamental operation is $\beta$-reduction: the substitution of an argument into a function body. In FP, execution is not a series of state transitions but a series of **term reductions** toward a normal form.
+Every functional program is built on **Lambda Calculus** ($\lambda$), developed by Alonzo Church in the 1930s.$$(\lambda x. M) N \implies M[x := N]$$The fundamental operation is$\beta$-reduction: the substitution of an argument into a function body. In FP, execution is not a series of state transitions but a series of **term reductions** toward a normal form.
 
 ### The Structural Framework
 **Category Theory** provides the framework for composition and types. In this context, types are **Objects** and functions are **Morphisms** ($f: A \to B$).
@@ -56,7 +52,7 @@ Recent data from Node.js 24 and JDK 25 indicates that imperative loops maintain 
 | Operation | Imperative (for/while) | Functional (map/filter/reduce) | Overhead Delta |
 | :--- | :--- | :--- | :--- |
 | **Simple Iteration** | ~3ms | ~12ms | **4.0x** |
-| **Memory Allocation** | In-place / Zero | $N$ new objects | **High GC Pressure** |
+| **Memory Allocation** | In-place / Zero |$N$ new objects | **High GC Pressure** |
 | **Cache Locality** | Contiguous (L1/L2 hits) | Pointer Chasing (Misses) | **Significant** |
 
 ### The Parallelism Dividend

@@ -28,13 +28,11 @@ CLIP utilizes two independent encoders:
 1.  **Image Encoder ($E_I$):** Typically a Vision Transformer (ViT) or ResNet.
 2.  **Text Encoder ($E_T$):** A standard Transformer-based language model.
 
-For a given image-text pair $(i, t)$, the model generates embeddings $\mathbf{z}_i = E_I(i)$ and $\mathbf{z}_t = E_T(t)$.
+For a given image-text pair$(i, t)$, the model generates embeddings$\mathbf{z}_i = E_I(i)$and$\mathbf{z}_t = E_T(t)$.
 
 ### 1.2 The Contrastive Loss (InfoNCE)
 CLIP is trained on a massive dataset of 400M pairs. The loss function, **InfoNCE**, forces matching pairs to have high cosine similarity while pushing non-matching pairs apart. 
-For a batch of $N$ pairs, the loss for image $i$ is:
-$$\mathcal{L}_i = -\log \frac{\exp(\text{sim}(\mathbf{z}_i, \mathbf{z}_t) / \tau)}{\sum_{j=1}^N \exp(\text{sim}(\mathbf{z}_i, \mathbf{z}_j) / \tau)}$$
-Where $\tau$ is a learnable temperature parameter. This Softmax-based approach works exceptionally well but requires large batch sizes (e.g., 32,768) to be effective, which introduces significant memory and communication overhead.
+For a batch of$N$pairs, the loss for image$i$is:$$\mathcal{L}_i = -\log \frac{\exp(\text{sim}(\mathbf{z}_i, \mathbf{z}_t) / \tau)}{\sum_{j=1}^N \exp(\text{sim}(\mathbf{z}_i, \mathbf{z}_j) / \tau)}$$Where$\tau$is a learnable temperature parameter. This Softmax-based approach works exceptionally well but requires large batch sizes (e.g., 32,768) to be effective, which introduces significant memory and communication overhead.
 
 ---
 
@@ -44,13 +42,11 @@ SigLIP (Sigmoid Language-Image Pre-training) is a 2023 refinement from Google Re
 
 ### 2.1 From Softmax to Sigmoid
 The fundamental change in SigLIP is the replacement of the global Softmax loss with a **Pairwise Sigmoid Loss**. 
-Instead of normalizing similarity over the entire batch, SigLIP treats every image-text combination $(i, j)$ in the batch as an independent binary classification problem:
-*   $y_{ij} = 1$ if $i$ matches $j$ (positive pair).
-*   $y_{ij} = -1$ otherwise (negative pair).
+Instead of normalizing similarity over the entire batch, SigLIP treats every image-text combination$(i, j)$in the batch as an independent binary classification problem:
+*$y_{ij} = 1$if$i$matches$j$(positive pair).
+*$y_{ij} = -1$otherwise (negative pair).
 
-The loss is defined as:
-$$\mathcal{L} = \sum_{i, j} \log(1 + \exp(-y_{ij} \cdot (\beta \cdot \text{sim}(\mathbf{z}_i, \mathbf{z}_j) + b)))$$
-Where $\beta$ (gain) and $b$ (bias) are learnable parameters.
+The loss is defined as:$$\mathcal{L} = \sum_{i, j} \log(1 + \exp(-y_{ij} \cdot (\beta \cdot \text{sim}(\mathbf{z}_i, \mathbf{z}_j) + b)))$$Where$\beta$(gain) and$b$(bias) are learnable parameters.
 
 ### 2.2 Why SigLIP Scales Better
 1.  **Decoupled Batch Size:** Because each pair is processed independently, SigLIP does not require the global normalization step of Softmax. This removes the need for expensive all-gather operations across GPU nodes.
@@ -61,14 +57,13 @@ Where $\beta$ (gain) and $b$ (bias) are learnable parameters.
 
 ## 3. Cross-Modal Retrieval and Fusion
 
-Once aligned in the latent space $\mathcal{Z}$, multi-modal models can perform several tasks:
+Once aligned in the latent space$\mathcal{Z}$, multi-modal models can perform several tasks:
 
 ### 3.1 Zero-Shot Classification
 By embedding potential labels as text (e.g., "a photo of a cat"), we can classify an image by finding the label embedding with the highest cosine similarity to the image embedding.
 
 ### 3.2 Feature Fusion Strategies
-While CLIP and SigLIP use **Late Fusion** (dot product of final embeddings), more advanced models use **Intermediate Fusion** via Cross-Attention:
-$$\text{Attention}(Q=V, K=T, V=T)$$
+While CLIP and SigLIP use **Late Fusion** (dot product of final embeddings), more advanced models use **Intermediate Fusion** via Cross-Attention:$$\text{Attention}(Q=V, K=T, V=T)$$
 This allows the visual features to "query" the textual context, enabling more complex reasoning tasks like Visual Question Answering (VQA).
 
 ---

@@ -26,13 +26,7 @@ CPM is an algorithm for scheduling a set of project activities. It identifies th
 ### 1.1 The Algorithm Mechanics
 1.  **Activity Definition:** List all tasks, durations, and dependencies (Precedents).
 2.  **Forward Pass:** Calculate the **Earliest Start (ES)** and **Earliest Finish (EF)** for each task.
-    $$EF = ES + Duration$$
-3.  **Backward Pass:** Calculate the **Latest Start (LS)** and **Latest Finish (LF)** without delaying the project.
-    $$LS = LF - Duration$$
-4.  **Float (Slack) Calculation:**
-    $$Total\ Float = LF - EF$$
-
-### 1.2 The Critical Path
+    $$EF = ES + Duration$$3.  **Backward Pass:** Calculate the **Latest Start (LS)** and **Latest Finish (LF)** without delaying the project.$$LS = LF - Duration$$4.  **Float (Slack) Calculation:**$$Total\ Float = LF - EF$$### 1.2 The Critical Path
 Tasks with **Zero Float** are on the Critical Path. Any delay in these tasks directly delays the project completion date. Management must focus 80% of resources on monitoring and de-risking critical path nodes.
 
 ## 2. The 'Cone of Uncertainty'
@@ -45,12 +39,10 @@ The Cone of Uncertainty describes the evolution of the amount of best-case uncer
 
 ## 3. PERT (Program Evaluation and Review Technique)
 
-When task durations are uncertain, use the PERT weighted average:
-$$Expected\ Time (T_e) = \frac{O + 4M + P}{6}$$
-Where:
-*   $O$ = Optimistic time
-*   $M$ = Most likely time
-*   $P$ = Pessimistic time
+When task durations are uncertain, use the PERT weighted average:$$Expected\ Time (T_e) = \frac{O + 4M + P}{6}$$Where:
+*$O$= Optimistic time
+*$M$= Most likely time
+*$P$ = Pessimistic time
 This provides a more realistic baseline than a single-point estimate.
 
 ## 4. Technical Summary Table

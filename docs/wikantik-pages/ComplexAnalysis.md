@@ -104,6 +104,6 @@ Wave functions in quantum mechanics are complex-valued. The phase of the complex
 
 ---
 ## Further Reading
-- [[AppliedMathSurvey]] — The role of complex variables in physics.
-- [[TopologyMathematics]] — The winding number and topological degree.
-- [[SignalProcessing]] — Practical applications of the Z-Transform.
+- [AppliedMathSurvey](AppliedMathSurvey) — The role of complex variables in physics.
+- [TopologyMathematics](TopologyMathematics) — The winding number and topological degree.
+- [SignalProcessing](SignalProcessing) — Practical applications of the Z-Transform.

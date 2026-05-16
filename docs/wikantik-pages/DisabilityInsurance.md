@@ -41,9 +41,7 @@ A "base" policy is rarely sufficient. Experts must evaluate these riders:
 
 ### 2.1 COLA (Cost of Living Adjustment)
 Increases the monthly benefit while you are on a claim, indexed to the CPI. Without this, a 20-year claim will be devastated by inflation.
-*   *Math:* $Benefit_t = Benefit_{initial} \cdot (1 + CPI_{adj})^t$
-
-### 2.2 FIO (Future Insurability Option)
+*   *Math:* $Benefit_t = Benefit_{initial} \cdot (1 + CPI_{adj})^t$### 2.2 FIO (Future Insurability Option)
 Allows the insured to increase coverage as their income grows without additional medical underwriting. This is critical for early-career professionals (e.g., medical residents).
 
 ### 2.3 Non-Cancelable and Guaranteed Renewable
@@ -68,7 +66,7 @@ The waiting period before benefits begin (typically 90 or 180 days).
 | **Portability** | Lost if you leave job | Portable (stays with you) |
 | **Taxability** | Taxable (usually) | Tax-free (if paid post-tax) |
 | **Definition** | Often "Any Occ" after 2 yrs | "True Own Occ" available |
-| **Limits** | Capped (e.g., $5k-$10k/mo) | Customizable to high income |
+| **Limits** | Capped (e.g.,$5k-$10k/mo) | Customizable to high income |
 | **Control** | Employer can cancel | You control the contract |
 
 For high-income professionals, a private "Own Occupation" policy is not an expense; it is a hedge against the total loss of their most valuable asset: their ability to generate specialized income.

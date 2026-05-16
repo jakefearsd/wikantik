@@ -22,7 +22,7 @@ related:
 
 # Tax Arbitrage: The Architecture of Lifetime Liability Management
 
-Retirement planning is fundamentally an exercise in **Tax Liability Curve Management**. For the quantitative researcher, the objective is not simple minimization of the immediate year's bill, but the optimization of the total after-tax Net Present Value (NPV) of assets across a multi-decade horizon. The core mechanism is **Tax Timing Arbitrage**—paying tax today at rate $R_{today}$ to avoid a higher rate $R_{future}$ (e.g., during mandatory RMD years).
+Retirement planning is fundamentally an exercise in **Tax Liability Curve Management**. For the quantitative researcher, the objective is not simple minimization of the immediate year's bill, but the optimization of the total after-tax Net Present Value (NPV) of assets across a multi-decade horizon. The core mechanism is **Tax Timing Arbitrage**—paying tax today at rate $R_{today}$to avoid a higher rate$R_{future}$(e.g., during mandatory RMD years).
 
 This treatise explores the **Marginal Tax Rate Differential Model (MTRDM)**, the mechanics of bracket "filling," and the feedback loops between market volatility and tax obligations.
 
@@ -30,9 +30,7 @@ This treatise explores the **Marginal Tax Rate Differential Model (MTRDM)**, the
 
 ## I. Foundations: The Marginal Tax Rate Differential Model (MTRDM)
 
-The decision to convert Traditional assets to Roth is governed by the $MTRDM$:
-$$\text{Benefit} = \text{Amount} \times \left( R_{future} - R_{today} \right) - \text{Opportunity\_Cost}(\text{Tax\_Paid})$$
-*   **Bracket Mapping:** Drawing from [Mathematics Hub](MathematicsHub) logic, we treat the tax code as a non-linear piecewise function. Sophisticated planners aim to "fill" the 12% or 22% brackets early in retirement to preemptively mitigate the "Tax Cliff" created by [Required Minimum Distributions](InheritedIraRules).
+The decision to convert Traditional assets to Roth is governed by the$MTRDM$:$$\text{Benefit} = \text{Amount} \times \left( R_{future} - R_{today} \right) - \text{Opportunity\_Cost}(\text{Tax\_Paid})$$*   **Bracket Mapping:** Drawing from [Mathematics Hub](MathematicsHub) logic, we treat the tax code as a non-linear piecewise function. Sophisticated planners aim to "fill" the 12% or 22% brackets early in retirement to preemptively mitigate the "Tax Cliff" created by [Required Minimum Distributions](InheritedIraRules).
 *   **The Low-Income Fallacy:** A low current rate is only an opportunity if it is significantly lower than the *weighted average expected future rate* over the entire withdrawal phase.
 
 ---
@@ -50,7 +48,7 @@ Tax planning cannot be decoupled from **Sequence of Returns Risk (SORR)**.
 Expert-level strategy requires the orchestration of multiple tax buckets:
 1.  **Roth Conversion Ladders:** Systematic conversions to create a pipeline of tax-free capital available after the 5-year holding requirement.
 2.  **Tax Bracket Buffering:** Converting enough to cover not just current needs, but the projected liability of future [Inherited IRA](InheritedIraRules) transfers.
-3.  **The "Tax Waterfall":** A withdrawal sequence prioritizing Taxable (Loss Harvesting) $\to$ Tax-Deferred (Up to Bracket Limit) $\to$ Roth (Buffer), ensuring that the highest-cost capital is preserved for the longest possible duration.
+3.  **The "Tax Waterfall":** A withdrawal sequence prioritizing Taxable (Loss Harvesting)$\to$Tax-Deferred (Up to Bracket Limit)$\to$ Roth (Buffer), ensuring that the highest-cost capital is preserved for the longest possible duration.
 
 ## Conclusion
 

@@ -24,8 +24,9 @@ The Product Owner is responsible for maximizing the value of the product resulti
 *   **Backlog Management:** Developing and communicating the Product Goal and ordering Product Backlog items.
 *   **Economic Arbitrator:** Prioritizing work based on business value, risk, and dependencies.
 *   **Value Optimization:** Ensuring the team works on the highest-impact items first. Use quantitative models like **Weighted Shortest Job First (WSJF)** for complex prioritization:
-    $$\text{Priority Score} = \frac{\text{Business Value} + \text{Time Criticality} + \text{Risk Reduction}}{\text{Effort}}$$
-
+    $$
+    \text{Priority Score} = \frac{\text{Business Value} + \text{Time Criticality} + \text{Risk Reduction}}{\text{Effort}}
+    $$
 ### B. Scrum Master (SM)
 The Scrum Master is accountable for establishing Scrum as defined in the Scrum Guide.
 *   **Coaching:** Helping the team and the organization understand Scrum theory and practice.

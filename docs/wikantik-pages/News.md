@@ -6,6 +6,10 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-16** — content: log TableOfContents plugin retirement commits in News
+
+**2026-05-16** — content: log recent development activity in News
+
 **2026-05-16** — test(toc): assert real anchor structure and no-headings case
 
 **2026-05-16** — refactor(toc): delete unreachable TableOfContents plugin and heading-listener code

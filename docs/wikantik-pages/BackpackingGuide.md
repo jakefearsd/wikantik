@@ -25,15 +25,13 @@ This treatise explores the methodological stack required for expeditionary trave
 Selecting a destination requires **Multi-Criteria Decision Analysis (MCDA)**, weighting criteria like the Geopolitical Stability Index ($\text{GPSI}$) and the Logistical Friction Coefficient ($\text{LFC}$).
 
 ### 1.1 Stochastic Budgeting
-We move beyond static spreadsheets to a dynamic financial model:
-$$\text{Budget}_{\text{Total}} = \text{E}[\text{Cost}] + Z \cdot \sigma_{\text{Cost}}$$
-This accounts for currency volatility and the inevitable resource depletion in high-friction environments.
+We move beyond static spreadsheets to a dynamic financial model:$$\text{Budget}_{\text{Total}} = \text{E}[\text{Cost}] + Z \cdot \sigma_{\text{Cost}}$$This accounts for currency volatility and the inevitable resource depletion in high-friction environments.
 
 ---
 
 ## II. Logistical Architecture: Graph Theory and Redundancy
 
-We model the itinerary as a graph $G = (V, E)$. The goal is to minimize a composite cost function incorporating time, monetary cost, and logistical friction.
+We model the itinerary as a graph$G = (V, E)$. The goal is to minimize a composite cost function incorporating time, monetary cost, and logistical friction.
 
 ### 2.1 The Tiered Booking Protocol (TBP)
 Experts use TBP to balance predictability with agility:

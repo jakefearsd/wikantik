@@ -37,7 +37,7 @@ Regex is a formal language used to describe sets of strings. Every regular expre
 The **Flexmark** parser used by Wikantik uses complex regular expressions to identify headings, bold text, links, and code blocks within the Markdown source.
 
 ### 2. Link Scanning
-The `MarkdownLinkScanner` (in `wikantik-api`) uses regex to find internal wiki links (e.g., `[[PageName]]`) and external URLs. 
+The `MarkdownLinkScanner` (in `wikantik-api`) uses regex to find internal wiki links (e.g., `[PageName](PageName)`) and external URLs. 
 - **Example:** `\[\[([^|\]]+)(?:\|([^\]]+))?\]\]` matches standard wiki brackets with optional display text.
 
 ### 3. Frontmatter Validation

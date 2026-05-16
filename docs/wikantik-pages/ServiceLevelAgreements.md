@@ -39,26 +39,19 @@ Availability is typically expressed in "nines." The difference between three nin
 | **99.999%** (Five) | 26.3 seconds | 5.26 minutes | Global infrastructure (Carrier Grade). |
 
 ### Availability Calculation Formula
-$$Availability = \frac{\text{Total Time} - \text{Downtime}}{\text{Total Time}} \times 100$$
-
-## Error Budgets: The Discipline of Risk
+$$Availability = \frac{\text{Total Time} - \text{Downtime}}{\text{Total Time}} \times 100$$## Error Budgets: The Discipline of Risk
 
 An Error Budget is the amount of unreliability you are willing to tolerate in a given window. It is the bridge between Product (feature velocity) and Engineering (reliability).
 
 ### Calculation
 For a 99.9% SLO over a 30-day window:
--   **Total Requests:** $1,000,000$
--   **Allowed Failures:** $1,000,000 \times (1 - 0.999) = 1,000$
-
-If you have used 800 failures, you have **20% of your error budget remaining**.
+-   **Total Requests:**$1,000,000$-   **Allowed Failures:**$1,000,000 \times (1 - 0.999) = 1,000$If you have used 800 failures, you have **20% of your error budget remaining**.
 
 ## Burn Rate: The Proactive Signal
 
 Burn rate is how fast you are consuming your error budget relative to the time window. It is the primary signal used for SRE paging.
 
-### Burn Rate Formula
-$$\text{Burn Rate} = \frac{\frac{\text{Budget Consumed}}{\text{Time Window Consumed}}}{\frac{\text{Total Budget}}{\text{Total Time Window}}}$$
-
+### Burn Rate Formula$$\text{Burn Rate} = \frac{\frac{\text{Budget Consumed}}{\text{Time Window Consumed}}}{\frac{\text{Total Budget}}{\text{Total Time Window}}}$$
 -   **Burn Rate = 1:** You will consume exactly your entire budget by the end of the window.
 -   **Burn Rate > 1:** You will violate your SLO unless you take action.
 -   **Burn Rate = 14.4:** You will consume 100% of your monthly budget in 2 days (48 hours). This usually triggers a **Critical Page**.

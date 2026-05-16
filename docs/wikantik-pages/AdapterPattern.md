@@ -24,7 +24,7 @@ This treatise explores the theoretical underpinnings of adaptation, its manifest
 The Adapter Pattern resolves a fundamental mismatch between an expected contract ($\text{TargetInterface}$) and an available service ($\text{AdapteeInterface}$). It acts as a structural shim, wrapping the adaptee to expose the target interface.
 
 ### 1.1 Structural vs. Behavioral Adaptation
-*   **Structural Adaptation:** Direct mapping of method signatures (e.g., `processRequest(JSON)` $\rightarrow$ `execute(XML)`).
+*   **Structural Adaptation:** Direct mapping of method signatures (e.g., `processRequest(JSON)`$\rightarrow$`execute(XML)`).
 *   **Behavioral Adaptation:** Translation of semantic logic (e.g., converting units of measure or adjusting transaction boundaries). This is common when integrating legacy systems into [Software Architecture Patterns](SoftwareArchitecturePatterns) that expect modern consistency guarantees.
 
 ---
@@ -37,7 +37,7 @@ The pattern relies on four pillars: the **Target Interface**, the **Client**, th
 Experts prefer **Composition** (the Object Adapter) over Inheritance (the Class Adapter). Composition promotes loose coupling by allowing the Adapter to wrap any instance of the Adaptee, whereas Inheritance creates a rigid dependency on the Adaptee's internal implementation, violating the Principle of Least Knowledge.
 
 ### 2.2 Protocol Translation in API Gateways
-In microservices, the Adapter pattern is the conceptual backbone of the **API Gateway**. It manages the translation between heterogeneous protocols (REST/JSON $\rightarrow$ gRPC/Protobuf) and handles error code mapping across service boundaries. For more on these patterns, see [Web Services and APIs Hub](WebServicesAndApisHub).
+In microservices, the Adapter pattern is the conceptual backbone of the **API Gateway**. It manages the translation between heterogeneous protocols (REST/JSON$\rightarrow$gRPC/Protobuf) and handles error code mapping across service boundaries. For more on these patterns, see [Web Services and APIs Hub](WebServicesAndApisHub).
 
 ---
 
@@ -46,9 +46,7 @@ In microservices, the Adapter pattern is the conceptual backbone of the **API Ga
 The primary benefit of the Adapter is **Decoupling**. It shields the client from the volatile details of the adaptee.
 
 ### 3.1 The Indirection Tax
-Every adapter introduces a layer of indirection. In low-latency systems (e.g., HFT), the cost of serialization and translation must be meticulously modeled.
-$$O(\text{Total}) = O(T_{\text{Client}}) + O(A_{\text{Translation}}) + O(D_{\text{Adaptee}})$$
-If $A_{\text{Translation}}$ involves heavy computation, mitigation strategies like **Asynchronous Adaptation** or **Memoization** are required.
+Every adapter introduces a layer of indirection. In low-latency systems (e.g., HFT), the cost of serialization and translation must be meticulously modeled.$$O(\text{Total}) = O(T_{\text{Client}}) + O(A_{\text{Translation}}) + O(D_{\text{Adaptee}})$$If$A_{\text{Translation}}$ involves heavy computation, mitigation strategies like **Asynchronous Adaptation** or **Memoization** are required.
 
 ## Conclusion
 

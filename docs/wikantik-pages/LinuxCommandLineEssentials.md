@@ -33,8 +33,7 @@ When you open a terminal, you are running a **shell** — a program that reads y
 
 The **prompt** tells you who you are, where you are, and whether you have admin privileges:
 ```
-jakefear@laptop:~/Documents$
-```
+jakefear@laptop:~/Documents$```
 - `jakefear` — your username
 - `laptop` — the computer's hostname
 - `~/Documents` — your current directory (`~` means your home directory)
@@ -114,7 +113,7 @@ ls -lS | head -10
 find . -name "*.py" | wc -l
 
 # Find unique IP addresses in a log
-cat access.log | awk '{print $1}' | sort | uniq -c | sort -rn
+cat access.log | awk '{print$1}' | sort | uniq -c | sort -rn
 
 # Search for errors and show context
 grep -n "ERROR" app.log | tail -20
@@ -137,7 +136,7 @@ Linux has powerful text manipulation tools. These become essential when working 
 | `sort` | Sort lines | `sort names.txt` |
 | `uniq` | Remove adjacent duplicates | `sort names.txt \| uniq` |
 | `cut -d',' -f2` | Extract a column from delimited text | `cut -d':' -f1 /etc/passwd` |
-| `awk '{print $3}'` | Extract/transform columnar data | `awk '{print $1, $4}' access.log` |
+| `awk '{print $3}'` | Extract/transform columnar data | `awk '{print$1,$4}' access.log` |
 | `sed 's/old/new/g'` | Find and replace in text | `sed 's/http/https/g' urls.txt` |
 | `tr 'A-Z' 'a-z'` | Translate characters | `echo "HELLO" \| tr 'A-Z' 'a-z'` |
 

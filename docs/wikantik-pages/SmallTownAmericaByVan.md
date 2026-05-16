@@ -39,8 +39,7 @@ The van enforces **Mobility** and **Adaptability**, allowing researchers to tran
 ## II. Econometrics: The Local Economic Dependency Score (LEDS)
 
 We quantify the resilience of the town ($T$) by modeling its internal resource cycling vs. external dependency.
-*   **The LEDS Equation:** Drawing from [Mathematics Hub](MathematicsHub) econometrics, we calculate:
-    $$\text{LEDS} = \frac{\sum (\text{External Inputs} \cdot w_E) - \sum (\text{Internal Cycles} \cdot w_I)}{\text{Maximum System Capacity}}$$
+*   **The LEDS Equation:** Drawing from [Mathematics Hub](MathematicsHub) econometrics, we calculate:$$\text{LEDS} = \frac{\sum (\text{External Inputs} \cdot w_E) - \sum (\text{Internal Cycles} \cdot w_I)}{\text{Maximum System Capacity}}$$
     A high score indicates extreme vulnerability to [Supply Chain Shocks](SupplyChainResilience), while a low score signals a stable, circular local economy.
 
 ---

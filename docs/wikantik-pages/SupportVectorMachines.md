@@ -33,16 +33,14 @@ This treatise explores the foundational duality of the optimization problem, the
 ## I. Foundations: Margin Maximization and Duality
 
 SVM seeks the optimal hyperplane that maximizes the "gutter" between classes.
-*   **The Dual Formulation:** Drawing from [Mathematics Hub](MathematicsHub) convex optimization, we transform the primal problem into a dual Lagrangian $\mathcal{L}(\alpha)$, where the objective function depends entirely on the **Inner Product** of the input vectors:
-    $$\max_{\alpha} \sum \alpha_i - \frac{1}{2} \sum \alpha_i \alpha_j y_i y_j \langle \mathbf{x}_i, \mathbf{x}_j \rangle$$
-*   **Support Vectors:** The sparse subset of data points that lie exactly on the margin boundary. The model's complexity is dictated by the density of these vectors, not the total dimensionality of the input.
+*   **The Dual Formulation:** Drawing from [Mathematics Hub](MathematicsHub) convex optimization, we transform the primal problem into a dual Lagrangian $\mathcal{L}(\alpha)$, where the objective function depends entirely on the **Inner Product** of the input vectors:$$\max_{\alpha} \sum \alpha_i - \frac{1}{2} \sum \alpha_i \alpha_j y_i y_j \langle \mathbf{x}_i, \mathbf{x}_j \rangle$$*   **Support Vectors:** The sparse subset of data points that lie exactly on the margin boundary. The model's complexity is dictated by the density of these vectors, not the total dimensionality of the input.
 
 ---
 
 ## II. The Kernel Trick and RKHS
 
-The "trick" replaces the simple inner product $\langle \mathbf{x}_i, \mathbf{x}_j \rangle$ with a non-linear kernel function $K(\mathbf{x}_i, \mathbf{x}_j)$.
-*   **RKHS Mechanics:** The kernel function implicitly defines a mapping $\phi: \mathcal{X} \to \mathcal{H}$ into a Hilbert space. In this space, the kernel "reproduces" the inner product: $K(\mathbf{x}, \mathbf{z}) = \langle \phi(\mathbf{x}), \phi(\mathbf{z}) \rangle_{\mathcal{H}}$.
+The "trick" replaces the simple inner product$\langle \mathbf{x}_i, \mathbf{x}_j \rangle$with a non-linear kernel function$K(\mathbf{x}_i, \mathbf{x}_j)$.
+*   **RKHS Mechanics:** The kernel function implicitly defines a mapping$\phi: \mathcal{X} \to \mathcal{H}$into a Hilbert space. In this space, the kernel "reproduces" the inner product:$K(\mathbf{x}, \mathbf{z}) = \langle \phi(\mathbf{x}), \phi(\mathbf{z}) \rangle_{\mathcal{H}}$.
 *   **Mercer's Theorem:** A non-negotiable requirement for a valid kernel. The function must be continuous, symmetric, and positive semi-definite (PSD), ensuring that the underlying RKHS is well-defined and the optimization problem remains convex (see [Information Theory](InformationTheory)).
 
 ---
@@ -50,9 +48,9 @@ The "trick" replaces the simple inner product $\langle \mathbf{x}_i, \mathbf{x}_
 ## III. Common Kernels and Their Assumptions
 
 The choice of kernel dictates the assumed geometry of the decision manifold.
-1.  **Linear Kernel:** Assumes the classes are already separable in the input space. Best for high-dimensional text data where $D \gg N$.
-2.  **Polynomial Kernel:** Maps data into the space of all degree-$d$ combinations, capturing local feature interactions.
-3.  **Radial Basis Function (RBF):** The workhorse. Implicitly maps data into an **Infinite-Dimensional Space**, utilizing a Gaussian similarity metric. Performance is critically sensitive to the $\gamma$ parameter, which dictates the "reach" of individual support vectors.
+1.  **Linear Kernel:** Assumes the classes are already separable in the input space. Best for high-dimensional text data where$D \gg N$.
+2.  **Polynomial Kernel:** Maps data into the space of all degree-$d$combinations, capturing local feature interactions.
+3.  **Radial Basis Function (RBF):** The workhorse. Implicitly maps data into an **Infinite-Dimensional Space**, utilizing a Gaussian similarity metric. Performance is critically sensitive to the$\gamma$parameter, which dictates the "reach" of individual support vectors.
 
 ## Conclusion
 

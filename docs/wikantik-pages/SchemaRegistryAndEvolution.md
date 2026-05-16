@@ -70,6 +70,6 @@ If you MUST make a breaking change:
 3. Gradually migrate consumers to the new topic.
 
 ## Further Reading
-- [[ApacheKafkaFundamentals]] — The primary transport for schematized data.
-- [[EventDrivenArchitecture]] — Using schemas as events.
-- [[ApiDesignBestPractices]] — Versioning strategies for REST and GraphQL.
+- [ApacheKafkaFundamentals](ApacheKafkaFundamentals) — The primary transport for schematized data.
+- [EventDrivenArchitecture](EventDrivenArchitecture) — Using schemas as events.
+- [ApiDesignBestPractices](ApiDesignBestPractices) — Versioning strategies for REST and GraphQL.

@@ -22,9 +22,8 @@ Rate limiting protects APIs from resource exhaustion and abuse by enforcing a ce
 ## Core Algorithms
 
 ### 1. Token Bucket
-The bucket has a fixed capacity $C$. Tokens are added at a constant rate $r$ per second. Each request consumes one token. If the bucket is empty, the request is rejected.
-- **Math:** $\text{tokens} = \min(C, \text{tokens}_{old} + (t_{now} - t_{last}) \times r)$
-- **Benefit:** Allows for bursts (up to capacity $C$) while maintaining an average rate $r$. The standard for high-performance APIs (AWS, Stripe).
+The bucket has a fixed capacity $C$. Tokens are added at a constant rate$r$per second. Each request consumes one token. If the bucket is empty, the request is rejected.
+- **Math:**$\text{tokens} = \min(C, \text{tokens}_{old} + (t_{now} - t_{last}) \times r)$- **Benefit:** Allows for bursts (up to capacity$C$) while maintaining an average rate$r$. The standard for high-performance APIs (AWS, Stripe).
 
 ### 2. Leaky Bucket
 Requests enter a FIFO queue and are processed at a constant rate. If the queue is full, new requests are dropped.
@@ -32,12 +31,11 @@ Requests enter a FIFO queue and are processed at a constant rate. If the queue i
 
 ### 3. Fixed Window Counter
 Counts requests in discrete time intervals (e.g., 1-minute blocks).
-- **Flaw:** The "Boundary Spike." A user can send their full quota at the end of window $N$ and again at the start of window $N+1$, doubling the allowed rate in a short burst.
+- **Flaw:** The "Boundary Spike." A user can send their full quota at the end of window$N$and again at the start of window$N+1$, doubling the allowed rate in a short burst.
 
 ### 4. Sliding Window Counter
 A hybrid approach that weights the count of the previous window by the overlap fraction.
-- **Math:** $\text{count} = \text{current\_window\_count} + \text{previous\_window\_count} \times (1 - \text{fraction\_of\_current\_window\_elapsed})$
-- **Benefit:** Eliminates boundary spikes with minimal memory overhead ($O(1)$).
+- **Math:**$\text{count} = \text{current\_window\_count} + \text{previous\_window\_count} \times (1 - \text{fraction\_of\_current\_window\_elapsed})$- **Benefit:** Eliminates boundary spikes with minimal memory overhead ($O(1)$).
 
 ## Atomic Implementation (Redis + Lua)
 
@@ -88,4 +86,4 @@ X-RateLimit-Reset: 1735340000
 ## Operational Strategies
 - **Client Identification:** Use `API-Key` or `JWT.sub` for authenticated users; fallback to `X-Forwarded-For` (IP) for anonymous traffic.
 - **Tiered Limiting:** Assign buckets based on customer tier ($C_{enterprise} > C_{free}$).
-- **Global vs. Local:** Use local in-memory limiters for $P99$ latency, but synchronize to a central Redis store periodically to prevent distributed under-counting.
+- **Global vs. Local:** Use local in-memory limiters for$P99$ latency, but synchronize to a central Redis store periodically to prevent distributed under-counting.

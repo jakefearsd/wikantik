@@ -25,8 +25,9 @@ In Kubernetes and cloud environments, sizing starts with **Requests** (guarantee
 *   **CPU:** Measured in millicores (m). 1000m = 1 vCPU.
 *   **Memory:** Measured in bytes/MiB. Memory is non-compressible; if a process exceeds its limit, it is OOM-Killed (Out of Memory).
 *   **Concrete Calculation:** If an application handles 100 req/sec at 50% CPU on 1 vCPU, and the target is 500 req/sec at <70% CPU:
-    $$\text{Total vCPUs} = \frac{500}{100} \times \frac{0.50}{0.70} \approx 3.6 \text{ vCPUs}$$
-
+    $$
+    \text{Total vCPUs} = \frac{500}{100} \times \frac{0.50}{0.70} \approx 3.6 \text{ vCPUs}
+    $$
 ## 2. Storage: IOPS and Throughput
 
 Storage capacity is not just about GB; it is about I/O performance.

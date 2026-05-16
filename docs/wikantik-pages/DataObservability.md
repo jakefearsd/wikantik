@@ -79,6 +79,6 @@ The most dangerous data bug is the **"Distribution Shift."** If your ML model ex
 **Fix:** Monitor the **Mean** and **Standard Deviation** of critical columns.
 
 ## Further Reading
-- [[DataMeshArchitecture]] — Decentralized data ownership and observability.
-- [[DataQualityFrameworks]] — Comparing Soda, Great Expectations, and Monte Carlo.
-- [[DistributedTracing]] — Monitoring the services that generate the data.
+- [DataMeshArchitecture](DataMeshArchitecture) — Decentralized data ownership and observability.
+- [DataQualityFrameworks](DataQualityFrameworks) — Comparing Soda, Great Expectations, and Monte Carlo.
+- [DistributedTracing](DistributedTracing) — Monitoring the services that generate the data.

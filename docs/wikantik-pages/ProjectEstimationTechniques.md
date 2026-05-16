@@ -28,17 +28,11 @@ The **Program Evaluation and Review Technique (PERT)** uses a weighted average t
 
 ### A. The Math of PERT
 For every task, gather three values:
-1.  **$O$ (Optimistic):** Best case (everything goes right).
-2.  **$M$ (Most Likely):** The consensus estimate.
-3.  **$P$ (Pessimistic):** Worst case (everything goes wrong).
+1.  **$O$(Optimistic):** Best case (everything goes right).
+2.  **$M$(Most Likely):** The consensus estimate.
+3.  **$P$(Pessimistic):** Worst case (everything goes wrong).
 
-**Expected Value ($E$):**
-$$E = \frac{O + 4M + P}{6}$$
-
-**Standard Deviation ($\sigma$):**
-$$\sigma = \frac{P - O}{6}$$
-
-**Why it works:** Unlike a simple average, PERT weights the "Most Likely" case and recognizes that the risk ($P$) is often much further from $M$ than the opportunity ($O$).
+**Expected Value ($E$):**$$E = \frac{O + 4M + P}{6}$$**Standard Deviation ($\sigma$):**$$\sigma = \frac{P - O}{6}$$**Why it works:** Unlike a simple average, PERT weights the "Most Likely" case and recognizes that the risk ($P$) is often much further from$M$than the opportunity ($O$).
 
 ---
 
@@ -47,8 +41,8 @@ Monte Carlo simulations replace deterministic "deadlines" with a **probability d
 
 ### A. The Simulation Model
 Instead of saying "The project will take 10 weeks," we run 10,000 simulations where each run samples from:
-*   **Backlog Size:** $N \pm \Delta N$ (accounting for scope creep).
-*   **Velocity:** A distribution of historical team velocity (e.g., $15 \pm 5$ points/sprint).
+*   **Backlog Size:**$N \pm \Delta N$(accounting for scope creep).
+*   **Velocity:** A distribution of historical team velocity (e.g.,$15 \pm 5$ points/sprint).
 
 ### B. Example Python-like Logic
 ```python

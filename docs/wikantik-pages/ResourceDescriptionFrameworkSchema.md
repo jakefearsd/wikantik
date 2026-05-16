@@ -22,8 +22,7 @@ RDF Schema (RDFS) provides the foundational vocabulary for defining the structur
 ## 1. Class Hierarchies: rdfs:subClassOf
 
 The core of RDFS taxonomy is the `rdfs:subClassOf` property. It establishes a specialization relationship where every instance of a subclass is mathematically an instance of its superclass.
-*   **Logic:** $\forall x (x \in C_1 \implies x \in C_2)$
-*   **Transitivity:** If `C1 subClassOf C2` and `C2 subClassOf C3`, then `C1 subClassOf C3`.
+*   **Logic:** $\forall x (x \in C_1 \implies x \in C_2)$*   **Transitivity:** If `C1 subClassOf C2` and `C2 subClassOf C3`, then `C1 subClassOf C3`.
 *   *Application:* Defining that a `SoftwareEngineer` is a subclass of `Engineer` allows a query for all "Engineers" to automatically include all "SoftwareEngineers".
 
 ## 2. Property Constraints: Domain and Range
@@ -51,10 +50,10 @@ Properties can also be organized hierarchically.
 | Construct | Purpose | Mathematical Effect |
 | :--- | :--- | :--- |
 | **rdfs:Class** | Defines a type | Sets a set boundary |
-| **subClassOf** | Specialization | $C1 \subseteq C2$ |
-| **subPropertyOf**| Property specialization | $P1 \subseteq P2$ |
-| **rdfs:domain** | Subject typing | $\forall s, o : P(s,o) \implies D(s)$ |
-| **rdfs:range** | Object typing | $\forall s, o : P(s,o) \implies R(o)$ |
+| **subClassOf** | Specialization |$C1 \subseteq C2$|
+| **subPropertyOf**| Property specialization |$P1 \subseteq P2$|
+| **rdfs:domain** | Subject typing |$\forall s, o : P(s,o) \implies D(s)$|
+| **rdfs:range** | Object typing |$\forall s, o : P(s,o) \implies R(o)$ |
 
 ## 5. Summary
 

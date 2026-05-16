@@ -32,16 +32,13 @@ Consider an investor tracking the S&P 500 in 2023-2024.
 
 ## 2. Calculating Tax Alpha
 
-Tax Alpha is the additional return generated through tax savings. 
-$$\text{Tax Alpha} = (\text{Harvested Loss} \times \text{Marginal Tax Rate}) / \text{Total Portfolio Value}$$
-
-If an investor harvests $50,000 in losses in a $1M portfolio and faces a 30% combined tax rate, they have generated **1.5% in Tax Alpha ($15,000)** for that year.
+Tax Alpha is the additional return generated through tax savings.$$\text{Tax Alpha} = (\text{Harvested Loss} \times \text{Marginal Tax Rate}) / \text{Total Portfolio Value}$$If an investor harvests$50,000 in losses in a$1M portfolio and faces a 30% combined tax rate, they have generated **1.5% in Tax Alpha ($15,000)** for that year.
 
 ## 3. Custom Factor Optimization
 
 Direct Indexing also allows for "Tilt" and "Exclusion" strategies that are impossible in pooled funds:
 - **ESG/Values Exclusion:** An investor can mirror the S&P 500 but explicitly exclude "Tobacco" or "Defense" stocks.
-- **Concentrated Position Hedging:** If an executive owns $5M in Apple stock from RSUs, their Direct Index can be programmed to mirror the S&P 500 while **excluding Apple** to reduce single-stock concentration risk.
+- **Concentrated Position Hedging:** If an executive owns$5M in Apple stock from RSUs, their Direct Index can be programmed to mirror the S&P 500 while **excluding Apple** to reduce single-stock concentration risk.
 
 ## 4. Comparison Table: Direct Indexing vs. ETFs
 
@@ -50,11 +47,11 @@ Direct Indexing also allows for "Tilt" and "Exclusion" strategies that are impos
 | **Ownership** | Shares of a fund | Individual stocks |
 | **TLH Granularity** | Fund level only | Security level |
 | **Customization** | None | High (Exclusions/Tilts) |
-| **Minimum Investment** | $1 | Typically $100k - $250k |
+| **Minimum Investment** | $1 | Typically$100k -$250k |
 | **Cost** | 0.03% - 0.10% | 0.15% - 0.35% |
 
 ## See Also
-- [[AssetAllocation]]
-- [[TaxLossHarvesting]]
-- [[IndexFundPortfolioConstruction]]
-- [[LowCostIndexFundInvesting]]
+- [AssetAllocation](AssetAllocation)
+- [TaxLossHarvesting](TaxLossHarvesting)
+- [IndexFundPortfolioConstruction](IndexFundPortfolioConstruction)
+- [LowCostIndexFundInvesting](LowCostIndexFundInvesting)

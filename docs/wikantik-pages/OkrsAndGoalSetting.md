@@ -24,10 +24,7 @@ The Objective is a qualitative, aspirational statement of a desired future state
 *   **Practitioner Pattern:** "Establish the platform as the industry benchmark for API reliability and developer self-service."
 
 ### B. The Key Result ($\text{KR}$)
-The KR is the empirical proof point. It follows the formula:
-$$\text{KR} = \text{Measure} \rightarrow \text{Baseline} \rightarrow \text{Target} \times \text{Deadline}$$
-
-#### Leading vs. Lagging Indicators
+The KR is the empirical proof point. It follows the formula:$$\text{KR} = \text{Measure} \rightarrow \text{Baseline} \rightarrow \text{Target} \times \text{Deadline}$$#### Leading vs. Lagging Indicators
 *   **Lagging (Outcome):** "Increase revenue by 20%." (Too late to influence).
 *   **Leading (Predictor):** "Reduce P99 latency for checkout flow from 500ms to 200ms." (Predicts improved conversion).
 
@@ -38,16 +35,14 @@ $$\text{KR} = \text{Measure} \rightarrow \text{Baseline} \rightarrow \text{Targe
 Advanced OKR systems distinguish between **Committed** (expected to hit 100%) and **Aspirational/Stretch** (expected to hit 60-70%) goals.
 
 ### A. Probability Modeling of Targets
-If we treat a Key Result's progress as a random variable $X$, a "stretch" target $T$ is chosen such that the probability of full achievement is low, but the expected value drives maximum effort.
+If we treat a Key Result's progress as a random variable$X$, a "stretch" target$T$is chosen such that the probability of full achievement is low, but the expected value drives maximum effort.
 
-Using a normal distribution $X \sim \mathcal{N}(\mu, \sigma^2)$ where $\mu$ is the realistic capacity and $\sigma$ is the volatility:
-*   **Committed Target:** $T_c \approx \mu - \sigma$ (High confidence of success).
-*   **Stretch Target:** $T_s \approx \mu + 1.5\sigma$ (Only ~7% probability of hitting 100%, but pushes the boundary of $\mu$).
+Using a normal distribution$X \sim \mathcal{N}(\mu, \sigma^2)$where$\mu$is the realistic capacity and$\sigma$is the volatility:
+*   **Committed Target:**$T_c \approx \mu - \sigma$(High confidence of success).
+*   **Stretch Target:**$T_s \approx \mu + 1.5\sigma$(Only ~7% probability of hitting 100%, but pushes the boundary of$\mu$).
 
 ### B. Scoring Mechanics
-The typical OKR score $S$ is normalized between 0.0 and 1.0:
-$$S = \min\left(1, \frac{\text{Actual} - \text{Baseline}}{\text{Target} - \text{Baseline}}\right)$$
-*   **Sweet Spot:** $0.7$. A team consistently hitting $1.0$ is sandbagging; a team hitting $0.3$ is disconnected from reality or under-resourced.
+The typical OKR score$S$is normalized between 0.0 and 1.0:$$S = \min\left(1, \frac{\text{Actual} - \text{Baseline}}{\text{Target} - \text{Baseline}}\right)$$*   **Sweet Spot:**$0.7$. A team consistently hitting$1.0$is sandbagging; a team hitting$0.3$is disconnected from reality or under-resourced.
 
 ---
 
@@ -115,7 +110,7 @@ In complex systems, OKRs should be modeled as a **Directed Acyclic Graph (DAG)**
 
 ### Cascading vs. Constraining
 *   **Cascading (Old):** Top-down mandate where sub-teams just copy fragments of the parent goal.
-*   **Constraining (New):** Top-level OKRs define **boundary conditions** (e.g., "Burn rate must not exceed $X$"). Local teams then optimize for growth *within* that constraint.
+*   **Constraining (New):** Top-level OKRs define **boundary conditions** (e.g., "Burn rate must not exceed$X$"). Local teams then optimize for growth *within* that constraint.
 
 ---
 

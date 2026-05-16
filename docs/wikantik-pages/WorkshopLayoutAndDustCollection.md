@@ -36,8 +36,9 @@ The required Cubic Feet per Minute (CFM) depends on the tool's aperture and the 
 The total resistance your blower must overcome is the sum of losses from the machine port, every foot of pipe, every bend, and the filter itself.
 
 ### The Static Pressure Formula (Simplified)
-$$\text{Total SP Loss} = \text{Loss}_{\text{pipe}} + \text{Loss}_{\text{fittings}} + \text{Loss}_{\text{hood}} + \text{Loss}_{\text{filter}}$$
-
+$$
+\text{Total SP Loss} = \text{Loss}_{\text{pipe}} + \text{Loss}_{\text{fittings}} + \text{Loss}_{\text{hood}} + \text{Loss}_{\text{filter}}
+$$
 ### Key Loss Factors:
 *   **Pipe Diameter:** Friction loss increases exponentially as pipe diameter decreases. A 4" pipe has roughly **twice** the SP loss of a 6" pipe for the same CFM.
 *   **Flexible Hose:** Standard corrugated flex hose has **3x to 5x** the friction loss of smooth-walled rigid pipe. Keep flex runs under 5 feet.

@@ -140,7 +140,7 @@ Integrate AI agents into the AFT pipeline. The agent performs a **Pre-Flight IAM
 3.  Blocks the PR until the policy is scoped to a specific ARN.
 
 ## See Also
-- [[AwsFundamentals]] — Core service definitions.
-- [[CloudRoiFramework]] — Detailed FinOps metrics.
-- [[CloudSecurityFundamentals]] — Zero Trust implementation.
-- [[TerraformFundamentals]] — Managing IaC at scale.
+- [AwsFundamentals](AwsFundamentals) — Core service definitions.
+- [CloudRoiFramework](CloudRoiFramework) — Detailed FinOps metrics.
+- [CloudSecurityFundamentals](CloudSecurityFundamentals) — Zero Trust implementation.
+- [TerraformFundamentals](TerraformFundamentals) — Managing IaC at scale.

@@ -62,7 +62,7 @@ class AgentState(BaseModel):
 
 ## 4. Flow Engineering vs. Test-Time Compute
 
-Flow Engineering and [[TestTimeComputeScaling]] represent two ends of the agentic spectrum:
+Flow Engineering and [TestTimeComputeScaling](TestTimeComputeScaling) represent two ends of the agentic spectrum:
 - **Flow Engineering** relies on *human-designed heuristics*. The developer explicitly maps out the cognitive path (e.g., "Always write tests before code"). It is highly reliable, observable, and cheap, but constrained by human imagination.
 - **Test-Time Compute (LATS)** relies on *machine-discovered heuristics*. The tree search algorithm dynamically finds the path. It is computationally expensive and less predictable, but can solve problems the developer doesn't know how to map.
 
@@ -71,6 +71,6 @@ Flow Engineering and [[TestTimeComputeScaling]] represent two ends of the agenti
 For 95% of enterprise use cases (RAG pipelines, data extraction, code review bots), unconstrained ReAct is dead. Flow Engineering—treating agents as state machines with LLM-powered nodes—provides the observability, debugging capability, and reliability required for production systems.
 
 ## See Also
-- [[AiAgentArchitectures]] — Overview of ReAct and Plan-and-Execute.
-- [[AgentPlanning]] — Task decomposition strategies.
-- [[TestTimeComputeScaling]] — The contrasting approach to agent orchestration.
+- [AiAgentArchitectures](AiAgentArchitectures) — Overview of ReAct and Plan-and-Execute.
+- [AgentPlanning](AgentPlanning) — Task decomposition strategies.
+- [TestTimeComputeScaling](TestTimeComputeScaling) — The contrasting approach to agent orchestration.

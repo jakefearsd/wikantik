@@ -41,7 +41,9 @@ We re-architect the procurement process into three escalating layers of maturity
 
 TCO is the fundamental metric for de-risking procurement.
 *   **The TCO Equation:** Drawing from [Mathematics Hub](MathematicsHub), we model cost as a multi-variate vector:
-    $$\text{TCO} = \text{Price} + \text{Logistics} + \text{Inventory} + \text{Risk}(\text{Failure}) + \text{Disposal}$$
+    $$
+    \text{TCO} = \text{Price} + \text{Logistics} + \text{Inventory} + \text{Risk}(\text{Failure}) + \text{Disposal}
+    $$
 *   **Should-Cost Modeling:** Building a synthetic price model based on raw material indices, labor rates, and overhead to determine a fair market baseline, providing critical leverage during [Contract Negotiation](ContractManagement).
 
 ---

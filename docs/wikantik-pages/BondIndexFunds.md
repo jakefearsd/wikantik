@@ -30,9 +30,7 @@ This treatise explores the mathematical underpinnings of bond pricing, the limit
 
 Fixed income sensitivity is governed by the relationship between price ($P$) and yield ($y$). Drawing from [Mathematics Hub](MathematicsHub), we use first and second derivatives to model this sensitivity.
 *   **Duration ($D$):** A linear approximation of price change for small yield shifts.
-*   **Convexity ($C$):** Accounting for the curvature of the price-yield relationship. 
-$$\%\Delta P \approx \left( -D \cdot \Delta y \right) + \frac{1}{2} \left( C \cdot (\Delta y)^2 \right)$$
-Expert allocation must account for the "negative convexity" introduced by embedded options (e.g., callable corporate bonds), which can cause indices to overestimate price resilience during rate hikes.
+*   **Convexity ($C$):** Accounting for the curvature of the price-yield relationship.$$\%\Delta P \approx \left( -D \cdot \Delta y \right) + \frac{1}{2} \left( C \cdot (\Delta y)^2 \right)$$Expert allocation must account for the "negative convexity" introduced by embedded options (e.g., callable corporate bonds), which can cause indices to overestimate price resilience during rate hikes.
 
 ---
 

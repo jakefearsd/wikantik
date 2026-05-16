@@ -71,6 +71,6 @@ The greatest threat was not pirates but **nature**.
 Official records by the *Casa de Contratación* significantly underestimate the actual flow. Historians estimate that **10% – 30%** of total silver volume was smuggled as "personal effects" or non-recorded cargo to avoid the 20% Royal Tax (*Quinto Real*).
 
 ## See Also
-- [[EconomicHistoryOfMetallurgicalCycles]]
-- [[WarehouseAutomationHub]] — For modern comparisons of logistics efficiency.
-- [[CoinCollectingHub]] — For the technical specs of the 8 Reales.
+- [EconomicHistoryOfMetallurgicalCycles](EconomicHistoryOfMetallurgicalCycles)
+- [WarehouseAutomationHub](WarehouseAutomationHub) — For modern comparisons of logistics efficiency.
+- [CoinCollectingHub](CoinCollectingHub) — For the technical specs of the 8 Reales.

@@ -1219,14 +1219,14 @@ set -euo pipefail
 
 # Resolve DB credentials. Prefer env, fall back to local Tomcat ROOT.xml.
 ROOTXML="tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml"
-if [[ -z "${PGHOST:-}" ]]; then PGHOST="localhost"; fi
-if [[ -z "${PGUSER:-}" ]]; then
+if [ -z "${PGHOST:-}" ]( -z "${PGHOST:-}" ); then PGHOST="localhost"; fi
+if [ -z "${PGUSER:-}" ]( -z "${PGUSER:-}" ); then
     PGUSER=$(awk -F'"' '/username=/{print $2; exit}' "$ROOTXML" 2>/dev/null || echo "jspwiki")
 fi
-if [[ -z "${PGPASSWORD:-}" ]]; then
+if [ -z "${PGPASSWORD:-}" ]( -z "${PGPASSWORD:-}" ); then
     PGPASSWORD=$(awk -F'"' '/password=/{print $2; exit}' "$ROOTXML" 2>/dev/null || echo "")
 fi
-if [[ -z "${PGDATABASE:-}" ]]; then PGDATABASE="jspwiki"; fi
+if [ -z "${PGDATABASE:-}" ]( -z "${PGDATABASE:-}" ); then PGDATABASE="jspwiki"; fi
 export PGHOST PGUSER PGPASSWORD PGDATABASE
 
 REGEX='^[a-z][a-z0-9_-]{0,30}$'
@@ -1246,7 +1246,7 @@ if (( ${#BAD[@]} == 0 )); then
 fi
 
 for ROW in "${BAD[@]}"; do
-    if [[ -z "$ROW" ]]; then
+    if [ -z "$ROW" ]( -z "$ROW" ); then
         CURRENT="(empty string)"
         WHERE="node_type = ''"
     else
@@ -1266,7 +1266,7 @@ for ROW in "${BAD[@]}"; do
             ;;
         d)
             read -r -p "  Confirm delete $COUNT rows? (yes/no): " CONFIRM
-            if [[ "$CONFIRM" == "yes" ]]; then
+            if [ "$CONFIRM" == "yes" ]( "$CONFIRM" == "yes" ); then
                 psql -c "DELETE FROM kg_nodes WHERE $WHERE"
             else
                 echo "  skipped (no confirmation)"
@@ -1298,14 +1298,14 @@ chmod +x bin/kg-cleanup-node-types.sh
 bin/kg-cleanup-node-types.sh --help 2>&1 | head -5
 ```
 
-(The script doesn't have a `--help` flag yet — verify the header docstring is visible if you grep it. Or add `if [[ "${1:-}" == "--help" ]]; then sed -n '1,30p' "$0"; exit 0; fi` near the top, matching the convention noted in `CLAUDE.md`'s "bin/ script conventions" section.)
+(The script doesn't have a `--help` flag yet — verify the header docstring is visible if you grep it. Or add `if [ "${1:-}" == "--help" ]( "${1:-}" == "--help" ); then sed -n '1,30p' "$0"; exit 0; fi` near the top, matching the convention noted in `CLAUDE.md`'s "bin/ script conventions" section.)
 
 - [ ] **Step 4: (Optional) Add `--help` flag per CLAUDE.md convention**
 
 Insert near the top of the script after `set -euo pipefail`:
 
 ```bash
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+if [| "${1:-}" == "--help" ]( "${1:-}" == "-h" ); then
     sed -n '2,30p' "$0" | sed 's/^# \?//'
     exit 0
 fi

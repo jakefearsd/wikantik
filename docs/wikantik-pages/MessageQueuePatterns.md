@@ -44,12 +44,10 @@ Message queues decouple service execution by introducing an asynchronous buffer 
 A **Poison Pill** is a message that causes a consumer to crash or fail repeatedly. 
 
 ### Dead Letter Queues (DLQ)
-Messages that fail more than $N$ times are moved to a DLQ for manual inspection. This prevents a single malformed message from blocking the entire pipeline.
+Messages that fail more than $N$times are moved to a DLQ for manual inspection. This prevents a single malformed message from blocking the entire pipeline.
 
 ### Exponential Backoff
-When a processing error occurs (e.g., DB is down), the consumer should delay the next retry to avoid a self-inflicted DoS.
-$$\text{Delay}_i = \text{base} \times 2^i + \text{jitter}$$
-*Jitter* is essential to prevent "thundering herd" synchronization across multiple workers.
+When a processing error occurs (e.g., DB is down), the consumer should delay the next retry to avoid a self-inflicted DoS.$$\text{Delay}_i = \text{base} \times 2^i + \text{jitter}$$*Jitter* is essential to prevent "thundering herd" synchronization across multiple workers.
 
 ## Common Patterns
 
@@ -57,13 +55,13 @@ $$\text{Delay}_i = \text{base} \times 2^i + \text{jitter}$$
 Multiple workers pull from one queue. Each message is processed by exactly one worker. Used for horizontal scaling of job processing.
 
 ### 2. Pub-Sub (Fan-out)
-One message is copied to $N$ independent queues, each serving a different consumer group. Used for cross-service event notification.
+One message is copied to$N$independent queues, each serving a different consumer group. Used for cross-service event notification.
 
 ### 3. Change Data Capture (CDC)
 Streaming database transaction logs (via Kafka Connect/Debezium) into a queue. Used to maintain read replicas or search indices without modifying application code.
 
 ## Operational Checklist
 - **Monitor Queue Depth:** An increasing queue size indicates consumer starvation or a failure loop.
-- **Set Visibility Timeouts:** Ensure the timeout is longer than the $P99.9$ processing time to prevent duplicate deliveries during normal operation.
+- **Set Visibility Timeouts:** Ensure the timeout is longer than the$P99.9$processing time to prevent duplicate deliveries during normal operation.
 - **Enable DLQ Alerting:** Every message in a DLQ represents a failure that automated retries could not solve.
 - **Limit Message Size:** Large payloads ($>256\text{KB}$) should be stored in object storage (S3), with only the URI passed in the message.

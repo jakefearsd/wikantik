@@ -14,7 +14,7 @@ Wrap an expression in single `$` delimiters to render it inline with the
 surrounding text.
 
 ```markdown
-The mass–energy relation is $E = mc^2$, familiar from special relativity.
+The mass–energy relation is$E = mc^2$, familiar from special relativity.
 ```
 
 Rules enforced by the parser:
@@ -30,11 +30,7 @@ Rules enforced by the parser:
 Use a pair of `$$` delimiters on their own lines for centred, block-level
 equations.
 
-```markdown
-$$
-\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
-$$
-```
+```markdown$$\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}$$```
 
 Both the opening and closing `$$` must occupy their own line (leading and
 trailing whitespace is tolerated). Inline `$$…$$` inside a paragraph is left
@@ -46,13 +42,7 @@ opening delimiter is preserved on the generated fences, which lets you nest
 display math inside list items:
 
 ```markdown
-1. Solve the Gaussian integral:
-
-    $$
-    \int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
-    $$
-
-2. Now the next step…
+1. Solve the Gaussian integral:$$\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}$$2. Now the next step…
 ```
 
 ### Fenced math: ```` ```math ````
@@ -105,21 +95,17 @@ authors notice the problem.
 Basic inline:
 
 ```markdown
-For a right triangle, $a^2 + b^2 = c^2$.
+For a right triangle,$a^2 + b^2 = c^2$.
 ```
 
 Aligned system:
 
-```markdown
-$$
-\begin{aligned}
+```markdown$$\begin{aligned}
 \nabla \cdot \mathbf{E} &= \frac{\rho}{\varepsilon_0} \\
 \nabla \cdot \mathbf{B} &= 0 \\
 \nabla \times \mathbf{E} &= -\frac{\partial \mathbf{B}}{\partial t} \\
 \nabla \times \mathbf{B} &= \mu_0 \mathbf{J} + \mu_0 \varepsilon_0 \frac{\partial \mathbf{E}}{\partial t}
-\end{aligned}
-$$
-```
+\end{aligned}$$```
 
 Matrix:
 
@@ -136,9 +122,7 @@ A = \begin{bmatrix}
 Summation inside a list:
 
 ```markdown
-- The arithmetic series identity: $\sum_{i=1}^{n} i = \tfrac{n(n+1)}{2}$
-- The geometric series: $\sum_{i=0}^{n} r^{i} = \tfrac{1 - r^{n+1}}{1 - r}$ for $r \neq 1$
-```
+- The arithmetic series identity:$\sum_{i=1}^{n} i = \tfrac{n(n+1)}{2}$- The geometric series:$\sum_{i=0}^{n} r^{i} = \tfrac{1 - r^{n+1}}{1 - r}$for$r \neq 1$```
 
 ## Configuration
 
@@ -147,7 +131,7 @@ Math is enabled by default. The relevant Flexmark options are set in
 
 | Option | Value | Effect |
 |--------|-------|--------|
-| `GitLabExtension.INLINE_MATH_PARSER` | `false` | Disables GitLab's `` $`…`$ `` syntax in favour of Wikantik's custom `$…$` parser |
+| `GitLabExtension.INLINE_MATH_PARSER` | `false` | Disables GitLab's ``$`…`$`` syntax in favour of Wikantik's custom `$…$` parser |
 | `GitLabExtension.RENDER_BLOCK_MATH` | `true` | Emits display math via the GitLab renderer |
 | `GitLabExtension.INLINE_MATH_CLASS` | `math-inline` | CSS class on inline math elements |
 | `GitLabExtension.BLOCK_MATH_CLASS` | `math-display` | CSS class on display math elements |

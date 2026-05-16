@@ -38,9 +38,7 @@ PgBouncer sits between the application and PostgreSQL, multiplexing many client 
 
 When combining HikariCP and PgBouncer, synchronization of timeouts is mandatory to prevent "phantom connections"—where HikariCP thinks it has a valid connection but PgBouncer has already terminated the backend link.
 
-### Timeout Synchronization Rule
-$$T_{\text{PgBouncer Client Idle}} > T_{\text{HikariCP Max Lifetime}}$$
-This ensures HikariCP proactively retires connections before PgBouncer forcibly kills them.
+### Timeout Synchronization Rule$$T_{\text{PgBouncer Client Idle}} > T_{\text{HikariCP Max Lifetime}}$$This ensures HikariCP proactively retires connections before PgBouncer forcibly kills them.
 
 ## Sizing the Stack
 
@@ -48,9 +46,9 @@ The total connection capacity is a function of the bottleneck—usually the Post
 
 | Layer | Limit Parameter | Recommended Sizing |
 |---|---|---|
-| **PostgreSQL** | `max_connections` | $\text{Hardware Limit}$ (e.g., 500) |
-| **PgBouncer** | `max_db_conn` | $0.8 \times \text{PostgreSQL Limit}$ |
-| **Microservices** | $\sum \text{HikariCP MaxPoolSize}$ | $2 \times \text{PgBouncer max\_db\_conn}$ (Oversubscription) |
+| **PostgreSQL** | `max_connections` |$\text{Hardware Limit}$(e.g., 500) |
+| **PgBouncer** | `max_db_conn` |$0.8 \times \text{PostgreSQL Limit}$|
+| **Microservices** |$\sum \text{HikariCP MaxPoolSize}$|$2 \times \text{PgBouncer max\_db\_conn}$ (Oversubscription) |
 
 **Note:** Oversubscription is safe in Transaction Mode because most application connections are idle between transaction boundaries.
 

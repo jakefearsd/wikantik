@@ -112,7 +112,7 @@ Calculus powers the "marginalist" revolution in economics. The derivative of a t
 
 ---
 ## Further Reading
-- [[NumericalMethods]] — Root-finding and numerical integration.
-- [[LinearAlgebra]] — Vectors, matrices, and eigensystems.
-- [[DifferentialGeometry]] — Calculus on manifolds and tensors.
-- [[MathematicsHub]] — Central directory for mathematical theory.
+- [NumericalMethods](NumericalMethods) — Root-finding and numerical integration.
+- [LinearAlgebra](LinearAlgebra) — Vectors, matrices, and eigensystems.
+- [DifferentialGeometry](DifferentialGeometry) — Calculus on manifolds and tensors.
+- [MathematicsHub](MathematicsHub) — Central directory for mathematical theory.

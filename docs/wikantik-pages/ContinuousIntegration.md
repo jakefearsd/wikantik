@@ -36,7 +36,7 @@ The `wikantik-it-tests` module runs complex integration tests using a real Tomca
 - **Selenide:** Runs browser-based end-to-end tests for the React SPA.
 
 ### 3. Structural Spine Validation
-The CI pipeline runs a specialized check to ensure that all pages in `docs/wikantik-pages/` comply with the [[FrontmatterConventions]]. 
+The CI pipeline runs a specialized check to ensure that all pages in `docs/wikantik-pages/` comply with the [FrontmatterConventions](FrontmatterConventions). 
 - Rejects pages with missing `canonical_id`.
 - Validates `relations:` integrity.
 - Ensures the auto-generated `Main.md` is in sync with `Main.pins.yaml`.

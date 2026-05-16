@@ -41,27 +41,25 @@ CI for ML must verify the entire computational graph:
 
 ### B. Automated Training and Registry
 *   **Hyperparameter Optimization (HPO):** Automation of resource allocation for Bayesian or Hyperband searches.
-*   **Model Registry:** A state machine that enforces promotion workflows (Staging $\rightarrow$ Canary $\rightarrow$ Production) and tracks lineage (code, data, and feature versions).
+*   **Model Registry:** A state machine that enforces promotion workflows (Staging $\rightarrow$Canary$\rightarrow$Production) and tracks lineage (code, data, and feature versions).
 
 ### C. Evaluation Gates
-Models must pass a weighted scorecard evaluation:
-$$\text{Score} = w_1 \cdot \text{F1} + w_2 \cdot \text{Latency} + w_3 \cdot \text{Fairness}$$
-This includes statistical significance testing against the current production model and adversarial robustness checks.
+Models must pass a weighted scorecard evaluation:$$\text{Score} = w_1 \cdot \text{F1} + w_2 \cdot \text{Latency} + w_3 \cdot \text{Fairness}$$This includes statistical significance testing against the current production model and adversarial robustness checks.
 
 ---
 
 ## III. Production Monitoring and Retraining
 
 ### A. Drift Detection
-*   **Data Drift (Covariate Shift):** Detecting shifts in $P(X)$ using metrics like Population Stability Index (PSI) or Kullback-Leibler (KL) Divergence.
-*   **Concept Drift:** Detecting shifts in the relationship between input and output $P(Y|X)$. This requires monitoring prediction residuals or ground truth correlation.
+*   **Data Drift (Covariate Shift):** Detecting shifts in$P(X)$using metrics like Population Stability Index (PSI) or Kullback-Leibler (KL) Divergence.
+*   **Concept Drift:** Detecting shifts in the relationship between input and output$P(Y|X)$. This requires monitoring prediction residuals or ground truth correlation.
 
 ### B. Automated Retraining
 Retraining jobs should be triggered by scheduled intervals, detected drift, or performance degradation. The system must pull the latest validated data snapshot, retrain, and promote via a canary deployment.
 
 ### C. Deployment Strategies
 *   **Shadow Mode:** The new model runs in parallel with production; predictions are logged but not served to users to compare performance under live load.
-*   **Canary Release:** Gradual traffic shift (e.g., 1% $\rightarrow$ 100%) while monitoring business KPIs.rollbacks are automatic if negative impact is detected.
+*   **Canary Release:** Gradual traffic shift (e.g., 1%$\rightarrow$ 100%) while monitoring business KPIs.rollbacks are automatic if negative impact is detected.
 
 ---
 

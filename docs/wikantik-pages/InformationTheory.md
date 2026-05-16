@@ -29,19 +29,14 @@ In the modern context, Information Theory is not merely about "sending bits"; it
 At its core, information is defined as the reduction of uncertainty. The less likely an event, the more information we gain by observing it.
 
 ### 1.1. Self-Information (Surprisal)
-For an event $x$ with probability $P(x)$, the self-information $I(x)$ is:
-$$I(x) = -\log_2 P(x)$$
-Units are **bits** (binary digits). If $P(x) = 0.5$, $I(x) = 1$ bit. If $P(x) = 0.001$, $I(x) \approx 9.96$ bits.
+For an event $x$with probability$P(x)$, the self-information$I(x)$is:$$I(x) = -\log_2 P(x)$$Units are **bits** (binary digits). If$P(x) = 0.5$,$I(x) = 1$bit. If$P(x) = 0.001$,$I(x) \approx 9.96$bits.
 
 ### 1.2. Shannon Entropy ($H$)
-Entropy is the expected value (average) of the surprisal across all possible outcomes of a discrete random variable $X$:
-$$H(X) = \mathbb{E}[I(X)] = -\sum_{i=1}^{n} P(x_i) \log_2 P(x_i)$$
-
-#### Axiomatic Properties:
-1.  **Non-negativity:** $H(X) \geq 0$.
-2.  **Continuity:** Small changes in $P(x_i)$ result in small changes in $H(X)$.
-3.  **Monotonicity:** For a uniform distribution, $H(X)$ increases with the number of possible outcomes.
-4.  **Additivity:** The entropy of two independent variables is the sum of their individual entropies: $H(X, Y) = H(X) + H(Y)$.
+Entropy is the expected value (average) of the surprisal across all possible outcomes of a discrete random variable$X$:$$H(X) = \mathbb{E}[I(X)] = -\sum_{i=1}^{n} P(x_i) \log_2 P(x_i)$$#### Axiomatic Properties:
+1.  **Non-negativity:**$H(X) \geq 0$.
+2.  **Continuity:** Small changes in$P(x_i)$result in small changes in$H(X)$.
+3.  **Monotonicity:** For a uniform distribution,$H(X)$increases with the number of possible outcomes.
+4.  **Additivity:** The entropy of two independent variables is the sum of their individual entropies:$H(X, Y) = H(X) + H(Y)$.
 
 ---
 
@@ -53,10 +48,10 @@ While formulas provide the "how," geometry provides the "what." Visualizing Info
 Think of entropy as the **logarithm of the effective number of states**. 
 *   **Low Entropy:** A concentrated probability cloud. The "volume" of likely outcomes is small.
 *   **High Entropy:** A diffuse, spreading cloud. The system is "larger" in terms of its potential configurations.
-*   **Volume Mapping:** The actual volume of the state space that "matters" is approximately $2^{H(X)}$.
+*   **Volume Mapping:** The actual volume of the state space that "matters" is approximately$2^{H(X)}$.
 
 ### 2.2. The Typical Set: The "Soap Bubble" Intuition
-In high-dimensional spaces (e.g., a sequence of $n$ tokens), the **Asymptotic Equipartition Property (AEP)** states that as $n \to \infty$, the probability mass concentrates almost entirely in a tiny subset called the **Typical Set**.
+In high-dimensional spaces (e.g., a sequence of$n$tokens), the **Asymptotic Equipartition Property (AEP)** states that as$n \to \infty$, the probability mass concentrates almost entirely in a tiny subset called the **Typical Set**.
 
 Imagine a high-dimensional sphere representing all possible sequences. 
 1.  Most sequences are "atypical" (too many 'A's, or too many 'Z's).
@@ -66,7 +61,7 @@ Imagine a high-dimensional sphere representing all possible sequences.
 ### 2.3. Information Geometry
 Information Geometry treats probability distributions as points on a manifold.
 *   **The Ruler (Fisher Information):** Measures the sensitivity of a distribution to its parameters. It acts as the metric tensor of the space.
-*   **The Distance (KL Divergence):** $D_{KL}(P || Q) = \sum P(x) \log \frac{P(x)}{Q(x)}$. It is not a true metric (it's asymmetric), but it represents the "extra bits" required to encode $P$ using a code optimized for $Q$.
+*   **The Distance (KL Divergence):**$D_{KL}(P || Q) = \sum P(x) \log \frac{P(x)}{Q(x)}$. It is not a true metric (it's asymmetric), but it represents the "extra bits" required to encode$P$using a code optimized for$Q$.
 
 ---
 
@@ -75,9 +70,7 @@ Information Geometry treats probability distributions as points on a manifold.
 Information is not abstract; it is a physical quantity subject to the laws of thermodynamics.
 
 ### 3.1. Landauer's Principle
-Erasing information has a physical cost. Erasing one bit of information at temperature $T$ requires a minimum energy expenditure of:
-$$E \geq k_B T \ln 2$$
-where $k_B$ is the Boltzmann constant. This establishes that **computation is heat**.
+Erasing information has a physical cost. Erasing one bit of information at temperature$T$requires a minimum energy expenditure of:$$E \geq k_B T \ln 2$$where$k_B$is the Boltzmann constant. This establishes that **computation is heat**.
 
 ### 3.2. Maxwell's Demon Resolved
 The 19th-century paradox of a demon that violates the Second Law of Thermodynamics by sorting molecules was resolved using Information Theory. The demon must "store" the information about molecule speeds. To keep the cycle going, the demon must eventually "erase" its memory, and the heat generated by that erasure (per Landauer) compensates for the entropy reduction in the sorted gas.
@@ -88,13 +81,11 @@ The 19th-century paradox of a demon that violates the Second Law of Thermodynami
 
 ### 4.1. Large Language Models (LLMs) and Tokenization
 LLMs process "tokens" (sub-word units). The efficiency of an LLM depends on the **Entropy per Token**.
-*   **Cross-Entropy Loss:** When training an LLM, we minimize the cross-entropy between the model's prediction $Q$ and the true distribution $P$.
-*   **Perplexity:** A measure of how well a model predicts a sample. $\text{Perplexity} = 2^{H(P, Q)}$. A perplexity of 10 means the model is as "confused" as if it were choosing between 10 equally likely options.
+*   **Cross-Entropy Loss:** When training an LLM, we minimize the cross-entropy between the model's prediction$Q$and the true distribution$P$.
+*   **Perplexity:** A measure of how well a model predicts a sample.$\text{Perplexity} = 2^{H(P, Q)}$. A perplexity of 10 means the model is as "confused" as if it were choosing between 10 equally likely options.
 
 ### 4.2. Error Correction in 5G and Space Communications
-Shannon's **Channel Capacity Theorem** defines the limit $C$:
-$$C = B \log_2(1 + \text{SNR})$$
-where $B$ is bandwidth and $SNR$ is Signal-to-Noise Ratio.
+Shannon's **Channel Capacity Theorem** defines the limit$C$:$$C = B \log_2(1 + \text{SNR})$$where$B$is bandwidth and$SNR$is Signal-to-Noise Ratio.
 Modern codes (Turbo codes, LDPC) allow us to communicate at 99.9% of this theoretical limit, enabling 4K video streaming over noisy wireless channels.
 
 ---
@@ -103,20 +94,20 @@ Modern codes (Turbo codes, LDPC) allow us to communicate at 99.9% of this theore
 
 | Metric | Formula | Practical Meaning |
 | :--- | :--- | :--- |
-| **Entropy $H(X)$** | $-\sum P(x) \log P(x)$ | Limit of lossless compression. |
-| **Joint Entropy $H(X,Y)$** | $-\sum P(x,y) \log P(x,y)$ | Total uncertainty in a pair. |
-| **Mutual Information $I(X;Y)$** | $H(X) - H(X\|Y)$ | "Signal" shared between variables. |
-| **KL Divergence $D_{KL}$** | $\sum P \log \frac{P}{Q}$ | Error cost of using the wrong model. |
-| **Channel Capacity $C$** | $\max I(X;Y)$ | Maximum error-free transmission rate. |
+| **Entropy$H(X)$** |$-\sum P(x) \log P(x)$| Limit of lossless compression. |
+| **Joint Entropy$H(X,Y)$** |$-\sum P(x,y) \log P(x,y)$| Total uncertainty in a pair. |
+| **Mutual Information$I(X;Y)$** |$H(X) - H(X\|Y)$| "Signal" shared between variables. |
+| **KL Divergence$D_{KL}$** |$\sum P \log \frac{P}{Q}$| Error cost of using the wrong model. |
+| **Channel Capacity$C$** |$\max I(X;Y)$| Maximum error-free transmission rate. |
 
 ## 6. Worked Example: The Biased Diagnostic
 Suppose a disease has a base rate of 1% ($P(D)=0.01$). A test has a 99% true positive rate and a 2% false positive rate.
-1.  **Initial Entropy $H(D)$:** $\approx 0.08$ bits (very low, we are mostly sure you don't have it).
-2.  **Mutual Information $I(D; Test)$:** Measures how much the test result narrows down the uncertainty. 
-3.  **Result:** Even with a "Positive" result, the high false-positive rate relative to the base rate means the **Conditional Entropy** $H(D|Test=Positive)$ remains significant.
+1.  **Initial Entropy$H(D)$:**$\approx 0.08$bits (very low, we are mostly sure you don't have it).
+2.  **Mutual Information$I(D; Test)$:** Measures how much the test result narrows down the uncertainty. 
+3.  **Result:** Even with a "Positive" result, the high false-positive rate relative to the base rate means the **Conditional Entropy**$H(D|Test=Positive)$ remains significant.
 
 ## See Also
-- [[ProbabilityTheory]]
-- [[MathematicalFoundationsOfMachineLearning]]
-- [[ContextCompression]]
-- [[QuantumInformation]]
+- [ProbabilityTheory](ProbabilityTheory)
+- [MathematicalFoundationsOfMachineLearning](MathematicalFoundationsOfMachineLearning)
+- [ContextCompression](ContextCompression)
+- [QuantumInformation](QuantumInformation)

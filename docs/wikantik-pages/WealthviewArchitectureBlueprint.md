@@ -70,6 +70,6 @@ When building for Wealthview, the agent should follow this hierarchy:
 > "Following the `WealthviewArchitectureBlueprint`, add a new feature to track 'Private Equity' investments. Create the `PrivateEquityEntity` with UUID keys and tenant isolation, a service to calculate IRR, and a controller to expose the data."
 
 ## See Also
-- [[FintechDataIngestionBlueprint]] — Data sync implementation.
-- [[ObservabilityAndMonitoringBlueprint]] — Production operational standards.
-- [[SoftwareArchitecture]] — General distributed system patterns.
+- [FintechDataIngestionBlueprint](FintechDataIngestionBlueprint) — Data sync implementation.
+- [ObservabilityAndMonitoringBlueprint](ObservabilityAndMonitoringBlueprint) — Production operational standards.
+- [SoftwareArchitecture](SoftwareArchitecture) — General distributed system patterns.

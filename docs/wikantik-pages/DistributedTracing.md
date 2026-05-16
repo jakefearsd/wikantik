@@ -62,15 +62,13 @@ try (Scope scope = span.makeCurrent()) {
 ## Sampling Mathematics: The Cost Lever
 
 Tracing generates massive data volumes. At 1,000 requests per second (RPS), with 20 spans per request and 500 bytes per span, the daily uncompressed volume is:
-$$1000 \text{ req/s} \times 20 \text{ spans/req} \times 500 \text{ bytes/span} \times 86400 \text{ s/day} \approx 864 \text{ GB/day}$$
-
-### Head-based vs. Tail-based Sampling
+$$1000 \text{ req/s} \times 20 \text{ spans/req} \times 500 \text{ bytes/span} \times 86400 \text{ s/day} \approx 864 \text{ GB/day}$$### Head-based vs. Tail-based Sampling
 1. **Head-based:** Sampling decision is made at the start of the request (e.g., sample 1%).
    - **Pros:** Low overhead, predictable cost.
    - **Cons:** Misses outliers and rare errors.
 2. **Tail-based:** All spans are buffered; the decision is made after the request finishes.
    - **Strategy:** Keep 100% of errors, 100% of slow requests ($>P95$), and 1% of healthy requests.
-   - **Math:** If $E$ is error rate (2%) and $S$ is slow rate (5%), total data kept is $2\% + 5\% + (93\% \times 1\%) = 7.93\%$. This provides $10 \times$ better signal-to-noise than 10% head-based sampling for the same cost.
+   - **Math:** If$E$is error rate (2%) and$S$is slow rate (5%), total data kept is$2\% + 5\% + (93\% \times 1\%) = 7.93\%$. This provides$10 \times$ better signal-to-noise than 10% head-based sampling for the same cost.
 
 ## What to Span
 Do not span every function. Focus on:

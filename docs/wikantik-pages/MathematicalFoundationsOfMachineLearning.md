@@ -86,7 +86,7 @@ Modern transformer models learn contextual embeddings — the same word gets dif
 
 ## Calculus: How Models Learn
 
-If linear algebra describes what a model computes, calculus describes how it learns. Training a neural network is an optimization problem solved by calculus. See [[CalculusRefreshForCS]] for a targeted engineer-focused guide.
+If linear algebra describes what a model computes, calculus describes how it learns. Training a neural network is an optimization problem solved by calculus. See [CalculusRefreshForCS](CalculusRefreshForCS) for a targeted engineer-focused guide.
 
 ### Derivatives and Gradients
 
@@ -168,7 +168,7 @@ The central limit theorem says that the average of many independent random varia
 
 ## Optimization: Finding the Best Parameters
 
-Training a model means finding parameters that minimize a loss function. This is an optimization problem, and the theory of optimization underlies every training algorithm. Detailed implementations can be found in [[OptimizationAlgorithms]].
+Training a model means finding parameters that minimize a loss function. This is an optimization problem, and the theory of optimization underlies every training algorithm. Detailed implementations can be found in [OptimizationAlgorithms](OptimizationAlgorithms).
 
 ### Convex vs. Non-Convex Optimization
 
@@ -208,7 +208,7 @@ Regularization prevents overfitting by adding constraints to the optimization:
 
 ## Information Theory: Measuring What Models Learn
 
-Information theory, founded by Claude Shannon, provides tools for quantifying information, uncertainty, and the quality of probabilistic predictions. See [[InformationTheory]] for a foundational survey.
+Information theory, founded by Claude Shannon, provides tools for quantifying information, uncertainty, and the quality of probabilistic predictions. See [InformationTheory](InformationTheory) for a foundational survey.
 
 ### Entropy
 
@@ -250,7 +250,7 @@ Modern ML research is powered by high-performance open-source libraries that imp
 - **NumPy**: The base for numerical computing in Python, providing the vector and matrix primitives.
 - **SymPy**: Used for **Symbolic Calculus**. Useful for deriving gradients or Jacobians manually before hard-coding them.
 - **JAX**: A high-performance library for **Composable Transformations** of Python+NumPy programs: differentiate (`grad`), vectorize (`vmap`), and JIT-compile (`jit`) to GPU/TPU.
-- **PyTorch**: The dominant research framework, implementing **Automatic Differentiation** and a vast suite of [[OptimizationAlgorithms]].
+- **PyTorch**: The dominant research framework, implementing **Automatic Differentiation** and a vast suite of [OptimizationAlgorithms](OptimizationAlgorithms).
 - **SciPy**: For traditional **Scientific Computing**, including constrained optimization (L-BFGS, SLSQP) and sparse linear algebra.
 
 ## Putting It Together: A Complete Example

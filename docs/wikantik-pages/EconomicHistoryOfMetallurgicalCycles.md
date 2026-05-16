@@ -78,7 +78,7 @@ With gold spot prices at **$3,800/oz** and silver at **$47/oz**, the market expe
 2.  **Watch the Bimetallic Spread**: Like the 17th-century silk trade, 2026 market participants monitor the Silver:Gold ratio (currently ~80:1) to identify "intrinsic entry points" for historical silver.
 
 ## See Also
-- [[AmericanCoinHistory]]
-- [[CoinGradingAndAuthentication]]
-- [[ConflictsAndEquityMarkets]]
-- [[MathematicsHub]]
+- [AmericanCoinHistory](AmericanCoinHistory)
+- [CoinGradingAndAuthentication](CoinGradingAndAuthentication)
+- [ConflictsAndEquityMarkets](ConflictsAndEquityMarkets)
+- [MathematicsHub](MathematicsHub)

@@ -97,7 +97,7 @@ A system is **stiff** if it contains vastly different time scales (e.g., a chemi
 
 ---
 **See Also:**
-- [[AppliedMathSurvey]] — The map of mathematical tools.
-- [[OptimizationAlgorithms]] — The engines of machine learning.
-- [[CalculusRefreshForCS]] — Foundations of gradients and Jacobians.
-- [[MathematicsHub]] — Central index for math topics.
+- [AppliedMathSurvey](AppliedMathSurvey) — The map of mathematical tools.
+- [OptimizationAlgorithms](OptimizationAlgorithms) — The engines of machine learning.
+- [CalculusRefreshForCS](CalculusRefreshForCS) — Foundations of gradients and Jacobians.
+- [MathematicsHub](MathematicsHub) — Central index for math topics.

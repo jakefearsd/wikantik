@@ -46,8 +46,7 @@ Average latency is a poor metric because it hides outliers. SREs use percentiles
 The Error Budget is the "operational currency" shared between product and engineering teams.
 
 ### A. The Burn Rate
-The burn rate is the speed at which the error budget is being consumed relative to the time remaining in the window.
-$$\text{Burn Rate} = \frac{\text{Budget Consumed}}{\text{Time Elapsed}} / \frac{\text{Total Budget}}{\text{Total Window}}$$
+The burn rate is the speed at which the error budget is being consumed relative to the time remaining in the window.$$\text{Burn Rate} = \frac{\text{Budget Consumed}}{\text{Time Elapsed}} / \frac{\text{Total Budget}}{\text{Total Window}}$$
 *   **Burn Rate = 1:** You will hit the SLO exactly at the end of the window.
 *   **Burn Rate > 1:** You are on track to violate the SLO.
 

@@ -115,6 +115,6 @@ This confirms that as $n$ grows, the ratio of work grows without bound.
 
 ---
 ## Further Reading
-- [[OptimizationAlgorithms]] — In-depth look at Adam, RMSprop, and L-BFGS.
-- [[LinearAlgebraForAI]] — Tensor operations and matrix decompositions.
-- [[AutomaticDifferentiationDeepDive]] — Implementing autodiff from scratch in C++.
+- [OptimizationAlgorithms](OptimizationAlgorithms) — In-depth look at Adam, RMSprop, and L-BFGS.
+- [LinearAlgebraForAI](LinearAlgebraForAI) — Tensor operations and matrix decompositions.
+- [AutomaticDifferentiationDeepDive](AutomaticDifferentiationDeepDive) — Implementing autodiff from scratch in C++.

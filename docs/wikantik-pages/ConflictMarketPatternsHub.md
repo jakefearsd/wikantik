@@ -45,6 +45,6 @@ This cluster analyzes the **intersection of kinetic warfare and capital markets*
 - [GeopoliticalRiskAndInvesting](GeopoliticalRiskAndInvesting) — Classifying risks: Direct military vs. semantic/cyber warfare.
 
 ## See Also
-- [[CloudRoiFramework]] — For the impact of AI capex on market resilience.
-- [[CoinCollectingHub]] — Precious metals as the ultimate conflict hedge.
-- [[LogisticsHub]] — The intermodal foundations of trade coin and military supply.
+- [CloudRoiFramework](CloudRoiFramework) — For the impact of AI capex on market resilience.
+- [CoinCollectingHub](CoinCollectingHub) — Precious metals as the ultimate conflict hedge.
+- [LogisticsHub](LogisticsHub) — The intermodal foundations of trade coin and military supply.

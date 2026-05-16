@@ -119,11 +119,11 @@ The Fourier transform converts a signal from the time domain to the frequency do
 
 1.  **Linear Algebra:** Focus on the **SVD (Singular Value Decomposition)**. It is the core of PCA, compression, and recommendation engines.
 2.  **Probability:** Distinguish between **Frequentist** (repeating experiments) and **Bayesian** (updating belief) logic.
-3.  **Optimization:** Learn how **Gradient Descent** actually navigates a high-dimensional landscape (see [[OptimizationAlgorithms]]).
-4.  **Numerical Stability:** Study how floating-point errors (IEEE 754) can make theoretically sound math fail on actual silicon (see [[NumericalMethods]]).
+3.  **Optimization:** Learn how **Gradient Descent** actually navigates a high-dimensional landscape (see [OptimizationAlgorithms](OptimizationAlgorithms)).
+4.  **Numerical Stability:** Study how floating-point errors (IEEE 754) can make theoretically sound math fail on actual silicon (see [NumericalMethods](NumericalMethods)).
 
 ## Further Reading
-*   [[NumericalMethods]] — Solving math on silicon.
-*   [[OptimizationAlgorithms]] — The engines of machine learning training.
-*   [[GameTheoryFundamentals]] — Logic of strategic interaction.
-*   [[InformationTheory]] — Quantifying the flow of data.
+*   [NumericalMethods](NumericalMethods) — Solving math on silicon.
+*   [OptimizationAlgorithms](OptimizationAlgorithms) — The engines of machine learning training.
+*   [GameTheoryFundamentals](GameTheoryFundamentals) — Logic of strategic interaction.
+*   [InformationTheory](InformationTheory) — Quantifying the flow of data.

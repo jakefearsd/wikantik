@@ -74,6 +74,6 @@ A Game Day is a scheduled 2-4 hour window where the engineering team runs a seri
 If you inject a fault and your dashboards don't show any change—but your users are complaining on Twitter—you have a **Blind Spot**. Chaos Engineering is as much about testing your monitoring as it is about testing your code.
 
 ## Further Reading
-- [[BlamelessPostMortems]] — Documenting the findings from a Game Day.
-- [[ServiceLevelAgreements]] — Defining the "Steady State" metrics.
-- [[CircuitBreakerPattern]] — The primary defense against cascading failures.
+- [BlamelessPostMortems](BlamelessPostMortems) — Documenting the findings from a Game Day.
+- [ServiceLevelAgreements](ServiceLevelAgreements) — Defining the "Steady State" metrics.
+- [CircuitBreakerPattern](CircuitBreakerPattern) — The primary defense against cascading failures.

@@ -55,6 +55,6 @@ Wealthview is a professional-grade, self-hosted platform designed for high-fidel
 - **Self-Hosted**: Docker-first deployment for private infrastructure.
 
 ## See Also
-- [[PersonalFinanceHub]] — Foundational financial concepts.
-- [[DataEngineeringHub]] — Generic pipeline and modeling patterns.
-- [[GenerativeAIHub]] — Building agentic features on top of Wealthview data.
+- [PersonalFinanceHub](PersonalFinanceHub) — Foundational financial concepts.
+- [DataEngineeringHub](DataEngineeringHub) — Generic pipeline and modeling patterns.
+- [GenerativeAIHub](GenerativeAIHub) — Building agentic features on top of Wealthview data.

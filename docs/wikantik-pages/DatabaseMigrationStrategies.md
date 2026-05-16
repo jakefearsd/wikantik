@@ -169,8 +169,7 @@ Postgres-specific tooling: `pg_repack` for table rewrites without long locks; `p
 For large tables, backfilling all rows in one transaction is dangerous (locks, replication lag, transaction-id wraparound). Batch:
 
 ```sql
-DO $$
-DECLARE
+DO $$DECLARE
     batch_size INT := 10000;
     last_id BIGINT := 0;
 BEGIN
@@ -183,7 +182,7 @@ BEGIN
         last_id := (SELECT MAX(id) FROM orders WHERE status IS NULL);
         PERFORM pg_sleep(0.1);  -- ease pressure
     END LOOP;
-END $$;
+END$$;
 ```
 
 For very large tables, use a job system (background worker) rather than SQL DO blocks — better observability and recoverability.

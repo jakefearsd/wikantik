@@ -52,14 +52,12 @@ The most advanced feature of SSI is the ability to prove a claim without reveali
 ### Concrete Example: Age Verification (The "Greater Than X" Proof)
 Suppose a user wants to prove they are over 18 without revealing their exact birthdate.
 
-1.  **The Statement**: "I possess a credential signed by the Government (Public Key $P_G$) that contains a birthdate $D$, where $D \le (\text{Current Date} - 18\text{ years})$."
+1.  **The Statement**: "I possess a credential signed by the Government (Public Key $P_G$) that contains a birthdate$D$, where$D \le (\text{Current Date} - 18\text{ years})$."
 2.  **The Math**:
-    *   The user generates a proof $\pi$ using a circuit $C$.
-    *   $C$ takes private inputs (the birthdate $D$ and the Government signature $\sigma$) and public inputs (the "threshold" date $T$ and the Government's public key $P_G$).
+    *   The user generates a proof$\pi$using a circuit$C$.
+    *$C$takes private inputs (the birthdate$D$and the Government signature$\sigma$) and public inputs (the "threshold" date$T$and the Government's public key$P_G$).
     *   The circuit verifies:
-        1.  $\text{VerifySignature}(D, \sigma, P_G) == \text{true}$
-        2.  $D \le T$
-3.  **The Proof**: The user sends only the proof $\pi$ to the verifier (e.g., an online liquor store).
-4.  **Verification**: The verifier runs $\text{Verify}(\pi, T, P_G)$. If it returns `true`, the verifier is mathematically certain the user is over 18, but they **never see the birthdate $D$ or the signature $\sigma$**.
+        1.$\text{VerifySignature}(D, \sigma, P_G) == \text{true}$2.$D \le T$3.  **The Proof**: The user sends only the proof$\pi$to the verifier (e.g., an online liquor store).
+4.  **Verification**: The verifier runs$\text{Verify}(\pi, T, P_G)$. If it returns `true`, the verifier is mathematically certain the user is over 18, but they **never see the birthdate$D$or the signature$\sigma$**.
 
 **Succinctness**: In 2026, these proofs are typically < 300 bytes and can be verified in milliseconds, making them practical for web-scale applications.

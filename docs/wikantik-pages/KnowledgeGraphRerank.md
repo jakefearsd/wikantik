@@ -18,7 +18,7 @@ status: active
 
 # Knowledge Graph Rerank
 
-Knowledge Graph Rerank is the final stage of the Wikantik retrieval pipeline. It transforms a raw list of search results into a contextually relevant set of pages by leveraging the semantic relationships stored in the [[Knowledge Graph]].
+Knowledge Graph Rerank is the final stage of the Wikantik retrieval pipeline. It transforms a raw list of search results into a contextually relevant set of pages by leveraging the semantic relationships stored in the [Knowledge Graph](Knowledge Graph).
 
 ## The Retrieval Pipeline
 
@@ -31,11 +31,11 @@ The Wikantik search engine (exposed via `/api/search` and the `/knowledge-mcp` t
 
 ## How Graph Rerank Works
 
-The reranker identifies "seed nodes" within the top-N results from the hybrid fusion stage. It then uses the [[KnowledgeGraphService]] to find co-mentioned neighbors and high-confidence relationships.
+The reranker identifies "seed nodes" within the top-N results from the hybrid fusion stage. It then uses the [KnowledgeGraphService](KnowledgeGraphService) to find co-mentioned neighbors and high-confidence relationships.
 
 - **Boost by Co-mention**: If a page is not in the top results but is heavily co-mentioned with multiple pages that *are* in the top results, its score is boosted.
 - **Entity Density**: Pages that contain a high density of relevant entities (nodes) related to the query are prioritized.
-- **Fail-Closed Fallback**: As documented in [[WikantikDevelopment]], if the embedding service or the graph database is unreachable, the system fails closed to a BM25-only result set to ensure availability.
+- **Fail-Closed Fallback**: As documented in [WikantikDevelopment](WikantikDevelopment), if the embedding service or the graph database is unreachable, the system fails closed to a BM25-only result set to ensure availability.
 
 ## Configuration
 
@@ -55,4 +55,4 @@ jspwiki.search.graphRerank.depth = 20
 
 ## Performance Impact
 
-Benchmarks recorded in [[KnowledgeGraphExtractionBenchmarks]] show that while graph reranking adds approximately 15-20ms of latency, it significantly improves `Recall@5` for "multi-hop" queries where the relevant information is spread across related topics rather than a single page.
+Benchmarks recorded in [KnowledgeGraphExtractionBenchmarks](KnowledgeGraphExtractionBenchmarks) show that while graph reranking adds approximately 15-20ms of latency, it significantly improves `Recall@5` for "multi-hop" queries where the relevant information is spread across related topics rather than a single page.

@@ -29,26 +29,23 @@ In a traditional heartbeat-based system, you might set a 5-second timeout.
 
 ## 2. Mathematical Foundation
 
-The detector uses a sliding window of the last $N$ heartbeat intervals (inter-arrival times).
+The detector uses a sliding window of the last$N$heartbeat intervals (inter-arrival times).
 
 1.  **Profiling:** It calculates the mean ($\mu$) and standard deviation ($\sigma$) of the intervals in the window, assuming a **Normal Distribution**.
-2.  **Estimation:** When $t_{elapsed}$ time has passed since the last heartbeat, it calculates $P_{later}$: the probability that a heartbeat would arrive *even later* than the current time.
-3.  **The Phi Value:** The suspicion level $\phi$ is defined as the negative base-10 logarithm of that probability:
-    $$ \phi(t) = -\log_{10}(P_{later}) $$
-
-### Understanding the Phi Scale
-The $\phi$ value represents the order of magnitude of the "risk" of a false positive:
+2.  **Estimation:** When$t_{elapsed}$time has passed since the last heartbeat, it calculates$P_{later}$: the probability that a heartbeat would arrive *even later* than the current time.
+3.  **The Phi Value:** The suspicion level$\phi$is defined as the negative base-10 logarithm of that probability:$$\phi(t) = -\log_{10}(P_{later})$$### Understanding the Phi Scale
+The$\phi$value represents the order of magnitude of the "risk" of a false positive:
 *   **$\phi = 1$**: 10% chance the node is actually alive (high risk of false positive).
 *   **$\phi = 2$**: 1% chance the node is alive.
-*   **$\phi = 8$**: $10^{-8}$ chance (extremely low risk; default for many databases).
+*   **$\phi = 8$**:$10^{-8}$chance (extremely low risk; default for many databases).
 
 ## 3. Key Advantages
 
 ### Adaptability
-If a network becomes jittery (high $\sigma$), the Phi value will accrue more slowly. The algorithm automatically "stretches" its suspicion window to accommodate the degraded environment, preventing false convictions during temporary congestion.
+If a network becomes jittery (high$\sigma$), the Phi value will accrue more slowly. The algorithm automatically "stretches" its suspicion window to accommodate the degraded environment, preventing false convictions during temporary congestion.
 
 ### Multi-Threshold Interpretation
-Different components of the system can interpret the same $\phi$ value differently:
+Different components of the system can interpret the same$\phi$value differently:
 *   **Load Balancer:** Might stop routing traffic to a node at **$\phi = 5$** (aggressive response to maintain low latency).
 *   **Cluster Manager:** Might wait until **$\phi = 12$** before permanently removing a node from the cluster metadata (conservative response to avoid expensive re-sharding).
 

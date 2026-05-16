@@ -14,12 +14,10 @@ summary: The geometric theory of gravitation. Covers the Einstein Field Equation
 ## 1. The Einstein Field Equations (EFE)
 The fundamental equations of GR relate the geometry of spacetime to the distribution of matter/energy within it:
 
-$$ G_{\mu\nu} + \Lambda g_{\mu\nu} = \frac{8\pi G}{c^4} T_{\mu\nu} $$
-
-Where:
-*   **$G_{\mu\nu}$ (Einstein Tensor)**: Encodes the curvature derived from the Ricci tensor and scalar.
-*   **$g_{\mu\nu}$ (Metric Tensor)**: The primary variable; defines the "shape" and distances in spacetime.
-*   **$\Lambda$ (Cosmological Constant)**: Represents dark energy and the expansion of the universe.
+$$G_{\mu\nu} + \Lambda g_{\mu\nu} = \frac{8\pi G}{c^4} T_{\mu\nu}$$Where:
+*   **$G_{\mu\nu}$(Einstein Tensor)**: Encodes the curvature derived from the Ricci tensor and scalar.
+*   **$g_{\mu\nu}$(Metric Tensor)**: The primary variable; defines the "shape" and distances in spacetime.
+*   **$\Lambda$(Cosmological Constant)**: Represents dark energy and the expansion of the universe.
 *   **$T_{\mu\nu}$ (Stress-Energy Tensor)**: Describes the density and flux of energy and momentum.
 
 ## 2. Historical Foundations & Verification

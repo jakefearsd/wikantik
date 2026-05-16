@@ -59,11 +59,7 @@ Text analysis remains the backbone, but the techniques employed have evolved dra
 #### 2.1.1 Semantic Similarity and Embedding Space Analysis
 Instead of classifying text based on discrete tokens, advanced systems map content into high-dimensional vector spaces (embeddings). Safety is then assessed by measuring the distance between the input embedding ($\mathbf{E}_{input}$) and the embedding space of known harmful concepts ($\mathbf{S}_{harm}$).
 
-The core mechanism involves cosine similarity:
-$$
-\text{Similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}
-$$
-If $\text{Similarity}(\mathbf{E}_{input}, \mathbf{E}_{harm}) > \tau$ (where $\tau$ is the threshold), the content is flagged.
+The core mechanism involves cosine similarity:$$\text{Similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}$$If$\text{Similarity}(\mathbf{E}_{input}, \mathbf{E}_{harm}) > \tau$(where$\tau$is the threshold), the content is flagged.
 
 **Advanced Consideration: Concept Drift and Concept Vectors:**
 The challenge here is that harmful concepts drift (e.g., new slang, evolving conspiracy theories). Researchers must employ techniques like **Concept Bottleneck Models (CBMs)** or **Knowledge Graph integration** to ground the embeddings in structured, verifiable knowledge, rather than relying purely on the statistical correlations learned during pre-training.
@@ -98,7 +94,7 @@ Visual safety filters are significantly more complex than text filters because t
 #### 2.2.1 Object Detection and Scene Graph Generation
 The baseline involves using state-of-the-art object detectors (e.g., YOLO variants, DETR) to identify objects. However, true safety requires **Scene Graph Generation (SGG)**. SGG models don't just list objects; they map the *relationships* between them.
 
-*   **Example:** Detecting a knife ($\text{Object}_1$) near a person ($\text{Object}_2$) is insufficient. SGG identifies the relationship: $\text{Object}_1$ *is positioned near* $\text{Object}_2$'s *hand*, suggesting potential immediate threat.
+*   **Example:** Detecting a knife ($\text{Object}_1$) near a person ($\text{Object}_2$) is insufficient. SGG identifies the relationship:$\text{Object}_1$*is positioned near*$\text{Object}_2$'s *hand*, suggesting potential immediate threat.
 
 #### 2.2.2 Deepfake and Provenance Verification
 This is a rapidly evolving area. Filters must detect manipulation at multiple levels:
@@ -121,7 +117,7 @@ The true leap in capability comes from models that process text, images, and aud
 When a user posts an image and captions it, the system must ensure the caption *matches* the image's context, and vice versa.
 
 *   **Scenario:** An image shows a peaceful landscape. The caption reads: "Look at the carnage here."
-*   **Failure Mode (Unimodal):** Text filter sees "carnage" $\rightarrow$ Flag. Image filter sees landscape $\rightarrow$ Pass.
+*   **Failure Mode (Unimodal):** Text filter sees "carnage"$\rightarrow$Flag. Image filter sees landscape$\rightarrow$Pass.
 *   **Success Mode (Multimodal):** The model recognizes the semantic dissonance. The caption's aggressive tone clashes with the image's serene visual data, flagging the *misleading juxtaposition* as potentially manipulative or inflammatory.
 
 This requires training on massive, aligned datasets where the relationship between modalities is explicitly labeled (e.g., "This text describes this image," "This audio accompanies this visual sequence").
@@ -137,13 +133,9 @@ For researchers aiming to push the boundaries, the focus must shift from *what* 
 The most critical area of research is hardening the system against deliberate circumvention. This is not just about detecting spam; it is about defending the model itself.
 
 #### 3.1.1 Adversarial Attacks on Embeddings
-Adversaries can introduce imperceptible perturbations ($\delta$) to an input ($\mathbf{x}$) such that the resulting perturbed input ($\mathbf{x}' = \mathbf{x} + \delta$) is classified incorrectly, while $\delta$ remains below the human perception threshold.
+Adversaries can introduce imperceptible perturbations ($\delta$) to an input ($\mathbf{x}$) such that the resulting perturbed input ($\mathbf{x}' = \mathbf{x} + \delta$) is classified incorrectly, while$\delta$remains below the human perception threshold.
 
-Mathematically, the goal is to find $\delta$ such that:
-$$
-\text{Classifier}(\mathbf{x}') = \text{Safe} \quad \text{AND} \quad \text{Classifier}(\mathbf{x}) = \text{Harmful}
-$$
-Defenses include **Adversarial Training**, where the model is explicitly trained on these perturbed examples, forcing the decision boundary to become smoother and more robust in the vicinity of known attack vectors.
+Mathematically, the goal is to find$\delta$such that:$$\text{Classifier}(\mathbf{x}') = \text{Safe} \quad \text{AND} \quad \text{Classifier}(\mathbf{x}) = \text{Harmful}$$Defenses include **Adversarial Training**, where the model is explicitly trained on these perturbed examples, forcing the decision boundary to become smoother and more robust in the vicinity of known attack vectors.
 
 #### 3.1.2 Prompt Injection and Jailbreaking (For LLM-Based Filters)
 When using powerful LLMs for moderation (e.g., asking the model to "Review this text for hate speech according to Policy X"), the system is susceptible to prompt injection. An attacker crafts input that overrides the system prompt's instructions.

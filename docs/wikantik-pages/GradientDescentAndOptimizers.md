@@ -29,9 +29,10 @@ Optimizing a neural network involves navigating a high-dimensional loss landscap
 SGD updates weights using a subset (mini-batch) of data. **Momentum** adds a fraction of the previous update to the current one, helping the optimizer navigate out of local minima and dampening oscillations in high-curvature regions.
 
 Update Rule:
-$$v_{t} = \gamma v_{t-1} + \eta \nabla L(\theta)$$
-$$\theta = \theta - v_{t}$$
-Where $\gamma \approx 0.9$ and $\eta$ is the learning rate.
+$$
+v_{t} = \gamma v_{t-1} + \eta \nabla L(\theta)
+$$
+$$\theta = \theta - v_{t}$$Where$\gamma \approx 0.9$and$\eta$is the learning rate.
 
 ## 2. Adaptive Optimizers: Adam and AdamW
 **Adam** (Adaptive Moment Estimation) computes individual learning rates for each parameter by tracking the first moment (mean) and second moment (uncentered variance) of the gradients.
@@ -42,7 +43,7 @@ Where $\gamma \approx 0.9$ and $\eta$ is the learning rate.
 Lion is a memory-efficient optimizer that uses the **sign** of the gradient update rather than the magnitude. It requires only the first moment, saving 50% of the optimizer state memory compared to AdamW.
 
 ## 4. Learning Rate Schedules
-A static learning rate rarely converges to the optimal minimum. Schedules adjust $\eta$ over time.
+A static learning rate rarely converges to the optimal minimum. Schedules adjust$\eta$over time.
 
 ### Concrete Example: Cosine Annealing with Warmup in PyTorch
 Warmup prevents large gradients from destabilizing the model early in training. Cosine annealing then smoothly decays the LR to a minimum value.
@@ -80,7 +81,7 @@ for step in range(total_steps):
 ```
 
 ## 5. Gradient Clipping
-To prevent "exploding gradients" in deep networks (especially Transformers), gradients are clipped by norm. If the global norm $||g||$ exceeds a threshold (typically 1.0), the gradient is rescaled.
+To prevent "exploding gradients" in deep networks (especially Transformers), gradients are clipped by norm. If the global norm$||g||$ exceeds a threshold (typically 1.0), the gradient is rescaled.
 ```python
 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 ```

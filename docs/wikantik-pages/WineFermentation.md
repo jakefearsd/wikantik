@@ -32,9 +32,7 @@ This treatise explores the deconstruction of yeast metabolic pathways, the mecha
 ## I. Foundations: Glycolysis and Product Inhibition
 
 We move beyond stoichiometry to model the **Specific Rate of Production ($\mu$)**.
-*   **The Monod Framework:** Drawing from [Mathematics Hub](MathematicsHub), we model the rate-limiting uptake of sugars ($\text{S}$):
-    $$\frac{d[\text{EtOH}]}{dt} = k_{max} \cdot \frac{[\text{S}]}{K_s + [\text{S}]} \cdot \frac{1}{1 + \frac{[\text{EtOH}]}{K_i}}$$
-    The **Inhibition Constant ($K_i$)** is the primary bottleneck. As ethanol concentration rises, it disrupts the integrity of the yeast cell membrane, leading to **Sudden Stalling** if the must's thermal history and nitrogen profile are not precisely managed.
+*   **The Monod Framework:** Drawing from [Mathematics Hub](MathematicsHub), we model the rate-limiting uptake of sugars ($\text{S}$):$$\frac{d[\text{EtOH}]}{dt} = k_{max} \cdot \frac{[\text{S}]}{K_s + [\text{S}]} \cdot \frac{1}{1 + \frac{[\text{EtOH}]}{K_i}}$$The **Inhibition Constant ($K_i$)** is the primary bottleneck. As ethanol concentration rises, it disrupts the integrity of the yeast cell membrane, leading to **Sudden Stalling** if the must's thermal history and nitrogen profile are not precisely managed.
 
 ---
 
@@ -49,7 +47,7 @@ The value of a wine is defined by its volatile secondary metabolites.
 ## III. Advanced Process Control: Malolactic Synergy
 
 Malolactic Fermentation (MLF) is a secondary, bacterially-mediated biotransformation.
-*   **The MLE Enzyme:** The conversion of Malic Acid to Lactic Acid is modeled as an acid-base neutralization coupled with decarboxylation. Experts utilize [Numerical Methods](NumericalMethods) to track the **pH-Dependent Equilibrium** of $\text{SO}_2$, ensuring that antimicrobial protection does not poison the sensitive malolactic bacteria consortia.
+*   **The MLE Enzyme:** The conversion of Malic Acid to Lactic Acid is modeled as an acid-base neutralization coupled with decarboxylation. Experts utilize [Numerical Methods](NumericalMethods) to track the **pH-Dependent Equilibrium** of$\text{SO}_2$, ensuring that antimicrobial protection does not poison the sensitive malolactic bacteria consortia.
 
 ---
 

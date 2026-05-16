@@ -35,14 +35,12 @@ A complete KG allows an agent to answer "What is the security posture of the aut
 Link prediction assumes that entities and relations can be mapped to a continuous vector space where the truth of a triple is proportional to a score function $f_r(s, o)$.
 
 ### Translational Distance Models (TransE, RotatE)
-In **TransE**, the relation is a translation vector: $\mathbf{s} + \mathbf{r} \approx \mathbf{o}$.
+In **TransE**, the relation is a translation vector:$\mathbf{s} + \mathbf{r} \approx \mathbf{o}$.
 *   **Failure mode:** Cannot handle 1-to-N relations. If `(USA, has_state, NewYork)` and `(USA, has_state, California)`, TransE forces `NewYork` and `California` to the same vector.
-*   **Production Fix (RotatE):** Maps entities to complex vectors $\mathbb{C}^d$ and relations to rotations: $\mathbf{o} = \mathbf{s} \circ \mathbf{r}$, where $|\mathbf{r}_i| = 1$. This handles symmetry, antisymmetry, and inversion.
+*   **Production Fix (RotatE):** Maps entities to complex vectors$\mathbb{C}^d$and relations to rotations:$\mathbf{o} = \mathbf{s} \circ \mathbf{r}$, where$|\mathbf{r}_i| = 1$. This handles symmetry, antisymmetry, and inversion.
 
 ### Bilinear Models (ComplEx)
-**ComplEx** uses the Hermitian dot product in complex space:
-$$f_r(s, o) = \text{Re}(\langle \mathbf{w}_r, \mathbf{e}_s, \bar{\mathbf{e}}_o \rangle)$$
-This is the state-of-the-art baseline for large-scale KGs because it scales linearly with entity count and captures asymmetric relations (e.g., `parent_of`) effectively.
+**ComplEx** uses the Hermitian dot product in complex space:$$f_r(s, o) = \text{Re}(\langle \mathbf{w}_r, \mathbf{e}_s, \bar{\mathbf{e}}_o \rangle)$$This is the state-of-the-art baseline for large-scale KGs because it scales linearly with entity count and captures asymmetric relations (e.g., `parent_of`) effectively.
 
 ## 2. LLM-Augmented Extraction (The Production Path)
 
@@ -75,9 +73,9 @@ Standard academic benchmarks (FB15k-237) are often leaked into LLM training sets
 
 | Metric | Why it matters | Calculation |
 |---|---|---|
-| **MRR (Mean Reciprocal Rank)** | Rewards the model for putting the truth at #1 vs #10. | $\frac{1}{|Q|} \sum_{i=1}^{|Q|} \frac{1}{rank_i}$ |
+| **MRR (Mean Reciprocal Rank)** | Rewards the model for putting the truth at #1 vs #10. |$\frac{1}{|Q|} \sum_{i=1}^{|Q|} \frac{1}{rank_i}$|
 | **Filtered Hits@1** | Strict accuracy. "Filtered" means we don't penalize the model for picking a *different* true triple that isn't the ground truth for this specific test case. | Count of true positives at rank 1 / total queries |
-| **Relation-Specific Precision** | Some relations (e.g., `is_a`) are easier than others (`impacts`). | $\frac{TP}{TP + FP}$ per relation type |
+| **Relation-Specific Precision** | Some relations (e.g., `is_a`) are easier than others (`impacts`). |$\frac{TP}{TP + FP}$ per relation type |
 
 **Critical Trap:** Beware of "Entity Leakage." If your training set contains `(A, part_of, B)` and your test set contains `(B, contains, A)`, a simple model will "predict" the link via inversion without understanding the semantics.
 

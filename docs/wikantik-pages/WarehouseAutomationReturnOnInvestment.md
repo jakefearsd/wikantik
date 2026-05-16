@@ -29,16 +29,13 @@ Many providers now offer **Robotics-as-a-Service (RaaS)**, which shifts the enti
 
 ## 2. The ROI Calculation
 
-The standard ROI for automation is calculated as:
-$$\text{ROI} = \frac{(\text{Annual Labor Savings} + \text{Error Reduction Savings}) - \text{Annual OpEx}}{\text{Initial CapEx}}$$
-
-### Concrete Example: AS/RS Implementation
+The standard ROI for automation is calculated as:$$\text{ROI} = \frac{(\text{Annual Labor Savings} + \text{Error Reduction Savings}) - \text{Annual OpEx}}{\text{Initial CapEx}}$$### Concrete Example: AS/RS Implementation
 Consider a warehouse currently using manual forklifts for a high-density storage area.
 - **Manual Setup:** 5 Forklifts ($250k) + 10 operators ($600k/year) + 2% error rate ($50k/year).
-- **AS/RS Setup:** $2.5M CapEx. Annual maintenance/electricity $100k/year. Operator count reduced to 1 ($60k/year). Error rate 0.1% ($2k/year).
+- **AS/RS Setup:**$2.5M CapEx. Annual maintenance/electricity$100k/year. Operator count reduced to 1 ($60k/year). Error rate 0.1% ($2k/year).
 
-**Annual Savings:** $(600k + 50k) - (100k + 60k + 2k) = \$488,000$.
-**Payback Period:** $\$2,500,000 / \$488,000 \approx 5.1 \text{ years}$.
+**Annual Savings:**$(600k + 50k) - (100k + 60k + 2k) = \$488,000$.
+**Payback Period:**$\$2,500,000 / \$488,000 \approx 5.1 \text{ years}$.
 
 ## 3. Hidden ROI Factors
 
@@ -56,7 +53,7 @@ Consider a warehouse currently using manual forklifts for a high-density storage
 | **Cobots** | Low | Low | Error reduction in kitting |
 
 ## See Also
-- [[AutomatedStorageAndRetrieval]]
-- [[PickAndPackAutomation]]
-- [[OptimizationInWarehouseAutomation]]
-- [[WarehouseManagementSystems]]
+- [AutomatedStorageAndRetrieval](AutomatedStorageAndRetrieval)
+- [PickAndPackAutomation](PickAndPackAutomation)
+- [OptimizationInWarehouseAutomation](OptimizationInWarehouseAutomation)
+- [WarehouseManagementSystems](WarehouseManagementSystems)

@@ -65,6 +65,6 @@ The most common IR failure is killing an attacker's process as soon as you see i
 - **MTTR (Mean Time to Recover):** Total time until the system was back to a "clean" production state.
 
 ## Further Reading
-- [[ThreatModeling]] — Proactive security design to prevent incidents.
-- [[SecurityLoggingAndAuditTrails]] — What you need to have in place *before* the breach.
-- [[BlamelessPostMortems]] — Learning from the incident without finger-pointing.
+- [ThreatModeling](ThreatModeling) — Proactive security design to prevent incidents.
+- [SecurityLoggingAndAuditTrails](SecurityLoggingAndAuditTrails) — What you need to have in place *before* the breach.
+- [BlamelessPostMortems](BlamelessPostMortems) — Learning from the incident without finger-pointing.

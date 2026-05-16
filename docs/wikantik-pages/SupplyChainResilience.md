@@ -54,7 +54,7 @@ Following the 2021-2022 shortages, automakers shifted from "Just-in-Time" (Zero 
 | **Vertical Integration** | Supplier reliability | Extreme CapEx |
 
 ## See Also
-- [[InventoryManagementStrategies]]
-- [[GeopoliticalRisk]]
-- [[SupplyChainVisibility]]
-- [[BusinessContinuityPlanning]]
+- [InventoryManagementStrategies](InventoryManagementStrategies)
+- [GeopoliticalRisk](GeopoliticalRisk)
+- [SupplyChainVisibility](SupplyChainVisibility)
+- [BusinessContinuityPlanning](BusinessContinuityPlanning)

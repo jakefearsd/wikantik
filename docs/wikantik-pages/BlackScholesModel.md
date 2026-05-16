@@ -27,37 +27,26 @@ For software engineers building trading systems or risk engines, understanding t
 The model assumes that the underlying asset price follows a [Geometric Brownian Motion](GeometricBrownianMotion) with constant drift and volatility. 
 
 ### The Black-Scholes PDE
-Using Itô's Lemma and the concept of constructing a riskless hedged portfolio (delta hedging), Black and Scholes derived the following Partial Differential Equation (PDE) that the price of the option $V(S, t)$ must satisfy:
-
-$$ \frac{\partial V}{\partial t} + \frac{1}{2}\sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} + rS \frac{\partial V}{\partial S} - rV = 0 $$
-
-Where:
-*   $V$: The price of the option as a function of asset price $S$ and time $t$.
-*   $S$: The current price of the underlying asset.
-*   $\sigma$: The volatility of the asset's returns.
-*   $r$: The annualized risk-free interest rate.
+Using Itô's Lemma and the concept of constructing a riskless hedged portfolio (delta hedging), Black and Scholes derived the following Partial Differential Equation (PDE) that the price of the option $V(S, t)$must satisfy:$$\frac{\partial V}{\partial t} + \frac{1}{2}\sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} + rS \frac{\partial V}{\partial S} - rV = 0$$Where:
+*$V$: The price of the option as a function of asset price$S$and time$t$.
+*$S$: The current price of the underlying asset.
+*$\sigma$: The volatility of the asset's returns.
+*$r$: The annualized risk-free interest rate.
 
 This equation states that the time decay of the option ($\frac{\partial V}{\partial t}$) plus the convexity/gamma risk ($\frac{1}{2}\sigma^2 S^2 \frac{\partial^2 V}{\partial S^2}$) plus the directional delta risk ($rS \frac{\partial V}{\partial S}$) must exactly equal the risk-free return of holding the option's value in cash ($rV$). If this were not true, an arbitrage opportunity would exist.
 
 ## 2. The Analytical Solution
 
-By applying boundary conditions (e.g., at expiration $T$, a call option pays $\max(S_T - K, 0)$ where $K$ is the strike price), the PDE can be solved to yield the classic Black-Scholes formula for a European Call option ($C$):
-
-$$ C = N(d_1)S_t - N(d_2) K e^{-r(T - t)} $$
-
-Where:
-$$ d_1 = \frac{\ln(S_t/K) + (r + \frac{\sigma^2}{2})(T - t)}{\sigma \sqrt{T - t}} $$
-$$ d_2 = d_1 - \sigma \sqrt{T - t} $$
-
-And $N(x)$ is the cumulative distribution function (CDF) of the standard normal distribution.
+By applying boundary conditions (e.g., at expiration$T$, a call option pays$\max(S_T - K, 0)$where$K$is the strike price), the PDE can be solved to yield the classic Black-Scholes formula for a European Call option ($C$):$$C = N(d_1)S_t - N(d_2) K e^{-r(T - t)}$$Where:$$d_1 = \frac{\ln(S_t/K) + (r + \frac{\sigma^2}{2})(T - t)}{\sigma \sqrt{T - t}}$$
+$$d_2 = d_1 - \sigma \sqrt{T - t}$$And$N(x)$is the cumulative distribution function (CDF) of the standard normal distribution.
 
 ### Intuition for the Formula
-*   **$N(d_1)$:** The delta of the option. The probability-weighted ratio of how much the option price moves given a $1 change in the underlying asset.
+*   **$N(d_1)$:** The delta of the option. The probability-weighted ratio of how much the option price moves given a$1 change in the underlying asset.
 *   **$N(d_2)$:** The risk-neutral probability that the option will expire in the money ($S_T > K$).
 
 ## 3. Implementation in Software
 
-In algorithmic systems, evaluating the Black-Scholes formula must be heavily optimized, particularly the computation of the Normal CDF $N(x)$, which is mathematically a non-elementary integral.
+In algorithmic systems, evaluating the Black-Scholes formula must be heavily optimized, particularly the computation of the Normal CDF$N(x)$, which is mathematically a non-elementary integral.
 
 In modern systems (C++, Rust, Python), this is calculated using the error function (`erf`), which has highly optimized hardware implementations.
 
@@ -96,10 +85,7 @@ While mathematically elegant, the Black-Scholes model relies on assumptions that
 
 ### The Greeks
 To manage these risks, trading systems calculate the partial derivatives of the Black-Scholes formula, known as "The Greeks":
-*   **Delta ($\Delta$):** $\frac{\partial V}{\partial S}$
-*   **Gamma ($\Gamma$):** $\frac{\partial^2 V}{\partial S^2}$
-*   **Vega ($\mathcal{V}$):** $\frac{\partial V}{\partial \sigma}$
-*   **Theta ($\Theta$):** $-\frac{\partial V}{\partial t}$
+*   **Delta ($\Delta$):**$\frac{\partial V}{\partial S}$*   **Gamma ($\Gamma$):**$\frac{\partial^2 V}{\partial S^2}$*   **Vega ($\mathcal{V}$):**$\frac{\partial V}{\partial \sigma}$*   **Theta ($\Theta$):**$-\frac{\partial V}{\partial t}$
 
 ## See Also
 *   [Geometric Brownian Motion](GeometricBrownianMotion) — The underlying stochastic process.

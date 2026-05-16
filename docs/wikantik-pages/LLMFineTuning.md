@@ -76,6 +76,6 @@ Never trust training loss. A model can have zero training loss but fail in produ
 Do not merge the LoRA weights into the base model if you have multiple tasks. Serve the base model with **vLLM or LoRAX**, which allow you to swap adapters dynamically at request time with negligible latency overhead.
 
 ## Further Reading
-- [[ModelQuantization]] — Deep dive into NF4 and 4-bit loading.
-- [[LlmEvaluationMetrics]] — How to build a custom eval harness.
-- [[RagImplementationPatterns]] — Why you should probably do RAG instead.
+- [ModelQuantization](ModelQuantization) — Deep dive into NF4 and 4-bit loading.
+- [LlmEvaluationMetrics](LlmEvaluationMetrics) — How to build a custom eval harness.
+- [RagImplementationPatterns](RagImplementationPatterns) — Why you should probably do RAG instead.

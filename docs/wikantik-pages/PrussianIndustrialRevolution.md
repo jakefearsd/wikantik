@@ -65,7 +65,7 @@ Industrialization was not merely a technical success; it was a social shock.
 - **Proletarianization**: The replacement of skilled artisans with low-wage factory labor fueled the barricade fighting of March 1848.
 
 ## See Also
-- [[BerlinHistoryHub]]
-- [[OperationsResearchHub]] — For the logistics foundations of early rail.
-- [[BerlinTechScene]] — For the modern evolution of the Borsig legacy.
-- [[PrussianBerlinAndTheRiseOfAPower]]
+- [BerlinHistoryHub](BerlinHistoryHub)
+- [OperationsResearchHub](OperationsResearchHub) — For the logistics foundations of early rail.
+- [BerlinTechScene](BerlinTechScene) — For the modern evolution of the Borsig legacy.
+- [PrussianBerlinAndTheRiseOfAPower](PrussianBerlinAndTheRiseOfAPower)

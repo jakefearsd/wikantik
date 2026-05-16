@@ -72,6 +72,6 @@ Don't just look at a 2D scatter plot. Use quantitative metrics:
 Use clustering to build a "Table of Contents" for a RAG system. Instead of searching a flat list of 1 million chunks, the agent can first identify the relevant **Cluster Centroid**, then search only the documents within that cluster. This reduces noise and improves retrieval speed.
 
 ## Further Reading
-- [[EmbeddingsVectorDB]] — Choosing the right model for step 1.
-- [[KnowledgeGraphCompletion]] — Turning clusters into structured entities.
-- [[AnomalyDetectionTechniques]] — Detecting the -1 "Noise" points.
+- [EmbeddingsVectorDB](EmbeddingsVectorDB) — Choosing the right model for step 1.
+- [KnowledgeGraphCompletion](KnowledgeGraphCompletion) — Turning clusters into structured entities.
+- [AnomalyDetectionTechniques](AnomalyDetectionTechniques) — Detecting the -1 "Noise" points.

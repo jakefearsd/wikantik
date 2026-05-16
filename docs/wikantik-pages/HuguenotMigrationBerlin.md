@@ -66,6 +66,6 @@ The integration of the Huguenots left a permanent mark on the Berlin dialect (*B
 The 1685 influx proves that early modern state power was measured not by territory, but by the ability to attract and integrate specialized human capital. Berlin's rise as a Prussian capital is inseparable from this 30% demographic shock.
 
 ## See Also
-- [[BerlinsTransformationFromMargraviateToCapitalCity]]
-- [[MedievalBerlin]]
-- [[BerlinImmigrationAndDiversity]]
+- [BerlinsTransformationFromMargraviateToCapitalCity](BerlinsTransformationFromMargraviateToCapitalCity)
+- [MedievalBerlin](MedievalBerlin)
+- [BerlinImmigrationAndDiversity](BerlinImmigrationAndDiversity)

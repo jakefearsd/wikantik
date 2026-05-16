@@ -34,13 +34,11 @@ The Liveness probe must be **minimalist**. Querying an external database in a li
 
 ## Failure Detection Math: Phi Accrual
 
-Instead of binary "up/down" thresholds, advanced systems (Akka, Cassandra) use the **$\phi$ Accrual Failure Detector**. It calculates the probability of failure based on the history of heartbeat inter-arrival times.
+Instead of binary "up/down" thresholds, advanced systems (Akka, Cassandra) use the **$\phi$Accrual Failure Detector**. It calculates the probability of failure based on the history of heartbeat inter-arrival times.
 
 **Mathematical Model:**
-If $T_{last}$ is the time of the last heartbeat, $\phi$ is defined as:
-$$\phi(T_{now}) = -\log_{10}(P(T_{inter-arrival} > T_{now} - T_{last}))$$
-- **Low $\phi$:** Suspicious, but still routing traffic.
-- **High $\phi$ ($>8$):** Confirmed failure; trigger eviction.
+If$T_{last}$is the time of the last heartbeat,$\phi$is defined as:$$\phi(T_{now}) = -\log_{10}(P(T_{inter-arrival} > T_{now} - T_{last}))$$- **Low$\phi$:** Suspicious, but still routing traffic.
+- **High$\phi$($>8$):** Confirmed failure; trigger eviction.
 
 ## Operational Risk: The Thundering Herd
 

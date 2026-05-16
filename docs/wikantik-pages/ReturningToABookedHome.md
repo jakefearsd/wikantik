@@ -32,7 +32,9 @@ This treatise explores the **State Transition Model**, the mechanics of behavior
 ## I. Foundations: The State Transition Model
 
 We model the property's operational lifecycle as a finite state machine:
-$$\text{S} \in \{ \text{Owner\_Control}, \text{Guest\_Control}, \text{Turnover}, \text{Re-Integration} \}$$
+$$
+\text{S} \in \{ \text{Owner\_Control}, \text{Guest\_Control}, \text{Turnover}, \text{Re-Integration} \}
+$$
 The protocol's objective is minimizing the entropy introduced during `Guest_Control`. This requires **Predictive Departure Modeling (PDM)** to precisely schedule the transition window, utilizing local transit and weather data to predict actual (not stated) handover times.
 
 ---

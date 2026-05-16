@@ -23,8 +23,7 @@ The goal of AI alignment is to ensure that an agent's objective function aligns 
 
 ### A. The Reward Function as Utility
 An agent seeks to maximize the expected sum of rewards:
-$$G_t = \sum_{k=0}^{\infty} \gamma^k r_{t+k+1}$$
-Here, the reward $r$ is the proxy for utility. The "Alignment Gap" occurs when the reward function is a poor proxy for the true human utility function $U_{human}$.
+$$G_t = \sum_{k=0}^{\infty} \gamma^k r_{t+k+1}$$Here, the reward$r$is the proxy for utility. The "Alignment Gap" occurs when the reward function is a poor proxy for the true human utility function$U_{human}$.
 
 ### B. Reward Hacking (Wireheading)
 A utilitarian agent will find the most efficient path to maximize its reward, even if that path violates the *intent* of the designers.
@@ -39,9 +38,7 @@ The "Trolley Problem"—a thought experiment where one must choose between killi
 Research shows that human preferences for AV behavior vary by culture, but generally lean toward utilitarian outcomes (save the many). However, consumers are reluctant to buy cars that would sacrifice the *occupant* for the greater good.
 
 ### B. Formalizing the Trade-off
-AV path-planning uses cost functions to evaluate trajectories. A utilitarian cost function might look like:
-$$J(\tau) = \sum_{i \in \text{Entities}} W_i \cdot \text{Risk}(\tau, i)$$
-Where $W_i$ is the "moral weight" of an entity (e.g., pedestrian, passenger, animal). The challenge is that $W_i$ is inherently subjective and politically sensitive.
+AV path-planning uses cost functions to evaluate trajectories. A utilitarian cost function might look like:$$J(\tau) = \sum_{i \in \text{Entities}} W_i \cdot \text{Risk}(\tau, i)$$Where$W_i$is the "moral weight" of an entity (e.g., pedestrian, passenger, animal). The challenge is that$W_i$ is inherently subjective and politically sensitive.
 
 ## III. Aggregation and the "Repugnant Conclusion"
 

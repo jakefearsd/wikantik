@@ -37,15 +37,11 @@ The primary trade-off in SLM design is **Reasoning Density** vs. **Generalizatio
 Most high-performance SLMs are trained via **Knowledge Distillation (KD)**, where a "Teacher" model (LLM) guides a "Student" model (SLM).
 
 ### The Distillation Objective
-The goal is to minimize a loss function $L$ that combines standard Cross-Entropy (CE) with Kullback-Leibler (KL) divergence between the teacher's and student's probability distributions.
-
-$$L = (1-\alpha) L_{CE}(y, \sigma(z_s)) + \alpha T^2 L_{KL}(\sigma(z_t/T), \sigma(z_s/T))$$
-
-Where:
-*   $z_s, z_t$: Logits from the Student and Teacher models.
-*   $\sigma$: Softmax function.
-*   $T$: **Temperature**, a hyperparameter that "softens" the probability distribution to reveal more about the teacher's internal logic.
-*   $\alpha$: Weighting factor between ground truth and teacher guidance.
+The goal is to minimize a loss function $L$that combines standard Cross-Entropy (CE) with Kullback-Leibler (KL) divergence between the teacher's and student's probability distributions.$$L = (1-\alpha) L_{CE}(y, \sigma(z_s)) + \alpha T^2 L_{KL}(\sigma(z_t/T), \sigma(z_s/T))$$Where:
+*$z_s, z_t$: Logits from the Student and Teacher models.
+*$\sigma$: Softmax function.
+*$T$: **Temperature**, a hyperparameter that "softens" the probability distribution to reveal more about the teacher's internal logic.
+*$\alpha$: Weighting factor between ground truth and teacher guidance.
 
 By learning the teacher's "dark knowledge" (the relative probabilities of incorrect tokens), the student model captures subtle reasoning patterns that are absent in raw text-next-token prediction.
 
@@ -60,10 +56,7 @@ SLMs are rarely deployed in FP16/BF16. To fit on mobile devices or 8GB VRAM card
 
 ### Memory Math for Deployment
 For a 3B parameter model (e.g., Phi-3 Mini):
-*   **FP16:** $3 \times 10^9 \times 2 \text{ bytes} \approx 6 \text{ GB}$
-*   **4-bit (Q4):** $3 \times 10^9 \times 0.5 \text{ bytes} + \text{overhead} \approx 1.8 \text{ GB}$
-
-This enables high-speed inference on 4GB VRAM entry-level laptops.
+*   **FP16:**$3 \times 10^9 \times 2 \text{ bytes} \approx 6 \text{ GB}$*   **4-bit (Q4):**$3 \times 10^9 \times 0.5 \text{ bytes} + \text{overhead} \approx 1.8 \text{ GB}$This enables high-speed inference on 4GB VRAM entry-level laptops.
 
 ## 4. Architectural Innovations
 
@@ -71,7 +64,7 @@ This enables high-speed inference on 4GB VRAM entry-level laptops.
 Used in models like Llama-3 8B and Gemma, GQA reduces the memory bandwidth required for the Key-Value (KV) cache by sharing keys and values across multiple query heads. This is critical for maintaining high throughput during long-context generation on edge hardware.
 
 ### Sliding Window Attention (SWA)
-Used in Mistral 7B, SWA allows each layer to attend to a limited window of previous tokens, reducing the computational complexity from $O(n^2)$ to $O(n \times w)$ where $w$ is the window size.
+Used in Mistral 7B, SWA allows each layer to attend to a limited window of previous tokens, reducing the computational complexity from$O(n^2)$to$O(n \times w)$where$w$ is the window size.
 
 ## 5. Practical Implementation: The "Small" Stack
 

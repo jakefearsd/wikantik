@@ -83,6 +83,6 @@ async def shadow_dispatch(request):
 Always track **Tokens Per Success (TPS)**. A new prompt that improves success rate by 2% but increases average tool calls from 3 to 12 is a failed experiment in a production environment.
 
 ## Further Reading
-- [[AgenticWorkflowDesign]] — Architecture patterns for reliable agents.
-- [[LlmEvaluationMetrics]] — Detailed breakdown of ROUGE, BLEU, and BERTScore.
-- [[AgentObservability]] — How to capture the traces needed for L2 testing.
+- [AgenticWorkflowDesign](AgenticWorkflowDesign) — Architecture patterns for reliable agents.
+- [LlmEvaluationMetrics](LlmEvaluationMetrics) — Detailed breakdown of ROUGE, BLEU, and BERTScore.
+- [AgentObservability](AgentObservability) — How to capture the traces needed for L2 testing.

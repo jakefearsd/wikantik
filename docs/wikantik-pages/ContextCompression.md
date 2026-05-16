@@ -49,7 +49,7 @@ For tasks that exceed even large context windows (e.g., analyzing a library of 1
 A "Knowledge Distillation" approach where a long context is passed through a model, which then generates a **Dense Knowledge State**. This state—a list of specific facts, constraints, and observations—is used as the "Short-Term Memory" in subsequent turns, effectively "forgetting" the original verbose text while retaining its meaning.
 
 ## See Also
-- [[EfficientContext]] — Managing the context stack.
-- [[InformationTheory]] — Mathematical foundations of compression.
-- [[VectorIndexingInternals]] — How retrieval feeds the context.
-- [[AgenticAiHub]] — Using compressed context in autonomous agents.
+- [EfficientContext](EfficientContext) — Managing the context stack.
+- [InformationTheory](InformationTheory) — Mathematical foundations of compression.
+- [VectorIndexingInternals](VectorIndexingInternals) — How retrieval feeds the context.
+- [AgenticAiHub](AgenticAiHub) — Using compressed context in autonomous agents.

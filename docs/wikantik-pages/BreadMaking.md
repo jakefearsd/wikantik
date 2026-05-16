@@ -40,7 +40,9 @@ Fermentation is a metabolic cascade driven primarily by yeast (*Saccharomyces ce
 
 ### Yeast Metabolism
 Yeast consumes simple sugars to produce ethanol and carbon dioxide:
-$$\text{C}_6\text{H}_{12}\text{O}_6 \rightarrow 2\text{C}_2\text{H}_5\text{OH} + 2\text{CO}_2$$
+$$
+\text{C}_6\text{H}_{12}\text{O}_6 \rightarrow 2\text{C}_2\text{H}_5\text{OH} + 2\text{CO}_2
+$$
 The rate of gas production is highly sensitive to temperature and sugar concentration. Optimal fermentation typically occurs between 24°C and 28°C.
 
 ### Sourdough and Lactic Acid Bacteria (LAB)

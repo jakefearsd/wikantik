@@ -31,11 +31,11 @@ The profound intersection of Category Theory, Logic, and Type Theory is known as
 
 | Intuitionistic Logic | Type Theory (Programming) | Category Theory |
 | :--- | :--- | :--- |
-| Proposition $P$ | Type $A$ | Object $A$ |
-| Proof of $P \implies Q$ | Function $f: A \to B$ | Morphism $f: A \to B$ |
-| Conjunction $P \land Q$ | Product Type $(A, B)$ | Categorical Product $A \times B$ |
-| Disjunction $P \lor Q$ | Sum Type `Either A B` | Coproduct $A + B$ |
-| Implication $P \implies Q$ | Function Type $A \to B$ | Exponential Object $B^A$ |
+| Proposition $P$| Type$A$| Object$A$|
+| Proof of$P \implies Q$| Function$f: A \to B$| Morphism$f: A \to B$|
+| Conjunction$P \land Q$| Product Type$(A, B)$| Categorical Product$A \times B$|
+| Disjunction$P \lor Q$| Sum Type `Either A B` | Coproduct$A + B$|
+| Implication$P \implies Q$| Function Type$A \to B$| Exponential Object$B^A$|
 
 ## 2. Foundations: Morphisms and Functors
 
@@ -49,18 +49,13 @@ The core shift in CT is moving from internal definitions to external characteriz
 Adjunctions ($L \dashv R$) are the most powerful unifying concept in Category Theory, describing a "best approximation" relationship between two functors.
 
 ### 3.1 The Hom-Set Isomorphism
-An adjunction exists between a Left adjoint $L: \mathcal{C} \to \mathcal{D}$ and a Right adjoint $R: \mathcal{D} \to \mathcal{C}$ if there is a natural bijection between their hom-sets:
-$$\text{Hom}_{\mathcal{D}}(L(C), D) \cong \text{Hom}_{\mathcal{C}}(C, R(D))$$
-
-This is a **Universal Property**. It states that mapping out of a "free" construction $L(C)$ is completely equivalent to mapping into the underlying "forgetful" object $R(D)$.
+An adjunction exists between a Left adjoint$L: \mathcal{C} \to \mathcal{D}$and a Right adjoint$R: \mathcal{D} \to \mathcal{C}$if there is a natural bijection between their hom-sets:$$\text{Hom}_{\mathcal{D}}(L(C), D) \cong \text{Hom}_{\mathcal{C}}(C, R(D))$$This is a **Universal Property**. It states that mapping out of a "free" construction$L(C)$is completely equivalent to mapping into the underlying "forgetful" object$R(D)$.
 
 ### 3.2 Currying: The Exponential Adjunction
-In functional programming, the most famous adjunction is **Currying**. It relates the Product functor and the Exponential (function type) functor:
-$$\text{Hom}(X \times A, Y) \cong \text{Hom}(X, Y^A)$$
-This proves that a function taking two arguments `(X, A) -> Y` is mathematically identical to a function returning a function `X -> (A -> Y)`.
+In functional programming, the most famous adjunction is **Currying**. It relates the Product functor and the Exponential (function type) functor:$$\text{Hom}(X \times A, Y) \cong \text{Hom}(X, Y^A)$$This proves that a function taking two arguments `(X, A) -> Y` is mathematically identical to a function returning a function `X -> (A -> Y)`.
 
 ### 3.3 Monads and Comonads
-Every adjunction $L \dashv R$ automatically generates a **Monad** ($T = R \circ L$) and a **Comonad** ($K = L \circ R$). This is why Monads are prevalent in functional programming (like Haskell); they are the computational "round-trip" of a deeper adjoint relationship, safely encapsulating side-effects within a pure mathematical framework.
+Every adjunction$L \dashv R$automatically generates a **Monad** ($T = R \circ L$) and a **Comonad** ($K = L \circ R$). This is why Monads are prevalent in functional programming (like Haskell); they are the computational "round-trip" of a deeper adjoint relationship, safely encapsulating side-effects within a pure mathematical framework.
 
 ## 4. Topos Theory and Logic
 
@@ -73,7 +68,7 @@ Topos theory bridges logic and geometry. A **Topos** is a category that behaves 
 Standard category theory assumes strict associativity ($A \circ (B \circ C) = (A \circ B) \circ C$). However, in complex physical and topological contexts, equations only hold "up to isomorphism."
 
 *   **Bicategories:** Allow composition to be associative only up to a coherent isomorphism (a 2-morphism).
-*   **$\infty$-Categories (Infinity-Categories):** The ultimate generalization. They handle the failure of all higher coherence laws. Instead of studying simple strict equality, $\infty$-Categories model spaces via **Homotopy Equivalence**, allowing for robust algebraic models of quantum field theory and higher geometry.
+*   **$\infty$-Categories (Infinity-Categories):** The ultimate generalization. They handle the failure of all higher coherence laws. Instead of studying simple strict equality,$\infty$-Categories model spaces via **Homotopy Equivalence**, allowing for robust algebraic models of quantum field theory and higher geometry.
 
 ## See Also
 *   [Mathematics Hub](MathematicsHub)

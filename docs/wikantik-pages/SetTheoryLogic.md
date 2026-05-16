@@ -49,14 +49,14 @@ We measure the size of sets by finding bijections (one-to-one correspondences).
 
 | Symbol | Name | Description | Examples |
 | :--- | :--- | :--- | :--- |
-| $n$ | Finite | A set with a natural number of elements. | $\{1, 2, 3\}$, Empty Set ($\emptyset$) |
-| $\aleph_0$ | Aleph-Null | The smallest infinite cardinality; "Countable." | Integers ($\mathbb{Z}$), Rationals ($\mathbb{Q}$) |
-| $\mathfrak{c}$ or $2^{\aleph_0}$ | Continuum | The cardinality of the real numbers. | Real Numbers ($\mathbb{R}$), Power set $\mathcal{P}(\mathbb{N})$ |
-| $\aleph_1$ | Aleph-One | The next smallest infinity after $\aleph_0$ (under GCH). | The set of all countable ordinals. |
+|$n$| Finite | A set with a natural number of elements. |$\{1, 2, 3\}$, Empty Set ($\emptyset$) |
+|$\aleph_0$| Aleph-Null | The smallest infinite cardinality; "Countable." | Integers ($\mathbb{Z}$), Rationals ($\mathbb{Q}$) |
+|$\mathfrak{c}$or$2^{\aleph_0}$| Continuum | The cardinality of the real numbers. | Real Numbers ($\mathbb{R}$), Power set$\mathcal{P}(\mathbb{N})$|
+|$\aleph_1$| Aleph-One | The next smallest infinity after$\aleph_0$(under GCH). | The set of all countable ordinals. |
 
 ### 2.2 The Continuum Hypothesis (CH)
-A central mystery of set theory is whether there exists a cardinality between $\aleph_0$ and $2^{\aleph_0}$. 
-- **CH States:** $2^{\aleph_0} = \aleph_1$.
+A central mystery of set theory is whether there exists a cardinality between$\aleph_0$and$2^{\aleph_0}$. 
+- **CH States:**$2^{\aleph_0} = \aleph_1$.
 - **Independence:** Kurt Gödel and Paul Cohen proved that CH is **independent** of ZFC; it can neither be proven nor disproven within standard set theory.
 
 ## 3. The Zermelo-Fraenkel Axioms (ZFC)
@@ -64,8 +64,8 @@ A central mystery of set theory is whether there exists a cardinality between $\
 To resolve paradoxes like Russell's ("The set of all sets that do not contain themselves"), mathematics relies on the ZFC axioms.
 
 ### 3.1 Core Axioms (Selection)
-- **Extensionality:** $\forall x \forall y (\forall z (z \in x \iff z \in y) \implies x = y)$ (Sets are defined by their contents).
-- **Power Set:** $\forall x \exists y \forall z (z \in y \iff z \subseteq x)$ (You can always form the set of all subsets).
+- **Extensionality:**$\forall x \forall y (\forall z (z \in x \iff z \in y) \implies x = y)$(Sets are defined by their contents).
+- **Power Set:**$\forall x \exists y \forall z (z \in y \iff z \subseteq x)$(You can always form the set of all subsets).
 - **Axiom of Choice (AC):** Given a collection of non-empty sets, there exists a "choice function" that picks one element from each.
 
 ### 3.2 The Impact of Choice
@@ -75,7 +75,7 @@ AC is essential for proving that **every vector space has a basis**, but it also
 
 ### 4.1 Computer Science: The Relational Model
 The multi-billion dollar database industry (SQL) is built directly on set theory.
-- **Relations:** A table is a set of $n$-tuples.
+- **Relations:** A table is a set of$n$-tuples.
 - **Joins:** These are restricted Cartesian products ($A \times B$).
 - **Type Theory:** In compilers, types are sets of possible values, and subtyping is set inclusion ($A \subseteq B$).
 
@@ -85,23 +85,15 @@ The multi-billion dollar database industry (SQL) is built directly on set theory
 
 ## 5. Formal Definitions and Logic Bridge
 
-The connection between set theory and logic is established by the **Membership Relation** ($\in$). In First-Order Logic, we define:
-
-$$ A \subseteq B \iff \forall x (x \in A \implies x \in B) $$
-
-### 5.1 The Empty Set and Construction
+The connection between set theory and logic is established by the **Membership Relation** ($\in$). In First-Order Logic, we define:$$A \subseteq B \iff \forall x (x \in A \implies x \in B)$$### 5.1 The Empty Set and Construction
 We can build all of mathematics starting from nothing:
-- $0 = \emptyset$
-- $1 = \{0\} = \{\emptyset\}$
-- $2 = \{0, 1\} = \{\emptyset, \{\emptyset\}\}$
-
-This construction (von Neumann ordinals) shows that numbers themselves are merely specific types of sets.
+-$0 = \emptyset$-$1 = \{0\} = \{\emptyset\}$-$2 = \{0, 1\} = \{\emptyset, \{\emptyset\}\}$This construction (von Neumann ordinals) shows that numbers themselves are merely specific types of sets.
 
 ## 6. Common Misconceptions
 
 1. **Sets as Physical Bags:** Sets are abstract; an element is either in or out based on a logical property, not physical containment.
 2. **Infinite = Infinite:** As Cantor showed, the "infinity" of the real line is strictly larger than the "infinity" of the counting numbers.
-3. **Naive Comprehension:** You cannot simply say "the set of all $x$ such that $P(x)$" without a bounding set, or you risk the contradiction of Russell's Paradox.
+3. **Naive Comprehension:** You cannot simply say "the set of all$x$such that$P(x)$" without a bounding set, or you risk the contradiction of Russell's Paradox.
 
 ## Further Reading
 - [PropositionalLogic](PropositionalLogic) — The underlying sentential calculus.

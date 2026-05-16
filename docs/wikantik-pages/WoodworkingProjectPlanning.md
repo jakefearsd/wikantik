@@ -46,15 +46,12 @@ Every species has a specific coefficient for **Radial (R)** and **Tangential (T)
 | **Cherry** | 7.1 | 3.7 | 1.92 |
 
 ### 2.2 Calculating the Change ($\Delta D$)
-To calculate how much a 30" wide tabletop will move between a humid summer (12% MC) and a dry winter (6% MC):
-$$\Delta D = D_i \times C_t \times (\Delta MC)$$
-
-Where:
+To calculate how much a 30" wide tabletop will move between a humid summer (12% MC) and a dry winter (6% MC):$$\Delta D = D_i \times C_t \times (\Delta MC)$$Where:
 *   **$D_i$:** Initial width (30")
 *   **$C_t$:** Tangential coefficient (roughly 0.003 for White Oak per 1% MC change)
 *   **$\Delta MC$:** Change in moisture content (6%)
 
-**Result:** $30 \times 0.003 \times 6 = 0.54"$. Your tabletop will grow or shrink by over **half an inch**. If your joinery doesn't allow for this, the top will crack or the base will be torn apart.
+**Result:**$30 \times 0.003 \times 6 = 0.54"$. Your tabletop will grow or shrink by over **half an inch**. If your joinery doesn't allow for this, the top will crack or the base will be torn apart.
 
 ## 3. Designing for Movement
 

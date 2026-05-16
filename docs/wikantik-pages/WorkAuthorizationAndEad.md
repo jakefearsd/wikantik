@@ -57,7 +57,7 @@ Employers must verify the EAD during the Form I-9 process.
 | **Flexibility** | Unrestricted Employer | Restricted to E-Verify | Unrestricted Employer |
 
 ## See Also
-- [[AdjustmentOfStatusProcess]]
-- [[H1bVisaProcess]]
-- [[ImmigrationPolicyOverview]]
-- [[EmploymentBasedGreenCards]]
+- [AdjustmentOfStatusProcess](AdjustmentOfStatusProcess)
+- [H1bVisaProcess](H1bVisaProcess)
+- [ImmigrationPolicyOverview](ImmigrationPolicyOverview)
+- [EmploymentBasedGreenCards](EmploymentBasedGreenCards)

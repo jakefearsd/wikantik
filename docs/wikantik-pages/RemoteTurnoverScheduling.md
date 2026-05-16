@@ -31,9 +31,7 @@ This treatise explores the state-vector modeling of resources, the construction 
 
 ## I. Foundations: The Operational State Vector ($\mathbf{S}_t$)
 
-We model the site as a dynamic system defined by its instantaneous capacity across five orthogonal dimensions:
-$$\mathbf{S}(t) = \langle \text{Energy}, \text{Water}, \text{Consumables}, \text{Personnel}, \text{Infrastructure\_Health} \rangle$$
-Unlike urban management, where resources are effectively infinite, off-grid scheduling must execute a **Task De-scoping Protocol (TDP)** when the energy state $E(t)$ falls below the threshold required for high-energy turnovers (e.g., industrial laundry).
+We model the site as a dynamic system defined by its instantaneous capacity across five orthogonal dimensions:$$\mathbf{S}(t) = \langle \text{Energy}, \text{Water}, \text{Consumables}, \text{Personnel}, \text{Infrastructure\_Health} \rangle$$Unlike urban management, where resources are effectively infinite, off-grid scheduling must execute a **Task De-scoping Protocol (TDP)** when the energy state$E(t)$falls below the threshold required for high-energy turnovers (e.g., industrial laundry).
 
 ---
 
@@ -49,7 +47,7 @@ Tasks are modeled as nodes in a graph where edges represent physical and resourc
 
 Experts utilize MOO to resolve the inherent conflict between cleanliness, uptime, and resource longevity.
 *   **Pareto Front Analysis:** Identifying the set of schedules that are "non-dominated"—e.g., you cannot increase cleanliness without exhausting the battery buffer. The site manager selects the optimal trade-off point based on current risk tolerance (see [Multi-Objective Optimization](MultiObjectiveOptimization)).
-*   **IoT Integration:** Using real-time [Monitoring and Alerting](MonitoringAndAlerting) to feed the state vector $\mathbf{S}(t)$, allowing the scheduling engine to autonomously shift non-essential tasks to windows of high solar irradiance.
+*   **IoT Integration:** Using real-time [Monitoring and Alerting](MonitoringAndAlerting) to feed the state vector$\mathbf{S}(t)$, allowing the scheduling engine to autonomously shift non-essential tasks to windows of high solar irradiance.
 
 ## Conclusion
 

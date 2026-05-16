@@ -22,11 +22,7 @@ Managing the thermal envelope of a steel-chassis vehicle requires addressing ext
 
 ## 1. Heating: BTU Load Calculation
 
-A standard 144" WB Sprinter has approximately 350 sq ft of interior surface area. To maintain a 40°F temperature differential ($\Delta T$) with an average R-value of 5:
-
-$$Q = \frac{A \times \Delta T}{R} = \frac{350 \times 40}{5} = 2800 \text{ BTU/hr}$$
-
-### Heating Hardware Comparison
+A standard 144" WB Sprinter has approximately 350 sq ft of interior surface area. To maintain a 40°F temperature differential ($\Delta T$) with an average R-value of 5:$$Q = \frac{A \times \Delta T}{R} = \frac{350 \times 40}{5} = 2800 \text{ BTU/hr}$$### Heating Hardware Comparison
 | Unit Type | Output (kW) | Output (BTU) | Fuel Consumption | Notes |
 | :--- | :--- | :--- | :--- | :--- |
 | **2kW Diesel** | 2.0 | ~6,824 | 0.12 - 0.24 L/hr | Sufficient for most vans down to 0°F. |
@@ -47,7 +43,7 @@ Cooling a van is significantly harder than heating due to solar radiation. A whi
 An average human exhales ~40g of water vapor per hour while sleeping. In a 300 cu ft van, this quickly reaches the dew point on cold steel surfaces.
 
 *   **Critical Detail:** Do not use fiberglass insulation; it traps moisture against the skin, causing rust. Use hydrophobic materials like 3M Thinsulate or treated sheep wool (Havelock).
-*   **Active Venting:** A MaxxAir Fan at 10% speed moves ~100 CFM. For a 300 cu ft van, this provides 20 air changes per hour (ACH), sufficient to keep $T_{dp}$ (Dew Point) below the surface temperature of the walls.
+*   **Active Venting:** A MaxxAir Fan at 10% speed moves ~100 CFM. For a 300 cu ft van, this provides 20 air changes per hour (ACH), sufficient to keep$T_{dp}$ (Dew Point) below the surface temperature of the walls.
 
 ---
 **See Also:**

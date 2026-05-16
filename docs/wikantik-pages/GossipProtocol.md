@@ -21,11 +21,7 @@ Gossip protocols (epidemic algorithms) propagate information through a cluster v
 
 ## Mathematical Model: Infection Rate
 
-Information spread in a gossip network follows the logic of a viral infection. In a cluster of $N$ nodes, if each node gossips with $k$ random neighbors every $T$ seconds, the time to achieve full convergence ($t_{conv}$) is:
-
-$$t_{conv} \propto \frac{\log(N)}{\log(k)}$$
-
-Gossip is highly resilient: even if $50\%$ of nodes fail, the rumor still reaches all surviving nodes with $O(\log N)$ latency.
+Information spread in a gossip network follows the logic of a viral infection. In a cluster of $N$nodes, if each node gossips with$k$random neighbors every$T$seconds, the time to achieve full convergence ($t_{conv}$) is:$$t_{conv} \propto \frac{\log(N)}{\log(k)}$$Gossip is highly resilient: even if$50\%$of nodes fail, the rumor still reaches all surviving nodes with$O(\log N)$latency.
 
 ## Protocol Variants
 
@@ -41,7 +37,7 @@ SWIM (Scalable Weakly-consistent Infection-style Membership) decouples failure d
 
 ### 2. Failure Detection (Phi Accrual)
 Instead of a binary "Up/Down" state, nodes track the inter-arrival time of heartbeats.
-- **$\phi$ (Phi):** A value representing the probability that a node has failed.
+- **$\phi$(Phi):** A value representing the probability that a node has failed.
 - **Benefit:** Allows applications to decide their own threshold (e.g., "Wait longer before re-sharding data, but stop routing traffic immediately").
 
 ### 3. State Propagation
@@ -62,12 +58,12 @@ def gossip_round(local_state):
 | Metric | Gossip (Epidemic) | Consensus (Raft/Paxos) |
 |---|---|---|
 | **Consistency** | Eventual | Strong (Linearizable) |
-| **Scalability** | $10,000+$ nodes | $<100$ nodes |
+| **Scalability** |$10,000+$nodes |$<100$nodes |
 | **Coordination** | Peer-to-peer | Leader-based |
 | **Typical Use** | Failure detection, metadata | Transactions, locks |
 
 ## Operational Risks
 
-- **Gossip Storms:** If $k$ or $T$ is misconfigured, the network can be saturated with heartbeat traffic.
+- **Gossip Storms:** If$k$or$T$ is misconfigured, the network can be saturated with heartbeat traffic.
 - **Partition Sensitivity:** In a "split brain," both partitions will maintain their own membership lists. Anti-entropy (periodic full-state sync) is required to heal.
 - **Stale Metadata:** Garbage collection of "tombstones" (records of deleted nodes) is necessary to prevent membership lists from growing infinitely.

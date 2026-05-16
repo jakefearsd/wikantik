@@ -70,6 +70,6 @@ A production System 2 agent doesn't use MCTS for every query. It employs a dynam
 Test-Time Compute moves AI engineering away from "prompt tweaking" and towards classical search optimization. By treating the LLM not as an oracle, but as a node-expansion heuristic in a vast search tree, we can solve problems that are structurally impossible for standard autoregressive models.
 
 ## See Also
-- [[FlowEngineering]] — Deterministic, state-machine orchestration (the opposite approach to tree search).
-- [[AgentReasoning]] — Historical context on CoT and ReAct.
-- [[AiAgentArchitectures]] — Core architectural patterns.
+- [FlowEngineering](FlowEngineering) — Deterministic, state-machine orchestration (the opposite approach to tree search).
+- [AgentReasoning](AgentReasoning) — Historical context on CoT and ReAct.
+- [AiAgentArchitectures](AiAgentArchitectures) — Core architectural patterns.

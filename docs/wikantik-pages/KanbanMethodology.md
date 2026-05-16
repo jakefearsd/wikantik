@@ -18,11 +18,7 @@ Kanban is more than a board; it is a **pull-based system** for managing the flow
 ## I. The Theoretical Foundation
 
 ### A. Little's Law
-The fundamental law of flow states that in a stable system, the average number of items ($L$) is equal to the average arrival rate ($\lambda$) multiplied by the average time an item spends in the system ($W$).
-
-$$L = \lambda W \implies \text{WIP} = \text{Throughput} \times \text{Cycle Time}$$
-
-**The Practitioner's Insight:** To reduce Cycle Time ($W$) without changing your team's throughput capacity ($\lambda$), you **must** reduce the WIP ($L$). Adding more work to the board mathematically guarantees longer wait times.
+The fundamental law of flow states that in a stable system, the average number of items ($L$) is equal to the average arrival rate ($\lambda$) multiplied by the average time an item spends in the system ($W$).$$L = \lambda W \implies \text{WIP} = \text{Throughput} \times \text{Cycle Time}$$**The Practitioner's Insight:** To reduce Cycle Time ($W$) without changing your team's throughput capacity ($\lambda$), you **must** reduce the WIP ($L$). Adding more work to the board mathematically guarantees longer wait times.
 
 ---
 
@@ -33,7 +29,7 @@ WIP limits are non-negotiable constraints applied to columns on a Kanban board.
 | Stage | WIP Limit | Logic |
 | :--- | :--- | :--- |
 | **Ready** | 5 | Prevents the "Backlog Explosion." |
-| **In Dev** | $2 \times \text{Developers}$ | Allows for pairing but prevents context switching. |
+| **In Dev** |$2 \times \text{Developers}$| Allows for pairing but prevents context switching. |
 | **Review** | 2 | Forces the team to "Stop Starting and Start Finishing." |
 | **Testing** | 3 | Prevents a bottleneck at the QA gate. |
 
@@ -64,12 +60,10 @@ Don't guess. Use the **Bottleneck Capacity** method.
 
 1.  Identify the slowest stage in your process (the bottleneck).
 2.  Calculate its capacity ($C$) in items per week.
-3.  Set the WIP limit for the bottleneck stage to $C$.
-4.  Set upstream stages to $C + 1$ (to ensure the bottleneck is never starved).
+3.  Set the WIP limit for the bottleneck stage to$C$.
+4.  Set upstream stages to$C + 1$(to ensure the bottleneck is never starved).
 
-**Formula for Multi-team Flow:**
-$$\text{WIP}_{\text{max}} = \frac{\text{Target Cycle Time}}{\text{Historical Mean Processing Time}}$$
-
+**Formula for Multi-team Flow:**$$\text{WIP}_{\text{max}} = \frac{\text{Target Cycle Time}}{\text{Historical Mean Processing Time}}$$
 ---
 
 ## V. Flow Metrics Practitioner Template (YAML)

@@ -50,8 +50,7 @@ Authorization is a multi-stage validation loop:
 ## III. Quantitative Risk Modeling: Abandonment and SORR
 
 We move from "general advice" to probabilistic risk assessment.
-*   **The Abandonment Variable ($\mathcal{A}$):** Drawing from [Mathematics Hub](MathematicsHub) decision theory, we model risk as a function of absence duration ($T_{absent}$) and processing time ($T_{proc}$):
-    $$\text{Risk}(\mathcal{A}) = f \left( \frac{T_{absent}}{T_{proc}}, \text{Inadmissibility\_Flags} \right)$$
+*   **The Abandonment Variable ($\mathcal{A}$):** Drawing from [Mathematics Hub](MathematicsHub) decision theory, we model risk as a function of absence duration ($T_{absent}$) and processing time ($T_{proc}$):$$\text{Risk}(\mathcal{A}) = f \left( \frac{T_{absent}}{T_{proc}}, \text{Inadmissibility\_Flags} \right)$$
 *   **Consular "Double Jeopardy":** Leaving the U.S. forces the applicant to undergo scrutiny at the point of re-entry. If the underlying case has a high **Finding of Inadmissibility** risk (e.g., criminal history), the "Travel Gap" becomes an acute vulnerability vector.
 
 ## Conclusion

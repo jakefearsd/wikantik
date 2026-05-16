@@ -38,8 +38,7 @@ CN is the process by which a client and server agree upon the most suitable form
 
 ## II. Weighted Selection Algorithms
 
-Server-side selection is modeled as a weighted filtering system. Given a set of supported types $S$, the server calculates a score for each entry in the `Accept` header:
-$$s_{best} = \arg\max_{s_i \in S} \left( Score(s_i, \text{Request}) \right)$$
+Server-side selection is modeled as a weighted filtering system. Given a set of supported types $S$, the server calculates a score for each entry in the `Accept` header:$$s_{best} = \arg\max_{s_i \in S} \left( Score(s_i, \text{Request}) \right)$$
 The logic must account for type specificty (e.g., `application/json` vs `*/*`) and parameter matching (e.g., `version=2.0`). Failure to find a match must result in an HTTP **406 Not Acceptable** response.
 
 ---

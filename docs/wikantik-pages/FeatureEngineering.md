@@ -109,7 +109,7 @@ Expert-level pipelines incorporate **Source Delay** offsets. If a feature has a 
 - **Genomics**: High-dimensional feature screening using **DeepFS** (Deep Feature Screening) for $p \gg n$ scenarios.
 
 ## Further Reading
-- [[MachineLearning]] — Theoretical foundations
-- [[StreamProcessing]] — Real-time materialization (Flink/RisingWave)
-- [[TimeSeriesForecasting]] — Temporal-specific FE patterns
-- [[MLOpsPractices]] — Managing the feature lifecycle at scale
+- [MachineLearning](MachineLearning) — Theoretical foundations
+- [StreamProcessing](StreamProcessing) — Real-time materialization (Flink/RisingWave)
+- [TimeSeriesForecasting](TimeSeriesForecasting) — Temporal-specific FE patterns
+- [MLOpsPractices](MLOpsPractices) — Managing the feature lifecycle at scale

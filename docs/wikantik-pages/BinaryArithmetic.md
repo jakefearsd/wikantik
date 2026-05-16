@@ -80,6 +80,6 @@ Bitwise operations are used to manipulate individual bits within a word. They ar
 - **Logical Right Shift (`>>`)**: Shifts bits to the right. Effectively divides by powers of 2.
 
 ## See Also
-- [[ComputerScienceFoundationsHub]]
-- [[OperatingSystems]]
-- [[DataStructuresHub]]
+- [ComputerScienceFoundationsHub](ComputerScienceFoundationsHub)
+- [OperatingSystems](OperatingSystems)
+- [DataStructuresHub](DataStructuresHub)

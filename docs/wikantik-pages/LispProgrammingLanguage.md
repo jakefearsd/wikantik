@@ -80,7 +80,7 @@ Lisp Machines used a **tagged architecture** where every word in memory included
 | **Ephemeral GC** | Near-zero pause times | Modern ZGC / Shenandoah |
 
 ### Why They Failed: The "Killer Micros"
-The failure of Lisp Machines (and the subsequent "AI Winter") was driven by the **"Worse is Better"** principle. While Symbolics' **Genera** OS was a decade ahead of its time, commodity microprocessors (Sun SPARC, Motorola 68k) benefited from massive economies of scale. By 1987, a $15,000 Sun workstation running an optimized software LISP compiler could outperform a $100,000 custom Lisp Machine.
+The failure of Lisp Machines (and the subsequent "AI Winter") was driven by the **"Worse is Better"** principle. While Symbolics' **Genera** OS was a decade ahead of its time, commodity microprocessors (Sun SPARC, Motorola 68k) benefited from massive economies of scale. By 1987, a $15,000 Sun workstation running an optimized software LISP compiler could outperform a$100,000 custom Lisp Machine.
 
 ## 4. Modern Resurgence: Neuro-Symbolic AI (2025)
 
@@ -93,11 +93,7 @@ As of 2025, LISP is experiencing a resurgence as the "logic layer" in **Neuro-Sy
 
 ## 5. Mathematical Integrity: The Universal Function
 
-The power of LISP is most elegantly expressed in its **Universal Function** ($eval$), which defines the language's semantics in terms of itself.
-
-$$ eval(e, a) = \begin{cases} lookup(e, a) & \text{if } e \text{ is an atom} \\ f(args) & \text{if } e \text{ is a list } (f, args) \end{cases} $$
-
-Where $e$ is an expression and $a$ is an association list of variable bindings. This recursive definition allows LISP to be implemented in a handful of lines of code, a feat that served as the foundation for the first **meta-circular evaluators**.
+The power of LISP is most elegantly expressed in its **Universal Function** ($eval$), which defines the language's semantics in terms of itself.$$eval(e, a) = \begin{cases} lookup(e, a) & \text{if } e \text{ is an atom} \\ f(args) & \text{if } e \text{ is a list } (f, args) \end{cases}$$Where$e$is an expression and$a$ is an association list of variable bindings. This recursive definition allows LISP to be implemented in a handful of lines of code, a feat that served as the foundation for the first **meta-circular evaluators**.
 
 ## See Also
 *   [Distributed Systems Hub](DistributedSystemsHub) — Evolution of computing architectures.

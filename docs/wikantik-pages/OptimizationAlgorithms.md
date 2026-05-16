@@ -93,7 +93,7 @@ Finding the minimum is not just about the algorithm, but the "cooling" schedule.
 *   **Cosine Annealing:** Gradually reduces the step size following a cosine curve, allowing the model to settle into the deepest, narrowest valleys of the loss landscape at the end of training.
 
 ## See Also
-- [[AppliedMathSurvey]] — The map of mathematical tools.
-- [[CalculusRefreshForCS]] — Gradients, Hessians, and Jacobians.
-- [[InformationTheory]] — Understanding the loss function (Cross-Entropy).
-- [[MathematicsHub]] — Central index for math topics.
+- [AppliedMathSurvey](AppliedMathSurvey) — The map of mathematical tools.
+- [CalculusRefreshForCS](CalculusRefreshForCS) — Gradients, Hessians, and Jacobians.
+- [InformationTheory](InformationTheory) — Understanding the loss function (Cross-Entropy).
+- [MathematicsHub](MathematicsHub) — Central index for math topics.

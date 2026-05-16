@@ -33,10 +33,9 @@ Advanced engineers transition from "T-shaped" (deep vertical expertise with broa
 
 ## II. Modeling Career Progression
 
-Career state ($S$) can be modeled as: $S = (T, I, O, L)$
-*   **$T$ (Technical Depth):** Mastery of algorithms, languages, and architectural patterns.
-*   **$I$ (Influence Scope):** The number of teams or products affected by your decisions.
-*   **$O$ (Operational Excellence):** The ability to define and enforce scalable processes.
+Career state ($S$) can be modeled as:$S = (T, I, O, L)$*   **$T$(Technical Depth):** Mastery of algorithms, languages, and architectural patterns.
+*   **$I$(Influence Scope):** The number of teams or products affected by your decisions.
+*   **$O$(Operational Excellence):** The ability to define and enforce scalable processes.
 *   **$L$ (Leadership/Mentorship):** The ability to elevate the skills and autonomy of others.
 
 ---

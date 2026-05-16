@@ -35,9 +35,7 @@ This treatise explores the parametric penalties of L1 and L2, the Bayesian inter
 Regularization is the mathematical management of the **Bias-Variance Tradeoff**.
 *   **Variance:** Sensitivity to training set noise. High variance leads to overfitting.
 *   **Bias:** Inherent error from over-simplification. High bias leads to underfitting.
-*   **The Penalty Function:** We modify the loss $\mathcal{L}$ by adding a regularization term $\Omega(\mathbf{W})$:
-    $$\mathcal{L}_{reg} = \mathcal{L}(\mathcal{D}) + \lambda \cdot \Omega(\mathbf{W})$$
-    The hyperparameter $\lambda$ dictates the strength of the constraint, effectively shrinking the feasible parameter space.
+*   **The Penalty Function:** We modify the loss $\mathcal{L}$by adding a regularization term$\Omega(\mathbf{W})$:$$\mathcal{L}_{reg} = \mathcal{L}(\mathcal{D}) + \lambda \cdot \Omega(\mathbf{W})$$The hyperparameter$\lambda$dictates the strength of the constraint, effectively shrinking the feasible parameter space.
 
 ---
 
@@ -53,7 +51,7 @@ We categorize penalties by their geometric and statistical properties.
 ## III. Architectural Constraints: Dropout
 
 Dropout is a non-parametric constraint applied to the network structure itself.
-*   **Ensemble Approximation:** By randomly zeroing out activations during training with probability $p$, Dropout forces the network to learn an **Ensemble of Exponentially Many** thinned sub-networks. This prevents the "Co-adaptation" of neurons, where features only work in the presence of specific other features.
+*   **Ensemble Approximation:** By randomly zeroing out activations during training with probability$p$, Dropout forces the network to learn an **Ensemble of Exponentially Many** thinned sub-networks. This prevents the "Co-adaptation" of neurons, where features only work in the presence of specific other features.
 *   **Monte Carlo Dropout:** Maintaining dropout at inference time to generate a predictive distribution. This allows for **Uncertainty Quantification (UQ)**, transforming a deterministic point-estimate into a probabilistic model.
 
 ## Conclusion

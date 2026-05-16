@@ -174,7 +174,7 @@ Append to `bin/tests/test-remote.sh`:
 ```bash
 # --- remote.env.example documents all required vars ---
 test_remote_env_example_complete() {
-    [[ -f remote.env.example ]] || fail "remote.env.example missing"
+    [ -f remote.env.example ]( -f remote.env.example ) || fail "remote.env.example missing"
     for var in REMOTE_HOST REMOTE_USER REMOTE_REPO_DIR REMOTE_PAGES_DIR REMOTE_BACKUP_DIR; do
         grep -q "^${var}=" remote.env.example \
             || fail "remote.env.example missing required var ${var}"
@@ -272,7 +272,7 @@ Append to `bin/tests/test-remote.sh`:
 ```bash
 # --- remote.sh exists, is executable, passes bash -n ---
 test_remote_sh_present_and_parses() {
-    [[ -x bin/remote.sh ]] || fail "bin/remote.sh missing or not executable"
+    [ -x bin/remote.sh ]( -x bin/remote.sh ) || fail "bin/remote.sh missing or not executable"
     bash -n bin/remote.sh || fail "bin/remote.sh has syntax errors"
     ok "bin/remote.sh present and parses"
 }
@@ -297,7 +297,7 @@ test_missing_env_clear_error() {
     # No remote.env in tmp. Calling a subcommand must error clearly.
     local out exit_code=0
     out="$(cd "${tmp}" && ./remote.sh status 2>&1)" || exit_code=$?
-    [[ "${exit_code}" -ne 0 ]] || fail "status with no remote.env returned 0; expected non-zero"
+    [ "${exit_code}" -ne 0 ]( "${exit_code}" -ne 0 ) || fail "status with no remote.env returned 0; expected non-zero"
     echo "${out}" | grep -q "remote.env" \
         || fail "missing-env error did not mention remote.env: ${out}"
     rm -rf "${tmp}"
@@ -312,7 +312,7 @@ test_missing_required_var_clear_error() {
     : > "${tmp}/remote.env"
     local out exit_code=0
     out="$(cd "${tmp}" && ./remote.sh status 2>&1)" || exit_code=$?
-    [[ "${exit_code}" -ne 0 ]] || fail "expected non-zero on empty remote.env"
+    [ "${exit_code}" -ne 0 ]( "${exit_code}" -ne 0 ) || fail "expected non-zero on empty remote.env"
     echo "${out}" | grep -q "REMOTE_HOST" \
         || fail "missing-var error did not name REMOTE_HOST: ${out}"
     rm -rf "${tmp}"
@@ -382,7 +382,7 @@ print_main_help() {
 REQUIRED_VARS=(REMOTE_HOST REMOTE_USER REMOTE_REPO_DIR REMOTE_PAGES_DIR REMOTE_BACKUP_DIR)
 
 load_env() {
-    if [[ ! -f remote.env ]]; then
+    if [ ! -f remote.env ]( ! -f remote.env ); then
         echo "remote.sh: remote.env not found in $(pwd)." >&2
         echo "           copy remote.env.example to remote.env and edit it." >&2
         exit 2
@@ -392,7 +392,7 @@ load_env() {
 
     local missing=()
     for v in "${REQUIRED_VARS[@]}"; do
-        if [[ -z "${!v:-}" ]]; then
+        if [ -z "${!v:-}" ]( -z "${!v:-}" ); then
             missing+=("${v}")
         fi
     done
@@ -412,14 +412,14 @@ DRY_RUN=0
 
 # Help with no args: print usage and exit before loading env, so users
 # without a remote.env can still read --help.
-if [[ $# -eq 0 || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+if [| "${1:-}" == "-h" || "${1:-}" == "--help" ]( $# -eq 0 ); then
     print_main_help
     exit 0
 fi
 
 # Strip global flags
 ARGS=()
-while [[ $# -gt 0 ]]; do
+while [ $# -gt 0 ]( $# -gt 0 ); do
     case "$1" in
         --dry-run) DRY_RUN=1; shift ;;
         *) ARGS+=("$1"); shift ;;
@@ -427,7 +427,7 @@ while [[ $# -gt 0 ]]; do
 done
 set -- "${ARGS[@]}"
 
-if [[ $# -eq 0 ]]; then
+if [ $# -eq 0 ]( $# -eq 0 ); then
     print_main_help
     exit 0
 fi
@@ -493,7 +493,7 @@ test_helpers_emit_ssh_with_controlmaster() {
     make_fake_remote_env "${tmp}"
     local out exit_code=0
     out="$(cd "${tmp}" && ./remote.sh --dry-run __selftest 2>&1)" || exit_code=$?
-    [[ "${exit_code}" -eq 0 ]] || fail "__selftest dry-run exit ${exit_code}: ${out}"
+    [ "${exit_code}" -eq 0 ]( "${exit_code}" -eq 0 ) || fail "__selftest dry-run exit ${exit_code}: ${out}"
     echo "${out}" | grep -q "ControlMaster=auto" \
         || fail "_ssh did not include ControlMaster=auto: ${out}"
     echo "${out}" | grep -q "tester@test.example.invalid" \
@@ -525,7 +525,7 @@ _ssh_opts() {
         -o "ControlPersist=10m"
         -o "StrictHostKeyChecking=accept-new"
     )
-    if [[ -n "${SSH_KEY:-}" ]]; then
+    if [ -n "${SSH_KEY:-}" ]( -n "${SSH_KEY:-}" ); then
         opts+=(-i "${SSH_KEY}")
     fi
     printf '%s\0' "${opts[@]}"
@@ -542,7 +542,7 @@ _ssh() {
 _rsync() {
     mkdir -p "${SSH_CONTROL_DIR}" && chmod 700 "${SSH_CONTROL_DIR}"
     local ssh_inline="ssh -o ControlMaster=auto -o ControlPath=${SSH_CONTROL_DIR}/%C -o ControlPersist=10m -o StrictHostKeyChecking=accept-new"
-    if [[ -n "${SSH_KEY:-}" ]]; then
+    if [ -n "${SSH_KEY:-}" ]( -n "${SSH_KEY:-}" ); then
         ssh_inline+=" -i ${SSH_KEY}"
     fi
     _run rsync -e "${ssh_inline}" "$@"
@@ -550,7 +550,7 @@ _rsync() {
 
 # _run CMD ARGS...  — execute (or, under --dry-run, print) the command.
 _run() {
-    if [[ "${DRY_RUN}" -eq 1 ]]; then
+    if [ "${DRY_RUN}" -eq 1 ]( "${DRY_RUN}" -eq 1 ); then
         printf '[dry-run]'
         printf ' %q' "$@"
         printf '\n'
@@ -677,7 +677,7 @@ cmd_up()      { _remote_container up "$@"; }
 cmd_down()    { _remote_container down "$@"; }
 cmd_restart() { _remote_container restart "$@"; }
 cmd_logs() {
-    if [[ $# -eq 0 ]]; then
+    if [ $# -eq 0 ]( $# -eq 0 ); then
         _remote_container logs wikantik
     else
         # Detect whether the user passed -f / --follow. If so and they did not
@@ -690,7 +690,7 @@ cmd_logs() {
                 *) has_service=1 ;;
             esac
         done
-        if [[ "${has_service}" -eq 0 ]]; then
+        if [ "${has_service}" -eq 0 ]( "${has_service}" -eq 0 ); then
             _remote_container logs "$@" wikantik
         else
             _remote_container logs "$@"
@@ -825,7 +825,7 @@ EOF
 
     # Local: ensure the ControlMaster dir exists with 0700 (the _ssh helper also
     # does this, but doing it up-front keeps bootstrap self-contained).
-    if [[ "${DRY_RUN}" -eq 0 ]]; then
+    if [ "${DRY_RUN}" -eq 0 ]( "${DRY_RUN}" -eq 0 ); then
         mkdir -p "${SSH_CONTROL_DIR}" && chmod 700 "${SSH_CONTROL_DIR}"
     else
         echo "[dry-run] mkdir -p ${SSH_CONTROL_DIR} && chmod 700 ${SSH_CONTROL_DIR}"
@@ -850,7 +850,7 @@ EOF
     _rsync -avz --update \
         docker/ "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/docker/"
 
-    if [[ -f .env ]]; then
+    if [ -f .env ]( -f .env ); then
         _rsync -avz --chmod=F600 .env "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/.env"
     else
         echo "remote.sh: warning — no local .env; remote will not start without one." >&2
@@ -967,7 +967,7 @@ cmd_deploy() {
     local skip_build=0
     local health_timeout="${HEALTH_TIMEOUT}"
 
-    while [[ $# -gt 0 ]]; do
+    while [ $# -gt 0 ]( $# -gt 0 ); do
         case "$1" in
             -h|--help)
                 cat <<'EOF'
@@ -999,7 +999,7 @@ EOF
     done
 
     # ---------- 1+2: local build ----------
-    if [[ "${skip_build}" -eq 0 ]]; then
+    if [ "${skip_build}" -eq 0 ]( "${skip_build}" -eq 0 ); then
         _run mvn clean install -T 1C -DskipITs
         _run docker compose -f docker-compose.yml build wikantik
     else
@@ -1013,7 +1013,7 @@ EOF
     _rsync -avz --update --chmod=F644 \
         docker-compose.yml docker-compose.prod.yml \
         "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/"
-    if [[ -f .env ]]; then
+    if [ -f .env ]( -f .env ); then
         _rsync -avz --chmod=F600 .env "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/.env"
     fi
 
@@ -1023,13 +1023,13 @@ EOF
     # ---------- 6: stream image ----------
     # No gzip — 1–10 Gb LAN, CPU > wire-time at compress=1. Reachable
     # in dry-run by composing the commands and routing through _run.
-    if [[ "${DRY_RUN}" -eq 1 ]]; then
+    if [ "${DRY_RUN}" -eq 1 ]( "${DRY_RUN}" -eq 1 ); then
         echo "[dry-run] docker save wikantik:latest | ssh ... 'docker load'"
         # Emit a faux load line for tests/grep:
         echo "[dry-run] (remote) docker load"
     else
         local ssh_inline="ssh -o ControlMaster=auto -o ControlPath=${SSH_CONTROL_DIR}/%C -o ControlPersist=10m -o StrictHostKeyChecking=accept-new"
-        if [[ -n "${SSH_KEY:-}" ]]; then ssh_inline+=" -i ${SSH_KEY}"; fi
+        if [ -n "${SSH_KEY:-}" ]( -n "${SSH_KEY:-}" ); then ssh_inline+=" -i ${SSH_KEY}"; fi
         docker save wikantik:latest | ${ssh_inline} "${REMOTE_USER}@${REMOTE_HOST}" 'docker load'
     fi
 
@@ -1037,7 +1037,7 @@ EOF
     _ssh "cd $(printf '%q' "${REMOTE_REPO_DIR}") && bin/container.sh -e prod up -d"
 
     # ---------- 8: health poll ----------
-    if [[ "${DRY_RUN}" -eq 1 ]]; then
+    if [ "${DRY_RUN}" -eq 1 ]( "${DRY_RUN}" -eq 1 ); then
         echo "[dry-run] poll ${HEALTH_URL} every 3s up to ${health_timeout}s"
         return 0
     fi
@@ -1238,7 +1238,7 @@ cmd_pages_push() {
     local local_dir=""
     local mirror=0
     local assume_yes=0
-    while [[ $# -gt 0 ]]; do
+    while [ $# -gt 0 ]( $# -gt 0 ); do
         case "$1" in
             -h|--help)
                 cat <<'EOF'
@@ -1256,17 +1256,17 @@ EOF
             --mirror) mirror=1; shift ;;
             --yes)    assume_yes=1; shift ;;
             -*) echo "pages-push: unknown flag: $1" >&2; exit 2 ;;
-            *) if [[ -z "${local_dir}" ]]; then local_dir="$1"; shift
+            *) if [ -z "${local_dir}" ]( -z "${local_dir}" ); then local_dir="$1"; shift
                else echo "pages-push: unexpected arg: $1" >&2; exit 2
                fi ;;
         esac
     done
-    [[ -n "${local_dir}" ]] || { echo "pages-push: missing LOCAL_DIR" >&2; exit 2; }
-    [[ -d "${local_dir}" ]] || { echo "pages-push: not a directory: ${local_dir}" >&2; exit 2; }
+    [ -n "${local_dir}" ]( -n "${local_dir}" ) || { echo "pages-push: missing LOCAL_DIR" >&2; exit 2; }
+    [ -d "${local_dir}" ]( -d "${local_dir}" ) || { echo "pages-push: not a directory: ${local_dir}" >&2; exit 2; }
 
     local rsync_args=(-avz --update)
-    if [[ "${mirror}" -eq 1 ]]; then
-        if [[ "${assume_yes}" -ne 1 && "${DRY_RUN}" -ne 1 ]]; then
+    if [ "${mirror}" -eq 1 ]( "${mirror}" -eq 1 ); then
+        if [ "${assume_yes}" -ne 1 && "${DRY_RUN}" -ne 1 ]( "${assume_yes}" -ne 1 && "${DRY_RUN}" -ne 1 ); then
             echo "pages-push --mirror would --delete files on ${REMOTE_HOST}:${REMOTE_PAGES_DIR}."
             echo "Preview of deletions:"
             _rsync -avzn --delete "${local_dir%/}/" \
@@ -1294,7 +1294,7 @@ EOF
             return 0 ;;
     esac
     local_dir="${1:-}"
-    [[ -n "${local_dir}" ]] || { echo "pages-pull: missing LOCAL_DIR" >&2; exit 2; }
+    [ -n "${local_dir}" ]( -n "${local_dir}" ) || { echo "pages-pull: missing LOCAL_DIR" >&2; exit 2; }
     mkdir -p "${local_dir}"
     _rsync -avz --update \
         "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PAGES_DIR}/" \
@@ -1401,7 +1401,7 @@ EOF
     esac
     date_arg="${1:-}"
     local remote_src="${REMOTE_BACKUP_DIR}/daily/"
-    if [[ -n "${date_arg}" ]]; then
+    if [ -n "${date_arg}" ]( -n "${date_arg}" ); then
         remote_src="${REMOTE_BACKUP_DIR}/daily/${date_arg}/"
     fi
     mkdir -p backups
@@ -1425,7 +1425,7 @@ EOF
             return 0 ;;
     esac
     local path="${1:-}"
-    [[ -n "${path}" ]] || { echo "restore: missing REMOTE_PATH" >&2; exit 2; }
+    [ -n "${path}" ]( -n "${path}" ) || { echo "restore: missing REMOTE_PATH" >&2; exit 2; }
     _acquire_deploy_lock
     _remote_container down
     _remote_container restore "${path}"
@@ -1511,7 +1511,7 @@ EOF
 
     echo
     echo "=== health (${HEALTH_URL}) ==="
-    if [[ "${DRY_RUN}" -eq 1 ]]; then
+    if [ "${DRY_RUN}" -eq 1 ]( "${DRY_RUN}" -eq 1 ); then
         echo "[dry-run] curl -sfo /dev/null -w 'HTTP %{http_code}\\n' ${HEALTH_URL}"
     else
         curl -sfo /dev/null -w 'HTTP %{http_code}\n' --max-time 5 "${HEALTH_URL}" \

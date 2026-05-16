@@ -123,8 +123,7 @@ ALTER TABLE kg_proposals
     ADD COLUMN IF NOT EXISTS machine_judged_at  TIMESTAMP,
     ADD COLUMN IF NOT EXISTS machine_model      VARCHAR(64);
 
-DO $$
-BEGIN
+DO $$BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.constraint_column_usage
         WHERE table_name = 'kg_proposals' AND constraint_name = 'kg_proposals_tier_check'
@@ -141,7 +140,7 @@ BEGIN
             ADD CONSTRAINT kg_proposals_human_terminal_check
             CHECK (tier <> 'human' OR status IN ('approved','rejected'));
     END IF;
-END $$;
+END$$;
 
 -- Audit history: every machine and human verdict appends one row.
 CREATE TABLE IF NOT EXISTS kg_proposal_reviews (
@@ -168,8 +167,7 @@ ALTER TABLE kg_edges
     ADD COLUMN IF NOT EXISTS tier                   VARCHAR(16) NOT NULL DEFAULT 'human',
     ADD COLUMN IF NOT EXISTS provenance_proposal_id UUID;
 
-DO $$
-BEGIN
+DO$$BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.constraint_column_usage
         WHERE table_name = 'kg_nodes' AND constraint_name = 'kg_nodes_tier_check'
@@ -186,7 +184,7 @@ BEGIN
             ADD CONSTRAINT kg_edges_tier_check
             CHECK (tier IN ('machine','human'));
     END IF;
-END $$;
+END$$;
 
 CREATE INDEX IF NOT EXISTS kg_nodes_tier_idx           ON kg_nodes (tier);
 CREATE INDEX IF NOT EXISTS kg_nodes_tier_name_idx      ON kg_nodes (tier, name);
@@ -3074,8 +3072,8 @@ set -euo pipefail
 URL_BASE="${WIKANTIK_URL:-http://localhost:8080}"
 TEST_PROPS="$(dirname "$0")/../test.properties"
 
-if [[ ! -f "$TEST_PROPS" ]]; then
-    echo "Missing test.properties at $TEST_PROPS — see CLAUDE.md > Manual Testing Credentials" >&2
+if [ ! -f "$TEST_PROPS" ]( ! -f "$TEST_PROPS" ); then
+    echo "Missing test.properties at$TEST_PROPS — see CLAUDE.md > Manual Testing Credentials" >&2
     exit 2
 fi
 
@@ -3083,15 +3081,15 @@ LOGIN=$(grep '^test.user.login=' "$TEST_PROPS" | cut -d= -f2)
 PASS=$(grep '^test.user.password=' "$TEST_PROPS" | cut -d= -f2)
 
 PROPOSAL_ID=""
-while [[ $# -gt 0 ]]; do
+while [$# -gt 0 ]($# -gt 0 ); do
     case "$1" in
         --proposal-id) PROPOSAL_ID="$2"; shift 2 ;;
         --max-proposals|--report|--dry-run) shift ;; # accepted but currently no-ops; runner uses cron config
-        *) echo "Unknown arg: $1"; exit 2 ;;
+        *) echo "Unknown arg:$1"; exit 2 ;;
     esac
 done
 
-if [[ -n "$PROPOSAL_ID" ]]; then
+if [ -n "$PROPOSAL_ID" ]( -n "$PROPOSAL_ID" ); then
     curl -fsS -u "${LOGIN}:${PASS}" -X POST \
         "${URL_BASE}/admin/knowledge-graph/proposals/${PROPOSAL_ID}/judge"
 else

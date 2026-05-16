@@ -71,6 +71,6 @@ Response: {assistant_response}
 - **SWE-bench:** Real GitHub issues that require the model to edit multiple files.
 
 ## Further Reading
-- [[AgentTesting]] — Moving from single-call metrics to multi-turn trajectory eval.
-- [[AiEvaluationAndBenchmarks]] — How to interpret Leaderboard scores.
-- [[RetrievalExperimentHarness]] — Building a local test suite for RAG.
+- [AgentTesting](AgentTesting) — Moving from single-call metrics to multi-turn trajectory eval.
+- [AiEvaluationAndBenchmarks](AiEvaluationAndBenchmarks) — How to interpret Leaderboard scores.
+- [RetrievalExperimentHarness](RetrievalExperimentHarness) — Building a local test suite for RAG.

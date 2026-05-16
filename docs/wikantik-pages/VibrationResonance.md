@@ -33,18 +33,14 @@ This treatise explores the governing equations of motion, the spatial discretiza
 ## I. Foundations: The Physics of Forced Oscillation
 
 We model the behavioral bedrock using the damped, forced harmonic oscillator equation.
-*   **The Governing Equation:**
-    $$m\ddot{x}(t) + c\dot{x}(t) + kx(t) = F(t)$$
-*   **The Fingerprint Ratio:** Drawing from [Mathematics Hub](MathematicsHub) linear algebra, we define the **Damping Ratio ($\zeta$)** relative to critical damping. In lightly damped systems ($\zeta \ll 1$), the peak amplitude at resonance ($X_{max}$) is inversely proportional to $\zeta$, making the system extremely sensitive to minute changes in material integrity or [Lubrication](BearingMechanics).
+*   **The Governing Equation:**$$m\ddot{x}(t) + c\dot{x}(t) + kx(t) = F(t)$$*   **The Fingerprint Ratio:** Drawing from [Mathematics Hub](MathematicsHub) linear algebra, we define the **Damping Ratio ($\zeta$)** relative to critical damping. In lightly damped systems ($\zeta \ll 1$), the peak amplitude at resonance ($X_{max}$) is inversely proportional to$\zeta$, making the system extremely sensitive to minute changes in material integrity or [Lubrication](BearingMechanics).
 
 ---
 
 ## II. Continuum Modeling: The Eigenvalue Problem
 
 Complex structures cannot be treated as lumped masses. We transition to the **Finite Element Method (FEM)**.
-*   **Modal Analysis:** assuming zero damping, we solve the generalized eigenvalue problem:
-    $$([K] - \omega_n^2 [M]) \{ \phi \} = \{0\}$$
-    Solving this yields the **Natural Frequencies** ($\omega_n$) and the **Mode Shapes** ($\phi$)—the characteristic spatial patterns of deformation associated with each energy state.
+*   **Modal Analysis:** assuming zero damping, we solve the generalized eigenvalue problem:$$([K] - \omega_n^2 [M]) \{ \phi \} = \{0\}$$Solving this yields the **Natural Frequencies** ($\omega_n$) and the **Mode Shapes** ($\phi$)—the characteristic spatial patterns of deformation associated with each energy state.
 *   **Mode Coupling:** In high-precision robotics, we must model the non-linear interaction between modes, where high-frequency transients trigger low-frequency structural resonances.
 
 ---

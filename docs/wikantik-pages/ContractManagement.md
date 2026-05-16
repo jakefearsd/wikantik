@@ -38,9 +38,7 @@ The next generation of CLM moves from static text to executable code.
 
 ### 2.1 The Rise of Smart Contracts
 Utilizing technologies from the [Distributed Systems Hub](DistributedSystemsHub), Smart Contracts (e.g., Solidity on Ethereum) enable self-executing agreements where payment triggers are tied directly to operational metrics. 
-$$\text{Payment} \iff (\text{DeliveryStatus} = \text{Verified}) \land (\text{QualityAudit} = \text{Pass})$$
-
-### 2.2 Verifiable Business Relationships
+$$\text{Payment} \iff (\text{DeliveryStatus} = \text{Verified}) \land (\text{QualityAudit} = \text{Pass})$$### 2.2 Verifiable Business Relationships
 Executable logic ensures that the contract is not a "black box" but a living participant in the supply chain. This is a critical component for [Warehouse Automation Hub](WarehouseAutomationHub) systems where automated replenishment and payment must be cryptographically secured.
 
 ---
@@ -50,9 +48,7 @@ Executable logic ensures that the contract is not a "black box" but a living par
 The shift from CLM as a repository to CLM as a **Decision Engine** is driven by [Machine Learning](MachineLearning).
 
 ### 3.1 Predictive Risk Scoring
-By ingesting historical dispute data and jurisdictional case law, systems can assign a quantitative risk score ($R$) to proposed clauses:
-$$R = w_1 \cdot \text{Deviation} + w_2 \cdot \text{JurisdictionConflict} + w_3 \cdot \text{CounterpartyHistory}$$
-
+By ingesting historical dispute data and jurisdictional case law, systems can assign a quantitative risk score ($R$) to proposed clauses:$$R = w_1 \cdot \text{Deviation} + w_2 \cdot \text{JurisdictionConflict} + w_3 \cdot \text{CounterpartyHistory}$$
 ### 3.2 Automated Redlining
 Modern systems provide "Cognitive Co-Pilots" that not only identify high-risk deviations but suggest the minimum necessary concession to reach a Pareto-optimal equilibrium point for both parties.
 

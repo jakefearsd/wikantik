@@ -65,4 +65,23 @@
         <Bug code="CT"/>
     </Match>
 
+    <!-- ================================================================
+         UWF_UNWRITTEN_FIELD — LlmCall.inputTokens / LlmCall.outputTokens
+         These two fields are deliberate reserved placeholders for a
+         planned token-accounting enhancement — see the LlmCallView
+         javadoc, which documents them as "reserved for a future
+         enhancement". They stay intentionally unwritten until the LLM
+         client layer is extended to surface per-call token counts to
+         the recording wrappers. Not a bug; suppressed by field so a
+         genuine UWF on any other LlmCall field still surfaces.
+    ================================================================ -->
+    <Match>
+        <Class name="com.wikantik.llm.activity.LlmCall"/>
+        <Or>
+            <Field name="inputTokens"/>
+            <Field name="outputTokens"/>
+        </Or>
+        <Bug pattern="UWF_UNWRITTEN_FIELD"/>
+    </Match>
+
 </FindBugsFilter>

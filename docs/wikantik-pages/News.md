@@ -6,6 +6,18 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-16** — test(toc): assert real anchor structure and no-headings case
+
+**2026-05-16** — refactor(toc): delete unreachable TableOfContents plugin and heading-listener code
+
+**2026-05-16** — test(toc): cover numbered=yes and title entity-escaping; align param source
+
+**2026-05-16** — feat(toc): honor title and numbered params in TableOfContents markup
+
+**2026-05-16** — docs(toc): implementation plan — TableOfContents plugin retirement
+
+**2026-05-16** — docs(toc): design — retire dead TableOfContents plugin, wire TOC params
+
 **2026-05-16** — build(spotbugs): document LlmCall reserved-token-field suppression
 
 **2026-05-16** — refactor(rest): remove vestigial engineOverride test-seam scaffolding

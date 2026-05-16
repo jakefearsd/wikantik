@@ -6,6 +6,10 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-16** — fix: escape backticks in entrypoint heredoc comment
+
+**2026-05-16** — deploy: move container Postgres to pgvector pg18
+
 **2026-05-16** — build: bump main to 2.0.1-SNAPSHOT post-release
 
 **2026-05-16** — ci: make ci-cd, codeql, and staging-deploy manual-only

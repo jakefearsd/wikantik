@@ -234,6 +234,27 @@ bin/remote.sh pages-push docs/wikantik-pages  # rsync pages to remote (no --dele
 bin/remote.sh rollback                        # re-promote :rollback image
 ```
 
+**Routine release upgrades** use two wrappers that capture the happy-path
+command sequences as a single `bash` run each:
+
+```bash
+bin/cut-release.sh X.Y.Z       # version bump + CHANGELOG + tag + push → triggers release.yml
+bin/deploy-release.sh X.Y.Z    # pull the published image → bin/remote.sh deploy --skip-build
+```
+
+`cut-release.sh` cuts the release (run a green build first — it does not
+build); once `release.yml` is green, `deploy-release.sh` swaps the image on
+the remote. The DB (named volume `repo_pgdata`) and pages (host bind mount)
+persist across the swap, and the container entrypoint applies any pending
+schema migrations on start — so an upgrade is just an image swap. The
+**first** deploy is the exception: it initialises the DB (restore from a
+`pg_dump`) and the page tree. Full procedure in
+[docs/DockerDeployment.md](docs/DockerDeployment.md).
+
+`remote.env` carries the ssh/host config; the prod container config is a
+gitignored `.env.prod` at the repo root (`remote.sh` ships it to the remote
+as `.env`, preferring it over the dev `.env`).
+
 Prod content lives at `${WIKANTIK_PAGES_DIR}` on the remote host as a
 bind mount — so `rsync` is the source of truth for the page tree,
 independent of container lifecycle. Design doc:

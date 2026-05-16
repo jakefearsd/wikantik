@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-16** — docs: record container-deploy gotchas from the docker1 deployment
+
 **2026-05-16** — fix: escape backticks in entrypoint heredoc comment
 
 **2026-05-16** — deploy: move container Postgres to pgvector pg18

@@ -6,13 +6,25 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-16** — docs: document the wrapper-based release and upgrade flow
+
+**2026-05-16** — deploy: add release/upgrade wrappers, harden remote.sh bootstrap
+
+**2026-05-16** — content: log container-deploy gotchas docs in News
+
 **2026-05-16** — docs: record container-deploy gotchas from the docker1 deployment
+
+**2026-05-16** — content: log pg18 and entrypoint fix in News
 
 **2026-05-16** — fix: escape backticks in entrypoint heredoc comment
 
 **2026-05-16** — deploy: move container Postgres to pgvector pg18
 
+**2026-05-16** — content: log post-release version bump in News
+
 **2026-05-16** — build: bump main to 2.0.1-SNAPSHOT post-release
+
+**2026-05-16** — content: log workflow trigger change in News
 
 **2026-05-16** — ci: make ci-cd, codeql, and staging-deploy manual-only
 

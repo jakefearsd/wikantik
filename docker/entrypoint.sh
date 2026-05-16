@@ -59,7 +59,7 @@ wikantik.cache.allPagesTTL = 60
 
 # PostgreSQL JDBC user/group database — single shared DataSource named
 # jdbc/WikiDatabase. Matches the canonical bare-metal template; the app
-# reads `wikantik.datasource` and binds JDBCUserDatabase + JDBCGroupDatabase
+# reads the wikantik.datasource property and binds JDBCUserDatabase + JDBCGroupDatabase
 # to that one resource.
 wikantik.userdatabase = com.wikantik.auth.user.JDBCUserDatabase
 wikantik.groupdatabase = com.wikantik.auth.authorize.JDBCGroupDatabase

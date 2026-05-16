@@ -33,7 +33,7 @@ Key capabilities:
 - **Page Graph** at `/page-graph` — interactive Cytoscape visualisation of the wikilink graph (backlinks, frontmatter, clusters) with semantic zoom, edge-type filtering, and parallel-edge merging
 - **Knowledge Graph viewer** at `/knowledge-graph` — reader-facing visualisation of the LLM-extracted entity graph with tier filter, node-type colours, provenance/status badges, and a large-graph warning gate
 - **REST API** at `/api/` — full CRUD for pages, attachments, search, history, diffs, backlinks, and the Knowledge Graph snapshot, with ACL-based permission enforcement
-- **Admin MCP server** at `/wikantik-admin-mcp` — 18 tools (page writes, Page Graph link analysis, metadata queries, Knowledge Graph proposals, structural audits, verification stamping), 6 resources, 8 prompts, 3 completions. Bearer-token / API-key authenticated.
+- **Admin MCP server** at `/wikantik-admin-mcp` — 25 tools (page writes, Page Graph link analysis, metadata queries, Knowledge Graph proposals, structural audits, verification stamping), 6 resources, 8 prompts, 3 completions. Bearer-token / API-key authenticated.
 - **Knowledge MCP server** at `/knowledge-mcp` — 16 read-only tools for hybrid retrieval (BM25 + dense + Knowledge Graph rerank), Knowledge Graph traversal, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`), schema discovery, the agent-grade `get_page_for_agent` projection, and batched markdown reads via `read_pages`. Same auth scheme.
 - **OpenAPI tool server** at `/tools/*` — OpenWebUI-compatible OpenAPI 3.1 endpoint exposing `search_wiki` and `get_page` for non-MCP LLM clients
 - **Raw content and change feed** — `GET /wiki/{slug}?format=md|json` and `GET /api/changes?since=…` for search-engine crawlers and RAG ingestion pipelines (see [IndexingSupport.md](IndexingSupport.md))
@@ -98,7 +98,7 @@ flowchart LR
         Admin["/admin/*<br/>Admin REST"]
         Raw["/wiki/{slug}?format=md|json<br/>Raw content for crawlers"]
         Changes["/api/changes?since=…<br/>Change feed"]
-        AdminMCP["/wikantik-admin-mcp<br/>18 admin/write tools"]
+        AdminMCP["/wikantik-admin-mcp<br/>25 admin/write tools"]
         KnowMCP["/knowledge-mcp<br/>16 read-only retrieval tools"]
         Tools["/tools/*<br/>OpenAPI 3.1<br/>(search_wiki, get_page)"]
         Health["/api/health<br/>/metrics"]
@@ -340,7 +340,7 @@ procedure, and the full container guide.
 | `wikantik-cache-memcached` | Distributed cache adapter for Memcached |
 | `wikantik-http` | Servlet filters — CSRF, CORS, CSP, security headers, SPA routing |
 | `wikantik-rest` | REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`) |
-| `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 18 tools (writes + analytics + verification stamping), 6 resources, 8 prompts, 3 completions |
+| `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 25 tools (writes + analytics + verification stamping), 6 resources, 8 prompts, 3 completions |
 | `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 16 read-only retrieval / Knowledge Graph traversal / structural-spine / agent-projection / batched-read tools; also hosts the Knowledge Graph service (pgvector embeddings, co-mention graph, hub discovery) |
 | `wikantik-tools` | OpenAPI 3.1 tool server at `/tools/*` — 2 tools for OpenWebUI-compatible non-MCP clients |
 | `wikantik-extract-cli` | Standalone entity-extractor CLI for offline batch extraction |
@@ -412,7 +412,7 @@ Migrating from a previous Wikantik install? See
 
 Wikantik exposes two independent Model Context Protocol servers (both using the Streamable HTTP transport), plus an OpenAPI 3.1 tool server for non-MCP clients:
 
-**`/wikantik-admin-mcp`** — `wikantik-admin-mcp` module. Admin / write surface for AI-assisted wiki operations: structural-verification checks, Page Graph link and backlink analysis, history and diffs, metadata querying, recent changes, an export/import workflow for bulk editing, Knowledge Graph proposals, page writes, and verification stamping. Exposes **18 tools, 6 resources, 8 prompts, 3 completions**. Authoritative tool list: `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java`. Initializer: `com.wikantik.mcp.McpServerInitializer`.
+**`/wikantik-admin-mcp`** — `wikantik-admin-mcp` module. Admin / write surface for AI-assisted wiki operations: structural-verification checks, Page Graph link and backlink analysis, history and diffs, metadata querying, recent changes, an export/import workflow for bulk editing, Knowledge Graph proposals, page writes, and verification stamping. Exposes **25 tools, 6 resources, 8 prompts, 3 completions**. Authoritative tool list: `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java`. Initializer: `com.wikantik.mcp.McpServerInitializer`.
 
 **`/knowledge-mcp`** — `wikantik-knowledge` module. Read-only retrieval surface designed for coding agents consuming the wiki as a knowledge base: hybrid search (BM25 + dense + Knowledge-Graph rerank), Knowledge Graph schema discovery, node querying, traversal, similarity search, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`), the agent-grade `get_page_for_agent` projection (now also carrying derived `agent_hints` with `prefer_tools` / `prefer_pages`, plus a `summary_synthesized` flag for hub-page overlays), and batched markdown reads via `read_pages` (cap 20). Exposes **16 tools**. Authoritative tool list: `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/`. Initializer: `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 

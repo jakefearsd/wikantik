@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-05-16
+
 ### Added — Admin UI
 
 - `AdminTable` + selection-bar primitives with server-driven pagination,
@@ -29,8 +31,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added — Agent-facing surface
 
-- 18 write/analytics MCP tools on `/wikantik-admin-mcp`.
-- 15 read-only retrieval / Knowledge Graph traversal / structural-spine /
+- 25 write/analytics MCP tools on `/wikantik-admin-mcp`.
+- 16 read-only retrieval / Knowledge Graph traversal / structural-spine /
   agent-projection MCP tools on `/knowledge-mcp`.
 - 2 OpenAPI 3.1 tools on `/tools/*` for OpenWebUI-compatible non-MCP clients.
 - Worked input/output examples on every MCP / OpenAPI tool schema for

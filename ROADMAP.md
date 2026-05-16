@@ -8,15 +8,15 @@ specific past decision was made, see the design specs under
 [`ArchitectureCritique.md`](docs/ArchitectureCritique.md) for honest
 strengths-and-weaknesses self-review.
 
-## Now (target: tag `v1.0.0`)
+## Now (target: tag `v2.0.0`)
 
 The current focus is finishing the release-readiness sweep before
-cutting a public 1.0 tag. Active work:
+cutting a public 2.0 tag. Active work:
 
 - Manual smoke testing pass against the bare-metal deploy.
-- Bump `1.0.0-SNAPSHOT` → `1.0.0`, cut `[1.0.0]` CHANGELOG section,
-  tag `v1.0.0`, let `.github/workflows/release.yml` publish the
-  container image to `ghcr.io/jakefearsd/wikantik:1.0.0` and create
+- Bump `1.0.0-SNAPSHOT` → `2.0.0`, cut `[2.0.0]` CHANGELOG section,
+  tag `v2.0.0`, let `.github/workflows/release.yml` publish the
+  container image to `ghcr.io/jakefearsd/wikantik:2.0.0` and create
   the GitHub Release.
 - README screenshots (reader + admin) once the manual testing pass
   exercises the surfaces.

@@ -49,15 +49,7 @@ public class StructureResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( StructureResource.class );
 
-    private Engine engineOverride;
-
-    void setEngineForTesting( final Engine engine ) { setEngine( engine );
-        this.engineOverride = engine;
-    }
-
-    private Engine engine() {
-        return engineOverride != null ? engineOverride : getEngine();
-    }
+    void setEngineForTesting( final Engine engine ) { setEngine( engine ); }
 
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {

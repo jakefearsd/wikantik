@@ -25,8 +25,6 @@ import com.wikantik.api.pagegraph.StructuralConflict;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.List;
@@ -40,11 +38,8 @@ import java.util.List;
 public class AdminStructuralConflictsResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
-    private static final Logger LOG = LogManager.getLogger( AdminStructuralConflictsResource.class );
 
-    private Engine engineOverride;
-    void setEngineForTesting( final Engine engine ) { this.engineOverride = engine; setEngine( engine ); }
-    private Engine engine() { return engineOverride != null ? engineOverride : getEngine(); }
+    void setEngineForTesting( final Engine engine ) { setEngine( engine ); }
 
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {

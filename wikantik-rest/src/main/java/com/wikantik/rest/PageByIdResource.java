@@ -25,8 +25,6 @@ import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -39,11 +37,8 @@ import java.util.Optional;
 public class PageByIdResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
-    private static final Logger LOG = LogManager.getLogger( PageByIdResource.class );
 
-    private Engine engineOverride;
-    void setEngineForTesting( final Engine engine ) { this.engineOverride = engine; setEngine( engine ); }
-    private Engine engine() { return engineOverride != null ? engineOverride : getEngine(); }
+    void setEngineForTesting( final Engine engine ) { setEngine( engine ); }
 
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {

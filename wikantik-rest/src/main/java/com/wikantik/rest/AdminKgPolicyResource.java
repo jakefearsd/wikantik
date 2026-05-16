@@ -59,14 +59,7 @@ public class AdminKgPolicyResource extends RestServletBase {
 
     private static final long STALE_DAYS_DEFAULT = 90;
 
-    private Engine engineOverride;
-
-    // setEngineForTesting calls setEngine() so that getSubsystems() (which calls
-    // getEngine() on RestServletBase) sees the test engine. engineOverride allows
-    // the private engine() accessor to stay available for any future need.
-    void setEngineForTesting( final Engine engine ) { setEngine( engine ); this.engineOverride = engine; }
-
-    private Engine engine() { return engineOverride != null ? engineOverride : getEngine(); }
+    void setEngineForTesting( final Engine engine ) { setEngine( engine ); }
 
     @Override
     protected void doGet( final HttpServletRequest req, final HttpServletResponse resp ) throws IOException {

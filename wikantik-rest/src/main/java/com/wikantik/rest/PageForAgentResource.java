@@ -32,8 +32,6 @@ import com.wikantik.api.agent.RecentChange;
 import com.wikantik.api.core.Engine;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -50,7 +48,6 @@ import java.util.Optional;
 public class PageForAgentResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
-    private static final Logger LOG = LogManager.getLogger( PageForAgentResource.class );
 
     /**
      * Override the parent's GSON to enable {@code serializeNulls()} — the

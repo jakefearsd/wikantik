@@ -1,8 +1,7 @@
 name: Staging Deploy
 
 on:
-  push:
-    branches: [main]
+  # Manual-only — no per-push staging deploy, to conserve Actions minutes.
   workflow_dispatch:
 
 concurrency:

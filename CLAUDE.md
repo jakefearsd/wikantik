@@ -196,6 +196,26 @@ also accepts `--help`. Underlying compose files at the repo root
 `docker/entrypoint.sh` are still the source of truth — `bin/container.sh`
 is just an ergonomic facade.
 
+**Container deployment gotchas** (learned from the first docker1 deploy,
+2026-05-16):
+- **PostgreSQL image major version is coupled to the volume mount path.**
+  The `db` service runs `pgvector/pgvector:pg18`. The pg18+ Docker images
+  store data under a version-specific subdir and require the volume at
+  `/var/lib/postgresql` — mounting the old `/var/lib/postgresql/data`
+  makes the image refuse to start. Bumping the pg major version means
+  re-checking that mount path. Keep the container pg major version in
+  step with the local dev Postgres: a `pg_dump` restores forward across
+  versions, not backward.
+- **The deploying OS user must be in the `docker` group** on the target
+  host. `bin/remote.sh bootstrap` only checks that the `docker` binary
+  exists, not that the daemon socket is reachable — so it can pass while
+  the actual deploy later fails with a `docker.sock` permission error.
+- **Initialising the DB from an existing dump is a manual sequence**, not
+  something `remote.sh deploy` does (it runs a full `up -d`, and the app
+  entrypoint then migrates an empty schema). Bring up `db` alone, restore
+  the dump (`DROP SCHEMA public CASCADE` first to clear the image's seed
+  schema), then start `wikantik`.
+
 ### Remote container deployment over ssh
 
 `bin/remote.sh` is the single entry point for deploying and administering

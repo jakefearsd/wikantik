@@ -15,8 +15,8 @@ The deployed Wikantik instance includes the following endpoints:
 | `/api/` | REST API (pages, attachments, search, history, knowledge graph) |
 | `/wiki/{slug}?format=md\|json` | Raw content for crawlers and RAG ingestion |
 | `/api/changes?since=…` | Incremental change feed for sync pipelines |
-| `/wikantik-admin-mcp` | Admin MCP server (writes + analytics + verification stamping) — 18 tools |
-| `/knowledge-mcp` | Knowledge MCP server (hybrid retrieval + Knowledge Graph + structural-spine + agent-projection) — 15 tools |
+| `/wikantik-admin-mcp` | Admin MCP server (writes + analytics + verification stamping) — 25 tools |
+| `/knowledge-mcp` | Knowledge MCP server (hybrid retrieval + Knowledge Graph + structural-spine + agent-projection) — 16 tools |
 | `/tools/*` | OpenAPI 3.1 tool server (OpenWebUI-compatible) — 2 tools |
 
 The `wikantik-observability` module provides additional endpoints:
@@ -62,6 +62,16 @@ The following directories contain all of Wikantik's critical data and should be 
 
 Users, groups, and policy grants are stored in the PostgreSQL database — make
 sure to back that up separately alongside the file volumes.
+
+> **PostgreSQL 18+ data directory.** The `db` service uses
+> `pgvector/pgvector:pg18`. From pg18 the official Docker images store the
+> cluster under a version-specific subdirectory and expect the data volume
+> mounted at `/var/lib/postgresql` — **not** the older `/var/lib/postgresql/data`.
+> Mounting the old path makes the image refuse to start. If you bump the
+> Postgres major version, re-check this mount path (and the backup sidecar
+> image: `pg_dump` must be ≥ the server version). Keep the container's
+> Postgres major version in step with your local dev Postgres — `pg_dump`
+> restores forward across versions, not backward.
 
 ### Automated Backups
 

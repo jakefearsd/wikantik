@@ -169,6 +169,15 @@ _run() {
     "$@"
 }
 
+# _local_env_file — the local file shipped to the remote as .env. A prod-only
+# .env.prod wins over .env, so prod deploys never require overwriting the dev
+# .env with prod values. Echoes nothing if neither file exists.
+_local_env_file() {
+    if [[ -f .env.prod ]]; then printf '%s\n' .env.prod
+    elif [[ -f .env ]]; then printf '%s\n' .env
+    fi
+}
+
 # _acquire_deploy_lock — non-blocking probe of the deploy lock. Fails with
 # exit 2 if another deploy/rollback/restore is in progress. Used by all
 # three state-mutating top-level subcommands.
@@ -315,8 +324,10 @@ EOF
     _rsync -avz --update --chmod=F644 \
         docker-compose.yml docker-compose.prod.yml \
         "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/"
-    if [[ -f .env ]]; then
-        _rsync -avz --chmod=F600 .env "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/.env"
+    local env_src
+    env_src="$(_local_env_file)"
+    if [[ -n "${env_src}" ]]; then
+        _rsync -avz --chmod=F600 "${env_src}" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/.env"
     fi
 
     # ---------- 5: tag prior image as :rollback (silent on first deploy) ----------
@@ -390,11 +401,13 @@ bootstrap — first-time remote setup. Idempotent; safe to re-run.
 Usage: bin/remote.sh bootstrap [--dry-run]
 
 Steps:
-  1. Verify `docker` and `docker compose` are present on REMOTE_HOST.
+  1. Verify `docker` + `docker compose` exist AND the daemon is reachable
+     by REMOTE_USER on REMOTE_HOST.
   2. Create REMOTE_REPO_DIR, REMOTE_PAGES_DIR, REMOTE_BACKUP_DIR on the remote.
   3. Create local SSH_CONTROL_DIR (mode 0700) if absent.
-  4. rsync docker-compose.yml + docker-compose.prod.yml + docker/ + bin/ + .env
-     to REMOTE_REPO_DIR.
+  4. rsync docker-compose.yml + docker-compose.prod.yml + docker/ + bin/ and
+     the local env file (.env.prod if present, else .env) to REMOTE_REPO_DIR
+     as .env.
 
 Does NOT:
   - Install docker (distro-specific; if step 1 fails the script tells you what to install).
@@ -413,6 +426,10 @@ EOF
     # 1. Verify docker on remote
     _ssh "command -v docker >/dev/null 2>&1 || { echo 'docker not found on ${REMOTE_HOST} — install docker + docker compose, then re-run bootstrap.' >&2; exit 2; }"
     _ssh "docker compose version >/dev/null 2>&1 || { echo 'docker compose plugin not found on ${REMOTE_HOST} — install it, then re-run bootstrap.' >&2; exit 2; }"
+    # Daemon reachability — not just the binary. A user who can run the docker
+    # CLI but is not in the 'docker' group passes the checks above yet fails
+    # every real command later with a docker.sock permission error.
+    _ssh "docker info >/dev/null 2>&1 || { echo 'cannot reach the Docker daemon on ${REMOTE_HOST} as ${REMOTE_USER} — add the user to the docker group:  sudo usermod -aG docker ${REMOTE_USER}  (then start a fresh login session), and re-run bootstrap.' >&2; exit 2; }"
 
     # 2. Create remote directories
     _ssh "mkdir -p $(printf '%q' "${REMOTE_REPO_DIR}") $(printf '%q' "${REMOTE_PAGES_DIR}") $(printf '%q' "${REMOTE_BACKUP_DIR}")"
@@ -429,11 +446,14 @@ EOF
     _rsync -avz --update \
         docker/ "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/docker/"
 
-    if [[ -f .env ]]; then
-        _rsync -avz --chmod=F600 .env "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/.env"
+    local env_src
+    env_src="$(_local_env_file)"
+    if [[ -n "${env_src}" ]]; then
+        _rsync -avz --chmod=F600 "${env_src}" "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/.env"
+        echo "remote.sh: shipped ${env_src} as ${REMOTE_HOST}:${REMOTE_REPO_DIR}/.env"
     else
-        echo "remote.sh: warning — no local .env; remote will not start without one." >&2
-        echo "           Create .env locally (copy from .env.example) and re-run bootstrap." >&2
+        echo "remote.sh: warning — no local .env.prod or .env; remote will not start without one." >&2
+        echo "           Create .env.prod locally (copy from .env.example) and re-run bootstrap." >&2
     fi
 
     echo "Bootstrap complete on ${REMOTE_HOST}."

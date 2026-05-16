@@ -6,9 +6,17 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-16** — ci: make ci-cd, codeql, and staging-deploy manual-only
+
+**2026-05-16** — content: log release build fix in News
+
 **2026-05-16** — ci: fix release build — skip test execution, not test compilation
 
+**2026-05-16** — content: log 2.0.0 release in News
+
 **2026-05-16** — release: 2.0.0
+
+**2026-05-16** — content: log corpus expansion commit in News
 
 **2026-05-16** — docs: comprehensive high-fidelity expansion of technical and mathematical corpus
 

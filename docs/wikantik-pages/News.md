@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-16** — build: bump main to 2.0.1-SNAPSHOT post-release
+
 **2026-05-16** — ci: make ci-cd, codeql, and staging-deploy manual-only
 
 **2026-05-16** — content: log release build fix in News

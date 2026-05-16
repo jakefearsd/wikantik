@@ -1,5 +1,13 @@
 # Architectural Critique: Wikantik Knowledge Engine
 
+> **Design note (superseded direction).** This critique recommends adopting a
+> Guice-style dependency-injection framework. The project subsequently chose a
+> lighter path — incremental subsystem-factory extraction without an external
+> DI framework (see
+> [`docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md`](superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md),
+> all phases shipped). Treat the diagnosis below as accurate and the Guice
+> prescription as a considered alternative that was not taken.
+
 ## Executive Summary
 Wikantik represents a sophisticated modernization of a legacy codebase (JSPWiki). It successfully introduces "agent-grade" capabilities—such as hybrid retrieval, knowledge graphs, and semantic indexing—into a Java 21/Jakarta EE environment. The code quality is high, characterized by strong design patterns and a robust testing culture. 
 

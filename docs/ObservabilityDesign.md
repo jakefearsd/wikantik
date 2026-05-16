@@ -1,6 +1,6 @@
 # Wikantik Observability System Design
 
-> **Implementation Status:** The observability design described here has been implemented in the `wikantik-observability` module. Health checks are available at `/api/health`, Prometheus metrics at `/metrics`, and request correlation via `X-Request-ID` header. Observability endpoints are IP-restricted to internal networks via `InternalNetworkFilter`.
+> **Implementation Status:** The observability design described here has been implemented in the `wikantik-observability` module. Health checks are available at `/api/health`, Prometheus metrics at `/metrics`, and request correlation via `X-Request-ID` header. Observability endpoints are IP-restricted to internal networks via `InternalNetworkFilter`. The opt-in Prometheus + Grafana overlay (`docker-compose.observability.yml`) provides the metrics-and-dashboard tier — see [DockerDeployment.md](DockerDeployment.md) §3 for how to enable it. The Loki / Promtail log-aggregation tier described below is **design-only** and not currently deployed.
 
 ## Overview
 

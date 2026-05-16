@@ -4,8 +4,7 @@
 [![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
 [![PostgreSQL 15+](https://img.shields.io/badge/PostgreSQL-15%2B-336791.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Tomcat 11.0.22](https://img.shields.io/badge/Tomcat-11.0.22-D22128.svg)](https://tomcat.apache.org/)
-[![CodeQL](https://github.com/jakefearsd/wikantik/actions/workflows/codeql.yml/badge.svg)](https://github.com/jakefearsd/wikantik/actions/workflows/codeql.yml)
-[![CI](https://github.com/jakefearsd/wikantik/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/jakefearsd/wikantik/actions/workflows/ci-cd.yml)
+[![Release](https://github.com/jakefearsd/wikantik/actions/workflows/release.yml/badge.svg)](https://github.com/jakefearsd/wikantik/actions/workflows/release.yml)
 [![Last commit](https://img.shields.io/github/last-commit/jakefearsd/wikantik)](https://github.com/jakefearsd/wikantik/commits/main)
 [![Code of Conduct](https://img.shields.io/badge/Code_of_Conduct-Contributor_Covenant_2.1-blueviolet)](CODE_OF_CONDUCT.md)
 
@@ -40,7 +39,7 @@ Key capabilities:
 - **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60), with Knowledge Graph-aware rerank; fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
 - **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, cache stats), security management (groups and policy grants)
 - **Database-backed authorisation** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
-- **Observability** — health checks, Prometheus metrics at `/metrics`, structured logging with request correlation, IP-restricted to internal networks
+- **Observability** — health checks, Prometheus metrics at `/metrics` (IP-restricted to internal networks), structured logging with request correlation, and an opt-in Prometheus + Grafana overlay shipping a pre-built dashboard
 - **Content clusters** — thematic article groupings with hub pages, sub-clusters, cross-references, and automated structural auditing
 - **NIST 800-63B password validation** — blocklist-checked password strength enforcement for account creation
 - **Frontmatter metadata** — YAML frontmatter for type, tags, summary, cluster, status, and related articles, indexed in Lucene for semantic navigation
@@ -137,7 +136,7 @@ flowchart LR
     AdminMCP --> Ollama
 ```
 
-The reader hot path stays in Lucene + the page filesystem; the agent hot path goes through `/knowledge-mcp` to PostgreSQL + pgvector for hybrid retrieval. The two graph viewers (`/page-graph`, `/knowledge-graph`) hang off the SPA but query different services. Container deploys (`bin/container.sh`) bundle Tomcat + PostgreSQL + pgvector + an optional backup sidecar; bare-metal deploys (`bin/deploy-local.sh`) reuse the host's PostgreSQL.
+The reader hot path stays in Lucene + the page filesystem; the agent hot path goes through `/knowledge-mcp` to PostgreSQL + pgvector for hybrid retrieval. The two graph viewers (`/page-graph`, `/knowledge-graph`) hang off the SPA but query different services. Container deploys bundle Tomcat + PostgreSQL + pgvector + an optional backup sidecar — driven by `bin/container.sh` locally and `bin/remote.sh` for an ssh remote host, with an opt-in Prometheus + Grafana overlay; bare-metal deploys (`bin/deploy-local.sh`) reuse the host's PostgreSQL.
 
 ## Prerequisites
 
@@ -298,7 +297,7 @@ bin/redeploy.sh   # shutdown + rotate catalina.out + swap WAR + startup
 ```
 
 Database schema lives in [`bin/db/migrations/`](bin/db/migrations/README.md)
-(currently V001..V025 — applied idempotently via `schema_migrations`).
+(currently V001..V030 — applied idempotently via `schema_migrations`).
 To bring an existing database up to date (including production), run
 `bin/db/migrate.sh` with connection env vars set.
 
@@ -306,26 +305,55 @@ See [PostgreSQLLocalDeployment.md](docs/PostgreSQLLocalDeployment.md) for the fu
 
 ## Using Docker
 
-The recommended container path is the `bin/container.sh` wrapper around
-`docker compose`:
+Wikantik ships a real Compose stack (`docker-compose.yml` + `dev` / `prod` /
+`test` overlays) and driver scripts. Local and remote run the same
+containers; only how you reach them differs.
+
+**Local stack** — `bin/container.sh` wraps `docker compose`:
 
 ```bash
 cp .env.example .env             # set POSTGRES_PASSWORD, etc.
 bin/container.sh build           # build the wikantik image
-bin/container.sh up -d           # start the dev stack
+bin/container.sh -e prod up -d   # start the prod stack (backup sidecar)
 bin/container.sh logs -f         # tail wikantik logs
-bin/container.sh psql -- -c '\dt'  # peek at the schema
-bin/container.sh -e prod up -d   # production stack with backup sidecar
 bin/container.sh smoke-test      # ephemeral up/health/down on alt ports
 ```
 
-Every subcommand supports `--help`. Underlying compose files
-(`docker-compose{,.dev,.prod,.test}.yml`) and `docker/entrypoint.sh` remain
-the source of truth — `bin/container.sh` is just an ergonomic facade.
+**Remote host** — `bin/remote.sh` deploys and administers Wikantik on an
+ssh-reachable Docker host. Config: `remote.env` (ssh + host paths) and a
+gitignored `.env.prod` (prod container config):
 
-Open http://localhost:8080/. See [DockerDeployment.md](docs/DockerDeployment.md)
-for backups, data persistence, the bare-metal ↔ container migration
-procedure, and the full container guide.
+```bash
+bin/remote.sh bootstrap                       # first-time remote setup
+bin/remote.sh status                          # health + container ps + disk
+bin/remote.sh pages-push docs/wikantik-pages  # rsync the page tree
+bin/remote.sh rollback                        # re-promote the previous image
+```
+
+**Release & upgrade** — two wrappers capture the happy path:
+
+```bash
+bin/cut-release.sh X.Y.Z    # version bump + CHANGELOG + tag + push; the tag
+                            #   triggers release.yml, which builds and publishes
+                            #   ghcr.io/jakefearsd/wikantik:X.Y.Z + a GitHub Release
+bin/deploy-release.sh X.Y.Z # pull that image and deploy it to the remote host
+```
+
+A routine upgrade is an image swap — the Postgres volume and the host-bind
+page tree persist, and the container entrypoint applies any new schema
+migrations on start.
+
+**Observability** — an opt-in overlay adds Prometheus + Grafana:
+
+```bash
+WIKANTIK_OBSERVABILITY=1 bin/container.sh -e prod up -d prometheus grafana
+```
+
+Every subcommand supports `--help`. The compose files and
+`docker/entrypoint.sh` remain the source of truth — the scripts are
+ergonomic facades. See [DockerDeployment.md](docs/DockerDeployment.md) for
+the full guide: first-deploy procedure, DB initialisation, backups,
+monitoring, and the bare-metal ↔ container migration.
 
 ## Module Structure
 
@@ -367,12 +395,12 @@ Migrating from a previous Wikantik install? See
 
 ### Deployment & Operations
 
-- [DockerDeployment.md](docs/DockerDeployment.md) — Docker Compose setup, backups, and restoration
-- [production-container-architecture.md](docs/production-container-architecture.md) — Production architecture with Cloudflare, Tomcat, and PostgreSQL
-- [ci-cd-step-by-step.md](docs/ci-cd-step-by-step.md) — CI/CD pipeline setup with self-hosted runner
-- [migration-1.0-to-1.1.md](docs/migration-1.0-to-1.1.md) — Step-by-step migration guide for upgrading an existing Wikantik install
+- [DockerDeployment.md](docs/DockerDeployment.md) — the container deployment guide: local & remote, first-deploy procedure, the release/upgrade wrappers, DB initialisation, backups, monitoring
+- [production-container-architecture.md](docs/production-container-architecture.md) — production deployment topology: the single-host container stack and the tag-triggered release pipeline
+- [ci-cd-step-by-step.md](docs/ci-cd-step-by-step.md) — the GitHub Actions workflows: tag-triggered `release.yml` plus the manual-only CI workflows
+- [migration-1.0-to-1.1.md](docs/migration-1.0-to-1.1.md) — historical migration notes for an early Wikantik upgrade
 - [SendingEmailFromTheWiki.md](docs/SendingEmailFromTheWiki.md) — SMTP relay setup (Brevo, SendGrid, Mailjet, SES, Resend)
-- [ObservabilityDesign.md](docs/ObservabilityDesign.md) — Grafana, Prometheus, and Loki observability stack
+- [ObservabilityDesign.md](docs/ObservabilityDesign.md) — observability design: request correlation, Micrometer metrics, and the Prometheus + Grafana overlay
 
 ### Features
 

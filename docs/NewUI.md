@@ -48,8 +48,8 @@ forwards SPA paths to `/index.html` so the React router can take over.
 | `/blog/*` | Per-author blog routes (discovery, home, entry, editor) |
 
 The REST API lives under `/api/` (and admin endpoints under `/admin/`), and
-there are two MCP servers: `/wikantik-admin-mcp` (writes + analytics + verification stamping, 18 tools)
-and `/knowledge-mcp` (hybrid retrieval + Knowledge Graph + structural-spine + agent-projection, 15 tools). An OpenAPI tool
+there are two MCP servers: `/wikantik-admin-mcp` (writes + analytics + verification stamping, 25 tools)
+and `/knowledge-mcp` (hybrid retrieval + Knowledge Graph + structural-spine + agent-projection, 16 tools). An OpenAPI tool
 server for non-MCP clients lives at `/tools/*` (`search_wiki`, `get_page`). All are serviced by
 `wikantik-rest`, `wikantik-admin-mcp`, `wikantik-knowledge`, and
 `wikantik-tools` rather than the SPA.

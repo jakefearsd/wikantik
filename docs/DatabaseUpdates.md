@@ -16,7 +16,7 @@ migration in order).
 ## Migration timeline
 
 The migration directory is the source of truth. As of the latest
-release, schema state runs from V001 through V025:
+release, schema state runs from V001 through V030:
 
 | Migration | What it adds |
 |-----------|--------------|
@@ -42,6 +42,11 @@ release, schema state runs from V001 through V025:
 | V023 | **Drop `page_relations`** — typed relations frontmatter (`links_to`, `mentions`, `part_of`) was retired 2026-05-02 in favour of structural-spine `canonical_id` + cluster + tags |
 | V024 | KG staged validation tables — pre-promotion checks before pending proposals become live nodes |
 | V025 | KG judge timeout tracking — record cron-cycle abstain reasons so the operator queue distinguishes "judge timed out" from "judge said no" |
+| V026 | Seed additional `retrieval_query_sets` / `retrieval_queries` rows — expands the retrieval-quality CI query set |
+| V027 | `kg_edges_relationship_type_check` — CHECK constraint restricting `relationship_type` to the allowed vocabulary |
+| V028 | `kg_edge_audit` — audit trail for KG edge create / update / delete |
+| V029 | Extend the `kg_edge_audit` action CHECK to add the `CONFIRM` action |
+| V030 | Broaden the `kg_edges` relationship-type CHECK to allow `generalizes` |
 
 Two follow-up migration policies:
 

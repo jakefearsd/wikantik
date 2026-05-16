@@ -196,6 +196,12 @@ also accepts `--help`. Underlying compose files at the repo root
 `docker/entrypoint.sh` are still the source of truth — `bin/container.sh`
 is just an ergonomic facade.
 
+An opt-in observability overlay (`docker-compose.observability.yml`) adds
+Prometheus + Grafana scraping the app's `/metrics`; enable per-invocation
+with `WIKANTIK_OBSERVABILITY=1`. Datasource + the "Wikantik — Overview"
+dashboard are auto-provisioned from `docker/grafana/`. See
+[docs/DockerDeployment.md](docs/DockerDeployment.md) §3.
+
 **Container deployment gotchas** (learned from the first docker1 deploy,
 2026-05-16):
 - **PostgreSQL image major version is coupled to the volume mount path.**

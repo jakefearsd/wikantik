@@ -1,0 +1,11 @@
+# Auto-provisioned Prometheus datasource for the Wikantik observability stack.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: wikantik-prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

@@ -176,6 +176,34 @@ bin/remote.sh backup-pull [DATE]                      # fetch a snapshot locally
 bin/remote.sh restore REMOTE_PATH                     # sidecar restore + restart
 ```
 
+### Monitoring — Prometheus + Grafana
+
+An opt-in overlay (`docker-compose.observability.yml`) adds a Prometheus +
+Grafana pair that scrapes the app's Micrometer `/metrics` endpoint. It is off
+by default; enable it per-invocation with `WIKANTIK_OBSERVABILITY=1`:
+
+```bash
+# locally
+WIKANTIK_OBSERVABILITY=1 bin/container.sh -e prod up -d prometheus grafana
+# on the remote host
+ssh HOST 'cd ~/wikantik/repo && WIKANTIK_OBSERVABILITY=1 \
+    bin/container.sh -e prod up -d prometheus grafana'
+```
+
+- **Grafana** is published on the host (`GRAFANA_HOST_PORT`, default `3000`)
+  and gated only by its own login (`GRAFANA_ADMIN_PASSWORD` in `.env`).
+  **Prometheus is not published** — only Grafana queries it.
+- The Prometheus datasource and the "Wikantik — Overview" dashboard
+  (JVM, HTTP, and Wikantik-domain panels) are auto-provisioned from
+  `docker/grafana/` — the dashboard JSON is version-controlled.
+- `InternalNetworkFilter` already permits the Docker bridge range
+  (`172.16/12`), so the Prometheus container scrapes `/metrics` with no app
+  change.
+- Metrics + Grafana state persist in named volumes (`prometheus-data`,
+  `grafana-data`); 30-day TSDB retention.
+- Stop monitoring without touching the app:
+  `bin/container.sh -e prod stop prometheus grafana`.
+
 ## 4. External services
 
 The compose stack bundles PostgreSQL + pgvector; everything else is external:

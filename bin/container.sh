@@ -238,6 +238,12 @@ case "${ENV}" in
         ;;
 esac
 
+# Opt-in observability overlay (Prometheus + Grafana). Enable per-invocation
+# with WIKANTIK_OBSERVABILITY=1. Not applicable to the standalone test env.
+if [[ "${WIKANTIK_OBSERVABILITY:-}" == "1" && "${ENV}" != "test" ]]; then
+    COMPOSE_FILES+=(-f docker-compose.observability.yml)
+fi
+
 # ---------- Subcommand dispatch ------------------------------------------
 
 if [[ $# -eq 0 ]]; then

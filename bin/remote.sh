@@ -322,7 +322,7 @@ EOF
 
     # ---------- 4: rsync compose + .env ----------
     _rsync -avz --update --chmod=F644 \
-        docker-compose.yml docker-compose.prod.yml \
+        docker-compose.yml docker-compose.prod.yml docker-compose.observability.yml \
         "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_REPO_DIR}/"
     local env_src
     env_src="$(_local_env_file)"
@@ -435,7 +435,7 @@ EOF
     _ssh "mkdir -p $(printf '%q' "${REMOTE_REPO_DIR}") $(printf '%q' "${REMOTE_PAGES_DIR}") $(printf '%q' "${REMOTE_BACKUP_DIR}")"
 
     # 3. rsync compose stack + bin + docker/ + .env (if present)
-    local files=(docker-compose.yml docker-compose.prod.yml)
+    local files=(docker-compose.yml docker-compose.prod.yml docker-compose.observability.yml)
     # bin/ and docker/ contain helper scripts the remote container.sh invokes
     _rsync -avz --update --chmod=F644 \
         "${files[@]}" \

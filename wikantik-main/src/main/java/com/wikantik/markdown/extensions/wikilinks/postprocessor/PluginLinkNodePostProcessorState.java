@@ -148,7 +148,7 @@ public class PluginLinkNodePostProcessorState implements NodePostProcessorState<
      * @return the parsed parameter map, never {@code null}.
      */
     private Map< String, String > parseTocParameters( final WikantikLink link ) {
-        final String markup = link.getText().toString();
+        final String markup = link.getUrl().toString();
         try {
             final PluginContent pc = PluginContent.parsePluginLine( wikiContext, markup, -1 );
             if( pc != null ) {

@@ -287,6 +287,25 @@ public class MarkdownRendererTest {
     }
 
     @Test
+    public void testTocPluginNumberedParameterAcceptsYes() throws Exception {
+        final String src = "[{TableOfContents numbered=yes}]()\n" +
+                            "# Header 1\n" +
+                            "## Header 2\n";
+        final String html = translate( src );
+        Assertions.assertTrue( html.contains( "<ol>" ),
+                "numbered=yes should also render an ordered list; got: " + html );
+    }
+
+    @Test
+    public void testTocPluginTitleParameterIsEntityEscaped() throws Exception {
+        final String src = "[{TableOfContents title='<b>bold</b>'}]()\n" +
+                            "# Header 1\n";
+        final String html = translate( src );
+        Assertions.assertTrue( html.contains( "<h4 id=\"section-TOC\">&lt;b&gt;bold&lt;/b&gt;</h4>" ),
+                "TOC title should be entity-escaped; got: " + html );
+    }
+
+    @Test
     public void testMarkupExtensionNonExistentPlugin() throws Exception {
         final String src = "[{PampleSlugin text=test}]()";
         Assertions.assertEquals( "<p><span class=\"error\">Wikantik : testpage - Plugin insertion failed: Could not find plugin PampleSlugin</span></p>\n", translate( src ) );

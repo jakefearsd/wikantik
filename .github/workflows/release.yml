@@ -46,8 +46,12 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build WAR (skip tests — we test on every push to main)
-        run: mvn clean package -Dmaven.test.skip -T 1C -B
+      - name: Build WAR (skip running tests — we test on every push to main)
+        # -DskipTests, not -Dmaven.test.skip: test sources must still compile so
+        # wikantik-main's test-jar is produced. wikantik-admin-mcp / wikantik-tools /
+        # wikantik-knowledge declare a test-scoped dependency on it; skipping test
+        # compilation makes that artifact unresolvable and fails the reactor.
+        run: mvn clean package -DskipTests -T 1C -B
 
       - name: Locate WAR
         id: war

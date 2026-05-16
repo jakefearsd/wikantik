@@ -1,16 +1,19 @@
 services:
   db:
-    # pgvector/pgvector:pg17 is required — the KG, hybrid retrieval, and
+    # pgvector/pgvector:pg18 is required — the KG, hybrid retrieval, and
     # Page Graph subsystems all use the `vector` extension. The plain
-    # postgres:17-alpine image does not ship the extension.
-    image: pgvector/pgvector:pg17
+    # postgres:18-alpine image does not ship the extension.
+    image: pgvector/pgvector:pg18
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-wikantik}
       POSTGRES_USER: ${POSTGRES_USER:-wikantik}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGEME}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # pg18+ Docker images store data under a version-specific subdir and
+      # expect the volume at /var/lib/postgresql (not .../data) — mounting
+      # the old .../data path makes the image refuse to start.
+      - pgdata:/var/lib/postgresql
       - ./docker/db:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wikantik} -d ${POSTGRES_DB:-wikantik}"]

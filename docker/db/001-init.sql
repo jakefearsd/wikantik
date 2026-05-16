@@ -3,7 +3,7 @@
 -- The PostgreSQL Docker image creates the user/database from POSTGRES_USER/POSTGRES_DB env vars.
 
 -- pgvector is required by the Knowledge Graph, hybrid retrieval, and Page Graph
--- subsystems. The base image (pgvector/pgvector:pg17) ships the extension —
+-- subsystems. The base image (pgvector/pgvector:pg18) ships the extension —
 -- this enables it in the freshly-created database. IF NOT EXISTS makes it
 -- safe to re-run.
 CREATE EXTENSION IF NOT EXISTS vector;

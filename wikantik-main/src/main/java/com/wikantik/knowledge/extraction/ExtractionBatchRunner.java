@@ -159,13 +159,19 @@ class ExtractionBatchRunner {
                 cap, chunkRepo.listDistinctPageNames().size() );
         }
         counters.setTotalPages( pages.size() );
+        // "?" only when the count query below fails — the dry-run flag has no
+        // bearing on whether the chunk total is known. The previous code logged
+        // a no-op `isDryRun() ? "?" : "?"` ternary, so this slot was always "?".
+        String totalChunksLabel = "?";
         try {
-            counters.setTotalChunks( chunkRepo.stats().totalChunks() );
+            final int totalChunks = chunkRepo.stats().totalChunks();
+            counters.setTotalChunks( totalChunks );
+            totalChunksLabel = Integer.toString( totalChunks );
         } catch ( final RuntimeException e ) {
             LOG.warn( "Bootstrap extraction: failed to precompute total chunk count: {}", e.getMessage() );
         }
         LOG.info( "Bootstrap entity extraction starting: pages={}, chunks={}, forceOverwrite={}, dryRun={}",
-            pages.size(), counters.isDryRun() ? "?" : "?", overwrite, counters.isDryRun() );
+            pages.size(), totalChunksLabel, overwrite, counters.isDryRun() );
 
         // Step 3 — extract per page, in parallel up to concurrency.
         final List< Future< PageOutcome > > futures = new ArrayList<>( pages.size() );

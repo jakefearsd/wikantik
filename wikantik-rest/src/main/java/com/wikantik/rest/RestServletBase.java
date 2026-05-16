@@ -28,7 +28,6 @@ import java.util.TimeZone;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
-import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.permissions.PermissionFilter;
 

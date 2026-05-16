@@ -43,7 +43,6 @@ import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.managers.ReferenceManager;
-import com.wikantik.filters.FilterManager;
 import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 
 

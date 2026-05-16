@@ -18,7 +18,6 @@
  */
 package com.wikantik.its;
 
-import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.WebDriverRunner;
 import com.wikantik.its.environment.Env;

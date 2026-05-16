@@ -18,7 +18,6 @@
  */
 package com.wikantik.rest;
 
-import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.managers.PageManager;

@@ -38,7 +38,6 @@ import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.providers.PageProvider;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
-import com.wikantik.knowledge.MentionIndex;
 import com.wikantik.knowledge.embedding.NodeMentionSimilarity;
 import com.wikantik.search.FrontmatterMetadataCache;
 import com.wikantik.search.SearchManager;

@@ -27,7 +27,6 @@ import java.util.Optional;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.NoSuchPrincipalException;
-import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;

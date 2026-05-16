@@ -26,7 +26,6 @@ import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.NoSuchPrincipalException;
-import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;

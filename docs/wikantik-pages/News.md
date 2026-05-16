@@ -6,6 +6,62 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-16** — build(spotbugs): document LlmCall reserved-token-field suppression
+
+**2026-05-16** — refactor(rest): remove vestigial engineOverride test-seam scaffolding
+
+**2026-05-16** — style: remove 16 unused imports across 5 modules
+
+**2026-05-16** — fix(kg): log real chunk count in extraction startup line
+
+**2026-05-15** — perf(kg): cache compiled mention patterns in MentionAttributor
+
+**2026-05-15** — test(api): cover FrontmatterWriter, PageType, StructuralFilter
+
+**2026-05-15** — fix(mcp): handle null id elements in inspect/review proposals tools
+
+**2026-05-15** — test(api): cover six untested wikantik-api helper classes
+
+**2026-05-15** — fix(admin): forward offset param in listProposalsFiltered
+
+**2026-05-15** — feat(llm-activity): subsystem/status filter chips and colored subsystem badge
+
+**2026-05-15** — feat(llm-activity): add LLM Activity tab to the admin Knowledge page
+
+**2026-05-15** — fix(llm-activity): align LlmActivityTab with admin CSS vocabulary
+
+**2026-05-15** — feat(llm-activity): LlmActivityTab component
+
+**2026-05-15** — feat(llm-activity): getLlmActivity API client method
+
+**2026-05-15** — feat(llm-activity): map /admin/llm-activity servlet
+
+**2026-05-15** — fix(llm-activity): log warnings on bad query parameters
+
+**2026-05-15** — feat(llm-activity): GET /admin/llm-activity snapshot endpoint
+
+**2026-05-15** — feat(llm-activity): install recording decorators during subsystem wiring
+
+**2026-05-15** — feat(llm-activity): recording decorator for TextEmbeddingClient
+
+**2026-05-15** — feat(llm-activity): recording decorator for KgProposalJudgeService
+
+**2026-05-15** — feat(llm-activity): recording decorator for EntityExtractor
+
+**2026-05-15** — feat(llm-activity): static holder for the activity log
+
+**2026-05-15** — test(llm-activity): assert in-flight records survive count-cap eviction
+
+**2026-05-15** — feat(llm-activity): in-memory ring buffer for LLM calls
+
+**2026-05-15** — feat(llm-activity): value types for the LLM activity log
+
+**2026-05-15** — docs(plan): LLM activity view implementation plan
+
+**2026-05-15** — docs(spec): LLM activity view design
+
+**2026-05-15** — content: log recent commits in News
+
 **2026-05-15** — fix(admin): remove orphaned "Sync frontmatter to graph" button
 
 **2026-05-15** — content: log latest commit in News, normalize ToolUse frontmatter

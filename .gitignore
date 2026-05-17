@@ -51,3 +51,6 @@ __pycache__/
 /slop_residue.txt
 /audit_matches.txt
 /audit_results.txt
+
+# Load-test credentials (never commit)
+loadtest/loadtest.env

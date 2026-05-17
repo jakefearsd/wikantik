@@ -136,14 +136,14 @@
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 }
     },
     {
-      "type": "timeseries", "id": 21, "title": "Container CPU",
+      "type": "timeseries", "id": 21, "title": "Container CPU (cores)",
       "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
       "targets": [
         { "refId": "A", "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{job=\"cadvisor\",name=~\".+\"}[5m]))", "legendFormat": "{{name}}",
           "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" } }
       ],
-      "fieldConfig": { "defaults": { "unit": "percentunit", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] }, "tooltip": { "mode": "multi" } }
     },
     {

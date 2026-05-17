@@ -92,6 +92,10 @@ services:
       DATA_SOURCE_NAME: "postgresql://wikantik_exporter:${DB_EXPORTER_PASSWORD}@db:5432/${DB_NAME:-wikantik}?sslmode=disable"
     command:
       - --extend.query-path=/etc/postgres-exporter/queries.yaml
+      # The built-in stat_bgwriter collector queries pg_stat_bgwriter columns
+      # (checkpoints_timed, ...) removed in PostgreSQL 17+; disable it so it
+      # does not error every scrape against the pg18 database.
+      - --no-collector.stat_bgwriter
     volumes:
       - ./docker/postgres-exporter/queries.yaml:/etc/postgres-exporter/queries.yaml:ro
     deploy:

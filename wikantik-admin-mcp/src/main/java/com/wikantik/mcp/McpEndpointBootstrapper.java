@@ -102,7 +102,10 @@ public final class McpEndpointBootstrapper {
         final McpAccessFilter accessFilter = new McpAccessFilter( config, rateLimiter, apiKeyService );
         final FilterRegistration.Dynamic filterReg =
                 servletContext.addFilter( filterName, accessFilter );
-        filterReg.addMappingForUrlPatterns( EnumSet.of( DispatcherType.REQUEST ), false, endpointPath );
+        // isMatchAfter=true: run AFTER web.xml filters (RequestCorrelationFilter,
+        // RequestMetricsFilter) so MCP requests — including denied 403s — are
+        // timed and correlated before the access filter short-circuits the chain.
+        filterReg.addMappingForUrlPatterns( EnumSet.of( DispatcherType.REQUEST ), true, endpointPath );
         filterReg.setAsyncSupported( true );
     }
 

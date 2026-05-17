@@ -138,7 +138,7 @@ class McpServerInitializerTest {
             new McpServerInitializer().contextInitialized( sce );
 
             final ArgumentCaptor< String > patterns = ArgumentCaptor.forClass( String.class );
-            verify( filterReg ).addMappingForUrlPatterns( any(), eq( false ), patterns.capture() );
+            verify( filterReg ).addMappingForUrlPatterns( any(), eq( true ), patterns.capture() );
             assertEquals( "/wikantik-admin-mcp", patterns.getValue(),
                     "MCP filter must guard the /wikantik-admin-mcp endpoint exactly" );
         }

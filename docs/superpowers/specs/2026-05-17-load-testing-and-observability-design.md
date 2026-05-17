@@ -49,11 +49,11 @@ One capability, three parts, delivered together:
 
 Three dashboards result, each a distinct lens:
 
-| Dashboard | Lens |
-|---|---|
-| Wikantik — Overview (existing) | App: JVM, HTTP, wiki/hybrid/agent metrics |
-| Wikantik — Host & Infra (new) | Host, containers, PostgreSQL, vector path |
-| (load-test row on Host & Infra) | Offered load from k6 |
+| Dashboard                       | Lens                                      |
+| ------------------------------- | ----------------------------------------- |
+| Wikantik — Overview (existing)  | App: JVM, HTTP, wiki/hybrid/agent metrics |
+| Wikantik — Host & Infra (new)   | Host, containers, PostgreSQL, vector path |
+| (load-test row on Host & Infra) | Offered load from k6                      |
 
 The observability overlay stays opt-in behind `WIKANTIK_OBSERVABILITY=1`; the
 app and DB run unaffected when it is off.
@@ -64,11 +64,11 @@ app and DB run unaffected when it is off.
 
 Added as services to `docker-compose.observability.yml`:
 
-| Exporter | Image | Scope | Requirements |
-|---|---|---|---|
-| node_exporter | `quay.io/prometheus/node-exporter` | docker1 host: CPU by mode, load avg, RAM/swap, disk I/O + space, network, file descriptors, context switches | `pid: host`; read-only mounts of `/proc`, `/sys`, `/` |
-| cAdvisor | `gcr.io/cadvisor/cadvisor` | per-container CPU%, memory working set vs limit, network, block I/O | read-only mounts of `/`, `/var/run`, `/sys`, `/var/lib/docker` |
-| postgres_exporter | `quay.io/prometheuscommunity/postgres-exporter` | `pg_stat_*`: connections vs `max_connections`, commit/rollback rate, cache hit ratio, tuple ops, locks/deadlocks, DB size; plus a custom query for the embedding table/index | a `wikantik_exporter` DB role |
+| Exporter          | Image                                           | Scope                                                                                                                                                                        | Requirements                                                   |
+| ----------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| node_exporter     | `quay.io/prometheus/node-exporter`              | docker1 host: CPU by mode, load avg, RAM/swap, disk I/O + space, network, file descriptors, context switches                                                                 | `pid: host`; read-only mounts of `/proc`, `/sys`, `/`          |
+| cAdvisor          | `gcr.io/cadvisor/cadvisor`                      | per-container CPU%, memory working set vs limit, network, block I/O                                                                                                          | read-only mounts of `/`, `/var/run`, `/sys`, `/var/lib/docker` |
+| postgres_exporter | `quay.io/prometheuscommunity/postgres-exporter` | `pg_stat_*`: connections vs `max_connections`, commit/rollback rate, cache hit ratio, tuple ops, locks/deadlocks, DB size; plus a custom query for the embedding table/index | a `wikantik_exporter` DB role                                  |
 
 These run only with the overlay enabled. A down exporter surfaces as a Prometheus
 `up == 0` target and never affects the app or DB.
@@ -176,14 +176,14 @@ even if the run aborts. Default runs are read-only and safe to point at prod.
 prints a PASS/FAIL table; any target metric that did not move throws, producing
 a non-zero exit.
 
-| Panel | Metric | Pass condition |
-|---|---|---|
-| Page activity | `wikantik_page_views_total` | Δ > 0 |
-| Searches/s | `http_server_requests_seconds_count{uri="/api/search"}` | Δ > 0 |
-| Hybrid retrieval | `wikantik_search_hybrid_embedder_calls_total` | Δ > 0 |
-| Hybrid retrieval | `wikantik_search_hybrid_vector_index_size` | present, > 0 |
-| Agent & admin traffic | `http_server_requests_seconds_count{uri=~"/knowledge-mcp\|/wikantik-admin-mcp"}` | Δ > 0 |
-| Page activity (`--writes`) | `wikantik_page_edits_total`, `wikantik_page_deletes_total`, `wikantik_auth_logins_total{result="success"}` | Δ > 0 |
+| Panel                      | Metric                                                                                                     | Pass condition |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------- |
+| Page activity              | `wikantik_page_views_total`                                                                                | Δ > 0          |
+| Searches/s                 | `http_server_requests_seconds_count{uri="/api/search"}`                                                    | Δ > 0          |
+| Hybrid retrieval           | `wikantik_search_hybrid_embedder_calls_total`                                                              | Δ > 0          |
+| Hybrid retrieval           | `wikantik_search_hybrid_vector_index_size`                                                                 | present, > 0   |
+| Agent & admin traffic      | `http_server_requests_seconds_count{uri=~"/knowledge-mcp\|/wikantik-admin-mcp"}`                           | Δ > 0          |
+| Page activity (`--writes`) | `wikantik_page_edits_total`, `wikantik_page_deletes_total`, `wikantik_auth_logins_total{result="success"}` | Δ > 0          |
 
 **Reachability constraint.** `/metrics` is `InternalNetworkFilter`-blocked from
 external IPs. `--verify` therefore only works run from inside the network. The

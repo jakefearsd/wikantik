@@ -19,8 +19,11 @@
 package com.wikantik.observability;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.event.WikiPageEvent;
 import com.wikantik.event.WikiSecurityEvent;
+import com.wikantik.filters.FilterManager;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -37,13 +40,16 @@ import static org.junit.jupiter.api.Assertions.*;
 class WikiMetricsTest {
 
     @Mock private Engine engine;
+    @Mock private PageManager pageManager;
+    @Mock private FilterManager filterManager;
+    @Mock private AuthenticationManager authenticationManager;
     private SimpleMeterRegistry registry;
     private WikiMetrics wikiMetrics;
 
     @BeforeEach
     void setUp() {
         registry = new SimpleMeterRegistry();
-        wikiMetrics = new WikiMetrics( registry, engine );
+        wikiMetrics = new WikiMetrics( registry, engine, pageManager, filterManager, authenticationManager );
     }
 
     @Test
@@ -57,8 +63,8 @@ class WikiMetricsTest {
     }
 
     @Test
-    void incrementsPageEditsOnPostSave() {
-        wikiMetrics.actionPerformed( new WikiPageEvent( engine, WikiPageEvent.POST_SAVE, "Main" ) );
+    void incrementsPageEditsOnPostSaveEnd() {
+        wikiMetrics.actionPerformed( new WikiPageEvent( engine, WikiPageEvent.POST_SAVE_END, "Main" ) );
 
         final Counter counter = registry.find( "wikantik.page.edits" ).counter();
         assertNotNull( counter );

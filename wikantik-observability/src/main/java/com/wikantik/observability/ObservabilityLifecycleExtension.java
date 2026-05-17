@@ -18,9 +18,13 @@
  */
 package com.wikantik.observability;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.engine.EngineLifecycleExtension;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.observability.MeterRegistryHolder;
+import com.wikantik.auth.AuthenticationManager;
+import com.wikantik.filters.FilterManager;
 import com.wikantik.observability.health.DatabaseHealthCheck;
 import com.wikantik.observability.health.EngineHealthCheck;
 import com.wikantik.observability.health.HealthCheck;
@@ -134,7 +138,16 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
 
         // Wiki-specific event-driven metrics — hold a strong reference so the
         // listener is not collected by GC (WikiEventManager uses WeakReferences).
-        this.wikiMetrics = new WikiMetrics( registry, engine );
+        // Resolve per-manager instances directly when the engine is a WikiEngine.
+        // In test environments the engine may be a mock (not a real WikiEngine);
+        // null managers are handled gracefully by WikiMetrics (logged as WARN).
+        final WikiEngine wikiEngine = engine instanceof WikiEngine we ? we : null;
+        this.wikiMetrics = new WikiMetrics(
+                registry,
+                engine,
+                wikiEngine != null ? wikiEngine.getManager( PageManager.class )         : null,
+                wikiEngine != null ? wikiEngine.getManager( FilterManager.class )        : null,
+                wikiEngine != null ? wikiEngine.getManager( AuthenticationManager.class ): null );
 
         // Health checks
         final String datasource = properties.getProperty( PROP_DB_DATASOURCE, DEFAULT_DB_DATASOURCE );
@@ -144,11 +157,16 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
                 new SearchIndexHealthCheck( engine )
         );
 
-        // Store in ServletContext for HealthServlet and MetricsServlet
+        // Store in ServletContext for HealthServlet and MetricsServlet.
+        // Also store the extension instance itself so the JVM cannot collect it
+        // (and thereby collect wikiMetrics) while the engine is running.
+        // ServiceLoader.load() is a local call in Engine#start(); without an
+        // anchor here the extension is eligible for GC as soon as start() returns.
         final ServletContext ctx = engine.getServletContext();
         if ( ctx != null ) {
             ctx.setAttribute( HealthServlet.HEALTH_CHECKS_ATTR, healthChecks );
             ctx.setAttribute( MetricsServlet.REGISTRY_ATTR, registry );
+            ctx.setAttribute( ObservabilityLifecycleExtension.class.getName(), this );
             LOG.info( "Observability initialized: {} health checks, Prometheus metrics at /metrics",
                     healthChecks.size() );
         } else {

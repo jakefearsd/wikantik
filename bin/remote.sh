@@ -312,7 +312,10 @@ EOF
     # ---------- 1+2: local build ----------
     if [[ "${skip_build}" -eq 0 ]]; then
         _run mvn clean install -T 1C -DskipITs
-        _run docker compose -f docker-compose.yml build wikantik
+        # Build the image through the container.sh facade so there is a
+        # single source of truth for the compose invocation. The wikantik
+        # build context lives in the base docker-compose.yml.
+        _run bin/container.sh build wikantik
     else
         echo "remote.sh: --skip-build set; reusing wikantik:latest from local docker daemon."
     fi

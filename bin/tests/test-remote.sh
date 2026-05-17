@@ -66,6 +66,21 @@ test_prod_pages_bind_mount() {
 
 test_prod_pages_bind_mount
 
+# --- compose: the base compose must carry the wikantik build context ---
+# Regression guard. The build context used to live only in
+# docker-compose.prod.yml; both `container.sh build` and `remote.sh deploy`
+# build against the *base* compose, so a base with no wikantik `build:` makes
+# the build a silent no-op ("No services to build") that ships a stale image.
+test_base_compose_has_wikantik_build() {
+    local out
+    out="$(docker compose -f docker-compose.yml config 2>/dev/null)" \
+        || fail "docker compose config rejected the base compose"
+    echo "${out}" | grep -q "context: ${REPO_ROOT}" \
+        || fail "base docker-compose.yml has no wikantik build context"
+    ok "base compose carries the wikantik build context"
+}
+test_base_compose_has_wikantik_build
+
 # --- remote.env.example documents all required vars ---
 test_remote_env_example_complete() {
     [[ -f remote.env.example ]] || fail "remote.env.example missing"
@@ -248,6 +263,22 @@ test_deploy_help() {
 }
 test_deploy_dry_run_shape
 test_deploy_help
+
+# --- deploy without --skip-build runs the Maven + image build ---
+_body_deploy_dry_run_builds() {
+    local out
+    out="$("${FAKE_ENV}/bin/remote.sh" --dry-run deploy 2>&1)" \
+        || fail "deploy dry-run (with build) non-zero: ${out}"
+    echo "${out}" | grep -q "mvn clean install" \
+        || fail "deploy did not run the Maven build: ${out}"
+    echo "${out}" | grep -q "container.sh build" \
+        || fail "deploy did not build the image via container.sh: ${out}"
+}
+test_deploy_dry_run_builds() {
+    with_fake_env _body_deploy_dry_run_builds
+    ok "deploy (no --skip-build) runs mvn + container.sh build"
+}
+test_deploy_dry_run_builds
 
 _body_rollback_dry_run() {
     local out

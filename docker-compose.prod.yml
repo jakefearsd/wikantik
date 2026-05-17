@@ -11,8 +11,7 @@ services:
           memory: 512M
 
   wikantik:
-    # Build from source if no pre-built image exists (fallback before CI/CD is set up)
-    build: .
+    # Build context is inherited from the base docker-compose.yml.
     restart: always
     deploy:
       resources:

@@ -23,6 +23,15 @@ services:
 
   wikantik:
     image: wikantik:latest
+    # Build context for the prod image. With `image:` set, `docker compose
+    # build` tags the result as wikantik:latest. The base compose owns this
+    # so `container.sh build` and `remote.sh deploy` — both of which build
+    # against the base compose — actually rebuild the image instead of
+    # silently shipping a stale one. docker-compose.dev.yml overrides
+    # dockerfile: Dockerfile.dev.
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       db:

@@ -50,6 +50,55 @@ services:
         limits:
           memory: 512M
 
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:v1.8.2
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    volumes:
+      - /:/host:ro,rslave
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.16.0
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      DATA_SOURCE_NAME: "postgresql://wikantik_exporter:${DB_EXPORTER_PASSWORD}@db:5432/${DB_NAME:-wikantik}?sslmode=disable"
+    command:
+      - --extend.query-path=/etc/postgres-exporter/queries.yaml
+    volumes:
+      - ./docker/postgres-exporter/queries.yaml:/etc/postgres-exporter/queries.yaml:ro
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
 volumes:
   prometheus-data:
   grafana-data:

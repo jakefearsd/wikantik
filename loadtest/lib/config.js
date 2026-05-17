@@ -67,6 +67,10 @@ export function buildOptions(cfg) {
   return {
     scenarios,
     thresholds: {
+      // Page/search/write traffic must stay clean. MCP and tools probes are
+      // exempted per-request (responseCallback in endpoints.js) because a
+      // protocol/auth 4xx there is expected recorded traffic, not a server
+      // failure — so they do not inflate this rate.
       http_req_failed: ['rate<0.10'],
       http_req_duration: ['p(95)<2000'],
       verify_failures: ['count==0'],
@@ -80,6 +84,9 @@ export function verifyTargets(cfg) {
     { label: 'Page views', name: 'wikantik_page_views_total', mode: 'increased' },
     { label: 'Searches (/api/search)', name: 'http_server_requests_seconds_count',
       match: { uri: '/api/search' }, mode: 'increased' },
+    /* 'increased' — correct for the smoke gate's intended use (a freshly
+       deployed app, embedder cache cold). A repeat run against a warm
+       process may cache-hit and legitimately not move this counter. */
     { label: 'Hybrid embedder calls', name: 'wikantik_search_hybrid_embedder_calls_total',
       mode: 'increased' },
     { label: 'Vector index size', name: 'wikantik_search_hybrid_vector_index_size',

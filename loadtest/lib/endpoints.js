@@ -35,9 +35,15 @@ export function mcpCall(cfg, path) {
   const res = http.post(`${cfg.baseUrl}${path}`, body, {
     headers: {
       'Content-Type': 'application/json',
+      Accept: 'application/json, text/event-stream',
       Authorization: `Bearer ${cfg.mcpKey}`,
     },
     tags: { surface: 'mcp' },
+    // An MCP probe rejected at the protocol/auth layer answers 4xx — that is
+    // still recorded agent traffic (the point of the probe), not a server
+    // failure. Count 2xx-4xx as expected here so MCP probes never inflate the
+    // global http_req_failed rate; a 5xx still fails the run.
+    responseCallback: http.expectedStatuses({ min: 200, max: 499 }),
   });
   // 401 is recorded traffic too, but warn so a bad key is not silent.
   if (res.status === 401) {
@@ -52,6 +58,9 @@ export function toolsCall(cfg) {
   const res = http.get(`${cfg.baseUrl}/tools/search_wiki?q=monitoring`, {
     headers: cfg.toolsKey ? { Authorization: `Bearer ${cfg.toolsKey}` } : {},
     tags: { surface: 'tools' },
+    // As with MCP: a tools probe rejected at the auth layer (4xx) is expected
+    // recorded traffic, not a server failure — keep it out of http_req_failed.
+    responseCallback: http.expectedStatuses({ min: 200, max: 499 }),
   });
   check(res, { 'tools reached app': (r) => r.status !== 0 });
   return res;
@@ -72,7 +81,7 @@ export function login(cfg) {
  * (cookie is held in the per-VU jar).
  */
 export function writeCycle(cfg, vu, iter) {
-  const name = `LoadTest/k6-${vu}-${iter}`;
+  const name = `LoadTestK6-${vu}-${iter}`;
   const url = `${cfg.baseUrl}/api/pages/${encodeURIComponent(name)}`;
   const headers = { 'Content-Type': 'application/json' };
   const create = http.put(url,

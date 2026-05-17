@@ -86,9 +86,36 @@ K6_ARGS=(run
 [[ -n "${VUS}" ]] && K6_ARGS+=(-e "K6_VUS=${VUS}")
 K6_ARGS+=(wikantik-load.js)
 
+# k6 remote-writes its own metrics (offered RPS, VUs, latency) to Prometheus
+# when K6_PROMETHEUS_RW_SERVER_URL is set.
+K6_OUT_ARGS=()
+if [[ -n "${K6_PROMETHEUS_RW_SERVER_URL:-}" ]]; then
+  K6_OUT_ARGS+=(--out experimental-prometheus-rw)
+fi
+
+# Best-effort Grafana region annotation around the run.
+post_annotation() {
+  [[ -z "${GRAFANA_URL:-}" || -z "${GRAFANA_TOKEN:-}" ]] && return 0
+  curl -s -o /dev/null -X POST "${GRAFANA_URL}/api/annotations" \
+    -H "Authorization: Bearer ${GRAFANA_TOKEN}" \
+    -H 'Content-Type: application/json' \
+    -d "$1" || echo "WARN: Grafana annotation POST failed" >&2
+}
+
 if [[ "${DRY_RUN}" == 1 ]]; then
-  echo "cd ${LOADTEST_DIR} && k6 ${K6_ARGS[*]}"
+  echo "cd ${LOADTEST_DIR} && k6 ${K6_ARGS[*]} ${K6_OUT_ARGS[*]}"
   exit 0
 fi
+
+START_MS=$(( $(date +%s) * 1000 ))
+post_annotation "{\"time\":${START_MS},\"tags\":[\"loadtest\",\"${PROFILE}\"],\"text\":\"loadtest ${PROFILE} start\"}"
+
 cd "${LOADTEST_DIR}"
-exec k6 "${K6_ARGS[@]}"
+set +e
+k6 "${K6_ARGS[@]}" "${K6_OUT_ARGS[@]}"
+K6_EXIT=$?
+set -e
+
+END_MS=$(( $(date +%s) * 1000 ))
+post_annotation "{\"time\":${START_MS},\"timeEnd\":${END_MS},\"tags\":[\"loadtest\",\"${PROFILE}\"],\"text\":\"loadtest ${PROFILE} finished (exit ${K6_EXIT})\"}"
+exit "${K6_EXIT}"

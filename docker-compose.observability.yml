@@ -20,7 +20,11 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=30d
-    # No published port — only Grafana (same network) queries Prometheus.
+      - --web.enable-remote-write-receiver
+    # Published on loopback only — lets a host-side k6 remote-write its
+    # metrics in. Not LAN- or internet-facing.
+    ports:
+      - "127.0.0.1:9090:9090"
     deploy:
       resources:
         limits:

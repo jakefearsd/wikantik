@@ -304,6 +304,32 @@
       ],
       "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 0 } }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "type": "row", "id": 50, "title": "Load test (k6)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 109 }
+    },
+    {
+      "type": "timeseries", "id": 51, "title": "Offered request rate",
+      "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 110 },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(k6_http_reqs_total[1m]))", "legendFormat": "requests/s",
+          "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] }, "tooltip": { "mode": "single" } }
+    },
+    {
+      "type": "timeseries", "id": 52, "title": "Active VUs",
+      "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 110 },
+      "targets": [
+        { "refId": "A", "expr": "k6_vus", "legendFormat": "VUs",
+          "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 0 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] }, "tooltip": { "mode": "single" } }
     }
   ]
 }

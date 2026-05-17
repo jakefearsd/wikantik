@@ -204,6 +204,18 @@ ssh HOST 'cd ~/wikantik/repo && WIKANTIK_OBSERVABILITY=1 \
 - Stop monitoring without touching the app:
   `bin/container.sh -e prod stop prometheus grafana`.
 
+Three additional exporters ship in the same overlay: `node-exporter` (host
+CPU / memory / disk / network), `cAdvisor` (per-container resource use), and
+`postgres-exporter` (PostgreSQL query stats, connections, replication). The
+`V031` migration auto-applies on deploy via `migrate.sh` and creates a
+`wikantik_exporter` PostgreSQL monitoring role. Before deploying, set
+`DB_EXPORTER_PASSWORD` in the prod env file (`.env.prod` → shipped as
+`.env`); if it is absent the role is created `NOLOGIN` and the
+postgres-exporter scrapes return no data. A second auto-provisioned Grafana
+dashboard, **"Wikantik — Host & Infra"**, surfaces host, container,
+PostgreSQL, and vector-search strain in a single view alongside the existing
+"Wikantik — Overview" application dashboard.
+
 ## 4. External services
 
 The compose stack bundles PostgreSQL + pgvector; everything else is external:

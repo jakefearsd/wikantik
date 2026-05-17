@@ -202,6 +202,17 @@ with `WIKANTIK_OBSERVABILITY=1`. Datasource + the "Wikantik — Overview"
 dashboard are auto-provisioned from `docker/grafana/`. See
 [docs/DockerDeployment.md](docs/DockerDeployment.md) §3.
 
+### Load testing
+
+`bin/loadtest.sh <smoke|load|stress>` runs the k6 harness in `loadtest/`
+against an instrumented set of endpoints. `--verify` scrapes `/metrics`
+before and after and fails if a target dashboard panel did not move;
+`--writes` adds an authenticated edit/delete cycle. The observability
+overlay's new "Wikantik — Host & Infra" dashboard shows host, container,
+PostgreSQL, and vector-search strain; with the overlay up, k6 remote-writes
+its own metrics into Prometheus so offered load and host response share a
+timeline. See `loadtest/README.md`.
+
 **Container deployment gotchas** (learned from the first docker1 deploy,
 2026-05-16):
 - **PostgreSQL image major version is coupled to the volume mount path.**

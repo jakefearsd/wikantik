@@ -6,7 +6,21 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-17** — deploy: add node-exporter, cAdvisor, and postgres-exporter to the observability overlay with a new "Wikantik — Host & Infra" Grafana dashboard
+
+**2026-05-17** — deploy: add V031 migration creating the wikantik_exporter PostgreSQL monitoring role
+
+**2026-05-17** — feat: add k6 load-test harness under loadtest/ driven by bin/loadtest.sh with smoke/load/stress profiles and --verify metrics-delta gate
+
+**2026-05-17** — feat: remote-write k6 metrics into Prometheus so offered load and host strain share a timeline
+
+**2026-05-17** — feat: add wikantik_search_hybrid_embedder_latency Timer for query-embedder latency
+
+**2026-05-17** — content: log the metrics fix in News
+
 **2026-05-17** — fix(metrics): wire the dead page-view counter and measure agent traffic
+
+**2026-05-17** — content: log documentation sync in News
 
 **2026-05-17** — docs: sync README and deployment docs with the current state
 

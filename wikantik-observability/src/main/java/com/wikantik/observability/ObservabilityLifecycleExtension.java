@@ -70,6 +70,7 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
 
     private PrometheusMeterRegistry registry;
     private JvmGcMetrics jvmGcMetrics;
+    private WikiMetrics wikiMetrics;
 
     /**
      * Returns the process-wide Prometheus registry that will be scraped at
@@ -131,8 +132,9 @@ public class ObservabilityLifecycleExtension implements EngineLifecycleExtension
         }
         registry = sharedRegistry;
 
-        // Wiki-specific event-driven metrics
-        new WikiMetrics( registry, engine );
+        // Wiki-specific event-driven metrics — hold a strong reference so the
+        // listener is not collected by GC (WikiEventManager uses WeakReferences).
+        this.wikiMetrics = new WikiMetrics( registry, engine );
 
         // Health checks
         final String datasource = properties.getProperty( PROP_DB_DATASOURCE, DEFAULT_DB_DATASOURCE );

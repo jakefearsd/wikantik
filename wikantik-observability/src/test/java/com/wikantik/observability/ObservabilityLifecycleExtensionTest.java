@@ -19,8 +19,11 @@
 package com.wikantik.observability;
 
 import com.wikantik.api.core.Engine;
+import com.wikantik.event.WikiEventManager;
+import com.wikantik.event.WikiPageEvent;
 import com.wikantik.observability.health.HealthCheck;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 import jakarta.servlet.ServletContext;
@@ -145,6 +148,52 @@ class ObservabilityLifecycleExtensionTest {
         final ObservabilityLifecycleExtension ext = new ObservabilityLifecycleExtension();
         // Should not throw when called without onStart
         assertDoesNotThrow( () -> ext.onShutdown( engine, new Properties() ) );
+    }
+
+    /**
+     * Regression test for the WeakReference GC bug: WikiMetrics was created with
+     * {@code new WikiMetrics(registry, engine)} and the reference was discarded.
+     * WikiEventManager holds listeners as WeakReferences, so after GC the listener
+     * is collected and page-view / edit / delete / login counters never increment.
+     *
+     * <p>This test starts the extension, forces GC to collect any weakly-held
+     * WikiMetrics instance, then fires a PAGE_REQUESTED event via WikiEventManager.
+     * The counter must reach 1.0 — which only happens if WikiMetrics survived GC
+     * via a strong reference held by the extension.</p>
+     */
+    @Test
+    void wikiMetricsSurvivesGcAndCountsPageViewEvents() {
+        when( engine.getServletContext() ).thenReturn( servletContext );
+
+        final ObservabilityLifecycleExtension ext = new ObservabilityLifecycleExtension();
+        ext.onInit( new Properties() );
+        ext.onStart( engine, new Properties() );
+
+        // Force GC aggressively — a weakly-held WikiMetrics with no other strong
+        // referent is eligible for collection; allocating short-lived byte arrays
+        // pressures the heap and makes collection more likely within a few cycles.
+        for ( int i = 0; i < 5; i++ ) {
+            final byte[][] pressure = new byte[1024][];
+            for ( int j = 0; j < pressure.length; j++ ) {
+                pressure[j] = new byte[1024];
+            }
+            System.gc();
+        }
+
+        // Fire a PAGE_REQUESTED event on the mock engine — WikiEventManager
+        // dispatches it to all (non-GC'd) listeners registered for this client.
+        WikiEventManager.fireEvent( engine, new WikiPageEvent( engine, WikiPageEvent.PAGE_REQUESTED, "TestPage" ) );
+
+        // The counter must be 1.0; if WikiMetrics was GC'd the count stays 0.
+        final MeterRegistry registry = ObservabilityLifecycleExtension.getSharedRegistry();
+        assertNotNull( registry, "Shared registry must be set after onInit" );
+        final double count = registry.find( "wikantik.page.views" ).counter().count();
+        assertEquals( 1.0, count, 0.001,
+                "wikantik.page.views must be 1 after PAGE_REQUESTED — WikiMetrics was GC'd (WeakReference bug)" );
+
+        // Cleanup
+        WikiEventManager.unregisterListenersFor( engine );
+        ext.onShutdown( engine, new Properties() );
     }
 
     @Test

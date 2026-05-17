@@ -19,6 +19,9 @@
 #                           by a superuser. Override with PGUSER=postgres
 #                           if you have not yet provisioned the migrate role.
 #   PGPASSWORD              optional
+#   DB_EXPORTER_PASSWORD    optional; only used when the V031 monitoring-role
+#                           migration is applied. When unset, V031 leaves the
+#                           wikantik_exporter role NOLOGIN.
 #
 # Each migration is executed inside a single transaction via psql's
 # --single-transaction flag, so a failure rolls back any changes made by
@@ -51,6 +54,7 @@ psql_args=(
     --no-align
     -v ON_ERROR_STOP=1
     -v "app_user=${DB_APP_USER}"
+    -v "exporter_password=${DB_EXPORTER_PASSWORD:-}"
     -d "${DB_NAME}"
 )
 

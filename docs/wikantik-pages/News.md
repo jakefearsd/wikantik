@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-17** — chore: document MCP_USERS and use a CHANGE_ME placeholder for GRAFANA_ADMIN_PASSWORD in .env.example
+
 **2026-05-17** — fix(deploy): give the base compose the wikantik build context so container.sh build and remote.sh deploy rebuild the image instead of shipping a stale one
 
 **2026-05-17** — deploy: add node-exporter, cAdvisor, and postgres-exporter to the observability overlay with a new "Wikantik — Host & Infra" Grafana dashboard

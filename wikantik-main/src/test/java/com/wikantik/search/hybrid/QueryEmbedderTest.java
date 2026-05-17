@@ -20,6 +20,8 @@ package com.wikantik.search.hybrid;
 
 import com.wikantik.search.embedding.EmbeddingKind;
 import com.wikantik.search.embedding.TextEmbeddingClient;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -333,6 +335,22 @@ class QueryEmbedderTest {
         if( exceptionEscaped != null ) {
             throw new AssertionError( "exception escaped embed(): " + exceptionEscaped, exceptionEscaped );
         }
+    }
+
+    /* ---------- latency timer ---------- */
+
+    @Test
+    void embedRecordsLatencyWhenTimerSet() {
+        final FakeClient client = new FakeClient( new float[]{ 0.1f } );
+        embedder = new QueryEmbedder( client, testConfig(), clock );
+        final Timer timer = Timer.builder( "wikantik.search.hybrid.embedder.latency" )
+                .register( new SimpleMeterRegistry() );
+        embedder.setLatencyTimer( timer );
+
+        embedder.embed( "a query" );
+
+        assertEquals( 1, timer.count(),
+            "embed() must record one sample to the injected latency Timer" );
     }
 
     /* ---------- metrics snapshot stability ---------- */

@@ -22,6 +22,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.wikantik.search.embedding.EmbeddingKind;
 import com.wikantik.search.embedding.TextEmbeddingClient;
+import io.micrometer.core.instrument.Timer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -73,6 +74,9 @@ public final class QueryEmbedder {
 
     private final Cache< String, float[] > cache;
     private final Breaker breaker;
+
+    /** Optional latency Timer — injected by HybridMetricsBridge, null in tests/unwired. */
+    private volatile Timer latencyTimer;
 
     /* Counters — mutated from many threads, snapshot-read from admin. */
     private final LongAdder callSuccess = new LongAdder();
@@ -131,6 +135,7 @@ public final class QueryEmbedder {
             LOG.warn( "Query embedder circuit breaker HALF_OPEN — admitting probe" );
         }
 
+        final long startNanos = System.nanoTime();
         boolean success = false;
         try {
             final float[] vec = invokeWithTimeout( query );
@@ -163,7 +168,20 @@ public final class QueryEmbedder {
         } finally {
             breaker.afterCall( success, admit == Breaker.Admittance.PROBE,
                     this::noteBreakerOpen, this::noteBreakerClose );
+            final Timer t = latencyTimer;
+            if ( t != null ) {
+                t.record( System.nanoTime() - startNanos, TimeUnit.NANOSECONDS );
+            }
         }
+    }
+
+    /**
+     * Inject the Micrometer Timer that {@link #embed} records client-call
+     * latency to. Null until {@code HybridMetricsBridge} wires it; embed()
+     * is null-safe so this is optional.
+     */
+    public void setLatencyTimer( final Timer timer ) {
+        this.latencyTimer = timer;
     }
 
     /** Current circuit state — cheap read for admin panels and health probes. */

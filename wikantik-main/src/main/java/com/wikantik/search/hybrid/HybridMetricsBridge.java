@@ -23,6 +23,7 @@ import com.wikantik.search.embedding.BootstrapEmbeddingIndexer;
 import io.micrometer.core.instrument.FunctionCounter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -129,6 +130,12 @@ public final class HybridMetricsBridge {
         Gauge.builder( PFX + ".embedder.circuit_state", embedder, HybridMetricsBridge::encodeCircuit )
             .description( "Current circuit breaker state (0=CLOSED, 1=HALF_OPEN, 2=OPEN)" )
             .register( registry );
+
+        final Timer latency = Timer.builder( PFX + ".embedder.latency" )
+            .description( "Query embedder client-call latency" )
+            .publishPercentileHistogram()
+            .register( registry );
+        embedder.setLatencyTimer( latency );
     }
 
     private static double encodeCircuit( final QueryEmbedder embedder ) {

@@ -115,6 +115,19 @@ class HybridMetricsBridgeTest {
     }
 
     @Test
+    void registersEmbedderLatencyTimer() {
+        final MeterRegistry reg = new SimpleMeterRegistry();
+        final QueryEmbedder embedder = mock( QueryEmbedder.class );
+        when( embedder.metrics() ).thenReturn( fixedMetrics() );
+        when( embedder.circuitState() ).thenReturn( CircuitState.CLOSED );
+
+        HybridMetricsBridge.register( reg, embedder, null, null );
+
+        assertNotNull( reg.find( "wikantik.search.hybrid.embedder.latency" ).timer(),
+            "embedder latency Timer must be registered" );
+    }
+
+    @Test
     void nullRegistryIsNoOp() {
         // Must not NPE when the observability extension hasn't run.
         final QueryEmbedder embedder = mock( QueryEmbedder.class );

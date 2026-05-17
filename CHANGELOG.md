@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-05-17
+
 ## [2.0.0] - 2026-05-16
 
 ### Added — Admin UI

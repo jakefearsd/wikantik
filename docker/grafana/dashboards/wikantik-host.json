@@ -291,6 +291,19 @@
       ],
       "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 0 } }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "single" } }
+    },
+    {
+      "type": "timeseries", "id": 45, "title": "Query embedder latency",
+      "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 101 },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.95, sum(rate(wikantik_search_hybrid_embedder_latency_seconds_bucket{job=\"wikantik\"}[5m])) by (le))", "legendFormat": "p95",
+          "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" } },
+        { "refId": "B", "expr": "histogram_quantile(0.50, sum(rate(wikantik_search_hybrid_embedder_latency_seconds_bucket{job=\"wikantik\"}[5m])) by (le))", "legendFormat": "p50",
+          "datasource": { "type": "prometheus", "uid": "wikantik-prometheus" } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 0 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": [] }, "tooltip": { "mode": "multi" } }
     }
   ]
 }

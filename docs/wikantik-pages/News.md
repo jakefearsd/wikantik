@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-19** — fix(loadtest): rename --vus/--duration env vars off the k6-reserved K6_* namespace
+
 **2026-05-19** — chore: clean up Dependabot config and fix stale Apache reference
 
 **2026-05-19** — build(deps): bump anthropic-java 2.32.0 → 2.33.0 (#30)

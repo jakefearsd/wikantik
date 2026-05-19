@@ -4,7 +4,11 @@
 services:
   db:
     restart: always
-    ports: !reset []
+    # Published so the jakemon monitoring agent's Postgres exporter can
+    # reach the DB via host.docker.internal:5432. DB_HOST_BIND defaults to
+    # the docker0 bridge gateway, keeping the DB off the LAN.
+    ports:
+      - "${DB_HOST_BIND:-172.17.0.1}:5432:5432"
     deploy:
       resources:
         limits:

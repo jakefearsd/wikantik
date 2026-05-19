@@ -6,6 +6,10 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-19** — chore: clean up Dependabot config and fix stale Apache reference
+
+**2026-05-19** — build(deps): bump anthropic-java 2.32.0 → 2.33.0 (#30)
+
 **2026-05-19** — build: bump dependencies and plugins to latest patch/minor releases
 
 **2026-05-19** — docs: monitoring is now jakemon's; drop overlay instructions

@@ -476,5 +476,5 @@ mvn clean install -Pintegration-tests -fae
 
 ## Contact
 
-Questions can be asked to the Wikantik team via the wikantik-users
-mailing list: See https://wikantik.apache.org/community/mailing_lists.html.
+Questions, bug reports, and feature requests go through
+[GitHub Issues](https://github.com/jakefearsd/wikantik/issues).

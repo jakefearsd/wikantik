@@ -1,6 +1,8 @@
+> Superseded 2026-05-19: the self-hosted observability overlay was retired; monitoring moved to the external jakemon stack. See `docs/superpowers/specs/2026-05-19-retire-observability-overlay-design.md`. This document is kept for historical context.
+
 # Wikantik Observability System Design
 
-> **Implementation Status:** The observability design described here has been implemented in the `wikantik-observability` module. Health checks are available at `/api/health`, Prometheus metrics at `/metrics`, and request correlation via `X-Request-ID` header. Observability endpoints are IP-restricted to internal networks via `InternalNetworkFilter`. The opt-in Prometheus + Grafana overlay (`docker-compose.observability.yml`) provides the metrics-and-dashboard tier — see [DockerDeployment.md](DockerDeployment.md) §3 for how to enable it. The Loki / Promtail log-aggregation tier described below is **design-only** and not currently deployed.
+> **Implementation Status (historical):** The instrumentation described here was implemented in the `wikantik-observability` module — health checks at `/api/health`, Prometheus metrics at `/metrics` (IP-restricted via `InternalNetworkFilter`), and request correlation via `X-Request-ID`. The opt-in Prometheus + Grafana overlay (`docker-compose.observability.yml`) that previously provided the metrics-and-dashboard tier has been retired. Monitoring is now handled by the external jakemon stack (Grafana Alloy agent → central Prometheus + Loki + Grafana on host `inference`), which scrapes the wikantik `/metrics` endpoint. The Loki / Promtail log-aggregation tier described below was design-only and never deployed.
 
 ## Overview
 

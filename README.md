@@ -17,7 +17,7 @@ Licensed under the Apache License 2.0 — see [`LICENSE`](LICENSE) and
 
 ## What is Wikantik?
 
-Wikantik is a modular Java-based knowledge base platform built on JEE technologies. It combines a Markdown-native authoring system with a React single-page application, a REST API, two dedicated Model Context Protocol (MCP) servers for AI agent integration, an OpenAPI tool server for non-MCP clients, and a full observability stack. Content is organised into thematic clusters with structured frontmatter metadata, indexed by Lucene for full-text and faceted search, and ranked by a hybrid BM25 + dense-vector + Knowledge Graph retrieval pipeline.
+Wikantik is a modular Java-based knowledge base platform built on JEE technologies. It combines a Markdown-native authoring system with a React single-page application, a REST API, two dedicated Model Context Protocol (MCP) servers for AI agent integration, an OpenAPI tool server for non-MCP clients, and built-in instrumentation (health checks, a Prometheus `/metrics` endpoint, and structured logging with request correlation). Content is organised into thematic clusters with structured frontmatter metadata, indexed by Lucene for full-text and faceted search, and ranked by a hybrid BM25 + dense-vector + Knowledge Graph retrieval pipeline.
 
 **Page Graph vs Knowledge Graph.** Wikantik distinguishes two graph
 subsystems: the *Page Graph* (edges are real wikilinks; reader-facing
@@ -39,7 +39,7 @@ Key capabilities:
 - **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60), with Knowledge Graph-aware rerank; fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
 - **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, cache stats), security management (groups and policy grants)
 - **Database-backed authorisation** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
-- **Observability** — health checks, Prometheus metrics at `/metrics` (IP-restricted to internal networks), structured logging with request correlation, and an opt-in Prometheus + Grafana overlay shipping a pre-built dashboard
+- **Observability** — health checks, Prometheus metrics at `/metrics` (IP-restricted to internal networks), structured logging with request correlation; monitoring is handled by the external jakemon stack
 - **Content clusters** — thematic article groupings with hub pages, sub-clusters, cross-references, and automated structural auditing
 - **NIST 800-63B password validation** — blocklist-checked password strength enforcement for account creation
 - **Frontmatter metadata** — YAML frontmatter for type, tags, summary, cluster, status, and related articles, indexed in Lucene for semantic navigation
@@ -136,7 +136,7 @@ flowchart LR
     AdminMCP --> Ollama
 ```
 
-The reader hot path stays in Lucene + the page filesystem; the agent hot path goes through `/knowledge-mcp` to PostgreSQL + pgvector for hybrid retrieval. The two graph viewers (`/page-graph`, `/knowledge-graph`) hang off the SPA but query different services. Container deploys bundle Tomcat + PostgreSQL + pgvector + an optional backup sidecar — driven by `bin/container.sh` locally and `bin/remote.sh` for an ssh remote host, with an opt-in Prometheus + Grafana overlay; bare-metal deploys (`bin/deploy-local.sh`) reuse the host's PostgreSQL.
+The reader hot path stays in Lucene + the page filesystem; the agent hot path goes through `/knowledge-mcp` to PostgreSQL + pgvector for hybrid retrieval. The two graph viewers (`/page-graph`, `/knowledge-graph`) hang off the SPA but query different services. Container deploys bundle Tomcat + PostgreSQL + pgvector + an optional backup sidecar — driven by `bin/container.sh` locally and `bin/remote.sh` for an ssh remote host; bare-metal deploys (`bin/deploy-local.sh`) reuse the host's PostgreSQL.
 
 ## Prerequisites
 
@@ -343,11 +343,7 @@ A routine upgrade is an image swap — the Postgres volume and the host-bind
 page tree persist, and the container entrypoint applies any new schema
 migrations on start.
 
-**Observability** — an opt-in overlay adds Prometheus + Grafana:
-
-```bash
-WIKANTIK_OBSERVABILITY=1 bin/container.sh -e prod up -d prometheus grafana
-```
+Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agent on each host pushing metrics and logs to a central Prometheus + Loki + Grafana on host `inference`. The wikantik container exposes `/metrics`, which jakemon scrapes. There is no in-repo observability stack.
 
 Every subcommand supports `--help`. The compose files and
 `docker/entrypoint.sh` remain the source of truth — the scripts are
@@ -400,7 +396,7 @@ Migrating from a previous Wikantik install? See
 - [ci-cd-step-by-step.md](docs/ci-cd-step-by-step.md) — the GitHub Actions workflows: tag-triggered `release.yml` plus the manual-only CI workflows
 - [migration-1.0-to-1.1.md](docs/migration-1.0-to-1.1.md) — historical migration notes for an early Wikantik upgrade
 - [SendingEmailFromTheWiki.md](docs/SendingEmailFromTheWiki.md) — SMTP relay setup (Brevo, SendGrid, Mailjet, SES, Resend)
-- [ObservabilityDesign.md](docs/ObservabilityDesign.md) — observability design: request correlation, Micrometer metrics, and the Prometheus + Grafana overlay
+- [ObservabilityDesign.md](docs/ObservabilityDesign.md) — observability design: request correlation, Prometheus metrics (superseded — monitoring now via jakemon)
 
 ### Features
 

@@ -1,7 +1,8 @@
 # Wikantik load-test harness
 
-A k6 harness that drives the **instrumented** Wikantik endpoints, so the
-Grafana dashboards (and the host/infra dashboard) show real activity.
+A k6 harness that drives the **instrumented** Wikantik endpoints. k6 remote-writes
+its own metrics into jakemon's central Prometheus (`192.168.0.10:9090`) so offered
+load and host response share a timeline in Grafana.
 
 ## Prerequisites
 

@@ -31,7 +31,7 @@ The production host runs a Docker Compose stack — `docker-compose.yml` +
 | `db` | `pgvector/pgvector:pg18` | PostgreSQL + pgvector — users, groups, policy grants, Knowledge Graph, embeddings, page metadata, `schema_migrations` |
 | `wikantik` | `wikantik:latest` (the released image) | Tomcat 11 / JDK 21 — the wiki application |
 | `backup` | `postgres:18-alpine` | Scheduled `pg_dump` + page-tree tarball |
-| `prometheus`, `grafana` | `prom/prometheus`, `grafana/grafana` | Opt-in observability overlay (`docker-compose.observability.yml`) |
+| *(jakemon)* | external | Grafana Alloy agent on this host scrapes `/metrics` and ships logs to the central Prometheus + Loki + Grafana on host `inference` — no in-repo observability stack |
 
 The `wikantik` container's `entrypoint.sh` renders `wikantik-custom.properties`,
 `ROOT.xml`, and `wikantik-mcp.properties` from `.env` on every start, then
@@ -45,7 +45,7 @@ runs `migrate.sh` (idempotent) before starting Tomcat.
 | PostgreSQL cluster | named volume `pgdata` | **yes** | yes | no |
 | Lucene search index | named volume `wikantik-work` | no | no | yes — rebuilt at startup |
 | Application logs | named volume `wikantik-logs` | no | no | ephemeral |
-| Prometheus TSDB / Grafana state | named volumes | no | no | metrics history only |
+| Metrics / log history | external (jakemon) | no | — | scrape target only; state held by jakemon |
 
 The page tree is a **host bind mount** so `rsync` (`bin/remote.sh pages-push`)
 is the source of truth for content, independent of container lifecycle. The
@@ -97,11 +97,9 @@ index rebuilds itself on first start.
 
 - **PostgreSQL is not published** — no host port mapping in the prod overlay;
   reachable only on the internal compose network.
-- **Prometheus is not published**; **Grafana** is host-published and gated by
-  its own login.
+- `/metrics` is restricted to RFC 1918 / loopback by `InternalNetworkFilter`; scraped by the external jakemon agent, not exposed publicly.
 - **MCP endpoints** require a bearer token / API key (`MCP_ACCESS_KEYS` plus
   the DB-backed `api_keys` table).
-- `/metrics` is restricted to RFC 1918 / loopback by `InternalNetworkFilter`.
 - Secrets live only in `.env` / `.env.prod` (gitignored) — never committed.
   Back the env file up separately from the repo.
 

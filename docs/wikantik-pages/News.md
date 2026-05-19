@@ -6,6 +6,8 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-19** — build: bump dependencies and plugins to latest patch/minor releases
+
 **2026-05-19** — docs: monitoring is now jakemon's; drop overlay instructions
 
 **2026-05-19** — chore: point loadtest k6 metrics at jakemon's central Prometheus

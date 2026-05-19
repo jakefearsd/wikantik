@@ -80,7 +80,7 @@
          standard 8080 doesn't block IT runs. Override with
          -Dit.wikantik.servlet.port=NNNN if 18080 is also in use. -->
     <it.wikantik.servlet.port>18080</it.wikantik.servlet.port>
-    <junit.version>6.0.3</junit.version>
+    <junit.version>6.1.0</junit.version>
     <log4j2.version>2.26.0</log4j2.version>
     <lucene.version>10.4.0</lucene.version>
     <mockito.version>5.23.0</mockito.version>

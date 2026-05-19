@@ -73,10 +73,12 @@ follow-up 8 sources them from there.
   compose-file lists (around lines 328 and 441).
 - `docker-compose.prod.yml` — change the `db` service `ports:` from
   `!reset []` to:
+  
   ```yaml
   ports:
     - "${DB_HOST_BIND:-172.17.0.1}:5432:5432"
   ```
+  
   `DB_HOST_BIND` defaults to the standard docker0 bridge gateway and is
   env-overridable so the teardown step can correct it if docker1's gateway
   differs.

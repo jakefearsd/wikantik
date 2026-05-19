@@ -6,6 +6,20 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-19** — docs: monitoring is now jakemon's; drop overlay instructions
+
+**2026-05-19** — chore: point loadtest k6 metrics at jakemon's central Prometheus
+
+**2026-05-19** — feat: publish the prod DB on the docker0 bridge gateway
+
+**2026-05-19** — docs: tidy markdown formatting in the overlay-retirement spec
+
+**2026-05-19** — chore: remove the self-hosted observability overlay
+
+**2026-05-19** — plan: retire the observability overlay
+
+**2026-05-19** — design: retire the observability overlay in favour of jakemon
+
 **2026-05-17** — chore: document MCP_USERS and use a CHANGE_ME placeholder for GRAFANA_ADMIN_PASSWORD in .env.example
 
 **2026-05-17** — fix(deploy): give the base compose the wikantik build context so container.sh build and remote.sh deploy rebuild the image instead of shipping a stale one

@@ -17,8 +17,8 @@ export function readConfig(env) {
     adminPass: env.LOADTEST_ADMIN_PASS || '',
     mcpKey: env.LOADTEST_MCP_KEY || '',
     toolsKey: env.LOADTEST_TOOLS_KEY || '',
-    durationOverride: env.K6_DURATION || '',
-    vusOverride: env.K6_VUS ? Number(env.K6_VUS) : 0,
+    durationOverride: env.WIKANTIK_DURATION || '',
+    vusOverride: env.WIKANTIK_VUS ? Number(env.WIKANTIK_VUS) : 0,
   };
 }
 
@@ -27,7 +27,10 @@ export function readConfig(env) {
  * is added only when WRITES=1. Thresholds make k6 exit non-zero on breach.
  */
 export function buildOptions(cfg) {
-  // --vus / --duration arrive as K6_VUS / K6_DURATION (see readConfig).
+  // --vus / --duration arrive as WIKANTIK_VUS / WIKANTIK_DURATION (see readConfig).
+  // Do NOT use the K6_* names — k6 itself reserves those and setting them
+  // discards the scripted scenarios entirely (k6 falls back to a simple
+  // default executor and fails with "function 'default' not found").
   const peak = cfg.vusOverride > 0 ? cfg.vusOverride : null;
   const profiles = {
     smoke: {

@@ -82,8 +82,11 @@ K6_ARGS=(run
   -e "LOADTEST_TOOLS_KEY=${LOADTEST_TOOLS_KEY:-}"
 )
 [[ -n "${METRICS_URL}" ]] && K6_ARGS+=(-e "METRICS_URL=${METRICS_URL}")
-[[ -n "${DURATION}" ]] && K6_ARGS+=(-e "K6_DURATION=${DURATION}")
-[[ -n "${VUS}" ]] && K6_ARGS+=(-e "K6_VUS=${VUS}")
+# NB: do NOT pass these as K6_DURATION / K6_VUS — k6 itself reserves those
+# and setting them discards the scripted scenarios entirely. lib/config.js
+# reads the WIKANTIK_* names; keep them aligned.
+[[ -n "${DURATION}" ]] && K6_ARGS+=(-e "WIKANTIK_DURATION=${DURATION}")
+[[ -n "${VUS}" ]] && K6_ARGS+=(-e "WIKANTIK_VUS=${VUS}")
 K6_ARGS+=(wikantik-load.js)
 
 # k6 remote-writes its own metrics (offered RPS, VUs, latency) to Prometheus

@@ -143,12 +143,40 @@ class HybridMetricsBridgeTest {
     }
 
     @Test
-    void vectorIndexGaugeOnlyForInMemoryImpl() {
+    void vectorIndexGaugeSkippedForUnknownImpl() {
         final MeterRegistry reg = new SimpleMeterRegistry();
         // Interface-only mock has no size() to read — gauge should be skipped.
         final ChunkVectorIndex iface = mock( ChunkVectorIndex.class );
         HybridMetricsBridge.register( reg, null, null, iface );
         assertEquals( null, reg.find( "wikantik.search.hybrid.vector_index.size" ).gauge() );
+    }
+
+    @Test
+    void registers_size_gauge_for_pgvector_backend() {
+        final SimpleMeterRegistry reg = new SimpleMeterRegistry();
+        final PgVectorChunkVectorIndex fake = mock( PgVectorChunkVectorIndex.class );
+        when( fake.size() ).thenReturn( 12345 );
+
+        HybridMetricsBridge.register( reg, null, null, fake );
+
+        final io.micrometer.core.instrument.Gauge g =
+            reg.find( "wikantik.search.hybrid.vector_index.size" ).gauge();
+        assertNotNull( g, "size gauge should fire for pgvector backend" );
+        assertEquals( 12345.0, g.value(), 0.0001 );
+    }
+
+    @Test
+    void registers_size_gauge_for_in_memory_backend() {
+        final SimpleMeterRegistry reg = new SimpleMeterRegistry();
+        final InMemoryChunkVectorIndex fake = mock( InMemoryChunkVectorIndex.class );
+        when( fake.size() ).thenReturn( 777 );
+
+        HybridMetricsBridge.register( reg, null, null, fake );
+
+        final io.micrometer.core.instrument.Gauge g =
+            reg.find( "wikantik.search.hybrid.vector_index.size" ).gauge();
+        assertNotNull( g, "size gauge should fire for in-memory backend" );
+        assertEquals( 777.0, g.value(), 0.0001 );
     }
 
     @Test

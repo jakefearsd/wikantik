@@ -44,7 +44,7 @@ import org.apache.logging.log4j.Logger;
  *   <li>{@code .embedder.breaker.transitions} tagged {@code to=open|close|half_open}</li>
  *   <li>{@code .embedder.breaker.rejected} — calls short-circuited by OPEN state</li>
  *   <li>{@code .embedder.circuit_state} gauge (0=CLOSED, 1=HALF_OPEN, 2=OPEN)</li>
- *   <li>{@code .vector_index.size} gauge — chunks in the in-memory index</li>
+ *   <li>{@code .vector_index.size} gauge — chunks in the active vector index (in-memory or pgvector)</li>
  *   <li>{@code .bootstrap.state} gauge (0=IDLE, 1=SKIPPED_ALREADY_POPULATED,
  *       2=SKIPPED_NO_CHUNKS, 3=RUNNING, 4=COMPLETED, 5=FAILED)</li>
  *   <li>{@code .bootstrap.chunks_total} gauge — planned chunk count for the current run</li>
@@ -77,6 +77,10 @@ public final class HybridMetricsBridge {
         if( vectorIndex instanceof InMemoryChunkVectorIndex mem ) {
             Gauge.builder( PFX + ".vector_index.size", mem, InMemoryChunkVectorIndex::size )
                 .description( "Chunk vectors currently held by the in-memory hybrid index" )
+                .register( registry );
+        } else if( vectorIndex instanceof PgVectorChunkVectorIndex pg ) {
+            Gauge.builder( PFX + ".vector_index.size", pg, PgVectorChunkVectorIndex::size )
+                .description( "Chunk vectors stored in pgvector for the active embedding model" )
                 .register( registry );
         }
         if( bootstrap != null ) {

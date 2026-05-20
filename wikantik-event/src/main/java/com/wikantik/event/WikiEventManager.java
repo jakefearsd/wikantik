@@ -31,8 +31,10 @@ import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.WeakHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -366,8 +368,14 @@ public final class WikiEventManager {
      */
     private static final class WikiEventDelegate {
 
-        /* A list of event listeners for this instance. */
-        private final ArrayList< WeakReference< WikiEventListener > > m_listenerList = new ArrayList<>();
+        /*
+         * Event listeners for this instance, keyed by listener identity. The map's
+         * weak keys give us the same auto-GC behaviour as the previous
+         * ArrayList<WeakReference<>>, plus O(1) putIfAbsent / remove. Boolean.TRUE
+         * is a sentinel; we never read the value. Not thread-safe on its own —
+         * the existing synchronized(...) wrappers stay.
+         */
+        private final WeakHashMap< WikiEventListener, Boolean > m_listeners = new WeakHashMap<>();
         private Class< ? >  classField;
 
         /**
@@ -395,15 +403,9 @@ public final class WikiEventManager {
          * @throws java.lang.UnsupportedOperationException  if any attempt is made to modify the Set
          */
         public Set< WikiEventListener > getWikiEventListeners() {
-            synchronized( m_listenerList ) {
+            synchronized( m_listeners ) {
                 final TreeSet< WikiEventListener > set = new TreeSet<>( new WikiEventListenerComparator() );
-                for( final WeakReference< WikiEventListener > wikiEventListenerWeakReference : m_listenerList ) {
-                    final WikiEventListener listener = wikiEventListenerWeakReference.get();
-                    if( listener != null ) {
-                        set.add( listener );
-                    }
-                }
-
+                set.addAll( m_listeners.keySet() );
                 return Collections.unmodifiableSet( set );
             }
         }
@@ -414,17 +416,10 @@ public final class WikiEventManager {
          * @param listener the WikiEventListener to be added
          * @return true if the listener was added (i.e., it was not already in the list and was added)
          */
-        @SuppressWarnings( "PMD.CompareObjectsWithEquals" ) // Listener identity — duplicates mean the same instance, not equal instances.
         public boolean addWikiEventListener( final WikiEventListener listener ) {
-            synchronized( m_listenerList ) {
-                final boolean listenerAlreadyContained = m_listenerList.stream()
-                                                                       .map( WeakReference::get )
-                                                                       .anyMatch( ref -> ref == listener );
-                if( !listenerAlreadyContained ) {
-                    return m_listenerList.add( new WeakReference<>( listener ) );
-                }
+            synchronized( m_listeners ) {
+                return m_listeners.putIfAbsent( listener, Boolean.TRUE ) == null;
             }
-            return false;
         }
 
         /**
@@ -433,27 +428,18 @@ public final class WikiEventManager {
          * @param listener   the WikiEventListener to be removed
          * @return true if the listener was removed (i.e., it was actually in the list and was removed)
          */
-        @SuppressWarnings( "PMD.CompareObjectsWithEquals" ) // Listener identity — we remove the exact instance the caller registered.
         public boolean removeWikiEventListener( final WikiEventListener listener ) {
-            synchronized( m_listenerList ) {
-                for( final Iterator< WeakReference< WikiEventListener > > i = m_listenerList.iterator(); i.hasNext(); ) {
-                    final WikiEventListener l = i.next().get();
-                    if( l == listener ) {
-                        i.remove();
-                        return true;
-                    }
-                }
+            synchronized( m_listeners ) {
+                return m_listeners.remove( listener ) != null;
             }
-
-            return false;
         }
 
         /**
          *  Returns true if there are one or more listeners registered with this instance.
          */
         public boolean isListening() {
-            synchronized( m_listenerList ) {
-                return !m_listenerList.isEmpty();
+            synchronized( m_listeners ) {
+                return !m_listeners.isEmpty();
             }
         }
 
@@ -461,28 +447,27 @@ public final class WikiEventManager {
          *  Notify all listeners having a registered interest in change events of the supplied WikiEvent.
          */
         public void fireEvent( final WikiEvent event ) {
-            boolean needsCleanup = false;
+            // Snapshot the listener set under the lock, then dispatch outside it.
+            // The previous synchronized-through-dispatch pattern meant a slow
+            // listener (or one that re-entered the manager to add/remove a
+            // listener) blocked every other thread on this delegate's lock.
+            // WeakHashMap handles dead-key cleanup itself, so the explicit
+            // ConcurrentModification-tolerant compaction the old code had is
+            // no longer needed.
+            final List< WikiEventListener > snapshot;
+            synchronized( m_listeners ) {
+                if( m_listeners.isEmpty() ) {
+                    return;
+                }
+                snapshot = new ArrayList<>( m_listeners.keySet() );
+            }
             try {
-                synchronized( m_listenerList ) {
-                    for( final WeakReference< WikiEventListener > wikiEventListenerWeakReference : m_listenerList ) {
-                        final WikiEventListener listener = wikiEventListenerWeakReference.get();
-                        if( listener != null ) {
-                            listener.actionPerformed( event );
-                        } else {
-                            needsCleanup = true;
-                        }
+                for( final WikiEventListener listener : snapshot ) {
+                    try {
+                        listener.actionPerformed( event );
+                    } catch( final Throwable t ) { //NOPMD — listener-callback safety; preserves previous broad-catch posture.
+                        LOG.warn( "Listener {} threw on event {}: {}", listener, event, t.toString(), t );
                     }
-
-                    //  Remove all such listeners which have expired
-                    if( needsCleanup ) {
-                        for( int i = 0; i < m_listenerList.size(); i++ ) {
-                            final WeakReference< WikiEventListener > w = m_listenerList.get( i );
-                            if( w.get() == null ) {
-                                m_listenerList.remove(i--);
-                            }
-                        }
-                    }
-
                 }
             } catch( final ConcurrentModificationException e ) {
                 //  We don't die, we just don't do notifications in that case.

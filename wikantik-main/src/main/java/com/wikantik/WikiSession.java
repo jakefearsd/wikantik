@@ -535,10 +535,18 @@ public final class WikiSession implements Session {
         session.invalidate();
         session.antiCsrfToken = UUID.randomUUID().toString();
 
-        // Add the session as listener for GroupManager, AuthManager, UserManager events
-        groupMgr.addWikiEventListener( session );
-        authMgr.addWikiEventListener( session );
-        userMgr.addWikiEventListener( session );
+        // Register the session with the per-engine SessionEventDispatcher. The
+        // dispatcher is registered as a listener on the three managers EXACTLY
+        // ONCE per engine; this `register` call is a single weak-set add. Before
+        // this change, every guest session installed three separate manager-side
+        // listener entries — which (post WeakHashMap rewrite) was O(1) per call
+        // but still grew a per-session listener list monotonically with
+        // anonymous HTTP traffic. The dispatcher's fan-out preserves the
+        // event-delivery contract (every alive session receives every event from
+        // the three managers; each session's actionPerformed filters by target).
+        com.wikantik.auth.SessionEventDispatcher
+            .forEngine( engine, groupMgr, authMgr, userMgr )
+            .register( session );
 
         return session;
     }

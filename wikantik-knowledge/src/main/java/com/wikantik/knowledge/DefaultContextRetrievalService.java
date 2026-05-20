@@ -169,6 +169,17 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         final Map< String, List< RetrievedChunk > > chunksByPage =
             fetchContributingChunks( query.query(), ordered, query.chunksPerPage() );
 
+        // Pre-compute related-pages for every candidate in ONE batched call.
+        // The previous per-page fetchRelatedPages call inside the loop was an
+        // N+1 lookup pattern under concurrent load — one DBCP acquire and one
+        // PreparedStatement prep per result page. The batch version reuses
+        // both across the N executions; see MentionIndex.findRelatedPagesBatch.
+        final List< String > candidateNames = new ArrayList<>();
+        for ( final SearchResult sr : ordered ) {
+            if ( sr.getPage() != null ) candidateNames.add( sr.getPage().getName() );
+        }
+        final Map< String, List< RelatedPage > > relatedByPage = fetchRelatedPagesBatch( candidateNames );
+
         final PageListFilter f = query.filter();
         final List< RetrievedPage > pages = new ArrayList<>();
         for ( final SearchResult sr : ordered ) {
@@ -181,7 +192,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
                 parsed,
                 sr.getScore(),
                 chunksByPage.getOrDefault( page.getName(), List.of() ),
-                fetchRelatedPages( page.getName() ) ) );
+                relatedByPage.getOrDefault( page.getName(), List.of() ) ) );
             if ( pages.size() >= query.maxPages() ) break;
         }
         return new RetrievalResult( query.query(), pages, ordered.size() );
@@ -409,6 +420,42 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         final List< RelatedPage > out = new ArrayList<>( matches.size() );
         for ( final MentionIndex.RelatedByMention m : matches ) {
             out.add( new RelatedPage( m.pageName(), describeSharedEntities( m ) ) );
+        }
+        return out;
+    }
+
+    /**
+     * Batched sibling of {@link #fetchRelatedPages}. Returns a per-page map;
+     * missing input names map to {@link List#of()} (callers should use
+     * {@code Map::getOrDefault} with the empty list). One DBCP acquire and
+     * one PreparedStatement preparation across the N inputs — replaces the
+     * N+1 pattern in {@link #retrieve}.
+     */
+    private Map< String, List< RelatedPage > > fetchRelatedPagesBatch(
+            final List< String > pageNames ) {
+        if ( mentionIndex == null || pageNames == null || pageNames.isEmpty() ) {
+            return Map.of();
+        }
+        final Map< String, List< MentionIndex.RelatedByMention > > batched;
+        try {
+            batched = mentionIndex.findRelatedPagesBatch( pageNames, RELATED_PAGES_LIMIT );
+        } catch ( final RuntimeException e ) {
+            LOG.info( "MentionIndex.findRelatedPagesBatch failed for {} pages — returning empty: {}",
+                pageNames.size(), e.getMessage() );
+            return Map.of();
+        }
+        final Map< String, List< RelatedPage > > out = new LinkedHashMap<>();
+        for ( final var entry : batched.entrySet() ) {
+            final List< MentionIndex.RelatedByMention > matches = entry.getValue();
+            if ( matches.isEmpty() ) {
+                out.put( entry.getKey(), List.of() );
+                continue;
+            }
+            final List< RelatedPage > shaped = new ArrayList<>( matches.size() );
+            for ( final MentionIndex.RelatedByMention m : matches ) {
+                shaped.add( new RelatedPage( m.pageName(), describeSharedEntities( m ) ) );
+            }
+            out.put( entry.getKey(), shaped );
         }
         return out;
     }

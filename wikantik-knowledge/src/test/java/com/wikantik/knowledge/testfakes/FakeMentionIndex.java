@@ -21,8 +21,10 @@ package com.wikantik.knowledge.testfakes;
 import com.wikantik.knowledge.MentionIndex;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -33,12 +35,26 @@ public final class FakeMentionIndex {
     /**
      * Returns a {@link MentionIndex} mock that yields {@code matches} whenever
      * {@code findRelatedPages(pageName, _)} is called, and empty for any other
-     * page name.
+     * page name. Also stubs {@code findRelatedPagesBatch} so the batched
+     * call-site in {@link com.wikantik.knowledge.DefaultContextRetrievalService}
+     * sees the same data.
      */
     public static MentionIndex relating( final String pageName,
                                           final List< MentionIndex.RelatedByMention > matches ) {
         final MentionIndex mocked = mock( MentionIndex.class );
         when( mocked.findRelatedPages( eq( pageName ), anyInt() ) ).thenReturn( matches );
+        // The batch call needs to seed the same data keyed by the input name.
+        // We use an Answer rather than a fixed map so the stub responds correctly
+        // regardless of which subset of names the consumer passes in.
+        when( mocked.findRelatedPagesBatch( anyList(), anyInt() ) ).thenAnswer( inv -> {
+            final List< String > names = inv.getArgument( 0 );
+            final java.util.Map< String, List< MentionIndex.RelatedByMention > > out =
+                new java.util.LinkedHashMap<>();
+            for ( final String n : names ) {
+                out.put( n, pageName.equals( n ) ? matches : List.of() );
+            }
+            return Map.copyOf( out );
+        } );
         return mocked;
     }
 

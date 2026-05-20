@@ -236,6 +236,44 @@ class DefaultContextRetrievalServiceTest {
     }
 
     @Test
+    void retrieve_batchesRelatedPagesLookup() {
+        // Asserts the N+1 fix: with 3 BM25 hits, MentionIndex.findRelatedPagesBatch
+        // is called exactly ONCE and the per-name findRelatedPages is never called.
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "PA", "---\n---\n\n", "a", new java.util.Date() );
+        pm.addPage( "PB", "---\n---\n\n", "a", new java.util.Date() );
+        pm.addPage( "PC", "---\n---\n\n", "a", new java.util.Date() );
+
+        final FakeSearchManager sm = new FakeSearchManager();
+        sm.setResults( java.util.List.of(
+            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "PA", 5 ),
+            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "PB", 4 ),
+            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "PC", 3 ) ) );
+
+        final com.wikantik.knowledge.MentionIndex mentionIndex =
+            org.mockito.Mockito.mock( com.wikantik.knowledge.MentionIndex.class );
+        org.mockito.Mockito.when(
+            mentionIndex.findRelatedPagesBatch( org.mockito.ArgumentMatchers.anyList(),
+                                                org.mockito.ArgumentMatchers.anyInt() ) )
+            .thenReturn( java.util.Map.of(
+                "PA", java.util.List.of(),
+                "PB", java.util.List.of(),
+                "PC", java.util.List.of() ) );
+
+        final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
+            com.wikantik.knowledge.testfakes.FakeEngine.create(),
+            sm, null, null, null, null, null, mentionIndex, pm, null, "" );
+        svc.retrieve( new com.wikantik.api.knowledge.ContextQuery( "q", 5, 3, null ) );
+
+        org.mockito.Mockito.verify( mentionIndex, org.mockito.Mockito.times( 1 ) )
+            .findRelatedPagesBatch( org.mockito.ArgumentMatchers.anyList(),
+                                    org.mockito.ArgumentMatchers.anyInt() );
+        org.mockito.Mockito.verify( mentionIndex, org.mockito.Mockito.never() )
+            .findRelatedPages( org.mockito.ArgumentMatchers.anyString(),
+                                org.mockito.ArgumentMatchers.anyInt() );
+    }
+
+    @Test
     void retrieve_populatesContributingChunksFromDenseIndex() {
         final FakePageManager pm = new FakePageManager();
         pm.addPage( "Alpha", "---\n---\nbody", "a", new java.util.Date() );

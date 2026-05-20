@@ -20,6 +20,8 @@
         protocol="HTTP/1.1"
         connectionTimeout="20000"
         address="0.0.0.0"
+        maxThreads="400"
+        acceptCount="200"
         xpoweredBy="false"
         allowTrace="false" />
 

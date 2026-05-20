@@ -130,8 +130,8 @@ cat > "${CATALINA_HOME}/conf/Catalina/localhost/ROOT.xml" <<EOF
               url="${JDBC_URL}"
               username="${POSTGRES_USER}"
               password="${POSTGRES_PASSWORD}"
-              maxTotal="20"
-              maxIdle="5"
+              maxTotal="60"
+              maxIdle="20"
               maxWaitMillis="10000"
               validationQuery="SELECT 1"
               testOnBorrow="true"/>

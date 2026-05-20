@@ -377,6 +377,10 @@
        <servlet-class>com.wikantik.rest.AdminAgentGradeAuditServlet</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AdminProfilingServlet</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminProfilingServlet</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminRetrievalQualityResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminRetrievalQualityResource</servlet-class>
    </servlet>
@@ -573,6 +577,10 @@
    <servlet-mapping>
        <servlet-name>AdminAgentGradeAuditServlet</servlet-name>
        <url-pattern>/admin/agent-grade-audit</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminProfilingServlet</servlet-name>
+       <url-pattern>/admin/profiling/jfr/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminRetrievalQualityResource</servlet-name>

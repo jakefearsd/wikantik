@@ -9,10 +9,24 @@ services:
     # the docker0 bridge gateway, keeping the DB off the LAN.
     ports:
       - "${DB_HOST_BIND:-172.17.0.1}:5432:5432"
+    # Phase-3 tuning from the 2026-05-19 scaling characterization: the
+    # docker1 sweep showed CPU saturation concentrated in the hybrid-
+    # retrieval search path. Larger shared_buffers + work_mem give pgvector
+    # more room to keep ANN / sort / hash operations in memory and out of
+    # spills. The 2G memory limit accommodates 256MB shared_buffers +
+    # ~10MB × 60 backends overhead + per-op work_mem peaks safely.
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "work_mem=32MB"
+      - "-c"
+      - "maintenance_work_mem=128MB"
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 2G
 
   wikantik:
     # Build context is inherited from the base docker-compose.yml.

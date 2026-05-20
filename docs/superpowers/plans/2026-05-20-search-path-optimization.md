@@ -1365,35 +1365,15 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 
 ---
 
-### Task 12: News.md log + push
+### Task 12: Push to origin
 
-**Files:**
-- Modify: `docs/wikantik-pages/News.md`
+The News.md changelog convention is retired (2026-05-20 operator decision):
+no per-commit content-log commits. Final task is just to push the
+accumulated commits.
 
-Per the project convention, log each prod-changing commit as its own News.md entry.
-
-- [ ] **Step 1: Add the entries**
-
-Newest-first, today's date. The commit subjects to log (in chronological order — newest goes at the top of the date block, so reverse order in the file):
-
-- `docs: ScalingCharacterization §9 — Sweep #3 + JFR findings`
-- `perf(search): fetchContributingChunks short-circuit + reuse first-scan chunks`
-- `feat(search): RerankOutcome — surface dense chunks for downstream reuse`
-- `perf(search): batch fetchRelatedPages in DefaultContextRetrievalService`
-- `feat(knowledge): MentionIndex.findRelatedPagesBatch — single-call API for N page lookups`
-- `build: mount wikantik-profiling volume for JFR recordings (prod)`
-- `feat(rest): /admin/profiling/jfr/* — start/stop/list/download JFR recordings`
-- `feat(observability): JfrProfilingService — start/stop/list JFR recordings`
-
-Plus the (already-committed) design + plan commits if convention dictates (the executor checks recent News.md entries to confirm).
-
-- [ ] **Step 2: Commit + push**
+- [ ] **Step 1: Push**
 
 ```bash
-git add docs/wikantik-pages/News.md
-git commit -m "content: log the search-path optimization study in News
-
-Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 git push origin main
 ```
 
@@ -1408,6 +1388,6 @@ git push origin main
   - Re-sweep + JFR capture (spec §4) → Tasks 9, 10 ✓
   - §9 addendum (spec §4) → Task 11 ✓
   - Done criteria (spec) — `docs/ScalingCharacterization.md` updated, JFR file preserved, code committed and deployed, full IT green, v2 topic agreed → covered by Tasks 9-12 ✓
-  - News.md log per project convention → Task 12 ✓
+  - News.md log: retired by operator decision 2026-05-20; Task 12 is push-only ✓
 - **Placeholder scan:** the `<fill>`/`<Δ>` markers in Task 11 Step 1 are *intentional* template slots the executor fills from Sweep #3 artifacts (the plan can't enumerate them ahead of time — empirical). The "(item 1)…(item 3)" markers under v2 candidates likewise depend on the profile. Other task code blocks contain real code, real test bodies, real commands. The "(executor adapts)" note on the `jfr print` invocation in Task 10 Step 4 acknowledges JDK-binary location variability — acceptable for an inline executor that can resolve at run time.
 - **Type/name consistency:** `RecordingInfo` carries the same fields across `JfrProfilingService` (Task 1), `ProfilingResource` (Task 2), and the IT (Task 8). `RerankOutcome` is defined in Task 6 Step 1 and consumed in Task 7 Step 3. `findRelatedPagesBatch` shape — `Map<String, List<RelatedByMention>>` — is consistent between Tasks 4 and 5. The `wikantik-profiling` volume name is consistent across `docker-compose.prod.yml` and the verification step. No drift.

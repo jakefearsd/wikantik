@@ -42,6 +42,9 @@ services:
       - ${WIKANTIK_PAGES_DIR:-/srv/wikantik/pages}:/var/wikantik/pages
       - wikantik-work:/var/wikantik/work
       - wikantik-logs:/var/wikantik/logs
+      # JFR recordings written by /admin/profiling/jfr/start land here. Operator
+      # downloads them via the GET /admin/profiling/jfr/recordings/{id} endpoint.
+      - wikantik-profiling:/var/wikantik/profiling
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
       interval: 30s
@@ -68,3 +71,9 @@ services:
       - ./docker/backup/restore.sh:/usr/local/bin/restore.sh:ro
       - ./docker/backup/crontab:/etc/crontabs/root:ro
     entrypoint: ["crond", "-f", "-d", "8"]
+
+# Prod-only named volumes. (wikantik-pages is bound from the host so the
+# operator can rsync into it; wikantik-work / wikantik-logs are declared in
+# the base compose; only wikantik-profiling is added here.)
+volumes:
+  wikantik-profiling:

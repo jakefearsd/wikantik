@@ -359,6 +359,76 @@ Highest-leverage candidates ordered by expected (impact / effort):
 
 ---
 
+## 12. Sweep #7 — Lucene Highlighter disabled (2026-05-20)
+
+`DefaultLuceneSearcher.findPages(query, ctx)` (the two-arg overload) was hardcoding `FLAG_CONTEXTS`, forcing per-search snippet generation through Lucene's Highlighter pipeline. Sweep #5's depth-30 JFR identified the Highlighter as a major cost; Sweep #6's top-20 confirmed it (~600 samples across the call stack including `SimpleHTMLEncoder`, `CachingTokenFilter`, `WeightedSpanTermExtractor`, `MemoryIndex.storeTerms`). Operator-confirmed that no consumer actually uses the snippets in this deployment.
+
+Added property `wikantik.search.highlighter.enabled` (default `false`). The two-arg overload now passes `flags=0` instead of `FLAG_CONTEXTS` unless the property is set to `true`. The three-arg `findPages(query, FLAG_CONTEXTS, ctx)` overload still works for any caller that genuinely needs snippets.
+
+### Procedure note
+
+Sweep #7 was preceded by a **1-minute sustained warm-up at N=300** (`bin/loadtest.sh load --vus 300 --duration 1m`) before the real measurement. Sweep #5→#6 had shown that cold-vs-warm makes a 20-50 % difference on raw numbers; the warm-up plus a 15 s settle is the right pre-amble for any future comparison-quality measurement.
+
+### Sweep #7 vs Sweep #6 at N=300 (both warmed)
+
+| Metric | Sweep #6 (highlighter ON) | Sweep #7 (highlighter OFF) | Δ |
+|---|---|---|---|
+| **RPS** | 162.8 | **219.2** | **+35 %** |
+| **http_req_duration median** | 29.1 ms | **1.63 ms** | **~18× faster** |
+| **p90** | 1.07 s | **40.96 ms** | **~26× faster** |
+| **p95** | 1.61 s | **67.8 ms** | **~24× faster** |
+| **avg** | 382 ms | **25.8 ms** | **~15× faster** |
+| max | 13.7 s | 5.96 s | -56 % |
+| **load1** | 80.3 | **8.73** | **−89 %** (54 % of 16-core capacity) |
+| pg backends | 25 | 22 | flat |
+| err % | 4.08 % | 3.29 % | better |
+| curl `/api/search` max | 5.13 s | 3.52 s | -31 % |
+
+### JFR comparison (60 s capture at N=300 sustained)
+
+| Category | Sweep #6 samples | Sweep #7 samples | Δ |
+|---|---|---|---|
+| `SimpleHTMLEncoder.htmlEncode` + `encodeText` | 122 | **0** | **eliminated** |
+| `CachingTokenFilter.incrementToken` | 163 | **0** | **eliminated** |
+| All `org.apache.lucene.*` frames combined | 1175 | **249** | **−78 %** |
+
+Sweep #7's new top hotspots are dominated by `InMemoryChunkVectorIndex.dotAt` (718 — the SIMD dot loop, now *relatively* the biggest single cost because the box has so much headroom) plus genuine BM25 index I/O (`LZ4.decompress` 90, `BufferedIndexInput.readBytes` 86). No more synchronization, no more wasted snippet generation.
+
+### Interpretation
+
+- **The Highlighter was the single biggest avoidable cost in the search path** — bigger than the listener mutex (sweep #4→#5), bigger than the scalar dot product (sweep #3→#4), bigger than the original DBCP pool ceiling (pre-Phase-0).
+- **Headline numbers:** median `~30 ms → 1.6 ms`, p95 `1.6 s → 68 ms`, RPS `163 → 219`. Order-of-magnitude latency improvements on every percentile except max.
+- **load1 collapsed** from 80 to 8.73 — the box that was running at 500 % of capacity is now running at ~54 %. Massive new headroom for either higher VU counts or more expensive search semantics (e.g. enabling snippets per-call when callers actually need them).
+- **The two-arg findPages was an accidental performance trap** — every caller paid the Highlighter cost, even though the snippets it produced weren't consumed by anyone in this deployment.
+
+### Cumulative arc of the session
+
+| Run | RPS @ N=300 | median | p95 | load1 |
+|---|---|---|---|---|
+| Original (pre-Phase-0, DBCP=20) | ~40 | 187 ms | 1.14 s | 18 |
+| Phase-0 baseline (pool unlock) | 158 | — | 1.80 s | 20 |
+| Phase-3 PG tuning (regression) | 129 | — | 3.51 s | 13 |
+| Search-path surgery (batch + reuse) | 141 | 187 ms | 2.48 s | 29 |
+| Vector API on dotAt | 142 | 124 ms | 2.36 s | 53 |
+| Listener-mutex fix | 163 (warmed) | 29 ms | 1.61 s | 80 |
+| **Highlighter disabled (sweep #7)** | **219** | **1.6 ms** | **68 ms** | **8.7** |
+
+**Final cumulative wins vs. session start:**
+- RPS: **40 → 219** (5.5×)
+- median request latency: **1140 ms → 1.6 ms** (~700×)
+- p95: **1.14 s → 68 ms** (17×)
+- The box is no longer CPU-saturated under N=300 — load1 at 54 % of cores leaves room for genuine growth.
+
+### Next round
+
+The next ceiling now lives clearly in `InMemoryChunkVectorIndex.dotAt` (718 samples) + the brute-force scan it serves — but with load1 at 8.73, the system has so much headroom that the natural next experiment is to push N higher (500, 800, 1000) rather than optimize the dot loop further. Concrete suggestions, ordered by reach:
+
+1. **Re-run the original sweep ladder (200→1500) against this configuration.** Sweep #7 is N=300 with 54 % CPU utilisation; the actual breaking point is now significantly higher and unknown.
+2. **`WikiSession.guestSession()` per-anonymous-request listener registration** still leaks (cheap now but still incorrect). Standalone follow-up; the `// FIXME` in `staticGuestSession` has been there for years.
+3. **Tail outlier investigation** — Sweep #7 still has a 5.96 s max despite p95 of 68 ms. GC, JIT recompile, or a Lucene contention not visible in JFR sampling. A `jdk.GCPhase*` event capture would diagnose.
+
+---
+
 ## Raw data
 
-All per-step k6 outputs, curl-probe samples, and jakemon snapshots are in `loadtest/results/sweep{1,2,3,4,5}-<N>vu-{k6,curl,host}.{log,json}`. JFR captures live at `loadtest/results/sweep{3,4,5}-300vu.jfr` for offline analysis with `jfr print` or JMC. The directory is gitignored (raw data is reproducible, not versioned).
+All per-step k6 outputs, curl-probe samples, and jakemon snapshots are in `loadtest/results/sweep{1,2,3,4,5,6,7}-<N>vu-{k6,curl,host}.{log,json}`. JFR captures live at `loadtest/results/sweep{3,4,5,7}-300vu.jfr` for offline analysis with `jfr print` or JMC. The directory is gitignored (raw data is reproducible, not versioned).

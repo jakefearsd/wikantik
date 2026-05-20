@@ -761,6 +761,15 @@
             <compilerArgs>
               <arg>-Xlint:deprecation</arg>
               <arg>-parameters</arg>
+              <!--
+                jdk.incubator.vector unlocks Java 21's incubating Vector API,
+                used by InMemoryChunkVectorIndex.dotAt for SIMD-accelerated
+                dot products. Without this arg the compiler refuses to
+                resolve jdk.incubator.vector.*; the runtime needs the same
+                module added via JVM args (see surefire argLine, the IT
+                cargo.jvmargs, and CATALINA_OPTS in the Dockerfile).
+              -->
+              <arg>--add-modules=jdk.incubator.vector</arg>
             </compilerArgs>
           </configuration>
         </plugin>
@@ -870,7 +879,7 @@
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${plugin.surefire.version}</version>
           <configuration>
-            <argLine>@{argLine} -XX:+EnableDynamicAgentLoading -javaagent:${org.mockito:mockito-core:jar}</argLine>
+            <argLine>@{argLine} -XX:+EnableDynamicAgentLoading -javaagent:${org.mockito:mockito-core:jar} --add-modules=jdk.incubator.vector</argLine>
             <consoleOutputReporter>
               <disable>true</disable>
             </consoleOutputReporter>
@@ -1448,7 +1457,7 @@
           <plugin>
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
-              <argLine>@{argLine} -XX:+EnableDynamicAgentLoading -javaagent:${com.github.jbellis:jamm:jar} -javaagent:${org.mockito:mockito-core:jar}</argLine>
+              <argLine>@{argLine} -XX:+EnableDynamicAgentLoading -javaagent:${com.github.jbellis:jamm:jar} -javaagent:${org.mockito:mockito-core:jar} --add-modules=jdk.incubator.vector</argLine>
               <consoleOutputReporter>
                 <disable>false</disable>
               </consoleOutputReporter>

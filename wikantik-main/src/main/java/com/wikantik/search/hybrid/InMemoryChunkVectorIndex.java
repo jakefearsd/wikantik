@@ -425,17 +425,47 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
     }
 
     /**
-     * Dot product of {@code dim} consecutive floats in the flat storage starting at
-     * {@code offset}, against {@code queryVec}. Hoisting {@code offset} and {@code dim}
-     * to local ints lets the JIT eliminate the per-iteration array-bounds check on
-     * the cold buffer and keeps the inner accumulator in a register.
+     * Vector species used for the dot product. {@code SPECIES_PREFERRED} picks the
+     * widest float vector the JVM can map to native SIMD on this host (AVX-512 → 16,
+     * AVX2 → 8, NEON → 4). Captured once as a static so the JIT can constant-fold it.
      */
-    private static double dotAt( final float[] flat, final int offset, final float[] queryVec, final int dim ) {
-        double acc = 0.0;
-        for( int j = 0; j < dim; j++ ) {
-            acc += (double) flat[ offset + j ] * (double) queryVec[ j ];
+    private static final jdk.incubator.vector.VectorSpecies< Float > SPECIES =
+        jdk.incubator.vector.FloatVector.SPECIES_PREFERRED;
+
+    /**
+     * Dot product of {@code dim} consecutive floats in the flat storage starting at
+     * {@code offset}, against {@code queryVec}. Uses {@link jdk.incubator.vector.FloatVector}
+     * fused multiply-add (FMA) lanes so the inner loop maps to native SIMD; the JIT
+     * collapses each iteration to a single FMA instruction on modern x86 / NEON. The
+     * tail loop handles any leftover when {@code dim} is not a multiple of the
+     * species length — for the 1024-dim embeddings we ship, the tail is zero
+     * iterations on every common architecture.
+     *
+     * <p>The accumulator is a {@code FloatVector} rather than a {@code double},
+     * which is the only behavioural difference from the previous scalar path:
+     * precision drops from double to float. Cosine-similarity ranking against
+     * other floats (and pgvector itself, which is float-native) does not care
+     * about the lost sub-{@code 1e-7} bits; ordering is stable.</p>
+     */
+    // package-private for direct unit-test parity coverage; no other call site.
+    static double dotAt( final float[] flat, final int offset, final float[] queryVec, final int dim ) {
+        final int upperBound = SPECIES.loopBound( dim );
+        jdk.incubator.vector.FloatVector accum = jdk.incubator.vector.FloatVector.zero( SPECIES );
+        int j = 0;
+        for( ; j < upperBound; j += SPECIES.length() ) {
+            final jdk.incubator.vector.FloatVector a =
+                jdk.incubator.vector.FloatVector.fromArray( SPECIES, flat, offset + j );
+            final jdk.incubator.vector.FloatVector b =
+                jdk.incubator.vector.FloatVector.fromArray( SPECIES, queryVec, j );
+            accum = a.fma( b, accum );
         }
-        return acc;
+        float sum = accum.reduceLanes( jdk.incubator.vector.VectorOperators.ADD );
+        // Tail (almost never runs for the 1024-dim embeddings we ship — kept so
+        // dim values that aren't a multiple of SPECIES.length() are still correct).
+        for( ; j < dim; j++ ) {
+            sum += flat[ offset + j ] * queryVec[ j ];
+        }
+        return sum;
     }
 
     /**

@@ -99,25 +99,41 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
         try ( Connection conn = dataSource.getConnection() ) {
             final boolean prevAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit( false );
-            try ( Statement st = conn.createStatement() ) {
-                st.execute( setEf );
-            }
-            try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
-                ps.setString( 1, literal );
-                ps.setString( 2, modelCode );
-                ps.setString( 3, literal );
-                ps.setInt( 4, k );
-                try ( ResultSet rs = ps.executeQuery() ) {
-                    final List< ScoredChunk > out = new ArrayList<>( k );
-                    while ( rs.next() ) {
-                        out.add( new ScoredChunk(
-                            rs.getObject( 1, UUID.class ),
-                            rs.getString( 2 ),
-                            rs.getDouble( 3 ) ) );
+            try {
+                try ( Statement st = conn.createStatement() ) {
+                    st.execute( setEf );
+                }
+                try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
+                    ps.setString( 1, literal );
+                    ps.setString( 2, modelCode );
+                    ps.setString( 3, literal );
+                    ps.setInt( 4, k );
+                    try ( ResultSet rs = ps.executeQuery() ) {
+                        final List< ScoredChunk > out = new ArrayList<>( k );
+                        while ( rs.next() ) {
+                            out.add( new ScoredChunk(
+                                rs.getObject( 1, UUID.class ),
+                                rs.getString( 2 ),
+                                rs.getDouble( 3 ) ) );
+                        }
+                        conn.commit();
+                        return out;
                     }
-                    conn.commit();
+                }
+            } catch ( final SQLException inner ) {
+                try {
+                    conn.rollback();
+                } catch ( final SQLException rb ) {
+                    LOG.warn( "PgVectorChunkVectorIndex.topKChunks rollback failed (model={}, k={}): {}",
+                        modelCode, k, rb.getMessage(), rb );
+                }
+                throw inner;
+            } finally {
+                try {
                     conn.setAutoCommit( prevAutoCommit );
-                    return out;
+                } catch ( final SQLException acRestore ) {
+                    LOG.warn( "PgVectorChunkVectorIndex.topKChunks autoCommit restore failed (model={}): {}",
+                        modelCode, acRestore.getMessage(), acRestore );
                 }
             }
         } catch ( final SQLException e ) {

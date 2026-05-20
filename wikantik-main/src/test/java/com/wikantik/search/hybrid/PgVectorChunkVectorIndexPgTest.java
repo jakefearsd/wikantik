@@ -22,8 +22,6 @@ import com.wikantik.PostgresTestContainer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.junit.jupiter.Testcontainers;
-
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -43,7 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>Run with: {@code mvn -pl wikantik-main test -Dtest=PgVectorChunkVectorIndexPgTest}</p>
  */
-@Testcontainers( disabledWithoutDocker = true )
+// Requires Docker; uses the shared PostgresTestContainer singleton.
 class PgVectorChunkVectorIndexPgTest {
 
     private static final String MODEL_CODE = "bge-m3";

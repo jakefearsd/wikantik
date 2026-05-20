@@ -173,6 +173,73 @@ These six items should become a single follow-up spec (working title `2026-05-DD
 
 ---
 
+## 9. Sweep #3 — code-surgery + JFR findings (2026-05-20)
+
+The Phase 0 baseline and Phase 3 Postgres tuning stayed in place. Two surgical changes landed on top per [docs/superpowers/specs/2026-05-20-search-path-optimization-design.md](superpowers/specs/2026-05-20-search-path-optimization-design.md):
+
+1. **`MentionIndex.findRelatedPagesBatch`** — replaces the N+1 per-page lookup in `DefaultContextRetrievalService.retrieve()`'s result-building loop with a single batched call (one DBCP acquire + one prepared statement reused across the N executions).
+2. **`fetchContributingChunks` short-circuit + reuse** — when the hybrid pass already produced ≥ `pages × chunksPerPage` chunks (surfaced via the new `RerankOutcome` carrier and `HybridSearchService.rerankWithChunks`), skip the second full-corpus brute-force `topKChunks(emb, 200)` scan entirely.
+
+A JFR profiling endpoint at `/admin/profiling/jfr/*` shipped with the change, gated by `AdminAuthFilter` and writing to a `/var/wikantik/profiling` volume. One 60-second JFR recording was captured during the N=300 sustained phase for the analysis below.
+
+### Sweep #3 results vs Sweep #2 (matching VU levels)
+
+| N | Sweep #2 RPS / p95 / load1 | Sweep #3 RPS / p95 / load1 | Δ RPS | Δ p95 | Δ load1 |
+|---|---|---|---|---|---|
+| 200 | 129.3 / 750 ms / 12.44 | **135.0 / 420 ms / 21.18** | +4 % | **-44 %** | **+70 %** |
+| 300 | 129.2 / 3.51 s / 13.27 | **140.6 / 2.48 s / 28.69** | **+9 %** | **-29 %** | **+116 %** |
+| 400 | 122.9 / 5.89 s / 10.82 | **143.9 / 4.96 s / 22.98** | **+17 %** | **-16 %** | **+112 %** |
+
+Sweep #3 wins on every axis the surgery targeted: more throughput, lower latency, **and** higher load1 — the box finally uses its CPU. At N=300 load1 hit **28.69 / 16 cores ≈ 179 % saturation**, more than double Sweep #2's 13.27. The surgery freed concurrency that the pool-bound regression in Sweep #2 had hidden.
+
+The `/api/health` and `/wiki/Main` endpoints in the curl probe stayed under 50 ms throughout every step, including the N=400 case where k6 p95 hit 4.96 s — confirming the new latency is concentrated in `/api/search`, not the cheap endpoints.
+
+### JFR top hot methods at N=300 (60 s capture)
+
+Raw data in `loadtest/results/sweep3-300vu-jfr-top20.txt`. Top frames in the execution-sample timeline:
+
+| Samples | Method | Comment |
+|---|---|---|
+| **1677** | `java.util.stream.MatchOps$1MatchSink.accept` | `Stream.anyMatch/allMatch` short-circuit op called *very* heavily; stack-depth-1 doesn't show the caller — investigation needed |
+| **808** | `com.wikantik.search.hybrid.InMemoryChunkVectorIndex.dotAt` | The brute-force dot-product inner loop — confirmed as a real hotspot |
+| 368 | `java.util.HashMap.getNode (line 587)` | hot map lookups |
+| 324 | `java.util.stream.ReferencePipeline$3$1.accept` | stream pipeline operator |
+| 230 | `java.lang.Character.codePointAtImpl` | unicode handling — likely string normalization in `QueryEmbedder.normalizeForCache` or markdown parsing |
+| 230 | `java.lang.AbstractStringBuilder.ensureCapacityInternal` | string-builder growth |
+| 222 | `java.util.HashMap.getNode (line 578)` | more map lookups |
+| 156 | `java.lang.StringUTF16.compress` | UTF-16 → Latin-1 string compression |
+| 57 | `java.lang.String.decodeUTF8_UTF16` | UTF-8 → Java String decoding |
+| 49 | `java.lang.Character.codePointAtImpl` (overload) | |
+| 45 | `java.util.stream.ReferencePipeline.forEachWithCancel` | |
+| 27 | `java.util.HashMap.get (line 564)` | |
+| **19** | `com.wikantik.search.hybrid.InMemoryChunkVectorIndex.topKChunks` | the outer brute-force scan entry point |
+| 16 | `java.lang.AbstractStringBuilder.append` | |
+| 14 | `com.wikantik.search.hybrid.InMemoryChunkVectorIndex.siftDown` | top-K min-heap maintenance |
+| 12 | `java.util.ArrayList$ArrayListSpliterator.tryAdvance` | |
+| 11 | `java.util.regex.Pattern$Slice.match` | regex matching |
+| 10 | `java.util.stream.Sink$ChainedReference.cancellationRequested` | |
+| 10 | `java.util.stream.AbstractPipeline.copyIntoWithCancel` | |
+| 10 | `java.util.regex.Pattern$StartS.match` | regex matching |
+
+**What the profile says about v2:**
+
+- **`MatchOps$1MatchSink.accept` at 1677 samples** is the headline hotspot — twice as hot as the brute-force dot product. It's an unconditional `Stream.anyMatch`/`allMatch` short-circuit operator, and stack-depth-1 doesn't reveal the caller. The single biggest unlock would be identifying which call site this is. A `--stack-depth 30` re-capture (or a flame-graph) names it immediately.
+- **`InMemoryChunkVectorIndex.dotAt` at 808 samples** confirms the brute-force loop is a meaningful (not dominant) hot path — a real opportunity for Java Vector API (SIMD), with potentially a 4-8× speedup on the per-call cost.
+- **HashMap lookups at 617 combined** (3 frames) are scattered but cumulatively significant — probably `HybridFuser`'s score map, the new `relatedByPage` map, the `byName` lookup map in `applyHybridAndGraphRerank`, or `QueryEmbedder`'s cache key map. Worth identifying with a deeper capture.
+- **Heavy string/character handling** (Character + AbstractStringBuilder + StringUTF16 + decodeUTF8_UTF16 ≈ 673 samples combined) suggests significant string churn — likely query normalization, regex matching on text, or JSON serialization. Caching parsed/normalised strings could be a real win.
+- **Regex matching** (`Pattern$Slice.match`, `Pattern$StartS.match` ≈ 21 samples) is small but interesting — possibly the `WHITESPACE`/`TRAILING_PUNCT` regex in `QueryEmbedder.normalizeForCache`, or `KgInclusionFilter`'s pattern checks. Cheap to fix if it's the normaliser (compile once is already done; pre-normalising the cache key once per call already does this).
+
+### Next round: v2 topic
+
+Working spec title: **`2026-05-DD-search-path-optimization-v2-design.md`** — items ordered by expected (impact / effort) ratio:
+
+1. **Re-capture the JFR with stack-depth 30** to identify the caller of `MatchOps$1MatchSink.accept` (the 1677-sample hotspot). Until we know what it is, the v2 spec leads with one investigation task before any code change.
+2. **Vector-API rewrite of `InMemoryChunkVectorIndex.dotAt`** — Java 21 incubator vector API, 4-wide or 8-wide FMA per iteration. Bench it standalone (JMH) before landing.
+3. **Reduce HashMap traffic** — once the JFR's stack-depth-30 capture names the hot maps, swap them for primitive-keyed maps (`IntIntMap` from `eclipse-collections`) or pre-sized non-resizing hash maps.
+4. **Caching layer** — *after* the above three identify the real ceiling. Two-tier (full RetrievalResult, short TTL, event-invalidated; dense top-K, long TTL) per the original 2026-05-20 design draft.
+
+---
+
 ## Raw data
 
-All per-step k6 outputs, curl-probe samples, and jakemon snapshots are in `loadtest/results/sweep1-<N>vu-{k6,curl,host}.{log,json}` and the `sweep2-…` siblings. The directory is gitignored (raw data is reproducible, not versioned).
+All per-step k6 outputs, curl-probe samples, and jakemon snapshots are in `loadtest/results/sweep1-<N>vu-{k6,curl,host}.{log,json}`, the `sweep2-…` siblings, and the new `sweep3-…` set. The 22.6 MB JFR capture lives at `loadtest/results/sweep3-300vu.jfr` for offline analysis with `jfr print` or JMC. The directory is gitignored (raw data is reproducible, not versioned).

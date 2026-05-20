@@ -322,7 +322,10 @@
                          /admin/knowledge-graph/hub-discovery/proposals/seed.
                          Returns 403 unless this property is set (only set during
                          the integration-tests profile, never in production). -->
-                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading -Dwikantik.test.fixture-seam.enabled=true</cargo.jvmargs>
+                    <!-- wikantik.profiling.dir redirected into the test target/
+                         so the JFR endpoint IT (ProfilingResourceIT) can
+                         create the directory without root privileges. -->
+                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading -Dwikantik.test.fixture-seam.enabled=true -Dwikantik.profiling.dir=${project.build.directory}/cargo-profiling</cargo.jvmargs>
                   </properties>
                 </configuration>
                 <container>

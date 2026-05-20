@@ -80,25 +80,73 @@ public final class HybridSearchService {
      * @param bm25PageNames ordered page names from the Lucene/BM25 pass; may be empty
      * @return fused ordered page names (superset of input when dense adds hits)
      */
+    /**
+     * Thin forwarder kept for source compatibility. New code should use
+     * {@link #rerankWithChunks} so the dense chunks can be reused downstream.
+     *
+     * @deprecated since 2026-05-20 (search-path-optimization spec) — use
+     *             {@link #rerankWithChunks}.
+     */
+    @Deprecated( since = "2026-05-20" )
     public List< String > rerank( final String query, final List< String > bm25PageNames ) {
+        return rerankWithChunks( query, bm25PageNames ).fusedPageNames();
+    }
+
+    /**
+     * Rerank the BM25 page-name list using a fused BM25 + dense score, and
+     * return the dense chunks alongside the fused names. Callers that need
+     * contributing chunks (e.g. retrieval services that show per-page
+     * snippets) can reuse {@link RerankOutcome#denseChunks()} to skip a
+     * second full-corpus scan.
+     *
+     * <p>Fallback semantics mirror {@link #rerank}: any failure or disabled
+     * service yields BM25-only with empty {@code denseChunks}.</p>
+     */
+    public RerankOutcome rerankWithChunks( final String query, final List< String > bm25PageNames ) {
         if ( query == null || query.isBlank() ) {
-            return bm25PageNames == null ? List.of() : bm25PageNames;
+            return RerankOutcome.bm25Only( bm25PageNames );
         }
         final List< String > bm25 = bm25PageNames == null ? List.of() : bm25PageNames;
         if ( !enabled ) {
-            return bm25;
+            return RerankOutcome.bm25Only( bm25 );
         }
         final Optional< float[] > vec;
         try {
             vec = embedder.embed( query );
         } catch( final RuntimeException e ) {
-            // QueryEmbedder contracts never-throws, but be defensive: a bug there
-            // must not break search. Log and fall back to BM25.
             LOG.warn( "QueryEmbedder.embed threw despite never-throws contract; falling back to BM25: {}",
                 e.getMessage(), e );
-            return bm25;
+            return RerankOutcome.bm25Only( bm25 );
         }
-        return fuseWithEmbedding( bm25, vec );
+        if ( vec.isEmpty() ) {
+            LOG.debug( "Hybrid search: query embedding unavailable; falling back to BM25" );
+            return RerankOutcome.bm25Only( bm25 );
+        }
+        final DenseRetriever.Result dr;
+        try {
+            dr = denseRetriever.retrieveWithChunks( vec.get() );
+        } catch( final RuntimeException e ) {
+            LOG.warn( "DenseRetriever failed; falling back to BM25: {}", e.getMessage(), e );
+            return RerankOutcome.bm25Only( bm25 );
+        }
+        if ( dr.pages().isEmpty() ) {
+            return new RerankOutcome( bm25, Optional.of( dr.chunks() ) );
+        }
+        final List< String > denseNames = new ArrayList<>( dr.pages().size() );
+        for ( final ScoredPage sp : dr.pages() ) {
+            denseNames.add( sp.pageName() );
+        }
+        final List< String > fused = fuser.fuse( bm25, denseNames );
+        // Same reorder-not-remove contract as the legacy rerank path: any
+        // BM25 tail truncated by the fuser's window is preserved at the
+        // end of the fused list.
+        final LinkedHashSet< String > out = new LinkedHashSet<>( fused );
+        for ( final String name : bm25 ) {
+            out.add( name );
+        }
+        return new RerankOutcome(
+            Collections.unmodifiableList( new ArrayList<>( out ) ),
+            Optional.of( dr.chunks() ) );
     }
 
     /**

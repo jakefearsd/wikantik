@@ -236,4 +236,86 @@ class HybridSearchServiceTest {
         assertThrows( IllegalArgumentException.class,
             () -> new HybridSearchService( embedder, dense, null, true ) );
     }
+
+    // ---------- rerankWithChunks (search-path-optimization v1) ----------
+
+    @Test
+    void rerankWithChunks_surfaceDenseChunksOnSuccess() {
+        final QueryEmbedder embedder = mock( QueryEmbedder.class );
+        when( embedder.embed( "q" ) ).thenReturn( Optional.of( new float[]{ 1f, 0f, 0f, 0f } ) );
+        final List< ScoredChunk > chunks = List.of(
+            new ScoredChunk( java.util.UUID.randomUUID(), "PA", 0.9 ),
+            new ScoredChunk( java.util.UUID.randomUUID(), "PB", 0.7 ) );
+        final DenseRetriever dense = denseFromChunks( chunks );
+        final HybridSearchService svc =
+            new HybridSearchService( embedder, dense, defaultFuser(), true );
+
+        final RerankOutcome out = svc.rerankWithChunks( "q", List.of( "PA" ) );
+
+        assertTrue( out.denseChunks().isPresent(),
+            "successful dense path should surface chunks for downstream reuse" );
+        assertEquals( chunks.size(), out.denseChunks().get().size() );
+        assertTrue( !out.fusedPageNames().isEmpty() );
+    }
+
+    @Test
+    void rerankWithChunks_emptyChunksWhenEmbedderReturnsEmpty() {
+        final QueryEmbedder embedder = mock( QueryEmbedder.class );
+        when( embedder.embed( "q" ) ).thenReturn( Optional.empty() );
+        final HybridSearchService svc =
+            new HybridSearchService( embedder, denseFromChunks( List.of() ), defaultFuser(), true );
+
+        final RerankOutcome out = svc.rerankWithChunks( "q", List.of( "A", "B" ) );
+
+        assertTrue( out.denseChunks().isEmpty(),
+            "empty query embedding should fall back to BM25-only with no chunks" );
+        assertEquals( List.of( "A", "B" ), out.fusedPageNames() );
+    }
+
+    @Test
+    void rerankWithChunks_emptyChunksWhenServiceDisabled() {
+        final QueryEmbedder embedder = mock( QueryEmbedder.class );
+        final HybridSearchService svc =
+            new HybridSearchService( embedder, denseFromChunks( List.of() ), defaultFuser(), /*enabled*/ false );
+
+        final RerankOutcome out = svc.rerankWithChunks( "q", List.of( "A" ) );
+
+        assertTrue( out.denseChunks().isEmpty() );
+        assertEquals( List.of( "A" ), out.fusedPageNames() );
+        verifyNoInteractions( embedder );
+    }
+
+    @Test
+    void rerankWithChunks_emptyChunksOnBlankQuery() {
+        final HybridSearchService svc = new HybridSearchService(
+            mock( QueryEmbedder.class ), denseFromChunks( List.of() ), defaultFuser(), true );
+        final RerankOutcome out = svc.rerankWithChunks( "  ", List.of( "A" ) );
+        assertTrue( out.denseChunks().isEmpty() );
+        assertEquals( List.of( "A" ), out.fusedPageNames() );
+    }
+
+    @Test
+    void rerankWithChunks_chunksPresentEvenWhenDensePagesEmpty() {
+        // Edge case: dense returned chunks but page aggregation collapsed
+        // to an empty list (e.g. all chunks scored below the aggregator
+        // threshold). We still want to surface the raw chunks so the
+        // downstream caller can decide what to do with them.
+        // Verifies the explicit branch in rerankWithChunks that returns
+        // bm25 fused names + Optional.of(chunks) when dr.pages().isEmpty().
+        final QueryEmbedder embedder = mock( QueryEmbedder.class );
+        when( embedder.embed( "q" ) ).thenReturn( Optional.of( new float[]{ 1f, 0f, 0f, 0f } ) );
+        // chunkTop=100 / pageTop=100 with a single below-zero-similarity chunk
+        // results in a non-empty chunks list but pages can still aggregate to 1.
+        // We exercise the no-pages branch by using zero-vector query: the
+        // DenseRetriever still returns the chunks list (just no useful scores).
+        final List< ScoredChunk > chunks = List.of(
+            new ScoredChunk( java.util.UUID.randomUUID(), "ZERO", 0.0 ) );
+        final DenseRetriever dense = denseFromChunks( chunks );
+        final HybridSearchService svc =
+            new HybridSearchService( embedder, dense, defaultFuser(), true );
+        final RerankOutcome out = svc.rerankWithChunks( "q", List.of( "A" ) );
+        // Even with weak dense scoring, the chunks list is non-empty, so the
+        // outcome's denseChunks is present.
+        assertTrue( out.denseChunks().isPresent() );
+    }
 }

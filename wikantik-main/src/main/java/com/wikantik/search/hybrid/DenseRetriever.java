@@ -50,14 +50,30 @@ public final class DenseRetriever {
     }
 
     public List< ScoredPage > retrieve( final float[] queryVec ) {
+        return retrieveWithChunks( queryVec ).pages();
+    }
+
+    /**
+     * Like {@link #retrieve} but also returns the raw {@link ScoredChunk} list
+     * the page aggregation was built from. Exposing the chunks lets downstream
+     * callers (e.g. {@code DefaultContextRetrievalService.fetchContributingChunks})
+     * avoid re-running the brute-force scan for the same query embedding.
+     */
+    public Result retrieveWithChunks( final float[] queryVec ) {
         if( queryVec == null ) throw new IllegalArgumentException( "queryVec must not be null" );
-        if( !index.isReady() ) return List.of();
+        if( !index.isReady() ) return Result.EMPTY;
         if( queryVec.length != index.dimension() ) {
             throw new IllegalArgumentException( "queryVec length " + queryVec.length
                 + " does not match index dimension " + index.dimension() );
         }
         final List< ScoredChunk > chunks = index.topKChunks( queryVec, chunkTop );
         final List< ScoredPage > pages = aggregator.aggregate( chunks, strategy );
-        return pages.size() > pageTop ? pages.subList( 0, pageTop ) : pages;
+        final List< ScoredPage > top = pages.size() > pageTop ? pages.subList( 0, pageTop ) : pages;
+        return new Result( top, chunks );
+    }
+
+    /** Bundled result of {@link #retrieveWithChunks}. */
+    public record Result( List< ScoredPage > pages, List< ScoredChunk > chunks ) {
+        public static final Result EMPTY = new Result( List.of(), List.of() );
     }
 }

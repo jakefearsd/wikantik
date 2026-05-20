@@ -111,6 +111,66 @@ class JfrProfilingServiceTest {
     }
 
     @Test
+    void startAutoFinalisesPreviousRecordingStoppedByDurationTimer( @TempDir final Path tmp ) throws Exception {
+        // JFR's setDuration(...) auto-stops the recording when the timer fires,
+        // but the engine doesn't call our stop(). Prior to this fix, a second
+        // start() would throw IllegalStateException ("already running") even
+        // though no recording was actually running. The lazy auto-cleanup in
+        // start() should detect RecordingState.STOPPED and finalise it.
+        svc = new JfrProfilingService( tmp, FIVE_GB );
+        final var first = svc.start( 60, "auto-finalise-first" );
+
+        // Simulate JFR's duration-timer auto-stop: reach in and stop the
+        // underlying Recording directly, bypassing svc.stop() (which would
+        // also clear runningId). This is exactly the post-condition we hit
+        // in production after a JFR duration timer fires — Recording.state
+        // becomes STOPPED but JfrProfilingService.runningId is still set.
+        // Polling for JFR's real duration timer is unreliable in test
+        // isolation, so we trigger the scenario synchronously here.
+        final jdk.jfr.Recording rec = recordingFor( svc, first.recordingId() );
+        assertNotNull( rec );
+        rec.stop();
+        // With setDestination(...) set, JFR transitions straight to CLOSED on stop;
+        // without it the state would be STOPPED. Either is "not running" — the
+        // lazy auto-cleanup in svc.start() handles both.
+        assertTrue(
+            rec.getState() == jdk.jfr.RecordingState.STOPPED
+            || rec.getState() == jdk.jfr.RecordingState.CLOSED,
+            "expected STOPPED or CLOSED, was: " + rec.getState() );
+
+        // Second start MUST succeed — the auto-cleanup should detect that
+        // 'first' is already STOPPED and clear the runningId guard.
+        final var second = svc.start( 2, "auto-finalise-second" );
+        assertEquals( "RUNNING", second.status(),
+            "second start should succeed once the first has auto-stopped" );
+        assertNotEquals( first.recordingId(), second.recordingId() );
+
+        // The first recording's RecordingInfo should now be FINISHED in list(),
+        // with non-zero size (the JFR file was written during the 1s window).
+        final List< JfrProfilingService.RecordingInfo > all = svc.list();
+        final JfrProfilingService.RecordingInfo firstFinished = all.stream()
+            .filter( r -> r.recordingId().equals( first.recordingId() ) )
+            .findFirst()
+            .orElseThrow();
+        assertEquals( "FINISHED", firstFinished.status() );
+        assertTrue( firstFinished.sizeBytes() > 0,
+            "auto-finalised recording should report its on-disk size" );
+    }
+
+    /** Reflective accessor to peek at the underlying JFR Recording for a known id; test-only. */
+    private static jdk.jfr.Recording recordingFor( final JfrProfilingService svc, final String id ) throws Exception {
+        final java.lang.reflect.Field f = JfrProfilingService.class.getDeclaredField( "recordings" );
+        f.setAccessible( true );
+        @SuppressWarnings( "unchecked" )
+        final java.util.Map< String, ? > map = (java.util.Map< String, ? >) f.get( svc );
+        final Object tracked = map.get( id );
+        if ( tracked == null ) return null;
+        final java.lang.reflect.Method rec = tracked.getClass().getDeclaredMethod( "recording" );
+        rec.setAccessible( true );
+        return (jdk.jfr.Recording) rec.invoke( tracked );
+    }
+
+    @Test
     void sizeCapRejectsNewStart( @TempDir final Path tmp ) throws Exception {
         // Pre-populate a fake .jfr file larger than the (tiny) cap so the next start refuses.
         java.nio.file.Files.write( tmp.resolve( "preexisting.jfr" ), new byte[ 1024 ] );

@@ -20,6 +20,7 @@ package com.wikantik.observability;
 
 import jdk.jfr.Configuration;
 import jdk.jfr.Recording;
+import jdk.jfr.RecordingState;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -77,8 +78,23 @@ public final class JfrProfilingService {
                 "duration_s must be in [" + MIN_DURATION_SECONDS + ".." + MAX_DURATION_SECONDS + "]" );
         }
         if ( runningId != null ) {
-            throw new IllegalStateException(
-                "A recording is already running (recording_id=" + runningId + ")" );
+            // The JFR engine auto-stops a recording when its duration timer
+            // fires, but the engine doesn't call our stop() — so runningId
+            // could be pointing at a recording that's no longer running.
+            // Lazy-finalise it here on the next start() rather than refusing
+            // with 409. A dedicated FlightRecorderListener would be cleaner
+            // but adds JFR API surface for what is effectively a state-sync.
+            final Tracked stale = recordings.get( runningId );
+            final RecordingState staleState = stale == null ? null : stale.recording.getState();
+            // Recording goes to STOPPED if no destination was set, CLOSED when
+            // the destination file has been written (which is our case — every
+            // recording has setDestination()). Treat both as "not running".
+            if ( staleState == RecordingState.STOPPED || staleState == RecordingState.CLOSED ) {
+                finaliseStopped( runningId, stale );
+            } else {
+                throw new IllegalStateException(
+                    "A recording is already running (recording_id=" + runningId + ")" );
+            }
         }
         ensureDirectory();
         enforceSizeCap();
@@ -119,6 +135,16 @@ public final class JfrProfilingService {
         if ( recordingId == null ) throw new IllegalArgumentException( "recording_id must not be null" );
         final Tracked t = recordings.get( recordingId );
         if ( t == null ) throw new IllegalArgumentException( "Unknown recording_id: " + recordingId );
+        return finaliseStopped( recordingId, t );
+    }
+
+    /**
+     * Close out a recording and publish its {@code FINISHED} info, idempotent on
+     * the JFR side (the recording may already be stopped by its duration timer).
+     * Used by both the public {@link #stop(String)} entry point and the lazy
+     * auto-cleanup inside {@link #start(int, String)}.
+     */
+    private RecordingInfo finaliseStopped( final String recordingId, final Tracked t ) {
         try {
             t.recording.stop();
         } catch ( final IllegalStateException ignore ) {

@@ -137,7 +137,15 @@ public final class SearchWiringHelper {
 
         final AsyncEmbeddingIndexListener listener =
             new AsyncEmbeddingIndexListener( indexService, modelCode );
-        listener.setPostIndexCallback( vectorIndex::upsertChunks );
+        // Only set the upsertChunks callback for the in-memory backend.
+        // Under pgvector, EmbeddingIndexService.indexChunks dual-writes the
+        // embedding column via its UPSERT SQL (Task 7), so the HNSW index
+        // stays in sync without any listener-side reload step.
+        final String denseBackend = props.getProperty(
+            "wikantik.search.dense.backend", "inmemory" );
+        if ( !"pgvector".equalsIgnoreCase( denseBackend ) ) {
+            listener.setPostIndexCallback( vectorIndex::upsertChunks );
+        }
         chunkProjector.setPostChunkSink( listener );
         engine.setHybridIndexListener( listener );
 

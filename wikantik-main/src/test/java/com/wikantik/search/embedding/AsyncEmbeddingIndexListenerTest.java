@@ -154,4 +154,59 @@ class AsyncEmbeddingIndexListenerTest {
             assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
         }
     }
+
+    /**
+     * In-memory backend: the wiring layer sets a postIndexCallback that calls
+     * {@code InMemoryChunkVectorIndex.upsertChunks}. After a successful
+     * {@code indexChunks} call the callback must be invoked so the in-memory
+     * snapshot stays coherent with the DB without a full reload.
+     */
+    @Test
+    void calls_upsertChunks_on_inmemory_backend() throws InterruptedException {
+        final EmbeddingIndexService indexer = mock( EmbeddingIndexService.class );
+        when( indexer.indexChunks( any(), eq( MODEL ) ) ).thenReturn( 1 );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        final AtomicInteger cbCalls = new AtomicInteger();
+        final UUID id = UUID.randomUUID();
+        try( final AsyncEmbeddingIndexListener listener =
+                 new AsyncEmbeddingIndexListener( indexer, MODEL, ex ) ) {
+            // Simulate in-memory wiring: the callback delegates to upsertChunks.
+            listener.setPostIndexCallback( ids -> cbCalls.incrementAndGet() );
+            listener.accept( List.of( id ) );
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+            assertEquals( 1, cbCalls.get(),
+                "postIndexCallback must be called once for an in-memory backend" );
+        }
+    }
+
+    /**
+     * pgvector backend: the wiring layer must NOT set a postIndexCallback.
+     * {@code EmbeddingIndexService.indexChunks} (Task 7 dual-write) writes the
+     * {@code embedding} pgvector column directly via its UPSERT SQL, so the
+     * HNSW index stays in sync without any listener-side reload step.
+     * Verify that with no callback set, only {@code indexChunks} is called and
+     * nothing else happens after indexing completes.
+     */
+    @Test
+    void does_not_call_upsertChunks_on_pgvector_backend() throws InterruptedException {
+        final EmbeddingIndexService indexer = mock( EmbeddingIndexService.class );
+        when( indexer.indexChunks( any(), eq( MODEL ) ) ).thenReturn( 1 );
+        final ExecutorService ex = Executors.newSingleThreadExecutor();
+        final AtomicInteger cbCalls = new AtomicInteger();
+        final UUID id = UUID.randomUUID();
+        try( final AsyncEmbeddingIndexListener listener =
+                 new AsyncEmbeddingIndexListener( indexer, MODEL, ex ) ) {
+            // Simulate pgvector wiring: no postIndexCallback is registered.
+            // The listener must call indexChunks but must NOT attempt any
+            // in-memory reload (upsertChunks), because the pgvector HNSW
+            // index is kept in sync by the INSERT itself.
+            listener.accept( List.of( id ) );
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+            assertEquals( 0, cbCalls.get(),
+                "no postIndexCallback must be invoked for a pgvector backend" );
+            verify( indexer, times( 1 ) ).indexChunks( any(), eq( MODEL ) );
+        }
+    }
 }

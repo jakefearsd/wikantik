@@ -6,6 +6,14 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-20** — docs: scaling characterization report — sweep, diagnosis, iteration, code suspects
+
+**2026-05-20** — perf: phase-3 postgres tuning for the scaling study
+
+**2026-05-20** — tool: add bin/curl-probe.sh for external real-user latency sampling
+
+**2026-05-20** — perf: bake the solid-baseline config for the scaling study
+
 **2026-05-19** — fix(loadtest): rename --vus/--duration env vars off the k6-reserved K6_* namespace
 
 **2026-05-19** — chore: clean up Dependabot config and fix stale Apache reference

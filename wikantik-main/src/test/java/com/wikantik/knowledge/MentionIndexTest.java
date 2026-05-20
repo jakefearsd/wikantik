@@ -221,4 +221,72 @@ class MentionIndexTest {
               + "('" + chunkId + "', '" + nodeId + "', " + confidence + ", 'test', NOW())" );
         }
     }
+
+    // ---------- findRelatedPagesBatch ----------
+
+    @Test
+    void findRelatedPagesBatch_returnsPerPageMapMatchingSingleNameCalls() throws Exception {
+        // Same fixture shape as findRelatedPages_returnsPagesSharingEntityMentions
+        // — Alpha / Beta / Gamma / Delta with overlapping mentions — but querying
+        // multiple pages in one batched call.
+        final UUID bm25  = UUID.randomUUID();
+        final UUID qwen3 = UUID.randomUUID();
+        final UUID rrf   = UUID.randomUUID();
+        seedNode( bm25,  "BM25" );
+        seedNode( qwen3, "Qwen3" );
+        seedNode( rrf,   "RRF" );
+
+        final UUID a1 = UUID.randomUUID();
+        final UUID b1 = UUID.randomUUID();
+        final UUID b2 = UUID.randomUUID();
+        final UUID g1 = UUID.randomUUID();
+        seedChunk( a1, "AlphaB", 0 );
+        seedChunk( b1, "BetaB",  0 );
+        seedChunk( b2, "BetaB",  1 );
+        seedChunk( g1, "GammaB", 0 );
+        seedMention( a1, bm25 , 0.9 ); seedMention( a1, qwen3, 0.9 );
+        seedMention( b1, bm25 , 0.9 ); seedMention( b2, qwen3, 0.8 ); seedMention( b2, rrf, 0.8 );
+        seedMention( g1, bm25 , 0.9 );
+
+        final MentionIndex idx = new MentionIndex( dataSource );
+        final var single1 = idx.findRelatedPages( "AlphaB", 5 );
+        final var single2 = idx.findRelatedPages( "BetaB",  5 );
+        final var batch   = idx.findRelatedPagesBatch( List.of( "AlphaB", "BetaB" ), 5 );
+
+        assertEquals( single1, batch.get( "AlphaB" ),
+            "batch result for AlphaB must equal the single-name call" );
+        assertEquals( single2, batch.get( "BetaB" ),
+            "batch result for BetaB must equal the single-name call" );
+        assertEquals( 2, batch.size(),
+            "batch returns exactly one entry per input name" );
+    }
+
+    @Test
+    void findRelatedPagesBatch_unknownPagesStillPresentWithEmptyLists() {
+        final MentionIndex idx = new MentionIndex( dataSource );
+        final var batch = idx.findRelatedPagesBatch( List.of( "NoSuchPageX", "NoSuchPageY" ), 5 );
+        // The contract: input names always present in the map; missing matches → empty list.
+        assertEquals( List.of(), batch.get( "NoSuchPageX" ) );
+        assertEquals( List.of(), batch.get( "NoSuchPageY" ) );
+        assertEquals( 2, batch.size() );
+    }
+
+    @Test
+    void findRelatedPagesBatch_rejectsNullEmptyOrZeroLimit() {
+        final MentionIndex idx = new MentionIndex( dataSource );
+        assertTrue( idx.findRelatedPagesBatch( null, 5 ).isEmpty() );
+        assertTrue( idx.findRelatedPagesBatch( List.of(), 5 ).isEmpty() );
+        assertTrue( idx.findRelatedPagesBatch( List.of( "Foo" ), 0 ).isEmpty() );
+    }
+
+    @Test
+    void findRelatedPagesBatch_skipsNullAndBlankInputNames() {
+        final MentionIndex idx = new MentionIndex( dataSource );
+        final var batch = idx.findRelatedPagesBatch(
+            java.util.Arrays.asList( "RealPage", null, "", "  " ), 5 );
+        assertTrue( batch.containsKey( "RealPage" ),
+            "non-blank input is in the map (even with empty result list)" );
+        assertFalse( batch.containsKey( null ), "null inputs are filtered" );
+        assertFalse( batch.containsKey( "" ),   "blank inputs are filtered" );
+    }
 }

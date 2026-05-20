@@ -19,6 +19,7 @@
 package com.wikantik.search.embedding;
 
 import com.wikantik.PostgresTestContainer;
+import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,16 +28,20 @@ import org.mockito.invocation.InvocationOnMock;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -54,7 +59,8 @@ import static org.mockito.Mockito.when;
 class EmbeddingIndexServiceTest {
 
     private static final String MODEL = "qwen3-embedding-0.6b";
-    private static final int DIM = 4;
+    /** Must match the {@code vector(1024)} column dimension enforced by V032. */
+    private static final int DIM = 1024;
 
     private static DataSource dataSource;
     private TextEmbeddingClient client;
@@ -66,6 +72,7 @@ class EmbeddingIndexServiceTest {
 
     @BeforeEach
     void cleanTables() throws SQLException {
+        applyV032Migration();
         try( final Connection c = dataSource.getConnection() ) {
             c.createStatement().execute( "DELETE FROM content_chunk_embeddings" );
             c.createStatement().execute( "DELETE FROM kg_content_chunks" );
@@ -73,6 +80,18 @@ class EmbeddingIndexServiceTest {
         client = mock( TextEmbeddingClient.class );
         when( client.dimension() ).thenReturn( DIM );
         when( client.modelName() ).thenReturn( MODEL );
+    }
+
+    /**
+     * Ensures the {@code embedding vector(1024)} column added in V032 is
+     * present in the test container schema. Idempotent via {@code IF NOT EXISTS}.
+     */
+    private void applyV032Migration() throws SQLException {
+        try( final Connection c = dataSource.getConnection();
+             final Statement st = c.createStatement() ) {
+            st.execute( "ALTER TABLE content_chunk_embeddings "
+                      + "ADD COLUMN IF NOT EXISTS embedding vector(1024)" );
+        }
     }
 
     @Test
@@ -136,8 +155,10 @@ class EmbeddingIndexServiceTest {
         svc.indexChunks( ids, MODEL );
         final byte[] first = fetchVec( ids.get( 0 ) );
 
-        // second embedding returns a different vector — ON CONFLICT should update
-        final float[] different = new float[]{ 9f, 9f, 9f, 9f };
+        // second embedding returns a different vector — ON CONFLICT should update.
+        // Must be 1024-dim to satisfy the vector(1024) column constraint.
+        final float[] different = new float[ DIM ];
+        Arrays.fill( different, 9f );
         when( client.embed( ArgumentMatchers.anyList(), ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) ) )
             .thenReturn( List.of( different ) );
 
@@ -162,6 +183,85 @@ class EmbeddingIndexServiceTest {
         final int removed = svc.deleteByModel( MODEL );
         assertEquals( 2, removed, "both rows for target model removed" );
         assertEquals( 1, countRows(), "other model's row preserved" );
+    }
+
+    @Test
+    void upsert_populates_both_vec_and_embedding_columns() throws SQLException {
+        // The embedding column is vector(1024) — use 1024-dim vectors so the pgvector
+        // dimension constraint is satisfied while the BYTEA path continues working.
+        final float[] vec1024 = unitVec1024();
+        when( client.embed( ArgumentMatchers.anyList(),
+                            ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) ) )
+            .thenAnswer( inv -> {
+                final List< String > texts = inv.getArgument( 0 );
+                final List< float[] > out = new ArrayList<>( texts.size() );
+                for( int i = 0; i < texts.size(); i++ ) out.add( vec1024 );
+                return out;
+            } );
+
+        final List< UUID > ids = seedChunks( 2 );
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 32 );
+        final int embedded = svc.indexAll( MODEL );
+
+        assertEquals( 2, embedded );
+        try( final Connection c = dataSource.getConnection();
+             final ResultSet rs = c.createStatement().executeQuery(
+                 "SELECT vec IS NOT NULL, embedding IS NOT NULL "
+               + "FROM content_chunk_embeddings WHERE model_code = '" + MODEL + "'" ) ) {
+            int rowsSeen = 0;
+            while( rs.next() ) {
+                rowsSeen++;
+                assertTrue( rs.getBoolean( 1 ), "vec column should be populated" );
+                assertTrue( rs.getBoolean( 2 ), "embedding column should be populated" );
+            }
+            assertEquals( 2, rowsSeen, "expected 2 rows in content_chunk_embeddings" );
+        }
+    }
+
+    @Test
+    void upsert_round_trips_vector_through_both_codecs() throws SQLException {
+        // Use a known deterministic 1024-dim vector so we can compare both decodings.
+        // The embedding column is vector(1024) — dimension must match.
+        final float[] expected = unitVec1024();
+        when( client.embed( ArgumentMatchers.anyList(),
+                            ArgumentMatchers.eq( EmbeddingKind.DOCUMENT ) ) )
+            .thenReturn( List.of( expected ) );
+
+        final List< UUID > ids = seedChunks( 1 );
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 32 );
+        svc.indexAll( MODEL );
+
+        final UUID id = ids.get( 0 );
+        try( final Connection c = dataSource.getConnection();
+             final PreparedStatement ps = c.prepareStatement(
+                 "SELECT vec, embedding::text "
+               + "FROM content_chunk_embeddings WHERE chunk_id = ? AND model_code = ?" ) ) {
+            ps.setObject( 1, id );
+            ps.setString( 2, MODEL );
+            try( final ResultSet rs = ps.executeQuery() ) {
+                assertTrue( rs.next(), "row must exist" );
+
+                // Decode BYTEA → float[] via little-endian float32 stream.
+                final byte[] vecBytes = rs.getBytes( 1 );
+                assertNotNull( vecBytes, "vec must be non-null" );
+                final ByteBuffer buf = ByteBuffer.wrap( vecBytes ).order( ByteOrder.LITTLE_ENDIAN );
+                final float[] fromBytea = new float[ vecBytes.length / Float.BYTES ];
+                for( int i = 0; i < fromBytea.length; i++ ) fromBytea[ i ] = buf.getFloat();
+
+                // Decode pgvector literal → float[] (inline parser matching KgNodeEmbeddingRepository).
+                final String literal = rs.getString( 2 );
+                assertNotNull( literal, "embedding must be non-null" );
+                final String trimmed = literal.substring( 1, literal.length() - 1 );
+                final String[] parts = trimmed.split( "," );
+                final float[] fromPgvector = new float[ parts.length ];
+                for( int i = 0; i < parts.length; i++ ) fromPgvector[ i ] = Float.parseFloat( parts[ i ] );
+
+                assertArrayEquals( fromBytea, fromPgvector, 1e-6f,
+                    "float[] decoded from BYTEA must match float[] parsed from pgvector literal" );
+                assertArrayEquals( expected, fromBytea, 1e-6f,
+                    "decoded vector must match the original float[] the client returned" );
+            }
+        }
     }
 
     // ---- helpers ----
@@ -205,7 +305,21 @@ class EmbeddingIndexServiceTest {
     }
 
     private float[] randomVec() {
-        return new float[]{ 0.1f, 0.2f, 0.3f, 0.4f };
+        return unitVec1024();
+    }
+
+    /**
+     * Returns a 1024-dim unit vector with every component equal to
+     * {@code 1 / sqrt(1024) = 0.03125} so the vector is L2-normalised.
+     * Required for tests that write to the {@code embedding vector(1024)}
+     * column, which enforces a dimension check at insert time.
+     */
+    private static float[] unitVec1024() {
+        final int dim = 1024;
+        final float[] v = new float[ dim ];
+        final float val = (float) ( 1.0 / Math.sqrt( dim ) );
+        Arrays.fill( v, val );
+        return v;
     }
 
     private int countRows() throws SQLException {

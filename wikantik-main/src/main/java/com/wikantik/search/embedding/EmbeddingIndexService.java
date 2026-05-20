@@ -18,6 +18,7 @@
  */
 package com.wikantik.search.embedding;
 
+import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -74,12 +75,19 @@ public class EmbeddingIndexService {
      * Upsert so both full rebuilds and incremental page-save calls converge.
      * Intentionally touches {@code updated} so operators can see when a row
      * was last refreshed even when dim/vec are equal across runs.
+     *
+     * <p>Dual-write: the legacy {@code vec BYTEA} column and the new
+     * {@code embedding vector(1024)} column (added in V032) are both
+     * populated on every upsert. This keeps both the in-memory BYTEA backend
+     * and the pgvector HNSW backend correct during the cutover window and
+     * ensures a safe rollback to the BYTEA path if needed.</p>
      */
     private static final String UPSERT_SQL =
-        "INSERT INTO content_chunk_embeddings (chunk_id, model_code, dim, vec) "
-      + "VALUES (?, ?, ?, ?) "
+        "INSERT INTO content_chunk_embeddings (chunk_id, model_code, dim, vec, embedding) "
+      + "VALUES (?, ?, ?, ?, ?::vector) "
       + "ON CONFLICT (chunk_id, model_code) DO UPDATE SET "
-      + "  vec = EXCLUDED.vec, dim = EXCLUDED.dim, updated = NOW()";
+      + "  vec = EXCLUDED.vec, dim = EXCLUDED.dim, "
+      + "  embedding = EXCLUDED.embedding, updated = NOW()";
 
     private static final String DELETE_BY_MODEL_SQL =
         "DELETE FROM content_chunk_embeddings WHERE model_code = ?";
@@ -323,6 +331,7 @@ public class EmbeddingIndexService {
             ins.setString( 2, modelCode );
             ins.setInt( 3, v.length );
             ins.setBytes( 4, encodeVector( v ) );
+            ins.setString( 5, PgVectorChunkVectorIndex.formatVector( v ) );
             ins.addBatch();
             staged++;
         }

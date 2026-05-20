@@ -165,9 +165,14 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             }
             return new RetrievalResult( query.query(), List.of(), 0 );
         }
-        final List< SearchResult > ordered = applyHybridAndGraphRerank( query.query(), bm25 );
+        final RerankPipelineResult pipeline = applyHybridAndGraphRerank( query.query(), bm25 );
+        final List< SearchResult > ordered = pipeline.ordered();
+        // Plumb the first dense scan's chunks down so fetchContributingChunks
+        // can skip its second full-corpus scan when the first one already
+        // produced enough material. Empty Optional → fall through to the
+        // current path (re-embed + topKChunks).
         final Map< String, List< RetrievedChunk > > chunksByPage =
-            fetchContributingChunks( query.query(), ordered, query.chunksPerPage() );
+            fetchContributingChunks( query.query(), ordered, query.chunksPerPage(), pipeline.reusableChunks() );
 
         // Pre-compute related-pages for every candidate in ONE batched call.
         // The previous per-page fetchRelatedPages call inside the loop was an
@@ -201,21 +206,37 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     private Map< String, List< RetrievedChunk > > fetchContributingChunks(
             final String query,
             final List< SearchResult > ordered,
-            final int chunksPerPage ) {
+            final int chunksPerPage,
+            final Optional< List< ScoredChunk > > reusableChunks ) {
+        // Guard #1 — short-circuit when the caller doesn't want contributing
+        // chunks. Skips both the embedding fetch AND the brute-force scan.
+        if ( chunksPerPage <= 0 ) return Map.of();
+
         if ( chunkIndex == null || !chunkIndex.isReady()
                 || chunkRepo == null || hybridSearch == null ) {
             return Map.of();
         }
-        final Optional< float[] > embedding;
-        try {
-            embedding = hybridSearch.prefetchQueryEmbedding( query ).get( 2500, TimeUnit.MILLISECONDS );
-        } catch ( final Exception e ) {
-            LOG.info( "Embedding fetch for contributing-chunk scoring failed — continuing with unscored chunks: {}",
-                e.getMessage() );
-            return Map.of();
+
+        // Guard #2 — reuse the chunks from the first dense scan when they're
+        // already sufficient (chunks count >= pages × chunksPerPage). Skips
+        // the second topKChunks scan entirely.
+        final int neededChunks = ordered.size() * chunksPerPage;
+        final List< ScoredChunk > topChunks;
+        if ( reusableChunks.isPresent() && reusableChunks.get().size() >= neededChunks
+                && neededChunks > 0 ) {
+            topChunks = reusableChunks.get();
+        } else {
+            final Optional< float[] > embedding;
+            try {
+                embedding = hybridSearch.prefetchQueryEmbedding( query ).get( 2500, TimeUnit.MILLISECONDS );
+            } catch ( final Exception e ) {
+                LOG.info( "Embedding fetch for contributing-chunk scoring failed — continuing with unscored chunks: {}",
+                    e.getMessage() );
+                return Map.of();
+            }
+            if ( embedding.isEmpty() ) return Map.of();
+            topChunks = chunkIndex.topKChunks( embedding.get(), 200 );
         }
-        if ( embedding.isEmpty() ) return Map.of();
-        final List< ScoredChunk > topChunks = chunkIndex.topKChunks( embedding.get(), 200 );
         if ( topChunks.isEmpty() ) return Map.of();
 
         final Map< String, List< ScoredChunk > > grouped =
@@ -286,11 +307,22 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         }
     }
 
-    private List< SearchResult > applyHybridAndGraphRerank( final String query,
+    /**
+     * Holds the rerank-pipeline outputs that {@link #retrieve} needs: the
+     * reordered {@link SearchResult} list plus the raw dense chunks the
+     * hybrid pass produced (so {@link #fetchContributingChunks} can reuse
+     * them and skip its second full-corpus scan).
+     */
+    private record RerankPipelineResult(
+        List< SearchResult > ordered,
+        Optional< List< ScoredChunk > > reusableChunks
+    ) {}
+
+    private RerankPipelineResult applyHybridAndGraphRerank( final String query,
                                                             final Collection< SearchResult > bm25 ) {
         final List< SearchResult > asList = new ArrayList<>( bm25 == null ? List.of() : bm25 );
         if ( hybridSearch == null || !hybridSearch.isEnabled() ) {
-            return asList;
+            return new RerankPipelineResult( asList, Optional.empty() );
         }
         final List< String > names = new ArrayList<>();
         final Map< String, SearchResult > byName = new LinkedHashMap<>();
@@ -299,7 +331,9 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             names.add( sr.getPage().getName() );
             byName.putIfAbsent( sr.getPage().getName(), sr );
         }
-        List< String > fused = hybridSearch.rerank( query, names );
+        final com.wikantik.search.hybrid.RerankOutcome rerankOut =
+            hybridSearch.rerankWithChunks( query, names );
+        List< String > fused = rerankOut.fusedPageNames();
         if ( graphRerank != null ) {
             try {
                 fused = graphRerank.rerank( query, fused );
@@ -307,7 +341,9 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
                 LOG.warn( "Graph rerank failed; using hybrid fused order: {}", e.getMessage(), e );
             }
         }
-        if ( fused.equals( names ) ) return asList;
+        if ( fused.equals( names ) ) {
+            return new RerankPipelineResult( asList, rerankOut.denseChunks() );
+        }
         final List< SearchResult > out = new ArrayList<>( fused.size() );
         for ( final String name : fused ) {
             final SearchResult existing = byName.get( name );
@@ -316,7 +352,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             if ( p == null ) continue;
             out.add( new DenseOnlySearchResult( p ) );
         }
-        return out;
+        return new RerankPipelineResult( out, rerankOut.denseChunks() );
     }
 
     /** Mirrors the DenseOnlySearchResult in SearchResource. */

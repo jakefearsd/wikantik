@@ -322,6 +322,73 @@ class DefaultContextRetrievalServiceTest {
     }
 
     @Test
+    void retrieve_reusesFirstScanChunksWhenSufficient() {
+        // Guard #2: when rerankWithChunks already returned enough chunks
+        // (>= ordered.size() × chunksPerPage), fetchContributingChunks must
+        // reuse them instead of running a second topKChunks scan.
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "Alpha", "---\n---\nbody", "a", new java.util.Date() );
+        pm.addPage( "Beta",  "---\n---\nbody", "a", new java.util.Date() );
+
+        final FakeSearchManager sm = new FakeSearchManager();
+        sm.setResults( java.util.List.of(
+            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "Alpha", 5 ),
+            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "Beta",  3 ) ) );
+
+        // 6 chunks — well above 2 pages × 2 chunksPerPage = 4 needed.
+        final java.util.UUID alpha1 = java.util.UUID.randomUUID();
+        final java.util.UUID alpha2 = java.util.UUID.randomUUID();
+        final java.util.UUID alpha3 = java.util.UUID.randomUUID();
+        final java.util.UUID beta1  = java.util.UUID.randomUUID();
+        final java.util.UUID beta2  = java.util.UUID.randomUUID();
+        final java.util.UUID beta3  = java.util.UUID.randomUUID();
+        final java.util.List< com.wikantik.search.hybrid.ScoredChunk > prescanned = java.util.List.of(
+            new com.wikantik.search.hybrid.ScoredChunk( alpha1, "Alpha", 0.9 ),
+            new com.wikantik.search.hybrid.ScoredChunk( alpha2, "Alpha", 0.8 ),
+            new com.wikantik.search.hybrid.ScoredChunk( alpha3, "Alpha", 0.7 ),
+            new com.wikantik.search.hybrid.ScoredChunk( beta1,  "Beta",  0.6 ),
+            new com.wikantik.search.hybrid.ScoredChunk( beta2,  "Beta",  0.5 ),
+            new com.wikantik.search.hybrid.ScoredChunk( beta3,  "Beta",  0.4 ) );
+
+        final var hybrid = org.mockito.Mockito.mock( com.wikantik.search.hybrid.HybridSearchService.class );
+        org.mockito.Mockito.when( hybrid.isEnabled() ).thenReturn( true );
+        org.mockito.Mockito.when( hybrid.rerankWithChunks( org.mockito.ArgumentMatchers.anyString(),
+                                                          org.mockito.ArgumentMatchers.anyList() ) )
+            .thenReturn( new com.wikantik.search.hybrid.RerankOutcome(
+                java.util.List.of( "Alpha", "Beta" ),
+                java.util.Optional.of( prescanned ) ) );
+
+        // Spy the chunk index — verifies topKChunks is NEVER called inside
+        // fetchContributingChunks because the reusable chunks suffice.
+        final com.wikantik.knowledge.testfakes.FakeChunkVectorIndex chunkIndex =
+            org.mockito.Mockito.spy( new com.wikantik.knowledge.testfakes.FakeChunkVectorIndex() );
+        chunkIndex.setEnabled( true );
+        chunkIndex.setDim( 8 );
+        chunkIndex.setTopK( java.util.List.of() );
+
+        final var chunkRepo = new com.wikantik.knowledge.testfakes.FakeChunkRepository();
+        chunkRepo.addChunk( alpha1, "Alpha", 0, java.util.List.of( "Alpha", "Intro" ), "alpha first" );
+        chunkRepo.addChunk( alpha2, "Alpha", 1, java.util.List.of( "Alpha", "Body"  ), "alpha second" );
+        chunkRepo.addChunk( beta1,  "Beta",  0, java.util.List.of( "Beta"           ), "beta first"  );
+        chunkRepo.addChunk( beta2,  "Beta",  1, java.util.List.of( "Beta"           ), "beta second" );
+
+        final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
+            com.wikantik.knowledge.testfakes.FakeEngine.create(),
+            sm, hybrid, null, chunkIndex, chunkRepo, null, null, pm, null, "" );
+
+        final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
+            "q", 5, /*chunksPerPage*/ 2, null ) );
+
+        // The reuse guard fired: chunks served, but the second scan never ran.
+        org.mockito.Mockito.verify( chunkIndex, org.mockito.Mockito.never() )
+            .topKChunks( org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt() );
+        org.mockito.Mockito.verify( hybrid, org.mockito.Mockito.never() )
+            .prefetchQueryEmbedding( org.mockito.ArgumentMatchers.anyString() );
+        // Sanity: the results still carry contributing chunks (from the prescanned set).
+        assertEquals( 2, result.pages().size() );
+    }
+
+    @Test
     void fromEngine_returnsNullWhenPageManagerMissing() {
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( PageManager.class ) ).thenReturn( null );

@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.testfakes;
 
 import com.wikantik.search.hybrid.HybridSearchService;
+import com.wikantik.search.hybrid.RerankOutcome;
 
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +38,11 @@ public final class FakeHybridSearch {
         final HybridSearchService mocked = mock( HybridSearchService.class );
         when( mocked.isEnabled() ).thenReturn( true );
         when( mocked.rerank( anyString(), anyList() ) ).thenReturn( rerankOrder );
+        // The post-2026-05-20 path calls rerankWithChunks; default outcome
+        // surfaces no dense chunks, so reusable-chunk callers fall through to
+        // the second topKChunks scan (current behaviour preserved).
+        when( mocked.rerankWithChunks( anyString(), anyList() ) )
+            .thenReturn( new RerankOutcome( rerankOrder, Optional.empty() ) );
         when( mocked.rerankWith( anyString(), anyList(), any() ) ).thenReturn( rerankOrder );
         when( mocked.prefetchQueryEmbedding( anyString() ) )
             .thenReturn( CompletableFuture.completedFuture( Optional.of( new float[]{ 1f } ) ) );

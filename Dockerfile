@@ -84,7 +84,7 @@ RUN mkdir -p ${CATALINA_HOME}/webapps/ROOT \
 # Copy default page content
 COPY docs/wikantik-pages/ /var/wikantik/pages/
 
-ENV CATALINA_OPTS="-Djava.security.egd=file:/dev/./urandom -XX:MaxRAMPercentage=50.0 -XX:+UseZGC -XX:+ZGenerational --add-modules=jdk.incubator.vector"
+ENV CATALINA_OPTS="-Djava.security.egd=file:/dev/./urandom -XX:MaxRAMPercentage=70.0 --add-modules=jdk.incubator.vector"
 ENV LANG=en_US.UTF-8
 
 EXPOSE 8080

@@ -464,6 +464,12 @@ Living design docs for in-flight architectural work (read before touching the re
 
 **Tool-description examples are in.** Every MCP tool on `/wikantik-admin-mcp` (25) and `/knowledge-mcp` (16), plus both OpenAPI tools on `/tools/*` (2), now ships with at least one worked input/output example in its schema. On the MCP servers, examples land per-property on `inputSchema.properties.<name>` and as a top-level `examples` array on `outputSchema` (the SDK's `JsonSchema` record can't carry top-level extras; `outputSchema` is a free Map). On the OpenAPI tool server, examples use OpenAPI 3.1's `example` keyword on request/response content and on parameter objects. The canonical specimen — `search_knowledge` — matches the design doc's hand-written example verbatim. Agents seeing concrete payloads make first-call success more reliable than reasoning from type schemas alone.
 - **[docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md)** — Implemented. BM25 + dense + Knowledge Graph-aware rerank with fail-closed BM25 fallback.
+
+  Dense backend is selectable via `wikantik.search.dense.backend = inmemory | pgvector`
+  (default `inmemory`). The pgvector path uses an HNSW index on
+  `content_chunk_embeddings.embedding` (V032); see
+  [docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md](docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md)
+  for the cutover + rollback plan.
 - **[docs/wikantik-pages/PageGraphVsKnowledgeGraph.md](docs/wikantik-pages/PageGraphVsKnowledgeGraph.md)** — Canonical explainer distinguishing the Page Graph (wikilink edges) from the Knowledge Graph (LLM-extracted entities). Reference this before touching either subsystem.
 - **[docs/wikantik-pages/RetrievalExperimentHarness.md](docs/wikantik-pages/RetrievalExperimentHarness.md)** — Implemented but not yet scheduled; targeted by `AgentGradeContentDesign.md` for CI integration.
 - **[IndexingSupport.md](IndexingSupport.md)** — Implemented. Raw content + change feed + sitemap for RAG ingestion and SEO.

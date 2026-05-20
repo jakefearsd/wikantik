@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -102,6 +103,42 @@ class PgVectorChunkVectorIndexPgTest {
                 + " score=" + top.get( i ).score()
                 + " < position " + ( i + 1 ) + " score=" + top.get( i + 1 ).score() );
         }
+    }
+
+    @Test
+    void isReady_trueWhenAtLeastOneEmbeddingExists() throws Exception {
+        cleanTestRows();
+        insertChunkAndEmbedding( "IT_PgVec_Page1", 0, unitVector() );
+        final PgVectorChunkVectorIndex idx =
+            new PgVectorChunkVectorIndex( dataSource, MODEL_CODE, 100 );
+        assertTrue( idx.isReady() );
+    }
+
+    @Test
+    void isReady_falseWhenColumnAllNull() throws Exception {
+        cleanTestRows();
+        insertChunkRowWithNullEmbedding( "IT_PgVec_Page1", 0 );
+        final PgVectorChunkVectorIndex idx =
+            new PgVectorChunkVectorIndex( dataSource, MODEL_CODE, 100 );
+        assertFalse( idx.isReady() );
+    }
+
+    @Test
+    void size_returnsRowCountForModel_andCachesForFiveMinutes() throws Exception {
+        cleanTestRows();
+        insertChunkAndEmbedding( "IT_PgVec_Page1", 0, unitVector() );
+        insertChunkAndEmbedding( "IT_PgVec_Page2", 0, perturbAndNormalize( unitVector(), 0, 0.01f ) );
+        insertChunkAndEmbedding( "IT_PgVec_Page3", 0, perturbAndNormalize( unitVector(), 1, 0.01f ) );
+        final PgVectorChunkVectorIndex idx =
+            new PgVectorChunkVectorIndex( dataSource, MODEL_CODE, 100 );
+
+        assertEquals( 3, idx.size() );
+
+        // Insert a 4th row directly; size() should still return 3 because the cache
+        // is fresh. (The cache TTL is 5 minutes — we don't sleep through it in this test.)
+        insertChunkAndEmbedding( "IT_PgVec_Page4", 0, perturbAndNormalize( unitVector(), 2, 0.01f ) );
+        assertEquals( 3, idx.size(),
+            "size() should be cache-stable within the 5-minute TTL" );
     }
 
     // ---- helpers ----
@@ -185,6 +222,45 @@ class PgVectorChunkVectorIndexPgTest {
         final float val = (float) ( 1.0 / Math.sqrt( DIM ) );
         Arrays.fill( v, val );
         return v;
+    }
+
+    /**
+     * Insert one {@code kg_content_chunks} row and one
+     * {@code content_chunk_embeddings} row with the {@code embedding} column left
+     * NULL. Used to verify that {@code isReady()} returns {@code false} when no
+     * non-NULL embeddings exist for the model.
+     */
+    private void insertChunkRowWithNullEmbedding( final String pageName,
+                                                   final int chunkIndex ) throws Exception {
+        try ( Connection conn = dataSource.getConnection() ) {
+            final String insertChunk =
+                "INSERT INTO kg_content_chunks "
+              + "(page_name, chunk_index, text, char_count, token_count_estimate, content_hash) "
+              + "VALUES (?, ?, ?, ?, ?, ?) RETURNING id";
+            final UUID chunkId;
+            try ( PreparedStatement ps = conn.prepareStatement( insertChunk ) ) {
+                ps.setString( 1, pageName );
+                ps.setInt( 2, chunkIndex );
+                ps.setString( 3, "IT null-emb content for " + pageName );
+                ps.setInt( 4, 30 );
+                ps.setInt( 5, 8 );
+                ps.setString( 6, "it-hash-null-" + pageName + "-" + chunkIndex );
+                try ( var rs = ps.executeQuery() ) {
+                    rs.next();
+                    chunkId = rs.getObject( 1, UUID.class );
+                }
+            }
+            final String insertEmb =
+                "INSERT INTO content_chunk_embeddings "
+              + "(chunk_id, model_code, dim, vec, embedding) "
+              + "VALUES (?, ?, 1024, ?, NULL)";
+            try ( PreparedStatement ps = conn.prepareStatement( insertEmb ) ) {
+                ps.setObject( 1, chunkId );
+                ps.setString( 2, MODEL_CODE );
+                ps.setBytes( 3, new byte[]{ 0, 0, 0, 0 } );
+                ps.executeUpdate();
+            }
+        }
     }
 
     /**

@@ -58,9 +58,14 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
      */
     static final int EMBEDDING_DIM = 1024;
 
+    private static final long SIZE_CACHE_MILLIS = 5L * 60L * 1000L;
+
     private final DataSource dataSource;
     private final String modelCode;
     private final int efSearch;
+
+    private volatile long sizeCachedAt;
+    private volatile int sizeCachedValue;
 
     public PgVectorChunkVectorIndex( final DataSource dataSource,
                                       final String modelCode,
@@ -145,7 +150,48 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
 
     @Override
     public boolean isReady() {
-        return false; // implemented in Task 4
+        final String sql = "SELECT 1 FROM content_chunk_embeddings "
+                         + "WHERE model_code = ? AND embedding IS NOT NULL LIMIT 1";
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( sql ) ) {
+            ps.setString( 1, modelCode );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next();
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "PgVectorChunkVectorIndex.isReady probe failed (model={}): {}",
+                modelCode, e.getMessage(), e );
+            return false;
+        }
+    }
+
+    /**
+     * Row count of non-NULL embeddings for {@link #modelCode}. Cached for
+     * {@value #SIZE_CACHE_MILLIS} ms (5 minutes) so Prometheus metric scrapes
+     * don't fan out a COUNT query every scrape interval. On SQL failure, returns
+     * the last-known cached value (stale but best-effort) rather than throwing —
+     * this is a metric path, not a correctness path.
+     */
+    public int size() {
+        final long now = System.currentTimeMillis();
+        if ( now - sizeCachedAt < SIZE_CACHE_MILLIS ) return sizeCachedValue;
+        final String sql = "SELECT COUNT(*) FROM content_chunk_embeddings "
+                         + "WHERE model_code = ? AND embedding IS NOT NULL";
+        try ( Connection c = dataSource.getConnection();
+              PreparedStatement ps = c.prepareStatement( sql ) ) {
+            ps.setString( 1, modelCode );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                if ( rs.next() ) {
+                    sizeCachedValue = rs.getInt( 1 );
+                    sizeCachedAt    = now;
+                }
+                return sizeCachedValue;
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "PgVectorChunkVectorIndex.size query failed (model={}): {}",
+                modelCode, e.getMessage(), e );
+            return sizeCachedValue; // stale-but-best-known
+        }
     }
 
     @Override

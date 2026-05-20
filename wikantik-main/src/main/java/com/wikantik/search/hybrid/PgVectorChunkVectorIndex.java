@@ -22,7 +22,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Dense-vector index backed by pgvector's HNSW index on the
@@ -70,7 +77,54 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
 
     @Override
     public List< ScoredChunk > topKChunks( final float[] queryVec, final int k ) {
-        throw new UnsupportedOperationException( "implemented in Task 3" );
+        if ( queryVec == null ) throw new IllegalArgumentException( "queryVec must not be null" );
+        if ( k <= 0 ) throw new IllegalArgumentException( "k must be positive, got " + k );
+        if ( queryVec.length != EMBEDDING_DIM ) {
+            throw new IllegalStateException( "queryVec length " + queryVec.length
+                + " does not match index dimension " + EMBEDDING_DIM );
+        }
+
+        final String setEf = "SET LOCAL hnsw.ef_search = " + efSearch;
+        final String sql = """
+            SELECT e.chunk_id, c.page_name,
+                   1.0 - (e.embedding <=> ?::vector) AS score
+            FROM content_chunk_embeddings e
+            JOIN kg_content_chunks c ON c.id = e.chunk_id
+            WHERE e.model_code = ?
+            ORDER BY e.embedding <=> ?::vector
+            LIMIT ?
+            """;
+
+        final String literal = formatVector( queryVec );
+        try ( Connection conn = dataSource.getConnection() ) {
+            final boolean prevAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit( false );
+            try ( Statement st = conn.createStatement() ) {
+                st.execute( setEf );
+            }
+            try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
+                ps.setString( 1, literal );
+                ps.setString( 2, modelCode );
+                ps.setString( 3, literal );
+                ps.setInt( 4, k );
+                try ( ResultSet rs = ps.executeQuery() ) {
+                    final List< ScoredChunk > out = new ArrayList<>( k );
+                    while ( rs.next() ) {
+                        out.add( new ScoredChunk(
+                            rs.getObject( 1, UUID.class ),
+                            rs.getString( 2 ),
+                            rs.getDouble( 3 ) ) );
+                    }
+                    conn.commit();
+                    conn.setAutoCommit( prevAutoCommit );
+                    return out;
+                }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "PgVectorChunkVectorIndex.topKChunks failed (model={}, k={}): {}",
+                modelCode, k, e.getMessage(), e );
+            throw new RuntimeException( "PgVector dense retrieval failed", e );
+        }
     }
 
     @Override

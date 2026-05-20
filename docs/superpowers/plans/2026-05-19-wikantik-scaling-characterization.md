@@ -244,9 +244,9 @@ Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
 This task is an iterative procedure. At each VU level, you (a) start the curl probe in the background, (b) run the k6 step, (c) capture jakemon host metrics for the window, (d) decide whether to continue to the next step. Records and decisions stay in this conversation; raw artifacts land in `loadtest/results/`.
 
 **Sweep parameters:**
-- Levels: 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500.
-- Per step: `bin/loadtest.sh load --vus N --duration 5m` (uses the WIKANTIK_VUS / WIKANTIK_DURATION env vars after the recent fix). Total wall-clock per step ≈ 8 min (2m ramp + 5m sustained + 1m down).
-- Curl probe duration: 480 s (8 min — covers the whole step including ramp + ramp-down).
+- Levels: 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500. Starting low so the first stress signals are visible against a known-quiet baseline.
+- Per step: `bin/loadtest.sh load --vus N --duration 3m` (uses the WIKANTIK_VUS / WIKANTIK_DURATION env vars after the recent fix). Total wall-clock per step ≈ 6 min (2m ramp + 3m sustained + 1m down).
+- Curl probe duration: 360 s (6 min — covers the whole step including ramp + ramp-down).
 - Stop after **any** of:
   - k6 reports http_req_duration `p(95) > 3s`
   - k6 reports `http_req_failed rate > 0.10` (10%)
@@ -270,21 +270,21 @@ Expected: health 200, pg_up=1, k6 v2.0.0 present, BASE_URL=`http://192.168.0.4:8
 
 - [ ] **Step 2: Per-VU-level run procedure**
 
-For each `N` in 500, 600, …, 1500 in order, run this exact procedure. Stop the loop on the first step that hits any of the stop criteria above.
+For each `N` in 200, 300, …, 1500 in order, run this exact procedure. Stop the loop on the first step that hits any of the stop criteria above. Pay particular attention to the low-end transition steps — the first emergence of any non-trivial latency tail (e.g. p90 first crossing 200 ms, or the first curl-probe sample over 1 s on `/wiki/Main`) gets recorded as a notable observation even before the formal stop criteria fire.
 
 ```bash
 N=500   # update each iteration
 PREFIX="loadtest/results/sweep1-${N}vu"
 
-# (a) Start the curl probe in background (480s window).
-bin/curl-probe.sh 480 "${PREFIX}-curl" >/dev/null 2>&1 &
+# (a) Start the curl probe in background (360s window).
+bin/curl-probe.sh 360 "${PREFIX}-curl" >/dev/null 2>&1 &
 PROBE_PID=$!
 
 # (b) Record start time for the jakemon query later.
 START_TS=$(date +%s)
 
-# (c) Run the k6 load step (foreground; ~8 min wall-clock).
-bin/loadtest.sh load --vus "${N}" --duration 5m > "${PREFIX}-k6.log" 2>&1
+# (c) Run the k6 load step (foreground; ~6 min wall-clock).
+bin/loadtest.sh load --vus "${N}" --duration 3m > "${PREFIX}-k6.log" 2>&1
 K6_EXIT=$?
 
 # (d) Wait for the curl probe to finish.

@@ -15,13 +15,16 @@
   </GlobalNamingResources>
 
   <Service name="Catalina">
-    <!-- HTTP only — Cloudflare terminates TLS -->
+    <!-- HTTP only — Cloudflare terminates TLS.
+         maxThreads = 600 was tuned 2026-05-20 after the pgvector cutover.
+         The previous 400 was the gate at N=800 in the in-memory profile;
+         post-pgvector the gate is DBCP + Tomcat threads jointly. -->
     <Connector port="8080"
         protocol="HTTP/1.1"
         connectionTimeout="20000"
         address="0.0.0.0"
-        maxThreads="400"
-        acceptCount="200"
+        maxThreads="600"
+        acceptCount="400"
         xpoweredBy="false"
         allowTrace="false" />
 

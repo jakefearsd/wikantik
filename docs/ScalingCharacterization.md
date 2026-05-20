@@ -283,6 +283,82 @@ The `MaxRAMPercentage=70` heap setting + the new SIMD work pattern produced one 
 
 ---
 
+## 11. Sweep #5 — listener-mutex fix (2026-05-20)
+
+`WikiEventManager.WikiEventDelegate`'s storage swapped from `ArrayList<WeakReference<WikiEventListener>>` to `WeakHashMap<WikiEventListener, Boolean>`. `addWikiEventListener` is now O(1); `fireEvent` snapshots under the lock and dispatches callbacks outside it. Per [docs/superpowers/specs/2026-05-20-listener-mutex-fix-design.md](superpowers/specs/2026-05-20-listener-mutex-fix-design.md).
+
+### Sweep #5 vs Sweep #4 at N=300
+
+| Metric | Sweep #4 (vector dot) | Sweep #5 (listener fix) | Δ |
+|---|---|---|---|
+| RPS | 142.4 | 132.8 | −7 % |
+| **http_req_duration median** | **124.1 ms** | **58.4 ms** | **−53 %** |
+| p90 | 1.60 s | 1.51 s | −6 % |
+| p95 | 2.36 s | 3.01 s | +28 % |
+| avg | 580 ms | 697 ms | +20 % |
+| max | 19.48 s | **43.77 s** | tail catastrophic |
+| **load1** | 53.25 | **110.91** | **+108 %** (693 % of 16-core capacity) |
+| pg backends | 23 | 22 | flat |
+| err % | 4.28 % | 4.28 % | flat |
+| curl `/api/search` max | 8.62 s | 20.98 s | tail worse |
+
+### JFR before/after (60 s capture at N=300 sustained)
+
+| Frame | Sweep #4 samples | Sweep #5 samples |
+|---|---|---|
+| `MatchOps$1MatchSink.accept` (the Stream.anyMatch hot path) | **416** | **0** |
+| `WikiEventManager$WikiEventDelegate.addWikiEventListener` | 1 | **0** |
+| `InMemoryChunkVectorIndex.dotAt` | 197 | 97 |
+| `HashMap.getNode` (combined) | 205 | 200 |
+
+The headline: **the listener-mutex hot path is completely eliminated.** The O(1) `WeakHashMap.putIfAbsent` doesn't even surface in JFR sampling. Fast-path requests no longer wait on the global mutex.
+
+### Sweep #5's new top hot methods
+
+```
+123  org.apache.lucene.analysis.classic.ClassicTokenizerImpl.getNextToken
+123  java.lang.StringUTF16.inflate
+116  java.util.HashMap.get
+115  org.apache.lucene.analysis.CachingTokenFilter.incrementToken
+ 97  com.wikantik.search.hybrid.InMemoryChunkVectorIndex.dotAt
+ 95  org.apache.lucene.analysis.tokenattributes.CharTermAttributeImpl.toString
+ 92  java.util.ArrayList$Itr.hasNext
+ 84  java.util.HashMap.getNode
+ 72  java.lang.Character.codePointAtImpl
+ 70  org.apache.lucene.util.AttributeSource$State.clone
+ 67  java.lang.StringUTF16.checkIndex
+ 62  org.apache.lucene.search.highlight.SimpleHTMLEncoder.htmlEncode
+ 60  org.apache.lucene.util.AttributeSource.restoreState
+ 59  java.lang.String.charAt
+ 57  java.lang.AbstractStringBuilder.append
+ 53  org.apache.lucene.search.highlight.SimpleHTMLEncoder.encodeText
+ 51  java.lang.String.checkIndex
+ 47  java.lang.AbstractStringBuilder.ensureCapacityInternal
+ 40  java.lang.StringUTF16.compress
+ 38  org.apache.lucene.util.StringHelper.murmurhash3_x86_32
+```
+
+### Interpretation
+
+- **The mutex bottleneck is structurally eliminated.** `MatchOps$1MatchSink.accept` went from 416 samples to 0; `addWikiEventListener` went to 0 in the entire capture. The `WeakHashMap` rewrite is a complete success on its stated goal.
+- **Median latency dropped 53 %** (124 ms → 58 ms): typical user requests are about twice as fast. This is the headline user-visible win.
+- **`load1` doubled to 110.91 (≈ 693 % of 16 cores).** The box is now running flat-out CPU-busy with no internal serialization point. Every cycle is going into actual work.
+- **RPS dropped slightly (−7 %)** and **tail latency widened** (p95 +28 %, max +125 %): the system has transitioned from "mostly waiting on a lock" to "mostly compute-bound, queueing on CPU." When the box is this saturated, a fraction of requests queue *behind* a long-running compute task, producing the 43 s max outlier. This is the classic shape of a true CPU-saturated workload — and confirms the bottleneck has moved from synchronization to genuine work.
+- **New top hot frames cluster around Lucene's BM25 query analysis and the Highlighter snippet generator.** `ClassicTokenizerImpl`, `CachingTokenFilter`, `SimpleHTMLEncoder`, `CharTermAttributeImpl`, `AttributeSource` — these are all Lucene's text-analysis and result-decoration machinery. The `/api/search` response shape generates per-result snippets via `Highlighter`; the depth-30 capture from sweep #4 already showed the full `WeightedSpanTermExtractor.extract` → `MemoryIndex.storeTerms` → `Highlighter.getBestFragments` chain firing per result.
+
+### Next round: v3 topic
+
+Working spec title: **`2026-05-DD-lucene-highlighter-design.md`** — investigation-first, then targeted change.
+
+Highest-leverage candidates ordered by expected (impact / effort):
+
+1. **Audit whether the `/api/search` response shape actually consumes the highlighter output.** `DefaultLuceneSearcher.findPages` calls `Highlighter.getBestFragments` per result; if the snippets aren't returned to the API client (or are returned but never displayed), disabling the highlighter is a single-line change with potentially huge impact (the Lucene frames combined are ~600+ samples — comparable to the original MatchOps bottleneck).
+2. **If snippets are used:** cache the per-page highlighted snippet keyed by `(page_name, query_hash)` with a short TTL. Hot-query repeats avoid the whole pipeline.
+3. **Investigate the 43 s tail outlier.** Likely either GC pause under the new allocation pressure (G1 with 1.4 G heap; consider tuning pause-time goal or trying ZGC), or a Lucene contention point that doesn't show in JFR samples. A small re-capture with `jdk.GCPhase*` events would confirm.
+4. **Architectural fix to `WikiSession.guestSession()`'s per-anonymous-request listener registration** (the leak source). Now that each registration is ~free, the leak is cheap, but it's still incorrect. Stand-alone follow-up.
+
+---
+
 ## Raw data
 
-All per-step k6 outputs, curl-probe samples, and jakemon snapshots are in `loadtest/results/sweep1-<N>vu-{k6,curl,host}.{log,json}`, the `sweep2-…` siblings, and the new `sweep3-…` set. The 22.6 MB JFR capture lives at `loadtest/results/sweep3-300vu.jfr` for offline analysis with `jfr print` or JMC. The directory is gitignored (raw data is reproducible, not versioned).
+All per-step k6 outputs, curl-probe samples, and jakemon snapshots are in `loadtest/results/sweep{1,2,3,4,5}-<N>vu-{k6,curl,host}.{log,json}`. JFR captures live at `loadtest/results/sweep{3,4,5}-300vu.jfr` for offline analysis with `jfr print` or JMC. The directory is gitignored (raw data is reproducible, not versioned).

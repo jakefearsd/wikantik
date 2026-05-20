@@ -56,6 +56,7 @@ import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.acl.AclManager;
 import com.wikantik.auth.permissions.PagePermission;
 import com.wikantik.auth.subsystem.AuthSubsystemBridge;
+import com.wikantik.util.TextUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -119,6 +120,20 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
     private final PageManager pageManager;
     private final Engine engine;
     private final Executor searchExecutor;
+    /**
+     * When {@code false} (the default), the per-result snippet pass is skipped:
+     * {@link Highlighter} is not constructed and {@code getBestFragments} is never
+     * called. The Highlighter is a known-expensive Lucene pipeline (BM25 tokenizer +
+     * MemoryIndex + WeightedSpanTermExtractor + SimpleHTMLEncoder); JFR profiling
+     * at N=300 attributed ~600 samples to it across the search call stack. Set
+     * {@code wikantik.search.highlighter.enabled=true} in {@code wikantik.properties}
+     * to opt back in if a caller actually consumes the snippet fragments.
+     *
+     * <p>The flag-passing API ({@link #findPages(String, int, Context)} with explicit
+     * {@code FLAG_CONTEXTS}) still works regardless of this property — callers that
+     * really need snippets can request them directly.</p>
+     */
+    private final boolean highlightingEnabled;
 
     // Lazily resolved (initialised after SearchManager in engine startup sequence)
     private AuthorizationManager authorizationManager;
@@ -146,6 +161,17 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         this.pageManager = pageManager;
         this.engine = engine;
         this.searchExecutor = searchExecutor;
+        // Defensive: engine.getWikiProperties() can be null in test fixtures that
+        // mock Engine. Treat that case as "default" (highlighting off).
+        final java.util.Properties wikiProps = engine == null ? null : engine.getWikiProperties();
+        this.highlightingEnabled = wikiProps != null
+            && TextUtil.getBooleanProperty( wikiProps, "wikantik.search.highlighter.enabled", false );
+        if ( !this.highlightingEnabled ) {
+            LOG.info( "DefaultLuceneSearcher: snippet highlighting DISABLED via property "
+                + "wikantik.search.highlighter.enabled=false (default). "
+                + "Two-arg findPages(query, ctx) will skip the Highlighter; callers needing "
+                + "snippets can use the three-arg findPages(query, FLAG_CONTEXTS, ctx) directly." );
+        }
     }
 
     /**
@@ -176,7 +202,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
     @Override
     public Collection<SearchResult> findPages( final String query, final Context wikiContext )
             throws ProviderException {
-        return findPages( query, FLAG_CONTEXTS, wikiContext );
+        return findPages( query, highlightingEnabled ? FLAG_CONTEXTS : 0, wikiContext );
     }
 
     @Override

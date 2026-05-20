@@ -30,6 +30,7 @@ import com.wikantik.search.embedding.AsyncEmbeddingIndexListener;
 import com.wikantik.search.embedding.BootstrapEmbeddingIndexer;
 import com.wikantik.search.embedding.EmbeddingIndexService;
 import com.wikantik.search.embedding.OllamaEmbeddingClient;
+import com.wikantik.search.hybrid.ChunkVectorIndex;
 import com.wikantik.search.hybrid.GraphProximityScorer;
 import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
@@ -40,6 +41,8 @@ import com.wikantik.search.hybrid.QueryEntityResolver;
 import com.wikantik.search.subsystem.lucene.LuceneIndexLifecycle;
 import com.wikantik.search.subsystem.lucene.LuceneIndexer;
 import com.wikantik.search.subsystem.lucene.LuceneSearcher;
+
+import javax.sql.DataSource;
 
 /**
  * Namespace for the Search subsystem's input and output contracts.
@@ -71,8 +74,15 @@ public final class SearchSubsystem {
      * and registered via {@code managers.put(...)}. The Phase 7 Ckpt 1
      * factory pulls each one off the engine's manager registry. Subsequent
      * checkpoints narrow this seam.</p>
+     *
+     * <p>{@code dataSource} is the raw JDBC handle, used by
+     * {@link SearchSubsystemFactory} to construct
+     * {@link com.wikantik.search.hybrid.PgVectorChunkVectorIndex} when
+     * {@code wikantik.search.dense.backend=pgvector}. {@code null} on
+     * paths that do not configure a datasource (unit-test bridges).</p>
      */
     public record Deps(
+        DataSource                    dataSource,
         CoreSubsystem.Services        core,
         PersistenceSubsystem.Services persistence,
         PageSubsystem.Services        page,
@@ -114,8 +124,8 @@ public final class SearchSubsystem {
         GraphRerankStep      graphRerankStep,
         GraphProximityScorer graphProximityScorer,
 
-        // In-memory indexes:
-        InMemoryChunkVectorIndex   chunkVectorIndex,
+        // Chunk vector index (may be in-memory or pgvector-backed):
+        ChunkVectorIndex           chunkVectorIndex,
         InMemoryGraphNeighborIndex graphNeighborIndex,
 
         // Embedding pipeline:

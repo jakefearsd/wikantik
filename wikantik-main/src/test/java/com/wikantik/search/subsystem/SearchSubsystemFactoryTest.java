@@ -35,10 +35,15 @@ import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
 import com.wikantik.search.hybrid.InMemoryChunkVectorIndex;
 import com.wikantik.search.hybrid.InMemoryGraphNeighborIndex;
+import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import com.wikantik.search.hybrid.QueryEmbedder;
 import com.wikantik.search.hybrid.QueryEntityResolver;
 import org.junit.jupiter.api.Test;
 
+import javax.sql.DataSource;
+import java.util.Properties;
+
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -69,6 +74,7 @@ final class SearchSubsystemFactoryTest {
 
         final SearchSubsystem.Services services = SearchSubsystemFactory.create(
             new SearchSubsystem.Deps(
+                /*dataSource=*/ null,
                 /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
                 /*persistence=*/ null,
                 /*page=*/ null,
@@ -119,6 +125,7 @@ final class SearchSubsystemFactoryTest {
 
         final SearchSubsystem.Services services = SearchSubsystemFactory.create(
             new SearchSubsystem.Deps(
+                /*dataSource=*/ null,
                 /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
                 /*persistence=*/ null,
                 /*page=*/ null,
@@ -147,6 +154,7 @@ final class SearchSubsystemFactoryTest {
         final WikiEngine engine = mock( WikiEngine.class );
         final SearchSubsystem.Services services = SearchSubsystemFactory.create(
             new SearchSubsystem.Deps(
+                /*dataSource=*/ null,
                 /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
                 /*persistence=*/ null,
                 /*page=*/ null,
@@ -184,6 +192,7 @@ final class SearchSubsystemFactoryTest {
 
         final SearchSubsystem.Services services = SearchSubsystemFactory.create(
             new SearchSubsystem.Deps(
+                /*dataSource=*/ null,
                 /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
                 /*persistence=*/ null,
                 /*page=*/ null,
@@ -211,6 +220,7 @@ final class SearchSubsystemFactoryTest {
 
         final SearchSubsystem.Services services = SearchSubsystemFactory.create(
             new SearchSubsystem.Deps(
+                /*dataSource=*/ null,
                 /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
                 /*persistence=*/ null,
                 /*page=*/ null,
@@ -222,13 +232,80 @@ final class SearchSubsystemFactoryTest {
         assertNull( services.luceneIndexLifecycle() );
     }
 
+    // -- Backend-selection tests (Task 6) --
+
+    @Test
+    void selectsPgvectorBackendWhenPropertySet() {
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.search.dense.backend", "pgvector" );
+        props.setProperty( "wikantik.search.dense.pgvector.ef_search", "150" );
+
+        final DataSource dataSource = mock( DataSource.class );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.getWikiProperties() ).thenReturn( props );
+
+        final SearchSubsystem.Services services = SearchSubsystemFactory.create(
+            new SearchSubsystem.Deps(
+                /*dataSource=*/ dataSource,
+                /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
+                /*persistence=*/ null,
+                /*page=*/ null,
+                /*knowledge=*/ null,
+                engine ) );
+
+        assertInstanceOf( PgVectorChunkVectorIndex.class, services.chunkVectorIndex(),
+            "expected PgVectorChunkVectorIndex, got "
+                + ( services.chunkVectorIndex() == null ? "null"
+                    : services.chunkVectorIndex().getClass().getName() ) );
+    }
+
+    @Test
+    void defaultsToInmemoryWhenPropertyAbsent() {
+        final InMemoryChunkVectorIndex vectorIndex = mock( InMemoryChunkVectorIndex.class );
+        final WikiEngine engine = mock( WikiEngine.class );
+        // getWikiProperties() returns null → factory defaults to "inmemory"
+        when( engine.getManager( InMemoryChunkVectorIndex.class ) ).thenReturn( vectorIndex );
+
+        final SearchSubsystem.Services services = SearchSubsystemFactory.create(
+            new SearchSubsystem.Deps(
+                /*dataSource=*/ null,
+                /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
+                /*persistence=*/ null,
+                /*page=*/ null,
+                /*knowledge=*/ null,
+                engine ) );
+
+        assertInstanceOf( InMemoryChunkVectorIndex.class, services.chunkVectorIndex() );
+        assertSame( vectorIndex, services.chunkVectorIndex() );
+    }
+
+    @Test
+    void rejectsUnknownBackendValue() {
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.search.dense.backend", "elasticsearch" );
+
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.getWikiProperties() ).thenReturn( props );
+
+        assertThrows( IllegalArgumentException.class,
+            () -> SearchSubsystemFactory.create(
+                new SearchSubsystem.Deps(
+                    /*dataSource=*/ null,
+                    /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
+                    /*persistence=*/ null,
+                    /*page=*/ null,
+                    /*knowledge=*/ null,
+                    engine ) ) );
+    }
+
     @Test
     void createRejectsMissingDeps() {
         // null deps record → NPE
         assertThrows( NullPointerException.class, () -> SearchSubsystemFactory.create( null ) );
-        // null engine → NPE (core/persistence/page/knowledge are optional — factory does not use them today)
+        // null engine → NPE (dataSource/core/persistence/page/knowledge are optional — factory does not use them today)
         assertThrows( NullPointerException.class, () -> SearchSubsystemFactory.create(
             new SearchSubsystem.Deps(
+                null,
                 mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
                 null, null, null, null ) ) );
     }

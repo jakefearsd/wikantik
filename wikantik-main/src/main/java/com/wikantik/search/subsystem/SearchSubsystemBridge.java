@@ -71,10 +71,13 @@ public final class SearchSubsystemBridge {
     }
 
     private static SearchSubsystem.Deps synthDepsFromEngine( final com.wikantik.WikiEngine engine ) {
-        // core, persistence, page, and knowledge are reserved in Deps for future use but are
-        // not yet read by SearchSubsystemFactory.create. Pass null to avoid cascading
-        // getManager calls into sibling subsystem bridges during hot-swap rebuilds.
+        // dataSource, core, persistence, page, and knowledge are reserved in Deps
+        // for future use but are not yet read by SearchSubsystemFactory.create
+        // on the hot-swap rebuild path (pgvector backend requires a full
+        // initialize() cycle to supply a DataSource). Pass null to avoid
+        // cascading getManager calls into sibling subsystem bridges.
         return new SearchSubsystem.Deps(
+            /* dataSource= */  null,
             /* core= */        null,
             /* persistence= */ null,
             /* page= */        null,

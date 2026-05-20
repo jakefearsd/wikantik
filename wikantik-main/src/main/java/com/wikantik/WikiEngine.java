@@ -881,6 +881,7 @@ public class WikiEngine implements Engine {
             // post-construction wiring lands in a later checkpoint.
             this.searchSubsystem = com.wikantik.search.subsystem.SearchSubsystemFactory.create(
                 new com.wikantik.search.subsystem.SearchSubsystem.Deps(
+                    persistenceSubsystem != null ? persistenceSubsystem.dataSource() : null,
                     coreSubsystem, persistenceSubsystem, pageSubsystem, knowledgeSubsystem, this ) );
 
             // Phase 7 Ckpt 4: post-construction wire of the LuceneMlt seam

@@ -75,9 +75,14 @@ public final class PersistenceSubsystem {
     /**
      * Every JDBC repository / DAO managed by Persistence. All fields are
      * non-null after a successful {@link PersistenceSubsystemFactory#create}
-     * call.
+     * call (except {@code dataSource} which is the raw handle, also non-null).
      */
     public record Services(
+        // The raw DataSource — exposed so downstream subsystem factories (e.g.
+        // SearchSubsystemFactory) that need direct JDBC access can obtain it
+        // from the Persistence bundle without requiring a separate seam.
+        DataSource dataSource,
+
         // Knowledge graph (Phase 3 Ckpt 5: facade deleted, narrow repos only):
         KgNodeRepository kgNodes,
         KgEdgeRepository kgEdges,

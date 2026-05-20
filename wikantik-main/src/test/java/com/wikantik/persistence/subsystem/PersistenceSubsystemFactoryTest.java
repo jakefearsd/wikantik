@@ -49,6 +49,7 @@ final class PersistenceSubsystemFactoryTest {
                 dataSource,
                 new DefaultWikiProperties( new Properties() ) ) );
 
+        assertNotNull( services.dataSource(),           "dataSource" );
         assertNotNull( services.kgNodes(),              "kgNodes" );
         assertNotNull( services.kgEdges(),              "kgEdges" );
         assertNotNull( services.kgProposals(),          "kgProposals" );

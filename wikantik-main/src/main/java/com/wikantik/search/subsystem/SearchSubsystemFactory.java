@@ -32,15 +32,20 @@ import com.wikantik.search.embedding.AsyncEmbeddingIndexListener;
 import com.wikantik.search.embedding.BootstrapEmbeddingIndexer;
 import com.wikantik.search.embedding.EmbeddingIndexService;
 import com.wikantik.search.embedding.OllamaEmbeddingClient;
+import com.wikantik.search.hybrid.ChunkVectorIndex;
 import com.wikantik.search.hybrid.GraphProximityScorer;
 import com.wikantik.search.hybrid.GraphRerankStep;
 import com.wikantik.search.hybrid.HybridSearchService;
 import com.wikantik.search.hybrid.InMemoryChunkVectorIndex;
 import com.wikantik.search.hybrid.InMemoryGraphNeighborIndex;
+import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
 import com.wikantik.search.hybrid.QueryEmbedder;
 import com.wikantik.search.hybrid.QueryEntityResolver;
 
+import javax.sql.DataSource;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Properties;
 
 /**
  * Builds {@link SearchSubsystem.Services} from {@link SearchSubsystem.Deps}.
@@ -89,9 +94,39 @@ public final class SearchSubsystemFactory {
         final GraphRerankStep      graphRerankStep      = engine.getManager( GraphRerankStep.class );
         final GraphProximityScorer graphProximityScorer = engine.getManager( GraphProximityScorer.class );
 
-        // In-memory indexes (registered by the same two wire methods).
-        final InMemoryChunkVectorIndex   chunkVectorIndex   =
-            engine.getManager( InMemoryChunkVectorIndex.class );
+        // Chunk vector index: select implementation based on
+        // wikantik.search.dense.backend (default "inmemory").
+        final Properties wikiProps = engine.getWikiProperties();
+        final String backend = ( wikiProps != null
+            ? wikiProps.getProperty( "wikantik.search.dense.backend", "inmemory" )
+            : "inmemory" ).toLowerCase( Locale.ROOT );
+        final ChunkVectorIndex chunkVectorIndex;
+        switch ( backend ) {
+            case "pgvector" -> {
+                final DataSource dataSource = deps.dataSource();
+                if ( dataSource == null ) {
+                    throw new IllegalStateException(
+                        "wikantik.search.dense.backend=pgvector but no DataSource is available; "
+                      + "check that wikantik.datasource is configured" );
+                }
+                final String modelCode = wikiProps.getProperty(
+                    "wikantik.search.embedding.model_code", "bge-m3" );
+                final int efSearch = Integer.parseInt( wikiProps.getProperty(
+                    "wikantik.search.dense.pgvector.ef_search", "100" ) );
+                chunkVectorIndex = new PgVectorChunkVectorIndex( dataSource, modelCode, efSearch );
+                LOG.info( "Dense retrieval backend: pgvector HNSW (model={}, ef_search={})",
+                    modelCode, efSearch );
+            }
+            case "inmemory" -> {
+                chunkVectorIndex = engine.getManager( InMemoryChunkVectorIndex.class );
+                LOG.info( "Dense retrieval backend: in-memory brute-force" );
+            }
+            default -> throw new IllegalArgumentException(
+                "wikantik.search.dense.backend must be 'inmemory' or 'pgvector', got: '"
+              + backend + "'" );
+        }
+
+        // In-memory graph neighbor index (registered by wireGraphRerank).
         final InMemoryGraphNeighborIndex graphNeighborIndex =
             engine.getManager( InMemoryGraphNeighborIndex.class );
 

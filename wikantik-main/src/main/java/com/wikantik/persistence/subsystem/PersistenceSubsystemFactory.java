@@ -63,6 +63,7 @@ public final class PersistenceSubsystemFactory {
         final KgRejectionRepository kgRejections = new KgRejectionRepository( ds );
 
         return new PersistenceSubsystem.Services(
+            ds,
             kgNodes,
             kgEdges,
             kgProposals,

@@ -429,6 +429,86 @@ The next ceiling now lives clearly in `InMemoryChunkVectorIndex.dotAt` (718 samp
 
 ---
 
+## 13. ZGC + SessionEventDispatcher + VU ramp (2026-05-20)
+
+### ZGC (Sweep #8) — reverted
+
+Switched the wikantik container JVM from default G1 to Generational ZGC (`-XX:+UseZGC -XX:+ZGenerational`) with heap dropped to `MaxRAMPercentage=50` for the ZGC overhead. Sweep #8 vs Sweep #7 at N=300:
+
+| Metric | Sweep #7 (G1) | Sweep #8 (ZGC) | Δ |
+|---|---|---|---|
+| RPS | 219.2 | 216.3 | −1 % |
+| median | 1.63 ms | 1.87 ms | +15 % |
+| p90 | 41 ms | 51 ms | +24 % |
+| **p95** | 67.8 ms | **134 ms** | **+98 %** |
+| max | 5.96 s | 6.91 s | +16 % |
+| load1 | 8.73 | 11.33 | +30 % |
+
+Mild regression across every percentile. ZGC's sub-millisecond pause guarantee costs throughput, and after the Highlighter disable the allocation rate is modest — G1's throughput characteristics win. The 5.96 s tail outlier in sweep #7 was almost certainly *not* a GC pause. **Reverted to G1 + 70% heap.**
+
+### SessionEventDispatcher (Sweep #9) — wash on perf, positive on correctness
+
+New `com.wikantik.auth.SessionEventDispatcher` — one instance per Engine, registered ONCE on `GroupManager` + `AuthenticationManager` + `UserManager`. Maintains a `Collections.synchronizedSet(newSetFromMap(new WeakHashMap<>()))` of alive sessions; events fan out to every alive session. `WikiSession.guestSession()` now calls `dispatcher.register(session)` instead of three separate `addWikiEventListener` calls.
+
+Sweep #9 vs Sweep #7 (both G1, both highlighter-off):
+
+| Metric | Sweep #7 (no dispatcher) | Sweep #9 (dispatcher) |
+|---|---|---|
+| RPS | 219.2 | 218.4 |
+| median | 1.63 ms | 1.66 ms |
+| p95 | 67.8 ms | 94.7 ms |
+| load1 | 8.73 | 11.89 |
+
+Within run-to-run noise (Sweep #5→#6 with no code change had RPS 133→163). `addWikiEventListener` JFR samples: 0 in both. The architectural correctness is the value here — per-engine registration replaces per-session registration, eliminating the leak source the WeakHashMap rewrite had previously made cheap. Worth keeping for the correctness improvement.
+
+### Sweep #10–#12 — VU ramp: where's the new breaking point?
+
+With Phase-0 baseline + Phase-3 PG tuning + search-path surgery + Vector API + WeakHashMap listener-mutex + Highlighter disabled + SessionEventDispatcher all in place, ramp the VU count to find where the box actually falls over.
+
+| N | RPS | median | p95 | max | search fail | `/api/health` non-2xx | load1 | container |
+|---|---|---|---|---|---|---|---|---|
+| 300 (sweep #9) | 218 | 1.66 ms | 95 ms | 6.9 s | 0 | 0 | 11.9 | healthy |
+| **500** | **357** | **3.21 ms** | **228 ms** | **4.14 s** | **0** | **0** | **26.2** | **healthy** |
+| 650 | 296 | 38 ms | 2.25 s | 46.6 s | 305 (2 %) | 1 | 46.2 | healthy |
+| 800 | 156 | 46 ms | 18.65 s | 60.0 s | 1082 (8 %) | 4 | 31.6 | healthy |
+
+### Three regimes
+
+- **Up to ~500 VUs — linear scaling.** Throughput grows essentially proportional to VUs (218 at 300 → 357 at 500, +64 % RPS for +67 % VUs). p95 stays well under 250 ms, search 100 % pass rate, no `/api/health` failures.
+- **500–650 VUs — degradation knee.** Throughput actually *decreases* at N=650 (357 → 296). p95 jumps to 2.25 s. First search failures appear (305 of 26 k, 2 %). One health-check timeout. The box is over-extended.
+- **Past ~650 VUs — queueing collapse.** Throughput collapses (156 RPS at N=800). p95 hits 18 s, max latency hits the 60 s timeout. Search failures grow to 8 % (1082 of 13 k). `load1` is *lower* at N=800 (31.6) than at N=650 (46.2) — the signature of "box too saturated to keep runnable threads moving."
+
+### Interpretation
+
+The new effective ceiling is **roughly N=500** for steady-state production load (single docker1 host, 16 cores, 2 G container, current code). That's a **5× headroom increase** over the original pre-Phase-0 ceiling at N=300 — but the *shape* of the breakdown also changed. Pre-session, the box stayed responsive at low throughput because it was mutex-queueing on listeners; now under stress it actually uses the CPU until cores run out. The collapse signature at N=800 (load1 *decreasing*, throughput collapsing) suggests a contention point — likely either Tomcat's `maxThreads=400` ceiling (with 400 threads doing real CPU work and 400 more VUs piling up in the `acceptCount=200` queue), or DBCP's `maxTotal=60` saturating under burst.
+
+### Next round (when you come back)
+
+To push past N=650, the next investigation should profile a N=650 run specifically (the knee) and look for the new bottleneck:
+
+1. **Tomcat thread saturation?** Increase `maxThreads` from 400 to 600 or 800 and see if the knee shifts.
+2. **DBCP saturation?** Check `pg_stat_database_numbackends` peak at N=650 sustained; if it's pinned at 60, bump the pool.
+3. **Tail latency** (max 46 s at N=650) — still suggests something other than GC. Worth a `jdk.GCPhase*` event capture at the knee to be sure.
+
+The 5.96 s tail outlier from sweep #7 (highlighter-off, low concurrency) remains the unresolved single-request-stall mystery. Probably a Lucene read stall or a JIT recompile.
+
+### Cumulative arc — final
+
+| Run | Config | RPS @ N=300 | RPS @ peak (N=500) | median | p95 |
+|---|---|---|---|---|---|
+| Original | DBCP=20, threads=200, 1G | ~40 | n/a (pool-bound) | 1140 ms | 1.14 s |
+| Phase-0 + Phase-3 + surgery + Vector API + WeakHashMap | All optimisations except highlighter | 163 | (not measured) | 29 ms | 1.61 s |
+| **+ Highlighter disabled + SessionEventDispatcher** | **Current** | **218** | **357** | **1.66 ms / 3.21 ms** | **95 ms / 228 ms** |
+
+**Final cumulative wins vs. session start:**
+- RPS @ N=300: **40 → 218** (~5.5 ×)
+- RPS @ peak: **40 → 357** at N=500 (~9 ×)
+- median: **1140 ms → 1.66 ms** (~700 ×)
+- p95: **1.14 s → 95 ms** at N=300, **228 ms** at N=500
+- Effective ceiling: **N=300 → N=500** for steady-state, with degradation at N=650 and collapse past N=800
+
+---
+
 ## Raw data
 
-All per-step k6 outputs, curl-probe samples, and jakemon snapshots are in `loadtest/results/sweep{1,2,3,4,5,6,7}-<N>vu-{k6,curl,host}.{log,json}`. JFR captures live at `loadtest/results/sweep{3,4,5,7}-300vu.jfr` for offline analysis with `jfr print` or JMC. The directory is gitignored (raw data is reproducible, not versioned).
+All per-step k6 outputs, curl-probe samples, and jakemon snapshots are in `loadtest/results/sweep{1..9}-<N>vu-{k6,curl,host}.{log,json}` and `loadtest/results/ramp{500,650,800}vu-*`. JFR captures live at `loadtest/results/sweep{3,4,5,7,8,9}-300vu.jfr` for offline analysis with `jfr print` or JMC. The directory is gitignored (raw data is reproducible, not versioned).

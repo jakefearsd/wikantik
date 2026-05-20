@@ -200,6 +200,13 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
     }
 
     /**
+     * The embedding model code this index filters on. Exposed for tests and
+     * introspection — production code should not gate behaviour on the model
+     * code directly.
+     */
+    public String modelCode() { return modelCode; }
+
+    /**
      * Format {@code v} as a pgvector literal: {@code "[v1,v2,...]"}. Matches the
      * codec used by {@link com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository}.
      *

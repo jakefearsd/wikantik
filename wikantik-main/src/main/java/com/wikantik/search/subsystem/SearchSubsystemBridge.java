@@ -71,13 +71,19 @@ public final class SearchSubsystemBridge {
     }
 
     private static SearchSubsystem.Deps synthDepsFromEngine( final com.wikantik.WikiEngine engine ) {
-        // dataSource, core, persistence, page, and knowledge are reserved in Deps
-        // for future use but are not yet read by SearchSubsystemFactory.create
-        // on the hot-swap rebuild path (pgvector backend requires a full
-        // initialize() cycle to supply a DataSource). Pass null to avoid
-        // cascading getManager calls into sibling subsystem bridges.
+        // Pull the DataSource from the persistence subsystem so that hot-swap
+        // rebuilds (e.g. unit tests installing a mock via engine.setManager)
+        // don't trip on a null-DataSource IllegalStateException when the
+        // pgvector backend is configured. The persistence subsystem is
+        // available from the first initialize() call; it is null only during
+        // very early startup before persistence wiring has run, in which case
+        // the pgvector branch won't be reached either.
+        final com.wikantik.persistence.subsystem.PersistenceSubsystem.Services persistence =
+            engine.getPersistenceSubsystem();
+        final javax.sql.DataSource dataSource =
+            persistence != null ? persistence.dataSource() : null;
         return new SearchSubsystem.Deps(
-            /* dataSource= */  null,
+            /* dataSource= */  dataSource,
             /* core= */        null,
             /* persistence= */ null,
             /* page= */        null,

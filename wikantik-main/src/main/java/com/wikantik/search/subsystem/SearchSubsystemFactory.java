@@ -30,6 +30,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.search.embedding.AsyncEmbeddingIndexListener;
 import com.wikantik.search.embedding.BootstrapEmbeddingIndexer;
+import com.wikantik.search.embedding.EmbeddingConfig;
 import com.wikantik.search.embedding.EmbeddingIndexService;
 import com.wikantik.search.embedding.OllamaEmbeddingClient;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
@@ -110,7 +111,7 @@ public final class SearchSubsystemFactory {
                       + "check that wikantik.datasource is configured" );
                 }
                 final String modelCode = wikiProps.getProperty(
-                    "wikantik.search.embedding.model_code", "bge-m3" );
+                    EmbeddingConfig.PROP_MODEL, EmbeddingConfig.DEFAULT_MODEL_CODE );
                 final int efSearch = Integer.parseInt( wikiProps.getProperty(
                     "wikantik.search.dense.pgvector.ef_search", "100" ) );
                 chunkVectorIndex = new PgVectorChunkVectorIndex( dataSource, modelCode, efSearch );

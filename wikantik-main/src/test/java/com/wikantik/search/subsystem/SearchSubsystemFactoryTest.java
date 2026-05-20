@@ -43,6 +43,9 @@ import org.junit.jupiter.api.Test;
 import javax.sql.DataSource;
 import java.util.Properties;
 
+import com.wikantik.search.embedding.EmbeddingConfig;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -257,6 +260,35 @@ final class SearchSubsystemFactoryTest {
             "expected PgVectorChunkVectorIndex, got "
                 + ( services.chunkVectorIndex() == null ? "null"
                     : services.chunkVectorIndex().getClass().getName() ) );
+    }
+
+    @Test
+    void pgvector_backend_propagates_configured_model_code() {
+        // Regression: factory was reading "wikantik.search.embedding.model_code"
+        // (non-existent) instead of EmbeddingConfig.PROP_MODEL
+        // ("wikantik.search.embedding.model"), causing silent fallback to the
+        // hardcoded default for any non-default embedding model.
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.search.dense.backend", "pgvector" );
+        props.setProperty( EmbeddingConfig.PROP_MODEL, "qwen3-embedding-0.6b" );
+
+        final DataSource dataSource = mock( DataSource.class );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.getWikiProperties() ).thenReturn( props );
+
+        final SearchSubsystem.Services services = SearchSubsystemFactory.create(
+            new SearchSubsystem.Deps(
+                /*dataSource=*/ dataSource,
+                /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
+                /*persistence=*/ null,
+                /*page=*/ null,
+                /*knowledge=*/ null,
+                engine ) );
+
+        final PgVectorChunkVectorIndex idx =
+            assertInstanceOf( PgVectorChunkVectorIndex.class, services.chunkVectorIndex() );
+        assertEquals( "qwen3-embedding-0.6b", idx.modelCode(),
+            "factory must forward EmbeddingConfig.PROP_MODEL to PgVectorChunkVectorIndex" );
     }
 
     @Test

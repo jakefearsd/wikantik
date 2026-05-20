@@ -238,6 +238,49 @@ Working spec title: **`2026-05-DD-search-path-optimization-v2-design.md`** — i
 3. **Reduce HashMap traffic** — once the JFR's stack-depth-30 capture names the hot maps, swap them for primitive-keyed maps (`IntIntMap` from `eclipse-collections`) or pre-sized non-resizing hash maps.
 4. **Caching layer** — *after* the above three identify the real ceiling. Two-tier (full RetrievalResult, short TTL, event-invalidated; dense top-K, long TTL) per the original 2026-05-20 design draft.
 
+## 10. Sweep #4 — Vector-API dot product (2026-05-20)
+
+Item 2 from §9's v2 list landed standalone: `InMemoryChunkVectorIndex.dotAt` rewritten using `jdk.incubator.vector.FloatVector` with a fused multiply-add (`a.fma(b, accum)`) loop. The `--add-modules=jdk.incubator.vector` flag was plumbed into the compiler, surefire (base + coverage profile), Cargo IT jvmargs, and the production `CATALINA_OPTS`. A seven-case parity unit test (`InMemoryChunkVectorIndexVectorDotTest`) confirms the SIMD path matches the scalar reference to float precision at production dim 1024, at off-by-one dims that exercise the tail loop, and at tiny dim values where the tail dominates.
+
+### Sweep #4 vs Sweep #3 at N=300
+
+| Metric | Sweep #3 (scalar dot) | Sweep #4 (vector dot) | Δ |
+|---|---|---|---|
+| RPS | 140.6 | 142.4 | **+1.3 %** |
+| **http_req_duration median** | **187.6 ms** | **124.1 ms** | **−34 %** |
+| p90 | 1.85 s | 1.60 s | **−14 %** |
+| p95 | 2.48 s | 2.36 s | −5 % |
+| avg | 602 ms | 580 ms | −4 % |
+| max | 10.32 s | **19.48 s** | tail outlier worsened |
+| err % | 4.36 % | 4.28 % | flat |
+| load1 | 28.69 | **53.25** | **+86 %** (333 % saturated on 16 cores) |
+| pg backends | 21 | 23 | flat |
+
+### JFR comparison (60 s capture at N=300 sustained)
+
+| Method | Sweep #3 samples | Sweep #4 samples | Δ |
+|---|---|---|---|
+| `InMemoryChunkVectorIndex.dotAt` | **808** | **197** | **−76 %** (4.1× drop) |
+| All `InMemoryChunkVectorIndex.*` (dotAt + topKChunks + siftDown) | 848 | 228 | **−73 %** |
+| `MatchOps$1MatchSink.accept` | 1677 | 416 | **−75 %** |
+| `HashMap.getNode` (combined) | 617 | 205 | **−67 %** |
+| `Character.codePointAtImpl` (combined) | 279 | 363 | +30 % (now relatively bigger share) |
+
+The JIT compiled the FMA to a native vector intrinsic: `jdk.internal.vm.vector.VectorSupport.ternaryOp` shows up in the sample timeline, confirming the SIMD code path is in use. With dotAt's per-call cost dropping ~4×, samples that previously landed *anywhere* on the search-rerank stack (including `MatchOps` and the HashMap lookups inside `HybridFuser`) drop proportionally, because the whole stack runs faster.
+
+### Interpretation
+
+- **The vector intrinsic works as advertised** on docker1's CPU — 4.1× drop on the dot loop, with proportional drops across the search-rerank call stack that shares its hot path.
+- **Median latency dropped 34 %**, p90 dropped 14 %, p95 dropped 5 % — fast and common-case requests got the win; the tail less so. The tail at this saturation level is caused by something *outside* the dot loop (queueing, GC, lock contention, or the still-significant `MatchOps` caller).
+- **Throughput at saturation barely moved (+1.3 % RPS)** — adding compute headroom to dotAt does not unlock throughput when the saturation ceiling lives elsewhere. The next gate is what limits RPS to ~140 — most likely whatever sits behind the 416-sample `MatchOps$1MatchSink.accept` frame.
+- **load1 nearly doubled (28.7 → 53.25)** while RPS held flat — the box is now doing dramatically more CPU work per second of wall time. Either more requests-in-flight at any instant (consistent with the median improvement: requests complete faster so the queue depth at any moment is shallower → can admit more), or aggregate compute went up because the dot loop's cheaper-per-call lets each request consume more total CPU before finishing. Plausibly both.
+
+### What this tells the next round
+
+The single largest unlock is still **identifying who calls `MatchOps$1MatchSink.accept`**. At 416 samples it remains the top frame in Sweep #4 — even after Vector API took 75 % off its peak. A `stack-depth 30` re-capture is still task 0 of any v2 spec, with the priority for items 3 (HashMap traffic, now smaller but still 205 samples), 4 (caching), and any further investigation derived directly from what the deeper stack reveals.
+
+The `MaxRAMPercentage=70` heap setting + the new SIMD work pattern produced one nasty 19.48 s tail latency outlier — a single request burst significantly worse than Sweep #3's 10.32 s max. Investigation candidate: G1 GC pause behaviour at high SIMD-allocation rates, or a lock-stall during JIT recompilation. Cheap mitigations: explicit GC tuning (target pause-time goal, or switch to ZGC) — but only if a follow-up sweep reproduces it.
+
 ---
 
 ## Raw data

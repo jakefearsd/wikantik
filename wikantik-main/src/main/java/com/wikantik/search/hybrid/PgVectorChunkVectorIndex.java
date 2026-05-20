@@ -42,6 +42,15 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
 
     private static final Logger LOG = LogManager.getLogger( PgVectorChunkVectorIndex.class );
 
+    /**
+     * Dimension of the {@code content_chunk_embeddings.embedding} column
+     * (pgvector type {@code vector(1024)}). Referenced by {@link #dimension()},
+     * the query-vector length check in {@link #topKChunks} (Task 3), and the
+     * dual-write UPSERT in {@code EmbeddingIndexService} (Task 7). One constant
+     * so a future model-dimension swap touches one line.
+     */
+    static final int EMBEDDING_DIM = 1024;
+
     private final DataSource dataSource;
     private final String modelCode;
     private final int efSearch;
@@ -71,7 +80,7 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
 
     @Override
     public int dimension() {
-        return 1024;
+        return EMBEDDING_DIM;
     }
 
     /**

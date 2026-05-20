@@ -27,6 +27,10 @@
 #   WIKANTIK_ATTACHMENT_DIR      attachments dir (default /var/wikantik/pages)
 #   WIKANTIK_SEED_DEV_USERS      "true" to insert admin/admin123 + testbot
 #                                via bin/db/seed-users.sql (dev only)
+#   WIKANTIK_DENSE_BACKEND       dense retrieval backend override:
+#                                  inmemory | pgvector (default: ini bundle default = inmemory)
+#   WIKANTIK_DENSE_EF_SEARCH     pgvector HNSW ef_search knob (default 100; only used when
+#                                WIKANTIK_DENSE_BACKEND=pgvector)
 #   CATALINA_HOME                tomcat root (default /usr/local/tomcat)
 
 set -euo pipefail
@@ -100,6 +104,21 @@ mail.smtp.account = ${MAIL_SMTP_ACCOUNT:-}
 mail.smtp.password = ${MAIL_SMTP_PASSWORD:-}
 mail.smtp.starttls.enable = true
 mail.from = ${MAIL_FROM:-wiki@localhost}
+EOF
+fi
+
+# Optional: dense-retrieval backend override.
+#   WIKANTIK_DENSE_BACKEND        — inmemory | pgvector  (default from ini bundle: inmemory)
+#   WIKANTIK_DENSE_EF_SEARCH      — pgvector HNSW recall/latency knob (default 100)
+# When unset, the ini-bundle default (inmemory) wins. Setting pgvector
+# requires V032 applied + content_chunk_embeddings.embedding populated
+# (run bin/db/one-shots/2026-05-20-backfill-chunk-embeddings.sh first).
+if [ -n "${WIKANTIK_DENSE_BACKEND:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# Dense retrieval backend override (entrypoint-injected from env).
+wikantik.search.dense.backend            = ${WIKANTIK_DENSE_BACKEND}
+wikantik.search.dense.pgvector.ef_search = ${WIKANTIK_DENSE_EF_SEARCH:-100}
 EOF
 fi
 

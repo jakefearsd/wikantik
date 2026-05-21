@@ -115,6 +115,18 @@ public class VersioningFileProvider extends AbstractFileProvider {
     private PropertyCacheStrategy propertyCache;
 
     /**
+     * Read-write lock guarding the page-text / page-metadata read &amp; write paths.
+     * Replaces the previous method-level {@code synchronized} so concurrent
+     * readers proceed without serialising through one mutex. Writers
+     * ({@link #putPageText}, {@link #deletePage}, {@link #deleteVersion},
+     * {@link #movePage}) acquire the exclusive write lock; readers acquire the
+     * shared read lock. Non-fair — wiki workloads are dominated by reads, and
+     * non-fair gives better throughput under that mix.
+     */
+    private final java.util.concurrent.locks.ReentrantReadWriteLock rwLock =
+        new java.util.concurrent.locks.ReentrantReadWriteLock( /*fair*/ false );
+
+    /**
      *  {@inheritDoc}
      */
     @Override
@@ -339,21 +351,27 @@ public class VersioningFileProvider extends AbstractFileProvider {
      *  {@inheritDoc}
      */
     @Override
-    public synchronized String getPageText( final String page, int version ) throws ProviderException {
-        final File dir = findOldPageDir( page );
+    public String getPageText( final String page, int version ) throws ProviderException {
+        final java.util.concurrent.locks.Lock readLock = rwLock.readLock();
+        readLock.lock();
+        try {
+            final File dir = findOldPageDir( page );
 
-        version = realVersion( page, version );
-        if( version == -1 ) {
-            // We can let the FileSystemProvider take care of these requests.
-            return super.getPageText( page, PageProvider.LATEST_VERSION );
+            version = realVersion( page, version );
+            if( version == -1 ) {
+                // We can let the FileSystemProvider take care of these requests.
+                return super.getPageText( page, PageProvider.LATEST_VERSION );
+            }
+
+            final File pageFile = new File( dir, ""+version+FILE_EXT );
+            if( !pageFile.exists() ) {
+                throw new NoSuchVersionException("Version "+version+"does not exist.");
+            }
+
+            return readFile( pageFile );
+        } finally {
+            readLock.unlock();
         }
-
-        final File pageFile = new File( dir, ""+version+FILE_EXT );
-        if( !pageFile.exists() ) {
-            throw new NoSuchVersionException("Version "+version+"does not exist.");
-        }
-
-        return readFile( pageFile );
     }
 
 
@@ -582,16 +600,22 @@ public class VersioningFileProvider extends AbstractFileProvider {
      // FIXME: Does not get user information.
     @Override
     public List< Page > getVersionHistory( final String page ) throws ProviderException {
-        final var list = new ArrayList< Page >();
-        final int latest = findLatestVersion( page );
-        for( int i = latest; i > 0; i-- ) {
-            final Page info = getPageInfo( page, i );
-            if( info != null ) {
-                list.add( info );
+        final java.util.concurrent.locks.Lock readLock = rwLock.readLock();
+        readLock.lock();
+        try {
+            final var list = new ArrayList< Page >();
+            final int latest = findLatestVersion( page );
+            for( int i = latest; i > 0; i-- ) {
+                final Page info = getPageInfo( page, i );
+                if( info != null ) {
+                    list.add( info );
+                }
             }
-        }
 
-        return list;
+            return list;
+        } finally {
+            readLock.unlock();
+        }
     }
 
     /*
@@ -729,14 +753,20 @@ public class VersioningFileProvider extends AbstractFileProvider {
     // FIXME: This is kinda slow, we should need to do this only once.
     @Override
     public Collection< Page > getAllPages() throws ProviderException {
-        final Collection< Page > pages = super.getAllPages();
-        final Collection< Page > returnedPages = new ArrayList<>();
-        for( final Page page : pages ) {
-            final Page info = getPageInfo( page.getName(), WikiProvider.LATEST_VERSION );
-            returnedPages.add( info );
-        }
+        final java.util.concurrent.locks.Lock readLock = rwLock.readLock();
+        readLock.lock();
+        try {
+            final Collection< Page > pages = super.getAllPages();
+            final Collection< Page > returnedPages = new ArrayList<>();
+            for( final Page page : pages ) {
+                final Page info = getPageInfo( page.getName(), WikiProvider.LATEST_VERSION );
+                returnedPages.add( info );
+            }
 
-        return returnedPages;
+            return returnedPages;
+        } finally {
+            readLock.unlock();
+        }
     }
 
     /**

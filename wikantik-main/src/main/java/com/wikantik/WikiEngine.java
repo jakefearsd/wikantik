@@ -818,8 +818,23 @@ public class WikiEngine implements Engine {
             // Frontmatter metadata cache used by the search response path so we
             // don't re-read and re-parse every result on every /api/search call.
             // Keyed on (pageName, lastModified) so a page edit naturally invalidates.
-            setManager( com.wikantik.search.FrontmatterMetadataCache.class,
-                new com.wikantik.search.FrontmatterMetadataCache( getManager( PageManager.class ) ) );
+            final com.wikantik.search.FrontmatterMetadataCache fmCacheInstance =
+                new com.wikantik.search.FrontmatterMetadataCache( getManager( PageManager.class ) );
+            setManager( com.wikantik.search.FrontmatterMetadataCache.class, fmCacheInstance );
+            // Publish Caffeine cache size/hits/misses/evictions for this cache
+            // — registration is colocated with construction so wireHybridRetrieval
+            // doesn't need an extra getManager call (blocked by the decomposition
+            // ArchUnit rule).
+            try {
+                final io.micrometer.core.instrument.MeterRegistry meterReg =
+                    com.wikantik.api.observability.MeterRegistryHolder.get();
+                if ( meterReg != null ) {
+                    com.wikantik.observability.CaffeineCacheMetricsBridge
+                        .register( meterReg, "frontmatter_metadata", fmCacheInstance.cache() );
+                }
+            } catch ( final Throwable t ) {
+                LOG.warn( "FrontmatterMetadataCache metric registration failed: {}", t.getMessage(), t );
+            }
 
             //  Hook the different manager routines into the system.
             getManager( FilterManager.class ).addPageFilter( getManager( ReferenceManager.class ), -1001 );
@@ -1416,8 +1431,13 @@ public class WikiEngine implements Engine {
                     svcs, searchMgr, meterRegistry, pageManager, cachingManager, referenceManager, this );
 
             // Wire hybrid retrieval (SearchWiringHelper).
+            // fmCache is null here — the FrontmatterMetadataCache metric is
+            // registered at the cache's construction site (see line ~822).
+            // wireHybridRetrieval ignores a null fmCache (already guarded).
             com.wikantik.search.subsystem.SearchWiringHelper.wireHybridRetrieval(
-                props, ds, svcs.chunkProjector(), rebuildService, this );
+                props, ds, svcs.chunkProjector(), svcs.contentChunkRepository(),
+                /*fmCache*/ null,
+                rebuildService, this );
 
             // Wire entity extraction (KnowledgeWiringHelper).
             // KgExcludedPagesRepository is registered by wireKgPolicyAndContent above;

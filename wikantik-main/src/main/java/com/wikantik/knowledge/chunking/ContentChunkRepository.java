@@ -21,6 +21,9 @@ package com.wikantik.knowledge.chunking;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+
 import javax.sql.DataSource;
 import java.sql.Array;
 import java.sql.Connection;
@@ -29,9 +32,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -95,8 +100,32 @@ public class ContentChunkRepository {
 
     private final DataSource dataSource;
 
+    /**
+     * In-process LRU cache for {@link #findByIds}. Keyed by chunk_id (UUID),
+     * value is the {@link MentionableChunk} as returned from the DB. Bounded
+     * by {@code maximumSize} so memory cannot run away; TTL is a belt-and-
+     * suspenders backstop in case an explicit invalidation is ever missed.
+     *
+     * <p><strong>Invalidation contract:</strong> {@link #apply} calls
+     * {@link #invalidatePage} after a successful chunk write, and
+     * {@link #deleteAll} calls {@link #invalidateAll}. Cache misses always
+     * fall through to the same SQL query as before — no new failure mode is
+     * introduced.</p>
+     *
+     * <p>Maximum size of 50,000 entries × ~5 KB per chunk text ≈ 250 MB
+     * worst case; in practice the corpus has ~12 K chunks today (so the
+     * cache plateaus at ~60 MB) but the headroom accommodates 4× corpus
+     * growth without re-tuning.</p>
+     */
+    private final Cache< UUID, MentionableChunk > chunkCache;
+
     public ContentChunkRepository( final DataSource dataSource ) {
         this.dataSource = dataSource;
+        this.chunkCache = Caffeine.newBuilder()
+            .maximumSize( 50_000 )
+            .expireAfterWrite( Duration.ofMinutes( 10 ) )
+            .recordStats()
+            .build();
     }
 
     /**
@@ -185,6 +214,39 @@ public class ContentChunkRepository {
         if( ids == null || ids.isEmpty() ) {
             return List.of();
         }
+        // Cache lookup: split into hits served from {@link #chunkCache} vs misses
+        // that need a DB round-trip. Misses get written back so subsequent calls
+        // for the same chunk id avoid the SQL. Eviction is explicit via
+        // {@link #invalidatePage} (called from {@link #apply}) — no risk of
+        // stale text being returned after a page rewrite.
+        final List< MentionableChunk > hits = new ArrayList<>( ids.size() );
+        final List< UUID > misses = new ArrayList<>( ids.size() );
+        for( final UUID id : ids ) {
+            final MentionableChunk cached = id == null ? null : chunkCache.getIfPresent( id );
+            if( cached != null ) {
+                hits.add( cached );
+            } else if( id != null ) {
+                misses.add( id );
+            }
+        }
+        if( misses.isEmpty() ) {
+            return hits;
+        }
+        final List< MentionableChunk > fetched = fetchByIdsFromDb( misses );
+        for( final MentionableChunk mc : fetched ) {
+            chunkCache.put( mc.id(), mc );
+        }
+        final List< MentionableChunk > out = new ArrayList<>( hits.size() + fetched.size() );
+        out.addAll( hits );
+        out.addAll( fetched );
+        return out;
+    }
+
+    /**
+     * Raw DB fetch — the pre-cache code path. Package-private for unit tests
+     * that want to exercise the SQL without the cache short-circuit.
+     */
+    List< MentionableChunk > fetchByIdsFromDb( final List< UUID > ids ) {
         final String sql = "SELECT id, page_name, chunk_index, heading_path, text "
                          + "FROM kg_content_chunks WHERE id = ANY( ? )";
         try( Connection conn = dataSource.getConnection();
@@ -215,6 +277,42 @@ public class ContentChunkRepository {
             LOG.warn( "Failed to find chunks by ids (count={}): {}", ids.size(), e.getMessage(), e );
             throw new RuntimeException( "findByIds failed", e );
         }
+    }
+
+    /**
+     * Evicts every cache entry whose {@link MentionableChunk#pageName()}
+     * matches {@code pageName}. Called from {@link #apply} after a successful
+     * chunk write so the next {@link #findByIds} for any affected chunk hits
+     * the DB and re-caches the fresh row.
+     *
+     * <p>Iterates the cache's backing {@code asMap} once; for the corpus
+     * sizes this repo handles (~12 K chunks today, 50 K cap), the walk is
+     * microseconds. Trades a per-write O(N) scan for the per-read O(1)
+     * lookup that dominates the working set.</p>
+     */
+    public void invalidatePage( final String pageName ) {
+        if( pageName == null ) return;
+        final Map< UUID, MentionableChunk > snap = chunkCache.asMap();
+        snap.entrySet().removeIf( e -> pageName.equals( e.getValue().pageName() ) );
+    }
+
+    /** Evicts the entire cache. Called by {@link #deleteAll}. */
+    public void invalidateAll() {
+        chunkCache.invalidateAll();
+    }
+
+    /** Cache stats — useful for {@code /metrics} and admin diagnostics. */
+    public com.github.benmanes.caffeine.cache.stats.CacheStats cacheStats() {
+        return chunkCache.stats();
+    }
+
+    /**
+     * The underlying Caffeine cache — exposed for metric registration via
+     * {@code CaffeineCacheMetricsBridge}. Not intended for callers outside
+     * the metrics path.
+     */
+    public Cache< UUID, MentionableChunk > cache() {
+        return chunkCache;
     }
 
     /**
@@ -504,6 +602,10 @@ public class ContentChunkRepository {
             LOG.warn( "Failed to apply chunk diff for page '{}': {}", pageName, e.getMessage(), e );
             throw new RuntimeException( "apply failed for " + pageName, e );
         }
+        // Post-commit cache invalidation: drop any cached MentionableChunk for
+        // this page so a subsequent findByIds re-fetches the new text. Safe to
+        // call even when the diff was a no-op (will just walk the cache once).
+        invalidatePage( pageName );
     }
 
     /**
@@ -518,6 +620,7 @@ public class ContentChunkRepository {
             LOG.warn( "Failed to delete all chunks: {}", e.getMessage(), e );
             throw new RuntimeException( "deleteAll failed", e );
         }
+        invalidateAll();
     }
 
     /**

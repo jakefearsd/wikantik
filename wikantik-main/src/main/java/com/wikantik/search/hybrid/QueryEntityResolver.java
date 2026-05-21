@@ -83,7 +83,17 @@ public class QueryEntityResolver {
         this.cache = Caffeine.newBuilder()
                 .expireAfterWrite( Duration.ofSeconds( cfg.queryEntityCacheTtlSeconds() ) )
                 .maximumSize( cfg.queryEntityCacheMax() )
+                .recordStats()
                 .build();
+    }
+
+    /**
+     * The underlying Caffeine cache — exposed for metric registration
+     * via {@code CaffeineCacheMetricsBridge}. Not intended for callers
+     * outside the metrics path.
+     */
+    public Cache< String, Set< UUID > > cache() {
+        return cache;
     }
 
     /**

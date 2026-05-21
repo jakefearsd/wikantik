@@ -99,6 +99,8 @@ public final class SearchWiringHelper {
     public static void wireHybridRetrieval( final Properties props,
                                             final javax.sql.DataSource ds,
                                             final com.wikantik.knowledge.chunking.ChunkProjector chunkProjector,
+                                            final com.wikantik.knowledge.chunking.ContentChunkRepository chunkRepo,
+                                            final com.wikantik.search.FrontmatterMetadataCache fmCache,
                                             final ContentIndexRebuildService rebuildService,
                                             final WikiEngine engine ) {
         final EmbeddingConfig cfg;
@@ -219,9 +221,25 @@ public final class SearchWiringHelper {
             LOG.warn( "Embedding bootstrap start failed (model={}): {}", modelCode, e.getMessage(), e );
         }
 
-        HybridMetricsBridge.register(
-            com.wikantik.api.observability.MeterRegistryHolder.get(),
-            embedder, bootstrap, vectorIndex );
+        final io.micrometer.core.instrument.MeterRegistry meterRegistry =
+            com.wikantik.api.observability.MeterRegistryHolder.get();
+        HybridMetricsBridge.register( meterRegistry, embedder, bootstrap, vectorIndex );
+
+        // Per-cache Caffeine metrics (size + hits + misses + evictions). One
+        // call per Caffeine cache the application owns; tagged by short name
+        // so Prometheus / Grafana can break out hit-rate by cache. The two
+        // graph-rerank caches (query_entities + page_mentions) are wired in
+        // wireGraphRerank where their owning components are constructed.
+        if ( meterRegistry != null ) {
+            if ( chunkRepo != null ) {
+                com.wikantik.observability.CaffeineCacheMetricsBridge
+                    .register( meterRegistry, "chunk_text", chunkRepo.cache() );
+            }
+            if ( fmCache != null ) {
+                com.wikantik.observability.CaffeineCacheMetricsBridge
+                    .register( meterRegistry, "frontmatter_metadata", fmCache.cache() );
+            }
+        }
 
         LOG.info( "Hybrid retrieval wired (model={}, embed_backend={}, dense_backend={})",
             modelCode, cfg.backend(), denseBackend );
@@ -275,6 +293,22 @@ public final class SearchWiringHelper {
         engine.registerQueryEntityResolver( resolver );
         engine.registerPageMentionsLoader( mentionsLoader );
         engine.registerGraphRerankStep( step );
+
+        // Caffeine cache metrics for the two graph-rerank caches (query_entities,
+        // page_mentions, page_mentions_confidence). Their owning components are
+        // constructed locally here, so we register against the same shared
+        // MeterRegistry that wireHybridRetrieval used for the others.
+        final io.micrometer.core.instrument.MeterRegistry meterRegistry =
+            com.wikantik.api.observability.MeterRegistryHolder.get();
+        if ( meterRegistry != null ) {
+            com.wikantik.observability.CaffeineCacheMetricsBridge
+                .register( meterRegistry, "query_entities", resolver.cache() );
+            com.wikantik.observability.CaffeineCacheMetricsBridge
+                .register( meterRegistry, "page_mentions", mentionsLoader.loadForCache() );
+            com.wikantik.observability.CaffeineCacheMetricsBridge
+                .register( meterRegistry, "page_mentions_confidence",
+                    mentionsLoader.loadForWithConfidenceCache() );
+        }
 
         LOG.info( "Graph rerank wired (boost={}, maxHops={}, indexNodes={})",
             cfg.boost(), cfg.maxHops(), neighborIndex.nodeCount() );

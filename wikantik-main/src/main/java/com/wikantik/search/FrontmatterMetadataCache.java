@@ -61,7 +61,17 @@ public final class FrontmatterMetadataCache {
         this.pageManager = Objects.requireNonNull( pageManager, "pageManager" );
         this.cache = Caffeine.newBuilder()
             .maximumSize( maxEntries )
+            .recordStats()
             .build();
+    }
+
+    /**
+     * The underlying Caffeine cache — exposed for metric registration
+     * via {@code CaffeineCacheMetricsBridge}. Not intended for callers
+     * outside the metrics path.
+     */
+    public Cache< Key, Map< String, Object > > cache() {
+        return cache;
     }
 
     /**

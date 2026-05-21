@@ -167,7 +167,9 @@ cat > "${CATALINA_HOME}/conf/Catalina/localhost/ROOT.xml" <<EOF
               maxIdle="30"
               maxWaitMillis="10000"
               validationQuery="SELECT 1"
-              testOnBorrow="true"/>
+              testOnBorrow="false"
+              testWhileIdle="true"
+              timeBetweenEvictionRunsMillis="30000"/>
 
 </Context>
 EOF

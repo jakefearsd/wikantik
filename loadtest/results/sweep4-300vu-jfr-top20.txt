@@ -1,0 +1,20 @@
+    416     java.util.stream.MatchOps$1MatchSink.accept(Object) line: 90
+    228     java.lang.Character.codePointAtImpl(char[], int, int) line: 9393
+    210     java.util.stream.ReferencePipeline.forEachWithCancel(Spliterator, Sink) line: 129
+    197     com.wikantik.search.hybrid.InMemoryChunkVectorIndex.dotAt(float[], int, float[], int) line: 455
+    168     java.util.HashMap.getNode(Object) line: 582
+    166     java.lang.AbstractStringBuilder.ensureCapacityInternal(int) line: 243
+    135     java.lang.Character.codePointAtImpl(char[], int, int) line: 9394
+    123     java.lang.StringUTF16.compress(byte[], int, int) line: 241
+    114     java.util.stream.ReferencePipeline$3$1.accept(Object) line: 197
+     98     java.util.ArrayList$Itr.hasNext() line: 1044
+     71     java.lang.StringUTF16.inflate(byte[], int, byte[], int, int) line: 1641
+     50     java.lang.AbstractStringBuilder.append(String) line: 592
+     37     java.util.HashMap.get(Object) line: 564
+     36     java.lang.String.checkIndex(int, int) line: 4822
+     28     java.lang.String.<init>(char[], int, int) line: 303
+     26     java.util.ArrayList$Itr.next() line: 1055
+     21     com.wikantik.search.hybrid.InMemoryChunkVectorIndex.topKChunks(float[], int) line: 219
+     19     java.lang.StringUTF16.checkIndex(int, byte[]) line: 1794
+     19     java.lang.String.decodeUTF8_UTF16(byte[], int, int, byte[], int, boolean) line: 1228
+     18     java.lang.StringLatin1.inflate(byte[], int, byte[], int, int) line: 775

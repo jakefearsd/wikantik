@@ -217,6 +217,7 @@ public class StubPageManager implements PageManager {
         @Override public void invalidateMetadata() { }
         @Override public boolean hasMetadata() { return !attributes.isEmpty(); }
         @Override public void setHasMetadata() { }
+        @Override public void clearHasMetadata() { }
 
         @Override
         @SuppressWarnings("unchecked")

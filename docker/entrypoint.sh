@@ -36,6 +36,12 @@
 #                                VersioningFileProvider property cache size (default 100;
 #                                set 0 for single-entry, -1 to disable; properties are
 #                                tiny so a few thousand entries is cheap)
+#   WIKANTIK_MAX_INFLIGHT_REQUESTS
+#                                BackpressureFilter permit cap (default 700; 0 or negative
+#                                disables backpressure entirely). Requests over the cap
+#                                get HTTP 503 + Retry-After:1 instead of queueing for
+#                                up to 60 s. /api/health and /metrics bypass.
+#                                Metric: wikantik_backpressure.rejected_total
 #   CATALINA_HOME                tomcat root (default /usr/local/tomcat)
 
 set -euo pipefail

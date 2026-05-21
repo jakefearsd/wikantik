@@ -125,15 +125,49 @@ public final class SearchWiringHelper {
             new EmbeddingIndexService( ds, client, cfg.batchSize() );
         engine.registerEmbeddingIndexService( indexService );
 
-        final InMemoryChunkVectorIndex vectorIndex;
+        // Pick the dense retrieval backend up front so DenseRetriever (constructed
+        // below) actually holds the configured impl. SearchSubsystemFactory exposes
+        // the same choice via Services.chunkVectorIndex(), but nothing in production
+        // reads that slot — the live wiring is here. Defaulting to in-memory matches
+        // the ini bundle default and preserves zero-risk first-deploys.
+        final String denseBackend = props.getProperty(
+            "wikantik.search.dense.backend", "inmemory" ).toLowerCase( java.util.Locale.ROOT );
+
+        final com.wikantik.search.hybrid.ChunkVectorIndex vectorIndex;
+        final Runnable indexReloadHook;
+        final InMemoryChunkVectorIndex inMemoryForListener;
         try {
-            vectorIndex = new InMemoryChunkVectorIndex( ds, modelCode );
+            if ( "pgvector".equals( denseBackend ) ) {
+                final int efSearch = Integer.parseInt( props.getProperty(
+                    "wikantik.search.dense.pgvector.ef_search", "100" ) );
+                final com.wikantik.search.hybrid.PgVectorChunkVectorIndex pgIndex =
+                    new com.wikantik.search.hybrid.PgVectorChunkVectorIndex( ds, modelCode, efSearch );
+                vectorIndex = pgIndex;
+                inMemoryForListener = null;
+                // pgvector keeps its HNSW index in sync via the dual-write INSERT
+                // in EmbeddingIndexService.UPSERT_SQL (Task 7) — no in-memory
+                // snapshot to refresh, so the bootstrap reload hook is a no-op.
+                indexReloadHook = () -> {};
+                LOG.info( "Dense retrieval backend: pgvector HNSW (model={}, ef_search={})",
+                    modelCode, efSearch );
+            } else if ( "inmemory".equals( denseBackend ) ) {
+                final InMemoryChunkVectorIndex memIndex = new InMemoryChunkVectorIndex( ds, modelCode );
+                vectorIndex = memIndex;
+                inMemoryForListener = memIndex;
+                indexReloadHook = memIndex::reload;
+                engine.registerChunkVectorIndex( memIndex );
+                LOG.info( "Dense retrieval backend: in-memory brute-force (model={}, size={})",
+                    modelCode, memIndex.size() );
+            } else {
+                throw new IllegalArgumentException(
+                    "wikantik.search.dense.backend must be 'inmemory' or 'pgvector', got: '"
+                    + denseBackend + "'" );
+            }
         } catch ( final RuntimeException e ) {
-            LOG.warn( "Failed to initialize InMemoryChunkVectorIndex (model={}); "
-                + "hybrid retrieval disabled: {}", modelCode, e.getMessage(), e );
+            LOG.warn( "Failed to initialize {} ChunkVectorIndex (model={}); "
+                + "hybrid retrieval disabled: {}", denseBackend, modelCode, e.getMessage(), e );
             return;
         }
-        engine.registerChunkVectorIndex( vectorIndex );
 
         final AsyncEmbeddingIndexListener listener =
             new AsyncEmbeddingIndexListener( indexService, modelCode );
@@ -141,10 +175,8 @@ public final class SearchWiringHelper {
         // Under pgvector, EmbeddingIndexService.indexChunks dual-writes the
         // embedding column via its UPSERT SQL (Task 7), so the HNSW index
         // stays in sync without any listener-side reload step.
-        final String denseBackend = props.getProperty(
-            "wikantik.search.dense.backend", "inmemory" );
-        if ( !"pgvector".equalsIgnoreCase( denseBackend ) ) {
-            listener.setPostIndexCallback( vectorIndex::upsertChunks );
+        if ( inMemoryForListener != null ) {
+            listener.setPostIndexCallback( inMemoryForListener::upsertChunks );
         }
         chunkProjector.setPostChunkSink( listener );
         engine.setHybridIndexListener( listener );
@@ -178,7 +210,7 @@ public final class SearchWiringHelper {
         engine.registerHybridSearchService( hybridSearch );
 
         final BootstrapEmbeddingIndexer bootstrap =
-            new BootstrapEmbeddingIndexer( ds, indexService, modelCode, vectorIndex::reload );
+            new BootstrapEmbeddingIndexer( ds, indexService, modelCode, indexReloadHook );
         engine.registerBootstrapEmbeddingIndexer( bootstrap );
         engine.setHybridBootstrapIndexer( bootstrap );
         try {
@@ -191,8 +223,8 @@ public final class SearchWiringHelper {
             com.wikantik.api.observability.MeterRegistryHolder.get(),
             embedder, bootstrap, vectorIndex );
 
-        LOG.info( "Hybrid retrieval wired (model={}, backend={}, vectorIndex.size={})",
-            modelCode, cfg.backend(), vectorIndex.size() );
+        LOG.info( "Hybrid retrieval wired (model={}, embed_backend={}, dense_backend={})",
+            modelCode, cfg.backend(), denseBackend );
     }
 
     // -----------------------------------------------------------------------

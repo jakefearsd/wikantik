@@ -251,6 +251,39 @@ bin/loadtest.sh smoke --duration 3m --vus 650  # measurement run
 For sustained runs (≥ 10 min), the warm-up itself is part of the run — JIT
 fully bakes in the first minute or two.
 
+### Verifying backpressure (`BackpressureFilter`)
+
+The `WIKANTIK_MAX_INFLIGHT_REQUESTS` cap fast-fails over-capacity requests with
+`503` + `Retry-After: 1` rather than letting them queue. To verify the
+mechanism + its metric without needing to drive a genuinely overloading VU
+count, temporarily set a low cap so a modest load exceeds it:
+
+```bash
+# Set a low cap so the overload bites at a normal VU count.
+sed -i 's/^WIKANTIK_MAX_INFLIGHT_REQUESTS=.*/WIKANTIK_MAX_INFLIGHT_REQUESTS=100/' .env.prod
+bin/remote.sh deploy --skip-build
+
+# Baseline the counter, overload, watch it climb while health stays up.
+curl -s http://<host>:8080/metrics | grep wikantik_backpressure_rejected_total
+bin/loadtest.sh smoke --duration 3m --vus 650 &
+# ...mid-run, confirm the guarantees hold:
+curl -s -o /dev/null -w '%{http_code} %{time_total}s\n' http://<host>:8080/api/health   # 200, fast — exempt
+curl -s http://<host>:8080/metrics | grep wikantik_backpressure                          # rejected_total climbing, inflight ≈ cap
+
+# Restore the production cap afterward.
+sed -i 's/^WIKANTIK_MAX_INFLIGHT_REQUESTS=.*/WIKANTIK_MAX_INFLIGHT_REQUESTS=700/' .env.prod
+bin/remote.sh deploy --skip-build
+```
+
+What to confirm:
+- `wikantik_backpressure_rejected_total` climbs (matches the k6 `http_req_failed`
+  delta, minus the usual MCP/tools auth-probe 4xx).
+- `wikantik_backpressure_inflight` pins at/near the cap and returns to 0 after
+  the run (no permit leak).
+- `/api/health` and `/metrics` stay 200 throughout (they're exempt).
+- The *admitted* subset's p95 stays low — fast 503s keep the server
+  under-subscribed for the requests it does accept.
+
 ## Common pitfalls
 
 1. **Comparing JIT-warm vs JIT-cold runs.** The same load can produce a

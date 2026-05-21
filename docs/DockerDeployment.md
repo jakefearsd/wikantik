@@ -52,18 +52,54 @@ Copy `.env.example` and fill it in. Key variables:
 
 ### Performance / search-backend tuning (optional)
 
-All have safe defaults baked into `ini/wikantik.properties`. Set them in `.env`
-only when you want to override; the container `entrypoint.sh` injects each one
-into `wikantik-custom.properties` on start. All are runtime-configurable
-without an image rebuild — flip in `.env`, then `bin/remote.sh deploy --skip-build`
-for a ~30 s restart.
+All have safe defaults. Most are baked into `ini/wikantik.properties` and the
+container `entrypoint.sh` injects them into `wikantik-custom.properties` on
+start; one (`WIKANTIK_MAX_INFLIGHT_REQUESTS`) is read directly from the
+environment by a servlet filter. Either way, set them in `.env` only when you
+want to override. All are runtime-configurable without an image rebuild —
+flip in `.env`, then `bin/remote.sh deploy --skip-build` for a ~30 s restart.
 
-| Variable | Default | Maps to property | Purpose |
+| Variable | Default | Maps to | Purpose |
 |---|---|---|---|
 | `WIKANTIK_DENSE_BACKEND` | `inmemory` | `wikantik.search.dense.backend` | `inmemory` or `pgvector`. In-memory dense scan (with Vector API SIMD) is the right call on a single-host deploy; `pgvector` becomes the win when you split the DB to its own host (architectural scaling lever). See [the pgvector design spec](../docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md). |
 | `WIKANTIK_DENSE_EF_SEARCH` | `100` | `wikantik.search.dense.pgvector.ef_search` | Only used when `WIKANTIK_DENSE_BACKEND=pgvector`. HNSW recall/latency knob; higher = better recall, more CPU. |
 | `WIKANTIK_LUCENE_DIRECTORY` | `nio` | `wikantik.search.lucene.directory.kind` | Lucene index backend: `nio` (NIOFSDirectory — read syscall + buffer copy) or `mmap` (MMapDirectory — page-cache-served, but pays Java 21's per-access MemorySession overhead under high concurrency). On hardware where the OS page cache already serves Lucene reads, `nio` wins; on disk-bound deploys, `mmap` is Lucene's recommended default. |
 | `WIKANTIK_VERSIONING_CACHE_SIZE` | `100` | `wikantik.versioningFileProvider.cacheSize` | Page-properties cache size in `VersioningFileProvider`. Default `100` was small relative to a 12K-page corpus (load testing showed 56 % hit rate). Set to `5000` for a typical wiki (~5 MB heap cost, 99 %+ hit rate). `0` = single-entry, `-1` = disabled. |
+| `WIKANTIK_MAX_INFLIGHT_REQUESTS` | `700` | `BackpressureFilter` (read directly from env, not a property) | **Graceful-degradation backpressure cap.** Maximum concurrent in-flight HTTP requests; anything over the cap gets an immediate `503 Service Unavailable` + `Retry-After: 1` instead of queueing in the Tomcat accept queue for up to 60 s. Default `700` is one notch above docker1's measured-comfortable N=650 sustained ceiling, so under normal load it never engages. Set to `0` or negative to disable (pass-through). `/api/health` and `/metrics` bypass the cap entirely and are never rejected — a 503 there would make jakemon think the container is down. Deterministic by construction (rejection driven solely by the local in-flight counter — no latency window, no false alarms). See the [verification overload test](#fail-fast-backpressure) below and the metrics it exposes. |
+
+#### Fail-fast backpressure
+
+When a burst pushes concurrency past `WIKANTIK_MAX_INFLIGHT_REQUESTS`, the
+`BackpressureFilter` sheds the excess as fast 503s rather than letting requests
+pile up in the queue. This keeps the *admitted* requests responsive (in a
+verification overload at cap=100 / N=650, the served subset held p95 ≈ 625 ms
+— faster than an uncapped run at the same load, because the server stays
+under-subscribed) and keeps `/api/health` answering throughout (200 in ~38 ms
+under full overload).
+
+It publishes three Prometheus metrics:
+
+| Metric | Type | Meaning |
+|---|---|---|
+| `wikantik_backpressure_rejected_total` | counter | Requests 503'd by the cap. Watch the rate to see how often you're hitting capacity. A non-zero-and-climbing rate under normal load means the cap is too low (or the host needs more capacity). |
+| `wikantik_backpressure_inflight` | gauge | Requests currently holding a permit. Pins near `permits_max` under saturation. |
+| `wikantik_backpressure_permits_max` | gauge | The configured cap, for dashboard context. |
+
+To exercise it deliberately, set a low cap and overload:
+
+```bash
+# Temporarily set a low cap so the overload bites at a modest VU count.
+sed -i 's/^WIKANTIK_MAX_INFLIGHT_REQUESTS=.*/WIKANTIK_MAX_INFLIGHT_REQUESTS=100/' .env.prod
+bin/remote.sh deploy --skip-build
+
+# Overload it; watch the rejection counter climb while /api/health stays 200.
+bin/loadtest.sh smoke --duration 3m --vus 650
+curl -s http://<host>:8080/metrics | grep wikantik_backpressure
+
+# Restore the production cap.
+sed -i 's/^WIKANTIK_MAX_INFLIGHT_REQUESTS=.*/WIKANTIK_MAX_INFLIGHT_REQUESTS=700/' .env.prod
+bin/remote.sh deploy --skip-build
+```
 
 For a remote deploy driven by `bin/remote.sh`, keep the production values in a
 gitignored **`.env.prod`** at the repo root — `remote.sh` ships it to the

@@ -407,6 +407,19 @@ count):**
 
 **+62 % throughput, p95 −44 %, stable indefinitely at 99 % CPU.**
 
+**Graceful degradation past the ceiling:** because the host is CPU-bound, a
+burst beyond the sustainable VU count would otherwise queue in the Tomcat
+accept queue and time out after tens of seconds. A `BackpressureFilter` caps
+concurrent in-flight requests (`WIKANTIK_MAX_INFLIGHT_REQUESTS`, default 700 —
+one notch above the N=650 ceiling) and fast-fails the excess with `503` +
+`Retry-After: 1` in microseconds. The admitted subset keeps its throughput and
+latency; `/api/health` and `/metrics` are exempt so monitoring never sees a
+false outage. The cap is deterministic (rejection driven solely by the local
+in-flight count) and publishes `wikantik_backpressure_rejected_total` so you
+can see exactly how often capacity is hit. Verified under deliberate overload:
+at cap=100 / N=650 the server shed ~10.8 K requests as fast 503s over 3 minutes
+while the served subset held p95 ≈ 625 ms and health stayed at 200/38 ms.
+
 **Scaling levers from here:** the host is now genuinely CPU-bound (not lock-,
 cache-, I/O-, or pool-bound). To go further, the options are orthogonal:
 

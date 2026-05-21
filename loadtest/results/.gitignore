@@ -1,3 +1,5 @@
 # Raw scaling-study artifacts — reproducible, large, not versioned.
 *.log
 *.json
+*.jfr
+*-jfr-*.txt

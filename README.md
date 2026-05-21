@@ -374,6 +374,60 @@ monitoring, and the bare-metal ↔ container migration.
 | `wikantik-wikipages` | Default wiki pages shipped with a fresh install |
 | `wikantik-it-tests` | Integration tests (Selenide browser automation, REST API, Cargo-launched Tomcat against PostgreSQL + pgvector) |
 
+## Scaling & Performance
+
+Wikantik is built for a single-host deployment that fully exploits modern
+multi-core hardware. The reference target is a 16-core / 32 GB box (the production
+docker1 host) running the Compose stack — Tomcat + PostgreSQL + pgvector +
+backup sidecar — and the load-test results below are from that target.
+
+**Headline (10-minute sustained N=650 VU run, 2026-05-21):**
+
+| Metric | Value |
+|---|---|
+| Sustained throughput | **480 RPS** for 602 s (289,463 successful iterations) |
+| Per-request avg latency | 348 ms |
+| p50 / p90 / p95 latency | 111 ms / 747 ms / **1.25 s** |
+| Failed iterations | **0** (`http_req_failed` = 1.75 %, all expected MCP/tools auth probes) |
+| Host CPU | 99.3 % sustained — at the practical 16-core ceiling |
+| Heap growth | 287 → 420 MB then GC'd to 418 MB (classic G1 sawtooth, no leak) |
+| Search-cache hit rates | 99.6 – 99.98 % across all 6 Caffeine LRUs |
+| `verify_failures` (panel-coverage gate) | 0 |
+
+**Where the throughput went over the optimisation arc (same hardware, same VU
+count):**
+
+| Config | RPS | p95 |
+|---|---|---|
+| Baseline (pre-tuning, last week) | 296 | 2.25 s |
+| + Vector-API SIMD, listener-mutex fix, Highlighter flag, dispatcher | 371 | 3.55 s |
+| + Caffeine LRUs on chunk text + page mentions + query entities (kills per-search DB tax) | 400 | 1.99 s |
+| + `ReentrantReadWriteLock` on `VersioningFileProvider` (kills synchronized-method gate) | 449 | 1.74 s |
+| + Caffeine-ify `LruPropertyCache` + cache=5000 (kills the next contention frontier) | **480** | **1.25 s** |
+
+**+62 % throughput, p95 −44 %, stable indefinitely at 99 % CPU.**
+
+**Scaling levers from here:** the host is now genuinely CPU-bound (not lock-,
+cache-, I/O-, or pool-bound). To go further, the options are orthogonal:
+
+1. **More cores** — vertical scale. Each Tomcat thread is doing real work
+   (Vector-API SIMD on the dense retrieval path, JIT'd Lucene reads, response
+   shaping). Linear gain expected.
+2. **Split PostgreSQL to its own host** — the CPU partition during the run is
+   ~50/50 wikantik/db. Splitting frees a full machine for each side and
+   unlocks the **pgvector** dense-retrieval backend (`WIKANTIK_DENSE_BACKEND=pgvector`),
+   designed exactly for this — see
+   [the pgvector design spec](docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md).
+3. **Horizontal app-tier scale** — once PG is split, the app tier is stateless
+   w.r.t. the vector index and trivially scales behind a load balancer.
+
+Performance configuration is documented in
+[DockerDeployment.md § Performance / search-backend tuning](docs/DockerDeployment.md#performance--search-backend-tuning-optional).
+The full scaling study (methodology, JFR captures, contention analyses) is in
+[ScalingCharacterization.md](docs/ScalingCharacterization.md). Cache effectiveness
+is published live to Prometheus as `wikantik_cache.{size,hits,misses,evictions}`
+per cache name.
+
 ## Documentation
 
 For a chronological view of what's shipped see [CHANGELOG.md](CHANGELOG.md);

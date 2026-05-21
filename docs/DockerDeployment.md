@@ -50,6 +50,21 @@ Copy `.env.example` and fill it in. Key variables:
 | `MAIL_SMTP_*` / `MAIL_FROM` | SMTP; leave `MAIL_SMTP_HOST` empty to disable email. |
 | `WIKANTIK_HOST_PORT` | Published host port (default `8080`). |
 
+### Performance / search-backend tuning (optional)
+
+All have safe defaults baked into `ini/wikantik.properties`. Set them in `.env`
+only when you want to override; the container `entrypoint.sh` injects each one
+into `wikantik-custom.properties` on start. All are runtime-configurable
+without an image rebuild — flip in `.env`, then `bin/remote.sh deploy --skip-build`
+for a ~30 s restart.
+
+| Variable | Default | Maps to property | Purpose |
+|---|---|---|---|
+| `WIKANTIK_DENSE_BACKEND` | `inmemory` | `wikantik.search.dense.backend` | `inmemory` or `pgvector`. In-memory dense scan (with Vector API SIMD) is the right call on a single-host deploy; `pgvector` becomes the win when you split the DB to its own host (architectural scaling lever). See [the pgvector design spec](../docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md). |
+| `WIKANTIK_DENSE_EF_SEARCH` | `100` | `wikantik.search.dense.pgvector.ef_search` | Only used when `WIKANTIK_DENSE_BACKEND=pgvector`. HNSW recall/latency knob; higher = better recall, more CPU. |
+| `WIKANTIK_LUCENE_DIRECTORY` | `nio` | `wikantik.search.lucene.directory.kind` | Lucene index backend: `nio` (NIOFSDirectory — read syscall + buffer copy) or `mmap` (MMapDirectory — page-cache-served, but pays Java 21's per-access MemorySession overhead under high concurrency). On hardware where the OS page cache already serves Lucene reads, `nio` wins; on disk-bound deploys, `mmap` is Lucene's recommended default. |
+| `WIKANTIK_VERSIONING_CACHE_SIZE` | `100` | `wikantik.versioningFileProvider.cacheSize` | Page-properties cache size in `VersioningFileProvider`. Default `100` was small relative to a 12K-page corpus (load testing showed 56 % hit rate). Set to `5000` for a typical wiki (~5 MB heap cost, 99 %+ hit rate). `0` = single-entry, `-1` = disabled. |
+
 For a remote deploy driven by `bin/remote.sh`, keep the production values in a
 gitignored **`.env.prod`** at the repo root — `remote.sh` ships it to the
 remote as `.env`, preferring it over the dev `.env` so a prod deploy never

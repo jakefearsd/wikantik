@@ -41,7 +41,8 @@ import org.apache.lucene.search.highlight.QueryScorer;
 import org.apache.lucene.search.highlight.SimpleHTMLEncoder;
 import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.NIOFSDirectory;
+// NIOFSDirectory and MMapDirectory are selected at runtime via LuceneDirectoryFactory;
+// no direct import needed here.
 import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
@@ -135,6 +136,15 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
      */
     private final boolean highlightingEnabled;
 
+    /**
+     * When {@code true}, Lucene {@link org.apache.lucene.store.Directory} instances
+     * are opened as {@link org.apache.lucene.store.MMapDirectory}; when {@code false}
+     * (default), as {@link org.apache.lucene.store.NIOFSDirectory}. Threaded down
+     * from {@link com.wikantik.search.LuceneSearchProvider} where the property
+     * {@code wikantik.search.lucene.directory.kind} is read once.
+     */
+    private final boolean useMMap;
+
     // Lazily resolved (initialised after SearchManager in engine startup sequence)
     private AuthorizationManager authorizationManager;
     private AclManager aclManager;
@@ -148,19 +158,25 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
      * @param pageManager        used to load page objects for ACL checks
      * @param engine             used for lazy auth-manager resolution
      * @param searchExecutor     executor for Lucene searcher thread pool
+     * @param useMMap            when {@code true}, open {@link org.apache.lucene.store.Directory}
+     *                           instances as {@link org.apache.lucene.store.MMapDirectory};
+     *                           when {@code false} (default), as
+     *                           {@link org.apache.lucene.store.NIOFSDirectory}
      */
     public DefaultLuceneSearcher( final Supplier<String> directorySupplier,
                                    final LuceneIndexLifecycle lifecycle,
                                    final LuceneIndexer indexer,
                                    final PageManager pageManager,
                                    final Engine engine,
-                                   final Executor searchExecutor ) {
+                                   final Executor searchExecutor,
+                                   final boolean useMMap ) {
         this.directorySupplier = directorySupplier;
         this.lifecycle = lifecycle;
         this.indexer = indexer;
         this.pageManager = pageManager;
         this.engine = engine;
         this.searchExecutor = searchExecutor;
+        this.useMMap = useMMap;
         // Defensive: engine.getWikiProperties() can be null in test fixtures that
         // mock Engine. Treat that case as "default" (highlighting off).
         final java.util.Properties wikiProps = engine == null ? null : engine.getWikiProperties();
@@ -186,7 +202,8 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
                             final Executor searchExecutor,
                             final AuthorizationManager authorizationManager,
                             final AclManager aclManager ) {
-        this( directorySupplier, lifecycle, indexer, pageManager, engine, searchExecutor );
+        this( directorySupplier, lifecycle, indexer, pageManager, engine, searchExecutor,
+            /*useMMap*/ false );
         this.authorizationManager = authorizationManager;
         this.aclManager = aclManager;
     }
@@ -218,7 +235,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         ArrayList<SearchResult> list = new ArrayList<>();
         Highlighter highlighter = null;
 
-        try ( Directory luceneDir = new NIOFSDirectory( new File( dir() ).toPath() );
+        try ( Directory luceneDir = LuceneDirectoryFactory.open( new File( dir() ).toPath(), useMMap );
               IndexReader reader = DirectoryReader.open( luceneDir ) ) {
 
             final String[] queryfields = {
@@ -338,7 +355,7 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
         }
         final Set<String> excludes = excludeNames == null ? Collections.emptySet() : excludeNames;
 
-        try ( Directory luceneDir = new NIOFSDirectory( new File( dir() ).toPath() );
+        try ( Directory luceneDir = LuceneDirectoryFactory.open( new File( dir() ).toPath(), useMMap );
               IndexReader reader = DirectoryReader.open( luceneDir ) ) {
 
             final IndexSearcher searcher = new IndexSearcher( reader, searchExecutor );

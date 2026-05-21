@@ -32,7 +32,7 @@ import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.NIOFSDirectory;
+// NIOFSDirectory and MMapDirectory are selected at runtime via LuceneDirectoryFactory.
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
@@ -107,6 +107,15 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
     private final SystemPageRegistry systemPageRegistry;
 
     /**
+     * When {@code true}, Lucene {@link org.apache.lucene.store.Directory} instances
+     * are opened as {@link org.apache.lucene.store.MMapDirectory}; when {@code false}
+     * (default), as {@link org.apache.lucene.store.NIOFSDirectory}. Threaded down
+     * from {@link com.wikantik.search.LuceneSearchProvider} where the property
+     * {@code wikantik.search.lucene.directory.kind} is read once.
+     */
+    private final boolean useMMap;
+
+    /**
      * Pending reindex queue — (Page, String) pairs awaiting drain.
      * Injected at construction time so the facade and indexer share the same list
      * instance, allowing test fixtures that access {@code LuceneSearchProvider.updates}
@@ -131,13 +140,30 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
                                   final PageManager pageManager,
                                   final AttachmentManager attachmentManager,
                                   final SystemPageRegistry systemPageRegistry,
-                                  final List<Object[]> updates ) {
+                                  final List<Object[]> updates,
+                                  final boolean useMMap ) {
         this.directorySupplier = directorySupplier;
         this.lifecycle = lifecycle;
         this.pageManager = pageManager;
         this.attachmentManager = attachmentManager;
         this.systemPageRegistry = systemPageRegistry;
         this.updates = updates;
+        this.useMMap = useMMap;
+    }
+
+    /**
+     * Six-argument convenience constructor for callers that don't yet thread the
+     * MMap flag. Defaults to {@code useMMap=false} (NIO directory) — i.e. the
+     * pre-flag behaviour, preserved for tests and any external wiring.
+     */
+    public DefaultLuceneIndexer( final Supplier<String> directorySupplier,
+                                  final LuceneIndexLifecycle lifecycle,
+                                  final PageManager pageManager,
+                                  final AttachmentManager attachmentManager,
+                                  final SystemPageRegistry systemPageRegistry,
+                                  final List<Object[]> updates ) {
+        this( directorySupplier, lifecycle, pageManager, attachmentManager,
+            systemPageRegistry, updates, /*useMMap*/ false );
     }
 
     private String dir() {
@@ -173,7 +199,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
 
     @Override
     public synchronized void pageRemoved( final Page page ) {
-        try ( Directory luceneDir = new NIOFSDirectory( new File( dir() ).toPath() );
+        try ( Directory luceneDir = LuceneDirectoryFactory.open( new File( dir() ).toPath(), useMMap );
               IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
             final org.apache.lucene.search.Query query =
                     new TermQuery( new Term( LUCENE_ID, page.getName() ) );
@@ -195,7 +221,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         if ( !dirFile.exists() ) {
             return;
         }
-        try ( Directory luceneDir = new NIOFSDirectory( dirFile.toPath() );
+        try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
               IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
             writer.deleteAll();
             writer.commit();
@@ -215,7 +241,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         if ( !dirFile.exists() || dirFiles == null || dirFiles.length == 0 ) {
             return 0;
         }
-        try ( Directory luceneDir = new NIOFSDirectory( dirFile.toPath() );
+        try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
               IndexReader reader = DirectoryReader.open( luceneDir ) ) {
             return reader.numDocs();
         } catch ( final IOException e ) {
@@ -246,7 +272,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
                 final Date start = new Date();
                 LOG.info( "Starting Lucene reindexing, this can take a couple of minutes..." );
 
-                final Directory luceneDir = new NIOFSDirectory( dirFile.toPath() );
+                final Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
                 try ( IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
                     long pagesIndexed = 0L;
                     long systemPagesSkipped = 0L;
@@ -328,7 +354,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
 
             if ( !missingPages.isEmpty() ) {
                 LOG.info( "Found {} pages missing from Lucene index, indexing...", missingPages.size() );
-                try ( Directory luceneDir = new NIOFSDirectory( dirFile.toPath() );
+                try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
                       IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
                     for ( final Page page : missingPages ) {
                         try {
@@ -353,7 +379,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
             if ( !missingAttachments.isEmpty() ) {
                 LOG.info( "Found {} attachments missing from Lucene index, indexing...",
                           missingAttachments.size() );
-                try ( Directory luceneDir = new NIOFSDirectory( dirFile.toPath() );
+                try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
                       IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
                     int attachmentsIndexed = 0;
                     for ( final Attachment att : missingAttachments ) {
@@ -389,7 +415,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         if ( !dirFile.exists() || dirFiles == null || dirFiles.length == 0 ) {
             return indexedPages;
         }
-        try ( Directory luceneDir = new NIOFSDirectory( dirFile.toPath() );
+        try ( Directory luceneDir = LuceneDirectoryFactory.open( dirFile.toPath(), useMMap );
               IndexReader reader = DirectoryReader.open( luceneDir ) ) {
             final StoredFields storedFields = reader.storedFields();
             for ( int i = 0; i < reader.maxDoc(); i++ ) {
@@ -414,7 +440,7 @@ public class DefaultLuceneIndexer implements LuceneIndexer {
         }
         LOG.debug( "Updating Lucene index for page '{}'...", page.getName() );
         pageRemoved( page );
-        try ( Directory luceneDir = new NIOFSDirectory( new File( dir() ).toPath() );
+        try ( Directory luceneDir = LuceneDirectoryFactory.open( new File( dir() ).toPath(), useMMap );
               IndexWriter writer = lifecycle.getIndexWriter( luceneDir ) ) {
             luceneIndexPage( page, text, writer );
         } catch ( final IOException e ) {

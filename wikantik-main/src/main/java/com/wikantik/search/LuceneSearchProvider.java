@@ -138,6 +138,15 @@ public class LuceneSearchProvider implements SearchProvider {
     private Engine engine;
     private PageManager pageManager;
     private AttachmentManager attachmentManager;
+
+    /**
+     * Resolved once from {@code wikantik.search.lucene.directory.kind} during
+     * {@link #initialize(Engine, Properties)} and passed down to both
+     * {@link DefaultLuceneSearcher} and {@link DefaultLuceneIndexer}. {@code true}
+     * selects {@link org.apache.lucene.store.MMapDirectory}; {@code false}
+     * (default) keeps {@link org.apache.lucene.store.NIOFSDirectory}.
+     */
+    private boolean useMMap;
     @SuppressWarnings("PMD.UnusedPrivateField") // Kept for constructor signature compatibility
     private AuthorizationManager authorizationManager;
     @SuppressWarnings("PMD.UnusedPrivateField") // Kept for constructor signature compatibility
@@ -257,7 +266,8 @@ public class LuceneSearchProvider implements SearchProvider {
                             pageManager,
                             attachmentManager,
                             systemPageRegistry,
-                            updates ); // share the facade's updates list
+                            updates, // share the facade's updates list
+                            useMMap );
                 }
             }
         }
@@ -276,7 +286,8 @@ public class LuceneSearchProvider implements SearchProvider {
                             indexer(),
                             pageManager,
                             engine,
-                            exec );
+                            exec,
+                            useMMap );
                 }
             }
         }
@@ -324,6 +335,17 @@ public class LuceneSearchProvider implements SearchProvider {
         missingPageCheckInterval = TextUtil.getIntegerProperty( props, PROP_LUCENE_MISSINGPAGECHECK_INTERVAL, DEFAULT_MISSING_PAGE_CHECK_INTERVAL );
 
         analyzerClass = TextUtil.getStringProperty( props, PROP_LUCENE_ANALYZER, analyzerClass );
+
+        // Resolve the Directory backend once at init time so both the searcher
+        // and indexer agree. Default 'nio' (current behaviour); 'mmap' selects
+        // MMapDirectory (Lucene's recommended default on 64-bit Linux).
+        final String dirKind = TextUtil.getStringProperty( props,
+            com.wikantik.search.subsystem.lucene.LuceneDirectoryFactory.PROP_KIND,
+            com.wikantik.search.subsystem.lucene.LuceneDirectoryFactory.DEFAULT_KIND );
+        this.useMMap = com.wikantik.search.subsystem.lucene.LuceneDirectoryFactory.parseKind( dirKind );
+        LOG.info( "Lucene directory backend: {} ({})",
+            this.useMMap ? "MMapDirectory" : "NIOFSDirectory",
+            com.wikantik.search.subsystem.lucene.LuceneDirectoryFactory.PROP_KIND + "=" + dirKind );
 
         try {
             analyzer = ClassUtil.buildInstance( analyzerClass );

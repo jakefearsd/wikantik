@@ -31,6 +31,7 @@
 #                                  inmemory | pgvector (default: ini bundle default = inmemory)
 #   WIKANTIK_DENSE_EF_SEARCH     pgvector HNSW ef_search knob (default 100; only used when
 #                                WIKANTIK_DENSE_BACKEND=pgvector)
+#   WIKANTIK_LUCENE_DIRECTORY    Lucene Directory backend: nio | mmap (default: nio)
 #   CATALINA_HOME                tomcat root (default /usr/local/tomcat)
 
 set -euo pipefail
@@ -119,6 +120,19 @@ if [ -n "${WIKANTIK_DENSE_BACKEND:-}" ]; then
 # Dense retrieval backend override (entrypoint-injected from env).
 wikantik.search.dense.backend            = ${WIKANTIK_DENSE_BACKEND}
 wikantik.search.dense.pgvector.ef_search = ${WIKANTIK_DENSE_EF_SEARCH:-100}
+EOF
+fi
+
+# Optional: Lucene Directory backend override.
+#   WIKANTIK_LUCENE_DIRECTORY    — nio | mmap  (default from ini bundle: nio)
+# 'mmap' is Lucene's recommended default on 64-bit Linux; flip in .env and
+# `bin/remote.sh deploy --skip-build` to restart with the new backend. Rollback
+# is the inverse flip + same fast restart.
+if [ -n "${WIKANTIK_LUCENE_DIRECTORY:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# Lucene Directory backend override (entrypoint-injected from env).
+wikantik.search.lucene.directory.kind = ${WIKANTIK_LUCENE_DIRECTORY}
 EOF
 fi
 

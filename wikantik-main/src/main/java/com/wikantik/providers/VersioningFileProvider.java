@@ -414,7 +414,10 @@ public class VersioningFileProvider extends AbstractFileProvider {
      *  {@inheritDoc}
      */
     @Override
-    public synchronized void putPageText( final Page page, final String text ) throws ProviderException {
+    public void putPageText( final Page page, final String text ) throws ProviderException {
+        final java.util.concurrent.locks.Lock writeLock = rwLock.writeLock();
+        writeLock.lock();
+        try {
         // This is a bit complicated.  We'll first need to copy the old file to be the newest file.
         final int  latest  = findLatestVersion( page.getName() );
         final File pageDir = findOldPageDir( page.getName() );
@@ -491,6 +494,9 @@ public class VersioningFileProvider extends AbstractFileProvider {
         } catch( final IOException e ) {
             LOG.error( "Saving failed", e );
             throw new ProviderException("Could not save page text: "+e.getMessage(), e);
+        }
+        } finally {
+            writeLock.unlock();
         }
     }
 
@@ -665,27 +671,33 @@ public class VersioningFileProvider extends AbstractFileProvider {
     // FIXME: Should log errors.
     @Override
     public void deletePage( final String page ) throws ProviderException {
-        super.deletePage( page );
-        final File dir = findOldPageDir( page );
-        if( dir.exists() && dir.isDirectory() ) {
-            final File[] files = dir.listFiles( new WikiFileFilter() );
-            if( files == null ) {
-                return;
-            }
-            for( final File file : files ) {
-                if( !file.delete() ) {
-                    LOG.warn( "Failed to delete old version file: {}", file.getAbsolutePath() );
+        final java.util.concurrent.locks.Lock writeLock = rwLock.writeLock();
+        writeLock.lock();
+        try {
+            super.deletePage( page );
+            final File dir = findOldPageDir( page );
+            if( dir.exists() && dir.isDirectory() ) {
+                final File[] files = dir.listFiles( new WikiFileFilter() );
+                if( files == null ) {
+                    return;
+                }
+                for( final File file : files ) {
+                    if( !file.delete() ) {
+                        LOG.warn( "Failed to delete old version file: {}", file.getAbsolutePath() );
+                    }
+                }
+
+                final File propfile = new File( dir, PROPERTYFILE );
+                if( propfile.exists() && !propfile.delete() ) {
+                    LOG.warn( "Failed to delete properties file: {}", propfile.getAbsolutePath() );
+                }
+
+                if( !dir.delete() ) {
+                    LOG.warn( "Failed to delete versions directory: {}", dir.getAbsolutePath() );
                 }
             }
-
-            final File propfile = new File( dir, PROPERTYFILE );
-            if( propfile.exists() && !propfile.delete() ) {
-                LOG.warn( "Failed to delete properties file: {}", propfile.getAbsolutePath() );
-            }
-
-            if( !dir.delete() ) {
-                LOG.warn( "Failed to delete versions directory: {}", dir.getAbsolutePath() );
-            }
+        } finally {
+            writeLock.unlock();
         }
     }
 
@@ -697,53 +709,59 @@ public class VersioningFileProvider extends AbstractFileProvider {
      */
     @Override
     public void deleteVersion( final String page, final int version ) throws ProviderException {
-        final File dir = findOldPageDir( page );
-        int latest = findLatestVersion( page );
-        if( version == PageProvider.LATEST_VERSION ||
-            version == latest ||
-            (version == 1 && latest == -1) ) {
-            //  Delete the properties
-            try {
-                final Properties props = getPageProperties( page );
-                props.remove( ((latest > 0) ? latest : 1)+".author" );
-                putPageProperties( page, props );
-            } catch( final IOException e ) {
-                LOG.error("Unable to modify page properties",e);
-                throw new ProviderException("Could not modify page properties: " + e.getMessage(), e);
-            }
-
-            // We can let the FileSystemProvider take care of the actual deletion
-            super.deleteVersion( page, PageProvider.LATEST_VERSION );
-
-            //  Copy the old file to the new location
-            latest = findLatestVersion( page );
-
-            final File pageDir = findOldPageDir( page );
-            final File previousFile = new File( pageDir, latest + FILE_EXT );
-            final File pageFile = findPage(page);
-            try( InputStream in = new BufferedInputStream( Files.newInputStream( previousFile.toPath() ) );
-                 OutputStream out = new BufferedOutputStream( Files.newOutputStream( pageFile.toPath() ) ) ) {
-                if( previousFile.exists() ) {
-                    FileUtil.copyContents( in, out );
-                    // We need also to set the date, since we rely on this.
-                    if( !pageFile.setLastModified( previousFile.lastModified() ) ) {
-                        LOG.warn( "Failed to preserve last-modified timestamp on {}", pageFile.getAbsolutePath() );
-                    }
+        final java.util.concurrent.locks.Lock writeLock = rwLock.writeLock();
+        writeLock.lock();
+        try {
+            final File dir = findOldPageDir( page );
+            int latest = findLatestVersion( page );
+            if( version == PageProvider.LATEST_VERSION ||
+                version == latest ||
+                (version == 1 && latest == -1) ) {
+                //  Delete the properties
+                try {
+                    final Properties props = getPageProperties( page );
+                    props.remove( ((latest > 0) ? latest : 1)+".author" );
+                    putPageProperties( page, props );
+                } catch( final IOException e ) {
+                    LOG.error("Unable to modify page properties",e);
+                    throw new ProviderException("Could not modify page properties: " + e.getMessage(), e);
                 }
-            } catch( final IOException e ) {
-                LOG.fatal("Something wrong with the page directory - you may have just lost data!",e);
+
+                // We can let the FileSystemProvider take care of the actual deletion
+                super.deleteVersion( page, PageProvider.LATEST_VERSION );
+
+                //  Copy the old file to the new location
+                latest = findLatestVersion( page );
+
+                final File pageDir = findOldPageDir( page );
+                final File previousFile = new File( pageDir, latest + FILE_EXT );
+                final File pageFile = findPage(page);
+                try( InputStream in = new BufferedInputStream( Files.newInputStream( previousFile.toPath() ) );
+                     OutputStream out = new BufferedOutputStream( Files.newOutputStream( pageFile.toPath() ) ) ) {
+                    if( previousFile.exists() ) {
+                        FileUtil.copyContents( in, out );
+                        // We need also to set the date, since we rely on this.
+                        if( !pageFile.setLastModified( previousFile.lastModified() ) ) {
+                            LOG.warn( "Failed to preserve last-modified timestamp on {}", pageFile.getAbsolutePath() );
+                        }
+                    }
+                } catch( final IOException e ) {
+                    LOG.fatal("Something wrong with the page directory - you may have just lost data!",e);
+                }
+
+                return;
             }
 
-            return;
-        }
-
-        final File pageFile = new File( dir, ""+version+FILE_EXT );
-        if( pageFile.exists() ) {
-            if( !pageFile.delete() ) {
-                LOG.error("Unable to delete page. {}", pageFile.getPath() );
+            final File pageFile = new File( dir, ""+version+FILE_EXT );
+            if( pageFile.exists() ) {
+                if( !pageFile.delete() ) {
+                    LOG.error("Unable to delete page. {}", pageFile.getPath() );
+                }
+            } else {
+                throw new NoSuchVersionException("Page "+page+", version="+version);
             }
-        } else {
-            throw new NoSuchVersionException("Page "+page+", version="+version);
+        } finally {
+            writeLock.unlock();
         }
     }
 
@@ -783,31 +801,37 @@ public class VersioningFileProvider extends AbstractFileProvider {
      */
     @Override
     public void movePage( final String from, final String to ) {
-        // Move the file itself
-        final File fromFile = findPage( from );
-        final File toFile = findPage( to );
-        if( !fromFile.renameTo( toFile ) ) {
-            LOG.warn( "Failed to rename page file {} to {}", fromFile, toFile );
-        }
-
-        // Move any old versions, but only if the source actually has a versions
-        // directory — pages with no prior history have nothing to move and we
-        // shouldn't log a spurious WARN for that case.
-        final File fromOldDir = findOldPageDir( from );
-        if( fromOldDir.isDirectory() ) {
-            final File toOldDir = findOldPageDir( to );
-            if( !fromOldDir.renameTo( toOldDir ) ) {
-                LOG.warn( "Failed to rename versions directory {} to {}", fromOldDir, toOldDir );
+        final java.util.concurrent.locks.Lock writeLock = rwLock.writeLock();
+        writeLock.lock();
+        try {
+            // Move the file itself
+            final File fromFile = findPage( from );
+            final File toFile = findPage( to );
+            if( !fromFile.renameTo( toFile ) ) {
+                LOG.warn( "Failed to rename page file {} to {}", fromFile, toFile );
             }
+
+            // Move any old versions, but only if the source actually has a versions
+            // directory — pages with no prior history have nothing to move and we
+            // shouldn't log a spurious WARN for that case.
+            final File fromOldDir = findOldPageDir( from );
+            if( fromOldDir.isDirectory() ) {
+                final File toOldDir = findOldPageDir( to );
+                if( !fromOldDir.renameTo( toOldDir ) ) {
+                    LOG.warn( "Failed to rename versions directory {} to {}", fromOldDir, toOldDir );
+                }
+            }
+
+            // Invalidate file extension cache for both old and new page names
+            invalidateFileExtensionCache( from );
+            invalidateFileExtensionCache( to );
+
+            // Invalidate property cache for both pages
+            propertyCache.invalidate( from );
+            propertyCache.invalidate( to );
+        } finally {
+            writeLock.unlock();
         }
-
-        // Invalidate file extension cache for both old and new page names
-        invalidateFileExtensionCache( from );
-        invalidateFileExtensionCache( to );
-
-        // Invalidate property cache for both pages
-        propertyCache.invalidate( from );
-        propertyCache.invalidate( to );
     }
 
 }

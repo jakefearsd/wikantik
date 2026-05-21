@@ -150,8 +150,16 @@ public class QueryEntityResolver {
      * punctuation boundaries like {@code napoleon's} produce {@code napoleon}
      * rather than a spurious {@code napoleons}.
      */
+    /**
+     * Token boundary: any run of non-letter/non-digit characters. Precompiled
+     * — {@code String.split(String)} recompiles the pattern on every call, and
+     * this runs on the query-resolution path.
+     */
+    private static final java.util.regex.Pattern TOKEN_BOUNDARY =
+        java.util.regex.Pattern.compile( "[^\\p{L}\\p{N}]+" );
+
     static List< String > tokenWindows( final String lowercasedQuery ) {
-        final String[] rawTokens = lowercasedQuery.split( "[^\\p{L}\\p{N}]+" );
+        final String[] rawTokens = TOKEN_BOUNDARY.split( lowercasedQuery );
         final List< String > tokens = new ArrayList<>( rawTokens.length );
         for( final String raw : rawTokens ) {
             if( raw == null || raw.isEmpty() ) continue;

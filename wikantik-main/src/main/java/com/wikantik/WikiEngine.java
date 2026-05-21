@@ -831,6 +831,12 @@ public class WikiEngine implements Engine {
                 if ( meterReg != null ) {
                     com.wikantik.observability.CaffeineCacheMetricsBridge
                         .register( meterReg, "frontmatter_metadata", fmCacheInstance.cache() );
+                    // likely-wiki syntax heuristic cache: keyed on content hash so the
+                    // 6-regex scan over the page body runs once per distinct body, not
+                    // on every /api/pages/{name} GET. Static cache lives in the converter.
+                    com.wikantik.observability.CaffeineCacheMetricsBridge
+                        .register( meterReg, "likely_wiki_syntax",
+                            com.wikantik.content.WikiToMarkdownConverter.likelyWikiCache() );
                 }
             } catch ( final Throwable t ) {
                 LOG.warn( "FrontmatterMetadataCache metric registration failed: {}", t.getMessage(), t );

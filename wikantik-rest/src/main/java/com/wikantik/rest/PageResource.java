@@ -165,16 +165,20 @@ public class PageResource extends RestServletBase {
 
         // D19: surface the content hash so clients can round-trip GET → PUT with
         // expectedContentHash without computing the digest themselves.
-        result.put( "contentHash",
-                com.wikantik.api.pages.PageSaveHelper.computeContentHash( rawText ) );
+        final String contentHash =
+                com.wikantik.api.pages.PageSaveHelper.computeContentHash( rawText );
+        result.put( "contentHash", contentHash );
 
         // Include markup syntax — "wiki" for legacy .txt pages, "markdown" for .md pages,
-        // or "likely-wiki" if heuristic detects wiki syntax in a .md page
+        // or "likely-wiki" if heuristic detects wiki syntax in a .md page. The heuristic
+        // is content-hash-memoised (markdown-native corpus → almost always false, and the
+        // answer only changes when the body changes) so this is ~free on the read path.
         String markupSyntax = page.getAttribute( Page.MARKUP_SYNTAX );
         if( markupSyntax == null ) {
             markupSyntax = "markdown";
         }
-        if( "markdown".equals( markupSyntax ) && WikiToMarkdownConverter.isLikelyWikiSyntax( parsed.body() ) ) {
+        if( "markdown".equals( markupSyntax )
+                && WikiToMarkdownConverter.isLikelyWikiSyntax( contentHash, parsed.body() ) ) {
             markupSyntax = "likely-wiki";
         }
         result.put( "markupSyntax", markupSyntax );

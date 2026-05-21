@@ -314,6 +314,41 @@ public class WikiToMarkdownConverterTest {
         assertTrue( WikiToMarkdownConverter.isLikelyWikiSyntax( wiki ) );
     }
 
+    @Test
+    void testIsLikelyWikiSyntax_CachedOverloadMatchesUncached() {
+        final String wiki = "!!! Heading\n\nSome ''italic'' text with [Link|Page].";
+        final String md = "# Heading\n\nSome *italic* text with [Link](Page).";
+        assertTrue( WikiToMarkdownConverter.isLikelyWikiSyntax( "hash-wiki", wiki ) );
+        assertFalse( WikiToMarkdownConverter.isLikelyWikiSyntax( "hash-md", md ) );
+    }
+
+    @Test
+    void testIsLikelyWikiSyntax_CachedOverloadMemoisesByHash() {
+        // Caffeine stats are cumulative across the JVM-static cache, so assert on
+        // deltas rather than absolute counts (other tests share this cache).
+        final var cache = WikiToMarkdownConverter.likelyWikiCache();
+        cache.invalidateAll();
+        cache.cleanUp();
+        final long baseMiss = cache.stats().missCount();
+        final long baseHit = cache.stats().hitCount();
+        final String wiki = "!!! Heading\n\nSome ''italic'' text.";
+        final String hash = "memoise-hash-" + System.nanoTime();
+        WikiToMarkdownConverter.isLikelyWikiSyntax( hash, wiki );
+        // Second call with the same hash must hit the cache, not recompute.
+        WikiToMarkdownConverter.isLikelyWikiSyntax( hash, wiki );
+        cache.cleanUp();
+        assertEquals( 1, cache.stats().missCount() - baseMiss, "exactly one compute for the hash" );
+        assertEquals( 1, cache.stats().hitCount() - baseHit, "second call served from cache" );
+    }
+
+    @Test
+    void testIsLikelyWikiSyntax_CachedOverloadFallsBackOnBlankHash() {
+        // Null/blank hash bypasses the cache and computes directly.
+        final String wiki = "!!! Heading\n\nSome ''italic'' text.";
+        assertTrue( WikiToMarkdownConverter.isLikelyWikiSyntax( null, wiki ) );
+        assertTrue( WikiToMarkdownConverter.isLikelyWikiSyntax( "  ", wiki ) );
+    }
+
     // ==================== Helper ====================
 
     private static String convert( final String wiki ) {

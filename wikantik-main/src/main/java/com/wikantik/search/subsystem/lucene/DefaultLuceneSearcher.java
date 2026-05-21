@@ -137,6 +137,18 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
     private final boolean highlightingEnabled;
 
     /**
+     * Stored-field selector for the common case where we only need the page id
+     * back from a hit (no snippet highlighting). Passing this to
+     * {@link StoredFields#document(int, java.util.Set)} skips materialising the
+     * large {@code contents} stored field — which the search path otherwise
+     * decompresses + UTF-decodes per result and then discards whenever the
+     * Highlighter is off (the default). JFR at moderate load attributed ~17%
+     * of CPU to that wasted stored-field read.
+     */
+    private static final java.util.Set< String > ID_ONLY_FIELDS =
+        java.util.Set.of( DefaultLuceneIndexer.LUCENE_ID );
+
+    /**
      * When {@code true}, Lucene {@link org.apache.lucene.store.Directory} instances
      * are opened as {@link org.apache.lucene.store.MMapDirectory}; when {@code false}
      * (default), as {@link org.apache.lucene.store.NIOFSDirectory}. Threaded down
@@ -284,9 +296,16 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
             final TopDocs hits = searcher.search( luceneQuery, MAX_SEARCH_HITS );
             final StoredFields storedFields = reader.storedFields();
 
+            // When highlighting is off (default), we never read the body field,
+            // so select only the id — skips per-result decompress + decode of
+            // the full page contents. When highlighting is on we still need the
+            // body for snippet extraction, so read the full document.
+            final boolean needBody = highlighter != null;
             list = new ArrayList<>( hits.scoreDocs.length );
             for ( final ScoreDoc hit : hits.scoreDocs ) {
-                final Document doc = storedFields.document( hit.doc );
+                final Document doc = needBody
+                    ? storedFields.document( hit.doc )
+                    : storedFields.document( hit.doc, ID_ONLY_FIELDS );
                 final String pageName = doc.get( DefaultLuceneIndexer.LUCENE_ID );
                 final Page page = pm.getPage( pageName, PageProvider.LATEST_VERSION );
 
@@ -380,7 +399,8 @@ public class DefaultLuceneSearcher implements LuceneSearcher {
             final List<MoreLikeThisHit> out = new ArrayList<>();
             for ( final ScoreDoc sd : hits.scoreDocs ) {
                 if ( out.size() >= maxResults ) break;
-                final Document doc = storedFields.document( sd.doc );
+                // MoreLikeThis only ever needs the page name — never read the body.
+                final Document doc = storedFields.document( sd.doc, ID_ONLY_FIELDS );
                 final String name = doc.get( DefaultLuceneIndexer.LUCENE_ID );
                 if ( name == null || name.equals( seedDocName ) ) continue;
                 if ( excludes.contains( name ) ) continue;

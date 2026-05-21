@@ -18,6 +18,9 @@
  */
 package com.wikantik.content;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -87,6 +90,45 @@ public final class WikiToMarkdownConverter {
         if( WIKI_CODE_BLOCK_DELIM.matcher( content ).find() )  score += 1;
         if( WIKI_BOLD.matcher( content ).find() )              score += 1;
         return score >= HEURISTIC_THRESHOLD;
+    }
+
+    /**
+     * Memoised cache for {@link #isLikelyWikiSyntax(String, String)}, keyed by
+     * the page's content hash. The heuristic runs six multiline regexes over
+     * the full body and is invoked on every {@code GET /api/pages/{name}} to
+     * set a UI hint — but the answer only changes when the body changes, and
+     * for a markdown-native corpus it is almost always {@code false}. Keying on
+     * the content hash gives a near-100 % hit rate; the value flips only when
+     * an edit produces a new hash. Bounded so a churning corpus can't grow it
+     * without limit.
+     */
+    private static final Cache< String, Boolean > LIKELY_WIKI_BY_HASH =
+        Caffeine.newBuilder()
+            .maximumSize( 10_000 )
+            .recordStats()
+            .build();
+
+    /**
+     * Content-hash-memoised variant of {@link #isLikelyWikiSyntax(String)}.
+     * Callers that already have the page's content hash (e.g. the page-read
+     * endpoint, which computes it for the response anyway) should prefer this
+     * to avoid re-running the regex heuristic on every read of an unchanged
+     * page.
+     *
+     * @param contentHash stable per-body identifier (cache key); if {@code null}
+     *                    or blank, falls through to the uncached heuristic
+     * @param content     the page body
+     */
+    public static boolean isLikelyWikiSyntax( final String contentHash, final String content ) {
+        if( contentHash == null || contentHash.isBlank() ) {
+            return isLikelyWikiSyntax( content );
+        }
+        return LIKELY_WIKI_BY_HASH.get( contentHash, h -> isLikelyWikiSyntax( content ) );
+    }
+
+    /** The memoisation cache — exposed for metric registration only. */
+    public static Cache< String, Boolean > likelyWikiCache() {
+        return LIKELY_WIKI_BY_HASH;
     }
 
     /**

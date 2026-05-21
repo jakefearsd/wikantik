@@ -32,6 +32,10 @@
 #   WIKANTIK_DENSE_EF_SEARCH     pgvector HNSW ef_search knob (default 100; only used when
 #                                WIKANTIK_DENSE_BACKEND=pgvector)
 #   WIKANTIK_LUCENE_DIRECTORY    Lucene Directory backend: nio | mmap (default: nio)
+#   WIKANTIK_VERSIONING_CACHE_SIZE
+#                                VersioningFileProvider property cache size (default 100;
+#                                set 0 for single-entry, -1 to disable; properties are
+#                                tiny so a few thousand entries is cheap)
 #   CATALINA_HOME                tomcat root (default /usr/local/tomcat)
 
 set -euo pipefail
@@ -133,6 +137,20 @@ if [ -n "${WIKANTIK_LUCENE_DIRECTORY:-}" ]; then
 
 # Lucene Directory backend override (entrypoint-injected from env).
 wikantik.search.lucene.directory.kind = ${WIKANTIK_LUCENE_DIRECTORY}
+EOF
+fi
+
+# Optional: VersioningFileProvider property cache size.
+#   WIKANTIK_VERSIONING_CACHE_SIZE — int > 0, default 100 (per ini bundle).
+# Properties files are tiny (~hundreds of bytes each), so a generous cap of a
+# few thousand entries costs ~MBs of heap and is the right call for a busy
+# read workload. Set to 0 to fall back to SingleEntryPropertyCache, -1 to
+# disable property caching entirely.
+if [ -n "${WIKANTIK_VERSIONING_CACHE_SIZE:-}" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# VersioningFileProvider property cache size (entrypoint-injected from env).
+wikantik.versioningFileProvider.cacheSize = ${WIKANTIK_VERSIONING_CACHE_SIZE}
 EOF
 fi
 

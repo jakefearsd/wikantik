@@ -125,6 +125,17 @@ public interface Page extends Cloneable, Comparable< Page > {
     void invalidateMetadata();
 
     /**
+     * Resets only the {@code hasMetadata} flag to {@code false} without clearing page attributes
+     * or the ACL.  Use this when the cached Page object should be re-parsed on next access but
+     * attributes set by the provider (e.g. {@code CHANGENOTE}) must be preserved until a fresh
+     * provider fetch overwrites them.
+     *
+     * <p>Contrast with {@link #invalidateMetadata()}, which clears <em>all</em> derived state
+     * including attributes.
+     */
+    void clearHasMetadata();
+
+    /**
      *  Returns <code>true</code> if the page has valid metadata; that is, it has been parsed. Note that this method is a kludge to
      *  support our pre-3.0 metadata system, and as such will go away with the new API.
      *

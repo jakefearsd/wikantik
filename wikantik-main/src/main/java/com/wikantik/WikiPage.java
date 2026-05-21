@@ -247,6 +247,16 @@ public class WikiPage implements Page {
         attributes.clear();
     }
 
+    /**
+     * Resets only the {@code hasMetadata} flag to {@code false} without clearing page attributes
+     * or the ACL.  Called by {@code CachingProvider.putPageText} to force a re-parse on the next
+     * cache hit while preserving provider-set attributes (e.g. {@code CHANGENOTE}).
+     */
+    @Override
+    public void clearHasMetadata() {
+        hasMetadata = false;
+    }
+
     private boolean hasMetadata;
 
     /**

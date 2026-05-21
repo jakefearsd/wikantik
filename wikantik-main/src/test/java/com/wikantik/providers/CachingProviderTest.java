@@ -443,6 +443,54 @@ class CachingProviderTest {
         Assertions.assertEquals( 1, cp.m_getVersionHistoryCalls, "Step 5: getVersionHistory should use cache" );
     }
 
+    // ============== VP-T4: putPageText eviction + re-parse regression test ==============
+
+    /**
+     * VP-T4 regression: verifies that putPageText evicts the cached Page so the next
+     * getPageInfo re-parses with the new content (hasMetadata contract).
+     *
+     * VP-T3 made the cached Page sticky — once parsed, hasMetadata==true short-circuits
+     * refreshMetadata on every subsequent cache hit.  That means a stale cached Page
+     * (hasMetadata==true, old text) after an edit would suppress the re-parse forever.
+     *
+     * The correctness contract: putPageText removes CACHE_PAGES (and _TEXT / _HISTORY),
+     * then re-fetches a fresh Page from the underlying provider (hasMetadata==false).
+     * The next caller's getPageInfo triggers refreshMetadata → provider.getPageText.
+     *
+     * Assertion: m_getPageTextCalls increases by exactly 1 after getPageInfo is called
+     * post-edit, proving the stale sticky Page was not reused.
+     */
+    @Test
+    void testPutPageText_evictsCachedPage_soNextGetPageInfoReParses() throws Exception {
+        engine = buildWithCounterProvider();
+        final CounterProvider cp = getCounterProvider( engine );
+
+        // Warm the cache: getPage triggers refreshMetadata, sets hasMetadata=true on the
+        // cached Page.  After this call, a second getPage would NOT call getPageText again.
+        engine.getManager( PageManager.class ).getPage( "Foo" );
+
+        // Reset counters so the baseline is clean.
+        cp.resetCounters();
+
+        // Confirm the short-circuit is in place: a second getPage does NOT call getPageText.
+        engine.getManager( PageManager.class ).getPage( "Foo" );
+        Assertions.assertEquals( 0, cp.m_getPageTextCalls,
+                "pre-condition: second getPage must not call provider.getPageText (hasMetadata short-circuit)" );
+
+        // Now perform an edit: putPageText must evict the cached (sticky) Page.
+        final Page page = engine.getManager( PageManager.class ).getPage( "Foo" );
+        engine.getManager( PageManager.class ).getProvider().putPageText( page, "v2 content" );
+
+        // Reset counters again so only post-edit calls are measured.
+        cp.resetCounters();
+
+        // The next getPageInfo must re-parse: the evicted Page is replaced with a fresh one
+        // (hasMetadata==false), so refreshMetadata fires and calls provider.getPageText once.
+        engine.getManager( PageManager.class ).getPage( "Foo" );
+        Assertions.assertEquals( 1, cp.m_getPageTextCalls,
+                "post-edit getPage must call provider.getPageText once to re-parse (eviction correctness)" );
+    }
+
     // ============== refreshMetadata short-circuit Tests ==============
 
     /**

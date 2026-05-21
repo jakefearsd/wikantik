@@ -300,7 +300,15 @@ public class CachingProvider implements PageProvider {
             cachingManager.remove( CachingManager.CACHE_PAGES_TEXT, page.getName() );
             cachingManager.remove( CachingManager.CACHE_PAGES_HISTORY, page.getName() );
 
-            getPageInfoFromCache( page.getName() );
+            // Re-populate CACHE_PAGES with a fresh Page object from the underlying provider.
+            // Clear the hasMetadata flag so the next getPageInfo call triggers a re-parse
+            // with the new content.  We use clearHasMetadata() rather than invalidateMetadata()
+            // to preserve provider-set attributes (e.g. CHANGENOTE) that were just written by
+            // the underlying provider — only the parse-derived state needs resetting.
+            final Page refreshed = getPageInfoFromCache( page.getName() );
+            if( refreshed != null ) {
+                refreshed.clearHasMetadata();
+            }
         } finally {
             rwLock.writeLock().unlock();
         }

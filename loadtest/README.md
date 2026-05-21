@@ -4,6 +4,11 @@ A k6 harness that drives the **instrumented** Wikantik endpoints. k6 remote-writ
 its own metrics into jakemon's central Prometheus (`192.168.0.10:9090`) so offered
 load and host response share a timeline in Grafana.
 
+> **This document is the tactical reference** — install, configure, run.
+> For the methodology — when to run a load test, how to isolate variables,
+> how to pair k6 with JFR to find contention, common patterns and pitfalls —
+> see [`docs/LoadTesting.md`](../docs/LoadTesting.md).
+
 ## Prerequisites
 
 - [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/)

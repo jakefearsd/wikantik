@@ -445,6 +445,7 @@ Migrating from a previous Wikantik install? See
 
 ### Deployment & Operations
 
+- [LoadTesting.md](docs/LoadTesting.md) — methodology for the k6 + JFR + Prometheus load-test workflow: when to run, how to isolate variables, how to read results, how to pair k6 with JFR to find contention. (Tactical harness reference lives at [`loadtest/README.md`](loadtest/README.md).)
 - [DockerDeployment.md](docs/DockerDeployment.md) — the container deployment guide: local & remote, first-deploy procedure, the release/upgrade wrappers, DB initialisation, backups, monitoring
 - [production-container-architecture.md](docs/production-container-architecture.md) — production deployment topology: the single-host container stack and the tag-triggered release pipeline
 - [ci-cd-step-by-step.md](docs/ci-cd-step-by-step.md) — the GitHub Actions workflows: tag-triggered `release.yml` plus the manual-only CI workflows

@@ -443,6 +443,41 @@ class CachingProviderTest {
         Assertions.assertEquals( 1, cp.m_getVersionHistoryCalls, "Step 5: getVersionHistory should use cache" );
     }
 
+    // ============== refreshMetadata short-circuit Tests ==============
+
+    /**
+     * VP-T3: Verifies that refreshMetadata does NOT call provider.getPageText a second time once
+     * the page has been successfully parsed (hasMetadata() == true after the first successful parse).
+     *
+     * The guard {@code if (page != null && !page.hasMetadata())} in refreshMetadata exists to
+     * prevent redundant full-page reads on cache hits.  This test asserts the contract:
+     * two consecutive getPage calls for the same page result in AT MOST one provider.getPageText
+     * call via the refreshMetadata path.
+     *
+     * The mechanism: MarkdownParser (and CachingProvider.refreshMetadata itself, per the one-line
+     * fix) calls page.setHasMetadata() after a successful parse, so the guard short-circuits
+     * on the second invocation.
+     */
+    @Test
+    void testRefreshMetadataShortCircuitsAfterFirstParse() throws Exception {
+        engine = buildWithCounterProvider();
+        final CounterProvider cp = getCounterProvider( engine );
+
+        // Reset counters so initialization noise is excluded; page objects still carry hasMetadata
+        // state from init — any page already parsed will have hasMetadata==true and not add calls.
+        cp.resetCounters();
+
+        // First getPage — either hits the refreshMetadata guard (hasMetadata already true from init)
+        // or triggers refreshMetadata once; record the post-call count as the baseline.
+        engine.getManager( PageManager.class ).getPage( "Foo" );
+        final int afterFirst = cp.m_getPageTextCalls;
+
+        // Second getPage for the same page — refreshMetadata MUST short-circuit; count must not grow.
+        engine.getManager( PageManager.class ).getPage( "Foo" );
+        Assertions.assertEquals( afterFirst, cp.m_getPageTextCalls,
+                "Second getPage must NOT call provider.getPageText again (hasMetadata must short-circuit)" );
+    }
+
     // ============== All-Pages Cache TTL Tests ==============
 
     /**

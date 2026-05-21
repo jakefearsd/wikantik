@@ -448,6 +448,7 @@ public class CachingProvider implements PageProvider {
                 final MarkupParser parser = mgr.getParser( ctx, data );
 
                 parser.parse();
+                page.setHasMetadata();   // mark parsed so the next getPageInfo cache hit short-circuits
             } catch( final Exception ex ) {
                 LOG.debug( "Failed to retrieve variables for wikipage {}", page );
             }

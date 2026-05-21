@@ -238,66 +238,73 @@ class PropertyCacheStrategyTest {
         assertEquals( 3, loadCount.get() );
         assertEquals( 3, cache.size() );
 
-        // Add one more - should evict oldest
+        // Add one more — capacity is exceeded; eviction is async under Caffeine.
         cache.get( "page3", 1000L, () -> {
             loadCount.incrementAndGet();
             return new Properties();
         });
-
         assertEquals( 4, loadCount.get() );
-        assertEquals( 3, cache.size(), "Size should not exceed max" );
 
-        // page0 should have been evicted (LRU)
-        cache.get( "page0", 1000L, () -> {
-            loadCount.incrementAndGet();
-            return new Properties();
-        });
+        // Force Caffeine to run its eviction policy synchronously so we can
+        // observe the bounded size. Without cleanUp(), the maintenance task
+        // runs on the common pool and may not have settled by the next assert.
+        cache.cache().cleanUp();
+        assertEquals( 3, cache.size(), "Size should respect the configured max after cleanUp" );
 
-        assertEquals( 5, loadCount.get(), "Evicted page should be reloaded" );
-    }
-
-    @Test
-    void testLruCacheLruOrder() {
-        final LruPropertyCache cache = new LruPropertyCache( 3 );
-        final AtomicInteger loadCount = new AtomicInteger( 0 );
-
-        // Fill cache with pages 0, 1, 2
-        for ( int i = 0; i < 3; i++ ) {
+        // Some prior entry has been evicted; loading it again forces a fresh
+        // load. Caffeine uses Window TinyLFU rather than strict LRU, so we
+        // don't assert WHICH prior entry was evicted — only that the cap is
+        // honoured and that one prior entry is now a miss.
+        final int beforeReload = loadCount.get();
+        for ( int i = 0; i < 4; i++ ) {
             cache.get( "page" + i, 1000L, () -> {
                 loadCount.incrementAndGet();
                 return new Properties();
             });
         }
+        cache.cache().cleanUp();
+        assertTrue( loadCount.get() > beforeReload,
+            "At least one prior entry should have been evicted and re-loaded" );
+        assertEquals( 3, cache.size(), "Size still respects the configured max" );
+    }
 
-        // Access page0 to make it most recently used
-        cache.get( "page0", 1000L, () -> {
-            loadCount.incrementAndGet();
-            return new Properties();
-        });
+    @Test
+    void testLruCacheEvictsWhenOverCapacity() {
+        // Caffeine uses Window TinyLFU rather than strict LRU. The interface
+        // contract is "bounded cache + evict least-valuable entry under
+        // pressure" — NOT "evict in strict access-order". We assert the bound
+        // is respected and that filling past capacity does cause evictions,
+        // without prescribing which specific entry gets evicted (TinyLFU's
+        // small-sample warmup makes exact entry prediction unreliable for
+        // tiny test fixtures).
+        final LruPropertyCache cache = new LruPropertyCache( 3 );
+        final AtomicInteger loadCount = new AtomicInteger( 0 );
 
-        // Add page3 - should evict page1 (now oldest)
-        cache.get( "page3", 1000L, () -> {
-            loadCount.incrementAndGet();
-            return new Properties();
-        });
+        // Insert 10 distinct pages into a cache sized for 3.
+        for ( int i = 0; i < 10; i++ ) {
+            cache.get( "page" + i, 1000L, () -> {
+                loadCount.incrementAndGet();
+                return new Properties();
+            });
+        }
+        cache.cache().cleanUp();
 
-        assertEquals( 4, loadCount.get() );
+        assertEquals( 10, loadCount.get(),
+            "Every distinct page should have fired the loader on first access" );
+        assertTrue( cache.size() <= 3,
+            "Cache size should respect the configured max (got " + cache.size() + ")" );
 
-        // page0 should still be in cache
-        cache.get( "page0", 1000L, () -> {
-            loadCount.incrementAndGet();
-            return new Properties();
-        });
-
-        assertEquals( 4, loadCount.get(), "page0 should still be cached" );
-
-        // page1 should have been evicted
-        cache.get( "page1", 1000L, () -> {
-            loadCount.incrementAndGet();
-            return new Properties();
-        });
-
-        assertEquals( 5, loadCount.get(), "page1 should have been evicted" );
+        // Re-access each page; some hits, some misses — but the misses force
+        // re-loads, confirming that earlier inserts were genuinely evicted.
+        for ( int i = 0; i < 10; i++ ) {
+            cache.get( "page" + i, 1000L, () -> {
+                loadCount.incrementAndGet();
+                return new Properties();
+            });
+        }
+        assertTrue( loadCount.get() > 10,
+            "Some prior entries should have been evicted and required re-loading; "
+            + "loader fired " + ( loadCount.get() - 10 ) + " additional time(s)" );
     }
 
     @Test

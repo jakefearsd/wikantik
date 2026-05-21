@@ -157,8 +157,23 @@ public class VersioningFileProvider extends AbstractFileProvider {
             propertyCache = new SingleEntryPropertyCache();
             LOG.info( "Using single-entry property cache" );
         } else {
-            propertyCache = new LruPropertyCache( cacheSize );
+            final LruPropertyCache lruCache = new LruPropertyCache( cacheSize );
+            propertyCache = lruCache;
             LOG.info( "Using LRU property cache with size {}", cacheSize );
+            // Publish Caffeine cache size/hits/misses/evictions. Same pattern as
+            // FrontmatterMetadataCache (registered at its construction site in
+            // WikiEngine). Best-effort — wrapped to swallow any classloader /
+            // observability hiccup so a metrics failure can't block the provider.
+            try {
+                final io.micrometer.core.instrument.MeterRegistry meterReg =
+                    com.wikantik.api.observability.MeterRegistryHolder.get();
+                if ( meterReg != null ) {
+                    com.wikantik.observability.CaffeineCacheMetricsBridge
+                        .register( meterReg, "page_properties", lruCache.cache() );
+                }
+            } catch ( final Throwable t ) {
+                LOG.warn( "LruPropertyCache metric registration failed: {}", t.getMessage(), t );
+            }
         }
     }
 

@@ -22,7 +22,9 @@ import com.wikantik.PostgresTestContainer;
 import com.wikantik.api.eval.RetrievalMode;
 import com.wikantik.api.eval.RetrievalRunResult;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
+import com.wikantik.search.hybrid.HnswParams;
 import com.wikantik.search.hybrid.InMemoryChunkVectorIndex;
+import com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex;
 import com.wikantik.search.hybrid.PageAggregation;
 import com.wikantik.search.hybrid.PageAggregator;
 import com.wikantik.search.hybrid.PgVectorChunkVectorIndex;
@@ -237,7 +239,7 @@ class RetrievalQualitySmokeTest {
         }
 
         @ParameterizedTest
-        @ValueSource( strings = { "inmemory", "pgvector" } )
+        @ValueSource( strings = { "inmemory", "pgvector", "lucene-hnsw" } )
         void core_agent_queries_meet_ndcg_threshold( final String backend ) {
             final DefaultRetrievalQualityRunner runner = buildRunnerFor( backend );
             final RetrievalRunResult report = runner.runNow( QUERY_SET_ID, RetrievalMode.HYBRID );
@@ -259,6 +261,20 @@ class RetrievalQualitySmokeTest {
                 + "STOP and escalate before bumping the threshold." );
         }
 
+        @Test
+        void inmemory_and_lucene_hnsw_within_recall_epsilon() {
+            final RetrievalRunResult memReport =
+                buildRunnerFor( "inmemory" ).runNow( QUERY_SET_ID, RetrievalMode.HYBRID );
+            final RetrievalRunResult hnswReport =
+                buildRunnerFor( "lucene-hnsw" ).runNow( QUERY_SET_ID, RetrievalMode.HYBRID );
+
+            final double delta = Math.abs( memReport.ndcgAt5() - hnswReport.ndcgAt5() );
+            assertTrue( delta <= 0.02,
+                "lucene-hnsw nDCG@5 (" + hnswReport.ndcgAt5() + ") differs from in-memory ("
+                + memReport.ndcgAt5() + ") by " + delta + " — exceeds 0.02 parity gate. "
+                + "STOP and escalate before bumping the threshold." );
+        }
+
         // ---- helpers ----
 
         /**
@@ -275,6 +291,8 @@ class RetrievalQualitySmokeTest {
             final ChunkVectorIndex index;
             if ( "pgvector".equals( backend ) ) {
                 index = new PgVectorChunkVectorIndex( pgDs, MODEL_CODE, EF_SEARCH );
+            } else if ( "lucene-hnsw".equals( backend ) ) {
+                index = new LuceneHnswChunkVectorIndex( pgDs, MODEL_CODE, DIM, new HnswParams( 16, 64, EF_SEARCH ) );
             } else {
                 index = new InMemoryChunkVectorIndex( pgDs, MODEL_CODE );
             }

@@ -256,6 +256,8 @@ export const api = {
   admin: {
     listUsers: () => request('/admin/users'),
 
+    getOverview: () => request('/admin/overview'),
+
     getUser: (loginName) =>
       request(`/admin/users/${encodeURIComponent(loginName)}`),
 

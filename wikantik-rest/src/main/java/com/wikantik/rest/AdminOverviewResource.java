@@ -160,11 +160,19 @@ public class AdminOverviewResource extends RestServletBase {
                 // Re-thrown unchecked so the assembler degrades only this card.
                 throw new RuntimeException( "user enumeration failed", e );
             }
+            final long locked;
+            try {
+                locked = getSubsystems().auth().users().getUserDatabase().countLockedUsers();
+            } catch ( final com.wikantik.auth.WikiSecurityException e ) {
+                // Re-thrown unchecked so the assembler degrades only this card.
+                throw new RuntimeException( "locked-user count failed", e );
+            }
             final var keys = com.wikantik.auth.apikeys.ApiKeyServiceHolder
                 .get( getSubsystems().core().properties().asProperties() ).list();
             final long active = keys.stream().filter( com.wikantik.auth.apikeys.ApiKeyService.Record::isActive ).count();
             final JsonObject o = new JsonObject();
             o.addProperty( "users", users.length );
+            o.addProperty( "locked", locked );
             o.addProperty( "apiKeys", active );
             return o;
         } );
@@ -186,9 +194,13 @@ public class AdminOverviewResource extends RestServletBase {
             final var svc = getSubsystems().knowledge().kgService();
             final long nodes = svc.countNodes( new LinkedHashMap<>(), null );
             final long edges = svc.countEdges( null, null, null );
+            final long stubs = svc.countStubNodes();
+            final long orphans = svc.countOrphanedNodes( new java.util.HashMap<>() );
             final JsonObject o = new JsonObject();
             o.addProperty( "nodes", nodes );
             o.addProperty( "edges", edges );
+            o.addProperty( "stubs", stubs );
+            o.addProperty( "orphans", orphans );
             return o;
         } );
 
@@ -201,11 +213,12 @@ public class AdminOverviewResource extends RestServletBase {
             return o;
         } );
 
-        // judge (metric-backed)
+        // judge (metric-backed + DB count)
         c.put( "judge", () -> {
             final JsonObject o = new JsonObject();
             o.addProperty( "timeouts",     (long) MetricReads.counter( reg, "wikantik.kg_judge.timeouts", 0 ) );
             o.addProperty( "shortCircuit", (long) MetricReads.counter( reg, "wikantik.kg_judge.short_circuit_total", 0 ) );
+            o.addProperty( "pending", getSubsystems().knowledge().kgService().countPendingUnjudgedProposals() );
             return o;
         } );
 
@@ -219,10 +232,11 @@ public class AdminOverviewResource extends RestServletBase {
             return o;
         } );
 
-        // auth (metric-backed)
+        // auth (metric-backed) — tagged success / failure split.
         c.put( "auth", () -> {
             final JsonObject o = new JsonObject();
-            o.addProperty( "logins", (long) MetricReads.counter( reg, "wikantik.auth.logins", 0 ) );
+            o.addProperty( "logins", (long) MetricReads.counter( reg, "wikantik.auth.logins", "result", "success", 0 ) );
+            o.addProperty( "failed", (long) MetricReads.counter( reg, "wikantik.auth.logins", "result", "failure", 0 ) );
             return o;
         } );
 
@@ -231,6 +245,59 @@ public class AdminOverviewResource extends RestServletBase {
             final JsonObject o = new JsonObject();
             o.addProperty( "hubSynthesis", (long) MetricReads.counter( reg, "wikantik_hub_summary_synthesis_total", 0 ) );
             o.addProperty( "hintFailures", (long) MetricReads.counter( reg, "wikantik_agent_hints_derivation_failures_total", 0 ) );
+            o.addProperty( "forAgentBytes", (long) MetricReads.summaryMean( reg, "wikantik_for_agent_response_bytes", 0 ) );
+            o.addProperty( "forAgentCount", MetricReads.summaryCount( reg, "wikantik_for_agent_response_bytes", 0 ) );
+            return o;
+        } );
+
+        // contentQuality — page verification distribution from the structural index.
+        c.put( "contentQuality", () -> {
+            final var counts = getSubsystems().pageGraph().structuralIndexService().verificationCounts();
+            final JsonObject o = new JsonObject();
+            o.addProperty( "authoritative", counts.authoritative() );
+            o.addProperty( "provisional", counts.provisional() );
+            o.addProperty( "stale", counts.stale() );
+            o.addProperty( "noVerification", counts.noVerification() );
+            return o;
+        } );
+
+        // retrievalModes — latest nDCG@5 per retrieval mode (omit modes with no run).
+        c.put( "retrievalModes", () -> {
+            final var runner = getSubsystems().knowledge().retrievalQualityRunner();
+            final JsonObject o = new JsonObject();
+            final var modes = new java.util.LinkedHashMap< String, com.wikantik.api.eval.RetrievalMode >();
+            modes.put( "bm25", com.wikantik.api.eval.RetrievalMode.BM25 );
+            modes.put( "hybrid", com.wikantik.api.eval.RetrievalMode.HYBRID );
+            modes.put( "hybridGraph", com.wikantik.api.eval.RetrievalMode.HYBRID_GRAPH );
+            for ( final var entry : modes.entrySet() ) {
+                final var rows = runner.recentRuns( null, entry.getValue(), 1 );
+                if ( !rows.isEmpty() && rows.get( 0 ).ndcgAt5() != null ) {
+                    o.addProperty( entry.getKey(), rows.get( 0 ).ndcgAt5() );
+                }
+            }
+            return o;
+        } );
+
+        // attachments — config-derived (not metrics); omit fields whose property is unset.
+        c.put( "attachments", () -> {
+            final var props = getSubsystems().core().properties().asProperties();
+            final JsonObject o = new JsonObject();
+            final String provider = props.getProperty( com.wikantik.api.managers.AttachmentManager.PROP_PROVIDER );
+            if ( provider != null && !provider.isBlank() ) {
+                o.addProperty( "provider", provider );
+            }
+            final String maxSize = props.getProperty( com.wikantik.api.managers.AttachmentManager.PROP_MAXSIZE );
+            if ( maxSize != null && !maxSize.isBlank() ) {
+                o.addProperty( "maxSize", maxSize );
+            }
+            final String allowed = props.getProperty( com.wikantik.api.managers.AttachmentManager.PROP_ALLOWEDEXTENSIONS );
+            if ( allowed != null && !allowed.isBlank() ) {
+                o.addProperty( "allowedCount", allowed.split( "," ).length );
+            }
+            final String forbidden = props.getProperty( com.wikantik.api.managers.AttachmentManager.PROP_FORBIDDENEXTENSIONS );
+            if ( forbidden != null && !forbidden.isBlank() ) {
+                o.addProperty( "forbiddenCount", forbidden.split( "," ).length );
+            }
             return o;
         } );
 

@@ -46,4 +46,29 @@ class AdminOverviewResourceTest {
         final JsonObject data = env.getAsJsonObject( "data" );
         assertTrue( data.has( "degraded" ), "envelope must always carry a degraded list" );
     }
+
+    @Test
+    void newCardsDegradeGracefullyWithNoEngine() throws Exception {
+        final var resp = Mockito.mock( HttpServletResponse.class );
+        final StringWriter body = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( body ) );
+
+        // With no engine wired, the new collectors must degrade — never throw out of doGet.
+        assertDoesNotThrow( () ->
+            new AdminOverviewResource().doGetForTesting(
+                Mockito.mock( jakarta.servlet.http.HttpServletRequest.class ), resp ) );
+
+        final JsonObject env = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        final JsonObject data = env.getAsJsonObject( "data" );
+        assertTrue( data.has( "degraded" ), "envelope must always carry a degraded list" );
+
+        final var degraded = new java.util.HashSet< String >();
+        data.getAsJsonArray( "degraded" ).forEach( e -> degraded.add( e.getAsString() ) );
+
+        // Each new card must be either present in data or named in the degraded list.
+        for ( final String key : new String[] { "contentQuality", "retrievalModes", "attachments" } ) {
+            assertTrue( data.has( key ) || degraded.contains( key ),
+                key + " must be present in data or listed in degraded" );
+        }
+    }
 }

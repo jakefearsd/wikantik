@@ -19,7 +19,7 @@ describe('AdminSidebar', () => {
     expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/admin');
   });
 
-  it('renders all four group headings', () => {
+  it('renders all three group headings', () => {
     renderAt('/admin/users');
     ['People & Access', 'Content', 'Knowledge & Search'].forEach((g) =>
       expect(screen.getByText(g)).toBeInTheDocument()

@@ -740,6 +740,24 @@ public class JDBCUserDatabaseTest {
         Assertions.assertEquals( "Janne Renamed", reloaded.getFullname() );
     }
 
+    @Test
+    void findByLoginName_returnedProfileIsNotSharedWithCache() throws Exception {
+        // Warm the cache with one lookup of a seeded login.
+        final UserProfile first = m_countingDb.findByLoginName( "janne" );
+        final String originalEmail = first.getEmail();
+        Assertions.assertEquals( "janne@ecyrd.com", originalEmail );
+
+        // Mutate the returned profile in place, as AdminUserResource / AuthResource do
+        // before a save(). This must NOT corrupt the cached instance.
+        first.setEmail( "mutated@example.com" );
+
+        // A second lookup of the same login must still see the original value,
+        // proving the cache never handed out the shared mutable instance.
+        final UserProfile second = m_countingDb.findByLoginName( "janne" );
+        Assertions.assertEquals( originalEmail, second.getEmail(),
+            "cached profile must not reflect a caller's in-place mutation" );
+    }
+
     /**
      * A DataSource that delegates to a real one but counts how many times
      * {@link #getConnection()} is invoked, so tests can assert that a cached

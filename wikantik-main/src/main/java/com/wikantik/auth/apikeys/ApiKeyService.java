@@ -309,7 +309,7 @@ public class ApiKeyService {
             ps.setInt( 2, id );
             ps.executeUpdate();
         } catch ( final SQLException e ) {
-            LOG.debug( "Could not update last_used_at for id={}: {}", id, e.getMessage() );
+            LOG.warn( "Could not update last_used_at for id={}: {}", id, e.getMessage() );
         }
     }
 

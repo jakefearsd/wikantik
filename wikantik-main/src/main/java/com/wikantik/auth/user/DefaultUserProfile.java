@@ -56,6 +56,31 @@ public final class DefaultUserProfile implements UserProfile {
     DefaultUserProfile() {}
 
     /**
+     * Deep copy of another profile. Used at the user-cache boundary so a cached
+     * profile is never a shared mutable instance handed to callers that mutate it.
+     * Dates are copied defensively; the attributes map is duplicated.
+     */
+    public static DefaultUserProfile copyOf( final UserProfile src ) {
+        final DefaultUserProfile c = new DefaultUserProfile();
+        c.setUid( src.getUid() );
+        c.setLoginName( src.getLoginName() );
+        // setFullname recomputes wikiname from the full name (the source of truth for
+        // the wikiname field), so there is no separate setWikiName accessor to call.
+        c.setFullname( src.getFullname() );
+        c.setEmail( src.getEmail() );
+        c.setPassword( src.getPassword() );
+        c.setBio( src.getBio() );
+        c.setCreated( src.getCreated() == null ? null : new java.util.Date( src.getCreated().getTime() ) );
+        c.setLastModified( src.getLastModified() == null ? null : new java.util.Date( src.getLastModified().getTime() ) );
+        c.setLockExpiry( src.getLockExpiry() == null ? null : new java.util.Date( src.getLockExpiry().getTime() ) );
+        final java.util.Map< String, java.io.Serializable > attrs = src.getAttributes();
+        if ( attrs != null ) {
+            c.getAttributes().putAll( attrs );
+        }
+        return c;
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override

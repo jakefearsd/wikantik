@@ -298,11 +298,14 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     public UserProfile findByLoginName( final String index ) throws NoSuchPrincipalException {
         final UserProfile cached = byLoginCache.getIfPresent( index );
         if( cached != null ) {
-            return cached;
+            // Hand out a private copy: callers (AdminUserResource, AuthResource) mutate the
+            // returned profile and save it, and the cached instance must never be shared.
+            return DefaultUserProfile.copyOf( cached );
         }
         // Misses are not cached: unknown logins fall through to the DB each call (not the hot path).
         final UserProfile profile = findByPreparedStatement( FIND_BY_LOGIN_NAME, index );
-        byLoginCache.put( index, profile );
+        // Cache a private copy and return the caller's own fresh instance.
+        byLoginCache.put( index, DefaultUserProfile.copyOf( profile ) );
         return profile;
     }
 

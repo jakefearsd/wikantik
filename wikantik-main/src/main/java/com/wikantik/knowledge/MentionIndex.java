@@ -198,7 +198,15 @@ public class MentionIndex {
         if ( pageName == null || pageName.isBlank() || limit <= 0 ) {
             return List.of();
         }
-        return relatedCache.get( cacheKey( pageName, limit ), k -> queryRelatedPages( pageName, limit ) );
+        try {
+            return relatedCache.get( cacheKey( pageName, limit ), k -> queryRelatedPages( pageName, limit ) );
+        } catch ( final RuntimeException e ) {
+            // queryRelatedPages throws on SQLException so Caffeine does NOT cache the failure;
+            // a transient DB error must not black out this page's related-pages for the TTL.
+            LOG.warn( "MentionIndex related-pages lookup failed for {}; returning empty (uncached): {}",
+                pageName, e.getMessage() );
+            return List.of();
+        }
     }
 
     /**
@@ -242,7 +250,9 @@ public class MentionIndex {
         } catch ( final SQLException e ) {
             LOG.warn( "MentionIndex.findRelatedPages failed for '{}': {}",
                 pageName, e.getMessage(), e );
-            return List.of();
+            // Throw so Caffeine does not cache an empty result produced by a transient DB error;
+            // findRelatedPages catches this and returns an empty (uncached) list to the caller.
+            throw new RuntimeException( "MentionIndex query failed for " + pageName, e );
         }
         return out;
     }
@@ -335,7 +345,7 @@ public class MentionIndex {
             // rather than zeroing out all results. Pages that failed are NOT
             // cached so a subsequent call can retry them.
         }
-        return out;
+        return java.util.Collections.unmodifiableMap( out );
     }
 
     private static List< String > arrayToStringList( final Array array ) throws SQLException {

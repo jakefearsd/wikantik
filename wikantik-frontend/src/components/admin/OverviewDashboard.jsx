@@ -1,0 +1,71 @@
+// OverviewDashboard.jsx
+import { useState, useEffect, useRef } from 'react';
+import { api } from '../../api/client';
+import PageHeader from './PageHeader';
+import MetricCard from './MetricCard';
+import '../../styles/admin.css';
+
+const POLL_MS = 20000; // live cards (load, llmActivity) refresh on this cadence
+
+// Each entry: how to render one card from the payload. `dim` marks the diagnostic band.
+function statusCards(d) {
+  return [
+    { key: 'health',      label: 'Health',        render: (c) => <MetricCard label="Health" value={c?.status ?? '—'} meta={c?.version} degraded={!c} /> },
+    { key: 'load',        label: 'Load',           render: (c) => <MetricCard label="Load" value={c ? `${c.inflight}/${c.permitsMax}` : null} meta={c ? `${c.rejected} shed` : null} degraded={!c} /> },
+    { key: 'kgProposals', label: 'KG proposals',   render: (c) => <MetricCard label="KG proposals" value={c?.pending} meta="pending → review" accent to="/admin/knowledge-graph" degraded={!c} /> },
+    { key: 'retrieval',   label: 'Retrieval',      render: (c) => <MetricCard label="Retrieval" value={c?.ndcg5} meta="nDCG@5" to="/admin/retrieval-quality" degraded={!c} /> },
+    { key: 'llmActivity', label: 'LLM activity',   render: (c) => <MetricCard label="LLM activity" value={c?.inFlight} meta={c ? `${c.count}/${c.windowMinutes}m · ${c.errors} err` : null} accent degraded={!c} /> },
+    { key: 'searchIndex', label: 'Search & index', render: (c) => <MetricCard label="Search & index" value={c?.indexable} meta={c ? `/${c.total} · ${c.embeddingsPct}% emb` : null} to="/admin/content" degraded={!c} /> },
+    { key: 'users',       label: 'Users',          render: (c) => <MetricCard label="Users" value={c?.users} meta={c ? `${c.apiKeys} keys` : null} to="/admin/users" degraded={!c} /> },
+    { key: 'recent',      label: 'Recent',         render: (c) => <MetricCard label="Recent" degraded={!c}>{c?.items && <ul className="metric-card-feed">{c.items.map((it, i) => <li key={i}>{it}</li>)}</ul>}</MetricCard> },
+  ];
+}
+
+function metricCards(d) {
+  return [
+    { key: 'kgSize',       label: 'Knowledge Graph size', render: (c) => <MetricCard dim label="Knowledge Graph size" value={c?.nodes} meta={c ? `${c.edges} edges` : null} degraded={!c} /> },
+    { key: 'extractor',    label: 'Extractor pipeline',   render: (c) => <MetricCard dim label="Extractor pipeline" value={c?.requests} meta={c ? `${c.triples} triples · ${c.failures} fail` : null} degraded={!c} /> },
+    { key: 'judge',        label: 'KG judge',             render: (c) => <MetricCard dim label="KG judge" value={c?.timeouts} meta={c ? `${c.shortCircuit} short-circuit` : null} degraded={!c} /> },
+    { key: 'renderCache',  label: 'Render cache',         render: (c) => <MetricCard dim label="Render cache" value={c?.hits} meta={c ? `${c.misses} miss · ${c.evictions} evict` : null} degraded={!c} /> },
+    { key: 'auth',         label: 'Auth activity',        render: (c) => <MetricCard dim label="Auth activity" value={c?.logins} meta="logins" degraded={!c} /> },
+    { key: 'agentSurface', label: 'Agent surface',        render: (c) => <MetricCard dim label="Agent surface" value={c?.hubSynthesis} meta={c ? `${c.hintFailures} hint fails` : null} degraded={!c} /> },
+  ];
+}
+
+export default function OverviewDashboard() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const pollRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await api.admin.getOverview();
+        if (!cancelled) { setData(res || {}); setError(null); }
+      } catch (e) {
+        if (!cancelled) setError(e.message || 'Failed to load overview');
+      }
+    };
+    load();
+    pollRef.current = setInterval(load, POLL_MS);
+    return () => { cancelled = true; clearInterval(pollRef.current); };
+  }, []);
+
+  if (error) return <div className="error-banner">{error}</div>;
+  const d = data || {};
+
+  return (
+    <div className="dashboard page-enter">
+      <PageHeader title="Overview" description="Everything you administer, at a glance." />
+      <div className="dashboard-section-title">Status &amp; action</div>
+      <div className="dashboard-grid status">
+        {statusCards(d).map(({ key, render }) => <div key={key}>{render(d[key])}</div>)}
+      </div>
+      <div className="dashboard-section-title">System metrics</div>
+      <div className="dashboard-grid metrics">
+        {metricCards(d).map(({ key, render }) => <div key={key}>{render(d[key])}</div>)}
+      </div>
+    </div>
+  );
+}

@@ -146,11 +146,11 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           <div className="sidebar-section">
             <div className="sidebar-section-title">Admin</div>
             <Link
-              to="/admin/users"
+              to="/admin"
               className="sidebar-link"
               onClick={onMobileClose}
             >
-              User Management
+              Overview
             </Link>
             <Link
               to="/admin/content"

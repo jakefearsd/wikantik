@@ -191,7 +191,7 @@ cat > "${CATALINA_HOME}/conf/Catalina/localhost/ROOT.xml" <<EOF
               password="${POSTGRES_PASSWORD}"
               maxTotal="90"
               maxIdle="30"
-              maxWaitMillis="10000"
+              maxWaitMillis="5000"
               validationQuery="SELECT 1"
               testOnBorrow="false"
               testWhileIdle="true"

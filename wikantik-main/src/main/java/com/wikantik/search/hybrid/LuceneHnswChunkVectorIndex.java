@@ -27,18 +27,21 @@ import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.KnnFloatVectorField;
-import org.apache.lucene.document.StoredField;
+import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.ReaderUtil;
+import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.SearcherManager;
-import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 
@@ -168,10 +171,16 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
             return;
         }
         try {
+            final String safePage = pageName == null ? "" : pageName;
             final Document doc = new Document();
             doc.add( new KnnFloatVectorField( FIELD_VEC, vec, VectorSimilarityFunction.COSINE ) );
-            doc.add( new StringField( FIELD_CHUNK_ID, chunkId.toString(), Field.Store.YES ) );
-            doc.add( new StoredField( FIELD_PAGE, pageName == null ? "" : pageName ) );
+            // Indexed (NOT stored) so updateDocument/deleteDocuments by the chunk_id
+            // term still works for upsert/delete.
+            doc.add( new StringField( FIELD_CHUNK_ID, chunkId.toString(), Field.Store.NO ) );
+            // DocValues for cheap per-hit retrieval — columnar, no stored-field LZ4
+            // block decompression on the query path.
+            doc.add( new SortedDocValuesField( FIELD_CHUNK_ID, new BytesRef( chunkId.toString() ) ) );
+            doc.add( new SortedDocValuesField( FIELD_PAGE, new BytesRef( safePage ) ) );
             writer.updateDocument( new Term( FIELD_CHUNK_ID, chunkId.toString() ), doc );
         } catch ( final IOException e ) {
             LOG.warn( "Lucene HNSW addOrReplace failed for chunk {}: {}", chunkId, e.getMessage(), e );
@@ -224,14 +233,25 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
             if ( searcher.getIndexReader().numDocs() == 0 ) return List.of();
             final KnnFloatVectorQuery query = new KnnFloatVectorQuery( FIELD_VEC, queryVec, fetch );
             final TopDocs hits = searcher.search( query, fetch );
-            final StoredFields stored = searcher.storedFields();
+            final List< LeafReaderContext > leaves = searcher.getIndexReader().leaves();
             final List< ScoredChunk > out = new ArrayList<>( Math.min( k, hits.scoreDocs.length ) );
             for ( final ScoreDoc sd : hits.scoreDocs ) {
                 if ( out.size() >= k ) break;
-                final Document doc = stored.document( sd.doc );
-                final String idStr = doc.get( FIELD_CHUNK_ID );
-                final String page = doc.get( FIELD_PAGE );
-                if ( idStr == null ) continue;
+                final LeafReaderContext ctx = leaves.get( ReaderUtil.subIndex( sd.doc, leaves ) );
+                final int localDoc = sd.doc - ctx.docBase;
+                // Fresh SortedDocValues per hit: KNN hits are score-ordered, not
+                // docid-ordered, and advanceExact only seeks forward — a per-hit
+                // iterator avoids "went backwards" errors across non-monotonic docids.
+                final SortedDocValues cidDv = ctx.reader().getSortedDocValues( FIELD_CHUNK_ID );
+                if ( cidDv == null || !cidDv.advanceExact( localDoc ) ) {
+                    LOG.warn( "Lucene HNSW: no chunk_id docvalue for doc {}, skipping", sd.doc );
+                    continue;
+                }
+                final String idStr = cidDv.lookupOrd( cidDv.ordValue() ).utf8ToString();
+                final SortedDocValues pgDv = ctx.reader().getSortedDocValues( FIELD_PAGE );
+                final String page = ( pgDv != null && pgDv.advanceExact( localDoc ) )
+                    ? pgDv.lookupOrd( pgDv.ordValue() ).utf8ToString()
+                    : "";
                 final double cosine = 2.0 * sd.score - 1.0;
                 out.add( new ScoredChunk( UUID.fromString( idStr ), page, cosine ) );
             }

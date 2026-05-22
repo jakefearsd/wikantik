@@ -905,4 +905,20 @@
   font-size: 0.6875rem; letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--text-muted); padding: var(--space-sm) var(--space-md);
 }
+
+/* ── Metric cards / dashboard ────────────────────────────────────── */
+.metric-card {
+  display: block; border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--bg-elevated); padding: 13px 15px; text-decoration: none; color: var(--text);
+}
+.metric-card.dim { background: var(--bg-sidebar); }
+a.metric-card:hover { border-color: var(--border-strong); }
+.metric-card-label {
+  font-family: var(--font-ui); font-size: 0.625rem; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.metric-card-value { font-family: var(--font-ui); font-size: 1.5rem; font-weight: 700; margin: 3px 0; }
+.metric-card-value.accent { color: var(--accent); }
+.metric-card-meta { font-family: var(--font-ui); font-size: 0.6875rem; color: var(--text-secondary); }
+.metric-card-unavailable { font-family: var(--font-ui); font-size: 0.75rem; color: var(--text-muted); margin: 8px 0; }
 .admin-table td { padding: var(--space-sm) var(--space-md); }

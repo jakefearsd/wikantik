@@ -312,6 +312,32 @@ final class SearchSubsystemFactoryTest {
     }
 
     @Test
+    void selectsLuceneHnswBackendWhenPropertySet() throws Exception {
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.search.dense.backend", "lucene-hnsw" );
+        props.setProperty( EmbeddingConfig.PROP_MODEL, "qwen3-embedding-0.6b" );
+
+        // Stub the DataSource to throw so the index constructor's reload() fails
+        // closed to an empty (but valid) index — we only assert the selected type here.
+        final DataSource dataSource = mock( DataSource.class );
+        when( dataSource.getConnection() ).thenThrow( new java.sql.SQLException( "no db in unit test" ) );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.getWikiProperties() ).thenReturn( props );
+
+        final SearchSubsystem.Services services = SearchSubsystemFactory.create(
+            new SearchSubsystem.Deps(
+                /*dataSource=*/ dataSource,
+                /*core=*/ mock( com.wikantik.core.subsystem.CoreSubsystem.Services.class ),
+                /*persistence=*/ null,
+                /*page=*/ null,
+                /*knowledge=*/ null,
+                engine ) );
+
+        assertInstanceOf( com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex.class,
+            services.chunkVectorIndex() );
+    }
+
+    @Test
     void rejectsUnknownBackendValue() {
         final Properties props = new Properties();
         props.setProperty( "wikantik.search.dense.backend", "elasticsearch" );

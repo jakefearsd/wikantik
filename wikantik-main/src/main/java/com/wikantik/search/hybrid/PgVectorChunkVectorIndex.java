@@ -54,9 +54,11 @@ public final class PgVectorChunkVectorIndex implements ChunkVectorIndex {
      * (pgvector type {@code vector(1024)}). Referenced by {@link #dimension()},
      * the query-vector length check in {@link #topKChunks} (Task 3), and the
      * dual-write UPSERT in {@code EmbeddingIndexService} (Task 7). One constant
-     * so a future model-dimension swap touches one line.
+     * so a future model-dimension swap touches one line. Public so sibling
+     * backends (e.g. the Lucene HNSW index) and the subsystem wiring in another
+     * package can share this single source of truth rather than re-hardcoding 1024.
      */
-    static final int EMBEDDING_DIM = 1024;
+    public static final int EMBEDDING_DIM = 1024;
 
     private static final long SIZE_CACHE_MILLIS = 5L * 60L * 1000L;
 

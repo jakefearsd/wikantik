@@ -118,12 +118,29 @@ public final class SearchSubsystemFactory {
                 LOG.info( "Dense retrieval backend: pgvector HNSW (model={}, ef_search={})",
                     modelCode, efSearch );
             }
+            case "lucene-hnsw" -> {
+                final DataSource dataSource = deps.dataSource();
+                if ( dataSource == null ) {
+                    throw new IllegalStateException(
+                        "wikantik.search.dense.backend=lucene-hnsw but no DataSource is available; "
+                      + "check that wikantik.datasource is configured" );
+                }
+                final String modelCode = wikiProps.getProperty(
+                    EmbeddingConfig.PROP_MODEL, EmbeddingConfig.DEFAULT_MODEL_CODE );
+                final com.wikantik.search.hybrid.HnswParams params =
+                    com.wikantik.search.hybrid.HnswParams.fromProperties( wikiProps );
+                chunkVectorIndex = new com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex(
+                    dataSource, modelCode,
+                    com.wikantik.search.hybrid.PgVectorChunkVectorIndex.EMBEDDING_DIM, params );
+                LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, ef_search={})",
+                    modelCode, params.m(), params.efConstruction(), params.efSearch() );
+            }
             case "inmemory" -> {
                 chunkVectorIndex = engine.getManager( InMemoryChunkVectorIndex.class );
                 LOG.info( "Dense retrieval backend: in-memory brute-force" );
             }
             default -> throw new IllegalArgumentException(
-                "wikantik.search.dense.backend must be 'inmemory' or 'pgvector', got: '"
+                "wikantik.search.dense.backend must be 'inmemory', 'pgvector', or 'lucene-hnsw', got: '"
               + backend + "'" );
         }
 

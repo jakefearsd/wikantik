@@ -850,3 +850,30 @@
   background: #1F3324;
   color: #93C79E;
 }
+
+/* ── Admin sidebar (context-swap rail) ───────────────────────────── */
+.admin-sidebar { padding: var(--space-md); background: var(--bg-sidebar); }
+.admin-sidebar-back {
+  display: inline-block; color: var(--accent); font-family: var(--font-ui);
+  font-size: 0.8125rem; font-weight: 600; text-decoration: none; margin-bottom: var(--space-md);
+}
+.admin-sidebar-back:hover { color: var(--accent-hover); }
+.admin-sidebar-title {
+  font-family: var(--font-display); font-size: 1.25rem; font-weight: 600;
+  margin: 0 0 var(--space-md);
+}
+.admin-sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
+.admin-sidebar-group { margin-top: var(--space-md); }
+.admin-sidebar-group-title {
+  font-family: var(--font-ui); font-size: 0.6875rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-muted); margin: 0 0 4px var(--space-sm);
+}
+.admin-sidebar-link {
+  display: block; padding: 5px var(--space-sm); border-radius: var(--radius-sm);
+  font-family: var(--font-ui); font-size: 0.875rem; color: var(--text); text-decoration: none;
+}
+.admin-sidebar-link:hover { background: var(--sage-light); }
+.admin-sidebar-link.active { background: var(--accent); color: #fff; }
+
+/* ── Admin density layer (tool-grade data regions; chrome stays editorial) ── */
+.admin-content { font-family: var(--font-ui); }

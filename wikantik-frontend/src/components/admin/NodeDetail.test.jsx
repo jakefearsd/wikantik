@@ -42,6 +42,22 @@ beforeEach(() => {
 });
 
 describe('NodeDetail mentions panel', () => {
+  it('shows the mentions loading hint before the fetch resolves', async () => {
+    let resolve;
+    api.knowledge.getNodeMentions.mockReturnValue(new Promise((r) => { resolve = r; }));
+
+    render(<NodeDetail node={baseNode} />);
+    // While the mention fetch is pending, the panel shows the loading hint.
+    expect(await screen.findByText(/Loading mentions/i)).toBeInTheDocument();
+    expect(screen.queryByText(/No mention chunks recorded/i)).toBeNull();
+
+    resolve({ mentions: [] });
+    await waitFor(() =>
+      expect(screen.getByText(/No mention chunks recorded/i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/Loading mentions/i)).toBeNull();
+  });
+
   it('fetches mentions by node ID and renders chunk markdown', async () => {
     api.knowledge.getNodeMentions.mockResolvedValueOnce({
       mentions: [

@@ -54,6 +54,22 @@ const getBulkToolbar = () => screen.getByRole('toolbar', { name: 'Bulk actions' 
 // Basic rendering
 // ---------------------------------------------------------------------------
 
+describe('AdminUsersPage — loading state', () => {
+  it('shows the loading indicator before the user list resolves', async () => {
+    let resolve;
+    api.admin.listUsers.mockReturnValue(new Promise((r) => { resolve = r; }));
+
+    render(<AdminUsersPage />);
+    // Loading label is visible while the fetch is pending.
+    expect(screen.getByText('Loading users…')).toBeInTheDocument();
+    expect(screen.queryByText('alice')).toBeNull();
+
+    resolve({ users: USERS });
+    await screen.findByText('alice');
+    expect(screen.queryByText('Loading users…')).toBeNull();
+  });
+});
+
 describe('AdminUsersPage — rendering', () => {
   it('renders the user list after load', async () => {
     render(<AdminUsersPage />);

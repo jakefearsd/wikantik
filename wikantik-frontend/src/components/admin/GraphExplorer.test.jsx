@@ -61,6 +61,19 @@ describe('GraphExplorer', () => {
     );
   });
 
+  it('shows the loading indicator before the node query resolves', async () => {
+    let resolve;
+    api.knowledge.queryNodes.mockReturnValue(new Promise((r) => { resolve = r; }));
+
+    render(<GraphExplorer />);
+    expect(screen.getByText(/Loading knowledge graph/i)).toBeInTheDocument();
+    expect(screen.queryByText('Alpha')).toBeNull();
+
+    resolve({ nodes: [node('n1', 'Alpha', 'article')], total: 1 });
+    await waitFor(() => screen.getByText('Alpha'));
+    expect(screen.queryByText(/Loading knowledge graph/i)).toBeNull();
+  });
+
   it('shows the total node count in the header', async () => {
     render(<GraphExplorer />);
     await waitFor(() => screen.getByText('Alpha'));

@@ -34,6 +34,17 @@ public class PrincipalComparator implements Comparator< Principal >, Serializabl
     private static final long serialVersionUID = 1L;
 
     /**
+     * Per-thread {@link Collator}. {@code Collator.getInstance()} clones a
+     * {@code RuleBasedCollator} under a lock on the {@code Collator.class}
+     * monitor; calling it per comparison serialized every authorization check
+     * under load (it sorts a session's principals on every permission check).
+     * {@code Collator} is not thread-safe, so each thread keeps its own and
+     * reuses it — no per-call clone, no shared lock.
+     */
+    private static final ThreadLocal< Collator > COLLATOR =
+        ThreadLocal.withInitial( Collator::getInstance );
+
+    /**
      * Compares two Principal objects.
      *
      * @param o1 the first Principal
@@ -43,8 +54,7 @@ public class PrincipalComparator implements Comparator< Principal >, Serializabl
      */
     @Override
     public int compare( final Principal o1, final Principal o2 ) {
-        final Collator collator = Collator.getInstance();
-        return collator.compare( o1.getName(), o2.getName() );
+        return COLLATOR.get().compare( o1.getName(), o2.getName() );
     }
 
 }

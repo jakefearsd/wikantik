@@ -28,3 +28,12 @@
 CATALINA_OPTS="${CATALINA_OPTS} --add-modules jdk.incubator.vector"
 
 export CATALINA_OPTS
+
+# Backpressure admission cap (BackpressureFilter). When ~this many requests are
+# in flight, further requests get HTTP 503 + Retry-After:1 instead of queueing.
+# The filter reads this from a system property or environment variable (there is
+# no wikantik.* property for it). Code default is 390; it MUST stay below the
+# Tomcat connector's maxThreads (400 in conf/server.xml) or the cap can never be
+# reached and backpressure never fires. 0 or negative disables the filter.
+# Uncomment to override the default.
+# export WIKANTIK_MAX_INFLIGHT_REQUESTS=390

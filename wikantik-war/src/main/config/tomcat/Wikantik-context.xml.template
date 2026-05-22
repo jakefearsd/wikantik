@@ -28,7 +28,12 @@
 -->
 <Context reloadable="true">
 
-    <!-- Single shared JNDI DataSource for all Wikantik subsystems -->
+    <!-- Single shared JNDI DataSource for all Wikantik subsystems.
+         Pool sizing matches the 2.0.2 scaling-campaign values used by the
+         container (docker/entrypoint.sh): maxTotal pressed just under
+         PostgreSQL's default max_connections (100); maxWaitMillis cut to 5s
+         so a request fails fast instead of parking a worker thread when the
+         pool is exhausted. -->
     <Resource name="jdbc/WikiDatabase"
               auth="Container"
               type="javax.sql.DataSource"
@@ -37,8 +42,8 @@
               url="jdbc:postgresql://@@POSTGRES_HOST@@:@@POSTGRES_PORT@@/@@POSTGRES_DB@@"
               username="@@POSTGRES_USER@@"
               password="@@POSTGRES_PASSWORD@@"
-              maxTotal="30"
-              maxIdle="10"
+              maxTotal="90"
+              maxIdle="30"
               maxWaitMillis="5000"
               validationQuery="SELECT 1"
               testOnBorrow="true"/>

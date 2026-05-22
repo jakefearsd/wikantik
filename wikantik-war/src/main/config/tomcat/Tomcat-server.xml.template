@@ -67,8 +67,15 @@
          AJP  Connector: /docs/config/ajp.html
          Define a non-SSL/TLS HTTP/1.1 Connector on port 8080
     -->
+    <!-- maxThreads/acceptCount are the 2.0.2 scaling-campaign values, kept in step
+         with the container connector (docker/config/server.xml). maxThreads MUST stay
+         >= the backpressure cap (WIKANTIK_MAX_INFLIGHT_REQUESTS, default 390 in
+         bin/setenv.sh) or the admission semaphore can never fire. acceptCount is the
+         connection queue behind the worker pool. -->
     <Connector port="8080" protocol="HTTP/1.1"
                connectionTimeout="20000"
+               maxThreads="400"
+               acceptCount="200"
                redirectPort="8443" />
     <!-- A "Connector" using the shared thread pool-->
     <!--

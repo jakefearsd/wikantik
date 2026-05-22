@@ -145,3 +145,37 @@ wikantik.frontmatter.autoDefaults = true
 # Max parallel extraction RPCs from the admin batch job. Save-time extraction
 # is always serial. Integer; clamped to [1, 4] at load time.
 #wikantik.knowledge.extractor.concurrency              = 2
+
+# ---------------------------------------------------------------------------
+# Performance & concurrency tuning
+#
+# These mirror the knobs the container path sets via docker/entrypoint.sh, so a
+# bare-metal deployment can reach the same tuned posture. Full reference:
+# docs/WikantikOperations.md §1.5.
+#
+# NOT every perf knob is a property. Three live outside this file and are
+# materialised from their own templates by deploy-local.sh:
+#   - Tomcat connector  maxThreads=400 / acceptCount=200  -> conf/server.xml
+#   - DBCP pool         maxTotal=90 / maxWaitMillis=5000   -> conf/Catalina/localhost/ROOT.xml
+#   - Backpressure cap  WIKANTIK_MAX_INFLIGHT_REQUESTS=390 -> bin/setenv.sh (env/sysprop)
+# ---------------------------------------------------------------------------
+
+# Dense-vector retrieval backend. Valid: inmemory | pgvector | lucene-hnsw.
+#   inmemory    - exact brute-force scan; zero setup, the safe default & rollback.
+#   lucene-hnsw - in-process HNSW ANN index, rebuilt in RAM on boot from
+#                 content_chunk_embeddings. The production scaling default on
+#                 docker1 (set there via the deployment env). Recall within
+#                 0.02 nDCG@5 of brute force; needs the embeddings table populated.
+#   pgvector    - server-side HNSW, for split-DB topologies.
+# Default (unset) is inmemory. Flip to lucene-hnsw once embeddings are built.
+#wikantik.search.dense.backend                         = inmemory
+
+# Lucene HNSW graph tuning (only used when backend = lucene-hnsw). Defaults shown.
+#wikantik.search.dense.lucene.m                        = 16
+#wikantik.search.dense.lucene.ef_construction          = 64
+#wikantik.search.dense.lucene.ef_search                = 100
+
+# VersioningFileProvider property-cache size. Default 100 (fine for a small
+# corpus); bump to a few thousand for a large page tree. 0 = single entry,
+# -1 = disable. Integer.
+#wikantik.versioningFileProvider.cacheSize             = 100

@@ -23,7 +23,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
 import java.util.Locale;
-import java.util.TimeZone;
 
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
@@ -42,7 +41,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.Map;
 
@@ -64,13 +64,22 @@ public abstract class RestServletBase extends HttpServlet {
      * JVM's default timezone, which produces wrong output (local-time digits
      * with a {@code Z} suffix that lies about being UTC) on any non-UTC host.
      */
+    /**
+     * Shared, immutable ISO-8601-UTC formatter. {@link DateTimeFormatter} is
+     * thread-safe, so one static instance serves every request — unlike the old
+     * per-call {@code new SimpleDateFormat(...)} + {@code TimeZone.getTimeZone("UTC")},
+     * which allocated a formatter and locked the {@code TimeZone.class} cache on
+     * every Date serialized (a contention hotspot under load). The literal
+     * {@code 'Z'} plus the UTC zone reproduce the previous output exactly.
+     */
+    private static final DateTimeFormatter UTC_ISO_FORMAT =
+        DateTimeFormatter.ofPattern( "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT ).withZone( ZoneOffset.UTC );
+
     public static final JsonSerializer< Date > UTC_ISO_DATE_SERIALIZER = ( src, typeOfSrc, context ) -> {
         if ( src == null ) {
             return null;
         }
-        final SimpleDateFormat fmt = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT );
-        fmt.setTimeZone( TimeZone.getTimeZone( "UTC" ) );
-        return new JsonPrimitive( fmt.format( src ) );
+        return new JsonPrimitive( UTC_ISO_FORMAT.format( src.toInstant() ) );
     };
 
     /** Shared Gson instance with pretty printing and ISO 8601 (UTC) date format. */
@@ -513,7 +522,10 @@ public abstract class RestServletBase extends HttpServlet {
      */
     protected String formatDate( final Date date ) {
         if ( date == null ) return null;
-        return new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ROOT ).format( date );
+        // Shared UTC formatter — also fixes a latent bug here: the old
+        // SimpleDateFormat had no setTimeZone, so it emitted JVM-default-TZ digits
+        // with a 'Z' suffix (wrong on any non-UTC host).
+        return UTC_ISO_FORMAT.format( date.toInstant() );
     }
 
     /**

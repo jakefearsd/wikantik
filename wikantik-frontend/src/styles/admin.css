@@ -903,6 +903,6 @@
 .admin-table { font-family: var(--font-ui); font-size: 0.8125rem; }
 .admin-table th {
   font-size: 0.6875rem; letter-spacing: 0.04em; text-transform: uppercase;
-  color: var(--text-muted); padding: 8px 16px;
+  color: var(--text-muted); padding: var(--space-sm) var(--space-md);
 }
-.admin-table td { padding: 8px 16px; }
+.admin-table td { padding: var(--space-sm) var(--space-md); }

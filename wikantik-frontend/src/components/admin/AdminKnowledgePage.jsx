@@ -54,8 +54,7 @@ export default function AdminKnowledgePage() {
         description="Curate extracted entities, proposals, and hubs."
       />
       <div style={{ padding: '4px 0 8px', fontSize: '0.75rem', opacity: 0.7 }}>
-        Knowledge Graph — LLM-extracted entities and relations.{' '}
-        <a href="/wiki/PageGraphVsKnowledgeGraph">Page Graph vs Knowledge Graph</a>
+        See <a href="/wiki/PageGraphVsKnowledgeGraph">Page Graph vs Knowledge Graph</a> for how this differs from the Page Graph.
       </div>
       <div className="admin-toolbar">
         <div className="admin-tabs">

@@ -26,13 +26,13 @@ import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.StructuralFilter;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.pagegraph.Verification;
+import com.wikantik.api.pagegraph.VerificationCounts;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -67,10 +67,9 @@ public class AdminVerificationResource extends RestServletBase {
         final int limit = clamp( parseIntOr( req.getParameter( "limit" ), 200 ), 1, 1000 );
 
         final Instant now = Instant.now();
-        final EnumMap< Confidence, Integer > counts = new EnumMap<>( Confidence.class );
-        for ( final Confidence c : Confidence.values() ) {
-            counts.put( c, 0 );
-        }
+        // Aggregate confidence mix comes from the shared StructuralIndexService
+        // tally so the admin overview dashboard and this endpoint don't diverge.
+        final VerificationCounts mix = svc.verificationCounts();
 
         final JsonArray rows = new JsonArray();
         // Use the structural index's full page enumeration as the join driver — every
@@ -80,7 +79,6 @@ public class AdminVerificationResource extends RestServletBase {
         int emitted = 0;
         for ( final PageDescriptor p : pages ) {
             final Verification v = svc.verificationOf( p.canonicalId() ).orElse( Verification.unverified() );
-            counts.merge( v.confidence(), 1, Integer::sum );
 
             if ( confidenceFilter.isPresent() && v.confidence() != confidenceFilter.get() ) {
                 continue;
@@ -114,7 +112,9 @@ public class AdminVerificationResource extends RestServletBase {
         }
 
         final JsonObject countsJson = new JsonObject();
-        counts.forEach( ( c, n ) -> countsJson.addProperty( c.wireName(), n ) );
+        countsJson.addProperty( Confidence.AUTHORITATIVE.wireName(), mix.authoritative() );
+        countsJson.addProperty( Confidence.PROVISIONAL.wireName(),   mix.provisional() );
+        countsJson.addProperty( Confidence.STALE.wireName(),         mix.stale() );
 
         final JsonObject data = new JsonObject();
         data.add( "pages", rows );

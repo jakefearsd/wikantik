@@ -52,6 +52,10 @@ class AdminVerificationResourceTest {
     @BeforeEach
     void setUp() {
         svc = mock( StructuralIndexService.class );
+        // verificationCounts() is a default method on the interface — let the mock
+        // run the real default so it derives the mix from the stubbed
+        // listPagesByFilter/verificationOf, matching production behaviour.
+        when( svc.verificationCounts() ).thenCallRealMethod();
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( StructuralIndexService.class ) ).thenReturn( svc );
         resource = new AdminVerificationResource();

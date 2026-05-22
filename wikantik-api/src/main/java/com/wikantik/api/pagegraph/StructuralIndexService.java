@@ -84,6 +84,38 @@ public interface StructuralIndexService {
      */
     Optional< Verification > verificationOf( String canonicalId );
 
+    /**
+     * Aggregate verification-confidence mix across all pages in the index.
+     * The authoritative/provisional/stale tallies count every page (pages
+     * with no verification row fold in as {@link Verification#unverified()},
+     * which is PROVISIONAL), so those three sum to the total page count.
+     * {@code noVerification} separately counts pages whose
+     * {@link #verificationOf(String)} is empty.
+     *
+     * <p>Default implementation derived from {@link #listPagesByFilter} +
+     * {@link #verificationOf}; the single source of truth for the tally used
+     * by {@code /admin/verification} and the admin overview dashboard.</p>
+     */
+    default VerificationCounts verificationCounts() {
+        int authoritative = 0;
+        int provisional = 0;
+        int stale = 0;
+        int noVerification = 0;
+        for ( final PageDescriptor p : listPagesByFilter( StructuralFilter.none() ) ) {
+            final Optional< Verification > found = verificationOf( p.canonicalId() );
+            if ( found.isEmpty() ) {
+                noVerification++;
+            }
+            final Confidence c = found.orElseGet( Verification::unverified ).confidence();
+            switch ( c ) {
+                case AUTHORITATIVE -> authoritative++;
+                case PROVISIONAL   -> provisional++;
+                case STALE         -> stale++;
+            }
+        }
+        return new VerificationCounts( authoritative, provisional, stale, noVerification );
+    }
+
     /** Snapshot of the current projection used by metrics and admin UIs. Stable for the duration of the call. */
     StructuralProjectionSnapshot snapshot();
 

@@ -31,4 +31,30 @@ describe('AdminSidebar', () => {
     expect(screen.getByRole('link', { name: 'Security' }).className).toMatch(/active/);
     expect(screen.getByRole('link', { name: 'Users' }).className).not.toMatch(/active/);
   });
+
+  it('has data-testid on the sidebar root, back-to-wiki link, and every nav link', () => {
+    renderAt('/admin/users');
+
+    // Sidebar root
+    expect(screen.getByTestId('admin-sidebar')).toBeInTheDocument();
+
+    // Back-to-wiki link
+    expect(screen.getByTestId('admin-back-to-wiki')).toHaveAttribute('href', '/wiki/Main');
+
+    // Overview (exact /admin match)
+    expect(screen.getByTestId('admin-nav-overview')).toHaveAttribute('href', '/admin');
+
+    // People & Access group
+    expect(screen.getByTestId('admin-nav-users')).toHaveAttribute('href', '/admin/users');
+    expect(screen.getByTestId('admin-nav-security')).toHaveAttribute('href', '/admin/security');
+    expect(screen.getByTestId('admin-nav-apikeys')).toHaveAttribute('href', '/admin/apikeys');
+
+    // Content group
+    expect(screen.getByTestId('admin-nav-content')).toHaveAttribute('href', '/admin/content');
+
+    // Knowledge & Search group
+    expect(screen.getByTestId('admin-nav-knowledge-graph')).toHaveAttribute('href', '/admin/knowledge-graph');
+    expect(screen.getByTestId('admin-nav-kg-policy')).toHaveAttribute('href', '/admin/kg-policy');
+    expect(screen.getByTestId('admin-nav-retrieval-quality')).toHaveAttribute('href', '/admin/retrieval-quality');
+  });
 });

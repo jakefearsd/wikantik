@@ -30,19 +30,27 @@ const GROUPS = [
 
 const linkClass = ({ isActive }) => `admin-sidebar-link${isActive ? ' active' : ''}`;
 
+// Derive a stable testid slug from a nav `to` path:
+//   "/admin"           → "overview"
+//   "/admin/users"     → "users"
+//   "/admin/kg-policy" → "kg-policy"
+function navSlug(to) {
+  return to === '/admin' ? 'overview' : to.replace(/^\/admin\//, '');
+}
+
 export default function AdminSidebar() {
   return (
-    <aside className="app-sidebar admin-sidebar">
-      <Link to="/wiki/Main" className="admin-sidebar-back">← Back to wiki</Link>
+    <aside className="app-sidebar admin-sidebar" data-testid="admin-sidebar">
+      <Link to="/wiki/Main" className="admin-sidebar-back" data-testid="admin-back-to-wiki">← Back to wiki</Link>
       <h1 className="admin-sidebar-title">Administration</h1>
       <nav className="admin-sidebar-nav">
         {/* `end` so /admin matches Overview exactly, not every /admin/* child */}
-        <NavLink to="/admin" end className={linkClass}>Overview</NavLink>
+        <NavLink to="/admin" end className={linkClass} data-testid={`admin-nav-${navSlug('/admin')}`}>Overview</NavLink>
         {GROUPS.map((group) => (
           <div className="admin-sidebar-group" key={group.title}>
             <div className="admin-sidebar-group-title">{group.title}</div>
             {group.links.map((l) => (
-              <NavLink key={l.to} to={l.to} className={linkClass}>{l.label}</NavLink>
+              <NavLink key={l.to} to={l.to} className={linkClass} data-testid={`admin-nav-${navSlug(l.to)}`}>{l.label}</NavLink>
             ))}
           </div>
         ))}

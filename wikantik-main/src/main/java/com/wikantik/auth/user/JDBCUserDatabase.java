@@ -28,6 +28,9 @@ import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.util.Serializer;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
@@ -41,6 +44,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Map;
@@ -212,6 +216,21 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     private boolean supportsCommits;
 
     /**
+     * Cookie-less basic-auth re-runs {@code authMgr.login()} per request, which calls
+     * {@link #findByLoginName(String)} and issues a {@code users} SELECT (one DB connection)
+     * each time. Cache the resolved profile by login name with a short TTL to absorb that
+     * per-request read. Mutators (save / delete / rename) evict the affected login(s) so an
+     * admin edit (including a password change) is reflected immediately. Only the DB read is
+     * cached; {@code login()}/bcrypt are unaffected.
+     */
+    private static final long USER_TTL_SECONDS = 60L;
+    private final Cache< String, UserProfile > byLoginCache = Caffeine.newBuilder()
+            .expireAfterWrite( Duration.ofSeconds( USER_TTL_SECONDS ) )
+            .maximumSize( 10_000 )
+            .recordStats()
+            .build();
+
+    /**
      * Looks up and deletes the first {@link UserProfile} in the user database
      * that matches a profile having a given login name. If the user database
      * does not contain a user with a matching attribute, throws a
@@ -248,6 +267,9 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             if( supportsCommits ) {
                 conn.commit();
             }
+
+            // Evict the now-deleted login so the next lookup goes to the DB.
+            byLoginCache.invalidate( loginNameToDelete );
         } catch( final SQLException e ) {
             throw new WikiSecurityException( e.getMessage(), e );
         }
@@ -274,7 +296,14 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public UserProfile findByLoginName( final String index ) throws NoSuchPrincipalException {
-        return findByPreparedStatement( FIND_BY_LOGIN_NAME, index );
+        final UserProfile cached = byLoginCache.getIfPresent( index );
+        if( cached != null ) {
+            return cached;
+        }
+        // Misses are not cached: unknown logins fall through to the DB each call (not the hot path).
+        final UserProfile profile = findByPreparedStatement( FIND_BY_LOGIN_NAME, index );
+        byLoginCache.put( index, profile );
+        return profile;
     }
 
     /**
@@ -364,12 +393,13 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public void rename( final String oldLoginName, final String newName ) throws DuplicateUserException, WikiSecurityException {
-        // Get the existing user; if not found, throws NoSuchPrincipalException
-        final UserProfile profile = findByLoginName( oldLoginName );
+        // Get the existing user (uncached: this is a write path); if not found, throws NoSuchPrincipalException
+        final UserProfile profile = findByPreparedStatement( FIND_BY_LOGIN_NAME, oldLoginName );
 
-        // Get user with the proposed name; if found, it's a collision
+        // Get user with the proposed name; if found, it's a collision. Uncached so a stale entry
+        // for a since-deleted login can't falsely block the rename.
         try {
-            final UserProfile otherProfile = findByLoginName( newName );
+            final UserProfile otherProfile = findByPreparedStatement( FIND_BY_LOGIN_NAME, newName );
             if( otherProfile != null ) {
                 throw new DuplicateUserException( "security.error.cannot.rename", newName );
             }
@@ -406,6 +436,10 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             if( supportsCommits ) {
                 conn.commit();
             }
+
+            // A rename changes the login name itself, so evict both the old and new keys.
+            byLoginCache.invalidate( oldLoginName );
+            byLoginCache.invalidate( newName );
         } catch( final SQLException e ) {
             throw new WikiSecurityException( e.getMessage(), e );
         }
@@ -423,7 +457,10 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         UserProfile existingProfile = null;
 
         try {
-            existingProfile = findByLoginName( loginName );
+            // Read the existing record straight from the DB, never the cache: the password-reuse
+            // logic below compares against this profile, and a cached instance may be the very
+            // object the caller just mutated.
+            existingProfile = findByPreparedStatement( FIND_BY_LOGIN_NAME, loginName );
         } catch( final NoSuchPrincipalException e ) {
             // Existing profile will be null
         }
@@ -492,6 +529,12 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             // Commit and close connection
             if( supportsCommits ) {
                 conn.commit();
+            }
+
+            // Evict the saved login so the next lookup (e.g. a basic-auth request) sees the
+            // fresh record — critically, an updated password hash on a credential change.
+            if( loginName != null ) {
+                byLoginCache.invalidate( loginName );
             }
         } catch( final SQLException e ) {
             throw new WikiSecurityException( e.getMessage(), e );

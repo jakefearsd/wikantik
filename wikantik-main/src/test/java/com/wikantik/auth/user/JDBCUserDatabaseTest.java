@@ -40,14 +40,18 @@ import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NameAlreadyBoundException;
 import javax.sql.DataSource;
+import java.io.PrintWriter;
 import java.io.Serializable;
 import java.security.Principal;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 
 /**
  *
@@ -58,6 +62,13 @@ public class JDBCUserDatabaseTest {
     private DataSource m_ds;
 
     private JDBCUserDatabase m_db;
+
+    /** A JDBCUserDatabase backed by a connection-counting DataSource, used by the caching tests. */
+    private JDBCUserDatabase m_countingDb;
+
+    private CountingDataSource m_countingDs;
+
+    private static final String COUNTING_DATASOURCE = "jdbc/CountingDatabase";
 
     private static final String TEST_ATTRIBUTES = "rO0ABXNyABFqYXZhLnV0aWwuSGFzaE1hcAUH2sHDFmDRAwACRgAKbG9hZEZhY3RvckkACXRocmVzaG9sZHhwP0AAAAAAAAx3CAAAABAAAAACdAAKYXR0cmlidXRlMXQAEXNvbWUgcmFuZG9tIHZhbHVldAAKYXR0cmlidXRlMnQADWFub3RoZXIgdmFsdWV4";
 
@@ -91,6 +102,18 @@ public class JDBCUserDatabaseTest {
 
         m_db = new JDBCUserDatabase();
         m_db.initialize( null, new Properties() );
+
+        // A second DB instance backed by a connection-counting DataSource, used by the caching tests.
+        m_countingDs = new CountingDataSource( m_ds );
+        try {
+            ctx.bind( COUNTING_DATASOURCE, m_countingDs );
+        } catch( final NameAlreadyBoundException e ) {
+            // ignore
+        }
+        final Properties countingProps = new Properties();
+        countingProps.setProperty( AbstractJDBCDatabase.PROP_DATASOURCE, COUNTING_DATASOURCE );
+        m_countingDb = new JDBCUserDatabase();
+        m_countingDb.initialize( null, countingProps );
     }
 
     @BeforeEach
@@ -679,6 +702,111 @@ public class JDBCUserDatabaseTest {
 
         // Clean up
         m_db.deleteByLoginName( loginName );
+    }
+
+    // ========== Caching Tests ==========
+
+    @Test
+    void findByLoginName_isCached() throws Exception {
+        // Warm the cache with one lookup (this is the only call permitted to touch the DB).
+        final UserProfile first = m_countingDb.findByLoginName( "janne" );
+
+        // From here on, no further DB connections should be opened for the same login.
+        m_countingDs.reset();
+        final UserProfile second = m_countingDb.findByLoginName( "janne" );
+
+        // Same data both times.
+        Assertions.assertEquals( "janne", first.getLoginName() );
+        Assertions.assertEquals( first.getLoginName(), second.getLoginName() );
+        Assertions.assertEquals( first.getUid(), second.getUid() );
+        Assertions.assertEquals( first.getEmail(), second.getEmail() );
+
+        // Zero connections for the second lookup: it was served entirely from cache.
+        Assertions.assertEquals( 0, m_countingDs.count(), "second findByLoginName should be served from cache" );
+    }
+
+    @Test
+    void saveEvictsCachedLogin() throws Exception {
+        // Warm the cache for 'janne'.
+        UserProfile profile = m_countingDb.findByLoginName( "janne" );
+        Assertions.assertEquals( "Janne Jalkanen", profile.getFullname() );
+
+        // Change a field and save; this must evict the cached login.
+        profile.setFullname( "Janne Renamed" );
+        m_countingDb.save( profile );
+
+        // Next lookup must reflect the updated value (cache evicted on save).
+        final UserProfile reloaded = m_countingDb.findByLoginName( "janne" );
+        Assertions.assertEquals( "Janne Renamed", reloaded.getFullname() );
+    }
+
+    /**
+     * A DataSource that delegates to a real one but counts how many times
+     * {@link #getConnection()} is invoked, so tests can assert that a cached
+     * lookup performed no fresh database connection.
+     */
+    private static final class CountingDataSource implements DataSource {
+        private final DataSource delegate;
+        private final AtomicInteger connections = new AtomicInteger();
+
+        CountingDataSource( final DataSource delegate ) {
+            this.delegate = delegate;
+        }
+
+        int count() {
+            return connections.get();
+        }
+
+        void reset() {
+            connections.set( 0 );
+        }
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            connections.incrementAndGet();
+            return delegate.getConnection();
+        }
+
+        @Override
+        public Connection getConnection( final String username, final String password ) throws SQLException {
+            connections.incrementAndGet();
+            return delegate.getConnection( username, password );
+        }
+
+        @Override
+        public PrintWriter getLogWriter() throws SQLException {
+            return delegate.getLogWriter();
+        }
+
+        @Override
+        public void setLogWriter( final PrintWriter out ) throws SQLException {
+            delegate.setLogWriter( out );
+        }
+
+        @Override
+        public void setLoginTimeout( final int seconds ) throws SQLException {
+            delegate.setLoginTimeout( seconds );
+        }
+
+        @Override
+        public int getLoginTimeout() throws SQLException {
+            return delegate.getLoginTimeout();
+        }
+
+        @Override
+        public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+            return delegate.getParentLogger();
+        }
+
+        @Override
+        public < T > T unwrap( final Class< T > iface ) throws SQLException {
+            return delegate.unwrap( iface );
+        }
+
+        @Override
+        public boolean isWrapperFor( final Class< ? > iface ) throws SQLException {
+            return delegate.isWrapperFor( iface );
+        }
     }
 
 }

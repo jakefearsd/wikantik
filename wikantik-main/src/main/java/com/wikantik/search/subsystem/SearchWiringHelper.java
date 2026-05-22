@@ -137,7 +137,9 @@ public final class SearchWiringHelper {
 
         final com.wikantik.search.hybrid.ChunkVectorIndex vectorIndex;
         final Runnable indexReloadHook;
-        final InMemoryChunkVectorIndex inMemoryForListener;
+        // Must match AsyncEmbeddingIndexListener.setPostIndexCallback's param type
+        // (Consumer<List<UUID>>). upsertChunks(Collection<UUID>) method refs satisfy it.
+        final java.util.function.Consumer< java.util.List< java.util.UUID > > upsertCallback;
         try {
             if ( "pgvector".equals( denseBackend ) ) {
                 final int efSearch = Integer.parseInt( props.getProperty(
@@ -145,24 +147,36 @@ public final class SearchWiringHelper {
                 final com.wikantik.search.hybrid.PgVectorChunkVectorIndex pgIndex =
                     new com.wikantik.search.hybrid.PgVectorChunkVectorIndex( ds, modelCode, efSearch );
                 vectorIndex = pgIndex;
-                inMemoryForListener = null;
+                upsertCallback = null;
                 // pgvector keeps its HNSW index in sync via the dual-write INSERT
                 // in EmbeddingIndexService.UPSERT_SQL (Task 7) — no in-memory
                 // snapshot to refresh, so the bootstrap reload hook is a no-op.
                 indexReloadHook = () -> {};
                 LOG.info( "Dense retrieval backend: pgvector HNSW (model={}, ef_search={})",
                     modelCode, efSearch );
+            } else if ( "lucene-hnsw".equals( denseBackend ) ) {
+                final com.wikantik.search.hybrid.HnswParams params =
+                    com.wikantik.search.hybrid.HnswParams.fromProperties( props );
+                final com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex hnswIndex =
+                    new com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex(
+                        ds, modelCode,
+                        com.wikantik.search.hybrid.PgVectorChunkVectorIndex.EMBEDDING_DIM, params );
+                vectorIndex = hnswIndex;
+                upsertCallback = hnswIndex::upsertChunks;
+                indexReloadHook = hnswIndex::reload;
+                LOG.info( "Dense retrieval backend: Lucene HNSW (model={}, m={}, ef_construction={}, ef_search={}, size={})",
+                    modelCode, params.m(), params.efConstruction(), params.efSearch(), hnswIndex.size() );
             } else if ( "inmemory".equals( denseBackend ) ) {
                 final InMemoryChunkVectorIndex memIndex = new InMemoryChunkVectorIndex( ds, modelCode );
                 vectorIndex = memIndex;
-                inMemoryForListener = memIndex;
+                upsertCallback = memIndex::upsertChunks;
                 indexReloadHook = memIndex::reload;
                 engine.registerChunkVectorIndex( memIndex );
                 LOG.info( "Dense retrieval backend: in-memory brute-force (model={}, size={})",
                     modelCode, memIndex.size() );
             } else {
                 throw new IllegalArgumentException(
-                    "wikantik.search.dense.backend must be 'inmemory' or 'pgvector', got: '"
+                    "wikantik.search.dense.backend must be 'inmemory', 'pgvector', or 'lucene-hnsw', got: '"
                     + denseBackend + "'" );
             }
         } catch ( final RuntimeException e ) {
@@ -173,12 +187,11 @@ public final class SearchWiringHelper {
 
         final AsyncEmbeddingIndexListener listener =
             new AsyncEmbeddingIndexListener( indexService, modelCode );
-        // Only set the upsertChunks callback for the in-memory backend.
-        // Under pgvector, EmbeddingIndexService.indexChunks dual-writes the
-        // embedding column via its UPSERT SQL (Task 7), so the HNSW index
-        // stays in sync without any listener-side reload step.
-        if ( inMemoryForListener != null ) {
-            listener.setPostIndexCallback( inMemoryForListener::upsertChunks );
+        // Backends with an in-process index (inmemory, lucene-hnsw) refresh it
+        // incrementally after each embedding write. pgvector dual-writes the embedding
+        // column in EmbeddingIndexService, so it needs no listener-side callback.
+        if ( upsertCallback != null ) {
+            listener.setPostIndexCallback( upsertCallback );
         }
         chunkProjector.setPostChunkSink( listener );
         engine.setHybridIndexListener( listener );
@@ -239,6 +252,16 @@ public final class SearchWiringHelper {
                 com.wikantik.observability.CaffeineCacheMetricsBridge
                     .register( meterRegistry, "frontmatter_metadata", fmCache.cache() );
             }
+        }
+
+        if ( meterRegistry != null
+                && vectorIndex instanceof com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex hnsw ) {
+            meterRegistry.gauge( "wikantik_search_dense_index_size",
+                java.util.List.of( io.micrometer.core.instrument.Tag.of( "backend", "lucene-hnsw" ) ),
+                hnsw, com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex::size );
+            meterRegistry.gauge( "wikantik_search_dense_index_last_rebuild_millis",
+                java.util.List.of( io.micrometer.core.instrument.Tag.of( "backend", "lucene-hnsw" ) ),
+                hnsw, com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex::lastRebuildMillis );
         }
 
         LOG.info( "Hybrid retrieval wired (model={}, embed_backend={}, dense_backend={})",

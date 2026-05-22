@@ -1,44 +1,19 @@
-import { Navigate, Outlet, NavLink } from 'react-router-dom';
+// AdminLayout.jsx
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
+// Content shell for the admin area. Navigation now lives in AdminSidebar (rendered
+// by App.jsx in the rail slot); this component only gates on the Admin role and
+// renders the routed child.
 export default function AdminLayout() {
   const { user, loading } = useAuth();
-
   if (loading) return null;
 
   const isAdmin = user?.authenticated && user?.roles?.includes('Admin');
   if (!isAdmin) return <Navigate to="/wiki/Main" replace />;
 
   return (
-    <div className="admin-layout">
-      <div className="admin-header">
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 600 }}>
-          Administration
-        </h1>
-        <nav className="admin-nav">
-          <NavLink to="/admin/users" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
-            Users
-          </NavLink>
-          <NavLink to="/admin/content" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
-            Content
-          </NavLink>
-          <NavLink to="/admin/security" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
-            Security
-          </NavLink>
-          <NavLink to="/admin/knowledge-graph" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
-            Knowledge Graph
-          </NavLink>
-          <NavLink to="/admin/apikeys" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
-            API Keys
-          </NavLink>
-          <NavLink to="/admin/retrieval-quality" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
-            Retrieval
-          </NavLink>
-          <NavLink to="/admin/kg-policy" className={({ isActive }) => `admin-nav-link ${isActive ? 'active' : ''}`}>
-            KG Policy
-          </NavLink>
-        </nav>
-      </div>
+    <div className="admin-content">
       <Outlet />
     </div>
   );

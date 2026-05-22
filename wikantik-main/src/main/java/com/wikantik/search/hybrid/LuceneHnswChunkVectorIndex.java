@@ -71,16 +71,30 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
     static final String FIELD_CHUNK_ID = "chunk_id";
     static final String FIELD_PAGE     = "page_name";
 
-    private final int dim;
-    private final int efSearch;
-    private final Directory directory;
-    private final IndexWriter writer;
-    private final SearcherManager searcherManager;
+    private final javax.sql.DataSource dataSource;   // null in the test-only constructor
+    private final String modelCode;                  // null in the test-only constructor
+    private int dim;
+    private int efSearch;
+    private Directory directory;
+    private IndexWriter writer;
+    private SearcherManager searcherManager;
     private volatile long lastRebuildMillis;
     // Live doc count cached on the writer thread in commitAndRefresh() so the
     // hot read path (isReady(), called by DenseRetriever before every query)
     // is an O(1) volatile read rather than a second SearcherManager acquire.
     private volatile int cachedSize;
+
+    private static final String LOAD_SQL =
+        "SELECT e.chunk_id, c.page_name, e.dim, e.vec "
+      + "FROM content_chunk_embeddings e "
+      + "JOIN kg_content_chunks c ON c.id = e.chunk_id "
+      + "WHERE e.model_code = ?";
+
+    private static final String LOAD_BY_IDS_SQL =
+        "SELECT e.chunk_id, c.page_name, e.dim, e.vec "
+      + "FROM content_chunk_embeddings e "
+      + "JOIN kg_content_chunks c ON c.id = e.chunk_id "
+      + "WHERE e.model_code = ? AND e.chunk_id = ANY (?)";
 
     /** Test seam: build an empty index of the given dimension, no DB load. */
     static LuceneHnswChunkVectorIndex forTesting( final int dim, final HnswParams params ) {
@@ -88,6 +102,36 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
     }
 
     LuceneHnswChunkVectorIndex( final int dim, final HnswParams params ) {
+        this.dataSource = null;
+        this.modelCode = null;
+        initMachinery( dim, params );
+    }
+
+    /**
+     * Production constructor: builds the index from {@code content_chunk_embeddings}.
+     * Fail-closed — a DB error during the initial load logs {@code WARN} and leaves
+     * an empty index so hybrid retrieval degrades to BM25 rather than blocking boot.
+     */
+    public LuceneHnswChunkVectorIndex( final javax.sql.DataSource dataSource,
+                                       final String modelCode,
+                                       final int dim,
+                                       final HnswParams params ) {
+        if ( dataSource == null ) throw new IllegalArgumentException( "dataSource must not be null" );
+        if ( modelCode == null || modelCode.isBlank() ) {
+            throw new IllegalArgumentException( "modelCode must not be blank" );
+        }
+        this.dataSource = dataSource;
+        this.modelCode = modelCode;
+        initMachinery( dim, params );
+        reload();
+    }
+
+    /** Public accessor for the configured model code (used by the factory test + metrics). */
+    public String modelCode() {
+        return modelCode;
+    }
+
+    private void initMachinery( final int dim, final HnswParams params ) {
         if ( dim <= 0 ) throw new IllegalArgumentException( "dim must be positive, got " + dim );
         java.util.Objects.requireNonNull( params, "params must not be null" );
         this.dim = dim;
@@ -98,7 +142,7 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
             this.writer = new IndexWriter( directory, cfg );
             this.writer.commit();
             this.searcherManager = new SearcherManager( directory, null );
-        } catch ( final IOException e ) {
+        } catch ( final java.io.IOException e ) {
             throw new IllegalStateException( "Failed to initialise Lucene HNSW index", e );
         }
     }
@@ -232,5 +276,77 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
     /** Wall-clock millis of the most recent successful {@link #commitAndRefresh()}. */
     public long lastRebuildMillis() {
         return lastRebuildMillis;
+    }
+
+    /** Full rebuild from the database. Fail-closed: SQL errors log WARN and leave the prior contents. */
+    public void reload() {
+        if ( dataSource == null ) return; // test-only instance
+        try ( java.sql.Connection c = dataSource.getConnection();
+              java.sql.PreparedStatement ps = c.prepareStatement( LOAD_SQL ) ) {
+            ps.setString( 1, modelCode );
+            ps.setFetchSize( 500 );
+            try ( java.sql.ResultSet rs = ps.executeQuery() ) {
+                writer.deleteAll();
+                int loaded = 0;
+                while ( rs.next() ) {
+                    if ( addRow( rs ) ) loaded++;
+                }
+                commitAndRefresh();
+                LOG.info( "Lucene HNSW index loaded: model={} rows={} dim={}", modelCode, loaded, dim );
+            }
+        } catch ( final java.sql.SQLException | java.io.IOException e ) {
+            LOG.warn( "Lucene HNSW reload failed (model={}); prior index contents preserved: {}",
+                modelCode, e.getMessage(), e );
+        }
+    }
+
+    /** Incremental update for a handful of changed chunks (called from the async index listener). */
+    public void upsertChunks( final java.util.Collection< java.util.UUID > chunkIds ) {
+        if ( dataSource == null || chunkIds == null || chunkIds.isEmpty() ) return;
+        final java.util.Set< java.util.UUID > targets = new java.util.HashSet<>( chunkIds );
+        try ( java.sql.Connection c = dataSource.getConnection();
+              java.sql.PreparedStatement ps = c.prepareStatement( LOAD_BY_IDS_SQL ) ) {
+            ps.setString( 1, modelCode );
+            ps.setArray( 2, c.createArrayOf( "uuid", targets.toArray( new java.util.UUID[ 0 ] ) ) );
+            final java.util.Set< java.util.UUID > seen = new java.util.HashSet<>();
+            try ( java.sql.ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) {
+                    final java.util.UUID id = rs.getObject( 1, java.util.UUID.class );
+                    if ( addRow( rs ) ) seen.add( id );
+                }
+            }
+            for ( final java.util.UUID id : targets ) {
+                if ( !seen.contains( id ) ) delete( id );
+            }
+            commitAndRefresh();
+        } catch ( final java.sql.SQLException e ) {
+            LOG.warn( "Lucene HNSW upsert failed (model={}, ids={}); falling back to reload: {}",
+                modelCode, targets.size(), e.getMessage(), e );
+            reload();
+        }
+    }
+
+    /** Decode one result-set row and stage an addOrReplace. Returns false if the row was skipped. */
+    private boolean addRow( final java.sql.ResultSet rs ) throws java.sql.SQLException {
+        final java.util.UUID id = rs.getObject( 1, java.util.UUID.class );
+        final String page = rs.getString( 2 );
+        final int rowDim = rs.getInt( 3 );
+        final byte[] raw = rs.getBytes( 4 );
+        if ( rowDim != dim ) {
+            LOG.warn( "Lucene HNSW: chunk {} dim={} differs from index dim={}, skipping", id, rowDim, dim );
+            return false;
+        }
+        try {
+            final float[] v = ChunkVectorBytes.decode( id, raw, rowDim );
+            if ( v == null ) return false;
+            addOrReplace( id, page, v );
+            return true;
+        } catch ( final IllegalStateException e ) {
+            // Corrupt vector bytes (length mismatch) — skip the row rather than let
+            // the unchecked exception escape reload()/the constructor and disable the
+            // whole backend. Fail-closed: one bad row must not block boot.
+            LOG.warn( "Lucene HNSW: skipping chunk {} with corrupt vector bytes: {}", id, e.getMessage() );
+            return false;
+        }
     }
 }

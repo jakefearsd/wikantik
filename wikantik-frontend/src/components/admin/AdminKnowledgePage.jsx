@@ -81,14 +81,22 @@ export default function AdminKnowledgePage() {
       <p className="tab-description">
         {TABS.find(t => t.id === activeTab)?.description}
       </p>
-      {activeTab === 'proposals' && <ProposalReviewQueue />}
-      {activeTab === 'extraction' && <ExtractionTab />}
-      {activeTab === 'node-explorer' && <GraphExplorer />}
-      {activeTab === 'edge-explorer' && <EdgeExplorer />}
-      {activeTab === 'content-embeddings' && <ContentEmbeddingsTab />}
-      {activeTab === 'hub-proposals' && <HubProposalsTab />}
-      {activeTab === 'hub-discovery' && <HubDiscoveryTab />}
-      {activeTab === 'llm-activity' && <LlmActivityTab />}
+      {/*
+        Each panel is wrapped in a container carrying a stable
+        data-testid="kg-tab-panel-<id>" so integration tests can assert the
+        selected tab's panel mounts without coupling to per-panel text or
+        data-dependent loading/error states.
+      */}
+      <div className="kg-tab-panel" data-testid={`kg-tab-panel-${activeTab}`}>
+        {activeTab === 'proposals' && <ProposalReviewQueue />}
+        {activeTab === 'extraction' && <ExtractionTab />}
+        {activeTab === 'node-explorer' && <GraphExplorer />}
+        {activeTab === 'edge-explorer' && <EdgeExplorer />}
+        {activeTab === 'content-embeddings' && <ContentEmbeddingsTab />}
+        {activeTab === 'hub-proposals' && <HubProposalsTab />}
+        {activeTab === 'hub-discovery' && <HubDiscoveryTab />}
+        {activeTab === 'llm-activity' && <LlmActivityTab />}
+      </div>
     </div>
   );
 }

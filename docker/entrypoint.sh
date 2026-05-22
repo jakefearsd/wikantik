@@ -28,9 +28,11 @@
 #   WIKANTIK_SEED_DEV_USERS      "true" to insert admin/admin123 + testbot
 #                                via bin/db/seed-users.sql (dev only)
 #   WIKANTIK_DENSE_BACKEND       dense retrieval backend override:
-#                                  inmemory | pgvector (default: ini bundle default = inmemory)
+#                                  inmemory | pgvector | lucene-hnsw (default: ini bundle default = inmemory)
 #   WIKANTIK_DENSE_EF_SEARCH     pgvector HNSW ef_search knob (default 100; only used when
-#                                WIKANTIK_DENSE_BACKEND=pgvector)
+#                                WIKANTIK_DENSE_BACKEND=pgvector). The lucene-hnsw backend's
+#                                knobs (m / ef_construction / ef_search) use HnswParams defaults
+#                                unless set via wikantik.search.dense.lucene.* properties.
 #   WIKANTIK_LUCENE_DIRECTORY    Lucene Directory backend: nio | mmap (default: nio)
 #   WIKANTIK_VERSIONING_CACHE_SIZE
 #                                VersioningFileProvider property cache size (default 100;
@@ -119,7 +121,7 @@ EOF
 fi
 
 # Optional: dense-retrieval backend override.
-#   WIKANTIK_DENSE_BACKEND        — inmemory | pgvector  (default from ini bundle: inmemory)
+#   WIKANTIK_DENSE_BACKEND        — inmemory | pgvector | lucene-hnsw  (default from ini bundle: inmemory)
 #   WIKANTIK_DENSE_EF_SEARCH      — pgvector HNSW recall/latency knob (default 100)
 # When unset, the ini-bundle default (inmemory) wins. Setting pgvector
 # requires V032 applied + content_chunk_embeddings.embedding populated

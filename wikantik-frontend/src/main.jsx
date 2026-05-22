@@ -23,6 +23,7 @@ const NewBlogEntry = React.lazy(() => import('./components/NewBlogEntry'));
 const BlogEditor = React.lazy(() => import('./components/BlogEditor'));
 
 const AdminLayout = React.lazy(() => import('./components/admin/AdminLayout'));
+const OverviewDashboard = React.lazy(() => import('./components/admin/OverviewDashboard'));
 const AdminUsersPage = React.lazy(() => import('./components/admin/AdminUsersPage'));
 const AdminContentPage = React.lazy(() => import('./components/admin/AdminContentPage'));
 const AdminSecurityPage = React.lazy(() => import('./components/admin/AdminSecurityPage'));
@@ -33,7 +34,6 @@ const AdminKgPolicyPage = React.lazy(() => import('./components/admin/AdminKgPol
 const AdminKgPolicyExplain = React.lazy(() => import('./components/admin/AdminKgPolicyExplain'));
 const AdminKgPolicyPending = React.lazy(() => import('./components/admin/AdminKgPolicyPending'));
 const AdminKgPolicyBootstrap = React.lazy(() => import('./components/admin/AdminKgPolicyBootstrap'));
-import OverviewDashboard from './components/admin/OverviewDashboard';
 
 const PageGraphView = React.lazy(() => import('./components/pagegraph/PageGraphView.jsx'));
 const KnowledgeGraphView = React.lazy(() => import('./components/kgraph/KnowledgeGraphView.jsx'));

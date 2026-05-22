@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import PageEditLink from './PageEditLink';
+import EmptyState from './EmptyState';
 
 const NO_FM_LIMIT = 50;
 
@@ -130,6 +131,10 @@ export default function ContentEmbeddingsTab() {
             </div>
           )}
         </div>
+      )}
+
+      {noFmTotal === 0 && (
+        <EmptyState message="Every page has frontmatter — nothing to backfill." />
       )}
     </div>
   );

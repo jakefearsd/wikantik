@@ -25,10 +25,12 @@ import org.junit.jupiter.api.Test;
 import javax.sql.DataSource;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -168,17 +170,103 @@ class ApiKeyServiceTest {
     }
 
     @Test
-    void verifyUpdatesLastUsedTimestamp() {
+    void verifyUpdatesLastUsedTimestamp() throws InterruptedException {
         final ApiKeyService.Generated g = service.generate(
                 "alice", null, ApiKeyService.Scope.TOOLS, "admin" );
         assertNull( g.record().lastUsedAt() );
 
         service.verify( g.plaintext() );
 
-        final ApiKeyService.Record reread = service.list().stream()
-                .filter( r -> r.id() == g.record().id() )
-                .findFirst().orElseThrow();
+        // Touch runs async on the first (cache-miss) verify — wait briefly for the executor.
+        final long deadline = System.currentTimeMillis() + 2_000;
+        ApiKeyService.Record reread = null;
+        while ( System.currentTimeMillis() < deadline ) {
+            reread = service.list().stream()
+                    .filter( r -> r.id() == g.record().id() )
+                    .findFirst().orElseThrow();
+            if ( reread.lastUsedAt() != null ) {
+                break;
+            }
+            Thread.sleep( 50 );
+        }
         assertNotNull( reread.lastUsedAt(),
                 "verify() must touch last_used_at so operators can see idle keys" );
+    }
+
+    // -----------------------------------------------------------------------
+    // Caching tests
+    // -----------------------------------------------------------------------
+
+    /** Wraps a DataSource and counts how many times getConnection() is called. */
+    private static class CountingDataSource implements DataSource {
+
+        private final DataSource delegate;
+        final AtomicInteger connectionCount = new AtomicInteger();
+
+        CountingDataSource( final DataSource delegate ) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            connectionCount.incrementAndGet();
+            return delegate.getConnection();
+        }
+
+        @Override
+        public Connection getConnection( final String username, final String password ) throws SQLException {
+            connectionCount.incrementAndGet();
+            return delegate.getConnection( username, password );
+        }
+
+        @Override public <T> T unwrap( final Class<T> iface ) throws SQLException { return delegate.unwrap( iface ); }
+        @Override public boolean isWrapperFor( final Class<?> iface ) throws SQLException { return delegate.isWrapperFor( iface ); }
+        @Override public java.io.PrintWriter getLogWriter() throws SQLException { return delegate.getLogWriter(); }
+        @Override public void setLogWriter( final java.io.PrintWriter out ) throws SQLException { delegate.setLogWriter( out ); }
+        @Override public void setLoginTimeout( final int seconds ) throws SQLException { delegate.setLoginTimeout( seconds ); }
+        @Override public int getLoginTimeout() throws SQLException { return delegate.getLoginTimeout(); }
+        @Override public java.util.logging.Logger getParentLogger() { return java.util.logging.Logger.getLogger( java.util.logging.Logger.GLOBAL_LOGGER_NAME ); }
+    }
+
+    @Test
+    void verify_isCachedAcrossCalls() {
+        // Use a fresh counting wrapper over the shared H2 DataSource.
+        final CountingDataSource counting = new CountingDataSource( dataSource );
+        final ApiKeyService svc = new ApiKeyService( counting );
+
+        final ApiKeyService.Generated g = svc.generate(
+                "carol", "cache-test", ApiKeyService.Scope.ALL, "admin" );
+
+        // First call: cache miss — SELECT runs, touch queued async.
+        final Optional< ApiKeyService.Record > first = svc.verify( g.plaintext() );
+        assertTrue( first.isPresent() );
+        assertEquals( g.record().id(), first.get().id() );
+
+        // Snapshot cache stats after first call.
+        final long missAfterFirst = svc.verifyCacheStats().missCount();
+        final long hitAfterFirst  = svc.verifyCacheStats().hitCount();
+        assertEquals( 1, missAfterFirst, "First call should be a cache miss" );
+        assertEquals( 0, hitAfterFirst,  "No hits yet" );
+
+        // Second call: cache hit — no new SELECT connection on the request thread.
+        final Optional< ApiKeyService.Record > second = svc.verify( g.plaintext() );
+        assertTrue( second.isPresent() );
+        assertEquals( g.record().id(), second.get().id() );
+
+        assertEquals( 1, svc.verifyCacheStats().missCount(), "Miss count unchanged after second call" );
+        assertEquals( 1, svc.verifyCacheStats().hitCount(),  "Second call must be a cache hit" );
+    }
+
+    @Test
+    void verify_unknownTokenCachedAsEmpty() {
+        final CountingDataSource counting = new CountingDataSource( dataSource );
+        final ApiKeyService svc = new ApiKeyService( counting );
+
+        // Both calls return empty; second should be a cache hit.
+        assertTrue( svc.verify( "wkk_does-not-exist" ).isEmpty() );
+        assertTrue( svc.verify( "wkk_does-not-exist" ).isEmpty() );
+
+        assertEquals( 1, svc.verifyCacheStats().missCount(), "Only one DB lookup for unknown token" );
+        assertEquals( 1, svc.verifyCacheStats().hitCount(),  "Second call is a cache hit" );
     }
 }

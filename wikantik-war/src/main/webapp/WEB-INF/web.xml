@@ -407,6 +407,10 @@
        <servlet-class>com.wikantik.rest.AdminLlmActivityResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AdminOverviewResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminOverviewResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminKgPolicyResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminKgPolicyResource</servlet-class>
    </servlet>
@@ -611,6 +615,10 @@
    <servlet-mapping>
        <servlet-name>AdminLlmActivityResource</servlet-name>
        <url-pattern>/admin/llm-activity</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminOverviewResource</servlet-name>
+       <url-pattern>/admin/overview</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminKgPolicyResource</servlet-name>

@@ -23,11 +23,15 @@ import org.junit.jupiter.api.*;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
+import java.io.PrintWriter;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -277,6 +281,93 @@ class MentionIndexTest {
         assertTrue( idx.findRelatedPagesBatch( null, 5 ).isEmpty() );
         assertTrue( idx.findRelatedPagesBatch( List.of(), 5 ).isEmpty() );
         assertTrue( idx.findRelatedPagesBatch( List.of( "Foo" ), 0 ).isEmpty() );
+    }
+
+    @Test
+    void findRelatedPages_isCachedPerPage() throws Exception {
+        final UUID bm25  = UUID.randomUUID();
+        final UUID qwen3 = UUID.randomUUID();
+        seedNode( bm25,  "BM25" );
+        seedNode( qwen3, "Qwen3" );
+        final UUID a1 = UUID.randomUUID();
+        final UUID b1 = UUID.randomUUID();
+        seedChunk( a1, "CacheAlpha", 0 );
+        seedChunk( b1, "CacheBeta",  0 );
+        seedMention( a1, bm25,  0.9 ); seedMention( a1, qwen3, 0.9 );
+        seedMention( b1, bm25,  0.9 );
+
+        final CountingDataSource counting = new CountingDataSource( dataSource );
+        final MentionIndex idx = new MentionIndex( counting );
+
+        final var first  = idx.findRelatedPages( "CacheAlpha", 5 );
+        final int afterFirst = counting.connectionCount();
+        final var second = idx.findRelatedPages( "CacheAlpha", 5 );
+
+        assertEquals( first, second, "cached call returns identical results" );
+        assertEquals( afterFirst, counting.connectionCount(),
+            "second call must be served from the cache — no new DB connection" );
+        assertEquals( 1, idx.relatedCacheStats().hitCount(),
+            "second call should register exactly one cache hit" );
+    }
+
+    @Test
+    void findRelatedPagesBatch_servesCachedPagesAndQueriesOnlyMisses() throws Exception {
+        final UUID bm25  = UUID.randomUUID();
+        final UUID qwen3 = UUID.randomUUID();
+        seedNode( bm25,  "BM25" );
+        seedNode( qwen3, "Qwen3" );
+        final UUID a1 = UUID.randomUUID();
+        final UUID b1 = UUID.randomUUID();
+        seedChunk( a1, "WarmA", 0 );
+        seedChunk( b1, "ColdB", 0 );
+        seedMention( a1, bm25,  0.9 ); seedMention( a1, qwen3, 0.9 );
+        seedMention( b1, bm25,  0.9 );
+
+        final CountingDataSource counting = new CountingDataSource( dataSource );
+        final MentionIndex idx = new MentionIndex( counting );
+
+        // Warm the cache for A.
+        final var warmed = idx.findRelatedPages( "WarmA", 5 );
+        counting.reset();
+
+        final var batch = idx.findRelatedPagesBatch( List.of( "WarmA", "ColdB" ), 5 );
+
+        assertTrue( batch.containsKey( "WarmA" ) );
+        assertTrue( batch.containsKey( "ColdB" ) );
+        assertEquals( warmed, batch.get( "WarmA" ),
+            "WarmA must be served from the cache and equal the warmed value" );
+        assertEquals( 1, counting.connectionCount(),
+            "batch should open exactly one connection — for the ColdB miss only" );
+    }
+
+    /**
+     * DataSource decorator that counts {@link #getConnection()} calls so tests
+     * can assert exactly how many DB connections a code path opened.
+     */
+    private static final class CountingDataSource implements DataSource {
+        private final DataSource delegate;
+        private final AtomicInteger connections = new AtomicInteger();
+
+        CountingDataSource( final DataSource delegate ) { this.delegate = delegate; }
+
+        int connectionCount() { return connections.get(); }
+        void reset() { connections.set( 0 ); }
+
+        @Override public Connection getConnection() throws SQLException {
+            connections.incrementAndGet();
+            return delegate.getConnection();
+        }
+        @Override public Connection getConnection( String u, String p ) throws SQLException {
+            connections.incrementAndGet();
+            return delegate.getConnection( u, p );
+        }
+        @Override public PrintWriter getLogWriter() throws SQLException { return delegate.getLogWriter(); }
+        @Override public void setLogWriter( PrintWriter w ) throws SQLException { delegate.setLogWriter( w ); }
+        @Override public void setLoginTimeout( int s ) throws SQLException { delegate.setLoginTimeout( s ); }
+        @Override public int getLoginTimeout() throws SQLException { return delegate.getLoginTimeout(); }
+        @Override public Logger getParentLogger() { return Logger.getLogger( "CountingDataSource" ); }
+        @Override public < T > T unwrap( Class< T > iface ) throws SQLException { return delegate.unwrap( iface ); }
+        @Override public boolean isWrapperFor( Class< ? > iface ) throws SQLException { return delegate.isWrapperFor( iface ); }
     }
 
     @Test

@@ -18,6 +18,8 @@
  */
 package com.wikantik.knowledge;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.wikantik.kgpolicy.KgInclusionFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,6 +30,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -71,11 +74,34 @@ public class MentionIndex {
       + "   AND kgxm.page_name IS NULL "
       + " GROUP BY m2.node_id";
 
+    private static final long RELATED_TTL_SECONDS = 300L;
+
     private final DataSource dataSource;
+
+    /**
+     * Read-through cache for {@link #findRelatedPages} / {@link #findRelatedPagesBatch}.
+     * Keyed by {@code pageName + " " + limit} (see {@link #cacheKey}). Empty results
+     * are cached too, so pages with no shared mentions don't re-query every search.
+     */
+    private final Cache< String, List< RelatedByMention > > relatedCache = Caffeine.newBuilder()
+            .expireAfterWrite( Duration.ofSeconds( RELATED_TTL_SECONDS ) )
+            .maximumSize( 50_000 )
+            .recordStats()
+            .build();
 
     public MentionIndex( final DataSource dataSource ) {
         if ( dataSource == null ) throw new IllegalArgumentException( "dataSource required" );
         this.dataSource = dataSource;
+    }
+
+    /** Cache key includes the limit so different limits don't alias each other. */
+    private static String cacheKey( final String pageName, final int limit ) {
+        return pageName + " " + limit;
+    }
+
+    /** Test accessor for the related-pages cache statistics. */
+    com.github.benmanes.caffeine.cache.stats.CacheStats relatedCacheStats() {
+        return relatedCache.stats();
     }
 
     public boolean isMentioned( final UUID nodeId ) {
@@ -172,6 +198,15 @@ public class MentionIndex {
         if ( pageName == null || pageName.isBlank() || limit <= 0 ) {
             return List.of();
         }
+        return relatedCache.get( cacheKey( pageName, limit ), k -> queryRelatedPages( pageName, limit ) );
+    }
+
+    /**
+     * Executes the related-pages SELECT for a single page. This is the
+     * cache loader behind {@link #findRelatedPages}; it returns an empty
+     * list (never null) when there are no rows, which Caffeine will cache.
+     */
+    private List< RelatedByMention > queryRelatedPages( final String pageName, final int limit ) {
         final String sql =
             "SELECT other_c.page_name, "
           + "       ARRAY_AGG( DISTINCT n.name ) AS shared_entities, "
@@ -253,16 +288,25 @@ public class MentionIndex {
           + " ORDER BY shared_count DESC, other_c.page_name ASC "
           + " LIMIT ?";
         final Map< String, List< RelatedByMention > > out = new LinkedHashMap<>();
+        final List< String > uncached = new ArrayList<>();
         // Pre-seed an empty list for every input name so callers can rely on
-        // map.get(name) never returning null. Pages with zero related matches
-        // stay as the empty list set here.
+        // map.get(name) never returning null. Pages already cached are served
+        // straight from the cache; the rest are collected for the batched query.
         for ( final String name : pageNames ) {
-            if ( name != null && !name.isBlank() ) out.put( name, List.of() );
+            if ( name == null || name.isBlank() || out.containsKey( name ) ) continue;
+            final List< RelatedByMention > cached = relatedCache.getIfPresent( cacheKey( name, limit ) );
+            if ( cached != null ) {
+                out.put( name, cached );
+            } else {
+                out.put( name, List.of() );
+                uncached.add( name );
+            }
         }
         if ( out.isEmpty() ) return Map.of();
+        if ( uncached.isEmpty() ) return out;
         try ( Connection c = dataSource.getConnection();
               PreparedStatement ps = c.prepareStatement( sql ) ) {
-            for ( final String pageName : out.keySet() ) {
+            for ( final String pageName : uncached ) {
                 ps.setString( 1, pageName );
                 ps.setInt( 2, limit );
                 final List< RelatedByMention > forPage = new ArrayList<>();
@@ -276,7 +320,11 @@ public class MentionIndex {
                     }
                 }
                 ps.clearParameters();
-                if ( !forPage.isEmpty() ) out.put( pageName, forPage );
+                final List< RelatedByMention > result = List.copyOf( forPage );
+                out.put( pageName, result );
+                // Negatively cache empty results too, so pages with no shared
+                // mentions don't re-query on every search.
+                relatedCache.put( cacheKey( pageName, limit ), result );
             }
         } catch ( final SQLException e ) {
             LOG.warn( "MentionIndex.findRelatedPagesBatch failed for {} pages: {}",
@@ -284,7 +332,8 @@ public class MentionIndex {
             // Fall back to a per-name retry loop on the next call shape: callers
             // can simply re-attempt via single-name findRelatedPages if the
             // batched path failed. We return what we managed to compute so far
-            // rather than zeroing out all results.
+            // rather than zeroing out all results. Pages that failed are NOT
+            // cached so a subsequent call can retry them.
         }
         return out;
     }

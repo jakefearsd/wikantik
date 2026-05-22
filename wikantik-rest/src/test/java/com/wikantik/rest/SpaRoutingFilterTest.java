@@ -261,6 +261,20 @@ class SpaRoutingFilterTest {
         assertTrue( capturedOutput.asString().contains( "<div id=\"root\">" ) );
     }
 
+    @Test
+    void testBareAdminLandingServesIndexHtml() throws Exception {
+        // The admin shell's Overview landing is the bare /admin path (no trailing
+        // segment). It must be served the SPA shell on direct navigation / reload,
+        // not 404. Regression: /admin matched neither the /admin/ prefix nor any
+        // SPA_EXACT entry, so it fell through to a 404.
+        final HttpServletRequest request = mockRequest( "/admin" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        assertTrue( capturedOutput.asString().contains( "<div id=\"root\">" ) );
+    }
+
     // ---- Passthrough tests (API calls with non-HTML Accept) ----
 
     @Test

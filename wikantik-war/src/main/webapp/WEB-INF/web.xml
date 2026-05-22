@@ -163,6 +163,7 @@
      <url-pattern>/wiki/*</url-pattern>
      <url-pattern>/edit/*</url-pattern>
      <url-pattern>/diff/*</url-pattern>
+     <url-pattern>/admin</url-pattern>
      <url-pattern>/admin/*</url-pattern>
      <url-pattern>/search</url-pattern>
      <url-pattern>/graph</url-pattern>

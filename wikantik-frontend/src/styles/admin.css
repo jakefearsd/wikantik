@@ -877,3 +877,18 @@
 
 /* ── Admin density layer (tool-grade data regions; chrome stays editorial) ── */
 .admin-content { font-family: var(--font-ui); }
+
+/* ── Page header (uniform across admin pages) ────────────────────── */
+.page-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--space-md); margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md); border-bottom: 1px solid var(--border);
+}
+.page-header-title {
+  font-family: var(--font-display); font-size: 1.375rem; font-weight: 600; margin: 0;
+}
+.page-header-desc {
+  font-family: var(--font-ui); font-size: 0.8125rem; color: var(--text-secondary);
+  margin: 4px 0 0;
+}
+.page-header-actions { display: flex; gap: var(--space-sm); flex-shrink: 0; }

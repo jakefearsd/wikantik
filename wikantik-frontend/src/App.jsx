@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
+import AdminSidebar from './components/admin/AdminSidebar';
 import { useAuth } from './hooks/useAuth';
 
 export default function App() {
@@ -47,13 +48,17 @@ export default function App() {
       {mobileOpen && (
         <div className="sidebar-backdrop" onClick={() => setMobileOpen(false)} />
       )}
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(c => !c)}
-        mobileOpen={mobileOpen}
-        onMobileClose={() => setMobileOpen(false)}
-        onMobileOpen={() => setMobileOpen(true)}
-      />
+      {isAdminRoute ? (
+        <AdminSidebar />
+      ) : (
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(c => !c)}
+          mobileOpen={mobileOpen}
+          onMobileClose={() => setMobileOpen(false)}
+          onMobileOpen={() => setMobileOpen(true)}
+        />
+      )}
       <main className={`app-main ${sidebarCollapsed ? 'expanded' : ''}`}>
         <div className={`app-content${(isEditorRoute || isAdminRoute) ? ' app-content-wide' : ''}${isGraphRoute ? ' app-content-full' : ''}`}>
           <Outlet />

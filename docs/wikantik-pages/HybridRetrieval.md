@@ -86,6 +86,44 @@ wikantik.search.hybrid.dense.page-top  = 100
 
 `chunk-top` is the cosine top-K from the in-memory index; `page-top` caps how many pages survive after `PageAggregation.SUM_TOP_3` collapses their chunk scores.
 
+### Dense backend selection
+
+```
+wikantik.search.dense.backend = inmemory
+```
+
+Three backends are available:
+
+| Value | Description |
+|-------|-------------|
+| `inmemory` | Brute-force float[] cosine scan over all chunks. Simple and exact, but O(N) per query — CPU cost grows linearly with corpus size. Default. |
+| `pgvector` | Delegates to PostgreSQL's HNSW index on `content_chunk_embeddings.embedding` (V032). Offloads CPU to the DB; requires the backfill one-shot. |
+| `lucene-hnsw` | In-process Lucene HNSW approximate nearest-neighbour index. Held in RAM; rebuilt on boot from `content_chunk_embeddings`. See below. |
+
+#### `lucene-hnsw` — in-process HNSW
+
+The Lucene HNSW backend is the third selectable value of `wikantik.search.dense.backend`. It builds a [Hierarchical Navigable Small World](https://arxiv.org/abs/1603.09320) approximate nearest-neighbour index inside the JVM process using a Lucene `ByteBuffersDirectory` (pure RAM; no disk I/O). It is rebuilt on every boot by scanning `content_chunk_embeddings` and is updated incrementally on page save via `AsyncEmbeddingIndexListener`.
+
+**When to choose it over `inmemory`:** the brute-force scan is O(N) over every chunk for every query. At a few thousand chunks the cost is negligible, but as the corpus grows the query CPU bill compounds. The HNSW graph visits only a few hundred candidates per query regardless of corpus size (~95%+ recall), recovering CPU without sacrificing meaningful relevance — hybrid BM25 + graph rerank further cushions the approximation gap.
+
+**When to choose `pgvector` instead:** if you want to offload the ANN computation to Postgres entirely (e.g. the JVM heap is the bottleneck, or you want the pg stats), use `pgvector`. The `lucene-hnsw` backend keeps the index in the JVM heap, so it increases heap pressure in proportion to `(num_chunks × embedding_dimension × 4 bytes)`.
+
+**Tuning knobs** — defaults mirror the pgvector HNSW index:
+
+| Property | Default | Meaning |
+|----------|---------|---------|
+| `wikantik.search.dense.lucene.m` | `16` | Graph degree — max edges per node. Higher = better recall, more RAM and build time. |
+| `wikantik.search.dense.lucene.ef_construction` | `64` | Build beam width — candidate pool during index construction. Higher = better graph quality, slower boot. |
+| `wikantik.search.dense.lucene.ef_search` | `100` | Query candidate pool. Higher = better recall, more CPU per query. Tune like `pgvector.ef_search`. |
+
+All three are commented out in `wikantik.properties`; the code defaults in `HnswParams` apply unless an operator overrides them.
+
+**Lifecycle:** the bytea embedding column in `content_chunk_embeddings` is always the source of truth. The in-RAM index is a derived cache — if the process restarts, it rebuilds. The rebuild is async; dense retrieval degrades to BM25-only until the index is ready (same behaviour as `inmemory` during bootstrap).
+
+**Scale note:** at the current ~12k-chunk scale this backend is well within reason. At tens to hundreds of thousands of chunks the boot-time rebuild and heap footprint may justify switching to a persistent on-disk Lucene directory; revisit when chunk count approaches ~10⁵.
+
+Design spec: `docs/superpowers/specs/2026-05-22-lucene-hnsw-dense-retrieval-design.md`.
+
 ### Embedding backend
 
 ```

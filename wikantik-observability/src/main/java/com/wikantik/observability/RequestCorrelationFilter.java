@@ -31,6 +31,7 @@ import org.apache.logging.log4j.ThreadContext;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Servlet filter that generates a unique request ID for each HTTP request and enriches
@@ -97,7 +98,12 @@ public class RequestCorrelationFilter implements Filter {
         if ( incoming != null && !incoming.isBlank() ) {
             return incoming.trim();
         }
-        return UUID.randomUUID().toString();
+        // Correlation IDs need uniqueness, not unpredictability. UUID.randomUUID()
+        // draws from a shared SecureRandom whose DRBG is synchronized — every request
+        // serialized on that lock here, upstream of the backpressure gate. Build the
+        // id from ThreadLocalRandom instead: lock-free, per-thread, same 36-char form.
+        final ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        return new UUID( rnd.nextLong(), rnd.nextLong() ).toString();
     }
 
 }

@@ -254,15 +254,9 @@ public final class SearchWiringHelper {
             }
         }
 
-        if ( meterRegistry != null
-                && vectorIndex instanceof com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex hnsw ) {
-            meterRegistry.gauge( "wikantik_search_dense_index_size",
-                java.util.List.of( io.micrometer.core.instrument.Tag.of( "backend", "lucene-hnsw" ) ),
-                hnsw, com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex::size );
-            meterRegistry.gauge( "wikantik_search_dense_index_last_rebuild_millis",
-                java.util.List.of( io.micrometer.core.instrument.Tag.of( "backend", "lucene-hnsw" ) ),
-                hnsw, com.wikantik.search.hybrid.LuceneHnswChunkVectorIndex::lastRebuildMillis );
-        }
+        // Lucene HNSW size + last-rebuild gauges are published by HybridMetricsBridge
+        // (above) under the standard wikantik.search.hybrid.vector_index.* names, so
+        // dashboards watching the inmemory/pgvector backends cover lucene-hnsw too.
 
         LOG.info( "Hybrid retrieval wired (model={}, embed_backend={}, dense_backend={})",
             modelCode, cfg.backend(), denseBackend );

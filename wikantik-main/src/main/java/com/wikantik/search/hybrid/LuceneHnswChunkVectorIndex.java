@@ -188,15 +188,24 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
         }
     }
 
-    /** Commit pending writes and refresh the searcher so queries see them. */
-    public void commitAndRefresh() {
+    /**
+     * Commit pending writes and refresh the searcher so queries see them.
+     *
+     * @return {@code true} if the commit + refresh succeeded; {@code false} if it
+     *         failed (logged WARN). A {@code false} return means staged writes are
+     *         not yet visible — callers that need durability should recover (e.g.
+     *         {@code upsertChunks} falls back to a full {@link #reload()}).
+     */
+    public boolean commitAndRefresh() {
         try {
             writer.commit();
             searcherManager.maybeRefresh();
             cachedSize = size();
             lastRebuildMillis = System.currentTimeMillis();
+            return true;
         } catch ( final IOException e ) {
             LOG.warn( "Lucene HNSW commit/refresh failed: {}", e.getMessage(), e );
+            return false;
         }
     }
 
@@ -318,7 +327,14 @@ public final class LuceneHnswChunkVectorIndex implements ChunkVectorIndex {
             for ( final java.util.UUID id : targets ) {
                 if ( !seen.contains( id ) ) delete( id );
             }
-            commitAndRefresh();
+            if ( !commitAndRefresh() ) {
+                // Commit/refresh failed: the staged adds/deletes are not visible.
+                // Recover with a full reload so the index doesn't silently serve a
+                // stale view until the next successful write.
+                LOG.warn( "Lucene HNSW upsert commit failed (model={}, ids={}); rebuilding via reload",
+                    modelCode, targets.size() );
+                reload();
+            }
         } catch ( final java.sql.SQLException e ) {
             LOG.warn( "Lucene HNSW upsert failed (model={}, ids={}); falling back to reload: {}",
                 modelCode, targets.size(), e.getMessage(), e );

@@ -82,6 +82,14 @@ public final class HybridMetricsBridge {
             Gauge.builder( PFX + ".vector_index.size", pg, PgVectorChunkVectorIndex::size )
                 .description( "Chunk vectors stored in pgvector for the active embedding model" )
                 .register( registry );
+        } else if( vectorIndex instanceof LuceneHnswChunkVectorIndex hnsw ) {
+            Gauge.builder( PFX + ".vector_index.size", hnsw, LuceneHnswChunkVectorIndex::size )
+                .description( "Chunk vectors held by the in-process Lucene HNSW index" )
+                .register( registry );
+            Gauge.builder( PFX + ".vector_index.last_rebuild_millis", hnsw,
+                    LuceneHnswChunkVectorIndex::lastRebuildMillis )
+                .description( "Epoch millis of the last Lucene HNSW index commit/refresh" )
+                .register( registry );
         }
         if( bootstrap != null ) {
             registerBootstrap( registry, bootstrap );

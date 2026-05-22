@@ -22,9 +22,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.sql.DataSource;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -396,24 +393,7 @@ public final class InMemoryChunkVectorIndex implements ChunkVectorIndex {
     }
 
     private static float[] decodeVector( final UUID id, final byte[] raw, final int dim ) {
-        if ( raw == null ) {
-            LOG.warn( "ChunkVectorIndex: chunk {} has null vec, skipping", id );
-            return null;
-        }
-        if ( raw.length != dim * Float.BYTES ) {
-            LOG.warn( "ChunkVectorIndex: chunk {} vec bytes={} expected {} (dim={}), skipping",
-                id, raw.length, dim * Float.BYTES, dim );
-            throw new IllegalStateException( "Corrupt vector bytes for chunk " + id
-                + ": got " + raw.length + " bytes, expected " + ( dim * Float.BYTES ) );
-        }
-        final float[] out = new float[ dim ];
-        final FloatBuffer fb = ByteBuffer.wrap( raw ).order( ByteOrder.LITTLE_ENDIAN ).asFloatBuffer();
-        fb.get( out );
-        if ( out.length != dim ) {
-            throw new IllegalStateException( "Decoded vector length " + out.length
-                + " != declared dim " + dim + " for chunk " + id );
-        }
-        return out;
+        return ChunkVectorBytes.decode( id, raw, dim );
     }
 
     private static void normalizeInPlace( final float[] v ) {

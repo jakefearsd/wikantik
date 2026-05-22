@@ -59,8 +59,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  * up to 60 s before timing out.</p>
  *
  * <p><strong>Configuration:</strong> permit count comes from the
- * {@code WIKANTIK_MAX_INFLIGHT_REQUESTS} env var (default 700, picked one
- * notch above docker1's measured-comfortable N=650 sustained ceiling).
+ * {@code WIKANTIK_MAX_INFLIGHT_REQUESTS} env var (default 390). The cap must be
+ * set <em>below</em> the Tomcat connector's {@code maxThreads} (400 on docker1):
+ * the filter runs on a worker thread, so in-flight requests can never exceed
+ * {@code maxThreads}, and a cap at or above it can never fire. 390 sheds when
+ * ~390 of 400 threads are busy, reserving a handful to fast-serve the 503s.
  * Setting it to {@code 0} or negative disables the filter (no-op pass-through).</p>
  *
  * <p><strong>Exemptions:</strong> health checks ({@code /api/health}) and the
@@ -87,8 +90,13 @@ public class BackpressureFilter implements Filter {
     /** Env var carrying the permit cap. Read once at init. */
     public static final String ENV_MAX_INFLIGHT = "WIKANTIK_MAX_INFLIGHT_REQUESTS";
 
-    /** Default permit cap when the env var is unset / blank / unparsable. */
-    public static final int DEFAULT_MAX_INFLIGHT = 700;
+    /**
+     * Default permit cap when the env var is unset / blank / unparsable. Set
+     * just below the canonical {@code maxThreads=400} so the gate actually binds
+     * (a cap >= maxThreads can never fire — the filter holds permits on worker
+     * threads). Deployments with a different maxThreads should set the env var.
+     */
+    public static final int DEFAULT_MAX_INFLIGHT = 390;
 
     /**
      * Path prefixes that bypass the semaphore. Kept tiny — adding routes here

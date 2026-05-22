@@ -54,17 +54,21 @@ export default function OverviewDashboard() {
 
   if (error) return <div className="error-banner">{error}</div>;
   const d = data || {};
+  // Honor both degradation signals: a card is degraded if its key is absent OR
+  // listed in the server's `degraded` array (even when a partial object came back).
+  const cards = { ...d };
+  if (Array.isArray(d.degraded)) d.degraded.forEach((k) => { delete cards[k]; });
 
   return (
     <div className="dashboard page-enter">
       <PageHeader title="Overview" description="Everything you administer, at a glance." />
       <div className="dashboard-section-title">Status &amp; action</div>
       <div className="dashboard-grid status">
-        {statusCards(d).map(({ key, render }) => <div key={key}>{render(d[key])}</div>)}
+        {statusCards(cards).map(({ key, render }) => <div key={key}>{render(cards[key])}</div>)}
       </div>
       <div className="dashboard-section-title">System metrics</div>
       <div className="dashboard-grid metrics">
-        {metricCards(d).map(({ key, render }) => <div key={key}>{render(d[key])}</div>)}
+        {metricCards(cards).map(({ key, render }) => <div key={key}>{render(cards[key])}</div>)}
       </div>
     </div>
   );

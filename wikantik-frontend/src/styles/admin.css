@@ -2,49 +2,6 @@
    Admin Panel Styles
    ============================================================ */
 
-.admin-layout {
-  max-width: 1320px;
-}
-
-.admin-header {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-xl);
-  row-gap: var(--space-sm);
-  margin-bottom: var(--space-xl);
-  padding-bottom: var(--space-md);
-  border-bottom: 2px solid var(--border);
-}
-
-.admin-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-}
-
-.admin-nav-link {
-  font-family: var(--font-ui);
-  font-size: 0.85rem;
-  font-weight: 500;
-  padding: var(--space-xs) var(--space-md);
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  transition: all var(--duration) var(--ease);
-}
-
-.admin-nav-link:hover {
-  color: var(--text);
-  background: var(--border);
-}
-
-.admin-nav-link.active {
-  color: var(--accent);
-  background: var(--sage-light);
-}
-
 /* Toolbar */
 .admin-toolbar {
   display: flex;
@@ -898,6 +855,7 @@
   text-align: center; padding: var(--space-2xl) var(--space-md); color: var(--text-muted);
 }
 .admin-empty-message { font-family: var(--font-ui); font-size: 0.9375rem; margin: 0 0 var(--space-md); }
+.admin-empty-action { display: flex; justify-content: center; gap: var(--space-sm); }
 
 /* ── Hybrid table density (tool-grade rows; titles stay serif) ───── */
 .admin-table { font-family: var(--font-ui); font-size: 0.8125rem; }

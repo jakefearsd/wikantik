@@ -509,6 +509,90 @@ The 5.96 s tail outlier from sweep #7 (highlighter-off, low concurrency) remains
 
 ---
 
+## 14. Campaign 2026-05-22 — past the CPU claim: the DB pool and the lock chain
+
+The 2026-05-21 study concluded the host was "genuinely CPU-bound." Pushing
+harder (a deliberately search-heavy mix at N=1200–3000, well past the earlier
+N=650 ceiling) showed that was premature: the real limiters were a per-request
+DB-connection tax and a chain of shared-lock hotspots. The diagnostic tools that
+mattered were **JVM thread dumps under load** (`jcmd 1 Thread.print`, 5 dumps a
+few seconds apart) cross-referenced with **host CPU from jakemon's Prometheus** —
+because the signature of a concurrency bottleneck is *high latency + high
+load-average + moderate CPU* (blocked threads burn no CPU).
+
+### 14.1 Dense backend → Lucene HNSW (+ DocValues)
+
+JFR at N=350 showed the in-memory brute-force dense scan
+(`InMemoryChunkVectorIndex.dotAt`) at ~49 %, total dense path ~60 % of CPU — an
+O(N) dot product over all ~12k chunk vectors per query. Replaced with an
+in-process **Lucene HNSW** ANN index (`WIKANTIK_DENSE_BACKEND=lucene-hnsw`); the
+vector math dropped to ~13 % (`PanamaVectorUtilSupport.cosineBody` + HNSW
+traversal). A first cut stored `chunk_id`/`page_name` as Lucene **stored fields**
+and read them back per candidate — which decompressed an LZ4 block per hit and
+became ~44 % of CPU. Fixed by retrieving via **DocValues** (columnar, no
+decompression). Parity gate: lucene-hnsw within 0.02 nDCG@5 of brute force on a
+real pgvector container. Specs:
+[lucene-hnsw](superpowers/specs/2026-05-22-lucene-hnsw-dense-retrieval-design.md),
+[DocValues](superpowers/specs/2026-05-22-hnsw-docvalues-retrieval-design.md).
+
+**Lesson:** CPU *composition* (where the cycles go) is a more reliable signal
+from a single JFR than throughput, which the closed-loop think-time load model
+caps below CPU saturation. The HNSW win is real CPU headroom, but it did not move
+throughput — because CPU was never the limiter at the loads that hurt.
+
+### 14.2 The real ceiling — DB connection pool exhaustion
+
+At N=1200 the system collapsed to 233 RPS, p95 11 s, **while CPU sat at ~44 %**
+(no core pegged). Thread dump: **all 400 Tomcat workers parked in
+`GenericObjectPool.borrowObject`** waiting for one of 90 DBCP connections; p95
+≈ `maxWaitMillis` (10 s). The 90-connection pool is pressed against Postgres's
+`max_connections` (100, default), so "just raise the pool" isn't available. The
+search-heavy mix drained the pool via several per-request DB hits, the worst
+being `ApiKeyService.verify` (two connections per authenticated request).
+
+Fixed with short-TTL Caffeine caches on the three uncached per-request lookups —
+API-key verify (60 s, evict on revoke), `JDBCUserDatabase.findByLoginName` (60 s,
+evict on mutation), `MentionIndex` related-pages (5 min). Result at N=1200:
+**233 → 825 RPS, p95 11 s → 361 ms, 0 of 385 workers blocked** (was 400/400).
+
+### 14.3 The lock chain — shared JDK objects on the per-request path
+
+With the pool fixed, pushing to N=3000 (CPU now ~98 %) surfaced a sequence of
+class-monitor hotspots, each a shared JDK object instantiated *per request*:
+
+| Hotspot | Path | Fix |
+|---|---|---|
+| `Collator.getInstance()` | `PrincipalComparator.compare` (sorts principals on every authz check) | per-thread `Collator` (ThreadLocal) |
+| `TimeZone.getTimeZone()` | `RestServletBase` Gson date serializer (every JSON Date) | one static `DateTimeFormatter` (java.time, thread-safe) |
+| `SecureRandom` / DRBG | `UUID.randomUUID()` in `RequestCorrelationFilter` (every request id) — **upstream of the backpressure gate** | `ThreadLocalRandom`-built id |
+
+Each removal cut 250–333 of 400 workers out of `BLOCKED`. After all three,
+served latency at the 3000-VU (3–4×) overload reached **median 93 ms / p95
+1.14 s**, with the admission gate fast-503'ing the excess.
+
+### 14.4 The admission gate had to be fixed to fire at all
+
+`BackpressureFilter`'s default of 700 (and prod's 700) **could never fire**: the
+filter holds permits on worker threads, so in-flight is capped at `maxThreads`
+(400) first — `rejected_total` stayed 0 even at 3000 VUs. Set to **390** (just
+below `maxThreads`) it now sheds cleanly, reserving a few threads to fast-serve
+the 503s. `maxThreads` stays 400 (600 oversubscribed this CPU-bound host per
+2026-05-21). `maxWaitMillis` cut 10 s → 5 s now that the pool isn't the
+bottleneck.
+
+### 14.5 Where it stands and what's left
+
+After these fixes the box is — finally, genuinely — CPU-bound at ~98 % for the
+search-saturated mix. Lock-peeling was stopped here; the next layers seen but not
+chased (all CPU-wall territory): `TimeZone.getTimeZone` *inside SnakeYAML*
+(YAML frontmatter parsed per request — the real fix is caching parsed
+frontmatter), `WikiSession.guestSession` `SecureRandom`, and **PgBouncer** to
+grow app concurrency past Postgres's connection ceiling. Caveat: the test mix is
+~1.2 : 1 search : page-read, far heavier than real traffic (≥ 5 : 1), so these
+numbers are a worst case — production headroom is larger.
+
+---
+
 ## Raw data
 
 All per-step k6 outputs, curl-probe samples, and jakemon snapshots are in `loadtest/results/sweep{1..9}-<N>vu-{k6,curl,host}.{log,json}` and `loadtest/results/ramp{500,650,800}vu-*`. JFR captures live at `loadtest/results/sweep{3,4,5,7,8,9}-300vu.jfr` for offline analysis with `jfr print` or JMC. The directory is gitignored (raw data is reproducible, not versioned).

@@ -32,6 +32,73 @@ Deployments follow a "push-on-green" methodology. Upon failure of a health check
 ### 1.3 Bare-Metal Deployment
 Deploying to a bare-metal server involves unpacking Tomcat locally and deploying the `.war`. This process is automated using the `bin/deploy-local.sh` script, which configures context templates and manages JDBC drivers.
 
+### 1.5 Performance & concurrency tuning
+
+The reference target is the 16-core / 32 GB docker1 host. These are the knobs
+that matter for throughput and overload behavior, with the reasoning behind each
+value. Most are environment variables consumed by `docker/entrypoint.sh`; the
+Tomcat connector and DBCP pool live in `docker/config/server.xml` and the
+generated `ROOT.xml` respectively.
+
+**Dense retrieval**
+
+| Setting | Value | Why |
+|---|---|---|
+| `WIKANTIK_DENSE_BACKEND` (`wikantik.search.dense.backend`) | `lucene-hnsw` | In-process Lucene HNSW ANN; replaced the brute-force scan that was ~60 % of search CPU. Alternatives: `inmemory` (exact brute force, the rollback), `pgvector` (server-side, for split-DB topologies). |
+| `wikantik.search.dense.lucene.m` / `.ef_construction` / `.ef_search` | 16 / 64 / 100 | HNSW graph degree, build beam width, query candidate pool. Match the pgvector index; held parity within 0.02 nDCG@5 of brute force. |
+
+Rollback is a one-line flip to `inmemory` (rebuilds from the same `bytea` column);
+the index is held in RAM and rebuilt on boot from `content_chunk_embeddings`.
+
+**Admission control & concurrency**
+
+| Setting | Value | Why |
+|---|---|---|
+| `WIKANTIK_MAX_INFLIGHT_REQUESTS` (backpressure semaphore) | **390** | **Must be below Tomcat `maxThreads`** — the `BackpressureFilter` holds permits on worker threads, so a cap ≥ `maxThreads` can never fire (the old default of 700 was inert). 390 sheds `503 + Retry-After` when ~390 of 400 threads are busy, reserving a few to fast-serve the rejections. `0`/negative disables the filter. |
+| Tomcat `maxThreads` (`server.xml`) | 400 | Capped deliberately — bumping to 600 oversubscribed this CPU-bound 16-core host (context-switch overhead beat the gain). |
+| Tomcat `acceptCount` | 200 | Connection queue behind the worker pool. |
+
+`/api/health` and `/metrics` bypass the semaphore so monitoring never sees a
+false outage; `wikantik_backpressure_rejected_total` counts the shed.
+
+**Database connection pool** (DBCP, in the generated `ROOT.xml`)
+
+| Setting | Value | Why |
+|---|---|---|
+| `maxTotal` | 90 | Pressed just under Postgres `max_connections` (100, default). Was the throughput ceiling until per-request DB hits were cached; **PgBouncer** is the lever to grow past this. |
+| `maxWaitMillis` | 5000 (5 s) | How long a request waits for a connection before failing. Cut from 10 s once the pool stopped being the bottleneck — a long wait now signals real trouble, so fail fast and free the thread. |
+| `maxIdle` | 30 (prod) / 10 (dev) | Idle connections kept warm. |
+
+**Per-request caches** (short-TTL Caffeine; each removed a DB connection from the
+hot path that caused pool exhaustion under load)
+
+| Cache | TTL | Why |
+|---|---|---|
+| API-key verify (`ApiKeyService`) | 60 s | Removed 2 DB connections per authenticated MCP/tools request; `revoke()` evicts immediately so revocation stays instant. |
+| User lookup (`JDBCUserDatabase.findByLoginName`) | 60 s | Removes the per-request basic-auth DB read; evicted on save/rename/delete. |
+| KG mention related-pages (`MentionIndex`) | 5 min | Per-search KG join; relationships change slowly. |
+
+**Diagnosing concurrency stalls.** If latency climbs while CPU stays moderate,
+threads are blocking on a shared resource, not computing. Capture worker-thread
+state under load and look at what they wait on:
+
+```bash
+# 5 dumps a few seconds apart while a load test runs
+for i in 1 2 3 4 5; do
+  docker exec repo-wikantik-1 jcmd 1 Thread.print > dump_$i.txt; sleep 6
+done
+# count workers parked acquiring a DB connection (pool exhaustion)
+grep -c 'GenericObjectPool.borrowObject' dump_3.txt
+# the most-contended monitor (lock hotspot)
+grep -oE 'waiting to lock <0x[0-9a-f]+>' dump_3.txt | sort | uniq -c | sort -rn | head
+```
+
+Cross-reference host CPU from jakemon's Prometheus
+(`100*(1-avg(rate(node_cpu_seconds_total{instance="docker1",mode="idle"}[2m])))`).
+The full diagnostic chain and methodology live in
+[ScalingCharacterization.md](ScalingCharacterization.md) and
+[LoadTesting.md](LoadTesting.md).
+
 ---
 
 ## 2. Backup & Disaster Recovery

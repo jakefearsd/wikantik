@@ -465,11 +465,28 @@ Living design docs for in-flight architectural work (read before touching the re
 **Tool-description examples are in.** Every MCP tool on `/wikantik-admin-mcp` (25) and `/knowledge-mcp` (16), plus both OpenAPI tools on `/tools/*` (2), now ships with at least one worked input/output example in its schema. On the MCP servers, examples land per-property on `inputSchema.properties.<name>` and as a top-level `examples` array on `outputSchema` (the SDK's `JsonSchema` record can't carry top-level extras; `outputSchema` is a free Map). On the OpenAPI tool server, examples use OpenAPI 3.1's `example` keyword on request/response content and on parameter objects. The canonical specimen — `search_knowledge` — matches the design doc's hand-written example verbatim. Agents seeing concrete payloads make first-call success more reliable than reasoning from type schemas alone.
 - **[docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md)** — Implemented. BM25 + dense + Knowledge Graph-aware rerank with fail-closed BM25 fallback.
 
-  Dense backend is selectable via `wikantik.search.dense.backend = inmemory | pgvector`
-  (default `inmemory`). The pgvector path uses an HNSW index on
-  `content_chunk_embeddings.embedding` (V032); see
-  [docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md](docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md)
-  for the cutover + rollback plan.
+  Dense backend is selectable via `wikantik.search.dense.backend = inmemory | pgvector | lucene-hnsw`.
+  **`lucene-hnsw` is the docker1 production default** — an in-process Lucene HNSW
+  ANN index (RAM `ByteBuffersDirectory`, rebuilt on boot, metadata read via
+  DocValues not stored fields) that replaced the brute-force `inmemory` scan
+  (~60% of search CPU). Knobs: `wikantik.search.dense.lucene.{m=16,ef_construction=64,ef_search=100}`.
+  Specs: [lucene-hnsw](docs/superpowers/specs/2026-05-22-lucene-hnsw-dense-retrieval-design.md),
+  [DocValues](docs/superpowers/specs/2026-05-22-hnsw-docvalues-retrieval-design.md).
+  `pgvector` (server-side HNSW on `content_chunk_embeddings.embedding`, V032; see
+  [its spec](docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md))
+  is for split-DB topologies; `inmemory` (exact brute force) is the rollback.
+
+  **Performance & concurrency tuning** (the 2026-05-22 scaling campaign): the
+  per-request DB-connection tax and a chain of shared-lock hotspots — not CPU —
+  were the real ceiling under load. Removed via short-TTL caches (API-key verify,
+  user lookup, KG mentions) and hoisting shared JDK objects off the per-request
+  path (`Collator`, `TimeZone`, `SecureRandom`). The backpressure semaphore
+  (`WIKANTIK_MAX_INFLIGHT_REQUESTS`, default **390**) **must sit below Tomcat
+  `maxThreads`=400** or it can never fire. Operator reference:
+  [WikantikOperations.md § 1.5](docs/WikantikOperations.md#15-performance--concurrency-tuning);
+  full diagnostic chain: [ScalingCharacterization.md § 14](docs/ScalingCharacterization.md).
+  Diagnose concurrency stalls with thread dumps (`jcmd 1 Thread.print`) + host CPU
+  from Prometheus — high latency + moderate CPU means blocking, not compute.
 - **[docs/wikantik-pages/PageGraphVsKnowledgeGraph.md](docs/wikantik-pages/PageGraphVsKnowledgeGraph.md)** — Canonical explainer distinguishing the Page Graph (wikilink edges) from the Knowledge Graph (LLM-extracted entities). Reference this before touching either subsystem.
 - **[docs/wikantik-pages/RetrievalExperimentHarness.md](docs/wikantik-pages/RetrievalExperimentHarness.md)** — Implemented but not yet scheduled; targeted by `AgentGradeContentDesign.md` for CI integration.
 - **[IndexingSupport.md](IndexingSupport.md)** — Implemented. Raw content + change feed + sitemap for RAG ingestion and SEO.

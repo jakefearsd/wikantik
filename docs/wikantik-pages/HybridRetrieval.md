@@ -102,7 +102,9 @@ Three backends are available:
 
 #### `lucene-hnsw` — in-process HNSW
 
-The Lucene HNSW backend is the third selectable value of `wikantik.search.dense.backend`. It builds a [Hierarchical Navigable Small World](https://arxiv.org/abs/1603.09320) approximate nearest-neighbour index inside the JVM process using a Lucene `ByteBuffersDirectory` (pure RAM; no disk I/O). It is rebuilt on every boot by scanning `content_chunk_embeddings` and is updated incrementally on page save via `AsyncEmbeddingIndexListener`.
+The Lucene HNSW backend is the third selectable value of `wikantik.search.dense.backend` and is **the docker1 production default** (it replaced the brute-force `inmemory` scan that profiling found at ~60% of search CPU). It builds a [Hierarchical Navigable Small World](https://arxiv.org/abs/1603.09320) approximate nearest-neighbour index inside the JVM process using a Lucene `ByteBuffersDirectory` (pure RAM; no disk I/O). It is rebuilt on every boot by scanning `content_chunk_embeddings` and is updated incrementally on page save via `AsyncEmbeddingIndexListener`.
+
+**Metadata retrieval — DocValues, not stored fields.** Each candidate's `chunk_id` and `page_name` are retrieved at query time via Lucene **DocValues** (columnar, memory-resident, no per-read decompression), not stored fields. An earlier cut used stored fields and spent ~44% of CPU under load decompressing an LZ4 block per hit; the DocValues path eliminated it. See `docs/superpowers/specs/2026-05-22-hnsw-docvalues-retrieval-design.md`.
 
 **When to choose it over `inmemory`:** the brute-force scan is O(N) over every chunk for every query. At a few thousand chunks the cost is negligible, but as the corpus grows the query CPU bill compounds. The HNSW graph visits only a few hundred candidates per query regardless of corpus size (~95%+ recall), recovering CPU without sacrificing meaningful relevance — hybrid BM25 + graph rerank further cushions the approximation gap.
 

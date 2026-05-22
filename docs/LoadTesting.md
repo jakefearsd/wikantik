@@ -183,6 +183,41 @@ in this codebase ran the docker1 host at a ~50/50 split between Tomcat and
 PostgreSQL CPU at peak — once you see that, you know the next move is either
 "more cores on this host" or "split DB to its own host".
 
+## Pairing with thread dumps (finding the lock / pool that's blocking)
+
+**The most important rule of thumb:** if latency climbs under load while host
+CPU stays *moderate* (and load-average is high), threads are **blocked** on a
+shared resource — a DB connection, a lock — not computing. A blocked thread
+burns ~0 CPU, so this is the unmistakable signature of a concurrency bottleneck.
+JFR execution samples won't show it (they only sample on-CPU threads); thread
+dumps will. The 2026-05-22 campaign (ScalingCharacterization.md § 14) found a DB
+connection-pool exhaustion and three lock hotspots this way.
+
+Capture a few worker-thread dumps while a load test runs at the breaking point:
+
+```bash
+for i in 1 2 3 4 5; do
+  ssh docker1 'docker exec repo-wikantik-1 jcmd 1 Thread.print' > dump_$i.txt
+  sleep 6
+done
+
+# How many of the 400 Tomcat workers are BLOCKED?
+awk '/"http-nio-.*-exec-/{getline;print}' dump_3.txt | grep -c BLOCKED
+
+# Pool exhaustion — workers parked acquiring a DB connection:
+grep -c 'GenericObjectPool.borrowObject' dump_3.txt
+
+# The most-contended monitor (a lock hotspot) and what holds it:
+grep -oE 'waiting to lock <0x[0-9a-f]+>' dump_3.txt | sort | uniq -c | sort -rn | head
+# then read a BLOCKED thread's stack to see the call path into the lock.
+```
+
+Typical culprits seen here: `borrowObject` (DB pool too small / per-request DB
+hits uncached), and shared JDK objects built per request — `Collator.getInstance`,
+`TimeZone.getTimeZone`, `SecureRandom`/`UUID.randomUUID`. Note that
+`RequestCorrelationFilter` runs *upstream* of the `BackpressureFilter`, so a lock
+there is not protected by the admission gate.
+
 ## Common patterns
 
 ### Sustained run for stability check
@@ -254,7 +289,10 @@ fully bakes in the first minute or two.
 ### Verifying backpressure (`BackpressureFilter`)
 
 The `WIKANTIK_MAX_INFLIGHT_REQUESTS` cap fast-fails over-capacity requests with
-`503` + `Retry-After: 1` rather than letting them queue. To verify the
+`503` + `Retry-After: 1` rather than letting them queue. **The cap must be set
+below Tomcat `maxThreads` (400) to fire at all** — the filter holds permits on
+worker threads, so in-flight can never exceed `maxThreads`; a cap ≥ 400 (the
+former default of 700) is inert. The production default is **390**. To verify the
 mechanism + its metric without needing to drive a genuinely overloading VU
 count, temporarily set a low cap so a modest load exceeds it:
 
@@ -270,8 +308,8 @@ bin/loadtest.sh smoke --duration 3m --vus 650 &
 curl -s -o /dev/null -w '%{http_code} %{time_total}s\n' http://<host>:8080/api/health   # 200, fast — exempt
 curl -s http://<host>:8080/metrics | grep wikantik_backpressure                          # rejected_total climbing, inflight ≈ cap
 
-# Restore the production cap afterward.
-sed -i 's/^WIKANTIK_MAX_INFLIGHT_REQUESTS=.*/WIKANTIK_MAX_INFLIGHT_REQUESTS=700/' .env.prod
+# Restore the production cap afterward (390 — must stay below maxThreads=400).
+sed -i 's/^WIKANTIK_MAX_INFLIGHT_REQUESTS=.*/WIKANTIK_MAX_INFLIGHT_REQUESTS=390/' .env.prod
 bin/remote.sh deploy --skip-build
 ```
 

@@ -407,18 +407,42 @@ count):**
 
 **+62 % throughput, p95 −44 %, stable indefinitely at 99 % CPU.**
 
-**Graceful degradation past the ceiling:** because the host is CPU-bound, a
-burst beyond the sustainable VU count would otherwise queue in the Tomcat
-accept queue and time out after tens of seconds. A `BackpressureFilter` caps
-concurrent in-flight requests (`WIKANTIK_MAX_INFLIGHT_REQUESTS`, default 700 —
-one notch above the N=650 ceiling) and fast-fails the excess with `503` +
-`Retry-After: 1` in microseconds. The admitted subset keeps its throughput and
-latency; `/api/health` and `/metrics` are exempt so monitoring never sees a
-false outage. The cap is deterministic (rejection driven solely by the local
-in-flight count) and publishes `wikantik_backpressure_rejected_total` so you
-can see exactly how often capacity is hit. Verified under deliberate overload:
-at cap=100 / N=650 the server shed ~10.8 K requests as fast 503s over 3 minutes
-while the served subset held p95 ≈ 625 ms and health stayed at 200/38 ms.
+**2026-05-22 — past N=650: the real ceiling was the DB pool and a chain of
+shared-lock hotspots, not CPU.** Pushing to a deliberately search-heavy mix at
+N=1200–3000 revealed that "CPU-bound" was premature. The bottleneck migrated as
+each layer was removed (3000-VU overload, 16-core docker1):
+
+| Stage | Binding bottleneck | Served behavior |
+|---|---|---|
+| Start | DB connection pool (90 vs PG's 100 cap; 10 s `maxWait`) | 233 RPS, p95 11 s, congestion collapse |
+| + per-request caches (API-key verify, user lookup, KG mentions) | → `Collator` lock | ~924 RPS, 333/400 threads blocked |
+| + `Collator` fix + admission gate that actually binds | → `TimeZone` lock | clean shedding, served p95 2.1 s |
+| + shared `DateTimeFormatter` (JSON dates) | → `SecureRandom` (request-id) | 98.9 % served |
+| + `ThreadLocalRandom` request-ids | → **CPU 98 %** | **served median 93 ms, p95 1.14 s** |
+
+Each lock was a shared JDK object on the per-request path (`Collator`,
+`TimeZone.getTimeZone`, `SecureRandom`/`UUID.randomUUID`) plus a per-request
+DB-connection triad (auth / user / KG mentions). Removing them moved the box
+from collapsing at 233 RPS to serving fast under a 3–4× overload — and only
+*then* is it genuinely CPU-bound. Also in this chapter: the dense-retrieval
+backend moved to an **in-process Lucene HNSW** index (`WIKANTIK_DENSE_BACKEND=lucene-hnsw`,
+now the docker1 default), replacing the O(N) brute-force scan that had been ~60 %
+of search CPU. Full diagnostic chain in
+[ScalingCharacterization.md](docs/ScalingCharacterization.md); operator config
+reference in [WikantikOperations.md § Performance & concurrency tuning](docs/WikantikOperations.md#15-performance--concurrency-tuning).
+
+**Graceful degradation past the ceiling:** beyond the sustainable concurrency a
+burst would otherwise queue in the Tomcat accept queue and time out. A
+`BackpressureFilter` caps concurrent in-flight requests
+(`WIKANTIK_MAX_INFLIGHT_REQUESTS`, default **390**) and fast-fails the excess
+with `503` + `Retry-After: 1` in microseconds. **The cap must sit below Tomcat
+`maxThreads` (400)** — the filter holds permits on worker threads, so a cap at or
+above `maxThreads` (the old default of 700) can never fire. At 390 it sheds when
+~390 of 400 threads are busy, reserving a handful to fast-serve the rejections.
+`/api/health` and `/metrics` are exempt so monitoring never sees a false outage;
+`wikantik_backpressure_rejected_total` counts the shed. Verified under a 3000-VU
+(3–4×) overload: the gate shed the excess as fast 503s while the admitted subset
+held median 93 ms / p95 1.14 s and health stayed 200.
 
 **Scaling levers from here:** the host is now genuinely CPU-bound (not lock-,
 cache-, I/O-, or pool-bound). To go further, the options are orthogonal:
@@ -427,10 +451,15 @@ cache-, I/O-, or pool-bound). To go further, the options are orthogonal:
    (Vector-API SIMD on the dense retrieval path, JIT'd Lucene reads, response
    shaping). Linear gain expected.
 2. **Split PostgreSQL to its own host** — the CPU partition during the run is
-   ~50/50 wikantik/db. Splitting frees a full machine for each side and
-   unlocks the **pgvector** dense-retrieval backend (`WIKANTIK_DENSE_BACKEND=pgvector`),
-   designed exactly for this — see
+   ~50/50 wikantik/db. Splitting frees a full machine for each side. Dense
+   retrieval already runs in-process via Lucene HNSW
+   (`WIKANTIK_DENSE_BACKEND=lucene-hnsw`, the default — see
+   [the HNSW design spec](docs/superpowers/specs/2026-05-22-lucene-hnsw-dense-retrieval-design.md));
+   for a split-DB topology the **pgvector** backend (`=pgvector`) keeps the
+   index server-side instead — see
    [the pgvector design spec](docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md).
+   For the DB pool itself, **PgBouncer** (transaction pooling) is the lever to
+   grow app concurrency past Postgres's ~100-connection ceiling.
 3. **Horizontal app-tier scale** — once PG is split, the app tier is stateless
    w.r.t. the vector index and trivially scales behind a load balancer.
 

@@ -6,6 +6,41 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Lucene HNSW dense-retrieval backend** (`wikantik.search.dense.backend=lucene-hnsw`),
+  now the production default — an in-process approximate-nearest-neighbour index
+  (RAM `ByteBuffersDirectory`, rebuilt on boot from `content_chunk_embeddings`)
+  that replaces the brute-force vector scan. Tunable via
+  `wikantik.search.dense.lucene.{m,ef_construction,ef_search}`; rollback is a
+  one-line flip to `inmemory`. Recall held within 0.02 nDCG@5 of brute force.
+
+### Performance
+
+- Dense retrieval no longer scans every chunk per query (had been ~60% of search
+  CPU); the HNSW index visits a few hundred candidates, with chunk metadata read
+  via Lucene DocValues (no per-hit stored-field decompression).
+- Eliminated DB connection-pool exhaustion under load by caching the per-request
+  lookups that drained it — API-key verification, user lookup by login name, and
+  Knowledge Graph mention joins (short-TTL Caffeine; auth caches evict on
+  revoke/mutation). At a 1200-VU search-heavy load this moved the server from
+  congestion collapse (233 RPS, p95 11 s) to healthy (825 RPS, p95 361 ms).
+- Removed per-request shared-lock contention on the request hot path: `Collator`
+  (principal sort in every authz check), `TimeZone` (JSON date serialization),
+  and `SecureRandom` (request-correlation IDs) are no longer re-acquired per
+  request.
+- Cut three search read-path costs: Lucene stored-field over-read when the
+  highlighter is off, the wiki-syntax heuristic on every page GET, and a
+  per-query regex recompile in Knowledge Graph entity resolution.
+
+### Changed
+
+- Backpressure admission cap (`WIKANTIK_MAX_INFLIGHT_REQUESTS`) default lowered
+  700 → **390**: it must sit below Tomcat `maxThreads` (400) to take effect — the
+  filter holds permits on worker threads, so the old default could never fire.
+- DBCP `maxWaitMillis` 10 s → 5 s — fail faster now that the connection pool is
+  no longer the bottleneck.
+
 ## [2.0.1] - 2026-05-17
 
 ## [2.0.0] - 2026-05-16

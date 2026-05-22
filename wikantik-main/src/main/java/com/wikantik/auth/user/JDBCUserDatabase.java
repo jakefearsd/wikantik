@@ -204,6 +204,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     private static final String FIND_BY_WIKI_NAME = "SELECT * FROM users WHERE wiki_name=?";
     private static final String INSERT_PROFILE = "INSERT INTO users (uid,email,full_name,password,wiki_name,modified,login_name,attributes,bio,created) VALUES (?,?,?,?,?,?,?,?,?,?)";
     private static final String UPDATE_PROFILE = "UPDATE users SET uid=?,email=?,full_name=?,password=?,wiki_name=?,modified=?,login_name=?,attributes=?,bio=?,lock_expiry=? WHERE login_name=?";
+    private static final String COUNT_LOCKED_USERS = "SELECT COUNT(*) FROM users WHERE lock_expiry IS NOT NULL AND lock_expiry > CURRENT_TIMESTAMP";
     private static final String INSERT_ROLE = "INSERT INTO roles (login_name,role) VALUES (?,?)";
     private static final String FIND_ROLES = "SELECT * FROM roles WHERE login_name=?";
     private static final String DELETE_USER = "DELETE FROM users WHERE login_name=?";
@@ -352,6 +353,27 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         }
 
         return principals.toArray( new Principal[0] );
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Overrides the interface default with a single aggregate query against the {@code users} table, counting rows whose
+     * {@code lock_expiry} is non-null and still in the future relative to the database's clock.
+     */
+    @Override
+    public long countLockedUsers() throws WikiSecurityException {
+        try( Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement( COUNT_LOCKED_USERS );
+             ResultSet rs = ps.executeQuery() ) {
+            if( rs.next() ) {
+                return rs.getLong( 1 );
+            }
+            return 0L;
+        } catch( final SQLException e ) {
+            LOG.error( "Could not count locked users. Reason: {}", e.getMessage() );
+            throw new WikiSecurityException( e.getMessage(), e );
+        }
     }
 
     /**

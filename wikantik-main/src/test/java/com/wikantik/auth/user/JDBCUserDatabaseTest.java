@@ -312,6 +312,25 @@ public class JDBCUserDatabaseTest {
     }
 
     @Test
+    public void testCountLockedUsersNoneLocked() throws WikiSecurityException {
+        // The default fixture (janne + user) has no lock_expiry set on anyone.
+        Assertions.assertEquals( 0L, m_db.countLockedUsers() );
+    }
+
+    @Test
+    public void testCountLockedUsersCountsOnlyFutureExpiry() throws Exception {
+        // Lock janne with a future expiry (counts) and 'user' with a past expiry (does not count).
+        try( final Connection conn = m_ds.getConnection();
+             final Statement stmt = conn.createStatement() ) {
+            stmt.executeUpdate( "UPDATE users SET lock_expiry = CURRENT_TIMESTAMP + INTERVAL '1 hour' WHERE login_name = 'janne';" );
+            stmt.executeUpdate( "UPDATE users SET lock_expiry = CURRENT_TIMESTAMP - INTERVAL '1 hour' WHERE login_name = 'user';" );
+        }
+
+        Assertions.assertEquals( 1L, m_db.countLockedUsers(),
+            "only the user with a future lock_expiry should be counted" );
+    }
+
+    @Test
     public void testGetWikiName() throws WikiSecurityException {
         final Principal[] principals = m_db.getWikiNames();
         Assertions.assertEquals( 1, principals.length );

@@ -24,6 +24,7 @@ import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
 
 import java.security.Principal;
+import java.util.Date;
 import java.util.Properties;
 
 /**
@@ -125,6 +126,35 @@ public interface UserDatabase {
      * @return the user profile
      */
     UserProfile findByFullName( String index ) throws NoSuchPrincipalException;
+
+    /**
+     * Counts the number of users whose account is currently locked. A user is considered locked when its lock-expiry
+     * timestamp is non-{@code null} and lies in the future (i.e. {@code lockExpiry != null && lockExpiry.after(now)}).
+     * <p>
+     * This default implementation iterates the wiki names returned by {@link #getWikiNames()}, resolves each profile via
+     * {@link #findByWikiName(String)} and counts those that are locked. Profiles that vanish between the enumeration and the
+     * lookup (throwing {@link NoSuchPrincipalException}) are simply skipped. Implementations backed by a relational store
+     * are encouraged to override this with a single aggregate query.
+     *
+     * @return the number of users whose accounts are currently locked
+     * @throws WikiSecurityException if the underlying user database cannot be queried
+     */
+    default long countLockedUsers() throws WikiSecurityException {
+        final Date now = new Date();
+        long locked = 0;
+        for( final Principal wikiName : getWikiNames() ) {
+            try {
+                final UserProfile profile = findByWikiName( wikiName.getName() );
+                final Date lockExpiry = profile.getLockExpiry();
+                if( lockExpiry != null && lockExpiry.after( now ) ) {
+                    locked++;
+                }
+            } catch( final NoSuchPrincipalException e ) {
+                // Profile disappeared between enumeration and lookup; nothing to count for it.
+            }
+        }
+        return locked;
+    }
 
     /** Initializes the user database based on values from a Properties object. */
     void initialize( Engine engine, Properties props ) throws NoRequiredPropertyException, WikiSecurityException;

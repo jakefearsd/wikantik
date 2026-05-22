@@ -51,6 +51,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>{@code POST /admin/retrieval-quality/run} — bad mode + missing query_set
  *       both return 400 (or 503 when the runner is unavailable in this stack).</li>
  *   <li>{@code GET /admin/knowledge-graph/judge-timeouts} — timeouts envelope.</li>
+ *   <li>{@code GET /admin/overview} — dashboard aggregation envelope
+ *       ({@code data.degraded} array + always-present {@code data.load} card).</li>
  *   <li>403 anon paths for every admin endpoint tested above.</li>
  * </ul>
  *
@@ -348,5 +350,51 @@ public class AdminEndpointsCoverageIT {
         final HttpResponse< String > resp = getAnonymous( "/admin/knowledge-graph/judge-timeouts" );
         assertEquals( 403, resp.statusCode(),
                 "Anonymous access to /admin/knowledge-graph/judge-timeouts must be 403: " + resp.body() );
+    }
+
+    // ---------------------------------------------------------------
+    // /admin/overview
+    // ---------------------------------------------------------------
+
+    /**
+     * The dashboard-aggregation endpoint always returns 200 for an authenticated
+     * admin: each card collects under its own try/catch in the assembler, so a
+     * source that throws degrades only its own card (key lands in
+     * {@code data.degraded}). {@code data.degraded} must always be present as a
+     * JSON array, and the metric-backed {@code data.load} card must always
+     * assemble (its {@code MetricReads} reads return defaults rather than throwing).
+     */
+    @Test
+    void overview_returnsAggregatedEnvelope() throws Exception {
+        try {
+            loginAsAdmin();
+            final HttpResponse< String > resp = get( "/admin/overview" );
+            assertEquals( 200, resp.statusCode(),
+                    "Admin /admin/overview must return 200: " + resp.body() );
+
+            final JsonObject env = JsonParser.parseString( resp.body() ).getAsJsonObject();
+            assertTrue( env.has( "data" ), "envelope must contain 'data': " + resp.body() );
+            final JsonObject data = env.getAsJsonObject( "data" );
+
+            assertTrue( data.has( "degraded" ), "data must contain degraded: " + resp.body() );
+            assertTrue( data.get( "degraded" ).isJsonArray(),
+                    "degraded must be a JSON array: " + resp.body() );
+
+            assertTrue( data.has( "load" ),
+                    "data must contain the metric-backed load card: " + resp.body() );
+            assertTrue( data.get( "load" ).isJsonObject(),
+                    "load card must be a JSON object: " + resp.body() );
+        } finally {
+            logoutAdmin();
+        }
+    }
+
+    @Test
+    void overview_anonymousIs403() throws Exception {
+        final HttpResponse< String > resp = getAnonymous( "/admin/overview" );
+        // AdminAuthFilter rejects unauthenticated callers; accept 401 or 403.
+        assertTrue( resp.statusCode() == 401 || resp.statusCode() == 403,
+                "Anonymous access to /admin/overview must be 401 or 403: "
+                        + resp.statusCode() + " " + resp.body() );
     }
 }

@@ -281,6 +281,11 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         return nodes.countOrphanedNodes( filters );
     }
 
+    @Override
+    public long countStubNodes() {
+        return nodes.countStubNodes();
+    }
+
     // --- Edge operations ---
 
     @Override

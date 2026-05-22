@@ -70,6 +70,13 @@ public interface KnowledgeGraphService {
      */
     long countOrphanedNodes( Map< String, Object > filters );
 
+    /**
+     * Counts stub nodes — entities with no source page ({@code source_page IS NULL}).
+     * Used by the admin overview dashboard. Matches the stub definition in
+     * {@code GraphRoleClassifier} ({@code sourcePage() == null}).
+     */
+    long countStubNodes();
+
     // --- Edge operations ---
 
     KgEdge upsertEdge( UUID sourceId, UUID targetId, String relationshipType,

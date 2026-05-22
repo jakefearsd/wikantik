@@ -420,6 +420,14 @@ public final class KgNodeRepository extends KgJdbcSupport {
     }
 
     /**
+     * Counts stub nodes — entities with no source page ({@code source_page IS NULL}).
+     * Mirrors the stub definition in {@code GraphRoleClassifier} ({@code sourcePage() == null}).
+     */
+    public long countStubNodes() {
+        return queryCount( "SELECT COUNT(*) FROM kg_nodes WHERE source_page IS NULL" );
+    }
+
+    /**
      * Counts nodes that would be returned by {@link #queryNodes(Map, Set, int, int)}
      * with the same filter arguments. Used by the admin UI for the table footer
      * total alongside the paginated list. Mirrors queryNodes's filter machinery byte

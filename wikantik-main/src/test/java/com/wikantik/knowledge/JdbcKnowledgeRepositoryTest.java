@@ -102,6 +102,26 @@ class JdbcKnowledgeRepositoryTest {
         assertNull( nodes.getNodeByName( "ToDelete" ) );
     }
 
+    @Test
+    void countStubNodes_countsOnlyNodesWithNullSourcePage() {
+        // Two stubs (null source_page) ...
+        nodes.upsertNode( "Stub1", "concept", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        nodes.upsertNode( "Stub2", "concept", null, Provenance.HUMAN_AUTHORED, Map.of() );
+        // ... and three with a source page.
+        nodes.upsertNode( "Order", "domain-model", "Order.md", Provenance.HUMAN_AUTHORED, Map.of() );
+        nodes.upsertNode( "Customer", "domain-model", "Customer.md", Provenance.HUMAN_AUTHORED, Map.of() );
+        nodes.upsertNode( "Invoice", "domain-model", "Invoice.md", Provenance.HUMAN_AUTHORED, Map.of() );
+
+        assertEquals( 2L, nodes.countStubNodes() );
+        assertEquals( 5L, nodes.countNodes() );
+    }
+
+    @Test
+    void countStubNodes_returnsZeroWhenNoStubs() {
+        nodes.upsertNode( "Order", "domain-model", "Order.md", Provenance.HUMAN_AUTHORED, Map.of() );
+        assertEquals( 0L, nodes.countStubNodes() );
+    }
+
     // --- Edge tests ---
 
     @Test

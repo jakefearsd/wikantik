@@ -279,6 +279,10 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 
             return true;
         }
+        // Notify listeners (e.g. WikiMetrics) that authentication failed. This mirrors the
+        // (type, principal, session) shape used by the success events above; the attempted
+        // login name is carried as the principal so listeners have context.
+        fireEvent( WikiSecurityEvent.LOGIN_FAILED, new WikiPrincipal( username, WikiPrincipal.LOGIN_NAME ), session );
         // D2: track only failed attempts so the next try is throttled, but a single
         // successful login resets the counter.
         registerFailedLogin( username );

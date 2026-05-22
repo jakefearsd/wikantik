@@ -30,6 +30,7 @@ import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.authorize.Role;
 import com.wikantik.auth.authorize.WebAuthorizer;
 import com.wikantik.auth.login.CookieAssertionLoginModule;
+import com.wikantik.event.WikiSecurityEvent;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -246,6 +247,32 @@ public class AuthenticationManagerTest {
 
         // Clean up
         m_groupMgr.removeGroup( "Test2" );
+    }
+
+    @Test
+    public void testLoginFailureFiresLoginFailedEvent() throws Exception {
+        // Register a trap to capture security events fired during the login attempt.
+        final SecurityEventTrap trap = new SecurityEventTrap();
+        m_auth.addWikiEventListener( trap );
+        try {
+            final Session session = WikiSession.guestSession( m_engine );
+            // Valid username, deliberately wrong password -> authentication must fail.
+            final boolean result = m_auth.login( session, null, Users.JANNE, "definitely-not-the-password" );
+
+            // Regression: login still fails exactly as before (returns false, no exception).
+            Assertions.assertFalse( result, "Login with bad credentials must still fail" );
+
+            // Exactly one LOGIN_FAILED event should have been fired.
+            long failedCount = 0;
+            for( final WikiSecurityEvent event : trap.events() ) {
+                if( event.getType() == WikiSecurityEvent.LOGIN_FAILED ) {
+                    failedCount++;
+                }
+            }
+            Assertions.assertEquals( 1, failedCount, "Exactly one LOGIN_FAILED event must be fired on auth failure" );
+        } finally {
+            m_auth.removeWikiEventListener( trap );
+        }
     }
 
     @Test

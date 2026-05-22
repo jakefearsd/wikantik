@@ -38,4 +38,23 @@ public final class MetricReads {
         final Counter c = reg.find( name ).counter();
         return c == null ? dflt : c.count();
     }
+
+    public static double counter( final MeterRegistry reg, final String name,
+                                  final String tagKey, final String tagVal, final double dflt ) {
+        if ( reg == null ) return dflt;
+        final Counter c = reg.find( name ).tag( tagKey, tagVal ).counter();
+        return c == null ? dflt : c.count();
+    }
+
+    public static long summaryCount( final MeterRegistry reg, final String name, final long dflt ) {
+        if ( reg == null ) return dflt;
+        final io.micrometer.core.instrument.DistributionSummary s = reg.find( name ).summary();
+        return s == null ? dflt : (long) s.count();
+    }
+
+    public static double summaryMean( final MeterRegistry reg, final String name, final double dflt ) {
+        if ( reg == null ) return dflt;
+        final io.micrometer.core.instrument.DistributionSummary s = reg.find( name ).summary();
+        return s == null ? dflt : s.mean();
+    }
 }

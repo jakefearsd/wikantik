@@ -18,6 +18,7 @@
  */
 package com.wikantik.rest.overview;
 
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
@@ -31,5 +32,23 @@ class MetricReadsTest {
         assertEquals( 42.0, MetricReads.gauge( reg, "test.g", -1.0 ) );
         assertEquals( -1.0, MetricReads.gauge( reg, "missing", -1.0 ) );
         assertEquals( -1.0, MetricReads.gauge( null, "test.g", -1.0 ) );
+    }
+
+    @Test void taggedCounterSelectsTag() {
+        final MeterRegistry reg = new SimpleMeterRegistry();
+        reg.counter("c", "result", "success").increment(3);
+        reg.counter("c", "result", "failure").increment();
+        assertEquals(3.0, MetricReads.counter(reg, "c", "result", "success", -1));
+        assertEquals(1.0, MetricReads.counter(reg, "c", "result", "failure", -1));
+        assertEquals(-1.0, MetricReads.counter(reg, "missing", "result", "x", -1));
+    }
+
+    @Test void summaryCountAndMean() {
+        final MeterRegistry reg = new SimpleMeterRegistry();
+        final DistributionSummary s = DistributionSummary.builder("s").register(reg);
+        s.record(100); s.record(300);
+        assertEquals(2L, MetricReads.summaryCount(reg, "s", 0));
+        assertEquals(200.0, MetricReads.summaryMean(reg, "s", 0));
+        assertEquals(0L, MetricReads.summaryCount(null, "s", 0));
     }
 }

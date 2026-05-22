@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
+import PageHeader from './PageHeader';
 import '../../styles/admin.css';
 
 const FILTER_OPTIONS = [
@@ -103,6 +104,10 @@ export default function AdminKgPolicyPage() {
 
   return (
     <AdminPage loading={loading} error={error} loadingLabel="Loading KG policy…">
+      <PageHeader
+        title="KG Policy"
+        description="Cluster inclusion/exclusion policy for entity extraction."
+      />
       {allUnset && (
         <div className="admin-callout">
           <strong>No clusters configured yet.</strong>

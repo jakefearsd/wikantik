@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
+import PageHeader from './PageHeader';
 import GroupFormModal from './GroupFormModal';
 import PolicyGrantFormModal from './PolicyGrantFormModal';
 import '../../styles/admin.css';
@@ -10,6 +11,10 @@ export default function AdminSecurityPage() {
 
   return (
     <div className="admin-security page-enter">
+      <PageHeader
+        title="Security"
+        description="Policy grants and groups."
+      />
       <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)' }}>
         <button
           className={`btn ${section === 'groups' ? 'btn-primary' : 'btn-ghost'}`}

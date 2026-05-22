@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
 import IndexStatusTab from './IndexStatusTab';
 import ChunkInspectorTab from './ChunkInspectorTab';
+import PageHeader from './PageHeader';
 import '../../styles/admin.css';
 
 const TABS = ['Dashboard', 'Orphaned Pages', 'Broken Links', 'Versions', 'Chunk Inspector', 'Index Status'];
@@ -12,6 +13,10 @@ export default function AdminContentPage() {
 
   return (
     <div className="admin-content-page page-enter">
+      <PageHeader
+        title="Content & Index"
+        description="Rebuild indexes, refresh content, inspect chunks."
+      />
       <div className="admin-tabs">
         {TABS.map(t => (
           <button

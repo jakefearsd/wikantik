@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
+import PageHeader from './PageHeader';
 import UserFormModal from './UserFormModal';
 import { AdminTable } from './table';
 import '../../styles/admin.css';
@@ -190,14 +191,18 @@ export default function AdminUsersPage() {
 
   return (
     <AdminPage loading={loading} error={error} loadingLabel="Loading users…">
-      <div className="admin-toolbar">
-        <button
-          className="btn btn-primary"
-          onClick={() => { setEditingUser(null); setModalOpen(true); }}
-        >
-          + Create User
-        </button>
-      </div>
+      <PageHeader
+        title="Users"
+        description="Manage accounts, roles, and access."
+        actions={
+          <button
+            className="btn btn-primary"
+            onClick={() => { setEditingUser(null); setModalOpen(true); }}
+          >
+            + Create User
+          </button>
+        }
+      />
 
       <AdminTable
         rows={users}

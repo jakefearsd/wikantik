@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
+import PageHeader from './PageHeader';
 import Sparkline from './Sparkline';
 import '../../styles/admin.css';
 
@@ -84,7 +85,10 @@ export default function AdminRetrievalQualityPage() {
 
   return (
     <AdminPage loading={loading} error={error} loadingLabel="Loading retrieval-quality runs…">
-      <h2>Retrieval Quality</h2>
+      <PageHeader
+        title="Retrieval Quality"
+        description="Nightly retrieval evaluation runs and trends."
+      />
       <div className="admin-toolbar">
         <label>
           Query set:{' '}

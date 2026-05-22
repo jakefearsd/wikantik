@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
+import PageHeader from './PageHeader';
 import { AdminTable } from './table';
 import '../../styles/admin.css';
 
@@ -126,6 +127,19 @@ export default function AdminApiKeysPage() {
 
   return (
     <AdminPage loading={loading} error={error} loadingLabel="Loading API keys…">
+      <PageHeader
+        title="API Keys"
+        description="Issue and revoke programmatic access keys."
+        actions={
+          <button
+            className="btn btn-primary"
+            onClick={() => setModalOpen(true)}
+          >
+            + Generate Key
+          </button>
+        }
+      />
+
       <div className="admin-toolbar">
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
           <input
@@ -136,12 +150,6 @@ export default function AdminApiKeysPage() {
           />
           Show revoked
         </label>
-        <button
-          className="btn btn-primary"
-          onClick={() => setModalOpen(true)}
-        >
-          + Generate Key
-        </button>
       </div>
 
       <AdminTable

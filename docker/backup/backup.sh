@@ -38,7 +38,9 @@ esac
 
 TIER="${1:-daily}"
 DATE="$(date +%Y-%m-%d)"
-BACKUP_PATH="/backups/${TIER}/${DATE}"
+BACKUP_ROOT="${BACKUP_ROOT:-/backups}"
+PAGES_DIR="${PAGES_DIR:-/var/wikantik/pages}"
+BACKUP_PATH="${BACKUP_ROOT}/${TIER}/${DATE}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
 
 echo "================================================================"
@@ -59,8 +61,8 @@ echo "  db.sql: ${DB_SIZE} bytes"
 
 # --- 2. Archive wiki pages (content + attachments + .properties) ---
 echo "Archiving wiki pages..."
-PAGE_COUNT=$(find /var/wikantik/pages -name '*.md' 2>/dev/null | wc -l)
-tar -czf "${BACKUP_PATH}/pages.tar.gz" -C /var/wikantik/pages .
+PAGE_COUNT=$(find "${PAGES_DIR}" -name '*.md' 2>/dev/null | wc -l)
+tar -czf "${BACKUP_PATH}/pages.tar.gz" -C "${PAGES_DIR}" .
 PAGES_SIZE=$(wc -c < "${BACKUP_PATH}/pages.tar.gz")
 echo "  pages.tar.gz: ${PAGES_SIZE} bytes (${PAGE_COUNT} .md files)"
 
@@ -68,6 +70,22 @@ echo "  pages.tar.gz: ${PAGES_SIZE} bytes (${PAGE_COUNT} .md files)"
 cd "${BACKUP_PATH}"
 sha256sum db.sql pages.tar.gz > checksums.sha256
 echo "  checksums.sha256 written"
+
+# --- Status manifest + LATEST pointer ---
+FINISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+cat > "${BACKUP_PATH}/backup-status.json" <<JSON
+{
+  "tier": "${TIER}",
+  "date": "${DATE}",
+  "finished_at": "${FINISHED_AT}",
+  "db_bytes": ${DB_SIZE},
+  "pages_bytes": ${PAGES_SIZE},
+  "page_count": ${PAGE_COUNT},
+  "exit_status": 0
+}
+JSON
+printf '%s\n' "${DATE}" > "${BACKUP_ROOT}/${TIER}/LATEST"
+echo "  backup-status.json + LATEST written"
 
 echo ""
 echo "Backup written to ${BACKUP_PATH}"
@@ -78,18 +96,18 @@ echo ""
 echo "Pruning old ${TIER} backups..."
 case "${TIER}" in
     daily)
-        PRUNED=$(find /backups/daily -mindepth 1 -maxdepth 1 -type d -mtime "+${RETENTION_DAYS}" 2>/dev/null | wc -l)
-        find /backups/daily -mindepth 1 -maxdepth 1 -type d -mtime "+${RETENTION_DAYS}" -exec rm -rf {} + 2>/dev/null || true
+        PRUNED=$(find "${BACKUP_ROOT}/daily" -mindepth 1 -maxdepth 1 -type d -mtime "+${RETENTION_DAYS}" 2>/dev/null | wc -l)
+        find "${BACKUP_ROOT}/daily" -mindepth 1 -maxdepth 1 -type d -mtime "+${RETENTION_DAYS}" -exec rm -rf {} + 2>/dev/null || true
         echo "  Pruned ${PRUNED} daily backup(s) older than ${RETENTION_DAYS} days"
         ;;
     weekly)
-        PRUNED=$(find /backups/weekly -mindepth 1 -maxdepth 1 -type d -mtime +84 2>/dev/null | wc -l)
-        find /backups/weekly -mindepth 1 -maxdepth 1 -type d -mtime +84 -exec rm -rf {} + 2>/dev/null || true
+        PRUNED=$(find "${BACKUP_ROOT}/weekly" -mindepth 1 -maxdepth 1 -type d -mtime +84 2>/dev/null | wc -l)
+        find "${BACKUP_ROOT}/weekly" -mindepth 1 -maxdepth 1 -type d -mtime +84 -exec rm -rf {} + 2>/dev/null || true
         echo "  Pruned ${PRUNED} weekly backup(s) older than 12 weeks"
         ;;
     monthly)
-        PRUNED=$(find /backups/monthly -mindepth 1 -maxdepth 1 -type d -mtime +365 2>/dev/null | wc -l)
-        find /backups/monthly -mindepth 1 -maxdepth 1 -type d -mtime +365 -exec rm -rf {} + 2>/dev/null || true
+        PRUNED=$(find "${BACKUP_ROOT}/monthly" -mindepth 1 -maxdepth 1 -type d -mtime +365 2>/dev/null | wc -l)
+        find "${BACKUP_ROOT}/monthly" -mindepth 1 -maxdepth 1 -type d -mtime +365 -exec rm -rf {} + 2>/dev/null || true
         echo "  Pruned ${PRUNED} monthly backup(s) older than 12 months"
         ;;
 esac

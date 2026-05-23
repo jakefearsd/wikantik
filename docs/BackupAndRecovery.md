@@ -25,7 +25,10 @@ Three independent copies of Wikantik's data exist at all times:
   `bin/backup/nas-pull.sh` daily (systemd timer), pulling every docker1 snapshot via rsync over
   SSH. It independently verifies checksums after transfer, prunes to a longer retention tail
   (90 days daily / ~6 months weekly / ~1 year monthly), and writes a Prometheus textfile
-  heartbeat the NAS's jakemon Alloy agent scrapes.
+  heartbeat the NAS's jakemon Alloy agent scrapes. `NAS_DEST` points inside the NAS's Google
+  Drive sync folder (`/volume1/@home/jakefear/GoogleDrive/wikantik-backups`), so a **4th,
+  off-site cloud copy** rides along for free via the NAS's Drive sync. (Mind the Drive quota —
+  see §4.)
 
 ### Trust model: the NAS always pulls
 
@@ -164,15 +167,23 @@ All three behaviours above are the expected, correct result.
 |------|---------|-------|
 | `/home/jakefear/wikantik-backup/` | `nas-pull.sh`, `nas-pull.env`, `nas-install-timer.sh` | jakefear |
 | `~/.ssh/wikantik_backup_pull` | read-only pull key (private) | jakefear |
-| `/volume1/wikantik-backups/` | the off-box archive (44T pool) | jakefear |
+| `/volume1/@home/jakefear/GoogleDrive/wikantik-backups/` | the off-box archive, inside the Drive sync folder | jakefear |
 | `/var/lib/jakemon/textfile/` | heartbeat `.prom`, scraped by Alloy | 1777 |
 
-Create the two root-owned dirs once:
+The archive lives inside the NAS's Google Drive sync folder so it also replicates off-site to
+the cloud (a bonus copy beyond the on-NAS archive). That folder is in jakefear's home subtree, so
+it needs no sudo; only the textfile dir is root-owned:
 
 ```bash
-sudo mkdir -p /volume1/wikantik-backups && sudo chown jakefear:users /volume1/wikantik-backups
+mkdir -p /volume1/@home/jakefear/GoogleDrive/wikantik-backups
 sudo mkdir -p /var/lib/jakemon/textfile && sudo chmod 1777 /var/lib/jakemon/textfile
 ```
+
+> **Drive quota.** Each daily snapshot is a fresh full dump (~290 MB uncompressed `db.sql` +
+> ~5 MB pages). At 90-day daily retention plus weeklies/monthlies the archive trends toward
+> ~30 GB, which exceeds the free Google Drive 15 GB tier. Use a paid Drive plan, lower the
+> retention, sync only the `weekly`/`monthly` tiers to Drive, or compress `db.sql` (it shrinks
+> dramatically) if cloud footprint matters.
 
 ### Deploying the scripts (note: NAS rsync-receive is hardened)
 
@@ -199,7 +210,7 @@ DOCKER1_USER=backup-reader
 DOCKER1_BACKUP_DIR=/home/jakefear/wikantik/backups   # documentary; matches the rrsync root
 REMOTE_SRC_PATH=                                     # empty: rrsync-relative (pull the whole root)
 SSH_KEY=/home/jakefear/.ssh/wikantik_backup_pull
-NAS_DEST=/volume1/wikantik-backups
+NAS_DEST=/volume1/@home/jakefear/GoogleDrive/wikantik-backups   # inside the Drive sync folder
 NAS_RETAIN_DAILY_DAYS=90
 NAS_RETAIN_WEEKLY_DAYS=183
 NAS_RETAIN_MONTHLY_DAYS=365

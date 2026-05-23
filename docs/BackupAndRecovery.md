@@ -293,6 +293,12 @@ Safety: it refuses to target the production host from `remote.env` (override wit
 `--dry-run` prints the full plan without changing anything. Teardown is printed on completion
 (`docker compose … down -v`).
 
+**Image vs dump version.** Migrations are additive, so a release image generally boots cleanly
+against a *newer* dump (validated 2026-05-23: the `2.0.1` GHCR image ran a `2.0.2-SNAPSHOT` dump
+and passed the full smoke test). The reverse is not guaranteed — don't restore a dump taken on an
+*older* schema into a much newer image without checking. When in doubt, pick `--image-tag` to
+match the version that produced the dump.
+
 `bin/smoke-wiki.sh <base-url>` is the standalone functional check it ends with — health UP, a page
 renders, the changes feed is populated, and search returns a hit. Useful after any deploy, not
 just DR.

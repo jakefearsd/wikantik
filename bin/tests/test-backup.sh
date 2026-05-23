@@ -79,4 +79,31 @@ test_metrics_written() {
 
 test_metrics_written
 
+test_nas_pull_dryrun() {
+    local tmp; tmp="$(mktemp -d)"; TMPS+=("${tmp}")
+    cat > "${tmp}/nas-pull.env" <<EOF
+DOCKER1_HOST=docker1.invalid
+DOCKER1_USER=backup-reader
+DOCKER1_BACKUP_DIR=/srv/backups
+SSH_KEY=/tmp/nokey
+NAS_DEST=${tmp}/dest
+NAS_RETAIN_DAILY_DAYS=90
+NAS_RETAIN_WEEKLY_DAYS=183
+NAS_RETAIN_MONTHLY_DAYS=365
+LOKI_URL=
+PUSHGATEWAY_URL=
+EOF
+    mkdir -p "${tmp}/dest"
+    local out
+    out="$(bin/backup/nas-pull.sh --env "${tmp}/nas-pull.env" --dry-run 2>&1)" \
+        || fail "nas-pull --dry-run exited non-zero: ${out}"
+    grep -q "rsync" <<<"${out}" || fail "dry-run did not print rsync command"
+    grep -q "backup-reader@docker1.invalid:/srv/backups/" <<<"${out}" \
+        || fail "dry-run rsync source wrong"
+    grep -q -- "--dry-run" <<<"${out}" || fail "dry-run flag not passed to rsync"
+    ok "nas-pull dry-run prints expected rsync"
+}
+
+test_nas_pull_dryrun
+
 echo "ALL BACKUP TESTS PASSED"

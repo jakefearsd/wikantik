@@ -44,6 +44,7 @@ BACKUP_ROOT="${BACKUP_ROOT:-/backups}"
 PAGES_DIR="${PAGES_DIR:-/var/wikantik/pages}"
 BACKUP_PATH="${BACKUP_ROOT}/${TIER}/${DATE}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
+START_EPOCH="$(date +%s)"
 
 echo "================================================================"
 echo "[$(date)] Starting ${TIER} backup"
@@ -88,6 +89,38 @@ cat > "${BACKUP_PATH}/backup-status.json" <<JSON
 JSON
 printf '%s\n' "${DATE}" > "${BACKUP_ROOT}/${TIER}/LATEST"
 echo "  backup-status.json + LATEST written"
+
+# --- Prometheus textfile metrics (best-effort; never fail the backup) ---
+METRICS_DIR="${BACKUP_METRICS_DIR:-}"
+if [ -n "${METRICS_DIR}" ]; then
+    if mkdir -p "${METRICS_DIR}" 2>/dev/null && [ -w "${METRICS_DIR}" ]; then
+        NOW_EPOCH="$(date +%s)"
+        DURATION=$(( NOW_EPOCH - START_EPOCH ))
+        PROM="${METRICS_DIR}/wikantik_backup_${TIER}.prom"
+        TMP="${PROM}.tmp"
+        {
+            echo "# HELP wikantik_backup_last_success_timestamp_seconds Unix time of last successful backup."
+            echo "# TYPE wikantik_backup_last_success_timestamp_seconds gauge"
+            echo "wikantik_backup_last_success_timestamp_seconds{tier=\"${TIER}\"} ${NOW_EPOCH}"
+            echo "# HELP wikantik_backup_duration_seconds Wall-clock duration of the backup run."
+            echo "# TYPE wikantik_backup_duration_seconds gauge"
+            echo "wikantik_backup_duration_seconds{tier=\"${TIER}\"} ${DURATION}"
+            echo "# HELP wikantik_backup_db_bytes Size of the pg_dump output in bytes."
+            echo "# TYPE wikantik_backup_db_bytes gauge"
+            echo "wikantik_backup_db_bytes{tier=\"${TIER}\"} ${DB_SIZE}"
+            echo "# HELP wikantik_backup_pages_bytes Size of the pages tarball in bytes."
+            echo "# TYPE wikantik_backup_pages_bytes gauge"
+            echo "wikantik_backup_pages_bytes{tier=\"${TIER}\"} ${PAGES_SIZE}"
+            echo "# HELP wikantik_backup_last_exit_status Exit status of last backup (0=success)."
+            echo "# TYPE wikantik_backup_last_exit_status gauge"
+            echo "wikantik_backup_last_exit_status{tier=\"${TIER}\"} 0"
+        } > "${TMP}"
+        mv -f "${TMP}" "${PROM}"
+        echo "  metrics written to ${PROM}"
+    else
+        echo "  WARN: BACKUP_METRICS_DIR=${METRICS_DIR} not writable — skipping metrics"
+    fi
+fi
 
 echo ""
 echo "Backup written to ${BACKUP_PATH}"

@@ -60,4 +60,23 @@ test_manifest_written() {
 
 test_manifest_written
 
+test_metrics_written() {
+    local sb; sb="$(make_backup_sandbox)"
+    run_backup "${sb}" weekly >/dev/null 2>&1 || fail "backup.sh exited non-zero"
+    local prom="${sb}/metrics/wikantik_backup_weekly.prom"
+    [[ -f "${prom}" ]] || fail "metrics .prom not written"
+    grep -q 'wikantik_backup_last_success_timestamp_seconds{tier="weekly"}' "${prom}" \
+        || fail "last_success metric missing"
+    grep -q 'wikantik_backup_last_exit_status{tier="weekly"} 0' "${prom}" \
+        || fail "exit_status metric missing/non-zero"
+    grep -q 'wikantik_backup_db_bytes{tier="weekly"}' "${prom}" \
+        || fail "db_bytes metric missing"
+    # No leftover temp file (atomic write via mv).
+    [[ -z "$(find "${sb}/metrics" -name '*.tmp' 2>/dev/null)" ]] \
+        || fail "metrics temp file left behind (write not atomic)"
+    ok "metrics .prom written atomically"
+}
+
+test_metrics_written
+
 echo "ALL BACKUP TESTS PASSED"

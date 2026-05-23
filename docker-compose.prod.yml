@@ -64,10 +64,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-wikantik}
       PGPASSWORD: ${POSTGRES_PASSWORD:-CHANGEME}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
-      BACKUP_METRICS_DIR: ${BACKUP_METRICS_DIR:-/backups/metrics}
+      # Metrics land in the host's jakemon textfile-collector dir (mounted
+      # below) so the per-host Alloy agent scrapes the backup gauges.
+      BACKUP_METRICS_DIR: ${BACKUP_METRICS_DIR:-/textfile}
     volumes:
       - ${WIKANTIK_PAGES_DIR:-/srv/wikantik/pages}:/var/wikantik/pages
       - ${BACKUP_DIR:-/srv/wikantik/backups}:/backups
+      - ${BACKUP_TEXTFILE_DIR:-/var/lib/jakemon/textfile}:/textfile
       - ./docker/backup/backup.sh:/usr/local/bin/backup.sh:ro
       - ./docker/backup/restore.sh:/usr/local/bin/restore.sh:ro
       - ./docker/backup/crontab:/etc/crontabs/root:ro

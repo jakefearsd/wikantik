@@ -30,6 +30,7 @@ import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.SessionMonitor;
 import com.wikantik.auth.Users;
 import com.wikantik.auth.WikiPrincipal;
+import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
 import com.wikantik.auth.authorize.Role;
 import com.wikantik.auth.login.CookieAssertionLoginModule;
 import com.wikantik.auth.login.CookieAuthenticationLoginModule;
@@ -423,6 +424,33 @@ public class WikiSessionTest {
 
         // Verify the no-arg getSession() WAS called (session-creating branch)
         Mockito.verify( request, Mockito.atLeastOnce() ).getSession();
+    }
+
+    /**
+     * A stateless API-key request (getAuthType() == "API_KEY") must NOT create or register
+     * a persistent HttpSession — authorization is enforced at the access filter and the
+     * WikiSession is an incidental guest. Closes the token-path session leak (real bearer
+     * clients send no cookie, so each call would otherwise mint a fresh session).
+     */
+    @Test
+    void apiKeyRequestDoesNotCreateOrRegisterSession() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( null ).when( request ).getSession( false );
+        Mockito.doReturn( new WikiPrincipal( "key:curator" ) ).when( request ).getUserPrincipal();
+        Mockito.doReturn( ApiKeyPrincipalRequest.AUTH_TYPE ).when( request ).getAuthType();
+        Mockito.doReturn( null ).when( request ).getCookies();
+        Mockito.doReturn( Locale.ROOT ).when( request ).getLocale();
+
+        final SessionMonitor monitor = SessionMonitor.getInstance( m_engine );
+        final int sessionsBefore = monitor.sessions();
+
+        final Session result = WikiSession.getWikiSession( m_engine, request );
+
+        Assertions.assertNotNull( result, "Should return a non-null guest session" );
+        Assertions.assertFalse( result.isAuthenticated(), "Incidental guest must not be authenticated" );
+        Assertions.assertEquals( sessionsBefore, monitor.sessions(),
+            "API-key request must not register a SessionMonitor entry" );
+        Mockito.verify( request, Mockito.never() ).getSession();
     }
 
     // ---------------------------------------------------------------------------

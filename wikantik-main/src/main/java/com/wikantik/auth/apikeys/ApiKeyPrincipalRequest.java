@@ -28,14 +28,21 @@ import java.security.Principal;
  * {@link #getRemoteUser()} reflect the principal bound to a verified API key.
  *
  * <p>MCP and tool-server access filters use this wrapper after resolving a
- * Bearer token to an {@link ApiKeyService.Record}. Downstream handlers call
- * {@link Principal#getName()} on the wrapped principal to build their
- * authenticated {@code Session}, which is what JAAS/ACL decisions flow from.
+ * Bearer token to an {@link ApiKeyService.Record}. Authorization for these
+ * surfaces is enforced at the access filter (scope + rate-limit); the exposed
+ * {@link #getUserPrincipal()} identifies the caller for that filter and for
+ * auditing. These requests are <em>stateless</em> — they must not create a
+ * server-side {@code HttpSession} (see {@code WikiSession.getWikiSession}, which
+ * treats {@link #AUTH_TYPE} as not requiring a persistent session).
  */
 public class ApiKeyPrincipalRequest extends HttpServletRequestWrapper {
 
     /** Request attribute holding the resolved {@link ApiKeyService.Record}, for auditing. */
     public static final String ATTR_API_KEY_RECORD = "wikantik.apikey.record";
+
+    /** {@link #getAuthType()} value identifying a stateless API-key request. Stable
+     *  contract used by session handling to skip HttpSession creation for token auth. */
+    public static final String AUTH_TYPE = "API_KEY";
 
     private final Principal principal;
 
@@ -56,7 +63,7 @@ public class ApiKeyPrincipalRequest extends HttpServletRequestWrapper {
 
     @Override
     public String getAuthType() {
-        return "API_KEY";
+        return AUTH_TYPE;
     }
 
     private record NamedPrincipal( String name ) implements Principal {

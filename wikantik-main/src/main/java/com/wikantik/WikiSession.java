@@ -24,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
 import com.wikantik.auth.AuthenticationManager;
+import com.wikantik.auth.apikeys.ApiKeyPrincipalRequest;
 import com.wikantik.auth.GroupPrincipal;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.SessionMonitor;
@@ -551,8 +552,14 @@ public final class WikiSession implements Session {
         if ( request.getSession( false ) != null ) {
             return true;
         }
-        // 2. Container / SSO / API-key filter has bound a principal.
-        if ( request.getUserPrincipal() != null ) {
+        // 2. A bound principal requires a persistent session UNLESS it came from a
+        //    stateless API-key/bearer token. Token auth (MCP, tool server) is
+        //    re-verified per request and authorized at the access filter — the
+        //    WikiSession is an incidental guest either way, so creating + retaining
+        //    an HttpSession per call only leaks. Session-based schemes (container,
+        //    SSO, form/basic login) still get a persistent session.
+        if ( request.getUserPrincipal() != null
+                && !ApiKeyPrincipalRequest.AUTH_TYPE.equals( request.getAuthType() ) ) {
             return true;
         }
         // 3. Scan cookies for any identity-bearing name.

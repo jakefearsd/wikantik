@@ -4,10 +4,13 @@
 # Creates the dedicated `migrate` PostgreSQL role used by migrate.sh,
 # sets its password, and grants it the privileges it needs to apply
 # every current and future migration in this directory:
-#   - LOGIN, NOSUPERUSER, NOCREATEDB, NOCREATEROLE
+#   - LOGIN, NOSUPERUSER, NOCREATEDB, CREATEROLE (V031__monitoring_role
+#     creates the wikantik_exporter role, so the migration runner needs it)
 #   - CONNECT on the target database
 #   - CREATE on schema public (so it can create new tables/sequences/indexes)
 #   - USAGE on schema public
+#   - Membership in pg_monitor WITH ADMIN OPTION, so V031 can in turn
+#     GRANT pg_monitor to the wikantik_exporter monitoring role
 #   - Membership in the application role, so migrations that GRANT to the
 #     app role have a grantor with the necessary privileges, and so any
 #     tables already owned by the app role can be ALTERed by `migrate`
@@ -101,17 +104,24 @@ role_exists=$(super_psql -d postgres -c \
 
 if [[ "${role_exists// /}" == "1" ]]; then
     super_psql -d postgres -c \
-        "ALTER ROLE \"${DB_MIGRATE_USER}\" WITH LOGIN ENCRYPTED PASSWORD '${DB_MIGRATE_PASSWORD}' NOSUPERUSER NOCREATEDB NOCREATEROLE;"
+        "ALTER ROLE \"${DB_MIGRATE_USER}\" WITH LOGIN ENCRYPTED PASSWORD '${DB_MIGRATE_PASSWORD}' NOSUPERUSER NOCREATEDB CREATEROLE;"
     print_ok "Role ${DB_MIGRATE_USER} already existed — password and attributes refreshed"
 else
     super_psql -d postgres -c \
-        "CREATE ROLE \"${DB_MIGRATE_USER}\" WITH LOGIN ENCRYPTED PASSWORD '${DB_MIGRATE_PASSWORD}' NOSUPERUSER NOCREATEDB NOCREATEROLE;"
+        "CREATE ROLE \"${DB_MIGRATE_USER}\" WITH LOGIN ENCRYPTED PASSWORD '${DB_MIGRATE_PASSWORD}' NOSUPERUSER NOCREATEDB CREATEROLE;"
     print_ok "Created role ${DB_MIGRATE_USER}"
 fi
 
 # Database-level: connect.
 super_psql -d "${DB_NAME}" -c \
     "GRANT CONNECT ON DATABASE \"${DB_NAME}\" TO \"${DB_MIGRATE_USER}\";"
+
+# Monitoring: V031__monitoring_role grants pg_monitor to the wikantik_exporter
+# role. For that GRANT to succeed when run as the migrate role, migrate must
+# hold pg_monitor WITH ADMIN OPTION. Idempotent — re-granting is a no-op.
+super_psql -d "${DB_NAME}" -c \
+    "GRANT pg_monitor TO \"${DB_MIGRATE_USER}\" WITH ADMIN OPTION;"
+print_ok "Granted pg_monitor (with admin option) to ${DB_MIGRATE_USER}"
 
 # Schema-level: usage + create (for new tables, sequences, indexes).
 super_psql -d "${DB_NAME}" -c \

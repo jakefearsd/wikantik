@@ -3,6 +3,10 @@
 How to deploy Wikantik as a Docker Compose stack — locally and on a remote
 host — and how to upgrade it for each release.
 
+> For the **bare-metal** path (local PostgreSQL + Tomcat 11, used for
+> development and single-host installs), see
+> [PostgreSQLLocalDeployment.md](PostgreSQLLocalDeployment.md) instead.
+
 The repository ships the real deployment artifacts; this guide explains how
 to drive them. Do not hand-write compose files.
 

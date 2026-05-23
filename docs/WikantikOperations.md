@@ -30,15 +30,53 @@ The production Docker environment runs three critical services defined in `docke
 Deployments follow a "push-on-green" methodology. Upon failure of a health check (`curl http://localhost:8080/wiki/Main`), the CI pipeline automatically tags and loads the previous commit SHA image to achieve zero-downtime rollback. 
 
 ### 1.3 Bare-Metal Deployment
-Deploying to a bare-metal server involves unpacking Tomcat locally and deploying the `.war`. This process is automated using the `bin/deploy-local.sh` script, which configures context templates and manages JDBC drivers.
+Deploying to a bare-metal server runs Wikantik as the ROOT context of a local
+Tomcat 11 instance against a local PostgreSQL. It is the path for development,
+manual testing, and single-host installs (production runs the container — §1.2).
+The full step-by-step guide is
+[PostgreSQLLocalDeployment.md](PostgreSQLLocalDeployment.md); the essentials:
+
+1. **Database** — `sudo -u postgres bin/db/install-fresh.sh` creates the database,
+   the `jspwiki` app role, and applies every migration. **Set `DB_MIGRATE_PASSWORD`**
+   so it also runs `bin/db/create-migrate-user.sh`, which provisions the dedicated
+   `migrate` role with the privileges migrations need (`CREATEROLE` + `pg_monitor`
+   for V031, plus ownership of the schema). Skipping this leaves migrations to fail
+   later as an under-privileged role — see the troubleshooting in the guide.
+2. **Build** — `mvn clean install -Dmaven.test.skip -T 1C`.
+3. **Deploy** — `bin/deploy-local.sh` downloads Tomcat (first run), materialises
+   config from the templates, deploys the WAR, runs migrations, starts Tomcat.
+4. **Iterate** — `bin/redeploy.sh` is the fast path (swap WAR + restart only).
+
+**Config is write-once.** `deploy-local.sh` materialises each templated config
+file (`ROOT.xml`, `wikantik-custom.properties`, `setenv.sh`, `conf/server.xml`,
+`conf/context.xml`) on first deploy and **does not overwrite it afterward** (the
+server/context guards overwrite only while the file is still stock). So changes to
+the git-tracked templates — including the perf knobs in §1.5 — **do not reach an
+existing install automatically.** Apply them by hand to the deployed file, or
+delete the deployed file and re-run `deploy-local.sh` to re-render it. This is
+deliberate (it protects the DB password in `ROOT.xml`), but it means a long-lived
+bare-metal box can silently drift from the tuned defaults.
 
 ### 1.5 Performance & concurrency tuning
 
 The reference target is the 16-core / 32 GB docker1 host. These are the knobs
 that matter for throughput and overload behavior, with the reasoning behind each
-value. Most are environment variables consumed by `docker/entrypoint.sh`; the
-Tomcat connector and DBCP pool live in `docker/config/server.xml` and the
-generated `ROOT.xml` respectively.
+value.
+
+**Where each knob lives, per deployment path.** In the **container**, most are
+environment variables consumed by `docker/entrypoint.sh` (which writes them into
+the generated `ROOT.xml`), and the Tomcat connector lives in
+`docker/config/server.xml`. On **bare-metal**, the same values come from the
+git-tracked templates in `wikantik-war/src/main/config/tomcat/` that
+`bin/deploy-local.sh` materialises: the connector in `Tomcat-server.xml.template`
+(`conf/server.xml`), the DBCP pool in `Wikantik-context.xml.template` (`ROOT.xml`),
+the backpressure cap documented in `setenv.sh.template` (`bin/setenv.sh`), and the
+dense-retrieval/HNSW knobs in `wikantik-custom-postgresql.properties.template`.
+**Caveat:** these templated files are write-once — `deploy-local.sh` will not
+overwrite a config that already exists, so template changes do **not** reach an
+existing bare-metal install. Apply them to the deployed file by hand, or delete it
+and re-run `deploy-local.sh`. (Full bare-metal guide:
+[PostgreSQLLocalDeployment.md](PostgreSQLLocalDeployment.md).)
 
 **Dense retrieval**
 

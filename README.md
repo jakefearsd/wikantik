@@ -479,7 +479,7 @@ Migrating from a previous Wikantik install? See
 
 ### Development Setup
 
-- [PostgreSQLLocalDeployment.md](docs/PostgreSQLLocalDeployment.md) — Local dev environment with PostgreSQL and Tomcat
+- [PostgreSQLLocalDeployment.md](docs/PostgreSQLLocalDeployment.md) — **bare-metal deployment guide** (local PostgreSQL + Tomcat 11): one-time setup, the `migrate` role, deploy/redeploy, performance tuning, troubleshooting
 - [DevelopingWithPostgresql.md](docs/DevelopingWithPostgresql.md) — Full PostgreSQL schema, JDBC, and JNDI configuration
 - [MvnCheatSheet.md](docs/MvnCheatSheet.md) — Maven build, test, and debug commands
 - [LoggingConfig.md](docs/LoggingConfig.md) — Log4j2 external configuration

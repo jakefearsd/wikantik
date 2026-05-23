@@ -1,8 +1,11 @@
 # PostgreSQL Local Deployment Guide
 
-This guide walks through running Wikantik against a local PostgreSQL
-database, deployed as the ROOT context of a Tomcat 11 instance for
-manual testing and front-end development.
+This is the **canonical bare-metal deployment guide** — running Wikantik against
+a local PostgreSQL, deployed as the ROOT context of a Tomcat 11 instance, for
+development, manual testing, front-end work, and single-host installs. (The
+container path — recommended for production — is
+[DockerDeployment.md](DockerDeployment.md); the operator handbook overview is
+[WikantikOperations.md §1.3](WikantikOperations.md).)
 
 ## Overview
 
@@ -19,11 +22,19 @@ What ends up where:
   - `bin/db/migrate.sh` — apply pending schema migrations (rerun every
     deploy)
   - `bin/db/create-migrate-user.sh` — provision the dedicated `migrate`
-    role used in production (optional locally)
+    role and grant it the privileges migrations need. **Not optional** if
+    you deploy with `bin/deploy-local.sh` or `bin/redeploy.sh`: both run
+    `migrate.sh` as `PGUSER=migrate`, so an unprovisioned/under-privileged
+    `migrate` role makes the deploy abort mid-migration. See
+    [The `migrate` role](#the-migrate-role-required-for-deploy-localsh--redeploysh).
 - **Configuration templates** in `wikantik-war/src/main/config/tomcat/`
-  (git-tracked) are copied to your Tomcat instance the first time
-  `bin/deploy-local.sh` runs and never overwritten afterwards. Your
-  password edits survive subsequent deploys.
+  (git-tracked) are materialised into your Tomcat instance the first time
+  `bin/deploy-local.sh` runs and are **write-once — never overwritten
+  afterwards** (`server.xml`/`context.xml` are overwritten only while still
+  stock). Your password edits in `ROOT.xml` survive subsequent deploys — but so
+  does everything else, so **edits to the templates (e.g. the performance knobs)
+  do not reach an existing install**; apply them to the deployed file by hand or
+  delete it and re-deploy. See [Performance & concurrency tuning](#performance--concurrency-tuning-bare-metal).
 
 The wiki is served at the **root context** (`/`) — there is no
 `/Wikantik/` prefix. The React SPA lives at `/`, the Page Graph viewer
@@ -102,24 +113,16 @@ sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
     bin/db/install-fresh.sh
 ```
 
-This creates the schema currently described by V001 through V025:
-
-- `users`, `roles`, `groups`, `group_members` (V002)
-- `policy_grants` for database-backed authorization (V003)
-- `kg_nodes`, `kg_edges`, `kg_proposals`, `kg_rejections` + the `vector`
-  extension (V004; the legacy `kg_embeddings`/`kg_content_embeddings`
-  tables were dropped in V019)
-- `hub_centroids`, `hub_proposals` (V005)
-- `hub_discovery_proposals` (V006, V007)
-- `kg_content_chunks` (V008), `content_chunk_embeddings` (V009),
-  `chunk_entity_mentions` (V011) — the unified Ollama-backed embedding stack
-- `api_keys` (V010); `page_canonical_ids`, `page_slug_history` (V013;
-  the typed `page_relations` table was dropped in V023 when typed
-  relations were retired); verification + runbook tables (V014);
-  retrieval quality (V016, V017); KG inclusion policy (V018)
-- `kg_proposals.signature` for dedupe (V020); `kg_node_embeddings`
-  (V021, V022); KG staged validation (V024); KG judge timeout tracking
-  (V025)
+This applies every `V*.sql` in `bin/db/migrations/` (currently through the V03x
+series) — the full relational schema: users/roles/groups, `policy_grants`, the
+Knowledge Graph tables (`kg_*`) and the `vector` extension, the Ollama-backed
+embedding stack (`kg_content_chunks`, `content_chunk_embeddings`,
+`chunk_entity_mentions`), hub tables, `api_keys`, the Page Graph structural index
+(`page_canonical_ids`, `page_slug_history`), verification/runbook, retrieval
+quality, KG inclusion policy, and the pgvector HNSW index. The migration ledger
+lives in `schema_migrations`. For the authoritative, always-current list, read
+[`bin/db/migrations/README.md`](../bin/db/migrations/README.md) and the numbered
+files themselves — this guide does not enumerate versions to avoid going stale.
 
 A default `admin` user is seeded with password `admin123` by
 `bin/db/seed-users.sql` (SHA-256 hashed). **Change this immediately
@@ -169,9 +172,10 @@ The script will:
    preserves managed configs and data).
 5. Download the PostgreSQL JDBC driver if missing.
 6. Render `Wikantik-context.xml.template` → `conf/Catalina/localhost/ROOT.xml`
-   with `@@POSTGRES_*@@` tokens substituted from the env. The file is
-   regenerated every deploy — your password lives in `.env`, not the
-   context file.
+   with `@@POSTGRES_*@@` tokens substituted from the env — **only if `ROOT.xml`
+   does not already exist** (write-once). On an existing install the file is left
+   untouched, so a changed password (or a changed DBCP pool size in the template)
+   requires editing `ROOT.xml` directly or deleting it and re-deploying.
 7. Render `wikantik-custom-postgresql.properties.template` →
    `lib/wikantik-custom.properties` with `@@REPO_ROOT@@` substituted
    for your project root.
@@ -260,7 +264,74 @@ See [ProductionDBWorkflow.md](ProductionDBWorkflow.md) for the
 end-state plan that introduces the dedicated `migrate` role and
 extension-pre-install separation.
 
+### The `migrate` role (required for `deploy-local.sh` / `redeploy.sh`)
+
+`bin/redeploy.sh` and `bin/deploy-local.sh` both invoke `migrate.sh` with
+**`PGUSER=migrate`** (hardcoded). So even for a local install you need a properly
+provisioned `migrate` role, or the deploy aborts mid-migration and Tomcat never
+starts. The role is created and granted by `bin/db/create-migrate-user.sh`, which
+`install-fresh.sh` runs automatically **when `DB_MIGRATE_PASSWORD` is set**:
+
+```bash
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
+    DB_APP_PASSWORD='ChangeMe123!' DB_MIGRATE_PASSWORD='AlsoChangeMe!' \
+    bin/db/install-fresh.sh
+```
+
+`create-migrate-user.sh` grants `migrate` everything the migration set needs:
+
+- `LOGIN`, `CREATE`/`USAGE` on `public`, membership in the app role;
+- **`CREATEROLE`** and **`pg_monitor WITH ADMIN OPTION`** — required by
+  `V031__monitoring_role`, which creates the `wikantik_exporter` role and grants
+  it `pg_monitor`;
+- **ownership of existing public-schema tables** (transferred from `postgres`/the
+  app role) — so later `ALTER TABLE` migrations succeed and `migrate` can write
+  the `schema_migrations` ledger.
+
+If you bootstrapped the DB **without** `DB_MIGRATE_PASSWORD`, run the provisioning
+step after the fact (idempotent):
+
+```bash
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
+    DB_MIGRATE_PASSWORD='AlsoChangeMe!' bin/db/create-migrate-user.sh
+```
+
+Symptoms of a half-provisioned `migrate` role (and the privilege each needs) are
+in [Troubleshooting](#troubleshooting).
+
 ---
+
+## Performance & concurrency tuning (bare-metal)
+
+The throughput/overload knobs and their values are documented once, with
+reasoning, in [WikantikOperations.md §1.5](WikantikOperations.md#15-performance--concurrency-tuning).
+On bare-metal they come from the git-tracked templates and land in these deployed
+files:
+
+| Knob | Deployed file | Template |
+|------|---------------|----------|
+| Tomcat `maxThreads=400` / `acceptCount=200` | `conf/server.xml` | `Tomcat-server.xml.template` |
+| DBCP `maxTotal=90` / `maxWaitMillis=5000` / `maxIdle=30` | `conf/Catalina/localhost/ROOT.xml` | `Wikantik-context.xml.template` |
+| Backpressure cap `WIKANTIK_MAX_INFLIGHT_REQUESTS` (default 390) | `bin/setenv.sh` (env/sysprop) | `setenv.sh.template` |
+| Dense backend + HNSW (`wikantik.search.dense.*`) | `lib/wikantik-custom.properties` | `wikantik-custom-postgresql.properties.template` |
+
+Two things to keep in mind:
+
+- **The backpressure cap must stay below `maxThreads`.** The default 390 is below
+  the connector's 400 on purpose; with stock Tomcat (`maxThreads=200`) a 390 cap
+  can never fire. The `BackpressureFilter` reads the value from a system property
+  or environment variable only — there is no `wikantik.*` property for it —
+  so `bin/setenv.sh` is where you set it.
+- **Templated config is write-once** (see [Overview](#overview)). A long-lived
+  install does **not** pick up template changes to these values. To apply an
+  updated knob, edit the deployed file in place (then restart Tomcat), or delete
+  the deployed file and re-run `bin/deploy-local.sh` to re-render it. Verify the
+  cap is live and correctly sized after a restart:
+
+  ```bash
+  curl -s http://localhost:8080/metrics | grep backpressure_permits_max
+  # wikantik_backpressure_permits_max 390.0   (and < the connector maxThreads)
+  ```
 
 ## Configuration files at a glance
 
@@ -306,6 +377,11 @@ how to recreate the user after a database reset.
 | Login fails with correct password | Wrong password hash format in `users` table | Recreate the user with `CryptoUtil --hash` (see CLAUDE.md) |
 | WAR file not found | `mvn clean install` not run yet | Build first |
 | Migration fails midway | Idempotent retry usually safe — re-run `bin/db/migrate.sh` | Inspect the specific `V*.sql` file's error before retrying destructive changes |
+| `permission denied to create role` on V031 (deploy aborts, Tomcat not started) | The `migrate` role lacks `CREATEROLE` | Provision it: `sudo -u postgres … bin/db/create-migrate-user.sh` (grants `CREATEROLE`). See [The `migrate` role](#the-migrate-role-required-for-deploy-localsh--redeploysh). |
+| `must have admin option on role "pg_monitor"` on V031 | `migrate` not a `pg_monitor` admin | Same provisioning step (grants `pg_monitor WITH ADMIN OPTION`) |
+| `permission denied for table schema_migrations` after a migration's DDL ran | `migrate` can't write the ledger (table owned by `postgres`, no grant) | Run `create-migrate-user.sh` (its ownership transfer covers `schema_migrations`), or `GRANT INSERT,SELECT,UPDATE,DELETE ON schema_migrations TO migrate;` as superuser |
+| `slug 'X' is already claimed by canonical_id …` (WARN, repeated at boot) | `page_canonical_ids` rows drifted from frontmatter (handled gracefully) | Delete the stale rows so the rebuild re-inserts correct IDs — see `bin/db/one-shots/reconcile_page_canonical_ids.sh` for the pattern |
+| `Match [Context] failed to set property [cachingAllowed]` (Tomcat WARNING) | `cachingAllowed` is invalid on `<Context>` in Tomcat 11 (valid only on `<Resources>`) | Remove the attribute from `<Context>` in `ROOT.xml` |
 | `404` at `http://localhost:8080/Wikantik/` | Stale URL — Wikantik now serves at `/` | Use `http://localhost:8080/` |
 
 ### Checking logs

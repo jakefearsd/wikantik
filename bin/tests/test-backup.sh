@@ -45,7 +45,8 @@ run_backup() {
 
 test_manifest_written() {
     local sb; sb="$(make_backup_sandbox)"
-    run_backup "${sb}" daily >/dev/null 2>&1 || fail "backup.sh exited non-zero"
+    local log="${sb}/backup.log"
+    run_backup "${sb}" daily >"${log}" 2>&1 || fail "backup.sh exited non-zero: $(cat "${log}")"
     local day; day="$(date +%Y-%m-%d)"
     local dir="${sb}/backups/daily/${day}"
     [[ -f "${dir}/backup-status.json" ]] || fail "backup-status.json not written"

@@ -24,6 +24,8 @@
 #   /backups/${TIER}/YYYY-MM-DD/db.sql           pg_dump output
 #   /backups/${TIER}/YYYY-MM-DD/pages.tar.gz     wiki page tarball
 #   /backups/${TIER}/YYYY-MM-DD/checksums.sha256 SHA-256 manifest
+#   /backups/${TIER}/YYYY-MM-DD/backup-status.json  run status manifest
+#   /backups/${TIER}/LATEST                         dirname of newest snapshot
 #
 # Pair with restore.sh for the inverse operation.
 
@@ -56,14 +58,14 @@ if ! pg_dump -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
     echo "ERROR: pg_dump failed!"
     exit 1
 fi
-DB_SIZE=$(wc -c < "${BACKUP_PATH}/db.sql")
+DB_SIZE=$(wc -c < "${BACKUP_PATH}/db.sql" | tr -d ' ')
 echo "  db.sql: ${DB_SIZE} bytes"
 
 # --- 2. Archive wiki pages (content + attachments + .properties) ---
 echo "Archiving wiki pages..."
-PAGE_COUNT=$(find "${PAGES_DIR}" -name '*.md' 2>/dev/null | wc -l)
+PAGE_COUNT=$(find "${PAGES_DIR}" -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
 tar -czf "${BACKUP_PATH}/pages.tar.gz" -C "${PAGES_DIR}" .
-PAGES_SIZE=$(wc -c < "${BACKUP_PATH}/pages.tar.gz")
+PAGES_SIZE=$(wc -c < "${BACKUP_PATH}/pages.tar.gz" | tr -d ' ')
 echo "  pages.tar.gz: ${PAGES_SIZE} bytes (${PAGE_COUNT} .md files)"
 
 # --- 3. Create checksum manifest ---
@@ -71,7 +73,7 @@ cd "${BACKUP_PATH}"
 sha256sum db.sql pages.tar.gz > checksums.sha256
 echo "  checksums.sha256 written"
 
-# --- Status manifest + LATEST pointer ---
+# --- 4. Status manifest + LATEST pointer ---
 FINISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 cat > "${BACKUP_PATH}/backup-status.json" <<JSON
 {
@@ -91,7 +93,7 @@ echo ""
 echo "Backup written to ${BACKUP_PATH}"
 ls -lh "${BACKUP_PATH}/"
 
-# --- 4. Prune old backups ---
+# --- 5. Prune old backups ---
 echo ""
 echo "Pruning old ${TIER} backups..."
 case "${TIER}" in

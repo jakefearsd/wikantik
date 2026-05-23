@@ -260,7 +260,46 @@ and rebuilds the `public` schema, loads the dump in full (all tables — users, 
 policy grants, all `kg_*` tables, page metadata, embeddings, schema migrations), verifies core
 tables populated, then restores the page tree. Lucene and in-memory caches rebuild on startup.
 
-### DR sequence
+> **Restoring to a *fresh* host?** Skip the manual sequence below and use
+> `bin/dr-restore.sh` (§5.1) — it automates the whole stand-up. The manual sequence here is for
+> restoring in place on an existing instance.
+
+### 5.1 Disaster recovery to a fresh host — `bin/dr-restore.sh`
+
+When the production host is lost (or you want to rehearse it), `bin/dr-restore.sh` stands up a
+complete instance on another host from a backup snapshot, in one command. Run it from a
+workstation that can ssh **both** the target and the snapshot host (the target usually cannot
+reach the backup source itself):
+
+```bash
+# Pull the released image from GHCR (works even if the prod host is gone),
+# restore the latest NAS snapshot onto a fresh host, smoke-test it:
+bin/dr-restore.sh docker2 --image-tag 2.0.1
+
+# Fast LAN path when a source host with the image is alive:
+bin/dr-restore.sh docker2 --from-host docker1
+
+# Rehearse without touching anything:
+bin/dr-restore.sh docker2 --dry-run
+```
+
+What it does (the drill, automated): stage compose + `docker/{db,backup}` + a generated `.env`
+(fresh DB password) on the target → provision the image (GHCR pull shipped via `docker save|load`,
+or `--from-host` save|load) → transfer the snapshot from `--snapshot-host` (default `nas.lan`,
+default path the Drive archive's `daily/` with `LATEST`) and **verify checksums on the target** →
+`up -d db` → `restore.sh` in a one-off container → `up -d wikantik` → `bin/smoke-wiki.sh`.
+
+Safety: it refuses to target the production host from `remote.env` (override with `--force`), and
+`--dry-run` prints the full plan without changing anything. Teardown is printed on completion
+(`docker compose … down -v`).
+
+`bin/smoke-wiki.sh <base-url>` is the standalone functional check it ends with — health UP, a page
+renders, the changes feed is populated, and search returns a hit. Useful after any deploy, not
+just DR.
+
+### 5.2 Manual in-place restore
+
+Restore in place on an existing instance (e.g. roll back bad data on docker1):
 
 1. **Stop the app** (prevent writes during restore):
    ```bash

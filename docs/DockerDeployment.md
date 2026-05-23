@@ -167,6 +167,13 @@ The deploying OS user on the remote **must be in the `docker` group** —
 bootstrap` verifies both that Docker is installed and that the daemon is
 reachable, and tells you this fix if not.
 
+> **Restoring from a backup snapshot (DR / clone)?** If this fresh host is
+> being stood up *from a backup* rather than seeded empty, use
+> `bin/dr-restore.sh <host>` instead of the manual steps below — it automates
+> image + snapshot transfer, the DB restore, and a smoke test. See
+> [BackupAndRecovery.md §5.1](BackupAndRecovery.md). The manual sequence here is
+> for a from-scratch first deploy.
+
 The first deploy initialises state, so it is a manual sequence — *not*
 `remote.sh deploy`, which does a full `up -d` that would migrate an empty
 schema:

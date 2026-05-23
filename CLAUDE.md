@@ -225,7 +225,11 @@ offered load and host response share a timeline. See `loadtest/README.md`.
   something `remote.sh deploy` does (it runs a full `up -d`, and the app
   entrypoint then migrates an empty schema). Bring up `db` alone, restore
   the dump (`DROP SCHEMA public CASCADE` first to clear the image's seed
-  schema), then start `wikantik`.
+  schema), then start `wikantik`. **To stand a fresh host up *from a backup*,
+  use `bin/dr-restore.sh <host>`** — it automates this whole sequence (image +
+  verified snapshot transfer → `db` → `restore.sh` → `wikantik` → smoke test),
+  pulling the image from GHCR by default so it works even if the prod host is
+  gone. See [docs/BackupAndRecovery.md](docs/BackupAndRecovery.md) §5.1.
 
 ### Remote container deployment over ssh
 

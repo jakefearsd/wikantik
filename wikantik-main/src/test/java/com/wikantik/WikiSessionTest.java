@@ -27,6 +27,7 @@ import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthenticationManager;
+import com.wikantik.auth.SessionMonitor;
 import com.wikantik.auth.Users;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.authorize.Role;
@@ -46,6 +47,7 @@ import org.mockito.Mockito;
 import java.io.IOException;
 import java.security.Principal;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
 
@@ -307,6 +309,125 @@ public class WikiSessionTest {
         }
         return session;
     }
+
+    // ---------------------------------------------------------------------------
+    // Session-leak fix tests (TDD — written before the fix; first test fails on
+    // current code because getWikiSession() calls no-arg getSession() unconditionally)
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Fully-anonymous request (no session, no principal, no cookies) must NOT call
+     * no-arg getSession() and must NOT register an entry in SessionMonitor.
+     * This verifies the fix for the confirmed 560K-session memory leak.
+     */
+    @Test
+    void anonymousRequestDoesNotCreateOrRegisterSession() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        // No existing session
+        Mockito.doReturn( null ).when( request ).getSession( false );
+        // No container/API-key principal
+        Mockito.doReturn( null ).when( request ).getUserPrincipal();
+        // No cookies
+        Mockito.doReturn( null ).when( request ).getCookies();
+        // Locale so cachedLocale can be set
+        Mockito.doReturn( Locale.ROOT ).when( request ).getLocale();
+
+        final SessionMonitor monitor = SessionMonitor.getInstance( m_engine );
+        final int sessionsBefore = monitor.sessions();
+
+        final Session result = WikiSession.getWikiSession( m_engine, request );
+
+        // Must return a non-null anonymous/guest session
+        Assertions.assertNotNull( result, "Should return a non-null guest session" );
+        Assertions.assertFalse( result.isAuthenticated(), "Guest session must not be authenticated" );
+
+        // Must NOT have grown the SessionMonitor registration count
+        final int sessionsAfter = monitor.sessions();
+        Assertions.assertEquals( sessionsBefore, sessionsAfter,
+            "Anonymous request must not register a new entry in SessionMonitor" );
+
+        // The critical invariant: no-arg getSession() must NEVER be called (it creates an HttpSession)
+        Mockito.verify( request, Mockito.never() ).getSession();
+    }
+
+    /**
+     * A request that already HAS an HttpSession should still take the session-creating
+     * branch so the SessionMonitor stays consistent with existing behavior.
+     */
+    @Test
+    void requestWithExistingSessionStillRegisters() {
+        final HttpSession existingSession = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( "existing-session-abc" ).when( existingSession ).getId();
+
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        // getSession(false) returns the pre-existing session
+        Mockito.doReturn( existingSession ).when( request ).getSession( false );
+        // No-arg getSession() also returns the same session (consistent)
+        Mockito.doReturn( existingSession ).when( request ).getSession();
+        Mockito.doReturn( null ).when( request ).getUserPrincipal();
+        Mockito.doReturn( null ).when( request ).getCookies();
+        Mockito.doReturn( Locale.ROOT ).when( request ).getLocale();
+
+        final SessionMonitor monitor = SessionMonitor.getInstance( m_engine );
+        final int sessionsBefore = monitor.sessions();
+
+        final Session result = WikiSession.getWikiSession( m_engine, request );
+
+        Assertions.assertNotNull( result, "Should return a session" );
+        // SessionMonitor should have gained an entry (or found existing one) — count must not drop
+        final int sessionsAfter = monitor.sessions();
+        Assertions.assertTrue( sessionsAfter >= sessionsBefore,
+            "Existing-session request must not shrink the SessionMonitor count" );
+    }
+
+    /**
+     * A request with a non-null UserPrincipal must take the session-creating branch —
+     * i.e., no-arg getSession() IS called (current behavior preserved for auth requests).
+     */
+    @Test
+    void requestWithUserPrincipalStillCreatesSession() {
+        final HttpSession newSession = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( "principal-session-xyz" ).when( newSession ).getId();
+
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( null ).when( request ).getSession( false );
+        Mockito.doReturn( newSession ).when( request ).getSession();
+        Mockito.doReturn( new WikiPrincipal( "ApiKeyUser" ) ).when( request ).getUserPrincipal();
+        Mockito.doReturn( null ).when( request ).getCookies();
+        Mockito.doReturn( Locale.ROOT ).when( request ).getLocale();
+
+        WikiSession.getWikiSession( m_engine, request );
+
+        // Verify the no-arg getSession() WAS called (session-creating branch)
+        Mockito.verify( request, Mockito.atLeastOnce() ).getSession();
+    }
+
+    /**
+     * A request carrying the asserted-name cookie must take the session-creating branch.
+     */
+    @Test
+    void assertedNameCookieStillCreatesSession() {
+        final HttpSession newSession = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( "asserted-session-xyz" ).when( newSession ).getId();
+
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( null ).when( request ).getSession( false );
+        Mockito.doReturn( newSession ).when( request ).getSession();
+        Mockito.doReturn( null ).when( request ).getUserPrincipal();
+        // The asserted-name cookie is present
+        Mockito.doReturn( new Cookie[]{ new Cookie( "WikantikAssertedName", "FredFlintstone" ) } )
+               .when( request ).getCookies();
+        Mockito.doReturn( Locale.ROOT ).when( request ).getLocale();
+
+        WikiSession.getWikiSession( m_engine, request );
+
+        // Verify the no-arg getSession() WAS called (session-creating branch)
+        Mockito.verify( request, Mockito.atLeastOnce() ).getSession();
+    }
+
+    // ---------------------------------------------------------------------------
+    // End session-leak fix tests
+    // ---------------------------------------------------------------------------
 
     /**
      * "Scaffolding" method that runs the session security filter on a mock request.

@@ -505,6 +505,18 @@ public final class WikiSession implements Session {
             return staticGuestSession( engine );
         }
 
+        // Fast path: fully-anonymous requests (crawlers, API readers, unauthenticated page views)
+        // carry no existing session, no principal, and none of the identity-bearing cookies.
+        // Creating a 60-minute HttpSession + SessionMonitor entry for every such request is the
+        // confirmed root cause of the ~560K-session accumulation seen under sustained load.
+        // Return the per-thread transient guest instead — no HttpSession is created and nothing
+        // is registered in SessionMonitor.
+        if ( !needsPersistentSession( request ) ) {
+            final WikiSession guest = ( WikiSession )staticGuestSession( engine );
+            guest.cachedLocale = request.getLocale();
+            return guest;
+        }
+
         // Look for a WikiSession associated with the user's Http Session and create one if it isn't there yet.
         final HttpSession session = request.getSession();
         final SessionMonitor monitor = SessionMonitor.getInstance( engine );
@@ -514,6 +526,47 @@ public final class WikiSession implements Session {
         wikiSession.engine = engine;
         wikiSession.cachedLocale = request.getLocale();
         return wikiSession;
+    }
+
+    /**
+     * Returns {@code true} if this request carries any signal that requires a persistent
+     * (HttpSession-backed, SessionMonitor-registered) wiki session.  The signals are:
+     * <ul>
+     *   <li>An existing {@link HttpSession} is already associated with the request.</li>
+     *   <li>The servlet container or an upstream filter has already bound a user principal.</li>
+     *   <li>The asserted-name cookie is present ({@code WikantikAssertedName} or legacy
+     *       {@code JSPWikiAssertedName}).</li>
+     *   <li>The remember-me / cookie-auth UID is present ({@code WikantikUID} or legacy
+     *       {@code JSPWikiUID}).</li>
+     * </ul>
+     * When uncertain, returns {@code true} so the old session-creating path is followed —
+     * a false positive costs one extra session; a false negative would silently drop identity.
+     *
+     * @param request the incoming HTTP request
+     * @return {@code true} if a persistent session is required; {@code false} for provably
+     *         anonymous requests that can share the transient thread-local guest
+     */
+    private static boolean needsPersistentSession( final HttpServletRequest request ) {
+        // 1. Already has an HttpSession — keep current behavior.
+        if ( request.getSession( false ) != null ) {
+            return true;
+        }
+        // 2. Container / SSO / API-key filter has bound a principal.
+        if ( request.getUserPrincipal() != null ) {
+            return true;
+        }
+        // 3. Scan cookies for any identity-bearing name.
+        final jakarta.servlet.http.Cookie[] cookies = request.getCookies();
+        if ( cookies != null ) {
+            for ( final jakarta.servlet.http.Cookie cookie : cookies ) {
+                final String name = cookie.getName();
+                if ( "WikantikAssertedName".equals( name ) || "JSPWikiAssertedName".equals( name )
+                        || "WikantikUID".equals( name ) || "JSPWikiUID".equals( name ) ) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

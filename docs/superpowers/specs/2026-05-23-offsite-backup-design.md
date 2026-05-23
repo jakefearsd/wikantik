@@ -133,7 +133,7 @@ up).**
 
 **2c. Longer NAS retention than docker1.**
 docker1 keeps the working set (daily 30d / weekly 12w / monthly 12mo). The NAS
-keeps a longer tail using its capacity: daily 90d / weekly 1y / monthly 3y.
+keeps a longer tail using its capacity: daily 90d / weekly 6mo / monthly 1y.
 Implemented either by append-only sync + a NAS-side prune mirroring `backup.sh`
 tier logic, or by relying on Btrfs snapshot retention. (Pick during
 implementation; default: append + prune script symmetric with `backup.sh`.)

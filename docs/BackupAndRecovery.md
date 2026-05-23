@@ -59,9 +59,9 @@ Each `docker/backup/backup.sh` run produces:
 ${BACKUP_DIR}/                 # host: /home/jakefear/wikantik/backups
   daily/
     2026-05-23/
-      db.sql                 # pg_dump --no-owner --no-privileges of the full schema
+      db.sql.gz              # gzip-compressed pg_dump --no-owner --no-privileges, full schema
       pages.tar.gz           # wiki page tree: .md, .properties, attachments
-      checksums.sha256       # SHA-256 of db.sql and pages.tar.gz
+      checksums.sha256       # SHA-256 of db.sql.gz and pages.tar.gz
       backup-status.json     # tier, date, finished_at, db_bytes, pages_bytes, page_count, exit_status
     LATEST                   # plain-text file naming the newest dated dir
   weekly/   …
@@ -179,11 +179,11 @@ mkdir -p /volume1/@home/jakefear/GoogleDrive/wikantik-backups
 sudo mkdir -p /var/lib/jakemon/textfile && sudo chmod 1777 /var/lib/jakemon/textfile
 ```
 
-> **Drive quota.** Each daily snapshot is a fresh full dump (~290 MB uncompressed `db.sql` +
-> ~5 MB pages). At 90-day daily retention plus weeklies/monthlies the archive trends toward
-> ~30 GB, which exceeds the free Google Drive 15 GB tier. Use a paid Drive plan, lower the
-> retention, sync only the `weekly`/`monthly` tiers to Drive, or compress `db.sql` (it shrinks
-> dramatically) if cloud footprint matters.
+> **Drive footprint.** `db.sql` is gzip-compressed to `db.sql.gz` (SQL dumps shrink ~5–8×), so a
+> daily snapshot is on the order of tens of MB plus ~5 MB pages. Across 90 daily + weekly +
+> monthly snapshots the archive stays small (single-digit GB), comfortably within a paid Google
+> Drive / One plan. If you ever need to trim further: lower retention or sync only the
+> `weekly`/`monthly` tiers to Drive.
 
 ### Deploying the scripts (note: NAS rsync-receive is hardened)
 
@@ -309,7 +309,7 @@ VERIFY_PG_IMAGE=pgvector/pgvector:pg18 bin/backup/verify-restore.sh /path/to/sna
 ```
 
 It (1) gates on `sha256sum -c`, (2) spins up `pgvector/pgvector:pg18`, installs `vector` +
-`pgcrypto`, loads `db.sql`, (3) asserts `users`/`kg_nodes`/`page_canonical_ids` exist and that
+`pgcrypto`, loads the dump (`db.sql.gz`, or a legacy `db.sql`), (3) asserts `users`/`kg_nodes`/`page_canonical_ids` exist and that
 `users` is non-empty, (4) extracts `pages.tar.gz` and compares the `.md` count to
 `backup-status.json`, (5) tears down the container + temp dir via a `trap EXIT`.
 
@@ -349,7 +349,7 @@ Hosts without a producer harmlessly report `node_textfile_scrape_error=1` until 
 |--------|------|-------|---------|
 | `wikantik_backup_last_success_timestamp_seconds` | gauge | `tier` | Unix time of last successful backup |
 | `wikantik_backup_duration_seconds` | gauge | `tier` | Wall-clock seconds the backup took |
-| `wikantik_backup_db_bytes` | gauge | `tier` | Bytes in `db.sql` for the last run |
+| `wikantik_backup_db_bytes` | gauge | `tier` | Bytes in `db.sql.gz` (compressed) for the last run |
 | `wikantik_backup_pages_bytes` | gauge | `tier` | Bytes in `pages.tar.gz` for the last run |
 | `wikantik_backup_last_exit_status` | gauge | `tier` | Exit status of the last run (0 = success) |
 

@@ -55,7 +55,11 @@ test_manifest_written() {
     grep -q '"page_count": 2' "${dir}/backup-status.json" || fail "page_count wrong in manifest"
     [[ -f "${sb}/backups/daily/LATEST" ]] || fail "LATEST pointer not written"
     grep -q "${day}" "${sb}/backups/daily/LATEST" || fail "LATEST does not point at today"
-    ok "manifest + LATEST written"
+    # Dump is gzip-compressed: db.sql.gz present, raw db.sql gone, checksums match.
+    [[ -f "${dir}/db.sql.gz" ]] || fail "db.sql.gz not written (compression)"
+    [[ ! -f "${dir}/db.sql" ]] || fail "uncompressed db.sql left behind"
+    grep -q "db.sql.gz" "${dir}/checksums.sha256" || fail "checksums.sha256 does not list db.sql.gz"
+    ok "manifest + LATEST + compressed dump written"
 }
 
 test_manifest_written

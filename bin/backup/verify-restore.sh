@@ -43,10 +43,18 @@ else
     SNAP="${ARG}"
 fi
 
-for f in db.sql pages.tar.gz checksums.sha256; do
+# Accept the compressed dump (current) or a legacy uncompressed db.sql.
+if [ -f "${SNAP}/db.sql.gz" ]; then
+    DB_DUMP="db.sql.gz"
+elif [ -f "${SNAP}/db.sql" ]; then
+    DB_DUMP="db.sql"
+else
+    echo "ERROR: ${SNAP}/db.sql[.gz] not found"; exit 1
+fi
+for f in pages.tar.gz checksums.sha256; do
     [ -f "${SNAP}/${f}" ] || { echo "ERROR: ${SNAP}/${f} not found"; exit 1; }
 done
-echo "Verifying snapshot: ${SNAP}"
+echo "Verifying snapshot: ${SNAP} (dump: ${DB_DUMP})"
 
 echo "Step 1/4: checksum verification"
 ( cd "${SNAP}" && sha256sum -c checksums.sha256 ) || { echo "ERROR: checksum mismatch"; exit 1; }
@@ -65,13 +73,18 @@ done
 docker exec "${CONTAINER}" pg_isready -U verify -d wikantik_verify >/dev/null 2>&1 \
     || { echo "ERROR: ephemeral PG never became ready"; exit 1; }
 
-echo "Step 3/4: loading db.sql + asserting core tables"
+echo "Step 3/4: loading ${DB_DUMP} + asserting core tables"
 docker exec "${CONTAINER}" psql -U verify -d wikantik_verify -v ON_ERROR_STOP=1 \
     -c "CREATE EXTENSION IF NOT EXISTS vector;" -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" \
     >/dev/null 2>&1 || true
-if ! docker exec -i "${CONTAINER}" psql -U verify -d wikantik_verify -q \
-        < "${SNAP}/db.sql" > "${WORKDIR}/load.log" 2>&1; then
-    echo "ERROR: db.sql failed to load — last lines:"; tail -20 "${WORKDIR}/load.log"; exit 1
+if [ "${DB_DUMP}" = "db.sql.gz" ]; then
+    DUMP_CMD=(gunzip -c "${SNAP}/db.sql.gz")
+else
+    DUMP_CMD=(cat "${SNAP}/db.sql")
+fi
+if ! "${DUMP_CMD[@]}" | docker exec -i "${CONTAINER}" psql -U verify -d wikantik_verify -q \
+        > "${WORKDIR}/load.log" 2>&1; then
+    echo "ERROR: ${DB_DUMP} failed to load — last lines:"; tail -20 "${WORKDIR}/load.log"; exit 1
 fi
 for tbl in users kg_nodes page_canonical_ids; do
     CNT=$(docker exec "${CONTAINER}" psql -U verify -d wikantik_verify -t -A \

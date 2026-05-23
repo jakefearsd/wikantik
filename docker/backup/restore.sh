@@ -55,8 +55,16 @@ if [ ! -d "${BACKUP_PATH}" ]; then
     exit 1
 fi
 
-if [ ! -f "${BACKUP_PATH}/db.sql" ] || [ ! -f "${BACKUP_PATH}/pages.tar.gz" ]; then
-    echo "ERROR: Backup directory is incomplete (missing db.sql or pages.tar.gz)"
+# Accept either the compressed dump (current) or a legacy uncompressed db.sql.
+if [ -f "${BACKUP_PATH}/db.sql.gz" ]; then
+    DB_DUMP="db.sql.gz"
+elif [ -f "${BACKUP_PATH}/db.sql" ]; then
+    DB_DUMP="db.sql"
+else
+    DB_DUMP=""
+fi
+if [ -z "${DB_DUMP}" ] || [ ! -f "${BACKUP_PATH}/pages.tar.gz" ]; then
+    echo "ERROR: Backup directory is incomplete (missing db.sql[.gz] or pages.tar.gz)"
     echo "Contents of ${BACKUP_PATH}:"
     ls -la "${BACKUP_PATH}/"
     exit 1
@@ -96,9 +104,14 @@ psql -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
     -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" > /dev/null 2>&1 || \
     echo "  WARN: extension creation reported an issue (dump may recreate them)"
 
-echo "  Loading backup..."
-if ! psql -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
-    -v ON_ERROR_STOP=1 -q < "${BACKUP_PATH}/db.sql" > /tmp/restore.log 2>&1; then
+echo "  Loading backup (${DB_DUMP})..."
+if [ "${DB_DUMP}" = "db.sql.gz" ]; then
+    LOAD_CMD="gunzip -c ${BACKUP_PATH}/db.sql.gz"
+else
+    LOAD_CMD="cat ${BACKUP_PATH}/db.sql"
+fi
+if ! ${LOAD_CMD} | psql -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
+    -v ON_ERROR_STOP=1 -q > /tmp/restore.log 2>&1; then
     echo "  ERROR: restore failed — last lines of psql output:"
     tail -20 /tmp/restore.log
     exit 1

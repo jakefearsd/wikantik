@@ -21,7 +21,7 @@
 #   BACKUP_RETENTION_DAYS   daily-tier retention (default 30)
 #
 # Output:
-#   /backups/${TIER}/YYYY-MM-DD/db.sql           pg_dump output
+#   /backups/${TIER}/YYYY-MM-DD/db.sql.gz        gzip-compressed pg_dump output
 #   /backups/${TIER}/YYYY-MM-DD/pages.tar.gz     wiki page tarball
 #   /backups/${TIER}/YYYY-MM-DD/checksums.sha256 SHA-256 manifest
 #   /backups/${TIER}/YYYY-MM-DD/backup-status.json  run status manifest
@@ -52,15 +52,20 @@ echo "================================================================"
 
 mkdir -p "${BACKUP_PATH}"
 
-# --- 1. Dump PostgreSQL database ---
+# --- 1. Dump PostgreSQL database (gzip-compressed) ---
+# Dump to db.sql then gzip in place so pg_dump's own exit status is checked
+# directly (a pg_dump | gzip pipe would mask it without pipefail). gzip -f
+# removes the uncompressed db.sql, leaving only db.sql.gz. SQL dumps compress
+# ~5-8x, which shrinks every off-box copy (NAS + cloud sync).
 echo "Dumping PostgreSQL database ${POSTGRES_DB}..."
 if ! pg_dump -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
     --no-owner --no-privileges > "${BACKUP_PATH}/db.sql"; then
     echo "ERROR: pg_dump failed!"
     exit 1
 fi
-DB_SIZE=$(wc -c < "${BACKUP_PATH}/db.sql" | tr -d ' ')
-echo "  db.sql: ${DB_SIZE} bytes"
+gzip -f "${BACKUP_PATH}/db.sql"
+DB_SIZE=$(wc -c < "${BACKUP_PATH}/db.sql.gz" | tr -d ' ')
+echo "  db.sql.gz: ${DB_SIZE} bytes"
 
 # --- 2. Archive wiki pages (content + attachments + .properties) ---
 echo "Archiving wiki pages..."
@@ -71,7 +76,7 @@ echo "  pages.tar.gz: ${PAGES_SIZE} bytes (${PAGE_COUNT} .md files)"
 
 # --- 3. Create checksum manifest ---
 cd "${BACKUP_PATH}"
-sha256sum db.sql pages.tar.gz > checksums.sha256
+sha256sum db.sql.gz pages.tar.gz > checksums.sha256
 echo "  checksums.sha256 written"
 
 # --- 4. Status manifest + LATEST pointer ---

@@ -98,8 +98,10 @@ EOF
     out="$(bin/backup/nas-pull.sh --env "${tmp}/nas-pull.env" --dry-run 2>&1)" \
         || fail "nas-pull --dry-run exited non-zero: ${out}"
     grep -q "rsync" <<<"${out}" || fail "dry-run did not print rsync command"
-    grep -q "backup-reader@docker1.invalid:/srv/backups/" <<<"${out}" \
-        || fail "dry-run rsync source wrong"
+    # rrsync-locked key: empty REMOTE_SRC_PATH => source is the bare host
+    # (path relative to the locked root), shown as "host:" before the dest.
+    grep -qE "backup-reader@docker1\.invalid: " <<<"${out}" \
+        || fail "dry-run rsync source wrong (expected empty rrsync-relative path)"
     grep -q -- "--dry-run" <<<"${out}" || fail "dry-run flag not passed to rsync"
     ok "nas-pull dry-run prints expected rsync"
 }

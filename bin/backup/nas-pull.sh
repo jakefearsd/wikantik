@@ -45,11 +45,20 @@ done
 : "${NAS_DEST:?set NAS_DEST}"
 SSH_KEY="${SSH_KEY:-}"
 
-SRC="${DOCKER1_USER}@${DOCKER1_HOST}:${DOCKER1_BACKUP_DIR}/"
+# The pull key is rrsync-locked to DOCKER1_BACKUP_DIR on docker1, which treats
+# the requested path as relative to that root — so an empty REMOTE_SRC_PATH
+# pulls the whole locked dir. (Sending the absolute DOCKER1_BACKUP_DIR would be
+# re-appended to the root and fail.) For a non-rrsync full-shell account, set
+# REMOTE_SRC_PATH to the absolute backup path.
+SRC="${DOCKER1_USER}@${DOCKER1_HOST}:${REMOTE_SRC_PATH:-}"
 SSH_CMD="ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
 [ -n "${SSH_KEY}" ] && SSH_CMD="${SSH_CMD} -i ${SSH_KEY}"
 
-RSYNC_OPTS=(-a --partial --human-readable -e "${SSH_CMD}")
+# -rlptD (not -a): preserve recursion, symlinks, perms, times, and devices but
+# NOT owner/group. Some NAS rsync builds cannot setuid root on receive, so -o/-g
+# would error per-file and fail the whole transfer (exit 23); the off-box copy
+# does not need docker1's uids/gids anyway.
+RSYNC_OPTS=(-rlptD --partial --human-readable -e "${SSH_CMD}")
 
 if [ "${DRY_RUN}" -eq 1 ]; then
     echo "DRY RUN — would execute:"

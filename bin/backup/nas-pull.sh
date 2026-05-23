@@ -91,7 +91,42 @@ prune_tier monthly "${NAS_RETAIN_MONTHLY_DAYS:-365}"
 
 # --- Off-box heartbeat ---
 NOW_EPOCH="$(date +%s)"
+STATUS_NUM=0; [ "${VERIFY_FAIL}" -eq 1 ] && STATUS_NUM=1
 STATUS="success"; [ "${VERIFY_FAIL}" -eq 1 ] && STATUS="checksum_failed"
+
+# Primary: a Prometheus textfile for the NAS's local jakemon Alloy agent to
+# scrape (mirrors how docker1's backup sidecar publishes its gauges).
+if [ -n "${TEXTFILE_DIR:-}" ]; then
+    if mkdir -p "${TEXTFILE_DIR}" 2>/dev/null && [ -w "${TEXTFILE_DIR}" ]; then
+        PROM="${TEXTFILE_DIR}/wikantik_backup_offsite.prom"
+        # Preserve the last *successful* timestamp across a failed run so the
+        # freshness alert (time() - last_success) keeps climbing on failure.
+        if [ "${VERIFY_FAIL}" -eq 0 ]; then
+            SUCCESS_TS="${NOW_EPOCH}"
+        else
+            SUCCESS_TS="$(awk '/^wikantik_backup_offsite_last_success_timestamp_seconds /{print $2}' "${PROM}" 2>/dev/null)"
+            SUCCESS_TS="${SUCCESS_TS:-0}"
+        fi
+        TMP="${PROM}.tmp"
+        {
+            echo "# HELP wikantik_backup_offsite_last_success_timestamp_seconds Unix time of last verified off-box pull."
+            echo "# TYPE wikantik_backup_offsite_last_success_timestamp_seconds gauge"
+            echo "wikantik_backup_offsite_last_success_timestamp_seconds ${SUCCESS_TS}"
+            echo "# HELP wikantik_backup_offsite_last_run_timestamp_seconds Unix time of last off-box pull attempt."
+            echo "# TYPE wikantik_backup_offsite_last_run_timestamp_seconds gauge"
+            echo "wikantik_backup_offsite_last_run_timestamp_seconds ${NOW_EPOCH}"
+            echo "# HELP wikantik_backup_offsite_last_exit_status Exit status of last off-box pull (0=success)."
+            echo "# TYPE wikantik_backup_offsite_last_exit_status gauge"
+            echo "wikantik_backup_offsite_last_exit_status ${STATUS_NUM}"
+        } > "${TMP}"
+        mv -f "${TMP}" "${PROM}"
+        echo "  heartbeat written to ${PROM} (${STATUS})"
+    else
+        echo "  WARN: TEXTFILE_DIR=${TEXTFILE_DIR} not writable — skipping textfile heartbeat"
+    fi
+fi
+
+# Optional remote push (Loki preferred over Pushgateway if both set).
 if [ -n "${LOKI_URL:-}" ]; then
     NOW_NS="${NOW_EPOCH}000000000"
     curl -sf -X POST "${LOKI_URL}" -H 'Content-Type: application/json' \

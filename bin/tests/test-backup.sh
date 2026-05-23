@@ -106,4 +106,47 @@ EOF
 
 test_nas_pull_dryrun
 
+# Full (non-dry-run) pull with rsync stubbed to a no-op and a valid fixture
+# snapshot already in place — asserts the textfile heartbeat is written.
+test_nas_pull_textfile_heartbeat() {
+    local tmp; tmp="$(mktemp -d)"; TMPS+=("${tmp}")
+    mkdir -p "${tmp}/bin" "${tmp}/dest/daily/2026-05-23" "${tmp}/textfile"
+    ( cd "${tmp}/dest/daily/2026-05-23" \
+        && echo db > db.sql && echo pg > pages.tar.gz \
+        && sha256sum db.sql pages.tar.gz > checksums.sha256 )
+    printf '2026-05-23\n' > "${tmp}/dest/daily/LATEST"
+    cat > "${tmp}/bin/rsync" <<'STUB'
+#!/bin/sh
+exit 0
+STUB
+    chmod +x "${tmp}/bin/rsync"
+    cat > "${tmp}/nas-pull.env" <<EOF
+DOCKER1_HOST=docker1.invalid
+DOCKER1_USER=backup-reader
+DOCKER1_BACKUP_DIR=/srv/backups
+SSH_KEY=
+NAS_DEST=${tmp}/dest
+NAS_RETAIN_DAILY_DAYS=90
+NAS_RETAIN_WEEKLY_DAYS=183
+NAS_RETAIN_MONTHLY_DAYS=365
+TEXTFILE_DIR=${tmp}/textfile
+LOKI_URL=
+PUSHGATEWAY_URL=
+EOF
+    local out
+    out="$(PATH="${tmp}/bin:${PATH}" bin/backup/nas-pull.sh --env "${tmp}/nas-pull.env" 2>&1)" \
+        || fail "nas-pull (real run) exited non-zero: ${out}"
+    local prom="${tmp}/textfile/wikantik_backup_offsite.prom"
+    [[ -f "${prom}" ]] || fail "offsite heartbeat .prom not written"
+    grep -qE "wikantik_backup_offsite_last_success_timestamp_seconds [1-9][0-9]+" "${prom}" \
+        || fail "last_success timestamp not set on success"
+    grep -q "wikantik_backup_offsite_last_exit_status 0" "${prom}" \
+        || fail "exit_status not 0 on success"
+    [[ -z "$(find "${tmp}/textfile" -name '*.tmp' 2>/dev/null)" ]] \
+        || fail "heartbeat temp file left behind (write not atomic)"
+    ok "nas-pull textfile heartbeat written on success"
+}
+
+test_nas_pull_textfile_heartbeat
+
 echo "ALL BACKUP TESTS PASSED"

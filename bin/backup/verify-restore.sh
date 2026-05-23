@@ -77,6 +77,10 @@ for tbl in users kg_nodes page_canonical_ids; do
     CNT=$(docker exec "${CONTAINER}" psql -U verify -d wikantik_verify -t -A \
         -c "SELECT COUNT(*) FROM ${tbl};" 2>/dev/null || echo "MISSING")
     [ "${CNT}" = "MISSING" ] && { echo "ERROR: table ${tbl} missing after restore"; exit 1; }
+    # users must be non-empty — a well-formed but empty dump must not pass the drill.
+    if [ "${tbl}" = "users" ] && [ "${CNT}" -eq 0 ]; then
+        echo "ERROR: users table restored with 0 rows — dump is empty/incomplete"; exit 1
+    fi
     echo "    ${tbl}: ${CNT} row(s)"
 done
 

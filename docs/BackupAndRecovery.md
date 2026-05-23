@@ -100,7 +100,8 @@ time to finish before the pull begins.
 4. Off-box heartbeat: on success or checksum failure, a structured log line is posted to Loki
    (`LOKI_URL`, recommended) with stream labels `{job="wikantik_backup_offsite",
    status="success|checksum_failed"}`; or a gauge is pushed to a Pushgateway
-   (`PUSHGATEWAY_URL`) if that is preferred. Configure one or neither in `nas-pull.env`.
+   (`PUSHGATEWAY_URL`) if that is preferred. Configure one or neither in `nas-pull.env`; if both
+   are set, Loki takes precedence and Pushgateway is skipped.
 
 ---
 
@@ -133,6 +134,10 @@ exactly the specified directory tree — the key cannot list other directories, 
 execute arbitrary commands. It is often found at `/usr/share/doc/rsync/support/rrsync` or
 `/usr/bin/rrsync`; if it is not on `PATH`, copy it to `/usr/local/bin/rrsync` and make it
 executable (`chmod +x`).
+
+The pull mirrors the whole backup tree, so the docker1-local `metrics/` directory (the
+Prometheus `.prom` textfiles) rides along to the NAS. That is harmless — the NAS never reads or
+prunes it; only docker1's Alloy agent scrapes those files. Don't mistake it for a misconfiguration.
 
 **Step 3 — Verify from the NAS** (dry-run before enabling the schedule):
 

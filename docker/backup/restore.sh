@@ -113,6 +113,11 @@ for tbl in users kg_nodes page_canonical_ids; do
         echo "  ERROR: expected table '${tbl}' is missing after restore!"
         exit 1
     fi
+    # users must be non-empty — a well-formed but empty dump is a failed restore.
+    if [ "${tbl}" = "users" ] && [ "${CNT}" -eq 0 ]; then
+        echo "  ERROR: users table restored with 0 rows — dump is empty/incomplete!"
+        exit 1
+    fi
     echo "    ${tbl}: ${CNT} row(s)"
 done
 

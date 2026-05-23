@@ -231,6 +231,10 @@ bin/remote.sh backup-pull [DATE]                      # fetch a snapshot locally
 bin/remote.sh restore REMOTE_PATH                     # sidecar restore + restart
 ```
 
+> **Full backup & recovery guide** — topology diagram, 3-2-1 model, NAS off-box pull setup,
+> restore procedure, quarterly restore drill, and jakemon alert expressions:
+> **[docs/BackupAndRecovery.md](BackupAndRecovery.md)**
+
 ### Monitoring
 
 Monitoring is handled by the external **jakemon** stack — a Grafana Alloy agent on each host pushing metrics and logs to a central Prometheus + Loki + Grafana on host `inference`. The wikantik container exposes `/metrics`, which jakemon scrapes. There is no in-repo observability stack.

@@ -141,13 +141,10 @@ The full diagnostic chain and methodology live in
 
 ## 2. Backup & Disaster Recovery
 
-Wikantik utilizes a three-tier retention backup strategy targeting PostgreSQL dumps and page archives.
-
-- **Schedule:** Daily (30 days), Weekly (12 weeks), and Monthly (12 months).
-- **Artifacts:**
-  - `db.sql`: Database dump containing users, roles, and group memberships.
-  - `pages.tar.gz`: The core content stored in `/var/wikantik/pages/`.
-- **Restoration:** Handled manually via the `backup` sidecar container (e.g., `bin/container.sh restore /backups/daily/2026-03-23`). The `wikantik` application container should be stopped during restoration to prevent concurrent write corruption.
+See **[BackupAndRecovery.md](BackupAndRecovery.md)** for the complete guide: the 3-2-1 topology
+(live data → docker1 tiered snapshots → off-box NAS archive), the trust model (NAS pulls, docker1
+holds no NAS credentials), the full restore procedure, the `bin/backup/verify-restore.sh` restore
+drill, and the exact jakemon alert expressions to configure.
 
 ---
 

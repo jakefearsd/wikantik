@@ -179,11 +179,11 @@ mkdir -p /volume1/@home/jakefear/GoogleDrive/wikantik-backups
 sudo mkdir -p /var/lib/jakemon/textfile && sudo chmod 1777 /var/lib/jakemon/textfile
 ```
 
-> **Drive footprint.** `db.sql` is gzip-compressed to `db.sql.gz` (SQL dumps shrink ~5–8×), so a
-> daily snapshot is on the order of tens of MB plus ~5 MB pages. Across 90 daily + weekly +
-> monthly snapshots the archive stays small (single-digit GB), comfortably within a paid Google
-> Drive / One plan. If you ever need to trim further: lower retention or sync only the
-> `weekly`/`monthly` tiers to Drive.
+> **Drive footprint.** `db.sql` is gzip-compressed to `db.sql.gz`. Compression is modest here
+> (~2.2×: 290 MB → 131 MB) because pgvector embeddings dominate the dump and are high-entropy.
+> A daily snapshot is therefore ~130 MB + ~5 MB pages; across 90 daily + weekly + monthly it
+> trends toward ~15 GB — fine on a paid Google Drive / One plan. To trim: lower retention or
+> sync only the `weekly`/`monthly` tiers to Drive.
 
 ### Deploying the scripts (note: NAS rsync-receive is hardened)
 

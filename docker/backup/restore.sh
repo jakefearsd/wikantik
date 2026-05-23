@@ -21,7 +21,9 @@
 #   5. Verify: browse to your wiki and confirm content is restored.
 #
 # What gets restored:
-#   - PostgreSQL tables: users, roles, groups, group_members
+#   - The ENTIRE PostgreSQL schema (public schema is dropped and rebuilt
+#     from the dump): users, roles, groups, policy_grants, all kg_* tables,
+#     page_canonical_ids, embeddings, schema_migrations, everything.
 #   - Wiki pages: all .md files, .properties files, and attachments
 #
 # What rebuilds automatically on startup:
@@ -76,22 +78,43 @@ if ! sha256sum -c checksums.sha256; then
 fi
 echo "  Checksums OK"
 
-# --- 2. Restore PostgreSQL database ---
+# --- 2. Restore PostgreSQL database (full clean-schema reload) ---
 echo ""
-echo "Step 2/3: Restoring PostgreSQL database..."
-echo "  Dropping existing tables..."
+echo "Step 2/3: Restoring PostgreSQL database (full schema)..."
+echo "  Resetting public schema..."
 psql -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
-    -c "DROP TABLE IF EXISTS group_members, groups, roles, users CASCADE;" \
-    > /dev/null 2>&1
+    -v ON_ERROR_STOP=1 \
+    -c "DROP SCHEMA IF EXISTS public CASCADE;" \
+    -c "CREATE SCHEMA public;" \
+    -c "GRANT ALL ON SCHEMA public TO \"${POSTGRES_USER}\";" \
+    -c "GRANT ALL ON SCHEMA public TO public;" > /dev/null
+
+echo "  Ensuring required extensions exist..."
+psql -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
+    -v ON_ERROR_STOP=1 \
+    -c "CREATE EXTENSION IF NOT EXISTS vector;" \
+    -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" > /dev/null 2>&1 || \
+    echo "  WARN: extension creation reported an issue (dump may recreate them)"
 
 echo "  Loading backup..."
-psql -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
-    < "${BACKUP_PATH}/db.sql" > /dev/null 2>&1
+if ! psql -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
+    -v ON_ERROR_STOP=1 -q < "${BACKUP_PATH}/db.sql" > /tmp/restore.log 2>&1; then
+    echo "  ERROR: restore failed — last lines of psql output:"
+    tail -20 /tmp/restore.log
+    exit 1
+fi
 
-# Verify by counting rows
-USER_COUNT=$(psql -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
-    -t -c "SELECT COUNT(*) FROM users;" 2>/dev/null | tr -d ' ')
-echo "  Database restored (${USER_COUNT} user(s))"
+# Verify a representative spread of core tables loaded.
+echo "  Verifying core tables..."
+for tbl in users kg_nodes page_canonical_ids; do
+    CNT=$(psql -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" \
+        -t -A -c "SELECT COUNT(*) FROM ${tbl};" 2>/dev/null || echo "MISSING")
+    if [ "${CNT}" = "MISSING" ]; then
+        echo "  ERROR: expected table '${tbl}' is missing after restore!"
+        exit 1
+    fi
+    echo "    ${tbl}: ${CNT} row(s)"
+done
 
 # --- 3. Restore wiki pages ---
 echo ""

@@ -35,6 +35,7 @@ import javax.security.auth.login.LoginException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -177,20 +178,33 @@ public class SSOLoginModule extends AbstractLoginModule {
     String resolveLoginName( final UserProfile profile ) {
         final String claimName = getOption( OPTION_CLAIM_LOGIN_NAME, DEFAULT_CLAIM_LOGIN );
 
-        // Try the configured claim first
-        final Object claimValue = profile.getAttribute( claimName );
-        if( claimValue != null && !claimValue.toString().isBlank() ) {
-            return claimValue.toString();
+        final String claimValue = firstScalar( profile.getAttribute( claimName ) );
+        if( claimValue != null && !claimValue.isBlank() ) {
+            return claimValue;
         }
 
-        // Fall back to the profile's username
         final String username = profile.getUsername();
         if( username != null && !username.isBlank() ) {
             return username;
         }
 
-        // Fall back to the profile's ID
         return profile.getId();
+    }
+
+    /**
+     * Normalises a pac4j attribute to a single scalar string. SAML (and some
+     * OIDC) attributes arrive as a {@link Collection}; taking {@code toString()}
+     * of the collection yields "[value]" and corrupts the identity. Returns the
+     * first element's string form, or the value's string form when scalar.
+     */
+    static String firstScalar( final Object value ) {
+        if( value == null ) {
+            return null;
+        }
+        if( value instanceof Collection< ? > c ) {
+            return c.isEmpty() ? null : String.valueOf( c.iterator().next() );
+        }
+        return value.toString();
     }
 
     /**

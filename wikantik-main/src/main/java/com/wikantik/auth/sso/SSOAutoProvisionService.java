@@ -114,7 +114,6 @@ public class SSOAutoProvisionService {
      * @return the attribute value as a String, or {@code null} if not found
      */
     private String resolveAttribute( final org.pac4j.core.profile.UserProfile profile, final String claimName ) {
-        final Object value = profile.getAttribute( claimName );
-        return value != null ? value.toString() : null;
+        return SSOLoginModule.firstScalar( profile.getAttribute( claimName ) );
     }
 }

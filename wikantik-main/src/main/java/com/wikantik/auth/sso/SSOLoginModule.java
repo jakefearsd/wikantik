@@ -71,7 +71,11 @@ public class SSOLoginModule extends AbstractLoginModule {
      */
     static final String OPTION_CLAIM_LOGIN_NAME = "sso.claimLoginName";
 
-    /** LoginModule option key for the immutable identity claim. */
+    /**
+     * LoginModule option key for the immutable identity claim used to verify
+     * account ownership. Defaults to {@code "sub"}; must be a claim that is
+     * stable across sessions (never a mutable username/email).
+     */
     static final String OPTION_IDENTITY_CLAIM = "sso.identityClaim";
 
     /**
@@ -163,6 +167,9 @@ public class SSOLoginModule extends AbstractLoginModule {
     /** Resolves the immutable subject claim used to verify account ownership. */
     private String resolveSubject( final UserProfile profile ) {
         final String subject = firstScalar( profile.getAttribute( getOption( OPTION_IDENTITY_CLAIM, "sub" ) ) );
+        // No subject claim present: fall back to the login name. The collision
+        // guard still holds because an SSO-linked account stores its real subject
+        // in ATTR_SSO_SUBJECT, which a subject-less assertion cannot match.
         return subject != null ? subject : resolveLoginName( profile );
     }
 
@@ -178,6 +185,7 @@ public class SSOLoginModule extends AbstractLoginModule {
         }
         final UserDatabase userDb = AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase();
         if( userDb == null ) {
+            LOG.warn( "SSO collision check skipped: UserDatabase unavailable for login '{}'.", loginName );
             return true;
         }
         try {

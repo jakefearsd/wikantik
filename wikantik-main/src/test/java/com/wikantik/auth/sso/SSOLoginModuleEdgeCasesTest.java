@@ -107,16 +107,16 @@ class SSOLoginModuleEdgeCasesTest {
         final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
         final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
 
-        // A locally-created admin account that was NEVER linked to SSO.
+        // A locally-created account that was NEVER linked to SSO.
         final UserProfile local = userDb.newProfile();
-        local.setLoginName( "admin" );
+        local.setLoginName( "collide-test-user" );
         local.setFullname( "Local Admin" );
         userDb.save( local );
         try {
-            // A hostile IdP asserts identity "admin".
+            // A hostile IdP asserts identity "collide-test-user".
             final CommonProfile profile = new CommonProfile();
-            profile.setId( "admin" );
-            profile.addAttribute( "sub", "admin" );
+            profile.setId( "collide-test-user" );
+            profile.addAttribute( "sub", "collide-test-user" );
 
             final SSOLoginModule module = new SSOLoginModule();
             final Subject subject = new Subject();
@@ -128,7 +128,7 @@ class SSOLoginModuleEdgeCasesTest {
             Assertions.assertTrue( subject.getPrincipals( WikiPrincipal.class ).isEmpty(),
                 "No principal may be bound when the collision check fails." );
         } finally {
-            userDb.deleteByLoginName( "admin" );
+            userDb.deleteByLoginName( "collide-test-user" );
         }
     }
 }

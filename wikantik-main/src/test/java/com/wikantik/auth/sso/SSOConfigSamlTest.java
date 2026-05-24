@@ -29,9 +29,10 @@ import java.util.Properties;
 
 /**
  * Pins the SAML config degradation contract: missing required SAML props must
- * produce zero clients (visible misconfig), and in "both" mode OIDC must be
- * registered before SAML in the client list so the default /sso/login flow
- * (no client_name param) picks the OIDC client.
+ * produce zero clients (visible misconfig), and in "both" mode a SAML
+ * construction failure at startup (e.g. missing IdP metadata file) must not
+ * prevent the OIDC client from being registered — SAML degrades gracefully
+ * while OIDC login remains available as the first (and possibly only) client.
  */
 class SSOConfigSamlTest {
 
@@ -47,16 +48,16 @@ class SSOConfigSamlTest {
     }
 
     @Test
-    void bothModeOrdersOidcBeforeSaml( @TempDir final Path tmp ) {
+    void bothModeRegistersOidcWhenSamlDegrades( @TempDir final Path tmp ) {
         final Properties p = new Properties();
         p.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
         p.setProperty( SSOConfig.PROP_SSO_TYPE, "both" );
         p.setProperty( SSOConfig.PROP_OIDC_DISCOVERY_URI, "http://localhost:8088/default/.well-known/openid-configuration" );
         p.setProperty( SSOConfig.PROP_OIDC_CLIENT_ID, "id" );
         p.setProperty( SSOConfig.PROP_OIDC_CLIENT_SECRET, "secret" );
-        // Point SAML props at paths under tmp; the files won't exist.
-        // buildSamlClient's try/catch absorbs any construction failure, so
-        // OidcClient is either (a) the only client, or (b) first in the list.
+        // Point SAML props at paths under tmp; the files won't exist, so SAML
+        // construction will fail at startup. buildSamlClient's try/catch absorbs
+        // that failure — SAML degrades gracefully and OidcClient is still registered.
         p.setProperty( SSOConfig.PROP_SAML_IDP_METADATA, tmp.resolve( "idp-metadata.xml" ).toString() );
         p.setProperty( SSOConfig.PROP_SAML_SP_ENTITY_ID, "wikantik-sp" );
         p.setProperty( SSOConfig.PROP_SAML_KEYSTORE_PATH, tmp.resolve( "sp-keystore.jks" ).toString() );
@@ -71,11 +72,11 @@ class SSOConfigSamlTest {
         Assertions.assertTrue( oidcPresent,
             "OidcClient must be registered in 'both' mode when OIDC props are present." );
 
-        // OidcClient must be first so that the no-client_name fallback in
-        // SSORedirectServlet picks it (OIDC is the primary flow).
+        // When SAML degrades, OidcClient must occupy the first slot so that the
+        // no-client_name fallback in SSORedirectServlet picks it (OIDC is the primary flow).
         final int oidcIndex = clients.indexOf(
             clients.stream().filter( c -> "OidcClient".equals( c.getName() ) ).findFirst().orElseThrow() );
         Assertions.assertEquals( 0, oidcIndex,
-            "OIDC client must be first so default /sso/login (no client_name) picks it." );
+            "OIDC client must be first — SAML degrades without displacing the OIDC login slot." );
     }
 }

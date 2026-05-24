@@ -71,6 +71,7 @@
           <dependenciesToScan combine.self="override" />
           <includes>
             <include>**/SSOLoginIT.java</include>
+            <include>**/SSOEdgeCaseIT.java</include>
           </includes>
           <systemPropertyVariables>
             <it-wikantik.base.url>http://localhost:${it.wikantik.servlet.port}/${it-wikantik.context}</it-wikantik.base.url>

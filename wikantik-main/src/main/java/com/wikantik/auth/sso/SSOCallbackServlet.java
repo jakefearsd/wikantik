@@ -81,7 +81,10 @@ public class SSOCallbackServlet extends HttpServlet {
             final CallbackLogic callbackLogic = new DefaultCallbackLogic();
             final var frameworkParameters = new JEEFrameworkParameters( request, response );
             final String defaultUrl = request.getContextPath() + "/";
-            callbackLogic.perform( pac4jConfig, defaultUrl, false, null, frameworkParameters );
+            // renewSession=true causes pac4j to invalidate the pre-authentication session
+            // and issue a fresh JSESSIONID while migrating the stored profile, preventing
+            // session-fixation attacks.
+            callbackLogic.perform( pac4jConfig, defaultUrl, true, null, frameworkParameters );
 
             // pac4j has stored the profile in the HTTP session; translate it into
             // WikiSession principals now. WikiServletFilter is only mapped to

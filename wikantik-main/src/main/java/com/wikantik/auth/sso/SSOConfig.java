@@ -75,6 +75,9 @@ public class SSOConfig {
     /** Auto-provisioning enabled. */
     public static final String PROP_AUTO_PROVISION = "wikantik.sso.autoProvision";
 
+    /** IdP claim treated as the immutable identity (account link key). */
+    public static final String PROP_SSO_IDENTITY_CLAIM = "wikantik.sso.identityClaim";
+
     /** Claim mapping prefix for IdP attribute to JSPWiki field mapping. */
     public static final String PREFIX_CLAIM_MAPPING = "wikantik.sso.claimMapping.";
 
@@ -90,6 +93,7 @@ public class SSOConfig {
     private final String claimLoginName;
     private final String claimFullName;
     private final String claimEmail;
+    private final String identityClaim;
     private final Config pac4jConfig;
 
     /**
@@ -105,6 +109,7 @@ public class SSOConfig {
         this.claimLoginName = props.getProperty( PREFIX_CLAIM_MAPPING + "loginName", "preferred_username" );
         this.claimFullName = props.getProperty( PREFIX_CLAIM_MAPPING + "fullName", "name" );
         this.claimEmail = props.getProperty( PREFIX_CLAIM_MAPPING + "email", "email" );
+        this.identityClaim = props.getProperty( PROP_SSO_IDENTITY_CLAIM, "sub" );
 
         if( enabled ) {
             final List< Client > clients = new ArrayList<>();
@@ -218,5 +223,10 @@ public class SSOConfig {
     /** Returns the IdP claim name mapped to the JSPWiki email. */
     public String getClaimEmail() {
         return claimEmail;
+    }
+
+    /** Returns the IdP claim used as the immutable account-link identity. */
+    public String getIdentityClaim() {
+        return identityClaim;
     }
 }

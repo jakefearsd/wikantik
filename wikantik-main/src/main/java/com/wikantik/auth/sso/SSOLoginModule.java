@@ -117,8 +117,8 @@ public class SSOLoginModule extends AbstractLoginModule {
 
             // Extract the login name from the profile using configured claim mappings
             final String loginName = resolveLoginName( profile );
-            if( loginName == null || loginName.isBlank() ) {
-                throw new FailedLoginException( "SSO profile has no login name." );
+            if( !isSafeLoginName( loginName ) ) {
+                throw new FailedLoginException( "SSO profile login name is missing or unsafe." );
             }
 
             LOG.debug( "SSO login succeeded for user: {}", loginName );
@@ -179,7 +179,7 @@ public class SSOLoginModule extends AbstractLoginModule {
         final String claimName = getOption( OPTION_CLAIM_LOGIN_NAME, DEFAULT_CLAIM_LOGIN );
 
         final String claimValue = firstScalar( profile.getAttribute( claimName ) );
-        if( claimValue != null && !claimValue.isBlank() ) {
+        if( claimValue != null ) {
             return claimValue;
         }
 
@@ -189,6 +189,21 @@ public class SSOLoginModule extends AbstractLoginModule {
         }
 
         return profile.getId();
+    }
+
+    /** Maximum accepted login-name length; matches the user store's column width. */
+    private static final int MAX_LOGIN_NAME_LENGTH = 100;
+
+    /**
+     * A resolved login name is safe only if it is non-blank, within the store's
+     * length bound, and free of whitespace and ISO control characters. Rejecting
+     * here stops a hostile IdP claim from minting a malformed {@link WikiPrincipal}.
+     */
+    static boolean isSafeLoginName( final String loginName ) {
+        if( loginName == null || loginName.isBlank() || loginName.length() > MAX_LOGIN_NAME_LENGTH ) {
+            return false;
+        }
+        return loginName.chars().noneMatch( c -> Character.isWhitespace( c ) || Character.isISOControl( c ) );
     }
 
     /**

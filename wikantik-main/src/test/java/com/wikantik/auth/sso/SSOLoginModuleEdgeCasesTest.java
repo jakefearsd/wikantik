@@ -18,14 +18,24 @@
  */
 package com.wikantik.auth.sso;
 
+import com.wikantik.HttpMockFactory;
+import com.wikantik.TestEngine;
+import com.wikantik.auth.login.WebContainerCallbackHandler;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mockito;
 import org.pac4j.core.profile.CommonProfile;
+import org.pac4j.core.util.Pac4jConstants;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.login.LoginException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,6 +46,31 @@ class SSOLoginModuleEdgeCasesTest {
         module.initialize( new Subject(), Mockito.mock( CallbackHandler.class ), new HashMap<>(),
                 Map.of( SSOLoginModule.OPTION_CLAIM_LOGIN_NAME, loginClaim ) );
         return module;
+    }
+
+    private HttpServletRequest requestWithProfile( final CommonProfile profile ) {
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        final HttpSession session = request.getSession();
+        final LinkedHashMap< String, org.pac4j.core.profile.UserProfile > profiles = new LinkedHashMap<>();
+        profiles.put( "OidcClient#" + profile.getId(), profile );
+        Mockito.doReturn( profiles ).when( session ).getAttribute( Pac4jConstants.USER_PROFILES );
+        return request;
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "   ", "bad\tname", "name\nwith-newline", "a b" } )
+    void rejectsUnsafeLoginNames( final String hostile ) throws Exception {
+        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        final CommonProfile profile = new CommonProfile();
+        profile.setId( "id-1" );
+        profile.addAttribute( "sub", hostile );
+
+        final SSOLoginModule module = new SSOLoginModule();
+        module.initialize( new Subject(), new WebContainerCallbackHandler( engine, requestWithProfile( profile ) ),
+                new HashMap<>(), Map.of( SSOLoginModule.OPTION_CLAIM_LOGIN_NAME, "sub" ) );
+
+        Assertions.assertThrows( LoginException.class, module::login,
+            "Whitespace/control-character login names must be rejected, not bound to a principal." );
     }
 
     @Test

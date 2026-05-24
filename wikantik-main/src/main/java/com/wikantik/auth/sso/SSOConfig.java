@@ -74,14 +74,16 @@ public class SSOConfig {
 
     /**
      * SAML AuthnRequest binding type. Controls which binding pac4j uses when
-     * sending the AuthnRequest to the IdP's SingleSignOnService. Must match one
-     * of the bindings the IdP advertises in its metadata.
+     * sending the AuthnRequest to the IdP's SingleSignOnService. The value must
+     * match a binding the IdP advertises in its metadata.
      *
-     * <p>Supported values (SAMLConstants):
-     * <ul>
-     *   <li>{@code urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST} (default)</li>
-     *   <li>{@code urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect}</li>
-     * </ul>
+     * <p>HTTP-Redirect ({@code urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect})
+     * is the supported and recommended binding — the SSORedirectServlet issues a
+     * 302 redirect carrying the AuthnRequest as a query parameter, which is what
+     * all major IdPs expect. HTTP-POST AuthnRequest (form-post content action) is
+     * not supported by the current redirect servlet implementation; do not configure
+     * {@code urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST} here unless the
+     * redirect servlet is extended to render form-post content.
      */
     public static final String PROP_SAML_AUTHN_REQUEST_BINDING = "wikantik.sso.saml.authnRequestBindingType";
 

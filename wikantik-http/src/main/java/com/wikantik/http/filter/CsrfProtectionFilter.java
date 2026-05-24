@@ -191,11 +191,12 @@ public class CsrfProtectionFilter implements Filter {
     }
 
     /**
-     * SSO callback endpoints ({@code /sso/callback}) receive cross-origin POST requests
-     * from Identity Providers (SAML HTTP-POST binding, OIDC token exchange) and cannot
-     * include a synchronizer token. Security is provided by the IdP-signed SAML assertion
-     * or the OIDC state/nonce parameters — a CSRF token would be redundant and would break
-     * the entire SSO round-trip.
+     * SSO callback endpoints ({@code /sso/callback}) are exempt from CSRF token
+     * enforcement. The exemption exists specifically for the SAML HTTP-POST assertion
+     * binding, where the IdP delivers a signed assertion as a cross-origin form POST
+     * that cannot carry a synchronizer token — security is provided by the IdP's
+     * signature on the assertion instead. The OIDC code-flow callback is a GET
+     * request, which CSRF filtering does not affect regardless of this exemption.
      */
     static boolean isSsoCallbackEndpoint( final HttpServletRequest request ) {
         final String servletPath = request.getServletPath();

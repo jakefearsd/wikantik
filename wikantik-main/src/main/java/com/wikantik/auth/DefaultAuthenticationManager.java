@@ -509,6 +509,12 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             final String callbackUrl = baseUrl + SSOConfig.CALLBACK_PATH;
             final SSOConfig ssoConfig = new SSOConfig( props, callbackUrl );
             SSOConfigHolder.setConfig( engine, ssoConfig );
+            // Bridge the wikantik.sso.identityClaim property into the JAAS option
+            // the SSOLoginModule reads, so operators configure the identity claim in
+            // one place. An explicit wikantik.loginModule.options.sso.identityClaim
+            // (already loaded by initLoginModuleOptions) takes precedence.
+            loginModuleOptions.putIfAbsent(
+                com.wikantik.auth.sso.SSOLoginModule.OPTION_IDENTITY_CLAIM, ssoConfig.getIdentityClaim() );
             LOG.info( "SSO configuration initialized with callback URL: {}", callbackUrl );
         }
     }

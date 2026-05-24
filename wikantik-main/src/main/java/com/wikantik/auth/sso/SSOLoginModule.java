@@ -76,7 +76,7 @@ public class SSOLoginModule extends AbstractLoginModule {
      * account ownership. Defaults to {@code "sub"}; must be a claim that is
      * stable across sessions (never a mutable username/email).
      */
-    static final String OPTION_IDENTITY_CLAIM = "sso.identityClaim";
+    public static final String OPTION_IDENTITY_CLAIM = "sso.identityClaim";
 
     /**
      * LoginModule option key for the IdP claim mapped to JSPWiki full name.

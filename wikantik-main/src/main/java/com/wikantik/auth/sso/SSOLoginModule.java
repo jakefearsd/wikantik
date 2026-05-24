@@ -180,6 +180,7 @@ public class SSOLoginModule extends AbstractLoginModule {
 
         final String claimValue = firstScalar( profile.getAttribute( claimName ) );
         if( claimValue != null ) {
+            // Intentionally return even if blank — isSafeLoginName will reject it, skipping the username/id fallback.
             return claimValue;
         }
 

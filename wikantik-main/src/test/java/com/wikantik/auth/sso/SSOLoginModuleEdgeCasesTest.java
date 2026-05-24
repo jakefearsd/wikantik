@@ -89,4 +89,12 @@ class SSOLoginModuleEdgeCasesTest {
         Assertions.assertNull( SSOLoginModule.firstScalar( List.of() ) );
         Assertions.assertNull( SSOLoginModule.firstScalar( null ) );
     }
+
+    @Test
+    void isSafeLoginNameLengthBoundary() {
+        Assertions.assertTrue(  SSOLoginModule.isSafeLoginName( "jdoe" ),           "normal name must be safe" );
+        Assertions.assertFalse( SSOLoginModule.isSafeLoginName( null ),             "null must be unsafe" );
+        Assertions.assertTrue(  SSOLoginModule.isSafeLoginName( "a".repeat( 100 ) ), "100-char name must be safe (at the limit)" );
+        Assertions.assertFalse( SSOLoginModule.isSafeLoginName( "a".repeat( 101 ) ), "101-char name must be unsafe (over the limit)" );
+    }
 }

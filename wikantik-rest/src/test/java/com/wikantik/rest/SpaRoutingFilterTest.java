@@ -232,6 +232,17 @@ class SpaRoutingFilterTest {
     }
 
     @Test
+    void loginRouteForwardsToSpa() throws Exception {
+        final HttpServletRequest request = mockRequest( "/login" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        assertTrue( capturedOutput.asString().contains( "<div id=\"root\">" ),
+                    "/login should forward to the SPA so SSO error redirects land on a real page" );
+    }
+
+    @Test
     void testPreferencesServesIndexHtml() throws Exception {
         final HttpServletRequest request = mockRequest( "/preferences" );
 

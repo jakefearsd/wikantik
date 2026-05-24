@@ -18,6 +18,7 @@
  */
 package com.wikantik.its.sso;
 
+import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.WebDriverRunner;
 import com.wikantik.its.WithIntegrationTestSetup;
@@ -26,6 +27,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.support.ui.WebDriverWait;
+
+import static com.codeborne.selenide.Selenide.$;
 
 import java.time.Duration;
 
@@ -66,8 +69,9 @@ public class SSOEdgeCaseIT extends WithIntegrationTestSetup {
 
     /**
      * A forged (random) {@code state} parameter must cause the callback to fail
-     * closed — browser ends up on a login page or an error-flagged URL, never
-     * on an HTTP 500.
+     * closed — browser ends up on the real login page (not a JSON 404 or HTTP
+     * 500), and the SSO error banner is visible because the redirect carries
+     * {@code error=sso_callback_failed}.
      */
     @Test
     void forgedStateFailsClosed() {
@@ -81,11 +85,18 @@ public class SSOEdgeCaseIT extends WithIntegrationTestSetup {
         Assertions.assertFalse(
             pageSource.contains( "HTTP Status 500" ),
             "Forged state must not produce an HTTP 500 error page." );
+
+        // The login page must actually render — not a JSON 404 or empty body.
+        $( "[data-testid=login-page]" ).shouldBe( Condition.visible );
+        // The SSO error banner must be present (sso_callback_failed code is set
+        // by SSOCallbackServlet on forged-state failures).
+        $( "[data-testid=sso-error]" ).shouldBe( Condition.visible );
     }
 
     /**
      * Garbage {@code code} (40-char string) with a nonsense {@code state} must
-     * also cause the callback to fail closed, redirecting to the login flow.
+     * also cause the callback to fail closed, redirecting to the real login
+     * page rather than a JSON 404.
      */
     @Test
     void garbageCodeFailsClosed() {
@@ -94,6 +105,9 @@ public class SSOEdgeCaseIT extends WithIntegrationTestSetup {
         new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 10 ) )
             .until( driver -> driver.getCurrentUrl().contains( "/login" )
                            || driver.getCurrentUrl().contains( "error=" ) );
+
+        // The login page must actually render — not a JSON 404 or empty body.
+        $( "[data-testid=login-page]" ).shouldBe( Condition.visible );
     }
 
     /**

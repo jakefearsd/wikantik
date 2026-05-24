@@ -35,6 +35,7 @@ const AdminKgPolicyExplain = React.lazy(() => import('./components/admin/AdminKg
 const AdminKgPolicyPending = React.lazy(() => import('./components/admin/AdminKgPolicyPending'));
 const AdminKgPolicyBootstrap = React.lazy(() => import('./components/admin/AdminKgPolicyBootstrap'));
 
+const LoginPage = React.lazy(() => import('./components/LoginPage'));
 const PageGraphView = React.lazy(() => import('./components/pagegraph/PageGraphView.jsx'));
 const KnowledgeGraphView = React.lazy(() => import('./components/kgraph/KnowledgeGraphView.jsx'));
 
@@ -64,6 +65,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             } />
             <Route path="/preferences" element={<UserPreferencesPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<OverviewDashboard />} />
               <Route path="users" element={<AdminUsersPage />} />

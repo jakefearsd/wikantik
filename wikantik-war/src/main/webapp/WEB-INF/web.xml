@@ -171,6 +171,7 @@
      <url-pattern>/knowledge-graph</url-pattern>
      <url-pattern>/preferences</url-pattern>
      <url-pattern>/reset-password</url-pattern>
+     <url-pattern>/login</url-pattern>
      <url-pattern>/blog/*</url-pattern>
      <url-pattern>/blog</url-pattern>
      <url-pattern>/</url-pattern>

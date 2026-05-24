@@ -39,6 +39,9 @@ public class SSOAutoProvisionService {
 
     private static final Logger LOG = LogManager.getLogger( SSOAutoProvisionService.class );
 
+    /** Profile attribute recording the IdP subject that owns this account. */
+    public static final String ATTR_SSO_SUBJECT = "sso.subject";
+
     private final Engine engine;
     private final SSOConfig ssoConfig;
 
@@ -55,13 +58,15 @@ public class SSOAutoProvisionService {
 
     /**
      * Provisions a local user profile from an SSO user profile if one does not
-     * already exist. If auto-provisioning is disabled in the SSO configuration,
-     * this method does nothing.
+     * already exist, stamping the IdP subject on the profile for later
+     * verified-link collision checks. If auto-provisioning is disabled in the
+     * SSO configuration, this method does nothing.
      *
      * @param loginName  the resolved login name for the user
+     * @param subject    the IdP subject identifier (stored as {@link #ATTR_SSO_SUBJECT})
      * @param ssoProfile the pac4j user profile from the IdP
      */
-    public void provisionIfNeeded( final String loginName, final org.pac4j.core.profile.UserProfile ssoProfile ) {
+    public void provisionIfNeeded( final String loginName, final String subject, final org.pac4j.core.profile.UserProfile ssoProfile ) {
         if( !ssoConfig.isAutoProvision() ) {
             return;
         }
@@ -99,11 +104,21 @@ public class SSOAutoProvisionService {
                 profile.setEmail( email );
             }
 
+            if( subject != null && !subject.isBlank() ) {
+                profile.getAttributes().put( ATTR_SSO_SUBJECT, subject );
+            }
+
             userDb.save( profile );
             LOG.info( "Auto-provisioned user profile for SSO user: {} (full name: {})", loginName, profile.getFullname() );
         } catch( final WikiSecurityException e ) {
             LOG.error( "Failed to auto-provision user profile for SSO user: {}", loginName, e );
         }
+    }
+
+    /** @deprecated use {@link #provisionIfNeeded(String,String,org.pac4j.core.profile.UserProfile)}. */
+    @Deprecated
+    public void provisionIfNeeded( final String loginName, final org.pac4j.core.profile.UserProfile ssoProfile ) {
+        provisionIfNeeded( loginName, loginName, ssoProfile );
     }
 
     /**

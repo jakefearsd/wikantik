@@ -18,229 +18,76 @@
  */
 package com.wikantik.rest;
 
-import com.wikantik.TestEngine;
-import com.wikantik.auth.NoSuchPrincipalException;
-import com.wikantik.auth.UserManager;
-import com.wikantik.auth.WikiPrincipal;
-import com.wikantik.auth.authorize.Group;
-import com.wikantik.auth.authorize.GroupManager;
-import com.wikantik.auth.user.UserDatabase;
-import com.wikantik.auth.user.UserProfile;
+import com.wikantik.api.core.Session;
 
-import jakarta.servlet.ServletConfig;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.security.Principal;
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for {@link AuthResource#isLastAdmin(com.wikantik.api.core.Engine, String)}.
+ * Tests for {@link AuthResource#sessionHoldsAdminRole(Session)}.
  * <p>
- * Covers Task 2: lockout-safe guard that prevents the last admin from self-deleting.
- * <p>
- * All tests inject mock GroupManager and UserManager so they do NOT read or write
- * the shared on-disk XML database files. This avoids cross-test file-system pollution
- * in the parallel test JVM (other test classes create real TestEngine instances that
- * mutate userdatabase.xml / groupdatabase.xml in target/test-classes).
+ * Covers the conservative admin self-delete guard: any session that carries
+ * the {@code Admin} role is blocked from self-deletion via the self-service
+ * path, regardless of how many other admins exist.
  */
 class AuthResourceDeleteTest {
 
-    /**
-     * The bootstrap admin login name used by the standard Wikantik setup.
-     */
-    private static final String BOOTSTRAP_ADMIN = "admin";
-
-    private TestEngine engine;
-    private AuthResource servlet;
-
-    @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        engine = new TestEngine( props );
-
-        servlet = new AuthResource();
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
-    }
-
-    @AfterEach
-    void tearDown() throws Exception {
-        if ( engine != null ) {
-            engine.stop();
-        }
-    }
-
     // ----- helpers -----
 
-    /**
-     * Installs mock GroupManager and UserManager into the engine so that
-     * isLastAdmin uses the supplied in-memory state instead of the shared XML files.
-     */
-    private void installMocks( final GroupManager mockGm, final UserDatabase mockDb ) {
-        final UserManager mockUm = Mockito.mock( UserManager.class );
-        Mockito.when( mockUm.getUserDatabase() ).thenReturn( mockDb );
-        ( (com.wikantik.WikiEngine) engine ).setManager( GroupManager.class, mockGm );
-        ( (com.wikantik.WikiEngine) engine ).setManager( UserManager.class, mockUm );
-    }
-
-    /**
-     * Builds a mock Group with {@link Group#members()} returning principals for
-     * the given wiki names. Uses real {@link WikiPrincipal} objects (not mocks)
-     * to avoid Mockito's unfinished-stubbing detector.
-     * <p>
-     * IMPORTANT: the Group mock must be fully configured BEFORE any outer
-     * {@code Mockito.when(...)} call that returns it as a value — calling
-     * {@code Mockito.mock()} inside a {@code thenReturn()} argument breaks
-     * Mockito's stubbing recorder.
-     */
-    private static Group buildAdminGroup( final String... wikiNames ) {
-        final Principal[] members = new Principal[ wikiNames.length ];
-        for ( int i = 0; i < wikiNames.length; i++ ) {
-            members[i] = new WikiPrincipal( wikiNames[i] );
-        }
-        // Create and configure the mock BEFORE any outer Mockito.when() call.
-        final Group group = Mockito.mock( Group.class );
-        Mockito.when( group.members() ).thenReturn( members );
-        return group;
-    }
-
-    /**
-     * Creates a mock UserProfile with the given login name.
-     * Must be built BEFORE any outer {@code Mockito.when(...)} call.
-     */
-    private static UserProfile buildProfile( final String loginName ) {
-        final UserProfile p = Mockito.mock( UserProfile.class );
-        Mockito.when( p.getLoginName() ).thenReturn( loginName );
+    private static Principal principalNamed( final String name ) {
+        final Principal p = Mockito.mock( Principal.class );
+        Mockito.when( p.getName() ).thenReturn( name );
         return p;
+    }
+
+    private static Session sessionWithRoles( final Principal... roles ) {
+        final Session s = Mockito.mock( Session.class );
+        Mockito.when( s.getRoles() ).thenReturn( roles );
+        return s;
     }
 
     // ----- tests -----
 
     /**
-     * With only the bootstrap admin present in the Admin group,
-     * isLastAdmin must return true for that admin's login name.
+     * A session whose roles include a principal named {@code "Admin"} must
+     * cause {@code sessionHoldsAdminRole} to return {@code true}.
      */
     @Test
-    void lastRemainingAdminIsDetected() throws Exception {
-        // Pre-build mocks before any Mockito.when() wiring
-        final Group adminGroup    = buildAdminGroup( "Administrator" );
-        final UserProfile profile = buildProfile( BOOTSTRAP_ADMIN );
-
-        final GroupManager mockGm = Mockito.mock( GroupManager.class );
-        Mockito.when( mockGm.getGroup( "Admin" ) ).thenReturn( adminGroup );
-
-        final UserDatabase mockDb = Mockito.mock( UserDatabase.class );
-        Mockito.when( mockDb.findByWikiName( "Administrator" ) ).thenReturn( profile );
-
-        installMocks( mockGm, mockDb );
-
+    void returnsTrueWhenSessionHoldsAdminRole() {
+        final Session session = sessionWithRoles( principalNamed( "Admin" ) );
         assertTrue(
-            AuthResource.isLastAdmin( engine, BOOTSTRAP_ADMIN ),
-            "Expected isLastAdmin=true for the only admin '" + BOOTSTRAP_ADMIN + "'"
+            AuthResource.sessionHoldsAdminRole( session ),
+            "Expected true for a session with the Admin role"
         );
     }
 
     /**
-     * A user who is not in the Admin group must not be considered the last admin.
+     * A session whose roles contain only non-admin roles (e.g. {@code "Authenticated"})
+     * must cause {@code sessionHoldsAdminRole} to return {@code false}.
      */
     @Test
-    void nonAdminIsNotLastAdmin() throws Exception {
-        final Group adminGroup    = buildAdminGroup( "Administrator" );
-        final UserProfile profile = buildProfile( BOOTSTRAP_ADMIN );
-
-        final GroupManager mockGm = Mockito.mock( GroupManager.class );
-        Mockito.when( mockGm.getGroup( "Admin" ) ).thenReturn( adminGroup );
-
-        final UserDatabase mockDb = Mockito.mock( UserDatabase.class );
-        Mockito.when( mockDb.findByWikiName( "Administrator" ) ).thenReturn( profile );
-
-        installMocks( mockGm, mockDb );
-
+    void returnsFalseWhenSessionLacksAdminRole() {
+        final Session session = sessionWithRoles( principalNamed( "Authenticated" ) );
         assertFalse(
-            AuthResource.isLastAdmin( engine, "plainuser" ),
-            "Expected isLastAdmin=false for a non-admin user"
+            AuthResource.sessionHoldsAdminRole( session ),
+            "Expected false for a session with only the Authenticated role"
         );
     }
 
     /**
-     * When there are two admins, neither is the last admin.
+     * A session with no roles at all must cause {@code sessionHoldsAdminRole}
+     * to return {@code false} (empty stream — no match).
      */
     @Test
-    void withTwoAdminsNeitherIsLast() throws Exception {
-        final Group adminGroup      = buildAdminGroup( "Administrator", "SecondAdminT2" );
-        final UserProfile profile1  = buildProfile( BOOTSTRAP_ADMIN );
-        final UserProfile profile2  = buildProfile( "secondadmin_t2" );
-
-        final GroupManager mockGm = Mockito.mock( GroupManager.class );
-        Mockito.when( mockGm.getGroup( "Admin" ) ).thenReturn( adminGroup );
-
-        final UserDatabase mockDb = Mockito.mock( UserDatabase.class );
-        Mockito.when( mockDb.findByWikiName( "Administrator" ) ).thenReturn( profile1 );
-        Mockito.when( mockDb.findByWikiName( "SecondAdminT2" ) ).thenReturn( profile2 );
-
-        installMocks( mockGm, mockDb );
-
+    void returnsFalseWhenSessionHasNoRoles() {
+        final Session session = sessionWithRoles( /* empty */ );
         assertFalse(
-            AuthResource.isLastAdmin( engine, BOOTSTRAP_ADMIN ),
-            "Expected isLastAdmin=false for bootstrap admin when a second admin exists"
-        );
-        assertFalse(
-            AuthResource.isLastAdmin( engine, "secondadmin_t2" ),
-            "Expected isLastAdmin=false for second admin when bootstrap admin also exists"
-        );
-    }
-
-    /**
-     * If the Admin group has a member whose wiki name has no matching user profile
-     * (e.g. stale entry), that entry is skipped. The resolvable admin is still
-     * correctly identified as the last admin.
-     */
-    @Test
-    void staleGroupMemberIsSkipped() throws Exception {
-        final Group adminGroup    = buildAdminGroup( "Administrator", "DeletedUser" );
-        final UserProfile profile = buildProfile( BOOTSTRAP_ADMIN );
-
-        final GroupManager mockGm = Mockito.mock( GroupManager.class );
-        Mockito.when( mockGm.getGroup( "Admin" ) ).thenReturn( adminGroup );
-
-        final UserDatabase mockDb = Mockito.mock( UserDatabase.class );
-        Mockito.when( mockDb.findByWikiName( "Administrator" ) ).thenReturn( profile );
-        Mockito.when( mockDb.findByWikiName( "DeletedUser" ) )
-            .thenThrow( new NoSuchPrincipalException( "not found" ) );
-
-        installMocks( mockGm, mockDb );
-
-        // "DeletedUser" is stale — only one real admin remains
-        assertTrue(
-            AuthResource.isLastAdmin( engine, BOOTSTRAP_ADMIN ),
-            "Expected isLastAdmin=true when the only other group member has no profile"
-        );
-    }
-
-    /**
-     * If an internal error occurs (e.g. Admin group not found), the method must
-     * fail-safe by returning true (refuse deletion rather than risk lockout).
-     */
-    @Test
-    void failsafeOnMissingAdminGroup() throws Exception {
-        final GroupManager mockGm = Mockito.mock( GroupManager.class );
-        Mockito.when( mockGm.getGroup( "Admin" ) )
-            .thenThrow( new NoSuchPrincipalException( "Admin group not found" ) );
-
-        final UserDatabase mockDb = Mockito.mock( UserDatabase.class );
-
-        installMocks( mockGm, mockDb );
-
-        assertTrue(
-            AuthResource.isLastAdmin( engine, BOOTSTRAP_ADMIN ),
-            "Expected fail-safe true when Admin group cannot be found"
+            AuthResource.sessionHoldsAdminRole( session ),
+            "Expected false for a session with no roles"
         );
     }
 

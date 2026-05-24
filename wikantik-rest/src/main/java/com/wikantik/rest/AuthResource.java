@@ -27,8 +27,6 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
-import com.wikantik.auth.authorize.Group;
-import com.wikantik.auth.authorize.GroupManager;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.auth.validate.PasswordValidator;
@@ -47,12 +45,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.security.Principal;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -439,71 +435,19 @@ public class AuthResource extends RestServletBase {
         sendJson( response, Map.of( "success", true, "message", RESET_GENERIC_MESSAGE ) );
     }
 
-    // ----- Admin-count guard -----
+    // ----- Admin self-delete guard -----
 
     /**
-     * Returns {@code true} if {@code loginName} is an admin AND is the ONLY admin, meaning
-     * deleting this account would leave the wiki with no administrator.
-     *
-     * <p>Admin membership is determined by examining the {@code Admin} group in the
-     * {@link GroupManager}. For each wiki-name principal in that group the corresponding
-     * {@link com.wikantik.auth.user.UserDatabase} record is resolved to a login name so that
-     * the caller-supplied {@code loginName} (a login name) can be matched.
-     *
-     * <p><b>NOTE on dual admin sources:</b> In production the {@code roles} table also
-     * grants admin rights to accounts created before the group-membership model was
-     * established. There is no public {@link UserDatabase} API that enumerates all login
-     * names that carry the {@code Admin} role, so the roles-table source cannot be
-     * enumerated independently here. The {@code Admin} group is the authoritative and
-     * manageable source for admin membership; accounts with a bare {@code roles} row but
-     * no group membership are atypical and are not counted by this guard. If such an
-     * account exists, the safety net is that the {@code Admin} group must still have at
-     * least one member, so the lockout scenario cannot be triggered by this path alone.
-     *
-     * <p>On any internal failure this method returns {@code true} (fail-safe: refuse the
-     * deletion rather than risk a lockout).
-     *
-     * @param engine    the wiki engine; must not be {@code null}
-     * @param loginName the login name of the user requesting deletion
-     * @return {@code true} if allowing this deletion would remove the last admin
+     * Returns {@code true} if the session holds the {@code Admin} role. Admins
+     * may not self-delete via the self-service endpoint (they would risk locking
+     * the wiki out of all admin access; admin-source enumeration across the
+     * roles table and Admin group is not reliably available here). An admin must
+     * have another administrator remove the account, or relinquish the Admin
+     * role first. Regular users are unaffected.
      */
-    static boolean isLastAdmin( final Engine engine, final String loginName ) {
-        try {
-            final com.wikantik.auth.subsystem.AuthSubsystem.Services auth =
-                com.wikantik.auth.subsystem.AuthSubsystemBridge.fromLegacyEngine( engine );
-            final GroupManager groupManager = auth.groups();
-            final UserDatabase db = auth.users().getUserDatabase();
-
-            final Group adminGroup;
-            try {
-                adminGroup = groupManager.getGroup( "Admin" );
-            } catch ( final NoSuchPrincipalException e ) {
-                // No Admin group exists at all — treat as fail-safe
-                LOG.warn( "isLastAdmin: Admin group not found; refusing self-deletion as a precaution. loginName={}", loginName );
-                return true;
-            }
-
-            // Collect the set of login names that are members of the Admin group.
-            // Admin group stores wiki-name Principals; resolve each to a login name.
-            final Principal[] members = adminGroup.members();
-            final Set< String > adminLogins = new HashSet<>( members.length );
-            for ( final Principal member : members ) {
-                try {
-                    final UserProfile p = db.findByWikiName( member.getName() );
-                    adminLogins.add( p.getLoginName() );
-                } catch ( final NoSuchPrincipalException e ) {
-                    // Wiki name in the group has no matching user profile — skip
-                    LOG.warn( "isLastAdmin: Admin group member '{}' has no user profile; skipping.", member.getName() );
-                }
-            }
-
-            return adminLogins.contains( loginName ) && adminLogins.size() <= 1;
-
-        } catch ( final Exception e ) {
-            LOG.warn( "isLastAdmin: unexpected error checking admin count for '{}'; refusing deletion as a precaution. Reason: {}",
-                loginName, e.getMessage() );
-            return true;
-        }
+    static boolean sessionHoldsAdminRole( final Session session ) {
+        return java.util.Arrays.stream( session.getRoles() )
+                .anyMatch( role -> "Admin".equals( role.getName() ) );
     }
 
     // ----- Helper methods -----

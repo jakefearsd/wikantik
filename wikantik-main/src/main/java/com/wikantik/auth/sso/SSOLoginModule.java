@@ -21,10 +21,13 @@ package com.wikantik.auth.sso;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
+import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.login.AbstractLoginModule;
 import com.wikantik.auth.login.HttpRequestCallback;
 import com.wikantik.auth.login.WikiEngineCallback;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
+import com.wikantik.auth.user.UserDatabase;
 import org.pac4j.core.profile.UserProfile;
 import org.pac4j.core.util.Pac4jConstants;
 
@@ -67,6 +70,9 @@ public class SSOLoginModule extends AbstractLoginModule {
      * Set via {@code wikantik.loginModule.options.sso.claimLoginName}.
      */
     static final String OPTION_CLAIM_LOGIN_NAME = "sso.claimLoginName";
+
+    /** LoginModule option key for the immutable identity claim. */
+    static final String OPTION_IDENTITY_CLAIM = "sso.identityClaim";
 
     /**
      * LoginModule option key for the IdP claim mapped to JSPWiki full name.
@@ -121,15 +127,25 @@ public class SSOLoginModule extends AbstractLoginModule {
                 throw new FailedLoginException( "SSO profile login name is missing or unsafe." );
             }
 
+            // Identity is keyed on the immutable subject claim, not the (mutable)
+            // login name. A login may only bind to a name that is unused or already
+            // SSO-linked to this same subject — never silently adopt a local account.
+            final Engine engine = ecb.getEngine();
+            final String subject = resolveSubject( profile );
+            if( !isLinkAllowed( engine, loginName, subject ) ) {
+                throw new FailedLoginException(
+                    "SSO identity '" + loginName + "' collides with an existing non-SSO account." );
+            }
+
             LOG.debug( "SSO login succeeded for user: {}", loginName );
             principals.add( new WikiPrincipal( loginName, WikiPrincipal.LOGIN_NAME ) );
 
             // Auto-provision a local user profile if needed
-            final Engine engine = ecb.getEngine();
             if( engine != null ) {
                 final SSOConfig ssoConfig = SSOConfigHolder.getConfig( engine );
                 if( ssoConfig != null ) {
-                    new SSOAutoProvisionService( engine, ssoConfig ).provisionIfNeeded( loginName, profile );
+                    new SSOAutoProvisionService( engine, ssoConfig )
+                        .provisionIfNeeded( loginName, subject, profile );
                 }
             }
 
@@ -141,6 +157,35 @@ public class SSOLoginModule extends AbstractLoginModule {
         } catch( final UnsupportedCallbackException e ) {
             LOG.error( "UnsupportedCallbackException during SSO login: {}", e.getMessage() );
             return false;
+        }
+    }
+
+    /** Resolves the immutable subject claim used to verify account ownership. */
+    private String resolveSubject( final UserProfile profile ) {
+        final String subject = firstScalar( profile.getAttribute( getOption( OPTION_IDENTITY_CLAIM, "sub" ) ) );
+        return subject != null ? subject : resolveLoginName( profile );
+    }
+
+    /**
+     * A login may bind to {@code loginName} only when no local profile exists
+     * yet, or the existing profile is SSO-linked to the same {@code subject}.
+     * This stops a hostile IdP from asserting a name that matches a local
+     * account and inheriting its identity.
+     */
+    private boolean isLinkAllowed( final Engine engine, final String loginName, final String subject ) {
+        if( engine == null ) {
+            return true; // unit contexts with no engine: nothing to collide with
+        }
+        final UserDatabase userDb = AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase();
+        if( userDb == null ) {
+            return true;
+        }
+        try {
+            final com.wikantik.auth.user.UserProfile existing = userDb.findByLoginName( loginName );
+            final Object linked = existing.getAttributes().get( SSOAutoProvisionService.ATTR_SSO_SUBJECT );
+            return subject != null && subject.equals( linked );
+        } catch( final NoSuchPrincipalException e ) {
+            return true; // no collision — fresh SSO identity
         }
     }
 

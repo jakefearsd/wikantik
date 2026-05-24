@@ -20,7 +20,11 @@ package com.wikantik.auth.sso;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.auth.UserManager;
+import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.login.WebContainerCallbackHandler;
+import com.wikantik.auth.user.UserDatabase;
+import com.wikantik.auth.user.UserProfile;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.Assertions;
@@ -96,5 +100,35 @@ class SSOLoginModuleEdgeCasesTest {
         Assertions.assertFalse( SSOLoginModule.isSafeLoginName( null ),             "null must be unsafe" );
         Assertions.assertTrue(  SSOLoginModule.isSafeLoginName( "a".repeat( 100 ) ), "100-char name must be safe (at the limit)" );
         Assertions.assertFalse( SSOLoginModule.isSafeLoginName( "a".repeat( 101 ) ), "101-char name must be unsafe (over the limit)" );
+    }
+
+    @Test
+    void refusesToBindToPreexistingNonSsoAccount() throws Exception {
+        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
+
+        // A locally-created admin account that was NEVER linked to SSO.
+        final UserProfile local = userDb.newProfile();
+        local.setLoginName( "admin" );
+        local.setFullname( "Local Admin" );
+        userDb.save( local );
+        try {
+            // A hostile IdP asserts identity "admin".
+            final CommonProfile profile = new CommonProfile();
+            profile.setId( "admin" );
+            profile.addAttribute( "sub", "admin" );
+
+            final SSOLoginModule module = new SSOLoginModule();
+            final Subject subject = new Subject();
+            module.initialize( subject, new WebContainerCallbackHandler( engine, requestWithProfile( profile ) ),
+                    new HashMap<>(), Map.of( SSOLoginModule.OPTION_CLAIM_LOGIN_NAME, "sub" ) );
+
+            Assertions.assertThrows( LoginException.class, module::login,
+                "SSO must not adopt a pre-existing local account that has no matching sso.subject." );
+            Assertions.assertTrue( subject.getPrincipals( WikiPrincipal.class ).isEmpty(),
+                "No principal may be bound when the collision check fails." );
+        } finally {
+            userDb.deleteByLoginName( "admin" );
+        }
     }
 }

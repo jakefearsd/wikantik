@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-05-24
+
 ### Added
 
 - **Single Sign-On (OIDC + SAML 2.0 via pac4j).** Google OIDC is live in

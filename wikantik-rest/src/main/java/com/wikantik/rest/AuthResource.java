@@ -159,6 +159,80 @@ public class AuthResource extends RestServletBase {
         }
     }
 
+    @Override
+    protected void doDelete( final HttpServletRequest request, final HttpServletResponse response )
+            throws ServletException, IOException {
+        final String action = extractPathParam( request );
+        if ( "profile".equals( action ) ) {
+            handleDeleteProfile( request, response );
+        } else {
+            sendNotFound( response, "Unknown auth endpoint: " + action );
+        }
+    }
+
+    /**
+     * Self-service account deletion. Deletes ONLY the authenticated session's own
+     * account — the target is always the session principal, never a body value.
+     * Requires confirmLoginName in the body to match the session login name, and
+     * refuses if the caller holds the Admin role (admins cannot self-delete here;
+     * lockout safety). Revokes owned API keys, removes group memberships, deletes
+     * the profile, then invalidates the session. Past page edits remain (authorship
+     * is not a user FK).
+     */
+    private void handleDeleteProfile( final HttpServletRequest request, final HttpServletResponse response )
+            throws IOException {
+        final Engine engine = getEngine();
+        final Session session = Wiki.session().find( engine, request );
+        if ( !session.isAuthenticated() ) {
+            sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required" );
+            return;
+        }
+
+        // Target is ALWAYS the session's own login — never taken from the body.
+        final String loginName = session.getLoginPrincipal().getName();
+
+        final JsonObject body = parseJsonBody( request, response );
+        if ( body == null ) return;
+        final String confirm = getJsonString( body, "confirmLoginName" );
+        if ( !confirmationMatches( loginName, confirm ) ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "confirmLoginName must match your own login name to delete your account" );
+            return;
+        }
+
+        if ( sessionHoldsAdminRole( session ) ) {
+            sendError( response, HttpServletResponse.SC_CONFLICT,
+                    "Administrators cannot delete their own account here. Ask another administrator to "
+                    + "remove it, or relinquish the Admin role first." );
+            return;
+        }
+
+        try {
+            revokeApiKeysFor( engine, loginName );
+            removeFromAllGroups( engine, getSubsystems().auth().groups(), session, loginName );
+            getSubsystems().auth().users().getUserDatabase().deleteByLoginName( loginName );
+        } catch ( final NoSuchPrincipalException e ) {
+            sendNotFound( response, "Profile not found" );
+            return;
+        } catch ( final WikiSecurityException e ) {
+            LOG.error( "Self-deletion failed for {}: {}", loginName, e.getMessage(), e );
+            sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Account deletion failed" );
+            return;
+        }
+
+        LOG.info( "User {} deleted their own account", loginName );
+
+        final var httpSession = request.getSession( false );
+        if ( httpSession != null ) {
+            httpSession.invalidate();
+        }
+
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "deleted", true );
+        result.put( "loginName", loginName );
+        sendJson( response, result );
+    }
+
     /**
      * Returns current user session information.
      */
@@ -441,6 +515,15 @@ public class AuthResource extends RestServletBase {
     }
 
     // ----- Admin self-delete guard -----
+
+    /**
+     * Returns {@code true} if {@code confirm} is non-null and equals
+     * {@code sessionLogin}. Extracted as a pure method so it can be unit-tested
+     * without servlet plumbing.
+     */
+    static boolean confirmationMatches( final String sessionLogin, final String confirm ) {
+        return confirm != null && confirm.equals( sessionLogin );
+    }
 
     /**
      * Revokes all API keys owned by {@code loginName} as part of account

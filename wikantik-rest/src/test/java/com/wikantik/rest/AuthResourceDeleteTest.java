@@ -130,6 +130,64 @@ class AuthResourceDeleteTest {
         );
     }
 
+    // ----- confirmationMatches tests -----
+
+    /**
+     * When confirmLoginName in the body matches the session login name exactly,
+     * {@code confirmationMatches} must return {@code true}.
+     */
+    @Test
+    void confirmationMatches_exactMatch_returnsTrue() {
+        assertTrue(
+            AuthResource.confirmationMatches( "alice", "alice" ),
+            "Matching confirm should return true"
+        );
+    }
+
+    /**
+     * When confirmLoginName differs from the session login name,
+     * {@code confirmationMatches} must return {@code false} — this is the
+     * mismatch case that produces a 400 in the handler.
+     */
+    @Test
+    void confirmationMatches_differentValue_returnsFalse() {
+        assertFalse(
+            AuthResource.confirmationMatches( "alice", "bob" ),
+            "Mismatched confirm should return false"
+        );
+    }
+
+    /**
+     * When confirmLoginName is {@code null} (missing from the body),
+     * {@code confirmationMatches} must return {@code false} without throwing.
+     * This also proves that a body carrying a different user (e.g. bob's login)
+     * cannot be used to trigger deletion of alice's account — the session login
+     * is the authoritative target; the confirm field is only a safety check
+     * against the session value.
+     */
+    @Test
+    void confirmationMatches_nullConfirm_returnsFalse() {
+        assertFalse(
+            AuthResource.confirmationMatches( "alice", null ),
+            "Null confirm should return false, not throw"
+        );
+    }
+
+    /**
+     * A body that names a different user (e.g. "bob") as confirmLoginName cannot
+     * satisfy the confirmation check for the session login "alice". This directly
+     * tests that self-only enforcement is wired to the session value, not the
+     * body value — passing "bob" in confirmLoginName while alice is the session
+     * principal must produce false (→ 400 in the handler, no deletion).
+     */
+    @Test
+    void confirmationMatches_bodyNamesOtherUser_returnsFalse() {
+        assertFalse(
+            AuthResource.confirmationMatches( "alice", "bob" ),
+            "Body naming another user must not satisfy alice's confirmation check"
+        );
+    }
+
     // ----- removeFromAllGroups tests -----
 
     /**

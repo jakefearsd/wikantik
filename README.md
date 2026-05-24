@@ -504,8 +504,9 @@ Migrating from a previous Wikantik install? See
 - [KnowledgeGraphRerank.md](docs/KnowledgeGraphRerank.md) — Configuration, verification, and tuning guide for the entity extractor, unified embeddings, and Knowledge Graph-aware search rerank
 - [RelationalUserDatabase.md](docs/RelationalUserDatabase.md) — PostgreSQL user and group database configuration
 - [Sitemap.md](docs/Sitemap.md) — Sitemap.xml and Atom feed servlets
-- [OAuthImplementation.md](docs/OAuthImplementation.md) — OAuth SSO implementation plan (Google, GitHub)
-- [FullOAuth.md](docs/FullOAuth.md) — OAuth/OpenID Connect detailed design
+- [SingleSignOn.md](docs/SingleSignOn.md) — **SSO configuration reference** (OIDC + SAML via pac4j): properties, claim mapping, identity binding, container env vars
+- [OAuthImplementation.md](docs/OAuthImplementation.md) — original OAuth SSO planning notes (superseded by SingleSignOn.md)
+- [FullOAuth.md](docs/FullOAuth.md) — original OAuth/OpenID Connect design exploration (superseded by SingleSignOn.md)
 
 ### Security
 

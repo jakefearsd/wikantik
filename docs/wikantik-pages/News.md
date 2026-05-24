@@ -6,19 +6,499 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
-**2026-05-17** — chore: document MCP_USERS and use a CHANGE_ME placeholder for GRAFANA_ADMIN_PASSWORD in .env.example
+**2026-05-24** — fix(sso): stop the version banner on every SSO login
 
-**2026-05-17** — fix(deploy): give the base compose the wikantik build context so container.sh build and remote.sh deploy rebuild the image instead of shipping a stale one
+**2026-05-24** — fix(sso): make the Continue-with-Google button resilient to the auth probe
 
-**2026-05-17** — deploy: add node-exporter, cAdvisor, and postgres-exporter to the observability overlay with a new "Wikantik — Host & Infra" Grafana dashboard
+**2026-05-24** — auth(sso): Google OIDC go-live + privacy/terms pages
 
-**2026-05-17** — deploy: add V031 migration creating the wikantik_exporter PostgreSQL monitoring role
+**2026-05-24** — feat(ui): self-service delete-account section on preferences page
 
-**2026-05-17** — feat: add k6 load-test harness under loadtest/ driven by bin/loadtest.sh with smoke/load/stress profiles and --verify metrics-delta gate
+**2026-05-24** — test(auth): wire-level IT for self-service account deletion (401/400/409/200)
 
-**2026-05-17** — feat: remote-write k6 metrics into Prometheus so offered load and host strain share a timeline
+**2026-05-24** — feat(auth): DELETE /api/auth/profile self-service account deletion
 
-**2026-05-17** — feat: add wikantik_search_hybrid_embedder_latency Timer for query-embedder latency
+**2026-05-24** — feat(auth): remove a user from all groups on self-deletion
+
+**2026-05-24** — feat(auth): revoke a user's API keys on self-deletion
+
+**2026-05-24** — refactor(auth): conservative admin self-delete guard via session role
+
+**2026-05-24** — feat(auth): add lockout-safe isLastAdmin guard for self-deletion
+
+**2026-05-24** — feat: add public privacy-policy.html for Google/Facebook SSO onboarding
+
+**2026-05-24** — docs: implementation plan for privacy policy + self-service account deletion
+
+**2026-05-24** — docs: design for privacy policy page + self-service account deletion
+
+**2026-05-24** — fix(sso): bridge wikantik.sso.identityClaim into the LoginModule; doc corrections
+
+**2026-05-24** — docs: note SSO identity binding, session rotation, and /login route behaviour
+
+**2026-05-24** — fix(sso): add real /login route so SSO failures show a login page, not a 404
+
+**2026-05-24** — test(saml): add SAML 2.0 end-to-end IT + fix CSRF and ACS URL mismatches
+
+**2026-05-24** — test(sso): make session-rotation IT track a single session (real fixation guard)
+
+**2026-05-24** — fix(sso): rotate session on SSO login (fixation); add OIDC callback-security ITs
+
+**2026-05-24** — test(sso): characterise disabled-provision authenticated half-state
+
+**2026-05-24** — test(sso): rename both-mode SAML test to reflect graceful-degradation contract
+
+**2026-05-24** — test(sso): pin SAML config degradation and client_name selection
+
+**2026-05-24** — fix(sso): downgrade concurrent-provisioning loser from error to debug
+
+**2026-05-24** — test(sso): regression-guard concurrent provisioning is idempotent
+
+**2026-05-24** — test(sso): pin identityClaim JAAS option wiring
+
+**2026-05-24** — refactor(sso): log collision-guard bypass, clarify subject fallback, harden test
+
+**2026-05-24** — fix(sso): fail closed when SSO identity collides with a non-SSO account
+
+**2026-05-24** — feat(sso): stamp auto-provisioned profiles with sso.subject marker
+
+**2026-05-24** — feat(sso): add wikantik.sso.identityClaim config (default sub)
+
+**2026-05-24** — test(sso): cover login-name length boundary; document blank-claim passthrough
+
+**2026-05-24** — fix(sso): reject blank/whitespace/control-char login names from IdP claims
+
+**2026-05-24** — fix(sso): normalise multi-valued IdP claims to first scalar element
+
+**2026-05-24** — docs: implementation plan for SSO hardening test suite
+
+**2026-05-24** — docs: design for SSO hardening test suite (closes SAML/edge-case gaps)
+
+**2026-05-24** — auth: keep login flows on persistent sessions (fix anonymous-session regression)
+
+**2026-05-23** — auth: stateless API-key requests no longer create HttpSessions
+
+**2026-05-23** — auth: don't create HttpSessions for anonymous requests (fixes session leak)
+
+**2026-05-23** — docs: note image/dump version compatibility from the live DR validation
+
+**2026-05-23** — docs: document DR-to-fresh-host (dr-restore.sh) across backup/docker/CLAUDE guides
+
+**2026-05-23** — backup: add dr-restore.sh (one-command DR to a fresh host) + smoke-wiki.sh
+
+**2026-05-23** — docs: correct compression ratio to measured ~2.2x (embeddings dominate the dump)
+
+**2026-05-23** — backup: gzip-compress db.sql to db.sql.gz (restore handles both)
+
+**2026-05-23** — docs: NAS archive lives in the Google Drive sync folder (free off-site copy)
+
+**2026-05-23** — docs: reconcile backup guide with as-built (textfile heartbeat, systemd timer, ext4)
+
+**2026-05-23** — backup: add nas-install-timer.sh to set up the off-box pull systemd timer
+
+**2026-05-23** — backup: nas-pull uses rrsync-relative source + drops owner/group preservation
+
+**2026-05-23** — backup: nas-pull emits a textfile heartbeat for the jakemon agent
+
+**2026-05-23** — backup: write metrics into the jakemon textfile-collector dir (prod)
+
+**2026-05-23** — backup: restore drill fails on empty users table; doc clarifications (review fixes)
+
+**2026-05-23** — docs: backup & recovery guide (off-box NAS pull, restore drills, jakemon alerts)
+
+**2026-05-23** — backup: surface BACKUP_METRICS_DIR to the prod sidecar + document it
+
+**2026-05-23** — backup: add NAS-side pull script (rsync + checksum verify + heartbeat + prune)
+
+**2026-05-23** — backup: add ephemeral restore-drill verifier
+
+**2026-05-23** — backup: restore full schema, not just 4 tables (defect fix)
+
+**2026-05-23** — backup: emit Prometheus textfile metrics per tier (atomic write)
+
+**2026-05-23** — backup: harden manifest numeric fields + test diagnostics (review fixes)
+
+**2026-05-23** — backup: write status manifest + LATEST pointer; make paths overridable
+
+**2026-05-23** — plan: off-box backup & recovery implementation
+
+**2026-05-23** — design: trim NAS retention to daily 90d / weekly 6mo / monthly 1y
+
+**2026-05-23** — design: off-box backup & recovery (pull model, jakemon-monitored)
+
+**2026-05-23** — docs: full bare-metal deployment pass
+
+**2026-05-23** — fix(db-provisioning): migrate role needs CREATEROLE + pg_monitor for V031
+
+**2026-05-22** — config(bare-metal): bring perf knobs to parity with container
+
+**2026-05-22** — test(admin-e2e): KG tabs, section smoke, auth redirect browser ITs
+
+**2026-05-22** — test(admin-e2e): Overview dashboard + sidebar navigation browser ITs
+
+**2026-05-22** — test(admin): tab-switching, auth redirect, metric-card variants, loading states
+
+**2026-05-22** — test(admin): cover PageLink, PageEditLink, provenance variants
+
+**2026-05-22** — test(admin): cover embeddings/hubs panels, form modals, mention chunks
+
+**2026-05-22** — test(admin): thorough tests for AdminContentPage, AdminSecurityPage, HubDiscoveryTab, HubProposalsTab
+
+**2026-05-22** — feat(admin): adopt EmptyState across admin list views
+
+**2026-05-22** — chore(admin): data-testid hooks on AdminSidebar for E2E
+
+**2026-05-22** — feat(admin): render enriched + new overview cards; testids; harden dashboard test
+
+**2026-05-22** — feat(admin-overview): enrich cards (locked/stubs/orphans/judge/auth/for-agent) + content-quality, retrieval-modes, attachments cards
+
+**2026-05-22** — refactor(pagegraph): shared StructuralIndexService.verificationCounts()
+
+**2026-05-22** — fix(auth): fire LOGIN_FAILED event on authentication failure
+
+**2026-05-22** — feat(kg): KnowledgeGraphService.countStubNodes()
+
+**2026-05-22** — feat(auth): UserDatabase.countLockedUsers()
+
+**2026-05-22** — feat(admin-overview): tag-aware + summary MetricReads helpers
+
+**2026-05-22** — docs: plan for admin deferred features + UI test hardening
+
+**2026-05-22** — chore(admin): remove orphaned nav CSS, add empty-action rule, honor degraded array
+
+**2026-05-22** — docs: admin UI refresh implementation plan
+
+**2026-05-22** — fix(admin): lazy-load OverviewDashboard to match admin-page convention
+
+**2026-05-22** — feat(admin): sectioned Overview dashboard; index route lands here
+
+**2026-05-22** — feat(admin): api.admin.getOverview
+
+**2026-05-22** — feat(admin): MetricCard dashboard tile
+
+**2026-05-22** — test(admin-overview): wire-level IT for GET /admin/overview
+
+**2026-05-22** — feat(admin-overview): GET /admin/overview endpoint + collectors + servlet mapping
+
+**2026-05-22** — feat(admin-overview): OverviewAssembler with per-card degradation
+
+**2026-05-22** — feat(admin-overview): OverviewSnapshot record + MetricReads helper
+
+**2026-05-22** — fix(admin): remove duplicate KG subtitle; use density tokens in table CSS
+
+**2026-05-22** — feat(admin): adopt PageHeader on all pages; hybrid table density
+
+**2026-05-22** — feat(admin): shared EmptyState component
+
+**2026-05-22** — feat(admin): shared PageHeader component
+
+**2026-05-22** — style(admin): sidebar styles and admin density base
+
+**2026-05-22** — refactor(admin): AdminLayout becomes a content shell, nav moves to sidebar
+
+**2026-05-22** — feat(admin): swap reader sidebar for AdminSidebar on /admin routes
+
+**2026-05-22** — test(admin): fix AdminSidebar group-count description (three, not four)
+
+**2026-05-22** — feat(admin): grouped context-swap AdminSidebar
+
+**2026-05-22** — design: admin UI refresh — grouped context-swap sidebar, hybrid density, Overview dashboard
+
+**2026-05-22** — build: bump main to 2.0.3-SNAPSHOT post-release
+
+**2026-05-22** — release: 2.0.2
+
+**2026-05-22** — docs: document the search/perf overhaul (HNSW, caches, lock fixes, tuning)
+
+**2026-05-22** — config: cut DBCP maxWaitMillis 10s -> 5s
+
+**2026-05-22** — perf: generate request-correlation IDs with ThreadLocalRandom, not SecureRandom
+
+**2026-05-22** — perf: share one thread-safe DateTimeFormatter for JSON date output
+
+**2026-05-22** — fix: lower backpressure default to 390 so the gate binds below maxThreads
+
+**2026-05-22** — perf: reuse a per-thread Collator in PrincipalComparator
+
+**2026-05-22** — fix: address cache review findings (defensive-copy user profile, warn-log, no-cache-on-error)
+
+**2026-05-22** — perf: cache JDBCUserDatabase.findByLoginName (60s TTL, evict on mutation)
+
+**2026-05-22** — perf: cache MentionIndex related-pages lookups (5m TTL)
+
+**2026-05-22** — perf: cache ApiKeyService.verify (60s TTL), async last_used_at touch
+
+**2026-05-22** — plan: short-TTL caches to remove per-request DB connections (auth, user, mentions)
+
+**2026-05-22** — perf: retrieve HNSW chunk metadata via DocValues, not stored fields
+
+**2026-05-22** — plan: HNSW DocValues metadata retrieval optimization
+
+**2026-05-22** — design: HNSW DocValues metadata retrieval (eliminate stored-fields LZ4 cost)
+
+**2026-05-22** — docs: list lucene-hnsw as a valid WIKANTIK_DENSE_BACKEND in entrypoint
+
+**2026-05-22** — fix: address final-review findings on the lucene-hnsw backend
+
+**2026-05-22** — test: retrieval-quality parity gate for the lucene-hnsw backend (nDCG@5 within 0.02)
+
+**2026-05-22** — docs: document the lucene-hnsw dense backend and its knobs
+
+**2026-05-22** — feat: wire lucene-hnsw dense backend (reload hook, upsert callback, metrics)
+
+**2026-05-22** — feat: select lucene-hnsw dense backend in SearchSubsystemFactory
+
+**2026-05-22** — feat: Lucene HNSW backend DB load + incremental upsert (fail-closed)
+
+**2026-05-22** — feat: Lucene HNSW dense backend core (RAM index, KNN query, fail-closed)
+
+**2026-05-22** — feat: HnswParams record for Lucene HNSW dense backend tuning
+
+**2026-05-22** — refactor: extract ChunkVectorBytes little-endian vector decoder
+
+**2026-05-22** — plan: Lucene HNSW dense-retrieval backend implementation (#4)
+
+**2026-05-22** — design: Lucene HNSW dense-retrieval backend (#4)
+
+**2026-05-22** — perf: cut three read-path hotspots found by JFR (N=350)
+
+**2026-05-21** — docs: document WIKANTIK_MAX_INFLIGHT_REQUESTS backpressure cap
+
+**2026-05-21** — perf: BackpressureFilter — fixed-permit semaphore + 503 + metric
+
+**2026-05-21** — docs: add LoadTesting.md methodology guide + cross-link from README + harness reference
+
+**2026-05-21** — docs: configuration options table + README scaling summary
+
+**2026-05-21** — docker: surface WIKANTIK_VERSIONING_CACHE_SIZE env var
+
+**2026-05-21** — providers: Caffeine-ify LruPropertyCache + publish metrics
+
+**2026-05-21** — providers: concurrency test for the RWLock-protected VersioningFileProvider
+
+**2026-05-21** — providers: VersioningFileProvider write paths use exclusive write-lock
+
+**2026-05-21** — providers: VersioningFileProvider read paths use shared read-lock
+
+**2026-05-21** — test: StubPage.clearHasMetadata override (Page interface method added in 17b00e68fe)
+
+**2026-05-21** — providers: explicit hasMetadata reset on CachingProvider.putPageText
+
+**2026-05-21** — providers: set Page.hasMetadata() after CachingProvider parse
+
+**2026-05-21** — plan: VersioningFileProvider contention fix — 10-task sequential
+
+**2026-05-21** — design: eliminate per-search VersioningFileProvider contention spec
+
+**2026-05-21** — loadtest: remove accidentally-committed JFR captures + tighten gitignore
+
+**2026-05-21** — perf: Caffeine LRU on chunk+mentions repos, DBCP testWhileIdle, cache metrics
+
+**2026-05-21** — docker: revert Tomcat maxThreads 600→400 / acceptCount 400→200
+
+**2026-05-21** — search: Lucene Directory backend selectable via wikantik.search.lucene.directory.kind
+
+**2026-05-21** — search: SearchWiringHelper actually consults dense.backend property
+
+**2026-05-20** — docker: bump Tomcat maxThreads 400→600, DBCP maxTotal 60→90
+
+**2026-05-20** — docker: surface WIKANTIK_DENSE_BACKEND env var → wikantik-custom.properties
+
+**2026-05-20** — docs: point CLAUDE.md at the pgvector dense-retrieval flag
+
+**2026-05-20** — retrieval-quality: parity-gate pgvector against in-memory backend (ef_search=100)
+
+**2026-05-20** — config: register wikantik.search.dense.backend + ef_search defaults
+
+**2026-05-20** — db: one-shot backfill chunk embeddings into pgvector column
+
+**2026-05-20** — embedding: PgVectorBackfillCli decodes BYTEA into pgvector column
+
+**2026-05-20** — embedding: listener skips in-memory reload on pgvector backend
+
+**2026-05-20** — embedding: dual-write BYTEA + pgvector during cutover
+
+**2026-05-20** — search: fix property name + plumb DataSource through hot-swap bridge
+
+**2026-05-20** — search: select chunk vector backend via wikantik.search.dense.backend
+
+**2026-05-20** — metrics: HybridMetricsBridge size gauge handles both vector backends
+
+**2026-05-20** — search: PgVectorChunkVectorIndex isReady + cached size for metrics
+
+**2026-05-20** — search: restore autoCommit + rollback on PgVectorChunkVectorIndex exception path
+
+**2026-05-20** — search: PgVectorChunkVectorIndex.topKChunks via HNSW + ef_search guard
+
+**2026-05-20** — search: extract EMBEDDING_DIM constant for cross-task reuse
+
+**2026-05-20** — search: scaffold PgVectorChunkVectorIndex + formatVector helper
+
+**2026-05-20** — db: V032 add pgvector embedding column + HNSW index
+
+**2026-05-20** — design: pgvector + HNSW dense retrieval spec and plan
+
+**2026-05-20** — docs: ScalingCharacterization §13 — ZGC + dispatcher + VU ramp to find new ceiling
+
+**2026-05-20** — revert: switch back to G1 — ZGC was a mild regression at the current workload
+
+**2026-05-20** — perf(auth): SessionEventDispatcher — one listener per engine instead of per session
+
+**2026-05-20** — perf: switch wikantik container to Generational ZGC; drop heap to 50% of RAM
+
+**2026-05-20** — docs: ScalingCharacterization §12 — Lucene Highlighter disabled
+
+**2026-05-20** — perf(search): gate Lucene Highlighter behind wikantik.search.highlighter.enabled (default off)
+
+**2026-05-20** — fix(observability): JfrProfilingService — auto-finalise duration-stopped recordings
+
+**2026-05-20** — docs: ScalingCharacterization §11 — listener-mutex fix result
+
+**2026-05-20** — test(event): concurrency tests for WeakHashMap-backed WikiEventDelegate
+
+**2026-05-20** — perf(event): WikiEventDelegate storage WeakHashMap; fireEvent dispatch outside lock
+
+**2026-05-20** — plan: listener-mutex fix (v1)
+
+**2026-05-20** — design: listener-mutex fix — WikiEventManager hotfix (v1)
+
+**2026-05-20** — docs: ScalingCharacterization §10 — Vector API on dotAt
+
+**2026-05-20** — perf(search): vectorise InMemoryChunkVectorIndex.dotAt with Java Vector API
+
+**2026-05-20** — docs: ScalingCharacterization §9 — Sweep #3 + JFR findings
+
+**2026-05-20** — revert: remove agent-added News.md entries; retire the changelog mirror
+
+**2026-05-20** — test(it): redirect wikantik.profiling.dir to target/ for Cargo-launched ITs
+
+**2026-05-20** — test(it): ProfilingResourceIT — JFR start/list/download against Cargo Tomcat
+
+**2026-05-20** — perf(search): fetchContributingChunks short-circuit + reuse first-scan chunks
+
+**2026-05-20** — feat(search): RerankOutcome — surface dense chunks for downstream reuse
+
+**2026-05-20** — perf(search): batch fetchRelatedPages in DefaultContextRetrievalService
+
+**2026-05-20** — feat(knowledge): MentionIndex.findRelatedPagesBatch — single-call API for N page lookups
+
+**2026-05-20** — build: mount wikantik-profiling volume for JFR recordings (prod)
+
+**2026-05-20** — feat(rest): /admin/profiling/jfr/* — start/stop/list/download JFR recordings
+
+**2026-05-20** — feat(observability): JfrProfilingService — start/stop/list JFR recordings
+
+**2026-05-20** — plan: search-path optimization v1 (JFR + two code surgeries)
+
+**2026-05-20** — design: search-path optimization v1 (JFR + two code surgeries)
+
+**2026-05-20** — content: log the scaling characterization study in News
+
+**2026-05-20** — docs: scaling characterization report — sweep, diagnosis, iteration, code suspects
+
+**2026-05-20** — perf: phase-3 postgres tuning for the scaling study
+
+**2026-05-20** — tool: add bin/curl-probe.sh for external real-user latency sampling
+
+**2026-05-20** — perf: bake the solid-baseline config for the scaling study
+
+**2026-05-20** — plan: adjust scaling sweep to start at 200, +100/step, 3m per step
+
+**2026-05-20** — plan: wikantik scaling characterization (v1)
+
+**2026-05-19** — design: wikantik scaling characterization study (v1)
+
+**2026-05-19** — content: log the loadtest --vus/--duration fix in News
+
+**2026-05-19** — fix(loadtest): rename --vus/--duration env vars off the k6-reserved K6_* namespace
+
+**2026-05-19** — content: log the Dependabot cleanup and anthropic 2.33 bump in News
+
+**2026-05-19** — chore: clean up Dependabot config and fix stale Apache reference
+
+**2026-05-19** — build(deps): bump com.anthropic:anthropic-java from 2.32.0 to 2.33.0 (#30)
+
+**2026-05-19** — content: log the dependency/plugin bump in News
+
+**2026-05-19** — build: bump dependencies and plugins to latest patch/minor releases
+
+**2026-05-19** — content: log the observability-overlay retirement in News
+
+**2026-05-19** — docs: monitoring is now jakemon's; drop overlay instructions
+
+**2026-05-19** — chore: point loadtest k6 metrics at jakemon's central Prometheus
+
+**2026-05-19** — feat: publish the prod DB on the docker0 bridge gateway
+
+**2026-05-19** — docs: tidy markdown formatting in the overlay-retirement spec
+
+**2026-05-19** — chore: remove the self-hosted observability overlay
+
+**2026-05-19** — plan: retire the observability overlay
+
+**2026-05-19** — design: retire the observability overlay in favour of jakemon
+
+**2026-05-17** — build: bump main to 2.0.2-SNAPSHOT post-release
+
+**2026-05-17** — release: 2.0.1
+
+**2026-05-17** — content: log the .env.example housekeeping in News
+
+**2026-05-17** — chore: document MCP_USERS and use a placeholder Grafana password in .env.example
+
+**2026-05-17** — content: log the compose build-context fix in News
+
+**2026-05-17** — fix(deploy): give the base compose the wikantik build context
+
+**2026-05-17** — docs: reflow the load-testing design spec
+
+**2026-05-17** — fix(loadtest): scope MCP/tools probe failures instead of masking them
+
+**2026-05-17** — fix(metrics): register WikiMetrics on the managers that fire its events
+
+**2026-05-17** — feat(loadtest): add idempotent test-data seeding for effective runs
+
+**2026-05-17** — fix(metrics): time MCP requests by reordering the access filter
+
+**2026-05-17** — fix(metrics): keep a strong reference to WikiMetrics
+
+**2026-05-17** — docs: document the load-test harness and host observability
+
+**2026-05-17** — feat(loadtest): remote-write k6 metrics to Prometheus + Grafana annotations
+
+**2026-05-17** — feat(observability): add query-embedder latency panel
+
+**2026-05-17** — feat(metrics): add query-embedder latency Timer
+
+**2026-05-17** — feat(loadtest): add bin/loadtest.sh wrapper, env template, and README
+
+**2026-05-17** — feat(loadtest): add k6 entry point with weighted mix and --verify gate
+
+**2026-05-17** — feat(loadtest): add k6 request helpers for the instrumented endpoints
+
+**2026-05-17** — feat(loadtest): add bundled page-slug pool for the read scenario
+
+**2026-05-17** — feat(loadtest): add harness config, profiles, and verify targets
+
+**2026-05-17** — feat(loadtest): add Prometheus-text parser and verify-report builder
+
+**2026-05-17** — fix(observability): drop PG18-incompatible bgwriter collector; CPU unit
+
+**2026-05-17** — feat(observability): add Wikantik Host & Infra Grafana dashboard
+
+**2026-05-17** — feat(observability): scrape node, cAdvisor, and postgres exporters
+
+**2026-05-17** — feat(observability): add node, cAdvisor, and postgres exporters
+
+**2026-05-17** — feat(observability): add postgres_exporter per-table IO custom query
+
+**2026-05-17** — feat(observability): add wikantik_exporter monitoring role migration
+
+**2026-05-17** — docs: add load-testing + host observability implementation plan
+
+**2026-05-17** — docs: add load-testing + host observability design spec
+
+**2026-05-17** — docs: add Wikantik mobile app v1 design spec
 
 **2026-05-17** — content: log the metrics fix in News
 
@@ -3236,70 +3716,4 @@ A log of recent development activity on the JSPWiki project.
 **2025-11-26** — Modernize Date/Time API usage in CalendarTag and CreoleToJSPWikiTranslator
 
 **2025-11-25** — Updated several simple dependencies.
-
-**2025-11-24** — Remove Apache ORO dependency from pom.xml files
-
-**2025-11-24** — Replace Apache ORO regex library with Java built-in regex
-
-**2025-11-24** — Modernize legacy collections and remove deprecated constructors
-
-**2025-11-23** — Update dependencies: commons-lang3 3.20.0, commons-io 2.21.0, Selenide 7.12.0
-
-**2025-11-23** — Fix PropertyReader warning for Log4j2 lookup syntax
-
-**2025-11-23** — Fix flaky AnonymousViewIT.anonymousReaderView test
-
-**2025-11-23** — Update Log4j2 to 2.25.2 and Lucene to 9.12.3
-
-**2025-11-23** — Remove Chinese (zh_CN) wiki pages module
-
-**2025-11-23** — Add SitemapServlet configuration to all IT test modules
-
-**2025-11-23** — Remove optional search providers and deprecated WikiEngine accessors
-
-**2025-11-23** — Remove Chinese (zh_CN) language support
-
-**2025-11-23** — Remove orphaned RPC/Atom/RSS references from codebase
-
-**2025-11-23** — Remove legacy 210 template to simplify codebase
-
-**2025-11-23** — Remove XML-RPC, 2.10 Adapters, and RSS/Atom/Weblog features
-
-**2025-11-23** — New feature description that needs refinement to be completed.
-
-**2025-11-23** — Implement SitemapServlet for search engine indexing
-
-**2025-11-23** — Updated this war to drive a local deployment for integration testing.
-
-**2025-11-23** — Updated the plan for sitemap to include changes for how URLs are now generated.
-
-**2025-11-23** — Add documentation for JSPWiki Markdown internal link syntax
-
-**2025-11-23** — This is a simple update to keep testing running after failure so that my coding agents get more test failure feedback when something does go wrong.
-
-**2025-11-23** — This is the plan for the sitemap implementation that I will try executing with help from Claude Code.
-
-**2025-11-23** — Updating tests to make them more robust in the face latency for integration tests.  This is all to help use the ShortViewURLConstructor to make URLs cleaner in the build up to adding a proper sitemap function to the wiki for search indexing.
-
-**2025-11-22** — Fix ACL deprecation warnings by migrating to new API interfaces
-
-**2025-11-22** — Fix deprecation warnings across multiple modules
-
-**2025-11-22** — Fix flaky integration tests in Selenide page objects
-
-**2025-11-22** — Fix deprecation warnings in TextUtil
-
-**2025-11-22** — Fix deprecation warning in ClassUtil
-
-**2025-11-22** — Fix deprecation warnings in comparator classes
-
-**2025-11-22** — Fix flaky integration test in searchFor method
-
-**2025-11-22** — Fix flaky integration test in clickOnShowReaderView
-
-**2025-11-22** — Upgrade Cargo Maven plugin to use Tomcat 11.0.14
-
-**2025-11-22** — Add local configuration and documentation files
-
-**2025-11-22** — This update adds the ability to prefer Markdown pages when they are present on the disk, but lacks a good way of adding the links. Rendering is tested and seems to work well both in automation and manually by downloading Google Docs as Markdown and pasting them onto the file system they are correctly rendered by the wiki.
 

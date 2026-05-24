@@ -6,6 +6,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Single Sign-On (OIDC + SAML 2.0 via pac4j).** Google OIDC is live in
+  production. Configurable through `wikantik.sso.*` (and `WIKANTIK_SSO_*` env
+  vars in containers); full operator reference in
+  [docs/SingleSignOn.md](docs/SingleSignOn.md). Includes a `/login` SPA route
+  that surfaces SSO `?error=` codes, and public privacy/terms pages for
+  provider onboarding.
+- **Self-service account deletion** — `DELETE /api/auth/profile` with a
+  preferences-page UI, a lockout-safe last-admin guard, and cascade cleanup of
+  the user's group memberships and API keys.
+- **Admin UI refresh** — grouped context-swap sidebar, a sectioned Overview
+  dashboard landing page, and hybrid table density.
+- **Off-box backup & recovery** — pull-model NAS backups, per-tier Prometheus
+  textfile metrics, restore-drill verification, and `bin/dr-restore.sh` for
+  one-command disaster recovery to a fresh host.
+
+### Security
+
+- SSO identity binding keys on the immutable `wikantik.sso.identityClaim`
+  (default `sub`); auto-provisioned profiles carry an `sso.subject` marker and
+  a name collision with a non-SSO local account **fails closed**. Successful
+  SSO login rotates the HTTP session (fixation defense); IdP claims are
+  sanitised (multi-valued normalised to first scalar, blank/control-character
+  login names rejected).
+- Anonymous and stateless API-key requests no longer create `HttpSession`s
+  (fixes a session-leak regression).
+
 ## [2.0.2] - 2026-05-22
 
 ### Added

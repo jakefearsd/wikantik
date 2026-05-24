@@ -515,6 +515,18 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             // (already loaded by initLoginModuleOptions) takes precedence.
             loginModuleOptions.putIfAbsent(
                 com.wikantik.auth.sso.SSOLoginModule.OPTION_IDENTITY_CLAIM, ssoConfig.getIdentityClaim() );
+            // Bridge the claim-mapping properties (wikantik.sso.claimMapping.*) into the
+            // JAAS options the SSOLoginModule actually reads. Without these, the module
+            // falls back to its hard-coded defaults (e.g. preferred_username for the login
+            // name) and the configured mappings are silently inert — which is how a Google
+            // login, whose IdP sends no preferred_username, ended up keyed on the numeric
+            // `sub`. Explicit wikantik.loginModule.options.* still take precedence.
+            loginModuleOptions.putIfAbsent(
+                com.wikantik.auth.sso.SSOLoginModule.OPTION_CLAIM_LOGIN_NAME, ssoConfig.getClaimLoginName() );
+            loginModuleOptions.putIfAbsent(
+                com.wikantik.auth.sso.SSOLoginModule.OPTION_CLAIM_FULL_NAME, ssoConfig.getClaimFullName() );
+            loginModuleOptions.putIfAbsent(
+                com.wikantik.auth.sso.SSOLoginModule.OPTION_CLAIM_EMAIL, ssoConfig.getClaimEmail() );
             LOG.info( "SSO configuration initialized with callback URL: {}", callbackUrl );
         }
     }

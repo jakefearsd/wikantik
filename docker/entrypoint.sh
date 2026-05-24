@@ -45,6 +45,20 @@
 #                                503 + Retry-After:1 instead of queueing for up to 60 s.
 #                                /api/health and /metrics bypass.
 #                                Metric: wikantik_backpressure.rejected_total
+#   WIKANTIK_SSO_ENABLED         "true" to enable Single Sign-On (default off)
+#   WIKANTIK_SSO_TYPE            oidc | saml | both (default oidc)
+#   WIKANTIK_SSO_OIDC_DISCOVERY_URI  provider OIDC discovery doc URL
+#   WIKANTIK_SSO_OIDC_CLIENT_ID  OAuth client id
+#   WIKANTIK_SSO_OIDC_CLIENT_SECRET  OAuth client secret (sensitive)
+#   WIKANTIK_SSO_OIDC_SCOPE      OAuth scope (default "openid profile email")
+#   WIKANTIK_SSO_IDENTITY_CLAIM  identity claim (default "sub")
+#   WIKANTIK_SSO_AUTO_PROVISION  "true" to auto-create profiles (default true)
+#   WIKANTIK_SSO_CLAIM_LOGIN_NAME IdP claim mapped to wiki login name
+#                                (default preferred_username; Google sends none,
+#                                so set to "email" for Google)
+#   WIKANTIK_SSO_CLAIM_FULL_NAME IdP claim mapped to display name (default "name")
+#   WIKANTIK_SSO_CLAIM_EMAIL     IdP claim mapped to email (default "email")
+#                                redirect_uri = WIKANTIK_BASE_URL + /sso/callback
 #   CATALINA_HOME                tomcat root (default /usr/local/tomcat)
 
 set -euo pipefail
@@ -160,6 +174,37 @@ if [ -n "${WIKANTIK_VERSIONING_CACHE_SIZE:-}" ]; then
 
 # VersioningFileProvider property cache size (entrypoint-injected from env).
 wikantik.versioningFileProvider.cacheSize = ${WIKANTIK_VERSIONING_CACHE_SIZE}
+EOF
+fi
+
+# Optional: Single Sign-On (OIDC/SAML via pac4j).
+#   WIKANTIK_SSO_ENABLED            "true" to turn SSO on (default off; block skipped when unset/false).
+#   WIKANTIK_SSO_TYPE               oidc | saml | both (default oidc).
+#   WIKANTIK_SSO_OIDC_DISCOVERY_URI provider OIDC discovery doc, e.g.
+#                                   https://accounts.google.com/.well-known/openid-configuration
+#   WIKANTIK_SSO_OIDC_CLIENT_ID     OAuth client id from the provider console.
+#   WIKANTIK_SSO_OIDC_CLIENT_SECRET OAuth client secret (sensitive — keep in .env.prod, never in git).
+#   WIKANTIK_SSO_OIDC_SCOPE         optional; default "openid profile email".
+#   WIKANTIK_SSO_IDENTITY_CLAIM     optional; default "sub" (immutable subject). Set to
+#                                   preferred_username only to deliberately trust a mutable claim.
+#   WIKANTIK_SSO_AUTO_PROVISION     optional; default "true" (create a local profile on first login).
+# The OAuth redirect_uri is derived as wikantik.baseURL + /sso/callback, so
+# WIKANTIK_BASE_URL must be the public https origin registered with the provider.
+if [ "${WIKANTIK_SSO_ENABLED:-false}" = "true" ]; then
+  cat >> "${CATALINA_HOME}/lib/wikantik-custom.properties" <<EOF
+
+# Single Sign-On (entrypoint-injected from env).
+wikantik.sso.enabled = true
+wikantik.sso.type = ${WIKANTIK_SSO_TYPE:-oidc}
+wikantik.sso.oidc.discoveryUri = ${WIKANTIK_SSO_OIDC_DISCOVERY_URI:-}
+wikantik.sso.oidc.clientId = ${WIKANTIK_SSO_OIDC_CLIENT_ID:-}
+wikantik.sso.oidc.clientSecret = ${WIKANTIK_SSO_OIDC_CLIENT_SECRET:-}
+wikantik.sso.oidc.scope = ${WIKANTIK_SSO_OIDC_SCOPE:-openid profile email}
+wikantik.sso.identityClaim = ${WIKANTIK_SSO_IDENTITY_CLAIM:-sub}
+wikantik.sso.autoProvision = ${WIKANTIK_SSO_AUTO_PROVISION:-true}
+wikantik.sso.claimMapping.loginName = ${WIKANTIK_SSO_CLAIM_LOGIN_NAME:-preferred_username}
+wikantik.sso.claimMapping.fullName = ${WIKANTIK_SSO_CLAIM_FULL_NAME:-name}
+wikantik.sso.claimMapping.email = ${WIKANTIK_SSO_CLAIM_EMAIL:-email}
 EOF
 fi
 

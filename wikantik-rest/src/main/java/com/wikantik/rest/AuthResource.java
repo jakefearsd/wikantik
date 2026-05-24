@@ -32,6 +32,7 @@ import com.wikantik.auth.apikeys.ApiKeyService;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.auth.authorize.Group;
 import com.wikantik.auth.authorize.GroupManager;
+import com.wikantik.auth.sso.SSOConfig;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.auth.validate.PasswordValidator;
@@ -51,6 +52,7 @@ import java.io.IOException;
 import java.security.Principal;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.Properties;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -260,7 +262,46 @@ public class AuthResource extends RestServletBase {
                 .toList();
         result.put( "roles", roles );
 
+        // Tell the SPA whether SSO is available and where to start it, so the
+        // login UI can render a "Continue with <provider>" button (which is
+        // also the account-creation path under auto-provisioning). Present for
+        // anonymous callers too — that's exactly when the login UI needs it.
+        result.put( "sso", ssoInfo( engine, request ) );
+
         sendJson( response, result );
+    }
+
+    /**
+     * Builds the {@code sso} descriptor for the auth/user response: whether SSO
+     * is enabled, the URL that starts the flow, and a human-friendly provider
+     * label derived from the OIDC discovery URI (Google / Facebook / generic).
+     */
+    private Map< String, Object > ssoInfo( final Engine engine, final HttpServletRequest request ) {
+        final Properties props = engine.getWikiProperties();
+        final boolean enabled = TextUtil.getBooleanProperty( props, SSOConfig.PROP_SSO_ENABLED, false );
+        final Map< String, Object > sso = new LinkedHashMap<>();
+        sso.put( "enabled", enabled );
+        if ( enabled ) {
+            sso.put( "loginUrl", request.getContextPath() + "/sso/login" );
+            sso.put( "providerLabel", ssoProviderLabel( props ) );
+        }
+        return sso;
+    }
+
+    /**
+     * Derives a display label for the SSO button from the configured OIDC
+     * discovery URI. Falls back to a generic label for SAML or unknown OIDC
+     * providers so the button always reads sensibly.
+     */
+    private static String ssoProviderLabel( final Properties props ) {
+        final String discovery = props.getProperty( SSOConfig.PROP_OIDC_DISCOVERY_URI, "" ).toLowerCase();
+        if ( discovery.contains( "google" ) ) {
+            return "Google";
+        }
+        if ( discovery.contains( "facebook" ) ) {
+            return "Facebook";
+        }
+        return "single sign-on";
     }
 
     /**

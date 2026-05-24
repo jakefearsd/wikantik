@@ -147,4 +147,48 @@ class SSOAutoProvisionServiceTest {
         // Clean up
         userDb.deleteByLoginName( "sso-noname" );
     }
+
+    @Test
+    void testProvisionDeduplicatesCollidingWikiName() throws Exception {
+        final Properties props = new Properties();
+        props.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
+        props.setProperty( SSOConfig.PROP_AUTO_PROVISION, "true" );
+        final SSOConfig ssoConfig = new SSOConfig( props, "http://localhost:8080/JSPWiki/sso/callback" );
+
+        final SSOAutoProvisionService service = new SSOAutoProvisionService( engine, ssoConfig );
+        final UserDatabase userDb = engine.getManager( UserManager.class ).getUserDatabase();
+
+        // A pre-existing account whose full name "Jake Fear" derives wiki name "JakeFear".
+        final UserProfile existing = userDb.newProfile();
+        existing.setLoginName( "jakefear-local" );
+        existing.setFullname( "Jake Fear" );
+        existing.setEmail( "jake@local.example" );
+        userDb.save( existing );
+        Assertions.assertEquals( "JakeFear", userDb.findByLoginName( "jakefear-local" ).getWikiName() );
+
+        // An SSO login for a *different* account (distinct login name) that resolves the
+        // same display name. Before the fix this threw on the unique wiki_name constraint
+        // and no profile was persisted.
+        final CommonProfile profile = new CommonProfile();
+        profile.setId( "114291954688138286475" );
+        profile.addAttribute( "email", "jakefear@simpleagility.com" );
+        profile.addAttribute( "name", "Jake Fear" );
+
+        service.provisionIfNeeded( "jakefear@simpleagility.com", "114291954688138286475", profile );
+
+        final UserProfile created = userDb.findByLoginName( "jakefear@simpleagility.com" );
+        Assertions.assertNotNull( created, "SSO profile must be persisted despite the wiki-name clash." );
+        Assertions.assertEquals( "Jake Fear", created.getFullname() );
+        // The de-duplicated wiki name is what was stored (and what a prod JDBC INSERT
+        // would use to satisfy the unique constraint). Assert via a stored-attribute
+        // lookup rather than getWikiName(), which re-derives from the full name on read.
+        Assertions.assertEquals( "jakefear@simpleagility.com", userDb.findByWikiName( "JakeFear2" ).getLoginName(),
+            "Colliding wiki name must be de-duplicated to JakeFear2 and stored." );
+        // Original account keeps its wiki name.
+        Assertions.assertEquals( "jakefear-local", userDb.findByWikiName( "JakeFear" ).getLoginName() );
+
+        // Clean up
+        userDb.deleteByLoginName( "jakefear@simpleagility.com" );
+        userDb.deleteByLoginName( "jakefear-local" );
+    }
 }

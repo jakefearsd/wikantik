@@ -256,6 +256,17 @@ public final class DefaultUserProfile implements UserProfile {
     }
 
     /**
+     * Overrides the derived wiki name. Call after {@link #setFullname(String)},
+     * since that method recomputes the wiki name from the full name.
+     *
+     * @param wikiName the wiki name to assign
+     */
+    @Override
+    public void setWikiName( final String wikiName ) {
+        wikiname = wikiName;
+    }
+
+    /**
      * Sets the last-modified date.
      *
      * @param date the last-modified date

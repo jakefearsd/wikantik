@@ -268,7 +268,7 @@
          conf/Catalina/localhost/ROOT.xml or via the reverse proxy:
 
            <CookieProcessor className="org.apache.tomcat.util.http.Rfc6265CookieProcessor"
-                            sameSiteCookies="strict"/>
+                            sameSiteCookies="lax"/>
            <Valve className="org.apache.catalina.valves.RemoteIpValve"
                   protocolHeader="X-Forwarded-Proto" />
 

@@ -69,7 +69,7 @@ public class SSOLoginModule extends AbstractLoginModule {
      * LoginModule option key for the IdP claim mapped to JSPWiki login name.
      * Set via {@code wikantik.loginModule.options.sso.claimLoginName}.
      */
-    static final String OPTION_CLAIM_LOGIN_NAME = "sso.claimLoginName";
+    public static final String OPTION_CLAIM_LOGIN_NAME = "sso.claimLoginName";
 
     /**
      * LoginModule option key for the immutable identity claim used to verify
@@ -81,12 +81,12 @@ public class SSOLoginModule extends AbstractLoginModule {
     /**
      * LoginModule option key for the IdP claim mapped to JSPWiki full name.
      */
-    static final String OPTION_CLAIM_FULL_NAME = "sso.claimFullName";
+    public static final String OPTION_CLAIM_FULL_NAME = "sso.claimFullName";
 
     /**
      * LoginModule option key for the IdP claim mapped to JSPWiki email.
      */
-    static final String OPTION_CLAIM_EMAIL = "sso.claimEmail";
+    public static final String OPTION_CLAIM_EMAIL = "sso.claimEmail";
 
     /** Default claim name for login name. */
     private static final String DEFAULT_CLAIM_LOGIN = "preferred_username";

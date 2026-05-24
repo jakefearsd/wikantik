@@ -116,6 +116,16 @@ public interface UserProfile extends Serializable
     String getWikiName();
 
     /**
+     * Overrides the wiki name, which is otherwise derived from the full name by
+     * removing whitespace. Use when the derived name would collide with an
+     * existing account (e.g. SSO auto-provisioning of two users with the same
+     * display name) and a unique wiki name must be assigned.
+     *
+     * @param wikiName the wiki name to assign
+     */
+    void setWikiName( String wikiName );
+
+    /**
      * Returns
      * <code>true</code> if the profile is currently locked (disabled); <code>false</code> otherwise.
      * By default, profiles are created unlocked. Strictly speaking, calling this method is equivalent to calling {@link #getLockExpiry()}

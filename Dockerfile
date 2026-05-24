@@ -55,7 +55,8 @@ RUN curl -fsSL -o ${CATALINA_HOME}/lib/postgresql-42.7.4.jar \
 # 2. context.xml — single source of truth at
 #    wikantik-war/src/main/config/tomcat/Tomcat-context.xml.template,
 #    consumed by both paths. Carries the CookieProcessor sameSiteCookies=
-#    strict cookie-hardening that applies regardless of environment.
+#    lax cookie-hardening (Lax, so the cross-site SSO return to /sso/callback
+#    keeps the session) that applies regardless of environment.
 #
 # 3. catalina.properties — container-specific (jar-scan filter tuning); the
 #    bare-metal install uses Tomcat's stock catalina.properties unchanged.

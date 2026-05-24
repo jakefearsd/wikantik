@@ -87,7 +87,9 @@ Wikantik treats the following as in-scope:
 For reference, current production defaults include:
 
 - TLS termination at Cloudflare / a reverse proxy in front of Tomcat.
-- `<CookieProcessor sameSiteCookies="strict"/>` on the JSESSIONID cookie.
+- `<CookieProcessor sameSiteCookies="lax"/>` on the JSESSIONID cookie (Lax,
+  not Strict, so the SSO cross-site return to `/sso/callback` keeps the session;
+  cross-site POSTs are still cookie-withheld and CSRF-token-guarded).
 - `wikantik.admin.bootstrap` admin override only effective on first run.
 - NIST 800-63B password validation with a common-password blocklist.
 - `ObjectInputFilter` whitelists on every `ObjectInputStream`.

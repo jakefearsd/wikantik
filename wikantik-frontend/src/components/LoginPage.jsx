@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import SsoLoginButton from './SsoLoginButton';
 
 const SSO_ERROR_MESSAGES = {
   sso_callback_failed: 'Single sign-on could not be completed. Please try signing in again.',
@@ -58,6 +59,8 @@ export default function LoginPage() {
           }}>
             Sign in
           </h2>
+
+          <SsoLoginButton />
 
           {credError && (
             <div className="error-banner" data-testid="login-error" style={{ marginBottom: 'var(--space-md)' }}>

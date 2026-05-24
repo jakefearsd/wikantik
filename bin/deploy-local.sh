@@ -372,7 +372,7 @@ else
     print_status "setenv.sh already exists (not overwritten)"
 fi
 
-# Tomcat's own conf/context.xml template — adds the SameSite=strict cookie
+# Tomcat's own conf/context.xml template — adds the SameSite=lax cookie
 # processor on top of stock. After --upgrade-tomcat the stock file from the
 # new tarball is in place; the customization gets re-applied here.
 if [[ ! -f "${CONFIG_DIR}/Tomcat-context.xml.template" ]]; then
@@ -386,7 +386,7 @@ elif ! diff -q "${TOMCAT_CONTEXT_DEST}" "${CONFIG_DIR}/Tomcat-context.xml.templa
         print_status "conf/context.xml already customized (not overwritten)"
     else
         cp "${CONFIG_DIR}/Tomcat-context.xml.template" "${TOMCAT_CONTEXT_DEST}"
-        print_status "Applied Tomcat-context.xml.template (CookieProcessor sameSiteCookies=strict)"
+        print_status "Applied Tomcat-context.xml.template (CookieProcessor sameSiteCookies=lax)"
     fi
 else
     print_status "conf/context.xml already matches template"

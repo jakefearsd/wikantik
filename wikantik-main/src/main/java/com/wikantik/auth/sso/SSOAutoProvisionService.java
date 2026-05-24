@@ -108,6 +108,12 @@ public class SSOAutoProvisionService {
                 profile.getAttributes().put( ATTR_SSO_SUBJECT, subject );
             }
 
+            // The wiki name is derived from the full name with whitespace stripped, so
+            // two users sharing a display name — or a clash with a pre-existing account —
+            // would violate the unique wiki_name constraint and abort provisioning. Pick
+            // a collision-free wiki name before saving.
+            profile.setWikiName( uniqueWikiName( userDb, profile.getWikiName() ) );
+
             userDb.save( profile );
             LOG.info( "Auto-provisioned user profile for SSO user: {} (full name: {})", loginName, profile.getFullname() );
         } catch( final WikiSecurityException e ) {
@@ -140,5 +146,38 @@ public class SSOAutoProvisionService {
      */
     private String resolveAttribute( final org.pac4j.core.profile.UserProfile profile, final String claimName ) {
         return SSOLoginModule.firstScalar( profile.getAttribute( claimName ) );
+    }
+
+    /**
+     * Returns a wiki name that is not already taken, starting from {@code base}
+     * and appending an increasing numeric suffix on collision (e.g. JakeFear,
+     * JakeFear2, JakeFear3). A blank base is returned unchanged — the caller's
+     * store decides how to handle it.
+     *
+     * @param userDb the user database to check for existing wiki names
+     * @param base   the preferred wiki name (derived from the full name)
+     * @return a wiki name not currently present in {@code userDb}
+     */
+    private String uniqueWikiName( final UserDatabase userDb, final String base ) {
+        if( base == null || base.isBlank() ) {
+            return base;
+        }
+        String candidate = base;
+        int suffix = 2;
+        while( wikiNameExists( userDb, candidate ) ) {
+            candidate = base + suffix;
+            suffix++;
+        }
+        return candidate;
+    }
+
+    /** @return {@code true} if a profile with this wiki name already exists. */
+    private boolean wikiNameExists( final UserDatabase userDb, final String wikiName ) {
+        try {
+            userDb.findByWikiName( wikiName );
+            return true;
+        } catch( final NoSuchPrincipalException e ) {
+            return false;
+        }
     }
 }

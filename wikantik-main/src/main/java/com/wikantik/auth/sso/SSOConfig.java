@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 import org.pac4j.core.client.Client;
 import org.pac4j.core.client.Clients;
 import org.pac4j.core.config.Config;
+import org.pac4j.core.http.callback.NoParameterCallbackUrlResolver;
 import org.pac4j.jee.adapter.JEEFrameworkAdapter;
 
 import java.util.ArrayList;
@@ -148,8 +149,22 @@ public class SSOConfig {
                 buildSamlClient( props, callbackUrl, clients );
             }
 
+            final Clients clientsHolder = new Clients( callbackUrl, clients );
+            // pac4j's default QueryParameterCallbackUrlResolver appends
+            // ?client_name=<name> to the callback URL, which then becomes the
+            // OAuth redirect_uri (and SAML ACS URL). Strict IdPs such as Google
+            // require the redirect_uri to exactly match a registered value and
+            // reject any query string, producing redirect_uri_mismatch. For the
+            // common single-client deployment we therefore use a clean,
+            // parameter-free callback URL; with one client pac4j's
+            // DefaultCallbackClientFinder still resolves it without the param.
+            // "both" mode keeps the query-parameter resolver so the two clients
+            // remain distinguishable at the shared callback endpoint.
+            if( clients.size() == 1 ) {
+                clientsHolder.setCallbackUrlResolver( new NoParameterCallbackUrlResolver() );
+            }
             final Config config = new Config();
-            config.setClients( new Clients( callbackUrl, clients ) );
+            config.setClients( clientsHolder );
             new JEEFrameworkAdapter().applyDefaultSettingsIfUndefined( config );
             this.pac4jConfig = config;
             LOG.info( "SSO enabled with type '{}', {} client(s) configured.", ssoType, clients.size() );

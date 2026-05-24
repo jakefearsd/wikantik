@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import SsoLoginButton from './SsoLoginButton';
 
 export default function LoginForm({ onClose }) {
   const { login } = useAuth();
@@ -35,6 +36,8 @@ export default function LoginForm({ onClose }) {
           }}>
             Sign in
           </h2>
+
+          <SsoLoginButton />
 
           {error && <div className="error-banner" data-testid="login-error" style={{ marginBottom: 'var(--space-md)' }}>{error}</div>}
 

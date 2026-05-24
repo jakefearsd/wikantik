@@ -38,4 +38,11 @@ class SSOConfigIdentityClaimTest {
         final SSOConfig cfg = new SSOConfig( p, "http://localhost/sso/callback" );
         Assertions.assertEquals( "preferred_username", cfg.getIdentityClaim() );
     }
+
+    @Test
+    void loginModuleOptionKeyMatchesConfigSuffix() {
+        // The JAAS option suffix must match the config property's tail so the
+        // generic loginModule.options.sso.* passthrough wires identityClaim.
+        Assertions.assertEquals( "sso.identityClaim", SSOLoginModule.OPTION_IDENTITY_CLAIM );
+    }
 }

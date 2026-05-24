@@ -18,12 +18,16 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
+import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.security.Principal;
+import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -51,6 +55,36 @@ class AuthResourceDeleteTest {
     }
 
     // ----- tests -----
+
+    @AfterEach
+    void clearApiKeyServiceHolder() {
+        // Reset the holder so test-injected services don't leak between tests.
+        ApiKeyServiceHolder.setForTesting( null );
+    }
+
+    // ----- revokeApiKeysFor tests -----
+
+    /**
+     * When no ApiKeyService is configured (holder returns null), calling
+     * {@code revokeApiKeysFor} must be a no-op — it must not throw any exception.
+     * This is the defensive path exercised in environments without a DataSource.
+     */
+    @Test
+    void revokeApiKeysFor_noServiceConfigured_doesNotThrow() {
+        // Ensure the holder has no service cached.
+        ApiKeyServiceHolder.setForTesting( null );
+
+        final Engine engine = Mockito.mock( Engine.class );
+        Mockito.when( engine.getWikiProperties() ).thenReturn( new Properties() );
+
+        final AuthResource resource = new AuthResource();
+        resource.setEngine( engine );
+
+        assertDoesNotThrow(
+            () -> resource.revokeApiKeysFor( engine, "alice" ),
+            "revokeApiKeysFor must not throw when ApiKeyService is unavailable"
+        );
+    }
 
     /**
      * A session whose roles include a principal named {@code "Admin"} must

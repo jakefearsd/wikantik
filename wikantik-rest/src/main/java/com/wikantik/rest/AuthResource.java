@@ -27,6 +27,8 @@ import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.AuthenticationManager;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
+import com.wikantik.auth.apikeys.ApiKeyService;
+import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import com.wikantik.auth.validate.PasswordValidator;
@@ -436,6 +438,24 @@ public class AuthResource extends RestServletBase {
     }
 
     // ----- Admin self-delete guard -----
+
+    /**
+     * Revokes all API keys owned by {@code loginName} as part of account
+     * deletion. Best-effort: a failure here is logged but does not abort the
+     * deletion (the profile removal is the authoritative step).
+     */
+    void revokeApiKeysFor( final Engine engine, final String loginName ) {
+        try {
+            final ApiKeyService svc = ApiKeyServiceHolder.get( engine.getWikiProperties() );
+            if ( svc == null ) {
+                LOG.warn( "ApiKeyService not available — skipping API key revocation for '{}'", loginName );
+                return;
+            }
+            svc.revokeAllForPrincipal( loginName );
+        } catch ( final Exception e ) {
+            LOG.warn( "Failed to revoke API keys for {} during account deletion: {}", loginName, e.getMessage(), e );
+        }
+    }
 
     /**
      * Returns {@code true} if the session holds the {@code Admin} role. Admins

@@ -269,4 +269,42 @@ class ApiKeyServiceTest {
         assertEquals( 1, svc.verifyCacheStats().missCount(), "Only one DB lookup for unknown token" );
         assertEquals( 1, svc.verifyCacheStats().hitCount(),  "Second call is a cache hit" );
     }
+
+    // ----- revokeAllForPrincipal tests -----
+
+    @Test
+    void revokeAllForPrincipal_revokesAllActiveKeysForThatPrincipal() {
+        final ApiKeyService.Generated g1 = service.generate( "bob", "key1", ApiKeyService.Scope.ALL, "admin" );
+        final ApiKeyService.Generated g2 = service.generate( "bob", "key2", ApiKeyService.Scope.MCP, "admin" );
+        // A key for a different user — must NOT be revoked.
+        final ApiKeyService.Generated g3 = service.generate( "carol", "key3", ApiKeyService.Scope.ALL, "admin" );
+
+        // Both of bob's keys are initially active.
+        assertTrue( service.verify( g1.plaintext() ).isPresent(), "bob key1 should be active before revoke" );
+        assertTrue( service.verify( g2.plaintext() ).isPresent(), "bob key2 should be active before revoke" );
+
+        service.revokeAllForPrincipal( "bob" );
+
+        // Bob's keys are now revoked.
+        assertTrue( service.verify( g1.plaintext() ).isEmpty(), "bob key1 should be revoked" );
+        assertTrue( service.verify( g2.plaintext() ).isEmpty(), "bob key2 should be revoked" );
+
+        // Carol's key is unaffected.
+        assertTrue( service.verify( g3.plaintext() ).isPresent(), "carol key3 must remain active" );
+    }
+
+    @Test
+    void revokeAllForPrincipal_noKeysForPrincipal_isNoOp() {
+        // Should not throw even when no rows match.
+        assertDoesNotThrow( () -> service.revokeAllForPrincipal( "nobody" ) );
+    }
+
+    @Test
+    void revokeAllForPrincipal_alreadyRevokedKeysAreIgnored() {
+        final ApiKeyService.Generated g = service.generate( "dan", "key1", ApiKeyService.Scope.ALL, "admin" );
+        service.revoke( g.record().id(), "admin" );
+
+        // Should not throw when all keys are already revoked.
+        assertDoesNotThrow( () -> service.revokeAllForPrincipal( "dan" ) );
+    }
 }

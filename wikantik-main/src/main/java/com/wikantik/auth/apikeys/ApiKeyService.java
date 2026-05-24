@@ -275,6 +275,38 @@ public class ApiKeyService {
         }
     }
 
+    /**
+     * Soft-revokes all active API keys owned by {@code principalLogin}.
+     *
+     * <p>Intended for use during account deletion so that outstanding bearer
+     * tokens stop working immediately rather than lingering until their
+     * natural expiry. Already-revoked keys are unaffected (WHERE clause
+     * gates on {@code revoked_at IS NULL}). The in-process verify cache is
+     * also cleared for any key whose id is tracked in {@link #idToHash}.</p>
+     *
+     * <p>This operation is best-effort: if the UPDATE fails (e.g. the
+     * DataSource is unavailable) a warning is logged and the method returns
+     * without throwing so that the caller's deletion flow is not blocked.</p>
+     */
+    public void revokeAllForPrincipal( final String principalLogin ) {
+        final String sql = "UPDATE " + TABLE
+                + " SET revoked_at = ?"
+                + " WHERE principal_login = ? AND revoked_at IS NULL";
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setTimestamp( 1, Timestamp.from( Instant.now() ) );
+            ps.setString( 2, principalLogin );
+            final int count = ps.executeUpdate();
+            // Evict any cached verify entries whose id we know so the revocation
+            // takes effect without waiting for TTL expiry.
+            idToHash.forEach( ( id, hash ) -> verifyCache.invalidate( hash ) );
+            idToHash.clear();
+            LOG.info( "Revoked {} API key(s) for principal '{}'", count, principalLogin );
+        } catch ( final SQLException e ) {
+            LOG.warn( "revokeAllForPrincipal failed for '{}': {}", principalLogin, e.getMessage(), e );
+        }
+    }
+
     /** Generates a new plaintext token: prefix + 32 random bytes (base64url). */
     private String newToken() {
         final byte[] raw = new byte[ TOKEN_BYTES ];

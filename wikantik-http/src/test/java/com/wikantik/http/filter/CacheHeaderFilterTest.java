@@ -101,6 +101,27 @@ class CacheHeaderFilterTest {
     }
 
     @Test
+    void testRootPathGetsNoStore() throws Exception {
+        // The context root serves the SPA shell (welcome-file) and must not be cached,
+        // or the SSO callback's redirect to "/" can load a stale bundle.
+        final HttpServletRequest request = mockRequest( "/" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setHeader( "Cache-Control", "no-store" );
+        verify( chain ).doFilter( request, response );
+    }
+
+    @Test
+    void testEmptyContextRootGetsNoStore() throws Exception {
+        final HttpServletRequest request = mockRequest( "" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( response ).setHeader( "Cache-Control", "no-store" );
+    }
+
+    @Test
     void testNonHashedAssetDoesNotSetCacheHeader() throws Exception {
         final HttpServletRequest request = mockRequest( "/favicon.svg" );
 

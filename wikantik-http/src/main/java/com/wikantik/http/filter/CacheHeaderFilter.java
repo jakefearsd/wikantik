@@ -59,7 +59,12 @@ public class CacheHeaderFilter implements Filter {
         // to avoid conflicting directives from other components.
         if ( path.startsWith( "/assets/" ) && HASHED_ASSET.matcher( path ).find() ) {
             resp.setHeader( "Cache-Control", "public, max-age=31536000, immutable" );
-        } else if ( "/index.html".equals( path ) ) {
+        } else if ( "/index.html".equals( path ) || "/".equals( path ) || path.isEmpty() ) {
+            // The context root serves the SPA shell via the welcome-file, but the
+            // request URI is "/" (or "" for a bare context), not "/index.html". Without
+            // no-store here the browser caches the root shell and can serve a stale
+            // bundle on a later full-page load — notably the SSO callback's redirect
+            // landing — which then trips the "new version available" banner.
             resp.setHeader( "Cache-Control", "no-store" );
             resp.setHeader( "Pragma", "no-cache" );
             resp.setHeader( "Expires", "0" );

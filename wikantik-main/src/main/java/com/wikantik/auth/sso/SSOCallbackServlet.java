@@ -80,7 +80,10 @@ public class SSOCallbackServlet extends HttpServlet {
         try {
             final CallbackLogic callbackLogic = new DefaultCallbackLogic();
             final var frameworkParameters = new JEEFrameworkParameters( request, response );
-            final String defaultUrl = request.getContextPath() + "/";
+            // Land on a no-store SPA route (the front page) rather than the context
+            // root "/": the root shell is browser-cacheable and could serve a stale
+            // bundle here, tripping the SPA's version-mismatch banner on every SSO login.
+            final String defaultUrl = request.getContextPath() + "/wiki/Main";
             // renewSession=true causes pac4j to invalidate the pre-authentication session
             // and issue a fresh JSESSIONID while migrating the stored profile, preventing
             // session-fixation attacks.

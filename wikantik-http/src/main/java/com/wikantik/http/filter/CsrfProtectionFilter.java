@@ -58,7 +58,8 @@ public class CsrfProtectionFilter implements Filter {
     @Override
     public void doFilter( final ServletRequest request, final ServletResponse response, final FilterChain chain ) throws IOException, ServletException {
         final HttpServletRequest httpRequest = ( HttpServletRequest ) request;
-        if( isStateChanging( httpRequest ) && !isMcpEndpoint( httpRequest ) && !hasBearerAuth( httpRequest ) ) {
+        if( isStateChanging( httpRequest ) && !isMcpEndpoint( httpRequest ) && !hasBearerAuth( httpRequest )
+                && !isSsoCallbackEndpoint( httpRequest ) ) {
             final Engine engine = Wiki.engine().find( request.getServletContext(), null );
             final String allowedOrigins = engine.getWikiProperties().getProperty( PROP_ALLOWED_ORIGINS, "" );
 
@@ -187,6 +188,18 @@ public class CsrfProtectionFilter implements Filter {
         final String servletPath = request.getServletPath();
         return "/wikantik-admin-mcp".equals( servletPath )
             || "/knowledge-mcp".equals( servletPath );
+    }
+
+    /**
+     * SSO callback endpoints ({@code /sso/callback}) receive cross-origin POST requests
+     * from Identity Providers (SAML HTTP-POST binding, OIDC token exchange) and cannot
+     * include a synchronizer token. Security is provided by the IdP-signed SAML assertion
+     * or the OIDC state/nonce parameters — a CSRF token would be redundant and would break
+     * the entire SSO round-trip.
+     */
+    static boolean isSsoCallbackEndpoint( final HttpServletRequest request ) {
+        final String servletPath = request.getServletPath();
+        return "/sso/callback".equals( servletPath );
     }
 
     /**

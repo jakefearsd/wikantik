@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <parent>
+    <groupId>com.wikantik.it</groupId>
+    <artifactId>wikantik-it-tests</artifactId>
+    <version>2.0.3-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>wikantik-it-test-sso-saml</artifactId>
+  <modelVersion>4.0.0</modelVersion>
+  <packaging>war</packaging>
+  <description>SAML 2.0 end-to-end test — drives wikantik's /sso/login flow against a disposable kristophjunge/test-saml-idp (SimpleSAMLphp) container</description>
+
+  <properties>
+    <it-wikantik.context>${project.artifactId}</it-wikantik.context>
+
+    <it-wikantik.groupdatabase>com.wikantik.auth.authorize.XMLGroupDatabase</it-wikantik.groupdatabase>
+    <it-wikantik.userdatabase>com.wikantik.auth.user.XMLUserDatabase</it-wikantik.userdatabase>
+    <it-wikantik.referenceStyle>relative</it-wikantik.referenceStyle>
+
+    <!-- Host port the SimpleSAMLphp IdP binds to. Fixed (like OIDC module's 8088)
+         because the integration-tests profile forbids parallel IT modules. -->
+    <it-wikantik.saml-idp.port>8089</it-wikantik.saml-idp.port>
+    <it-wikantik.saml-idp.image>kristophjunge/test-saml-idp:1.15</it-wikantik.saml-idp.image>
+  </properties>
+
+  <profiles>
+  <profile>
+    <id>integration-tests</id>
+  <build>
+    <!--
+      Use only this module's resources (which contain the SAML-specific
+      wikantik-custom.properties). Override the parent's resource list so
+      there is no ambiguity about which wikantik-custom.properties wins.
+    -->
+    <resources combine.self="override">
+      <resource>
+        <directory>${project.basedir}/src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+
+    <plugins>
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <!-- This module has its own IT; do not also run the ITs scanned
+               from the shared wikantik-selenide-tests dependency. -->
+          <dependenciesToScan combine.self="override" />
+          <includes>
+            <include>**/SAMLLoginIT.java</include>
+          </includes>
+          <systemPropertyVariables>
+            <it-wikantik.base.url>http://localhost:${it.wikantik.servlet.port}/${it-wikantik.context}</it-wikantik.base.url>
+            <it-wikantik.saml-idp.base-url>http://localhost:${it-wikantik.saml-idp.port}</it-wikantik.saml-idp.base-url>
+            <it-wikantik.saml-idp.port>${it-wikantik.saml-idp.port}</it-wikantik.saml-idp.port>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>properties-maven-plugin</artifactId>
+      </plugin>
+
+      <!-- Stand up PG + SimpleSAMLphp IdP before Cargo boots Tomcat.
+           Plugin declared before exec so that docker's pg-start
+           (pre-integration-test) runs before exec's pg-wait-ready
+           (also pre-integration-test) — same ordering convention as
+           the OIDC module. -->
+      <plugin>
+        <groupId>io.fabric8</groupId>
+        <artifactId>docker-maven-plugin</artifactId>
+        <configuration>
+          <images>
+            <image>
+              <alias>${it.db.container-alias}</alias>
+              <name>${pgvector.image}</name>
+              <run>
+                <ports>
+                  <port>${it.db.port}:5432</port>
+                </ports>
+                <env>
+                  <POSTGRES_USER>${it.db.user}</POSTGRES_USER>
+                  <POSTGRES_PASSWORD>${it.db.password}</POSTGRES_PASSWORD>
+                  <POSTGRES_DB>${it.db.name}</POSTGRES_DB>
+                </env>
+                <wait>
+                  <log>database system is ready to accept connections</log>
+                  <time>30000</time>
+                </wait>
+                <autoRemove>false</autoRemove>
+              </run>
+            </image>
+            <image>
+              <alias>saml-idp</alias>
+              <name>${it-wikantik.saml-idp.image}</name>
+              <run>
+                <ports>
+                  <port>${it-wikantik.saml-idp.port}:8080</port>
+                </ports>
+                <env>
+                  <SIMPLESAMLPHP_SP_ENTITY_ID>wikantik-sp-it</SIMPLESAMLPHP_SP_ENTITY_ID>
+                  <SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE>http://localhost:${it.wikantik.servlet.port}/${it-wikantik.context}/sso/callback</SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE>
+                </env>
+                <wait>
+                  <http>
+                    <url>http://localhost:${it-wikantik.saml-idp.port}/simplesaml/saml2/idp/metadata.php</url>
+                    <method>GET</method>
+                    <status>200</status>
+                  </http>
+                  <time>60000</time>
+                </wait>
+              </run>
+            </image>
+          </images>
+        </configuration>
+        <executions>
+          <execution>
+            <id>pg-start</id>
+            <phase>pre-integration-test</phase>
+            <goals><goal>start</goal></goals>
+          </execution>
+          <execution>
+            <id>pg-stop</id>
+            <phase>post-integration-test</phase>
+            <goals><goal>stop</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Exec plugin: inherits pg-cleanup-stale / pg-wait-ready /
+           pg-apply-migrations / pg-seed-test-data from parent pluginManagement,
+           and adds two SAML-specific executions:
+             - saml-idp-cleanup-stale (initialize)  — remove any stale IdP container
+             - generate-sp-keystore (generate-test-resources) — create the JKS before Cargo boots -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <executions>
+          <!-- Remove any stale SimpleSAMLphp container on port 8089 before
+               docker-maven-plugin tries to bind it. -->
+          <execution>
+            <id>saml-idp-cleanup-stale</id>
+            <phase>initialize</phase>
+            <goals><goal>exec</goal></goals>
+            <configuration>
+              <executable>bash</executable>
+              <arguments>
+                <argument>-c</argument>
+                <argument>ids=$( { docker ps -aq --filter "ancestor=${it-wikantik.saml-idp.image}"; docker ps -aq --filter "publish=${it-wikantik.saml-idp.port}"; } | sort -u ); if [ -n "$ids" ]; then echo "Removing stale SAML-IdP containers (port ${it-wikantik.saml-idp.port}): $ids"; docker rm -f $ids; fi</argument>
+              </arguments>
+            </configuration>
+          </execution>
+
+          <!-- Generate the SP signing/encryption keystore for pac4j's SAML2Client.
+               The keystore is placed in target/test-classes so wikantik-custom.properties
+               can reference it via ${project.build.directory}/test-classes/sp-keystore.jks
+               before Cargo boots Tomcat and pac4j reads the configuration. -->
+          <execution>
+            <id>generate-sp-keystore</id>
+            <phase>generate-test-resources</phase>
+            <goals><goal>exec</goal></goals>
+            <configuration>
+              <executable>bash</executable>
+              <arguments>
+                <argument>-c</argument>
+                <argument>mkdir -p "${project.build.directory}/test-classes" &amp;&amp; if [ ! -f "${project.build.directory}/test-classes/sp-keystore.jks" ]; then keytool -genkeypair -alias wikantik-sp -keyalg RSA -keysize 2048 -sigalg SHA256withRSA -keystore "${project.build.directory}/test-classes/sp-keystore.jks" -storepass changeit -keypass changeit -dname "CN=wikantik-sp-it,O=Wikantik,L=Test,ST=Test,C=US" -validity 3650 -noprompt &amp;&amp; echo "SP keystore generated" || echo "FAILED to generate SP keystore"; else echo "SP keystore already exists, skipping"; fi</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.cargo</groupId>
+        <artifactId>cargo-maven3-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+  </profile>
+  </profiles>
+
+  <dependencies>
+    <!-- pac4j-saml and its OpenSAML stack are declared optional in wikantik-main
+         and therefore NOT included in the main Wikantik WAR. This module's WAR
+         overlays the main WAR and adds them at runtime scope so that Cargo's
+         Tomcat finds SAML2Configuration on the webapp classpath. -->
+    <dependency>
+      <groupId>org.pac4j</groupId>
+      <artifactId>pac4j-saml</artifactId>
+      <version>${pac4j.version}</version>
+    </dependency>
+
+    <!-- Brings Env, WithIntegrationTestSetup, and the Selenide page objects. -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>wikantik-selenide-tests</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

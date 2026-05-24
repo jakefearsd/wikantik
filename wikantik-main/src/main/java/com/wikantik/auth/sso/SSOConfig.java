@@ -72,6 +72,32 @@ public class SSOConfig {
     /** SAML private key password. */
     public static final String PROP_SAML_PRIVATE_KEY_PASSWORD = "wikantik.sso.saml.privateKeyPassword";
 
+    /**
+     * SAML AuthnRequest binding type. Controls which binding pac4j uses when
+     * sending the AuthnRequest to the IdP's SingleSignOnService. Must match one
+     * of the bindings the IdP advertises in its metadata.
+     *
+     * <p>Supported values (SAMLConstants):
+     * <ul>
+     *   <li>{@code urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST} (default)</li>
+     *   <li>{@code urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect}</li>
+     * </ul>
+     */
+    public static final String PROP_SAML_AUTHN_REQUEST_BINDING = "wikantik.sso.saml.authnRequestBindingType";
+
+    /**
+     * Optional path where pac4j writes the generated SP metadata XML file.
+     * When set, pac4j persists the SP's {@code SPSSODescriptor} (including the
+     * registered ACS URL) to this file and re-reads it on restart. Without this,
+     * pac4j holds the SP metadata only in memory and may fail to resolve the ACS
+     * URL during assertion validation against some IdP implementations.
+     *
+     * <p>For IT environments, set this to a writable path inside the build's
+     * {@code target/} directory (e.g.
+     * {@code ${project.build.directory}/test-classes/sp-metadata.xml}).
+     */
+    public static final String PROP_SAML_SP_METADATA_PATH = "wikantik.sso.saml.serviceProviderMetadataPath";
+
     /** Auto-provisioning enabled. */
     public static final String PROP_AUTO_PROVISION = "wikantik.sso.autoProvision";
 
@@ -117,7 +143,7 @@ public class SSOConfig {
                 buildOidcClient( props, clients );
             }
             if( "saml".equalsIgnoreCase( ssoType ) || "both".equalsIgnoreCase( ssoType ) ) {
-                buildSamlClient( props, clients );
+                buildSamlClient( props, callbackUrl, clients );
             }
 
             final Config config = new Config();
@@ -163,7 +189,7 @@ public class SSOConfig {
         }
     }
 
-    private void buildSamlClient( final Properties props, final List< Client > clients ) {
+    private void buildSamlClient( final Properties props, final String callbackUrl, final List< Client > clients ) {
         final String idpMetadata = props.getProperty( PROP_SAML_IDP_METADATA );
         final String spEntityId = props.getProperty( PROP_SAML_SP_ENTITY_ID );
         final String keystorePath = props.getProperty( PROP_SAML_KEYSTORE_PATH );
@@ -176,10 +202,33 @@ public class SSOConfig {
             return;
         }
 
+        final String authnBindingType = props.getProperty( PROP_SAML_AUTHN_REQUEST_BINDING );
+        final String spMetadataPath = props.getProperty( PROP_SAML_SP_METADATA_PATH );
+
         try {
             final var samlConfig = new org.pac4j.saml.config.SAML2Configuration(
                 keystorePath, keystorePassword, privateKeyPassword, idpMetadata );
             samlConfig.setServiceProviderEntityId( spEntityId );
+            if( authnBindingType != null && !authnBindingType.isBlank() ) {
+                samlConfig.setAuthnRequestBindingType( authnBindingType );
+                LOG.debug( "SAML AuthnRequest binding type set to: {}", authnBindingType );
+            }
+            if( spMetadataPath != null && !spMetadataPath.isBlank() ) {
+                samlConfig.setServiceProviderMetadataPath( spMetadataPath );
+                LOG.debug( "SAML SP metadata path set to: {}", spMetadataPath );
+            }
+
+            // Explicitly register the ACS URL that the IdP will use as the assertion
+            // Destination. pac4j's QueryParameterCallbackUrlResolver would otherwise
+            // append "?client_name=SAML2Client" to the ACS Location in the SP metadata,
+            // causing a Destination mismatch when the IdP posts the assertion back to
+            // the raw callback path (without the client_name query parameter).
+            // Setting assertionConsumerServiceUrl ensures the SP metadata registers
+            // exactly the URL the IdP will post to.
+            if( callbackUrl != null && !callbackUrl.isBlank() ) {
+                samlConfig.setAssertionConsumerServiceUrl( callbackUrl );
+                LOG.debug( "SAML ACS URL set to: {}", callbackUrl );
+            }
 
             final var samlClient = new org.pac4j.saml.client.SAML2Client( samlConfig );
             samlClient.setName( "SAML2Client" );

@@ -223,6 +223,41 @@ class CsrfProtectionFilterTest {
         assertFalse( CsrfProtectionFilter.hasBearerAuth( request ) );
     }
 
+    @Test
+    void testIsSsoCallbackEndpointReturnsTrueForCallbackPath() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "/sso/callback" ).when( request ).getServletPath();
+        assertTrue( CsrfProtectionFilter.isSsoCallbackEndpoint( request ) );
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "/sso/login", "/api/auth/login", "/wiki/Main", "/admin/users" } )
+    void testIsSsoCallbackEndpointReturnsFalseForOther( final String servletPath ) {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( servletPath ).when( request ).getServletPath();
+        assertFalse( CsrfProtectionFilter.isSsoCallbackEndpoint( request ) );
+    }
+
+    /**
+     * A POST to /sso/callback from an IdP (SAML HTTP-POST binding) must pass through
+     * the CSRF filter without a token — security is provided by the signed SAML assertion.
+     */
+    @Test
+    void testSsoCallbackPostPassesThroughWithoutCsrfToken() throws Exception {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "POST" ).when( request ).getMethod();
+        Mockito.doReturn( "/sso/callback" ).when( request ).getServletPath();
+        Mockito.doReturn( null ).when( request ).getHeader( "Authorization" );
+
+        final jakarta.servlet.http.HttpServletResponse response = Mockito.mock( jakarta.servlet.http.HttpServletResponse.class );
+        final jakarta.servlet.FilterChain chain = Mockito.mock( jakarta.servlet.FilterChain.class );
+
+        new CsrfProtectionFilter().doFilter( request, response, chain );
+
+        Mockito.verify( chain ).doFilter( request, response );
+        Mockito.verify( response, Mockito.never() ).sendRedirect( Mockito.anyString() );
+    }
+
     /**
      * D3 end-to-end: a POST to /tools/search_wiki carrying a Bearer token must pass through
      * the filter without a CSRF token and without being redirected.

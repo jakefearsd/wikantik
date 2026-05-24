@@ -18,15 +18,20 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.TestEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Session;
+import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.apikeys.ApiKeyServiceHolder;
+import com.wikantik.auth.authorize.Group;
+import com.wikantik.auth.authorize.GroupManager;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.security.Principal;
+import java.util.Arrays;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -123,6 +128,59 @@ class AuthResourceDeleteTest {
             AuthResource.sessionHoldsAdminRole( session ),
             "Expected false for a session with no roles"
         );
+    }
+
+    // ----- removeFromAllGroups tests -----
+
+    /**
+     * After {@code removeFromAllGroups} is called, the user must no longer
+     * appear as a member of any group they previously belonged to.
+     * <p>
+     * Uses a real {@link TestEngine} so that the XML-backed {@link GroupManager}
+     * exercises the real membership check and persist path. The group is given a
+     * unique suffix to avoid cross-test flakiness from parallel group databases.
+     */
+    @Test
+    void removesUserFromAllGroups() throws Exception {
+        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        final String groupName = "RemoveGroupTest_" + System.nanoTime();
+        final String loginName = "groupuser_" + System.nanoTime();
+        try {
+            final GroupManager gm = engine.getManager( GroupManager.class );
+            final Session session = engine.guestSession();
+
+            // Build a group containing our test user and persist it.
+            final Group group = gm.parseGroup( groupName, loginName, true );
+            gm.setGroup( session, group );
+
+            // Pre-condition: user is a member.
+            final Principal userPrincipal =
+                    new WikiPrincipal( loginName, WikiPrincipal.LOGIN_NAME );
+            assertTrue(
+                gm.getGroup( groupName ).isMember( userPrincipal ),
+                "Pre-condition: user should be a member before removal"
+            );
+
+            // Act.
+            AuthResource.removeFromAllGroups( engine, gm, session, loginName );
+
+            // Assert: user is no longer in the group.
+            final Group after = gm.getGroup( groupName );
+            assertFalse(
+                after.isMember( userPrincipal ),
+                "User should have been removed from the group"
+            );
+            final boolean foundInMembers = Arrays.stream( after.members() )
+                    .anyMatch( p -> loginName.equals( p.getName() ) );
+            assertFalse( foundInMembers, "members() must not contain the removed user" );
+        } finally {
+            // Clean up — best-effort.
+            try {
+                final GroupManager gm = engine.getManager( GroupManager.class );
+                gm.removeGroup( groupName );
+            } catch ( final Exception ignored ) { /* best-effort */ }
+            engine.stop();
+        }
     }
 
 }

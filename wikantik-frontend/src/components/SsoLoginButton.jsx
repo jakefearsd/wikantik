@@ -10,8 +10,7 @@ import { useAuth } from '../hooks/useAuth';
  * navigation (plain anchor) rather than a react-router link.
  */
 export default function SsoLoginButton() {
-  const { user } = useAuth();
-  const sso = user?.sso;
+  const { sso } = useAuth();
   if (!sso?.enabled) return null;
 
   const label = sso.providerLabel || 'single sign-on';

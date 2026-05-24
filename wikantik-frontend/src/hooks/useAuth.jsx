@@ -3,15 +3,47 @@ import { api } from '../api/client';
 
 const AuthContext = createContext(null);
 
+// SSO availability is static server configuration, not per-session state, so we
+// cache it. This keeps the "Continue with <provider>" button stable: it renders
+// immediately on load (seeded from cache, no first-probe race) and never
+// disappears when the /api/auth/user probe is in flight or fails transiently.
+const SSO_CACHE_KEY = 'wikantik.sso';
+
+function readCachedSso() {
+  try {
+    const raw = window.localStorage.getItem(SSO_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedSso(sso) {
+  try {
+    window.localStorage.setItem(SSO_CACHE_KEY, JSON.stringify(sso));
+  } catch {
+    /* localStorage unavailable or over quota — non-fatal, button just won't pre-seed */
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sso, setSso] = useState(readCachedSso);
 
   const refresh = async () => {
     try {
       const data = await api.getUser();
       setUser(data);
+      // Update the sticky SSO config from the probe when present; never clear it
+      // on a response that happens to omit it.
+      if (data && data.sso) {
+        setSso(data.sso);
+        writeCachedSso(data.sso);
+      }
     } catch {
+      // A failed probe means an unknown session, not "SSO is gone" — leave the
+      // cached `sso` in place so the login button stays put.
       setUser({ authenticated: false, username: 'anonymous' });
     } finally {
       setLoading(false);
@@ -54,7 +86,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
+    <AuthContext.Provider value={{ user, loading, sso, login, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

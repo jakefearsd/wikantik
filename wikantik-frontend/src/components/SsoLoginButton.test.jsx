@@ -16,6 +16,9 @@ import { api } from '../api/client';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // SSO config is cached stickily in localStorage; clear it so each case starts
+  // from a known-empty cache rather than inheriting the previous test's value.
+  localStorage.clear();
 });
 
 function renderButton() {
@@ -66,5 +69,20 @@ describe('SsoLoginButton', () => {
 
     await waitFor(() => expect(api.getUser).toHaveBeenCalled());
     expect(screen.queryByTestId('sso-login-button')).toBeNull();
+  });
+
+  it('still renders from cached config when the auth probe fails', async () => {
+    // Sticky cache from a prior successful load.
+    localStorage.setItem('wikantik.sso', JSON.stringify({
+      enabled: true, loginUrl: '/sso/login', providerLabel: 'Google',
+    }));
+    // This load's probe fails (network/5xx/backpressure) — the button must survive.
+    api.getUser.mockRejectedValue(new Error('network down'));
+
+    renderButton();
+
+    const link = await screen.findByTestId('sso-login-button');
+    expect(link).toHaveTextContent('Continue with Google');
+    expect(link.getAttribute('href')).toBe('/sso/login');
   });
 });

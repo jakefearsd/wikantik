@@ -111,7 +111,17 @@ public class SSOAutoProvisionService {
             userDb.save( profile );
             LOG.info( "Auto-provisioned user profile for SSO user: {} (full name: {})", loginName, profile.getFullname() );
         } catch( final WikiSecurityException e ) {
-            LOG.error( "Failed to auto-provision user profile for SSO user: {}", loginName, e );
+            // A concurrent first-login may have created the row between our
+            // existence check and save (e.g. the unique-constraint loser on a
+            // DB-backed store). Re-check: if the profile now exists, the race
+            // resolved correctly and this is not an error. Only a genuinely
+            // failed provisioning is logged at ERROR.
+            try {
+                userDb.findByLoginName( loginName );
+                LOG.debug( "SSO user {} was provisioned concurrently; treating as success.", loginName );
+            } catch( final NoSuchPrincipalException stillMissing ) {
+                LOG.error( "Failed to auto-provision user profile for SSO user: {}", loginName, e );
+            }
         }
     }
 

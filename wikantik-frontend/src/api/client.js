@@ -210,6 +210,9 @@ export const api = {
   updateProfile: (data) =>
     request('/api/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
 
+  deleteAccount: (confirmLoginName) =>
+    request('/api/auth/profile', { method: 'DELETE', body: JSON.stringify({ confirmLoginName }) }),
+
   resetPassword: (email) =>
     request('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ email }) }),
 

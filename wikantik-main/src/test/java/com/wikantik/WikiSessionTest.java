@@ -453,6 +453,30 @@ public class WikiSessionTest {
         Mockito.verify( request, Mockito.never() ).getSession();
     }
 
+    /**
+     * A Basic-auth request must take the session-creating branch: BasicAuthFilter does
+     * find()-then-login on the returned session, so it must resolve to a persistent
+     * registered session, never the shared transient guest (which login would corrupt).
+     */
+    @Test
+    void basicAuthRequestCreatesSession() {
+        final HttpSession newSession = Mockito.mock( HttpSession.class );
+        Mockito.doReturn( "basic-session-xyz" ).when( newSession ).getId();
+
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( null ).when( request ).getSession( false );
+        Mockito.doReturn( newSession ).when( request ).getSession();
+        Mockito.doReturn( null ).when( request ).getUserPrincipal();
+        Mockito.doReturn( null ).when( request ).getCookies();
+        Mockito.doReturn( "Basic dXNlcjpwYXNz" ).when( request ).getHeader( "Authorization" );
+        Mockito.doReturn( Locale.ROOT ).when( request ).getLocale();
+
+        WikiSession.getWikiSession( m_engine, request );
+
+        // Session-creating branch: no-arg getSession() WAS called.
+        Mockito.verify( request, Mockito.atLeastOnce() ).getSession();
+    }
+
     // ---------------------------------------------------------------------------
     // End session-leak fix tests
     // ---------------------------------------------------------------------------

@@ -562,6 +562,14 @@ public final class WikiSession implements Session {
                 && !ApiKeyPrincipalRequest.AUTH_TYPE.equals( request.getAuthType() ) ) {
             return true;
         }
+        // 2b. A Basic-auth request authenticates this request (BasicAuthFilter does
+        //     find()-then-login on the returned session), so it must resolve to a
+        //     persistent session — never the shared transient guest. Bearer/API-key
+        //     is handled above via the API_KEY auth-type and stays stateless.
+        final String authz = request.getHeader( "Authorization" );
+        if ( authz != null && authz.regionMatches( true, 0, "Basic ", 0, 6 ) ) {
+            return true;
+        }
         // 3. Scan cookies for any identity-bearing name.
         final jakarta.servlet.http.Cookie[] cookies = request.getCookies();
         if ( cookies != null ) {

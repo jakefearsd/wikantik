@@ -329,6 +329,12 @@ public class AuthResource extends RestServletBase {
 
         final Engine engine = getEngine();
         final AuthenticationManager authManager = getSubsystems().auth().authentication();
+        // Form login establishes server-side auth state, so it needs a persistent
+        // HttpSession to log into. The anonymous fast path in WikiSession.getWikiSession
+        // returns a transient shared guest for cookieless requests; credentials arrive in
+        // the body (not detectable as an auth signal), so force the session here — find()
+        // then resolves the real, registered WikiSession that login() authenticates.
+        request.getSession( true );
         final Session wikiSession = Wiki.session().find( engine, request );
 
         try {

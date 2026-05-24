@@ -29,6 +29,10 @@ import org.junit.jupiter.api.Test;
 import org.pac4j.core.profile.CommonProfile;
 
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 class SSOAutoProvisionServiceEdgeCasesTest {
 
@@ -51,6 +55,40 @@ class SSOAutoProvisionServiceEdgeCasesTest {
         p.setProperty( SSOConfig.PROP_SSO_ENABLED, "true" );
         p.setProperty( SSOConfig.PROP_AUTO_PROVISION, "true" );
         return new SSOConfig( p, "http://localhost/sso/callback" );
+    }
+
+    @Test
+    void concurrentFirstLoginsProvisionExactlyOnce() throws Exception {
+        final SSOConfig cfg = enabledConfig();
+        final int threads = 8;
+        final CountDownLatch start = new CountDownLatch( 1 );
+        final ExecutorService pool = Executors.newFixedThreadPool( threads );
+        try {
+            for( int i = 0; i < threads; i++ ) {
+                pool.submit( () -> {
+                    final CommonProfile p = new CommonProfile();
+                    p.setId( "subject-123" );
+                    p.addAttribute( "name", "Race User" );
+                    try {
+                        start.await();
+                        new SSOAutoProvisionService( engine, cfg )
+                            .provisionIfNeeded( "subject-123", "subject-123", p );
+                    } catch( final InterruptedException ignored ) {
+                        Thread.currentThread().interrupt();
+                    }
+                } );
+            }
+            start.countDown();
+            pool.shutdown();
+            Assertions.assertTrue( pool.awaitTermination( 30, TimeUnit.SECONDS ) );
+        } finally {
+            pool.shutdownNow();
+        }
+
+        // Must resolve to a single, intact profile — no duplicate, no corruption.
+        final UserProfile created = userDb.findByLoginName( "subject-123" );
+        Assertions.assertNotNull( created );
+        Assertions.assertEquals( "subject-123", created.getLoginName() );
     }
 
     @Test

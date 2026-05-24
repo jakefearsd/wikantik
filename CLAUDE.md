@@ -430,6 +430,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 - NIST 800-63B password validation with common-password blocklist
 - Deserialization filtering — `ObjectInputFilter` whitelists on all `ObjectInputStream` usage
 - Pluggable authentication (LDAP, database, container, SSO via pac4j)
+- SSO identity binding keys on `wikantik.sso.identityClaim` (default `sub`); set to `preferred_username` to trust a mutable claim. SSO never adopts a pre-existing non-SSO-linked local account of the same name (auto-provisioned profiles carry an `sso.subject` marker; a name collision without a matching marker fails closed). Multi-valued IdP claims are normalised to their first scalar; the SAML HTTP-POST `/sso/callback` is exempt from the CSRF synchronizer-token filter (the IdP-signed assertion is its own CSRF defense), and a successful SSO login rotates the HTTP session (fixation defense). SSO failures redirect to the `/login` SPA route with an `?error=` code surfaced by `LoginPage` — `/login` is dual-registered (web.xml + `SpaRoutingFilter.SPA_EXACT`).
 
 ### Important Configuration
 

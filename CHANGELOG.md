@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Site footer on reader pages (including the home page) linking to the privacy
+  policy and terms of service, satisfying OAuth-provider home-page requirements
+  for SSO app verification.
+
 ## [2.0.3] - 2026-05-24
 
 ### Added

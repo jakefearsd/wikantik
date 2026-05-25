@@ -906,3 +906,29 @@ a[data-attachment-missing] {
   padding: 0.1rem 0.4rem;
   line-height: 1;
 }
+
+/* Site footer — legal links (privacy / terms). Visible on reader pages,
+   including the home page, to satisfy OAuth-provider home-page requirements. */
+.site-footer {
+  margin-top: var(--space-2xl);
+  padding: var(--space-lg) 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-sm);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.site-footer a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+.site-footer a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.site-footer-sep {
+  color: var(--text-muted);
+}

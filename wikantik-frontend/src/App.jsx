@@ -63,6 +63,13 @@ export default function App() {
         <div className={`app-content${(isEditorRoute || isAdminRoute) ? ' app-content-wide' : ''}${isGraphRoute ? ' app-content-full' : ''}`}>
           <Outlet />
         </div>
+        {!isAdminRoute && !isEditorRoute && (
+          <footer className="site-footer">
+            <a href="/privacy-policy.html">Privacy Policy</a>
+            <span className="site-footer-sep" aria-hidden="true">·</span>
+            <a href="/terms-of-service.html">Terms of Service</a>
+          </footer>
+        )}
       </main>
     </div>
   );

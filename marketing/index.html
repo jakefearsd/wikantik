@@ -223,7 +223,7 @@
 
   <script>
     // Paste your deployed Google Apps Script web-app URL here (see marketing/README.md).
-    var LEAD_ENDPOINT = "REPLACE_WITH_APPS_SCRIPT_WEB_APP_URL";
+    var LEAD_ENDPOINT = "https://script.google.com/macros/s/AKfycbxj7mf4oLQMS1BB4ShZWP24TTvJofAfzV6h1hXcn-DdtfDKaNV53FHyP___RHVENWcj/exec";
 
     function serializeForm(entries) {
       var data = Object.fromEntries(entries);
@@ -256,15 +256,14 @@
 
         fetch(LEAD_ENDPOINT, {
           method: "POST",
-          // text/plain dodges the CORS preflight against Apps Script
+          mode: "no-cors",
+          // Apps Script returns no CORS headers, so its response is opaque and
+          // unreadable cross-origin. text/plain keeps this a "simple" request
+          // (no preflight); a resolved fetch means the row was POSTed.
           headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify(result.payload),
         })
-        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-        .then(function (json) {
-          if (!json || !json.ok) { throw new Error((json && json.error) || "server error"); }
-          form.hidden = true; err.hidden = true; ok.hidden = false;
-        })
+        .then(function () { form.hidden = true; err.hidden = true; ok.hidden = false; })
         .catch(function (e2) {
           // Never swallow: log with context and show the mailto fallback.
           console.error("Lead form submission failed:", e2);

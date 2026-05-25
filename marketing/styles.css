@@ -103,3 +103,16 @@ h2.section-title {
 .pillar-icon { font-size: 1.5rem; margin-bottom: 10px; }
 .pillar h3 { font-size: 1.1rem; font-weight: 700; margin: 0 0 8px; }
 .pillar p { font-size: 0.95rem; color: var(--muted); margin: 0; }
+
+/* Terminal moment */
+.terminal { background: var(--dark); color: #F3EBE3; padding: 64px 0; }
+.terminal-title { color: #F3EBE3; }
+.terminal-sub { color: #b8a99c; max-width: 480px; margin: 0 auto 26px; }
+.terminal-box { background: #0F0B09; border: 1px solid #332923; border-radius: var(--radius-lg);
+  padding: 20px 22px; max-width: 560px; margin: 0 auto; text-align: left;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.84rem; line-height: 1.9; }
+.t-q { color: #E0925C; }
+.t-ok { color: #7fae7f; }
+.t-u { text-decoration: underline; }
+.t-body { color: #cfc4ba; }
+.t-meta { color: #6b5d51; }

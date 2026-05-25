@@ -9,7 +9,10 @@
  */
 function doPost(e) {
   try {
-    var body = JSON.parse(e.postData.contents || "{}");
+    if (!e || !e.postData || !e.postData.contents) {
+      return _json({ ok: false, error: "no body" });
+    }
+    var body = JSON.parse(e.postData.contents);
     var name = String(body.name || "").slice(0, 200);
     var email = String(body.email || "").slice(0, 200);
     var useCase = String(body.use_case || "").slice(0, 2000);

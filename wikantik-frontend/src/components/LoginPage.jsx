@@ -51,14 +51,31 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleSubmit} data-testid="login-form" style={{ padding: 'var(--space-xl)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
-          <h2 style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '1.5rem',
-            marginBottom: 'var(--space-lg)',
-            textAlign: 'center',
-          }}>
-            Sign in
-          </h2>
+          <div style={{ textAlign: 'center', marginBottom: 'var(--space-lg)' }}>
+            <img
+              src="/favicon.svg"
+              alt="Wikantik"
+              width="48"
+              height="48"
+              style={{ display: 'block', margin: '0 auto var(--space-sm)' }}
+            />
+            <h2 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.5rem',
+              margin: 0,
+              lineHeight: 1.2,
+            }}>
+              Sign in to Wikantik
+            </h2>
+            <div style={{
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.8rem',
+              color: 'var(--text-muted)',
+              marginTop: 'var(--space-xs)',
+            }}>
+              wiki.wikantik.com
+            </div>
+          </div>
 
           <SsoLoginButton />
 

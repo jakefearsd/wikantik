@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.5] - 2026-05-25
+
 ### Fixed
 
 - **Search-engine indexing.** `robots.txt` advertised the sitemap on the wrong

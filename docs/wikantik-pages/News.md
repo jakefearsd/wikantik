@@ -6,6 +6,12 @@ A log of recent development activity on the JSPWiki project.
 
 ## May 2026
 
+**2026-05-24** — build: bump main to 2.0.4-SNAPSHOT post-release
+
+**2026-05-24** — release: 2.0.3
+
+**2026-05-24** — docs(sso): authoritative SSO configuration reference
+
 **2026-05-24** — fix(sso): stop the version banner on every SSO login
 
 **2026-05-24** — fix(sso): make the Continue-with-Google button resilient to the auth probe

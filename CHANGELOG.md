@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-05-25
+
 ### Added
 
 - Site footer on reader pages (including the home page) linking to the privacy

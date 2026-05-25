@@ -137,7 +137,42 @@
     </div>
   </section>
 
-  <!-- learn-more: Task 7 -->
+  <section class="section learn" id="learn-more">
+    <div class="container center">
+      <h2 class="section-title">Curious? Let's talk.</h2>
+      <p class="learn-sub">Tell us a bit about your team and we'll show you how to get Wikantik running — your way or ours.</p>
+
+      <form id="lead-form" class="lead-form" novalidate>
+        <label class="field">
+          <span class="field-label">Name</span>
+          <input type="text" name="name" autocomplete="name" required>
+        </label>
+        <label class="field">
+          <span class="field-label">Work email</span>
+          <input type="email" name="email" autocomplete="email" required>
+        </label>
+        <label class="field">
+          <span class="field-label">What would you use it for?</span>
+          <textarea name="use_case" rows="3"></textarea>
+        </label>
+        <!-- honeypot: hidden from humans, bots fill it -->
+        <div class="hp" aria-hidden="true">
+          <label>Leave this empty <input type="text" name="company_url" tabindex="-1" autocomplete="off"></label>
+        </div>
+        <button type="submit" class="btn btn-primary form-submit">Learn more</button>
+        <p class="form-fineprint">No spam. No newsletter you didn't ask for.</p>
+      </form>
+
+      <div id="form-success" class="form-success" hidden>
+        <p class="form-success-msg">✓ Got it — we'll be in touch.</p>
+      </div>
+      <div id="form-error" class="form-error" hidden>
+        <p>Hmm, that didn't go through. Email us directly at
+          <a href="mailto:jakefear@gmail.com?subject=Wikantik%20%E2%80%94%20Learn%20more">jakefear@gmail.com</a>.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- footer: Task 8 -->
   <!-- form script: Task 9 -->
 </body>

@@ -1000,6 +1000,7 @@
               <exclude>**/src/overlay/launchers/tomcat/woas.app/Contents/*.plist</exclude>
               <exclude>**/src/overlay/launchers/tomcat/woas.app/Contents/Resources/*.none</exclude>
               <exclude>**/.eslintrc</exclude>
+              <exclude>marketing/**</exclude>                                  <!-- static marketing site, not part of the Java build -->
 
             </excludes>
           </configuration>

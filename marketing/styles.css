@@ -116,3 +116,16 @@ h2.section-title {
 .t-u { text-decoration: underline; }
 .t-body { color: #cfc4ba; }
 .t-meta { color: #6b5d51; }
+
+/* Comparison */
+.compare-note { color: var(--soft); font-size: 0.9rem; margin: 0 0 22px; }
+.compare-wrap { max-width: 720px; margin: 0 auto; border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden; }
+.compare-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.compare-table th[scope="col"] { background: var(--wash); font-weight: 700; padding: 12px;
+  text-align: center; color: var(--soft); }
+.compare-table th.col-us, .compare-table td.col-us { color: var(--terracotta); font-weight: 700; }
+.compare-table th[scope="row"] { text-align: left; font-weight: 500; padding: 12px;
+  border-top: 1px solid #f0f0f0; }
+.compare-table td { text-align: center; padding: 12px; border-top: 1px solid #f0f0f0; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

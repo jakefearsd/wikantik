@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Search-engine indexing.** `robots.txt` advertised the sitemap on the wrong
+  host (`wiki.jakefear.com`), so cross-domain rules made Google ignore it;
+  it now points at `https://wiki.wikantik.com/sitemap.xml`. Every wiki page
+  served the generic `<title>Wikantik</title>` — pages now emit a unique
+  `<title>` from their frontmatter `title:` (falling back to the page name),
+  and that readable title also flows into `og:title`/`twitter:title` instead of
+  the raw page slug. Operator guide: [docs/SeoAndCrawling.md](docs/SeoAndCrawling.md).
+
 ## [2.0.4] - 2026-05-25
 
 ### Added

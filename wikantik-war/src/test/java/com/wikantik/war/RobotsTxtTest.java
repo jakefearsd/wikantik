@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -42,5 +43,19 @@ class RobotsTxtTest {
                 "robots.txt must contain a 'Sitemap:' directive; was: " + content );
         assertTrue( content.contains( "/sitemap.xml" ),
                 "robots.txt Sitemap: must reference /sitemap.xml; was: " + content );
+    }
+
+    @Test
+    void testSitemapPointsAtCanonicalDomain() throws Exception {
+        final Path robots = Paths.get( "src", "main", "webapp", "robots.txt" );
+        final String content = Files.readString( robots );
+
+        // Cross-domain sitemap references are ignored by Google unless both
+        // domains are verified together, so the Sitemap: directive MUST point at
+        // the canonical host that actually serves the wiki.
+        assertTrue( content.contains( "Sitemap: https://wiki.wikantik.com/sitemap.xml" ),
+                "robots.txt Sitemap: must point at https://wiki.wikantik.com/sitemap.xml; was: " + content );
+        assertFalse( content.contains( "jakefear" ),
+                "robots.txt must not reference the legacy jakefear.com domain; was: " + content );
     }
 }

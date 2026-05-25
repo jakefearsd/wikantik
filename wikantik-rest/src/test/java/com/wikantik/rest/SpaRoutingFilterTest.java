@@ -588,6 +588,30 @@ class SpaRoutingFilterTest {
                     "base script should be injected before </head> when no <script> tag present" );
     }
 
+    // ---- stripShellTitle unit tests ----
+
+    @Test
+    void stripShellTitleRemovesTitleElement() {
+        final String html = "<head><title>Wikantik</title><meta charset=\"UTF-8\"></head>";
+        final String out = SpaRoutingFilter.stripShellTitle( html );
+
+        assertFalse( out.contains( "<title>" ),
+                "shell <title> should be removed so the per-page title is the only one" );
+        assertTrue( out.contains( "<meta charset=\"UTF-8\">" ),
+                "surrounding head content must be preserved" );
+    }
+
+    @Test
+    void stripShellTitleIsNoOpWhenNoTitle() {
+        final String html = "<head><meta charset=\"UTF-8\"></head>";
+        assertEquals( html, SpaRoutingFilter.stripShellTitle( html ) );
+    }
+
+    @Test
+    void stripShellTitleHandlesNull() {
+        assertEquals( null, SpaRoutingFilter.stripShellTitle( null ) );
+    }
+
     // ---- helpers ----
 
     private HttpServletRequest mockRequest( final String uri ) {

@@ -92,6 +92,13 @@ public final class SemanticHeadRenderer {
         final String safeBaseUrl = stripTrailingSlash( baseUrl == null ? "" : baseUrl );
         final String canonical = safeBaseUrl + "/wiki/" + safePageName;
 
+        final String fmTitle = strOrEmpty( meta.get( "title" ) );
+        // Document title: human-authored frontmatter title when present, else the
+        // raw page name. The application name is appended for SERP context unless
+        // it is already part of the title (avoids "WikantikOnDocker - Wikantik").
+        final String effectiveTitle = !fmTitle.isBlank() ? fmTitle : safePageName;
+        final String documentTitle = titleWithApp( effectiveTitle, safeAppName );
+
         final String summary = strOrEmpty( meta.get( "summary" ) );
         final String description = strOrEmpty( meta.get( "description" ) );
         final String pageType = strOrEmpty( meta.get( "type" ) );
@@ -114,6 +121,8 @@ public final class SemanticHeadRenderer {
 
         final StringBuilder sb = new StringBuilder( 2048 );
 
+        sb.append( "<title>" ).append( escAttr( documentTitle ) ).append( "</title>" ).append( NL );
+
         sb.append( "<link rel=\"canonical\" href=\"" ).append( escAttr( canonical ) ).append( "\" />" ).append( NL );
 
         sb.append( "<meta name=\"description\" content=\"" )
@@ -126,7 +135,7 @@ public final class SemanticHeadRenderer {
 
         // Open Graph
         sb.append( "<meta property=\"og:title\" content=\"" )
-          .append( escAttr( safePageName + " - " + safeAppName ) ).append( "\" />" ).append( NL );
+          .append( escAttr( documentTitle ) ).append( "\" />" ).append( NL );
         sb.append( "<meta property=\"og:type\" content=\"article\" />" ).append( NL );
         sb.append( "<meta property=\"og:url\" content=\"" ).append( escAttr( canonical ) ).append( "\" />" ).append( NL );
         sb.append( "<meta property=\"og:description\" content=\"" )
@@ -143,7 +152,7 @@ public final class SemanticHeadRenderer {
         // Twitter Card
         sb.append( "<meta name=\"twitter:card\" content=\"summary\" />" ).append( NL );
         sb.append( "<meta name=\"twitter:title\" content=\"" )
-          .append( escAttr( safePageName + " - " + safeAppName ) ).append( "\" />" ).append( NL );
+          .append( escAttr( documentTitle ) ).append( "\" />" ).append( NL );
         sb.append( "<meta name=\"twitter:description\" content=\"" )
           .append( escAttr( effectiveDescription ) ).append( "\" />" ).append( NL );
 
@@ -219,6 +228,30 @@ public final class SemanticHeadRenderer {
         out.append( content );
         out.append( "</article>" ).append( NL );
         return out.toString();
+    }
+
+    /**
+     * Compose the document title, appending the application name for SERP
+     * context but only when it is not already present in the title (so
+     * "Wikantik on Docker" does not become "Wikantik on Docker - Wikantik").
+     *
+     * @param title   the page-level title (frontmatter title or page name)
+     * @param appName the wiki application name
+     * @return the composed document title
+     */
+    private static String titleWithApp( final String title, final String appName ) {
+        final String t = title == null ? "" : title.trim();
+        final String app = appName == null ? "" : appName.trim();
+        if ( app.isEmpty() ) {
+            return t;
+        }
+        if ( t.isEmpty() ) {
+            return app;
+        }
+        if ( t.toLowerCase( Locale.ROOT ).contains( app.toLowerCase( Locale.ROOT ) ) ) {
+            return t;
+        }
+        return t + " - " + app;
     }
 
     // -------- JSON-LD builders --------

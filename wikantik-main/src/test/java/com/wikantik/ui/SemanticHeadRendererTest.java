@@ -89,6 +89,17 @@ class SemanticHeadRendererTest {
             This is a page with no YAML frontmatter.
             """;
 
+    private static final String TITLED_BODY = """
+            ---
+            type: article
+            title: Test Driven Development (TDD)
+            summary: The mandatory TDD workflow for developing in Wikantik
+            ---
+            # Test Driven Development (TDD) in Wikantik
+
+            Body text.
+            """;
+
     // ---- Canonical URL ----
 
     @Test
@@ -100,6 +111,51 @@ class SemanticHeadRendererTest {
         assertTrue( canonical.startsWith( "http" ) );
         assertTrue( canonical.contains( "wiki/SemanticArticle" ),
                 "canonical should contain wiki/SemanticArticle: " + canonical );
+    }
+
+    // ---- Document title ----
+
+    @Test
+    void pageEmitsDocumentTitleFromFrontmatter() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "TestDrivenDevelopment", TITLED_BODY, BASE_URL, APP_NAME );
+        final String title = extractTitle( html );
+        assertNotNull( title );
+        assertTrue( title.contains( "Test Driven Development (TDD)" ),
+                "<title> should use the frontmatter title: " + title );
+        assertTrue( title.contains( APP_NAME ),
+                "<title> should include the application name for SERP context: " + title );
+    }
+
+    @Test
+    void documentTitleFallsBackToPageName() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "PlainPage", PLAIN_BODY, BASE_URL, APP_NAME );
+        final String title = extractTitle( html );
+        assertNotNull( title );
+        assertTrue( title.contains( "PlainPage" ),
+                "<title> should fall back to the page name when no frontmatter title: " + title );
+    }
+
+    @Test
+    void documentTitleDoesNotDoubleApplicationName() {
+        final String body = "---\ntitle: Wikantik on Docker\n---\n# Heading\n\nBody.\n";
+        final String html = SemanticHeadRenderer.renderHead(
+                "WikantikOnDocker", body, BASE_URL, APP_NAME );
+        final String title = extractTitle( html );
+        assertNotNull( title );
+        assertEquals( "Wikantik on Docker", title,
+                "app name already present in the title should not be appended again: " + title );
+    }
+
+    @Test
+    void ogTitleUsesFrontmatterTitle() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "TestDrivenDevelopment", TITLED_BODY, BASE_URL, APP_NAME );
+        final String ogTitle = extractMetaContent( html, "property", "og:title" );
+        assertNotNull( ogTitle );
+        assertTrue( ogTitle.contains( "Test Driven Development (TDD)" ),
+                "og:title should use the readable frontmatter title, not the raw page name: " + ogTitle );
     }
 
     // ---- Meta description ----
@@ -445,6 +501,12 @@ class SemanticHeadRendererTest {
             out.add( m.group( 1 ) );
         }
         return out;
+    }
+
+    private static String extractTitle( final String html ) {
+        final Pattern p = Pattern.compile( "<title>(.*?)</title>", Pattern.DOTALL );
+        final Matcher m = p.matcher( html );
+        return m.find() ? m.group( 1 ) : null;
     }
 
     private static String extractLinkHref( final String html, final String rel ) {

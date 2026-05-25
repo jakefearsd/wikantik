@@ -4,7 +4,7 @@
 User-agent: *
 
 # Allow the sitemap
-Sitemap: https://wiki.jakefear.com/sitemap.xml
+Sitemap: https://wiki.wikantik.com/sitemap.xml
 
 # Block administrative pages
 Disallow: /admin/

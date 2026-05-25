@@ -313,7 +313,9 @@ public class SpaRoutingFilter implements Filter {
         final String head = SemanticHeadRenderer.renderHead( pageName, rawText, baseUrl, appName, modified );
         final String bodyFragment = SemanticHeadRenderer.renderBodyFragment( pageName, rawText );
 
-        String out = indexHtml;
+        // Drop the static shell <title>; renderHead emits a per-page <title>,
+        // so stripping the shell one leaves exactly one (correct) title element.
+        String out = stripShellTitle( indexHtml );
         final int headClose = out.indexOf( "</head>" );
         if ( headClose >= 0 ) {
             out = out.substring( 0, headClose ) + head + out.substring( headClose );
@@ -330,6 +332,25 @@ public class SpaRoutingFilter implements Filter {
             }
         }
         return out;
+    }
+
+    /**
+     * Remove the static shell {@code <title>...</title>} element so that the
+     * per-page {@code <title>} emitted by {@link SemanticHeadRenderer#renderHead}
+     * is the only title in the served document. Without this the page would have
+     * two {@code <title>} elements (the generic shell one and the page one), and
+     * crawlers honour the first — defeating per-page titles.
+     *
+     * <p>No-op when the html has no title element. Package-private for unit testing.
+     *
+     * @param html the index.html (or {@code null})
+     * @return the html with the first {@code <title>} element removed
+     */
+    static String stripShellTitle( final String html ) {
+        if ( html == null ) {
+            return null;
+        }
+        return html.replaceFirst( "(?is)<title>.*?</title>", "" );
     }
 
     /**

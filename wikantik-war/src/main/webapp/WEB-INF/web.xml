@@ -453,8 +453,8 @@
        <servlet-class>com.wikantik.rest.OutboundLinksResource</servlet-class>
    </servlet>
    <servlet>
-       <servlet-name>CommentResource</servlet-name>
-       <servlet-class>com.wikantik.rest.CommentResource</servlet-class>
+       <servlet-name>CommentThreadResource</servlet-name>
+       <servlet-class>com.wikantik.rest.CommentThreadResource</servlet-class>
    </servlet>
    <servlet>
        <servlet-name>ConvertResource</servlet-name>
@@ -659,8 +659,8 @@
        <url-pattern>/api/outbound-links/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
-       <servlet-name>CommentResource</servlet-name>
-       <url-pattern>/api/comments/*</url-pattern>
+       <servlet-name>CommentThreadResource</servlet-name>
+       <url-pattern>/api/comment-threads/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>ConvertResource</servlet-name>

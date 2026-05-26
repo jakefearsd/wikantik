@@ -8,7 +8,9 @@ import PageMeta from './PageMeta';
 import MetadataPanel from './MetadataPanel';
 import SimilarPagesPanel from './SimilarPagesPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
-import CommentsPanel from './CommentsPanel';
+import CommentsDrawer from './CommentsDrawer';
+import { captureSelection } from '../utils/commentAnchor';
+import { anchorThreads, clearHighlights } from '../utils/commentHighlight';
 import 'katex/dist/katex.min.css';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -21,6 +23,23 @@ export default function PageView() {
 
   const articleRef = useRef(null);
 
+  const [threads, setThreads] = useState([]);
+  const [detachedIds, setDetachedIds] = useState([]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('open');
+  const [selection, setSelection] = useState(null); // {selector, rect} | {error} | null
+
+  const loadThreads = useCallback(async () => {
+    try {
+      const res = await api.listCommentThreads(name, 'all');
+      setThreads(res.threads || []);
+    } catch (e) {
+      console.warn('Failed to load comment threads', e);
+    }
+  }, [name]);
+
+  useEffect(() => { loadThreads(); }, [loadThreads]);
+
   // Render LaTeX math expressions via KaTeX after page content is injected.
   // Depend on the `page` object reference (not the contentHtml string) so the
   // effect fires on every refetch — e.g. auth state transitions where
@@ -31,6 +50,47 @@ export default function PageView() {
       renderMath(articleRef.current);
     }
   }, [page]);
+
+  // Re-anchor comment highlights into the rendered article. Placed AFTER the
+  // renderMath effect so it runs after KaTeX has settled the DOM. Depends on
+  // the same `page` reference the renderMath effect uses (re-runs on refetch)
+  // plus `threads` (re-runs when comments load/change).
+  useEffect(() => {
+    const root = articleRef.current;
+    if (!root || !page?.contentHtml) return;
+    clearHighlights(root);
+    const { detached } = anchorThreads(root, threads);
+    setDetachedIds(detached);
+  }, [page, threads]);
+
+  const onArticleMouseUp = () => {
+    const root = articleRef.current;
+    if (!root) return;
+    setSelection(captureSelection(root));
+  };
+
+  const focusThread = (threadId) => {
+    const mark = articleRef.current?.querySelector(`mark[data-thread-id="${threadId}"]`);
+    if (mark) {
+      mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      mark.classList.add('comment-highlight-pulse');
+      setTimeout(() => mark.classList.remove('comment-highlight-pulse'), 1200);
+    }
+  };
+
+  const createThread = async (text) => {
+    if (!selection?.selector || !text.trim()) return;
+    try {
+      await api.createCommentThread(name, { ...selection.selector, text: text.trim() });
+    } catch (e) {
+      console.warn('Failed to create comment thread', e);
+    } finally {
+      setSelection(null);
+      window.getSelection()?.removeAllRanges();
+      await loadThreads();
+    }
+    setDrawerOpen(true);
+  };
 
   // Sync document.title with current page. Integration tests assert titles
   // like "Wikantik: Main" so keep the format stable.
@@ -92,6 +152,13 @@ export default function PageView() {
   // Intercept clicks on internal wiki links in rendered HTML content
   // so they use React Router navigation instead of full-page reloads.
   const handleContentClick = useCallback((e) => {
+    const mark = e.target.closest && e.target.closest('mark.comment-highlight');
+    if (mark) {
+      setDrawerOpen(true);
+      focusThread(mark.dataset.threadId);
+      return;
+    }
+
     const anchor = e.target.closest('a');
     if (!anchor) return;
 
@@ -134,6 +201,9 @@ export default function PageView() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-md)' }}>
         <PageMeta page={page} />
         <div style={{ display: 'flex', gap: 'var(--space-sm)', flexShrink: 0 }}>
+          <button className="btn btn-ghost" onClick={() => setDrawerOpen((o) => !o)}>
+            💬 Comments{threads.length ? ` (${threads.length})` : ''}
+          </button>
           {page.permissions?.edit && (
             <Link to={`/edit/${name}`} className="btn btn-ghost" data-testid="edit-page-link">
               ✎ Edit
@@ -198,10 +268,49 @@ export default function PageView() {
         ref={articleRef}
         className="article-prose"
         onClick={handleContentClick}
+        onMouseUp={onArticleMouseUp}
         dangerouslySetInnerHTML={{ __html: page.contentHtml || page.content || '' }}
       />
 
-      <CommentsPanel pageName={name} />
+      <CommentsDrawer
+        open={drawerOpen}
+        threads={threads}
+        detachedIds={detachedIds}
+        statusFilter={statusFilter}
+        onStatusFilter={setStatusFilter}
+        onReply={async (threadId, text) => {
+          try { await api.addCommentReply(threadId, text); }
+          catch (e) { console.warn('Failed to add reply', e); }
+          finally { await loadThreads(); }
+        }}
+        onResolve={async (threadId) => {
+          try { await api.resolveCommentThread(threadId); }
+          catch (e) { console.warn('Failed to resolve thread', e); }
+          finally { await loadThreads(); }
+        }}
+        onReopen={async (threadId) => {
+          try { await api.reopenCommentThread(threadId); }
+          catch (e) { console.warn('Failed to reopen thread', e); }
+          finally { await loadThreads(); }
+        }}
+        onFocusThread={focusThread}
+        onClose={() => setDrawerOpen(false)}
+      />
+
+      {selection?.selector && (
+        <button
+          className="comment-add-floating"
+          style={{ position: 'fixed', top: selection.rect.bottom + 6, left: selection.rect.left }}
+          onClick={() => { const text = window.prompt('Add a comment'); if (text) createThread(text); }}
+        >
+          💬 Comment
+        </button>
+      )}
+      {selection?.error === 'math' && (
+        <div className="comment-math-hint" style={{ position: 'fixed', top: 8, right: 8 }}>
+          Can’t comment on math expressions — select plain text.
+        </div>
+      )}
 
       {page.metadata?.tags && (
         <div style={{ marginTop: 'var(--space-2xl)', display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>

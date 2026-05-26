@@ -115,15 +115,38 @@ export const api = {
     return request(`/api/pages?${params}`);
   },
 
-  // Comments
-  getComments: (name) =>
-    request(`/api/comments/${encodeURIComponent(name)}`),
+  // Anchored comment threads
+  listCommentThreads: (page, status = 'all') =>
+    request(`/api/comment-threads?page=${encodeURIComponent(page)}&status=${encodeURIComponent(status)}`),
 
-  addComment: (name, text) =>
-    request(`/api/comments/${encodeURIComponent(name)}`, {
+  createCommentThread: (page, { exact, prefix, suffix, text }) =>
+    request(`/api/comment-threads?page=${encodeURIComponent(page)}`, {
+      method: 'POST',
+      body: JSON.stringify({ exact, prefix, suffix, text }),
+    }),
+
+  addCommentReply: (threadId, text) =>
+    request(`/api/comment-threads/${encodeURIComponent(threadId)}/comments`, {
       method: 'POST',
       body: JSON.stringify({ text }),
     }),
+
+  editComment: (threadId, commentId, text) =>
+    request(`/api/comment-threads/${encodeURIComponent(threadId)}/comments/${encodeURIComponent(commentId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ text }),
+    }),
+
+  deleteComment: (threadId, commentId) =>
+    request(`/api/comment-threads/${encodeURIComponent(threadId)}/comments/${encodeURIComponent(commentId)}`, {
+      method: 'DELETE',
+    }),
+
+  resolveCommentThread: (threadId) =>
+    request(`/api/comment-threads/${encodeURIComponent(threadId)}/resolve`, { method: 'POST' }),
+
+  reopenCommentThread: (threadId) =>
+    request(`/api/comment-threads/${encodeURIComponent(threadId)}/reopen`, { method: 'POST' }),
 
   // Conversion
   convertWikiToMarkdown: (content) =>

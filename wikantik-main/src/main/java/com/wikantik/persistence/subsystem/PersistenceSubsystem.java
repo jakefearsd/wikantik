@@ -18,6 +18,7 @@
  */
 package com.wikantik.persistence.subsystem;
 
+import com.wikantik.comments.CommentStore;
 import com.wikantik.core.subsystem.WikiProperties;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubProposalRepository;
@@ -105,6 +106,9 @@ public final class PersistenceSubsystem {
         // Page-graph spine:
         PageCanonicalIdsDao pageCanonicalIds,
         PageVerificationDao pageVerification,
-        TrustedAuthorsDao trustedAuthors
+        TrustedAuthorsDao trustedAuthors,
+
+        // Anchored comments:
+        CommentStore comments
     ) {}
 }

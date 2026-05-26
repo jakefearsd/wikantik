@@ -18,6 +18,7 @@
  */
 package com.wikantik.persistence.subsystem;
 
+import com.wikantik.comments.CommentStore;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.KgEdgeRepository;
@@ -79,7 +80,8 @@ public final class PersistenceSubsystemFactory {
             new KgClusterPolicyRepository( ds ),
             new PageCanonicalIdsDao( ds ),
             new PageVerificationDao( ds ),
-            new TrustedAuthorsDao( ds )
+            new TrustedAuthorsDao( ds ),
+            new CommentStore( ds )
         );
     }
 }

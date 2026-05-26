@@ -66,6 +66,7 @@ final class PersistenceSubsystemFactoryTest {
         assertNotNull( services.pageCanonicalIds(),     "pageCanonicalIds" );
         assertNotNull( services.pageVerification(),     "pageVerification" );
         assertNotNull( services.trustedAuthors(),       "trustedAuthors" );
+        assertNotNull( services.comments(),             "comments" );
     }
 
     @Test

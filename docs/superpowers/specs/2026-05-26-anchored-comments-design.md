@@ -118,17 +118,25 @@ Replaces `CommentResource` entirely. Extends `RestServletBase`. Resolves page
 name → `canonical_id` via `DefaultStructuralIndexService.resolveCanonicalIdFromSlug()`
 before touching the store.
 
-Endpoints under `/api/pages/{name}/comment-threads`:
+> **URL deviation (locked at planning time):** the resource is mounted at
+> `/api/comment-threads/*`, not `/api/pages/{name}/comment-threads`, because
+> `PageResource` already owns the `/api/pages/*` servlet mapping and a Servlet
+> URL pattern cannot nest a second servlet under it. The page is passed as a
+> `?page=` query parameter on list/create; thread-scoped operations carry the
+> `threadId` in the path and resolve the page server-side from the stored
+> `canonical_id`. (Same class of constraint already documented for `/for-agent`.)
+
+Endpoints under `/api/comment-threads`:
 
 | Method | Path | Action | Permission |
 |--------|------|--------|------------|
-| GET | `/api/pages/{name}/comment-threads?status=open\|resolved\|all` | list threads + comments | `view` |
-| POST | `/api/pages/{name}/comment-threads` | create thread (selector + first body) | `comment` |
-| POST | `/api/pages/{name}/comment-threads/{threadId}/comments` | reply | `comment` |
-| PATCH | `/api/pages/{name}/comment-threads/{threadId}/comments/{commentId}` | edit body | author only |
-| DELETE | `/api/pages/{name}/comment-threads/{threadId}/comments/{commentId}` | delete comment | author, or page `delete`/admin |
-| POST | `/api/pages/{name}/comment-threads/{threadId}/resolve` | mark resolved | `comment` |
-| POST | `/api/pages/{name}/comment-threads/{threadId}/reopen` | mark open | `comment` |
+| GET | `/api/comment-threads?page={name}&status=open\|resolved\|all` | list threads + comments | `view` |
+| POST | `/api/comment-threads?page={name}` | create thread (selector + first body) | `comment` |
+| POST | `/api/comment-threads/{threadId}/comments` | reply | `comment` |
+| PATCH | `/api/comment-threads/{threadId}/comments/{commentId}` | edit body | author only |
+| DELETE | `/api/comment-threads/{threadId}/comments/{commentId}` | delete comment | author, or page `delete`/admin |
+| POST | `/api/comment-threads/{threadId}/resolve` | mark resolved | `comment` |
+| POST | `/api/comment-threads/{threadId}/reopen` | mark open | `comment` |
 
 Default `status` for GET is `all` (drawer filters client-side, but the query
 param lets callers narrow). Permission denials send HTTP 403 and the JSON body

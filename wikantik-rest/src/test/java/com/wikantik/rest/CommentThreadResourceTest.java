@@ -165,6 +165,238 @@ class CommentThreadResourceTest {
         assertEquals( 404, res.get( "status" ).getAsInt() );
     }
 
+    @Test
+    void delete_by_author_succeeds() throws Exception {
+        final String threadId = createThread();
+        final String commentId = store.findThread( java.util.UUID.fromString( threadId ) )
+                .orElseThrow().comments().get( 0 ).id().toString();
+        // currentUser is "alice" (the author) by default. canModerate is computed
+        // eagerly before the && short-circuit, so hasPagePermission must be stubbed.
+        Mockito.doReturn( false ).when( servlet ).hasPagePermission(
+                Mockito.any(), Mockito.anyString(), Mockito.anyString() );
+        final JsonObject res = del( "/" + threadId + "/comments/" + commentId );
+        assertFalse( res.has( "error" ), res.toString() );
+        assertTrue( res.get( "deleted" ).getAsBoolean() );
+        assertEquals( commentId, res.get( "id" ).getAsString() );
+        assertTrue( store.findComment( java.util.UUID.fromString( commentId ) ).isEmpty() );
+    }
+
+    @Test
+    void delete_by_moderator_succeeds() throws Exception {
+        final String threadId = createThread();
+        final String commentId = store.findThread( java.util.UUID.fromString( threadId ) )
+                .orElseThrow().comments().get( 0 ).id().toString();
+        // Not the author, but a moderator (hasPagePermission(..., "delete") => true).
+        Mockito.doReturn( "mallory" ).when( servlet ).currentUser( Mockito.any() );
+        Mockito.doReturn( true ).when( servlet ).hasPagePermission(
+                Mockito.any(), Mockito.eq( "PageOne" ), Mockito.eq( "delete" ) );
+        final JsonObject res = del( "/" + threadId + "/comments/" + commentId );
+        assertFalse( res.has( "error" ), res.toString() );
+        assertTrue( res.get( "deleted" ).getAsBoolean() );
+    }
+
+    @Test
+    void delete_by_non_author_non_moderator_is_forbidden_with_reason() throws Exception {
+        final String threadId = createThread();
+        final String commentId = store.findThread( java.util.UUID.fromString( threadId ) )
+                .orElseThrow().comments().get( 0 ).id().toString();
+        Mockito.doReturn( "mallory" ).when( servlet ).currentUser( Mockito.any() );
+        Mockito.doReturn( false ).when( servlet ).hasPagePermission(
+                Mockito.any(), Mockito.anyString(), Mockito.anyString() );
+        final JsonObject res = del( "/" + threadId + "/comments/" + commentId );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 403, res.get( "status" ).getAsInt() );
+        final String msg = res.get( "message" ).getAsString().toLowerCase();
+        assertTrue( msg.contains( "author" ) || msg.contains( "moderator" ),
+                "refusal must cite the reason: " + res );
+    }
+
+    @Test
+    void patch_invalid_uuid_is_400() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "text", "x" );
+        final JsonObject res = patch( "/not-a-uuid/comments/also-bad", body );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 400, res.get( "status" ).getAsInt() );
+        assertTrue( res.get( "message" ).getAsString().contains( "Invalid id" ) );
+    }
+
+    @Test
+    void thread_not_found_is_404() throws Exception {
+        final JsonObject reply = new JsonObject();
+        reply.addProperty( "text", "hi" );
+        final JsonObject res = post( null, "/" + java.util.UUID.randomUUID() + "/comments", reply );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+        assertTrue( res.get( "message" ).getAsString().toLowerCase().contains( "thread not found" ) );
+    }
+
+    @Test
+    void page_for_thread_gone_is_404() throws Exception {
+        final String threadId = createThread();
+        // The thread resolves, but its page slug no longer exists.
+        Mockito.doReturn( Optional.empty() ).when( servlet ).resolveSlug( "CID1" );
+        final JsonObject reply = new JsonObject();
+        reply.addProperty( "text", "hi" );
+        final JsonObject res = post( null, "/" + threadId + "/comments", reply );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void reply_missing_text_is_400() throws Exception {
+        final String threadId = createThread();
+        final JsonObject res = post( null, "/" + threadId + "/comments", new JsonObject() );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 400, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void edit_nonexistent_comment_is_404() throws Exception {
+        final String threadId = createThread();
+        final JsonObject body = new JsonObject();
+        body.addProperty( "text", "x" );
+        final JsonObject res = patch(
+                "/" + threadId + "/comments/" + java.util.UUID.randomUUID(), body );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void unknown_post_route_is_404() throws Exception {
+        final JsonObject res = post( null, "/" + java.util.UUID.randomUUID() + "/bogus", new JsonObject() );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void unknown_patch_route_is_404() throws Exception {
+        final JsonObject res = patch( "/" + java.util.UUID.randomUUID() + "/wrong", new JsonObject() );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void unknown_delete_route_is_404() throws Exception {
+        final JsonObject res = del( "/" + java.util.UUID.randomUUID() + "/wrong" );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void list_filters_by_status_open_and_resolved() throws Exception {
+        final String openId = createThread();
+        final String resolvedId = createThread();
+        assertFalse( post( null, "/" + resolvedId + "/resolve", new JsonObject() ).has( "error" ) );
+
+        final JsonArray openThreads = get( "?page=PageOne&status=open" ).getAsJsonArray( "threads" );
+        assertEquals( 1, openThreads.size() );
+        assertEquals( openId, openThreads.get( 0 ).getAsJsonObject().get( "id" ).getAsString() );
+
+        final JsonArray resolvedThreads = get( "?page=PageOne&status=resolved" ).getAsJsonArray( "threads" );
+        assertEquals( 1, resolvedThreads.size() );
+        assertEquals( resolvedId, resolvedThreads.get( 0 ).getAsJsonObject().get( "id" ).getAsString() );
+    }
+
+    @Test
+    void edit_by_author_succeeds() throws Exception {
+        final String threadId = createThread();
+        final String commentId = store.findThread( java.util.UUID.fromString( threadId ) )
+                .orElseThrow().comments().get( 0 ).id().toString();
+        final JsonObject body = new JsonObject();
+        body.addProperty( "text", "corrected" );
+        final JsonObject res = patch( "/" + threadId + "/comments/" + commentId, body );
+        assertFalse( res.has( "error" ), res.toString() );
+        assertEquals( "corrected", res.get( "body" ).getAsString() );
+        assertFalse( res.get( "editedAt" ).isJsonNull() );
+    }
+
+    @Test
+    void edit_missing_text_is_400() throws Exception {
+        final String threadId = createThread();
+        final String commentId = store.findThread( java.util.UUID.fromString( threadId ) )
+                .orElseThrow().comments().get( 0 ).id().toString();
+        final JsonObject res = patch( "/" + threadId + "/comments/" + commentId, new JsonObject() );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 400, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void delete_comment_from_a_different_thread_is_not_found() throws Exception {
+        final String threadA = createThread();
+        final String threadB = createThread();
+        final String threadBCommentId = store.findThread( java.util.UUID.fromString( threadB ) )
+                .orElseThrow().comments().get( 0 ).id().toString();
+        final JsonObject res = del( "/" + threadA + "/comments/" + threadBCommentId );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void delete_nonexistent_comment_is_404() throws Exception {
+        final String threadId = createThread();
+        final JsonObject res = del( "/" + threadId + "/comments/" + java.util.UUID.randomUUID() );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void get_missing_page_param_is_400() throws Exception {
+        final JsonObject res = get( "" );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 400, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void get_view_forbidden_short_circuits() throws Exception {
+        // checkPagePermission returns false (the real impl would have already sent 403);
+        // the handler must short-circuit and not write a threads payload.
+        Mockito.doReturn( false ).when( servlet ).checkPagePermission(
+                Mockito.any(), Mockito.any(), Mockito.anyString(), Mockito.anyString() );
+        final JsonObject res = get( "?page=PageOne&status=all" );
+        assertFalse( res.has( "threads" ), res.toString() );
+    }
+
+    @Test
+    void get_unknown_page_is_404() throws Exception {
+        Mockito.doReturn( Optional.empty() ).when( servlet ).resolveCanonicalId( "Ghost" );
+        final JsonObject res = get( "?page=Ghost&status=all" );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void create_missing_page_param_is_400() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "exact", "hello" );
+        body.addProperty( "text", "hi" );
+        final JsonObject res = post( "", null, body );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 400, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void create_blank_exact_is_400() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "exact", "   " );
+        body.addProperty( "text", "hi" );
+        final JsonObject res = post( "?page=PageOne", null, body );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 400, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void reply_forbidden_on_thread_short_circuits() throws Exception {
+        final String threadId = createThread();
+        // Permit the create above, then deny the comment action on the resolved thread.
+        Mockito.doReturn( false ).when( servlet ).checkPagePermission(
+                Mockito.any(), Mockito.any(), Mockito.eq( "PageOne" ), Mockito.eq( "comment" ) );
+        final JsonObject reply = new JsonObject();
+        reply.addProperty( "text", "hi" );
+        final JsonObject res = post( null, "/" + threadId + "/comments", reply );
+        assertFalse( res.has( "id" ), res.toString() );
+    }
+
     private String createThread() throws Exception {
         final JsonObject body = new JsonObject();
         body.addProperty( "exact", "hello" );
@@ -192,6 +424,12 @@ class CommentThreadResourceTest {
         final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/api/comment-threads" );
         Mockito.doReturn( pathInfo ).when( req ).getPathInfo();
         return invoke( req, "PATCH", body );
+    }
+
+    private JsonObject del( final String pathInfo ) throws Exception {
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/api/comment-threads" );
+        Mockito.doReturn( pathInfo ).when( req ).getPathInfo();
+        return invoke( req, "DELETE", null );
     }
 
     private JsonObject invoke( final HttpServletRequest req, final String method, final JsonObject body )

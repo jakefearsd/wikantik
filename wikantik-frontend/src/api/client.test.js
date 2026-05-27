@@ -170,6 +170,73 @@ describe('api.admin.getChunkOutliers', () => {
   });
 });
 
+describe('anchored comment thread methods', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn();
+    global.fetch.mockResolvedValue(mockFetchResponse({ status: 200, body: {} }));
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function lastCall() {
+    return global.fetch.mock.calls[global.fetch.mock.calls.length - 1];
+  }
+
+  it('listCommentThreads issues GET with page + status query', async () => {
+    await api.listCommentThreads('Foo', 'open');
+    const [url, opts] = lastCall();
+    expect(url).toContain('/api/comment-threads?page=Foo&status=open');
+    // GET = no explicit method override
+    expect(opts.method).toBeUndefined();
+  });
+
+  it('createCommentThread POSTs the anchor + text body to the page', async () => {
+    await api.createCommentThread('Foo', { exact: 'e', prefix: 'p', suffix: 's', text: 't' });
+    const [url, opts] = lastCall();
+    expect(url).toContain('/api/comment-threads?page=Foo');
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body)).toEqual({ exact: 'e', prefix: 'p', suffix: 's', text: 't' });
+  });
+
+  it('addCommentReply POSTs the reply text to the thread comments', async () => {
+    await api.addCommentReply('tid', 'hi');
+    const [url, opts] = lastCall();
+    expect(url).toContain('/api/comment-threads/tid/comments');
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body)).toEqual({ text: 'hi' });
+  });
+
+  it('editComment PATCHes the specific comment', async () => {
+    await api.editComment('tid', 'cid', 'x');
+    const [url, opts] = lastCall();
+    expect(url).toContain('/api/comment-threads/tid/comments/cid');
+    expect(opts.method).toBe('PATCH');
+    expect(JSON.parse(opts.body)).toEqual({ text: 'x' });
+  });
+
+  it('deleteComment DELETEs the specific comment', async () => {
+    await api.deleteComment('tid', 'cid');
+    const [url, opts] = lastCall();
+    expect(url).toContain('/api/comment-threads/tid/comments/cid');
+    expect(opts.method).toBe('DELETE');
+  });
+
+  it('resolveCommentThread POSTs to the resolve endpoint', async () => {
+    await api.resolveCommentThread('tid');
+    const [url, opts] = lastCall();
+    expect(url).toContain('/api/comment-threads/tid/resolve');
+    expect(opts.method).toBe('POST');
+  });
+
+  it('reopenCommentThread POSTs to the reopen endpoint', async () => {
+    await api.reopenCommentThread('tid');
+    const [url, opts] = lastCall();
+    expect(url).toContain('/api/comment-threads/tid/reopen');
+    expect(opts.method).toBe('POST');
+  });
+});
+
 describe('api.knowledge.listProposalsFiltered', () => {
   beforeEach(() => {
     global.fetch = vi.fn();

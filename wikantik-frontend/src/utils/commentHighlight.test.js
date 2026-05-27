@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { anchorThreads, highlightRange } from './commentHighlight';
+import { anchorThreads, highlightRange, clearHighlights } from './commentHighlight';
 
 function makeRoot(html) {
   document.body.innerHTML = '';
@@ -21,6 +21,38 @@ describe('highlightRange', () => {
     const mark = root.querySelector('mark.comment-highlight');
     expect(mark.textContent).toBe('hello');
     expect(mark.dataset.threadId).toBe('T1');
+  });
+
+  it('skips a segment that cannot be surrounded without throwing', () => {
+    // A range crossing two element children makes surroundContents throw on the
+    // segment that partially selects a non-text node; highlightRange must not blow up.
+    const root = makeRoot('<p><b>aaaa</b><i>bbbb</i></p>');
+    const b = root.querySelector('b').firstChild;
+    const i = root.querySelector('i').firstChild;
+    const range = document.createRange();
+    range.setStart(b, 1);
+    range.setEnd(i, 3);
+    expect(() => highlightRange(range, 'T1')).not.toThrow();
+    // The full text content must remain intact regardless of which segments wrapped.
+    expect(root.querySelector('p').textContent).toBe('aaaabbbb');
+  });
+});
+
+describe('clearHighlights', () => {
+  it('removes comment-highlight marks and restores the original text', () => {
+    const root = makeRoot('<p>say hello world</p>');
+    const tn = root.querySelector('p').firstChild;
+    const range = document.createRange();
+    range.setStart(tn, 4);
+    range.setEnd(tn, 9); // "hello"
+    highlightRange(range, 'T1');
+    expect(root.querySelector('mark.comment-highlight')).not.toBeNull();
+
+    clearHighlights(root);
+    expect(root.querySelector('mark.comment-highlight')).toBeNull();
+    expect(root.querySelector('p').textContent).toBe('say hello world');
+    // parent normalized -> single text node
+    expect(root.querySelector('p').childNodes.length).toBe(1);
   });
 });
 

@@ -1,4 +1,7 @@
 import { useRef, useState } from 'react';
+import { api } from '../api/client';
+import { useMentionPicker } from '../hooks/useMentionPicker';
+import MentionPicker from './MentionPicker';
 
 function ThreadCard({
   thread, detached, canModerate, onReply, onResolve, onReopen, onDeleteThread, onFocusThread,
@@ -15,6 +18,27 @@ function ThreadCard({
     onReply(thread.id, reply.trim());
     setReply('');
     if (replyRef.current) replyRef.current.style.height = 'auto';
+  };
+  // @-mention picker against the reply textarea. Mirrors the composer's wiring
+  // in PageView — the hook handles debounce + caret tracking; we just feed the
+  // existing textarea handlers and render the dumb popover.
+  const picker = useMentionPicker({
+    textareaRef: replyRef,
+    fetchCandidates: async (q) => {
+      try { const r = await api.listMentionableUsers(q); return r.users || []; }
+      catch { return []; }
+    },
+  });
+  const acceptLogin = (login) => {
+    const { replacement, selectionStart } = picker.accept(login);
+    setReply(replacement);
+    setTimeout(() => {
+      const ta = replyRef.current;
+      if (!ta) return;
+      ta.setSelectionRange(selectionStart, selectionStart);
+      growReply(ta);
+      ta.focus();
+    }, 0);
   };
   // In-app two-step delete (no native confirm dialog): the first click reveals
   // the confirm row; the second click commits. Cancel reverts.
@@ -59,9 +83,6 @@ function ThreadCard({
         <div
           className="comment-reply-block"
           onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); submitReply(); }
-          }}
         >
           <textarea
             ref={replyRef}
@@ -69,13 +90,30 @@ function ThreadCard({
             placeholder="Reply…"
             value={reply}
             rows={1}
-            onChange={(e) => { setReply(e.target.value); growReply(e.target); }}
+            onChange={(e) => { setReply(e.target.value); growReply(e.target); picker.onChange(e); }}
+            onKeyDown={(e) => {
+              if (picker.onKeyDown(e)) {
+                if (e.key === 'Enter' || e.key === 'Tab') {
+                  const sel = picker.candidates[picker.selectedIndex];
+                  if (sel) acceptLogin(sel.loginName);
+                }
+                return;
+              }
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); submitReply(); }
+            }}
           />
           <div className="comment-reply-actions">
             <button onClick={submitReply}>Reply</button>
             <button onClick={() => onResolve(thread.id)}>Resolve</button>
             {deleteButton}
           </div>
+          <MentionPicker
+            open={picker.open}
+            candidates={picker.candidates}
+            selectedIndex={picker.selectedIndex}
+            onSelect={acceptLogin}
+            anchorPos={picker.anchorPos}
+          />
         </div>
       ) : (
         <div className="comment-reply-row" onClick={(e) => e.stopPropagation()}>

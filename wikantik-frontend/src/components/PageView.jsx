@@ -9,6 +9,8 @@ import MetadataPanel from './MetadataPanel';
 import SimilarPagesPanel from './SimilarPagesPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
 import CommentsDrawer from './CommentsDrawer';
+import MentionPicker from './MentionPicker';
+import { useMentionPicker } from '../hooks/useMentionPicker';
 import { captureSelection } from '../utils/commentAnchor';
 import { anchorThreads, clearHighlights, anchorPendingHighlight, clearPendingHighlight } from '../utils/commentHighlight';
 import 'katex/dist/katex.min.css';
@@ -25,6 +27,28 @@ function CommentComposer({ rect, quote, onSubmit, onCancel }) {
   useEffect(() => { taRef.current?.focus(); }, []);
   const grow = (el) => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
   const submit = () => { if (text.trim()) onSubmit(text.trim()); };
+  // Mention picker — fetch candidates on every keystroke that opens an `@<token>`.
+  // The hook handles debounce/state; we just wire onChange/onKeyDown into the
+  // existing textarea handlers and render the dumb popover next to the composer.
+  const picker = useMentionPicker({
+    textareaRef: taRef,
+    fetchCandidates: async (q) => {
+      try { const r = await api.listMentionableUsers(q); return r.users || []; }
+      catch { return []; }
+    },
+  });
+  const acceptLogin = (login) => {
+    const { replacement, selectionStart } = picker.accept(login);
+    setText(replacement);
+    // After React renders, restore caret + auto-grow.
+    setTimeout(() => {
+      const ta = taRef.current;
+      if (!ta) return;
+      ta.setSelectionRange(selectionStart, selectionStart);
+      grow(ta);
+      ta.focus();
+    }, 0);
+  };
   // Keep the composer on-screen if the selection sits near the right edge.
   const left = Math.max(8, Math.min(rect.left, (window.innerWidth || 1024) - 340));
   return (
@@ -33,7 +57,6 @@ function CommentComposer({ rect, quote, onSubmit, onCancel }) {
       style={{ position: 'fixed', top: rect.bottom + 6, left }}
       onKeyDown={(e) => {
         if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
-        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); submit(); }
       }}
     >
       <div className="comment-composer-quote">“{quote}”</div>
@@ -43,7 +66,19 @@ function CommentComposer({ rect, quote, onSubmit, onCancel }) {
         placeholder="Add a comment"
         value={text}
         rows={2}
-        onChange={(e) => { setText(e.target.value); grow(e.target); }}
+        onChange={(e) => { setText(e.target.value); grow(e.target); picker.onChange(e); }}
+        onKeyDown={(e) => {
+          // Picker intercepts navigation keys + Enter/Tab while open. On Enter/Tab,
+          // commit the highlighted candidate; otherwise just swallow the event.
+          if (picker.onKeyDown(e)) {
+            if (e.key === 'Enter' || e.key === 'Tab') {
+              const sel = picker.candidates[picker.selectedIndex];
+              if (sel) acceptLogin(sel.loginName);
+            }
+            return;
+          }
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); submit(); }
+        }}
       />
       <div className="comment-composer-actions">
         <button type="button" className="comment-composer-cancel" onClick={onCancel}>Cancel</button>
@@ -56,6 +91,13 @@ function CommentComposer({ rect, quote, onSubmit, onCancel }) {
           Comment
         </button>
       </div>
+      <MentionPicker
+        open={picker.open}
+        candidates={picker.candidates}
+        selectedIndex={picker.selectedIndex}
+        onSelect={acceptLogin}
+        anchorPos={picker.anchorPos}
+      />
     </div>
   );
 }

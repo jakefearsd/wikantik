@@ -1390,13 +1390,13 @@ public class WikiEngine implements Engine {
             final java.util.function.Function< String, java.util.Optional< String > > pageAuthorLookup = canonicalId -> {
                 if ( canonicalId == null || canonicalId.isBlank() ) return java.util.Optional.empty();
                 try {
-                    final com.wikantik.api.pagegraph.StructuralIndexService index =
-                            getManager( com.wikantik.api.pagegraph.StructuralIndexService.class );
-                    if ( index == null ) return java.util.Optional.empty();
-                    final java.util.Optional< String > slug = index.resolveSlugFromCanonicalId( canonicalId );
+                    final com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Services pg = this.pageGraphSubsystem;
+                    if ( pg == null || pg.structuralIndexService() == null ) return java.util.Optional.empty();
+                    final java.util.Optional< String > slug = pg.structuralIndexService().resolveSlugFromCanonicalId( canonicalId );
                     if ( slug.isEmpty() ) return java.util.Optional.empty();
-                    final com.wikantik.api.managers.PageManager pm = getManager( com.wikantik.api.managers.PageManager.class );
-                    if ( pm == null ) return java.util.Optional.empty();
+                    final com.wikantik.page.subsystem.PageSubsystem.Services ps = this.pageSubsystem;
+                    if ( ps == null || ps.pages() == null ) return java.util.Optional.empty();
+                    final com.wikantik.api.managers.PageManager pm = ps.pages();
                     final com.wikantik.api.core.Page page = pm.getPage( slug.get() );
                     if ( page == null ) return java.util.Optional.empty();
                     final String author = page.getAuthor();

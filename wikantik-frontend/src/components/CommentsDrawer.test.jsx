@@ -13,10 +13,11 @@ function setup(extra = {}) {
   const props = {
     open: true, threads, detachedIds: [], statusFilter: 'open',
     onStatusFilter: vi.fn(), onReply: vi.fn(), onResolve: vi.fn(),
-    onReopen: vi.fn(), onFocusThread: vi.fn(), onClose: vi.fn(), ...extra,
+    onReopen: vi.fn(), onDeleteThread: vi.fn(), onFocusThread: vi.fn(),
+    onClose: vi.fn(), canModerate: false, ...extra,
   };
-  render(<CommentsDrawer {...props} />);
-  return props;
+  const utils = render(<CommentsDrawer {...props} />);
+  return { ...utils, ...props };
 }
 
 describe('CommentsDrawer', () => {
@@ -48,5 +49,45 @@ describe('CommentsDrawer', () => {
   it('renders a Detached group for orphaned threads', () => {
     setup({ statusFilter: 'all', detachedIds: ['T1'] });
     expect(screen.getByText(/detached/i)).toBeTruthy();
+  });
+
+  it('hides the Delete-thread control by default (non-moderator)', () => {
+    setup({ statusFilter: 'open' });
+    expect(screen.queryByRole('button', { name: /delete/i })).toBeNull();
+  });
+
+  it('shows Delete on every thread for a moderator and reveals an in-app confirm', () => {
+    const props = setup({ statusFilter: 'open', canModerate: true });
+    const deleteBtn = screen.getByRole('button', { name: /delete/i });
+    fireEvent.click(deleteBtn);
+    // Two-step confirm replaces the action row with an in-app prompt — NOT a native dialog.
+    expect(screen.getByText(/delete this thread permanently/i)).toBeTruthy();
+    // Reply/Resolve are hidden while confirming.
+    expect(screen.queryByPlaceholderText(/reply/i)).toBeNull();
+    // Callback is NOT fired yet.
+    expect(props.onDeleteThread).not.toHaveBeenCalled();
+  });
+
+  it('Cancel reverts the confirm without firing onDeleteThread', () => {
+    const props = setup({ statusFilter: 'open', canModerate: true });
+    fireEvent.click(screen.getByRole('button', { name: /^🗑 Delete$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+    expect(props.onDeleteThread).not.toHaveBeenCalled();
+    // Reply/Resolve come back.
+    expect(screen.getByPlaceholderText(/reply/i)).toBeTruthy();
+  });
+
+  it('confirming the delete fires onDeleteThread with the thread id', () => {
+    const props = setup({ statusFilter: 'open', canModerate: true });
+    fireEvent.click(screen.getByRole('button', { name: /^🗑 Delete$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    expect(props.onDeleteThread).toHaveBeenCalledWith('T1');
+  });
+
+  it('moderator can also delete a resolved thread', () => {
+    const props = setup({ statusFilter: 'resolved', canModerate: true });
+    fireEvent.click(screen.getByRole('button', { name: /^🗑 Delete$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    expect(props.onDeleteThread).toHaveBeenCalledWith('T2');
   });
 });

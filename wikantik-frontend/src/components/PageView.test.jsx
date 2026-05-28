@@ -55,6 +55,7 @@ vi.mock('../api/client', () => ({
     addCommentReply: vi.fn(),
     resolveCommentThread: vi.fn(),
     reopenCommentThread: vi.fn(),
+    deleteCommentThread: vi.fn(),
     getSimilarPages: vi.fn(),
     getHistory: vi.fn(),
   },
@@ -77,6 +78,7 @@ beforeEach(() => {
   api.addCommentReply.mockResolvedValue({});
   api.resolveCommentThread.mockResolvedValue({});
   api.reopenCommentThread.mockResolvedValue({});
+  api.deleteCommentThread.mockResolvedValue({});
   api.getSimilarPages.mockResolvedValue({ pages: [] });
   api.getHistory.mockResolvedValue({ versions: [] });
 
@@ -218,9 +220,12 @@ describe('PageView comment integration', () => {
     const floating = await screen.findByRole('button', { name: /💬 Comment$/ });
     expect(floating).toBeInTheDocument();
 
-    // createThread: prompt → api.createCommentThread(name, {selector..., text}).
-    vi.spyOn(window, 'prompt').mockReturnValue('a new comment');
+    // createThread: floating button opens the composer popover; the user types
+    // into the textarea and clicks "Comment". Replaces the old window.prompt flow.
     await act(async () => { fireEvent.click(floating); });
+    const textarea = await screen.findByPlaceholderText('Add a comment');
+    await act(async () => { fireEvent.change(textarea, { target: { value: 'a new comment' } }); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Comment$/ })); });
 
     await waitFor(() => expect(api.createCommentThread).toHaveBeenCalledTimes(1));
     const [pageName, payload] = api.createCommentThread.mock.calls[0];
@@ -273,6 +278,41 @@ describe('PageView comment integration', () => {
       expect(api.listCommentThreads.mock.calls.length).toBeGreaterThan(callsBefore));
   }, TEST_TIMEOUT);
 
+  it('toggle is hidden when no threads exist at all', async () => {
+    api.listCommentThreads.mockResolvedValue({ threads: [] });
+    renderPageView();
+    // awaitStableLoaded gates on the toggle being present, which never happens
+    // in this scenario — wait for the page-view marker + the double-fetch instead.
+    await waitFor(() => expect(api.getPage.mock.calls.length).toBeGreaterThanOrEqual(2));
+    await waitFor(() => expect(screen.getByTestId('page-view')).toBeInTheDocument());
+    // No threads → don't render the toggle, period.
+    expect(screen.queryByRole('button', { name: /💬 Comments/ })).toBeNull();
+  }, TEST_TIMEOUT);
+
+  it('toggle stays visible with (0) when only resolved threads exist', async () => {
+    api.listCommentThreads.mockResolvedValue({ threads: [{ ...THREAD, status: 'resolved' }] });
+    renderPageView();
+    await awaitStableLoaded();
+    // 1 thread total (resolved), 0 open → "(0)" so the user can still click through.
+    expect(screen.getByRole('button', { name: /💬 Comments \(0\)/ })).toBeInTheDocument();
+  }, TEST_TIMEOUT);
+
+  it('count reflects open threads only, not total', async () => {
+    api.listCommentThreads.mockResolvedValue({
+      threads: [
+        { ...THREAD, id: 'T1', status: 'open' },
+        { ...THREAD, id: 'T2', status: 'open' },
+        { ...THREAD, id: 'T3', status: 'resolved' },
+      ],
+    });
+    renderPageView();
+    await awaitStableLoaded();
+    // 2 open + 1 resolved → "(2)".
+    expect(screen.getByRole('button', { name: /💬 Comments \(2\)/ })).toBeInTheDocument();
+    // No "(3)" anywhere (total count would be wrong).
+    expect(screen.queryByRole('button', { name: /💬 Comments \(3\)/ })).toBeNull();
+  }, TEST_TIMEOUT);
+
   it('drawer Reopen callback calls api.reopenCommentThread then reloads', async () => {
     // Seed a resolved thread up front so the Reopen button is present.
     api.listCommentThreads.mockResolvedValue({ threads: [{ ...THREAD, status: 'resolved' }] });
@@ -297,16 +337,17 @@ describe('PageView comment integration', () => {
   // throwing. These drive each catch branch deterministically by rejecting the
   // mock; console.warn is silenced so the failure is expected, not noise. ---
 
-  it('listCommentThreads failure is swallowed (page still renders, no threads)', async () => {
+  it('listCommentThreads failure is swallowed (page still renders, toggle hidden)', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     api.listCommentThreads.mockRejectedValue(new Error('boom'));
     renderPageView();
     await waitFor(() => expect(api.getPage.mock.calls.length).toBeGreaterThanOrEqual(2));
-    // Page renders; the count badge shows no number (threads stayed []). Assert
-    // both in one waitFor so a loading transient between queries can't trip us.
+    // Page renders; with zero threads (the failure left state at []), the
+    // comments toggle is intentionally NOT rendered at all. Assert both in one
+    // waitFor so a loading transient between queries can't trip us.
     await waitFor(() => {
       expect(screen.getByTestId('page-view')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /💬 Comments$/ })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /💬 Comments/ })).toBeNull();
     });
     expect(warn).toHaveBeenCalledWith('Failed to load comment threads', expect.any(Error));
   }, TEST_TIMEOUT);
@@ -328,8 +369,10 @@ describe('PageView comment integration', () => {
     });
     await act(async () => { fireEvent.mouseUp(article); });
     const floating = await screen.findByRole('button', { name: /💬 Comment$/ });
-    vi.spyOn(window, 'prompt').mockReturnValue('hi');
     await act(async () => { fireEvent.click(floating); });
+    const textarea = await screen.findByPlaceholderText('Add a comment');
+    await act(async () => { fireEvent.change(textarea, { target: { value: 'hi' } }); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Comment$/ })); });
     await waitFor(() => expect(warn).toHaveBeenCalledWith('Failed to create comment thread', expect.any(Error)));
     // createThread still reloads + opens the drawer despite the failure.
     await waitFor(() => expect(screen.getByText(/first comment/)).toBeInTheDocument());
@@ -366,5 +409,49 @@ describe('PageView comment integration', () => {
     const reopen = await screen.findByRole('button', { name: 'Reopen' });
     await act(async () => { fireEvent.click(reopen); });
     await waitFor(() => expect(warn).toHaveBeenCalledWith('Failed to reopen thread', expect.any(Error)));
+  }, TEST_TIMEOUT);
+
+  // --- thread-delete (moderator-only) wiring -------------------------------
+
+  it('non-moderator viewers do NOT see the thread-delete control', async () => {
+    // page.permissions.delete falsy → canModerate=false → no Delete button in the drawer.
+    api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true } }));
+    renderPageView();
+    await awaitStableLoaded();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /💬 Comments \(1\)/ })); });
+    expect(screen.queryByTitle('Delete thread')).toBeNull();
+  }, TEST_TIMEOUT);
+
+  it('moderator: two-step confirm → api.deleteCommentThread + threads reload', async () => {
+    // page.permissions.delete=true → canModerate prop turns on the Delete button.
+    api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true } }));
+    renderPageView();
+    await awaitStableLoaded();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /💬 Comments \(1\)/ })); });
+    const callsBefore = api.listCommentThreads.mock.calls.length;
+
+    // First click reveals the in-app confirm — api is NOT called yet.
+    await act(async () => { fireEvent.click(screen.getByTitle('Delete thread')); });
+    expect(screen.getByText(/delete this thread permanently/i)).toBeInTheDocument();
+    expect(api.deleteCommentThread).not.toHaveBeenCalled();
+
+    // Second click commits.
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
+    await waitFor(() => expect(api.deleteCommentThread).toHaveBeenCalledWith('T1'));
+    // Reload happens in the finally block.
+    await waitFor(() =>
+      expect(api.listCommentThreads.mock.calls.length).toBeGreaterThan(callsBefore));
+  }, TEST_TIMEOUT);
+
+  it('moderator: deleteCommentThread failure is swallowed (warn + reload)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.deleteCommentThread.mockRejectedValue(new Error('nope'));
+    api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true } }));
+    renderPageView();
+    await awaitStableLoaded();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /💬 Comments \(1\)/ })); });
+    await act(async () => { fireEvent.click(screen.getByTitle('Delete thread')); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
+    await waitFor(() => expect(warn).toHaveBeenCalledWith('Failed to delete thread', expect.any(Error)));
   }, TEST_TIMEOUT);
 });

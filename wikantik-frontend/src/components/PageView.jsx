@@ -10,10 +10,55 @@ import SimilarPagesPanel from './SimilarPagesPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
 import CommentsDrawer from './CommentsDrawer';
 import { captureSelection } from '../utils/commentAnchor';
-import { anchorThreads, clearHighlights } from '../utils/commentHighlight';
+import { anchorThreads, clearHighlights, anchorPendingHighlight, clearPendingHighlight } from '../utils/commentHighlight';
 import 'katex/dist/katex.min.css';
 import '../styles/article.css';
 import '../styles/admin.css';
+
+/** Inline composer popover anchored to a selection rect. Replaces window.prompt
+ *  so the affordance flows with the page (theme-aware, multi-line, no native
+ *  "localhost:8080 says" chrome). Local state for the draft text keeps PageView
+ *  re-renders cheap while typing. */
+function CommentComposer({ rect, quote, onSubmit, onCancel }) {
+  const [text, setText] = useState('');
+  const taRef = useRef(null);
+  useEffect(() => { taRef.current?.focus(); }, []);
+  const grow = (el) => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
+  const submit = () => { if (text.trim()) onSubmit(text.trim()); };
+  // Keep the composer on-screen if the selection sits near the right edge.
+  const left = Math.max(8, Math.min(rect.left, (window.innerWidth || 1024) - 340));
+  return (
+    <div
+      className="comment-composer"
+      style={{ position: 'fixed', top: rect.bottom + 6, left }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); submit(); }
+      }}
+    >
+      <div className="comment-composer-quote">“{quote}”</div>
+      <textarea
+        ref={taRef}
+        className="comment-composer-input"
+        placeholder="Add a comment"
+        value={text}
+        rows={2}
+        onChange={(e) => { setText(e.target.value); grow(e.target); }}
+      />
+      <div className="comment-composer-actions">
+        <button type="button" className="comment-composer-cancel" onClick={onCancel}>Cancel</button>
+        <button
+          type="button"
+          className="comment-composer-submit"
+          disabled={!text.trim()}
+          onClick={submit}
+        >
+          Comment
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function PageView() {
   const { name = 'Main' } = useParams();
@@ -28,6 +73,7 @@ export default function PageView() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('open');
   const [selection, setSelection] = useState(null); // {selector, rect} | {error} | null
+  const [composerOpen, setComposerOpen] = useState(false);
 
   const loadThreads = useCallback(async () => {
     try {
@@ -66,6 +112,8 @@ export default function PageView() {
   const onArticleMouseUp = () => {
     const root = articleRef.current;
     if (!root) return;
+    clearPendingHighlight(root); // drop any stale pending paint from a prior selection
+    setComposerOpen(false);      // any new selection starts with composer closed
     setSelection(captureSelection(root));
   };
 
@@ -85,6 +133,8 @@ export default function PageView() {
     } catch (e) {
       console.warn('Failed to create comment thread', e);
     } finally {
+      if (articleRef.current) clearPendingHighlight(articleRef.current);
+      setComposerOpen(false);
       setSelection(null);
       window.getSelection()?.removeAllRanges();
       await loadThreads();
@@ -201,9 +251,11 @@ export default function PageView() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-md)' }}>
         <PageMeta page={page} />
         <div style={{ display: 'flex', gap: 'var(--space-sm)', flexShrink: 0 }}>
-          <button className="btn btn-ghost" onClick={() => setDrawerOpen((o) => !o)}>
-            💬 Comments{threads.length ? ` (${threads.length})` : ''}
-          </button>
+          {threads.length > 0 && (
+            <button className="btn btn-ghost" onClick={() => setDrawerOpen((o) => !o)}>
+              💬 Comments ({threads.filter((t) => t.status === 'open').length})
+            </button>
+          )}
           {page.permissions?.edit && (
             <Link to={`/edit/${name}`} className="btn btn-ghost" data-testid="edit-page-link">
               ✎ Edit
@@ -277,10 +329,16 @@ export default function PageView() {
         threads={threads}
         detachedIds={detachedIds}
         statusFilter={statusFilter}
+        canModerate={!!page.permissions?.delete}
         onStatusFilter={setStatusFilter}
         onReply={async (threadId, text) => {
           try { await api.addCommentReply(threadId, text); }
           catch (e) { console.warn('Failed to add reply', e); }
+          finally { await loadThreads(); }
+        }}
+        onDeleteThread={async (threadId) => {
+          try { await api.deleteCommentThread(threadId); }
+          catch (e) { console.warn('Failed to delete thread', e); }
           finally { await loadThreads(); }
         }}
         onResolve={async (threadId) => {
@@ -297,14 +355,35 @@ export default function PageView() {
         onClose={() => setDrawerOpen(false)}
       />
 
-      {selection?.selector && (
+      {selection?.selector && !composerOpen && (
         <button
           className="comment-add-floating"
           style={{ position: 'fixed', top: selection.rect.bottom + 6, left: selection.rect.left }}
-          onClick={() => { const text = window.prompt('Add a comment'); if (text) createThread(text); }}
+          onClick={() => {
+            // Paint a pending-highlight before opening the composer so the
+            // selected text stays visible after focus moves to the textarea
+            // (the native selection would otherwise collapse).
+            if (articleRef.current && selection.selector) {
+              anchorPendingHighlight(articleRef.current, selection.selector);
+            }
+            setComposerOpen(true);
+          }}
         >
           💬 Comment
         </button>
+      )}
+      {selection?.selector && composerOpen && (
+        <CommentComposer
+          rect={selection.rect}
+          quote={selection.selector.exact}
+          onSubmit={createThread}
+          onCancel={() => {
+            if (articleRef.current) clearPendingHighlight(articleRef.current);
+            setComposerOpen(false);
+            setSelection(null);
+            window.getSelection()?.removeAllRanges();
+          }}
+        />
       )}
       {selection?.error === 'math' && (
         <div className="comment-math-hint" style={{ position: 'fixed', top: 8, right: 8 }}>

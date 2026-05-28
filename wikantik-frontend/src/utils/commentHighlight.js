@@ -1,7 +1,10 @@
 import * as textQuote from 'dom-anchor-text-quote';
 
-/** Wrap every text-node segment inside `range` in <mark class="comment-highlight">. */
-export function highlightRange(range, threadId) {
+/** Wrap every text-node segment inside `range` in a <mark> with the given class
+ *  (default `comment-highlight`). The optional `className` lets callers paint a
+ *  pending-composer highlight under a different class so it isn't treated as a
+ *  real anchored thread by click handlers / re-anchoring. */
+export function highlightRange(range, threadId, className = 'comment-highlight') {
   const marks = [];
   const root = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
     ? range.commonAncestorContainer
@@ -22,7 +25,7 @@ export function highlightRange(range, threadId) {
     r.setStart(textNode, start);
     r.setEnd(textNode, end);
     const mark = document.createElement('mark');
-    mark.className = 'comment-highlight';
+    mark.className = className;
     mark.dataset.threadId = threadId;
     try {
       r.surroundContents(mark);
@@ -59,6 +62,31 @@ export function anchorThreads(root, threads) {
 /** Remove all existing comment highlights (call before re-anchoring). */
 export function clearHighlights(root) {
   root.querySelectorAll('mark.comment-highlight').forEach((mark) => {
+    const parent = mark.parentNode;
+    while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+    parent.removeChild(mark);
+    parent.normalize();
+  });
+}
+
+/** Paint a "pending" highlight over the selector's range while the composer is
+ *  open, so the user can still see what they're commenting on after focus
+ *  shifts to the textarea (which collapses the native selection). Uses a
+ *  dedicated class so it isn't confused with real anchored threads. */
+export function anchorPendingHighlight(root, selector) {
+  const range = textQuote.toRange(root, {
+    exact: selector.exact,
+    prefix: selector.prefix || '',
+    suffix: selector.suffix || '',
+  });
+  if (!range) return false;
+  const marks = highlightRange(range, 'pending', 'comment-highlight-pending');
+  return marks.length > 0;
+}
+
+/** Remove pending-composer highlights only (leaves real anchored highlights). */
+export function clearPendingHighlight(root) {
+  root.querySelectorAll('mark.comment-highlight-pending').forEach((mark) => {
     const parent = mark.parentNode;
     while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
     parent.removeChild(mark);

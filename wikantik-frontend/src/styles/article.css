@@ -417,3 +417,16 @@ mark.comment-highlight-pulse { animation: comment-pulse 1.2s ease-out; }
 .mention-picker-item:hover { background: var(--sage-light); }
 .mention-picker-login { font-weight: 600; }
 .mention-picker-fullname { color: var(--text-secondary); }
+
+/* Comment @-mention chip linking to /wiki/Users/<login>. */
+.comment-mention-chip {
+  display: inline-block;
+  padding: 0 6px;
+  margin: 0 1px;
+  border-radius: 4px;
+  background: var(--sage-light);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+}
+.comment-mention-chip:hover { background: var(--border-strong); }

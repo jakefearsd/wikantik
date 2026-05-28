@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { api } from '../api/client';
 import { useMentionPicker } from '../hooks/useMentionPicker';
 import MentionPicker from './MentionPicker';
+import CommentBody from './CommentBody';
 
 function ThreadCard({
   thread, detached, canModerate, onReply, onResolve, onReopen, onDeleteThread, onFocusThread,
@@ -58,7 +59,7 @@ function ThreadCard({
       {thread.comments.map((c) => (
         <div key={c.id} className="comment-item">
           <span className="comment-author">{c.author}</span>
-          <span className="comment-body">{c.body}</span>
+          <CommentBody body={c.body} />
         </div>
       ))}
       {confirmingDelete ? (

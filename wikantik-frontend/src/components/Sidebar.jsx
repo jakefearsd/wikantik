@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { useUnreadMentions } from '../hooks/useUnreadMentions';
 import SearchOverlay from './SearchOverlay';
 import UserBadge from './UserBadge';
 import NewArticleModal from './NewArticleModal';
@@ -15,6 +16,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
   const [newArticleOpen, setNewArticleOpen] = useState(false);
   const [dark, toggleDark] = useDarkMode();
   const { user } = useAuth();
+  const { count: mentionsCount } = useUnreadMentions({ enabled: !!user?.authenticated });
 
   useEffect(() => {
     api.listPages({ limit: 500 }).then(d => setPages(d.pages || [])).catch(() => {});
@@ -84,13 +86,23 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
         </button>
 
         {user?.authenticated && (
-          <button
-            className="btn btn-primary"
-            onClick={() => setNewArticleOpen(true)}
-            style={{ width: '100%', margin: 'var(--space-sm) 0', justifyContent: 'center' }}
-          >
-            + New Article
-          </button>
+          <>
+            <button
+              className="btn btn-primary"
+              onClick={() => setNewArticleOpen(true)}
+              style={{ width: '100%', margin: 'var(--space-sm) 0', justifyContent: 'center' }}
+            >
+              + New Article
+            </button>
+            <Link
+              to="/me/mentions"
+              className="sidebar-link"
+              onClick={onMobileClose}
+            >
+              My mentions
+              {mentionsCount > 0 && <span className="sidebar-mentions-badge">{mentionsCount}</span>}
+            </Link>
+          </>
         )}
 
         {/* Primary Navigation — matches JSP LeftMenu */}

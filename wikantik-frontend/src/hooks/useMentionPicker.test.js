@@ -129,4 +129,37 @@ describe('useMentionPicker', () => {
     await act(async () => { result.current.close(); });
     expect(result.current.anchorPos).toBeNull();
   });
+
+  it('Enter consumes the key without closing — caller resolves via accept()', async () => {
+    textareaRef.current = makeTextarea('hi @a', 5);
+    const { result } = renderHook(() => useMentionPicker({ textareaRef, fetchCandidates }));
+    await act(async () => { result.current.onChange({ target: textareaRef.current }); });
+    await act(async () => { await vi.runAllTimersAsync(); });
+    const evt = { key: 'Enter', preventDefault: vi.fn() };
+    let consumed;
+    await act(() => { consumed = result.current.onKeyDown(evt); });
+    expect(consumed).toBe(true);
+    expect(evt.preventDefault).toHaveBeenCalled();
+    // Picker stays open — selection is the caller's concern (they call accept()).
+    expect(result.current.open).toBe(true);
+  });
+
+  it('Tab is consumed identically to Enter', async () => {
+    textareaRef.current = makeTextarea('hi @a', 5);
+    const { result } = renderHook(() => useMentionPicker({ textareaRef, fetchCandidates }));
+    await act(async () => { result.current.onChange({ target: textareaRef.current }); });
+    await act(async () => { await vi.runAllTimersAsync(); });
+    const evt = { key: 'Tab', preventDefault: vi.fn() };
+    let consumed;
+    await act(() => { consumed = result.current.onKeyDown(evt); });
+    expect(consumed).toBe(true);
+    expect(evt.preventDefault).toHaveBeenCalled();
+  });
+
+  it('accept() returns empty replacement when textareaRef.current is null', () => {
+    textareaRef.current = null;
+    const { result } = renderHook(() => useMentionPicker({ textareaRef, fetchCandidates }));
+    const out = result.current.accept('alice');
+    expect(out).toEqual({ replacement: '', selectionStart: 0, selectionEnd: 0 });
+  });
 });

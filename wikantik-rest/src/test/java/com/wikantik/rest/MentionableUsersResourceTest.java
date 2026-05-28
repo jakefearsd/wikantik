@@ -22,7 +22,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
+import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
+import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import jakarta.servlet.http.HttpServletRequest;
@@ -125,6 +127,59 @@ class MentionableUsersResourceTest {
         assertTrue( hugeRes.getAsJsonArray( "users" ).size() <= 10 );
         final JsonObject specificRes = invoke( "?limit=2" );
         assertEquals( 2, specificRes.getAsJsonArray( "users" ).size() );
+    }
+
+    @Test
+    void invalid_limit_parameter_falls_back_to_default() throws Exception {
+        // NumberFormatException branch in clampLimit: garbage input → DEFAULT_LIMIT (8).
+        final JsonObject res = invoke( "?limit=not-a-number" );
+        assertTrue( res.getAsJsonArray( "users" ).size() <= 8 );
+    }
+
+    @Test
+    void vanished_profile_is_skipped_when_findByWikiName_throws_NoSuchPrincipalException() throws Exception {
+        // Race condition: enumeration sees the wikiName but the profile is deleted
+        // before findByWikiName() runs. Endpoint must skip silently, not 500.
+        Mockito.when( db.findByWikiName( "alice" ) )
+                .thenThrow( new NoSuchPrincipalException( "vanished" ) );
+        final JsonObject res = invoke( "?q=ali" );
+        assertFalse( res.has( "error" ), "vanished profile must be skipped, not propagated: " + res );
+        // alicia still matches; alice does not.
+        final JsonArray users = res.getAsJsonArray( "users" );
+        users.forEach( u -> assertFalse(
+                "alice".equals( u.getAsJsonObject().get( "loginName" ).getAsString() ),
+                "alice's vanished profile must not appear in results" ) );
+    }
+
+    @Test
+    void enumeration_failure_returns_500() throws Exception {
+        // WikiSecurityException from getWikiNames() must surface as 500, not blow up.
+        Mockito.when( db.getWikiNames() ).thenThrow( new WikiSecurityException( "ldap down" ) );
+        final JsonObject res = invoke( "?q=any" );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 500, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void profile_with_null_login_or_full_name_is_handled() throws Exception {
+        // Cover the `login == null ? ""` and `full == null ? ""` defensive branches.
+        // An empty-string match always succeeds when q is empty, so the row appears.
+        final UserProfile sparse = Mockito.mock( UserProfile.class );
+        Mockito.when( sparse.getLoginName() ).thenReturn( null );
+        Mockito.when( sparse.getFullname() ).thenReturn( null );
+        Mockito.when( sparse.isLocked() ).thenReturn( false );
+        Mockito.when( db.findByWikiName( "sparse" ) ).thenReturn( sparse );
+        // Add the wikiName to the enumeration set.
+        final Principal[] expanded = new Principal[] {
+                new WikiPrincipal( "alice",  WikiPrincipal.WIKI_NAME ),
+                new WikiPrincipal( "sparse", WikiPrincipal.WIKI_NAME )
+        };
+        Mockito.when( db.getWikiNames() ).thenReturn( expanded );
+
+        final JsonObject res = invoke( "" );
+        assertFalse( res.has( "error" ), "null login/full name must not blow up: " + res );
+        // Both rows present (q is empty so everything matches).
+        assertTrue( res.getAsJsonArray( "users" ).size() >= 2 );
     }
 
     // ---- helpers ----

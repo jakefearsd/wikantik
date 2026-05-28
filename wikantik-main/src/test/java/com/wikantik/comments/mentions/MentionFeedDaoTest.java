@@ -163,4 +163,35 @@ class MentionFeedDaoTest {
         final MentionFeedItem it = dao.list( "bob", MentionFeedDao.Status.ALL, 1, Optional.empty() ).get( 0 );
         assertTrue( it.snippet().length() <= 160 );
     }
+
+    @Test
+    void list_returns_empty_list_on_sql_failure() throws Exception {
+        final DataSource failing = org.mockito.Mockito.mock( DataSource.class );
+        org.mockito.Mockito.when( failing.getConnection() )
+                .thenThrow( new java.sql.SQLException( "boom" ) );
+        final MentionFeedDao failingDao = new MentionFeedDao( failing );
+        assertTrue( failingDao.list( "bob", MentionFeedDao.Status.ALL, 50, Optional.empty() ).isEmpty() );
+    }
+
+    @Test
+    void snippet_is_empty_string_when_body_is_null() throws Exception {
+        // Production Postgres has body NOT NULL too — but the dao has a defensive
+        // body==null branch that returns "". To exercise it under H2 we relax the
+        // NOT NULL constraint for one row, insert a NULL-body comment, then assert
+        // the snippet is "" rather than tripping a NullPointerException.
+        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
+            s.executeUpdate( "ALTER TABLE comments ALTER COLUMN body DROP NOT NULL" );
+        }
+        final UUID t = seedThread( "CID-NULL-BODY" );
+        final UUID cid = UUID.randomUUID();
+        try ( Connection c = ds.getConnection(); Statement s = c.createStatement() ) {
+            s.executeUpdate( "INSERT INTO comments (id, thread_id, author, body) " +
+                    "VALUES ('" + cid + "','" + t + "','alice', NULL)" );
+        }
+        seedMention( cid, "bob", "alice", false );
+        final List< MentionFeedItem > items =
+                dao.list( "bob", MentionFeedDao.Status.ALL, 1, Optional.empty() );
+        assertEquals( 1, items.size() );
+        assertEquals( "", items.get( 0 ).snippet() );
+    }
 }

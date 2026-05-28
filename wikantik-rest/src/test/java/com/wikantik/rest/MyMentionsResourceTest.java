@@ -173,6 +173,86 @@ class MyMentionsResourceTest {
         assertEquals( 400, res.get( "status" ).getAsInt() );
     }
 
+    // ---- 9: unknown routes ----
+
+    @Test
+    void GET_unknown_subpath_is_404() throws Exception {
+        Mockito.when( feed.list( Mockito.anyString(), Mockito.any(), Mockito.anyInt(), Mockito.any() ) )
+                .thenReturn( List.of() );
+        final JsonObject res = invokeGet( null, null, null, "/no-such" );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void POST_unknown_subpath_is_404() throws Exception {
+        final JsonObject res = invokePost( "/no-such" );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+    }
+
+    // ---- 10: parseInstant + clampLimit branches ----
+
+    @Test
+    void list_with_valid_before_cursor_is_forwarded_to_dao() throws Exception {
+        Mockito.when( feed.list( Mockito.anyString(), Mockito.any(),
+                Mockito.anyInt(), Mockito.any() ) ).thenReturn( List.of() );
+        invokeGet( null, "2026-05-01T12:00:00Z", null, null );
+        final ArgumentCaptor< Optional > before = ArgumentCaptor.forClass( Optional.class );
+        Mockito.verify( feed ).list( Mockito.eq( "alice" ), Mockito.any(),
+                Mockito.anyInt(), before.capture() );
+        assertTrue( before.getValue().isPresent() );
+        assertEquals( Instant.parse( "2026-05-01T12:00:00Z" ), before.getValue().get() );
+    }
+
+    @Test
+    void list_with_invalid_before_cursor_drops_it() throws Exception {
+        Mockito.when( feed.list( Mockito.anyString(), Mockito.any(),
+                Mockito.anyInt(), Mockito.any() ) ).thenReturn( List.of() );
+        invokeGet( null, "not-a-timestamp", null, null );
+        final ArgumentCaptor< Optional > before = ArgumentCaptor.forClass( Optional.class );
+        Mockito.verify( feed ).list( Mockito.eq( "alice" ), Mockito.any(),
+                Mockito.anyInt(), before.capture() );
+        assertTrue( before.getValue().isEmpty(), "garbage timestamps must drop to Optional.empty()" );
+    }
+
+    @Test
+    void list_with_invalid_limit_falls_back_to_default() throws Exception {
+        Mockito.when( feed.list( Mockito.anyString(), Mockito.any(),
+                Mockito.anyInt(), Mockito.any() ) ).thenReturn( List.of() );
+        invokeGet( null, null, "garbage", null );
+        // DEFAULT_LIMIT = 25; verify it's the value passed through.
+        Mockito.verify( feed ).list( Mockito.eq( "alice" ), Mockito.any(),
+                Mockito.eq( 25 ), Mockito.any() );
+    }
+
+    @Test
+    void list_with_valid_numeric_limit_is_clamped_to_max() throws Exception {
+        Mockito.when( feed.list( Mockito.anyString(), Mockito.any(),
+                Mockito.anyInt(), Mockito.any() ) ).thenReturn( List.of() );
+        // limit=999 → clamped to MAX_LIMIT=50; exercises the success path of clampLimit.
+        invokeGet( null, null, "999", null );
+        Mockito.verify( feed ).list( Mockito.eq( "alice" ), Mockito.any(),
+                Mockito.eq( 50 ), Mockito.any() );
+    }
+
+    @Test
+    void list_returns_null_mentionedAt_when_dao_row_has_null_timestamp() throws Exception {
+        // Cover the `mentionedAt() == null ? null : .toString()` branch in list().
+        final UUID id = UUID.randomUUID();
+        final UUID threadId = UUID.randomUUID();
+        final UUID commentId = UUID.randomUUID();
+        final MentionFeedItem item = new MentionFeedItem(
+                id, threadId, commentId, "CID-123", null,
+                "snippet", "bob", false, /* mentionedAt */ null, /* readAt */ null );
+        Mockito.when( feed.list( Mockito.eq( "alice" ), Mockito.any(), Mockito.anyInt(), Mockito.any() ) )
+                .thenReturn( List.of( item ) );
+        final JsonObject res = invokeGet( null, null );
+        final JsonObject m = res.getAsJsonArray( "mentions" ).get( 0 ).getAsJsonObject();
+        assertTrue( !m.has( "mentionedAt" ) || m.get( "mentionedAt" ).isJsonNull(),
+                "null timestamp must remain null in the JSON response" );
+    }
+
     // ---- helpers ----
 
     private JsonObject invokeGet( final String status, final String before ) throws Exception {

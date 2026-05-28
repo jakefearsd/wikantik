@@ -23,6 +23,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.api.comments.PageOwnership;
+import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.user.UserDatabase;
+import com.wikantik.auth.user.UserProfile;
 import com.wikantik.comments.PageOwnerService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -244,6 +247,166 @@ class AdminPageOwnershipResourceTest {
         final JsonObject res = post( "/no-such", body );
         assertTrue( res.get( "error" ).getAsBoolean() );
         assertEquals( 404, res.get( "status" ).getAsInt() );
+    }
+
+    /* ---- additional coverage: production userExists, clamps, no-op orphan→orphan, parseJsonBody ---- */
+
+    @Test
+    void post_reassign_orphaned_to_orphaned_is_a_no_op() throws Exception {
+        // Both sentinels → updated = 0 without touching pageOwners.
+        final JsonObject body = new JsonObject();
+        body.addProperty( "fromOwner", "<orphaned>" );
+        body.addProperty( "toOwner", "<orphaned>" );
+        final JsonObject res = post( "/reassign-by-user", body );
+        assertEquals( 0, res.get( "updated" ).getAsInt() );
+        Mockito.verify( pageOwners, Mockito.never() )
+                .bulkReassign( Mockito.anyString(), Mockito.anyString(), Mockito.anyString() );
+        Mockito.verify( pageOwners, Mockito.never() )
+                .reassignFromOrphaned( Mockito.anyString(), Mockito.anyString() );
+        Mockito.verify( pageOwners, Mockito.never() )
+                .orphanByOwner( Mockito.anyString(), Mockito.anyString() );
+    }
+
+    @Test
+    void get_with_invalid_limit_and_offset_falls_back_to_defaults() throws Exception {
+        // NumberFormatException branches in both clampLimit and clampNonNeg.
+        Mockito.when( pageOwners.listOrphaned( 50, 0 ) ).thenReturn( List.of() );
+        Mockito.when( pageOwners.countOrphaned() ).thenReturn( 0 );
+        final JsonObject body = get( "?filter=orphaned&limit=garbage&offset=garbage" );
+        // Default limit=50, default offset=0 — must hit listOrphaned with those values.
+        Mockito.verify( pageOwners ).listOrphaned( 50, 0 );
+        assertEquals( 0, body.get( "total" ).getAsInt() );
+    }
+
+    @Test
+    void get_with_negative_offset_clamps_to_zero() throws Exception {
+        Mockito.when( pageOwners.listOrphaned( 50, 0 ) ).thenReturn( List.of() );
+        Mockito.when( pageOwners.countOrphaned() ).thenReturn( 0 );
+        get( "?filter=orphaned&offset=-7" );
+        Mockito.verify( pageOwners ).listOrphaned( 50, 0 );
+    }
+
+    @Test
+    void get_with_zero_limit_falls_back_to_default() throws Exception {
+        // clampLimit returns DEFAULT_LIMIT when parsed value <= 0.
+        Mockito.when( pageOwners.listOrphaned( 50, 0 ) ).thenReturn( List.of() );
+        Mockito.when( pageOwners.countOrphaned() ).thenReturn( 0 );
+        get( "?filter=orphaned&limit=0" );
+        Mockito.verify( pageOwners ).listOrphaned( 50, 0 );
+    }
+
+    @Test
+    void get_with_huge_limit_clamps_to_MAX_LIMIT() throws Exception {
+        Mockito.when( pageOwners.listOrphaned( 500, 0 ) ).thenReturn( List.of() );
+        Mockito.when( pageOwners.countOrphaned() ).thenReturn( 0 );
+        get( "?filter=orphaned&limit=99999" );
+        Mockito.verify( pageOwners ).listOrphaned( 500, 0 );
+    }
+
+    @Test
+    void post_reassign_with_malformed_json_body_is_400() throws Exception {
+        // parseJsonBody returns null on parse failure and sends 400; the handler
+        // bails out cleanly. We bypass `post()` so we can inject malformed JSON.
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/admin/page-ownership" );
+        Mockito.doReturn( "/reassign" ).when( req ).getPathInfo();
+        Mockito.doReturn( "POST" ).when( req ).getMethod();
+        Mockito.doReturn( new BufferedReader( new StringReader( "{not-json" ) ) ).when( req ).getReader();
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( resp ).getWriter();
+        servlet.service( req, resp );
+        final JsonObject res = gson.fromJson( sw.toString().isBlank() ? "{}" : sw.toString(), JsonObject.class );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+    }
+
+    @Test
+    void post_reassign_with_missing_newOwner_is_400() throws Exception {
+        final JsonObject body = new JsonObject();
+        final JsonArray pages = new JsonArray();
+        pages.add( "CID-1" );
+        body.add( "pages", pages );
+        // intentionally no newOwner
+        final JsonObject res = post( "/reassign", body );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 400, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void production_userExists_returns_true_when_login_resolves() throws Exception {
+        // Use the real (non-spied) userExists path by NOT stubbing it on a fresh
+        // spy. We back it with a mocked UserDatabase via the `users()` seam.
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( db.findByLoginName( "real" ) ).thenReturn( Mockito.mock( UserProfile.class ) );
+
+        final AdminPageOwnershipResource fresh = Mockito.spy( new AdminPageOwnershipResource() );
+        Mockito.doReturn( pageOwners ).when( fresh ).pageOwners();
+        Mockito.doReturn( "admin" ).when( fresh ).currentUser( Mockito.any() );
+        Mockito.doReturn( db ).when( fresh ).users();
+
+        Mockito.when( pageOwners.bulkReassign( "alice", "real", "admin" ) ).thenReturn( 1 );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "fromOwner", "alice" );
+        body.addProperty( "toOwner", "real" );
+        final JsonObject res = invokeOn( fresh, "POST", "/reassign-by-user", body, null );
+        assertEquals( 1, res.get( "updated" ).getAsInt() );
+    }
+
+    @Test
+    void production_userExists_returns_false_when_login_missing() throws Exception {
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        Mockito.when( db.findByLoginName( "ghost" ) )
+                .thenThrow( new NoSuchPrincipalException( "no such" ) );
+
+        final AdminPageOwnershipResource fresh = Mockito.spy( new AdminPageOwnershipResource() );
+        Mockito.doReturn( pageOwners ).when( fresh ).pageOwners();
+        Mockito.doReturn( "admin" ).when( fresh ).currentUser( Mockito.any() );
+        Mockito.doReturn( db ).when( fresh ).users();
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "fromOwner", "alice" );
+        body.addProperty( "toOwner", "ghost" );
+        final JsonObject res = invokeOn( fresh, "POST", "/reassign-by-user", body, null );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 400, res.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void production_userExists_returns_false_for_blank_login() throws Exception {
+        // login==null branch: a fromOwner="alice", toOwner=" " (blank) hits the
+        // "missing required fields" 400 before userExists, so we exercise the
+        // explicit blank check via the validation 400.
+        final UserDatabase db = Mockito.mock( UserDatabase.class );
+        final AdminPageOwnershipResource fresh = Mockito.spy( new AdminPageOwnershipResource() );
+        Mockito.doReturn( pageOwners ).when( fresh ).pageOwners();
+        Mockito.doReturn( "admin" ).when( fresh ).currentUser( Mockito.any() );
+        Mockito.doReturn( db ).when( fresh ).users();
+
+        // Direct call to the protected method: blank → false (no DB call).
+        assertFalse( fresh.userExists( "" ) );
+        assertFalse( fresh.userExists( null ) );
+        assertFalse( fresh.userExists( "   " ) );
+        Mockito.verifyNoInteractions( db );
+    }
+
+    private JsonObject invokeOn( final AdminPageOwnershipResource s,
+                                 final String method, final String pathInfo,
+                                 final JsonObject jsonBody, final String query ) throws Exception {
+        final HttpServletRequest req = HttpMockFactory.createHttpRequest( "/admin/page-ownership" );
+        Mockito.doReturn( pathInfo ).when( req ).getPathInfo();
+        Mockito.doReturn( method ).when( req ).getMethod();
+        if ( jsonBody != null ) {
+            Mockito.doReturn( new BufferedReader( new StringReader( jsonBody.toString() ) ) ).when( req ).getReader();
+        }
+        if ( query != null ) {
+            for ( final String key : new String[] { "filter", "owner", "limit", "offset" } ) {
+                Mockito.doReturn( queryParam( query, key ) ).when( req ).getParameter( key );
+            }
+        }
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( resp ).getWriter();
+        s.service( req, resp );
+        return gson.fromJson( sw.toString().isBlank() ? "{}" : sw.toString(), JsonObject.class );
     }
 
     /* ---- request helpers ---- */

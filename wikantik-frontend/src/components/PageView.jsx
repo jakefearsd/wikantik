@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
@@ -106,6 +106,7 @@ export default function PageView() {
   const { name = 'Main' } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: page, loading, error } = useApi((signal) => api.getPage(name, { render: true, signal }), [name, user?.authenticated]);
 
   const articleRef = useRef(null);
@@ -167,6 +168,35 @@ export default function PageView() {
       setTimeout(() => mark.classList.remove('comment-highlight-pulse'), 1200);
     }
   };
+
+  // Deep-link from the mentions feed: ?thread=<id>&comment=<id> opens the drawer
+  // and focuses the thread. Strip the params so a refresh doesn't re-focus.
+  const dlAppliedRef = useRef(false);
+  useEffect(() => {
+    if (dlAppliedRef.current) return;
+    const threadId = searchParams.get('thread');
+    if (!threadId || threads.length === 0) return;
+    const exists = threads.some((t) => t.id === threadId);
+    if (!exists) return;
+    dlAppliedRef.current = true;
+    setStatusFilter('all');
+    setDrawerOpen(true);
+    // Focus after the drawer + mark render. The anchoring effect runs in the
+    // same commit but re-runs whenever the `page` reference changes (auth-driven
+    // refetches teardown + rebuild the marks). Retry briefly so a transient
+    // "no mark yet" window doesn't drop the scroll.
+    const tryFocus = (attemptsLeft) => {
+      const mark = articleRef.current?.querySelector(`mark[data-thread-id="${threadId}"]`);
+      if (mark) { focusThread(threadId); return; }
+      if (attemptsLeft > 0) setTimeout(() => tryFocus(attemptsLeft - 1), 50);
+    };
+    setTimeout(() => tryFocus(20), 0);
+    // Strip the query params from the URL so refresh doesn't re-trigger.
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      const url = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, '', url);
+    }
+  }, [searchParams, threads]);
 
   const createThread = async (text) => {
     if (!selection?.selector || !text.trim()) return;

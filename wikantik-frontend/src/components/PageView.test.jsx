@@ -92,9 +92,9 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function renderPageView() {
+function renderPageView(initialEntry = '/wiki/Foo') {
   return render(
-    <MemoryRouter initialEntries={['/wiki/Foo']}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <AuthProvider>
         <Routes>
           <Route path="/wiki/:name" element={<PageView />} />
@@ -441,6 +441,54 @@ describe('PageView comment integration', () => {
     // Reload happens in the finally block.
     await waitFor(() =>
       expect(api.listCommentThreads.mock.calls.length).toBeGreaterThan(callsBefore));
+  }, TEST_TIMEOUT);
+
+  // --- deep link from mentions feed -----------------------------------------
+
+  it('deep link ?thread=<id> opens the drawer, sets filter=all, focuses, and strips params', async () => {
+    // Mix one open + one resolved thread. The open one (T1) gets a <mark> in the
+    // article (anchorThreads only anchors open threads) so focusThread has
+    // something to scroll/pulse. The resolved one (T2) becomes visible only when
+    // statusFilter switches to 'all' — that's how we verify the filter changed.
+    const T2 = { ...THREAD, id: 'T2', status: 'resolved',
+                 comments: [{ id: 'C2', author: 'bob', body: 'resolved body', createdAt: '2026-01-02T00:00:00Z' }] };
+    api.listCommentThreads.mockResolvedValue({ threads: [THREAD, T2] });
+    // MemoryRouter manages router state in memory, so `useSearchParams` reflects
+    // the MemoryRouter initialEntries — but `window.location.search` stays empty
+    // unless the app pushes to it. Spy on history.replaceState directly to
+    // confirm the strip call happened with the expected target URL.
+    const replaceSpy = vi.spyOn(window.history, 'replaceState');
+    const { container } = renderPageView('/wiki/Foo?thread=T1&comment=C1');
+    // Wait for the double-fetch + page-view marker (sibling of awaitStableLoaded).
+    await waitFor(() => expect(api.getPage.mock.calls.length).toBeGreaterThanOrEqual(2));
+    await waitFor(() => expect(screen.getByTestId('page-view')).toBeInTheDocument());
+
+    // Drawer opened with both threads visible (filter=all → resolved body shows).
+    await waitFor(() => expect(screen.getByText(/first comment/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/resolved body/)).toBeInTheDocument());
+    // The open thread's <mark> exists (anchorThreads picked it up).
+    await waitFor(() =>
+      expect(container.querySelector('mark[data-thread-id="T1"]')).toBeTruthy());
+    // focusThread fired (via deferred setTimeout 0) — scrollIntoView was called.
+    // Under parallel load the setTimeout(0) + anchoring/render settle can take
+    // longer than the default 1000ms waitFor budget.
+    await waitFor(
+      () => expect(Element.prototype.scrollIntoView).toHaveBeenCalled(),
+      { timeout: 4000 },
+    );
+    // The deep-link effect calls history.replaceState with a URL that has no
+    // query string (the third arg = pathname + hash, no search).
+    await waitFor(() => expect(replaceSpy).toHaveBeenCalled());
+    const stripCall = replaceSpy.mock.calls.find((args) => !String(args[2] || '').includes('?'));
+    expect(stripCall).toBeTruthy();
+
+    // The 1200ms pulse-cleanup setTimeout is a REAL timer (focusThread ran under
+    // real timers, scheduled before we could install fakes). Wait it out so it
+    // doesn't fire mid-next-test and remove the pulse class on a stale node.
+    await waitFor(() => {
+      const m = container.querySelector('mark[data-thread-id="T1"]');
+      expect(m && m.classList.contains('comment-highlight-pulse')).toBe(false);
+    }, { timeout: 2000 });
   }, TEST_TIMEOUT);
 
   it('moderator: deleteCommentThread failure is swallowed (warn + reload)', async () => {

@@ -1,0 +1,110 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { api } from '../api/client';
+
+export default function MentionsPage() {
+  const [status, setStatus] = useState('unread');
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.listMyMentions({ status, limit: 50 });
+      setItems(res.mentions || []);
+    } catch (e) {
+      setError(e.message || String(e));
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [status]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const markOne = async (id) => {
+    try { await api.markMentionRead(id); } catch (e) { console.warn('mark one failed', e); }
+    await load();
+  };
+
+  const markAll = async () => {
+    try { await api.markAllMentionsRead(); } catch (e) { console.warn('mark all failed', e); }
+    await load();
+  };
+
+  return (
+    <div className="mentions-page page-enter">
+      <header className="mentions-page-header">
+        <h1>My mentions</h1>
+        <div className="mentions-page-controls">
+          <div className="mentions-filter" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={status === 'unread'}
+              className={status === 'unread' ? 'mentions-filter-tab active' : 'mentions-filter-tab'}
+              onClick={() => setStatus('unread')}
+            >
+              Unread
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={status === 'all'}
+              className={status === 'all' ? 'mentions-filter-tab active' : 'mentions-filter-tab'}
+              onClick={() => setStatus('all')}
+            >
+              All
+            </button>
+          </div>
+          <button type="button" className="mentions-mark-all" onClick={markAll}>Mark all read</button>
+        </div>
+      </header>
+      {loading && <p className="mentions-empty">Loading…</p>}
+      {error && <p className="mentions-error">Failed to load: {error}</p>}
+      {!loading && !error && items.length === 0 && (
+        <p className="mentions-empty">No mentions{status === 'unread' ? ' to catch up on' : ''}.</p>
+      )}
+      <ul className="mentions-list">
+        {items.map((m) => (
+          <li
+            key={m.id}
+            className={`mentions-item ${m.readAt ? 'read' : 'unread'} ${m.isOwnerMention ? 'owner' : ''}`}
+          >
+            <div className="mentions-item-meta">
+              <span className="mentions-item-author">@{m.mentionedBy}</span>
+              <span className="mentions-item-context">
+                on <Link
+                  to={`/wiki/${encodeURIComponent(m.pageName)}?thread=${encodeURIComponent(m.threadId)}&comment=${encodeURIComponent(m.commentId)}`}
+                >{m.pageName}</Link>
+              </span>
+              {m.isOwnerMention && <span className="mentions-item-owner-tag">(your page)</span>}
+              <span className="mentions-item-when">{formatWhen(m.mentionedAt)}</span>
+              {!m.readAt && (
+                <button
+                  type="button"
+                  className="mentions-item-dismiss"
+                  title="Mark read"
+                  onClick={() => markOne(m.id)}
+                >✕</button>
+              )}
+            </div>
+            <div className="mentions-item-snippet">&quot;{m.snippet}&quot;</div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function formatWhen(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString();
+  } catch {
+    return iso;
+  }
+}

@@ -14,6 +14,7 @@ const PageEditor = React.lazy(() => import('./components/PageEditor'));
 const SearchResultsPage = React.lazy(() => import('./components/SearchResultsPage'));
 const DiffViewer = React.lazy(() => import('./components/DiffViewer'));
 const UserPreferencesPage = React.lazy(() => import('./components/UserPreferencesPage'));
+const MentionsPage = React.lazy(() => import('./components/MentionsPage'));
 const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage'));
 const BlogDiscovery = React.lazy(() => import('./components/BlogDiscovery'));
 const BlogHome = React.lazy(() => import('./components/BlogHome'));
@@ -64,6 +65,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               </Suspense>
             } />
             <Route path="/preferences" element={<UserPreferencesPage />} />
+            <Route path="/me/mentions" element={<MentionsPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/admin" element={<AdminLayout />}>

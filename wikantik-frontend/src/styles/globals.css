@@ -946,3 +946,29 @@ a[data-attachment-missing] {
 .site-footer-sep {
   color: var(--text-muted);
 }
+
+/* -------------------------------------------------------------------- */
+/* Mentions page (/me/mentions)                                          */
+/* -------------------------------------------------------------------- */
+.mentions-page { padding: var(--space-lg); max-width: 800px; margin: 0 auto; }
+.mentions-page-header { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--space-md); margin-bottom: var(--space-lg); flex-wrap: wrap; }
+.mentions-page-controls { display: flex; gap: var(--space-md); align-items: center; }
+.mentions-filter { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 6px; overflow: hidden; }
+.mentions-filter-tab { padding: 6px 14px; background: transparent; border: none; cursor: pointer; font: inherit; color: var(--text-secondary); }
+.mentions-filter-tab.active { background: var(--sage-light); color: var(--text); font-weight: 600; }
+.mentions-mark-all { padding: 6px 12px; background: transparent; border: 1px solid var(--border-strong); border-radius: 6px; cursor: pointer; font: inherit; color: var(--text); }
+.mentions-mark-all:hover { background: var(--sage-light); }
+.mentions-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-sm); }
+.mentions-item { padding: var(--space-md); border: 1px solid var(--border); border-radius: 6px; background: var(--bg-elevated); }
+.mentions-item.unread { border-left: 3px solid var(--accent); }
+.mentions-item.read { opacity: 0.7; }
+.mentions-item.owner .mentions-item-author { color: var(--accent); }
+.mentions-item-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); }
+.mentions-item-author { font-weight: 600; color: var(--text); }
+.mentions-item-owner-tag { color: var(--accent); font-style: italic; }
+.mentions-item-when { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+.mentions-item-dismiss { background: transparent; border: none; cursor: pointer; color: var(--text-muted); font-size: 16px; }
+.mentions-item-dismiss:hover { color: var(--accent); }
+.mentions-item-snippet { font-style: italic; margin-top: 4px; color: var(--text-secondary); }
+.mentions-empty, .mentions-error { color: var(--text-muted); padding: var(--space-lg); text-align: center; }
+.mentions-error { color: var(--accent); }

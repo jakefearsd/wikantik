@@ -170,6 +170,7 @@
      <url-pattern>/page-graph</url-pattern>
      <url-pattern>/knowledge-graph</url-pattern>
      <url-pattern>/preferences</url-pattern>
+     <url-pattern>/me/mentions</url-pattern>
      <url-pattern>/reset-password</url-pattern>
      <url-pattern>/login</url-pattern>
      <url-pattern>/blog/*</url-pattern>

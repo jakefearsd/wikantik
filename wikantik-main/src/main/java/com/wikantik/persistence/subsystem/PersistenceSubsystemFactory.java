@@ -19,6 +19,9 @@
 package com.wikantik.persistence.subsystem;
 
 import com.wikantik.comments.CommentStore;
+import com.wikantik.comments.PageOwnerService;
+import com.wikantik.comments.mentions.MentionFeedDao;
+import com.wikantik.comments.mentions.MentionService;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubProposalRepository;
 import com.wikantik.knowledge.KgEdgeRepository;
@@ -38,6 +41,9 @@ import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
 
 import javax.sql.DataSource;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * Builds {@link PersistenceSubsystem.Services} from {@link PersistenceSubsystem.Deps}.
@@ -63,6 +69,19 @@ public final class PersistenceSubsystemFactory {
         final KgProposalRepository kgProposals = new KgProposalRepository( ds );
         final KgRejectionRepository kgRejections = new KgRejectionRepository( ds );
 
+        // Comments DAOs cross subsystem boundaries (Auth for user existence,
+        // Page Graph for canonical_id → page resolution) so they accept
+        // closures from Deps. When Deps was built without closures (test
+        // helpers / subsystem-isolation harnesses), install conservative
+        // defaults: nothing exists and no author is resolvable. PageOwnerService
+        // then falls back to its admin owner.
+        final Predicate< String > userExists = deps.userExistsLookup() != null
+                ? deps.userExistsLookup()
+                : login -> false;
+        final Function< String, Optional< String > > authorResolver = deps.pageAuthorLookup() != null
+                ? deps.pageAuthorLookup()
+                : canonicalId -> Optional.empty();
+
         return new PersistenceSubsystem.Services(
             ds,
             kgNodes,
@@ -81,7 +100,10 @@ public final class PersistenceSubsystemFactory {
             new PageCanonicalIdsDao( ds ),
             new PageVerificationDao( ds ),
             new TrustedAuthorsDao( ds ),
-            new CommentStore( ds )
+            new CommentStore( ds ),
+            new PageOwnerService( ds, userExists, authorResolver ),
+            new MentionService( ds, userExists ),
+            new MentionFeedDao( ds )
         );
     }
 }

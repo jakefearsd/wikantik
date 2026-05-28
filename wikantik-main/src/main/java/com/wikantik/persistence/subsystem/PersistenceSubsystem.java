@@ -19,6 +19,9 @@
 package com.wikantik.persistence.subsystem;
 
 import com.wikantik.comments.CommentStore;
+import com.wikantik.comments.PageOwnerService;
+import com.wikantik.comments.mentions.MentionFeedDao;
+import com.wikantik.comments.mentions.MentionService;
 import com.wikantik.core.subsystem.WikiProperties;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubProposalRepository;
@@ -38,6 +41,9 @@ import com.wikantik.pagegraph.spine.PageVerificationDao;
 import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
 
 import javax.sql.DataSource;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * Namespace for the Persistence subsystem's input and output contracts.
@@ -67,11 +73,30 @@ public final class PersistenceSubsystem {
      * {@code properties} is the typed {@link WikiProperties} accessor from
      * Core; only repositories with tunable configuration read it (today
      * none of the existing repos do — they're plain JDBC).</p>
+     *
+     * <p>{@code userExistsLookup} and {@code pageAuthorLookup} are deferred
+     * closures consumed by the anchored-comments DAOs ({@link PageOwnerService},
+     * {@link MentionService}). They cross subsystem boundaries — the user
+     * database lives in Auth and the canonical_id → page resolution lives in
+     * Page Graph — so they are passed as closures rather than direct
+     * references. Either may be {@code null} (tests that don't exercise the
+     * comments DAOs): the factory substitutes a default that returns
+     * {@code false} / {@link Optional#empty()}, which causes
+     * {@link PageOwnerService} to fall back to the admin owner.</p>
      */
     public record Deps(
         DataSource dataSource,
-        WikiProperties properties
-    ) {}
+        WikiProperties properties,
+        Predicate< String > userExistsLookup,
+        Function< String, Optional< String > > pageAuthorLookup
+    ) {
+
+        /** Convenience for callers (e.g. subsystem-isolation tests) that don't
+         *  exercise comments DAOs. The factory will install no-op closures. */
+        public Deps( final DataSource dataSource, final WikiProperties properties ) {
+            this( dataSource, properties, null, null );
+        }
+    }
 
     /**
      * Every JDBC repository / DAO managed by Persistence. All fields are
@@ -109,6 +134,9 @@ public final class PersistenceSubsystem {
         TrustedAuthorsDao trustedAuthors,
 
         // Anchored comments:
-        CommentStore comments
+        CommentStore comments,
+        PageOwnerService pageOwners,
+        MentionService mentions,
+        MentionFeedDao mentionFeed
     ) {}
 }

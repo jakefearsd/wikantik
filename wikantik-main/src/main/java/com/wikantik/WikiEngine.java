@@ -1365,9 +1365,52 @@ public class WikiEngine implements Engine {
             final javax.sql.DataSource ds = ( javax.sql.DataSource ) ctx.lookup( datasource );
 
             // Phase 3: Persistence subsystem.
+            //
+            // The anchored-comments DAOs (PageOwnerService, MentionService)
+            // need to ask "does this login exist?" and "who is the frontmatter
+            // author of this canonical_id?" — those answers live in the Auth
+            // subsystem (built before initKnowledgeGraph) and the structural
+            // index (built later in this method by PageGraphWiringHelper),
+            // respectively. We thread both through Deps as closures that
+            // capture `this` and resolve lazily at call time.
+            final java.util.function.Predicate< String > userExistsLookup = login -> {
+                if ( login == null || login.isBlank() ) return false;
+                final com.wikantik.auth.subsystem.AuthSubsystem.Services auth = this.authSubsystem;
+                if ( auth == null || auth.users() == null ) return false;
+                try {
+                    auth.users().getUserDatabase().findByLoginName( login );
+                    return true;
+                } catch ( final com.wikantik.auth.NoSuchPrincipalException e ) {
+                    return false;
+                } catch ( final Exception e ) {
+                    LOG.warn( "userExistsLookup({}) failed: {}", login, e.getMessage(), e );
+                    return false;
+                }
+            };
+            final java.util.function.Function< String, java.util.Optional< String > > pageAuthorLookup = canonicalId -> {
+                if ( canonicalId == null || canonicalId.isBlank() ) return java.util.Optional.empty();
+                try {
+                    final com.wikantik.api.pagegraph.StructuralIndexService index =
+                            getManager( com.wikantik.api.pagegraph.StructuralIndexService.class );
+                    if ( index == null ) return java.util.Optional.empty();
+                    final java.util.Optional< String > slug = index.resolveSlugFromCanonicalId( canonicalId );
+                    if ( slug.isEmpty() ) return java.util.Optional.empty();
+                    final com.wikantik.api.managers.PageManager pm = getManager( com.wikantik.api.managers.PageManager.class );
+                    if ( pm == null ) return java.util.Optional.empty();
+                    final com.wikantik.api.core.Page page = pm.getPage( slug.get() );
+                    if ( page == null ) return java.util.Optional.empty();
+                    final String author = page.getAuthor();
+                    if ( author == null || author.isBlank() ) return java.util.Optional.empty();
+                    return java.util.Optional.of( author );
+                } catch ( final Exception e ) {
+                    LOG.warn( "pageAuthorLookup({}) failed: {}", canonicalId, e.getMessage(), e );
+                    return java.util.Optional.empty();
+                }
+            };
+
             this.persistenceSubsystem = com.wikantik.persistence.subsystem.PersistenceSubsystemFactory.create(
                 new com.wikantik.persistence.subsystem.PersistenceSubsystem.Deps(
-                    ds, coreSubsystem.properties() ) );
+                    ds, coreSubsystem.properties(), userExistsLookup, pageAuthorLookup ) );
 
             // Resolve the Lucene MoreLikeThis seam.
             HubOverviewService.LuceneMlt luceneMlt = null;

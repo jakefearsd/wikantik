@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useMentionPicker } from './useMentionPicker';
+import { getCaretCoordinates } from '../utils/caretCoords';
+
+vi.mock('../utils/caretCoords', () => ({ getCaretCoordinates: vi.fn(() => ({ top: 222, left: 333 })) }));
 
 function makeTextarea(value = '', selectionStart = 0) {
   const ta = document.createElement('textarea');
@@ -108,5 +111,22 @@ describe('useMentionPicker', () => {
     const { result } = renderHook(() => useMentionPicker({ textareaRef, fetchCandidates }));
     const consumed = result.current.onKeyDown({ key: 'ArrowDown', preventDefault: vi.fn() });
     expect(consumed).toBe(false);
+  });
+
+  it('sets anchorPos when the picker opens', async () => {
+    textareaRef.current = makeTextarea('hi @al', 6);
+    const { result } = renderHook(() => useMentionPicker({ textareaRef, fetchCandidates }));
+    await act(async () => { result.current.onChange({ target: textareaRef.current }); });
+    await act(async () => { await vi.runAllTimersAsync(); });
+    expect(result.current.anchorPos).toEqual({ top: 222, left: 333 });
+    expect(getCaretCoordinates).toHaveBeenCalled();
+  });
+
+  it('clears anchorPos when the picker closes', async () => {
+    textareaRef.current = makeTextarea('hi @al', 6);
+    const { result } = renderHook(() => useMentionPicker({ textareaRef, fetchCandidates }));
+    await act(async () => { result.current.onChange({ target: textareaRef.current }); });
+    await act(async () => { result.current.close(); });
+    expect(result.current.anchorPos).toBeNull();
   });
 });

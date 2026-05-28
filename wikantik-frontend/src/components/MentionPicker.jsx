@@ -15,13 +15,10 @@ export default function MentionPicker({ open, candidates, selectedIndex, onSelec
     }
   }, [open, selectedIndex]);
 
-  if (!open || !candidates || candidates.length === 0) return null;
+  if (!open || !candidates || candidates.length === 0 || !anchorPos) return null;
 
-  // anchorPos is { top, left } relative to viewport (fixed). Hook returns null
-  // for v0; default to a corner of the screen so the picker is at least visible.
-  const style = anchorPos
-    ? { position: 'fixed', top: anchorPos.top, left: anchorPos.left }
-    : { position: 'fixed', top: 100, left: 100 };
+  // anchorPos is { top, left } relative to viewport (fixed).
+  const style = { position: 'fixed', top: anchorPos.top, left: anchorPos.left };
 
   return (
     <div className="mention-picker" style={style} ref={listRef} role="listbox" aria-label="User mentions">

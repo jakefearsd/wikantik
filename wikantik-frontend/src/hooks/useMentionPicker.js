@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getCaretCoordinates } from '../utils/caretCoords';
 
 /**
  * Pure-logic hook for tracking an in-flight `@<token>` mention under a
@@ -52,6 +53,7 @@ export function useMentionPicker({ textareaRef, fetchCandidates }) {
       tokenStart: -1,
       tokenEnd: -1,
       selectedIndex: 0,
+      anchorPos: null,
     }));
   }, []);
 
@@ -84,6 +86,7 @@ export function useMentionPicker({ textareaRef, fetchCandidates }) {
       close();
       return;
     }
+    const caretCoords = getCaretCoordinates(ta);
     setState((s) => ({
       ...s,
       open: true,
@@ -91,6 +94,7 @@ export function useMentionPicker({ textareaRef, fetchCandidates }) {
       tokenStart,
       tokenEnd: caret,
       selectedIndex: 0,
+      anchorPos: caretCoords,
     }));
     // Debounced fetch.
     if (timerRef.current) clearTimeout(timerRef.current);

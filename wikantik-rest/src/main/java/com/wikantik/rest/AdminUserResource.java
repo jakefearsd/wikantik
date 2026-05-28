@@ -76,8 +76,12 @@ public class AdminUserResource extends RestServletBase {
         return false;
     }
 
-    private UserDatabase getUserDatabase() {
+    protected UserDatabase getUserDatabase() {
         return getSubsystems().auth().users().getUserDatabase();
+    }
+
+    protected com.wikantik.comments.PageOwnerService pageOwners() {
+        return getSubsystems().persistence().pageOwners();
     }
 
     @Override
@@ -305,6 +309,13 @@ public class AdminUserResource extends RestServletBase {
             return Optional.of( "Cannot delete yourself" );
         }
         try {
+            // Orphan owned pages before deleting the user (best-effort; swallow errors)
+            try {
+                pageOwners().orphanByOwner( loginName, "system:user-deleted:" + loginName );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "bulk-delete: failed to orphan pages for user={}: {}", loginName, e.getMessage() );
+            }
+
             getUserDatabase().deleteByLoginName( loginName );
             return Optional.empty();
         } catch ( final Exception e ) {
@@ -497,6 +508,13 @@ public class AdminUserResource extends RestServletBase {
 
     private void handleDeleteUser( final HttpServletResponse response, final String loginName ) throws IOException {
         try {
+            // Orphan owned pages before deleting the user (best-effort; swallow errors)
+            try {
+                pageOwners().orphanByOwner( loginName, "system:user-deleted:" + loginName );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "handleDeleteUser: failed to orphan pages for user={}: {}", loginName, e.getMessage() );
+            }
+
             getUserDatabase().deleteByLoginName( loginName );
             LOG.info( "Deleted user: {}", loginName );
             sendJson( response, Map.of( "success", true ) );

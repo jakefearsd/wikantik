@@ -32,6 +32,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 import java.io.BufferedReader;
@@ -443,6 +444,114 @@ class AdminUserResourceTest {
         assertTrue( getObj.get( "error" ).getAsBoolean(),
                 "Deleted user should not be found" );
         assertEquals( 404, getObj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void handleDeleteUser_orphans_owned_pages_before_deleting_the_user() throws Exception {
+        // Create a user
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", "orphanTestUser" );
+        createBody.addProperty( "password", "StrongPassword123!" );
+        doPost( null, createBody );
+
+        // Spy on the servlet and mock its dependencies
+        final AdminUserResource spy = Mockito.spy( servlet );
+        final com.wikantik.comments.PageOwnerService pageOwnersMock = Mockito.mock( com.wikantik.comments.PageOwnerService.class );
+        final com.wikantik.auth.user.UserDatabase userDbMock = Mockito.mock( com.wikantik.auth.user.UserDatabase.class );
+
+        Mockito.doReturn( pageOwnersMock ).when( spy ).pageOwners();
+        Mockito.doReturn( userDbMock ).when( spy ).getUserDatabase();
+
+        // Execute the delete through the spy
+        final HttpServletRequest request = createRequest( "orphanTestUser" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        spy.doDelete( request, response );
+
+        // Verify orphan was called before delete
+        final InOrder order = Mockito.inOrder( pageOwnersMock, userDbMock );
+        order.verify( pageOwnersMock ).orphanByOwner( "orphanTestUser", "system:user-deleted:orphanTestUser" );
+        order.verify( userDbMock ).deleteByLoginName( "orphanTestUser" );
+    }
+
+    @Test
+    void handleDeleteUser_succeeds_when_orphan_call_fails() throws Exception {
+        // Create a user
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", "orphanFailUser" );
+        createBody.addProperty( "password", "StrongPassword123!" );
+        doPost( null, createBody );
+
+        // Spy on the servlet and mock its dependencies
+        final AdminUserResource spy = Mockito.spy( servlet );
+        final com.wikantik.comments.PageOwnerService pageOwnersMock = Mockito.mock( com.wikantik.comments.PageOwnerService.class );
+        final com.wikantik.auth.user.UserDatabase userDbMock = Mockito.mock( com.wikantik.auth.user.UserDatabase.class );
+
+        Mockito.doReturn( pageOwnersMock ).when( spy ).pageOwners();
+        Mockito.doReturn( userDbMock ).when( spy ).getUserDatabase();
+
+        // Make orphan throw, but user delete should succeed
+        Mockito.doThrow( new RuntimeException( "db connection down" ) )
+                .when( pageOwnersMock ).orphanByOwner( "orphanFailUser", "system:user-deleted:orphanFailUser" );
+
+        // Execute the delete through the spy
+        final HttpServletRequest request = createRequest( "orphanFailUser" );
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        spy.doDelete( request, response );
+
+        // Verify the user delete was still called despite orphan failure
+        Mockito.verify( userDbMock ).deleteByLoginName( "orphanFailUser" );
+    }
+
+    @Test
+    void tryDeleteUser_orphans_owned_pages_before_deleting_the_user() throws Exception {
+        // Create spies and mocks
+        final AdminUserResource spy = Mockito.spy( servlet );
+        final com.wikantik.comments.PageOwnerService pageOwnersMock = Mockito.mock( com.wikantik.comments.PageOwnerService.class );
+        final com.wikantik.auth.user.UserDatabase userDbMock = Mockito.mock( com.wikantik.auth.user.UserDatabase.class );
+
+        Mockito.doReturn( pageOwnersMock ).when( spy ).pageOwners();
+        Mockito.doReturn( userDbMock ).when( spy ).getUserDatabase();
+
+        // Call tryDeleteUser
+        final var result = spy.tryDeleteUser( "bulkDeleteTestUser", "admin" );
+
+        // Verify success
+        assertTrue( result.isEmpty(), "Delete should succeed; got error: " + result );
+
+        // Verify orphan was called before delete
+        final InOrder order = Mockito.inOrder( pageOwnersMock, userDbMock );
+        order.verify( pageOwnersMock ).orphanByOwner( "bulkDeleteTestUser", "system:user-deleted:bulkDeleteTestUser" );
+        order.verify( userDbMock ).deleteByLoginName( "bulkDeleteTestUser" );
+    }
+
+    @Test
+    void tryDeleteUser_succeeds_when_orphan_call_fails() throws Exception {
+        // Create spies and mocks
+        final AdminUserResource spy = Mockito.spy( servlet );
+        final com.wikantik.comments.PageOwnerService pageOwnersMock = Mockito.mock( com.wikantik.comments.PageOwnerService.class );
+        final com.wikantik.auth.user.UserDatabase userDbMock = Mockito.mock( com.wikantik.auth.user.UserDatabase.class );
+
+        Mockito.doReturn( pageOwnersMock ).when( spy ).pageOwners();
+        Mockito.doReturn( userDbMock ).when( spy ).getUserDatabase();
+
+        // Make orphan throw, but user delete should succeed
+        Mockito.doThrow( new RuntimeException( "db connection down" ) )
+                .when( pageOwnersMock ).orphanByOwner( "bulkOrphanFailUser", "system:user-deleted:bulkOrphanFailUser" );
+
+        // Call tryDeleteUser
+        final var result = spy.tryDeleteUser( "bulkOrphanFailUser", "admin" );
+
+        // Verify success despite orphan failure
+        assertTrue( result.isEmpty(), "Delete should succeed even when orphan fails; got error: " + result );
+
+        // Verify the user delete was still called despite orphan failure
+        Mockito.verify( userDbMock ).deleteByLoginName( "bulkOrphanFailUser" );
     }
 
     @Test

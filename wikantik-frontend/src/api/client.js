@@ -151,6 +151,23 @@ export const api = {
   deleteCommentThread: (threadId) =>
     request(`/api/comment-threads/${encodeURIComponent(threadId)}`, { method: 'DELETE' }),
 
+  // Mentions + mentionable users
+  listMentionableUsers: (q, limit = 8) =>
+    request(`/api/users/mentionable?q=${encodeURIComponent(q)}&limit=${limit}`),
+
+  listMyMentions: ({ status = 'unread', limit = 25, before } = {}) =>
+    request(`/api/me/mentions?status=${encodeURIComponent(status)}&limit=${limit}`
+      + (before ? `&before=${encodeURIComponent(before)}` : '')),
+
+  getMyMentionsUnreadCount: () =>
+    request('/api/me/mentions/unread-count'),
+
+  markMentionRead: (id) =>
+    request(`/api/me/mentions/${encodeURIComponent(id)}/read`, { method: 'POST' }),
+
+  markAllMentionsRead: () =>
+    request('/api/me/mentions/mark-all-read', { method: 'POST' }),
+
   // Conversion
   convertWikiToMarkdown: (content) =>
     request('/api/convert/wiki-to-markdown', {
@@ -495,6 +512,24 @@ export const api = {
         const params = new URLSearchParams({ cluster, action });
         return request(`/admin/kg-policy/estimate?${params}`);
       },
+    },
+
+    // Page Ownership Management
+    pageOwnership: {
+      listOrphaned: ({ limit = 50, offset = 0 } = {}) =>
+        request(`/admin/page-ownership?filter=orphaned&limit=${limit}&offset=${offset}`),
+      listByOwner: (owner, { limit = 50, offset = 0 } = {}) =>
+        request(`/admin/page-ownership?filter=by-owner&owner=${encodeURIComponent(owner)}&limit=${limit}&offset=${offset}`),
+      reassign: (pages, newOwner) =>
+        request('/admin/page-ownership/reassign', {
+          method: 'POST',
+          body: JSON.stringify({ pages, newOwner }),
+        }),
+      reassignByUser: (fromOwner, toOwner) =>
+        request('/admin/page-ownership/reassign-by-user', {
+          method: 'POST',
+          body: JSON.stringify({ fromOwner, toOwner }),
+        }),
     },
   },
 

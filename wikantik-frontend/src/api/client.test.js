@@ -244,6 +244,92 @@ describe('anchored comment thread methods', () => {
   });
 });
 
+describe('mentions methods', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn().mockResolvedValue(mockFetchResponse({ status: 200, body: {} }));
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function lastCall() {
+    return global.fetch.mock.calls[global.fetch.mock.calls.length - 1];
+  }
+
+  it('listMentionableUsers GETs the autocomplete endpoint with q + limit', async () => {
+    await api.listMentionableUsers('al', 5);
+    const [url, opts] = lastCall();
+    expect(url).toContain('/api/users/mentionable?q=al&limit=5');
+    expect(opts.method ?? 'GET').toBe('GET');
+  });
+
+  it('listMyMentions GETs with status + limit + optional before', async () => {
+    await api.listMyMentions({ status: 'unread', limit: 10 });
+    expect(lastCall()[0]).toContain('/api/me/mentions?status=unread&limit=10');
+    expect(lastCall()[0]).not.toContain('before=');
+    await api.listMyMentions({ status: 'all', limit: 20, before: '2026-01-01T00:00:00Z' });
+    expect(lastCall()[0]).toContain('before=2026-01-01T00%3A00%3A00Z');
+  });
+
+  it('getMyMentionsUnreadCount GETs unread-count', async () => {
+    await api.getMyMentionsUnreadCount();
+    expect(lastCall()[0]).toMatch(/\/api\/me\/mentions\/unread-count$/);
+  });
+
+  it('markMentionRead POSTs the /{id}/read path', async () => {
+    await api.markMentionRead('11111111-2222-3333-4444-555555555555');
+    const [url, opts] = lastCall();
+    expect(url).toMatch(/\/api\/me\/mentions\/11111111-2222-3333-4444-555555555555\/read$/);
+    expect(opts.method).toBe('POST');
+  });
+
+  it('markAllMentionsRead POSTs to /mark-all-read', async () => {
+    await api.markAllMentionsRead();
+    const [url, opts] = lastCall();
+    expect(url).toMatch(/\/api\/me\/mentions\/mark-all-read$/);
+    expect(opts.method).toBe('POST');
+  });
+});
+
+describe('admin.pageOwnership methods', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn().mockResolvedValue(mockFetchResponse({ status: 200, body: {} }));
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function lastCall() {
+    return global.fetch.mock.calls[global.fetch.mock.calls.length - 1];
+  }
+
+  it('listOrphaned GETs with filter=orphaned and pagination', async () => {
+    await api.admin.pageOwnership.listOrphaned({ limit: 25, offset: 50 });
+    expect(lastCall()[0]).toContain('/admin/page-ownership?filter=orphaned&limit=25&offset=50');
+  });
+
+  it('listByOwner URL-encodes the owner login', async () => {
+    await api.admin.pageOwnership.listByOwner('alice user');
+    expect(lastCall()[0]).toContain('owner=alice%20user');
+  });
+
+  it('reassign POSTs the pages array + newOwner', async () => {
+    await api.admin.pageOwnership.reassign(['cid-1', 'cid-2'], 'bob');
+    const [url, opts] = lastCall();
+    expect(url).toMatch(/\/admin\/page-ownership\/reassign$/);
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body)).toEqual({ pages: ['cid-1', 'cid-2'], newOwner: 'bob' });
+  });
+
+  it('reassignByUser POSTs the fromOwner + toOwner', async () => {
+    await api.admin.pageOwnership.reassignByUser('alice', 'bob');
+    const [url, opts] = lastCall();
+    expect(url).toMatch(/\/admin\/page-ownership\/reassign-by-user$/);
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body)).toEqual({ fromOwner: 'alice', toOwner: 'bob' });
+  });
+});
+
 describe('api.knowledge.listProposalsFiltered', () => {
   beforeEach(() => {
     global.fetch = vi.fn();

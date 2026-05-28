@@ -51,6 +51,7 @@ describe('AdminSidebar', () => {
 
     // Content group
     expect(screen.getByTestId('admin-nav-content')).toHaveAttribute('href', '/admin/content');
+    expect(screen.getByTestId('admin-nav-page-ownership')).toHaveAttribute('href', '/admin/page-ownership');
 
     // Knowledge & Search group
     expect(screen.getByTestId('admin-nav-knowledge-graph')).toHaveAttribute('href', '/admin/knowledge-graph');

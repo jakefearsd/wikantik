@@ -16,7 +16,10 @@ const GROUPS = [
   },
   {
     title: 'Content',
-    links: [{ to: '/admin/content', label: 'Content & Index' }],
+    links: [
+      { to: '/admin/content', label: 'Content & Index' },
+      { to: '/admin/page-ownership', label: 'Page Ownership' },
+    ],
   },
   {
     title: 'Knowledge & Search',

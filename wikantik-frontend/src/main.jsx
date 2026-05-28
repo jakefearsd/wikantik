@@ -35,6 +35,7 @@ const AdminKgPolicyPage = React.lazy(() => import('./components/admin/AdminKgPol
 const AdminKgPolicyExplain = React.lazy(() => import('./components/admin/AdminKgPolicyExplain'));
 const AdminKgPolicyPending = React.lazy(() => import('./components/admin/AdminKgPolicyPending'));
 const AdminKgPolicyBootstrap = React.lazy(() => import('./components/admin/AdminKgPolicyBootstrap'));
+const AdminPageOwnershipPage = React.lazy(() => import('./components/admin/AdminPageOwnershipPage'));
 
 const LoginPage = React.lazy(() => import('./components/LoginPage'));
 const PageGraphView = React.lazy(() => import('./components/pagegraph/PageGraphView.jsx'));
@@ -80,6 +81,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="kg-policy/explain" element={<AdminKgPolicyExplain />} />
               <Route path="kg-policy/pending" element={<AdminKgPolicyPending />} />
               <Route path="kg-policy/bootstrap" element={<AdminKgPolicyBootstrap />} />
+              <Route path="page-ownership" element={<AdminPageOwnershipPage />} />
             </Route>
             <Route path="/blog" element={<BlogDiscovery />} />
             <Route path="/blog/create" element={<CreateBlog />} />

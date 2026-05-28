@@ -72,7 +72,7 @@ public class CommentThreadResource extends RestServletBase {
 
     protected String currentUser( final HttpServletRequest request ) {
         final Engine engine = getEngine();
-        return Wiki.session().find( engine, request ).getUserPrincipal().getName();
+        return Wiki.session().find( engine, request ).getLoginPrincipal().getName();
     }
 
     /**

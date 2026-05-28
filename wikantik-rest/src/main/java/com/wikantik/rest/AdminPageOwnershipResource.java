@@ -77,7 +77,7 @@ public class AdminPageOwnershipResource extends RestServletBase {
     }
 
     protected String currentUser( final HttpServletRequest request ) {
-        return Wiki.session().find( getEngine(), request ).getUserPrincipal().getName();
+        return Wiki.session().find( getEngine(), request ).getLoginPrincipal().getName();
     }
 
     protected boolean userExists( final String login ) {

@@ -75,7 +75,7 @@ public class MyMentionsResource extends RestServletBase {
     /** Seam — current authenticated user's login, overridable for unit tests. */
     protected String currentUser( final HttpServletRequest request ) {
         final Engine engine = getEngine();
-        return Wiki.session().find( engine, request ).getUserPrincipal().getName();
+        return Wiki.session().find( engine, request ).getLoginPrincipal().getName();
     }
 
     /** Seam — auth gate, overridable for unit tests. */

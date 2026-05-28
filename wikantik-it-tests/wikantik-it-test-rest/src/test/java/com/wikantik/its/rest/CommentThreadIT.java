@@ -285,4 +285,126 @@ public class CommentThreadIT {
         assertEquals( 400, resp.statusCode(),
                 "GET /api/comment-threads with no page param must return 400: " + resp.body() );
     }
+
+    // ---- @-mention end-to-end: janne mentions a seeded user; that user sees the row ----
+
+    /**
+     * Wire-level cross-user smoke for the {@code @<login>} pipeline.
+     *
+     * <p>Uses the pre-seeded {@code Alice} from the IT XML user database
+     * ({@code wikantik-selenide-tests/src/test/resources/userdatabase.xml}).
+     * Alice's {@code loginName}, {@code wikiName}, and {@code fullName} are all
+     * the literal string {@code "Alice"}, which matters: the {@link MentionService}
+     * keys rows by login name, while {@link com.wikantik.api.core.Session#getUserPrincipal()}
+     * returns the full-name principal (preferred) — for Alice those are identical,
+     * so the round-trip works. Creating a fresh user via {@code POST /admin/users}
+     * is not a viable substitute here: the admin endpoint synthesises {@code fullName}
+     * from the supplied display name (e.g. {@code "IT Target …"}), so the read-side
+     * {@code currentUser()} would query against the full name and miss the mention
+     * row written for the login.
+     *
+     * <ol>
+     *   <li>As {@code janne}, seed a dedicated page and wait for the structural
+     *       index so the slug resolves server-side to a {@code canonical_id}.</li>
+     *   <li>POST a thread on that page with body {@code @Alice please review} —
+     *       janne is the author, so the {@link MentionService} writes a single
+     *       row keyed to {@code Alice} (authors are filtered out of their own
+     *       direct-mention writes).</li>
+     *   <li>Log into a fresh {@link HttpClient} (isolated cookie jar) as Alice
+     *       so {@code /api/me/mentions} sees her session, not janne's.</li>
+     *   <li>GET {@code /api/me/mentions?status=unread} — assert 200, a
+     *       {@code mentions} array with at least one entry, and the comment
+     *       snippet round-tripped in the body.</li>
+     *   <li>GET {@code /api/me/mentions/unread-count} — assert 200 and a positive
+     *       {@code count} via a permissive regex (the lower bound is 1; allow any
+     *       positive integer in case multiple test runs pile up unread rows for
+     *       Alice and no cleanup has run).</li>
+     * </ol>
+     */
+    @Test
+    @Order( 3 )
+    @SuppressWarnings( "unchecked" )
+    void mention_in_comment_appears_in_my_mentions_feed() throws Exception {
+        loginAsAdmin();
+
+        // (1) Seed a dedicated page so slug → canonical_id resolves at thread-create time.
+        final String mentionPage = "MentionITPage";
+        final String anchor = "the quick brown fox";
+        final HttpResponse< String > putResp = put( "/api/pages/" + mentionPage,
+                GSON.toJson( Map.of(
+                        "content", "Body containing " + anchor + " for anchoring a mention.",
+                        "changeNote", "seed for mention_in_comment_appears_in_my_mentions_feed" ) ) );
+        assertEquals( 200, putResp.statusCode(),
+                "Seeding the page should return 200: " + putResp.body() );
+        waitForStructuralIndexUp();
+
+        // (2) janne creates a thread mentioning Alice. janne is the author and
+        // filtered out of mentions; Alice is the sole row.
+        final String targetLogin = "Alice";
+        final String commentText = "@" + targetLogin + " please review";
+        final HttpResponse< String > createResp = post(
+                "/api/comment-threads?page=" + mentionPage,
+                GSON.toJson( Map.of(
+                        "exact", anchor,
+                        "prefix", "",
+                        "suffix", "",
+                        "text", commentText ) ) );
+        assertEquals( 200, createResp.statusCode(),
+                "POST create thread should return 200: " + createResp.body() );
+
+        // (3) Switch to Alice on a fresh client (independent cookie jar). The
+        // password is the literal string "password" — see test-users.properties
+        // in wikantik-main/src/test/resources for the convention shared with the
+        // seeded SSHA hashes.
+        final HttpClient targetClient = HttpClient.newBuilder()
+                .followRedirects( HttpClient.Redirect.NORMAL )
+                .cookieHandler( secureCookieOverHttp() )
+                .build();
+        final String targetLoginBody = GSON.toJson( Map.of(
+                "username", targetLogin, "password", "password" ) );
+        final HttpResponse< String > targetLoginResp = targetClient.send(
+                HttpRequest.newBuilder()
+                        .uri( URI.create( baseUrl + "/api/auth/login" ) )
+                        .header( "Content-Type", "application/json" )
+                        .header( "Accept", "application/json" )
+                        .POST( HttpRequest.BodyPublishers.ofString( targetLoginBody ) )
+                        .build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertEquals( 200, targetLoginResp.statusCode(),
+                "Login as '" + targetLogin + "' should succeed: " + targetLoginResp.body() );
+
+        // (4) GET /api/me/mentions?status=unread on Alice's session.
+        final HttpResponse< String > feed = targetClient.send(
+                HttpRequest.newBuilder()
+                        .uri( URI.create( baseUrl + "/api/me/mentions?status=unread" ) )
+                        .header( "Accept", "application/json" )
+                        .GET()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertEquals( 200, feed.statusCode(),
+                "GET /api/me/mentions should return 200: " + feed.body() );
+        // Snippet round-trip: the comment text lands in the JSON response body.
+        assertTrue( feed.body().contains( commentText ),
+                "feed should contain the comment snippet: " + feed.body() );
+        // Shape: mentions array is present and non-empty.
+        final Map< String, Object > feedJson = parseJson( feed.body() );
+        final Object mentions = feedJson.get( "mentions" );
+        assertNotNull( mentions, "response must carry a mentions array: " + feed.body() );
+        final List< Map< String, Object > > mentionsList = ( List< Map< String, Object > > ) mentions;
+        assertTrue( mentionsList.size() >= 1,
+                "mentions list should have at least one entry: " + feed.body() );
+
+        // (5) GET /api/me/mentions/unread-count — a positive integer.
+        final HttpResponse< String > count = targetClient.send(
+                HttpRequest.newBuilder()
+                        .uri( URI.create( baseUrl + "/api/me/mentions/unread-count" ) )
+                        .header( "Accept", "application/json" )
+                        .GET()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertEquals( 200, count.statusCode(),
+                "GET /api/me/mentions/unread-count should return 200: " + count.body() );
+        assertTrue( count.body().matches( "(?s).*\"count\"\\s*:\\s*[1-9][0-9]*.*" ),
+                "unread-count should be a positive integer: " + count.body() );
+    }
 }

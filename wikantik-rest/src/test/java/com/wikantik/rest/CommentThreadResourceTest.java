@@ -23,6 +23,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.comments.CommentStore;
+import com.wikantik.comments.PageOwnerService;
+import com.wikantik.comments.mentions.MentionService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.h2.jdbcx.JdbcDataSource;
@@ -36,7 +38,10 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.sql.Connection;
 import java.sql.Statement;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -44,6 +49,8 @@ class CommentThreadResourceTest {
 
     private final Gson gson = new Gson();
     private CommentStore store;
+    MentionService mentionService;
+    private PageOwnerService pageOwnerSvc;
     private CommentThreadResource servlet;
 
     @BeforeEach
@@ -65,11 +72,27 @@ class CommentThreadResourceTest {
                 "author TEXT NOT NULL, body TEXT NOT NULL, " +
                 "created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
                 "edited_at TIMESTAMP WITH TIME ZONE)" );
+            s.executeUpdate( """
+                CREATE TABLE IF NOT EXISTS comment_mentions (
+                    id UUID PRIMARY KEY,
+                    comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+                    mentioned_login TEXT NOT NULL, mentioning_login TEXT NOT NULL,
+                    is_owner_mention BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    read_at TIMESTAMP WITH TIME ZONE,
+                    CONSTRAINT uq_comment_mentions UNIQUE (comment_id, mentioned_login)
+                )""" );
         }
         this.store = new CommentStore( h2 );
+        final Set< String > users = new HashSet<>( List.of( "alice", "bob", "carol", "admin" ) );
+        this.mentionService = new MentionService( h2, users::contains );
+        this.pageOwnerSvc = Mockito.mock( PageOwnerService.class );
+        Mockito.when( pageOwnerSvc.getOwner( "CID1" ) ).thenReturn( "alice" );
 
         this.servlet = Mockito.spy( new CommentThreadResource() );
         Mockito.doReturn( store ).when( servlet ).commentStore();
+        Mockito.doReturn( mentionService ).when( servlet ).mentionService();
+        Mockito.doReturn( pageOwnerSvc ).when( servlet ).pageOwnerService();
         Mockito.doReturn( Optional.of( "CID1" ) ).when( servlet ).resolveCanonicalId( "PageOne" );
         Mockito.doReturn( Optional.of( "PageOne" ) ).when( servlet ).resolveSlug( "CID1" );
         Mockito.doReturn( true ).when( servlet ).checkPagePermission(
@@ -437,6 +460,58 @@ class CommentThreadResourceTest {
         reply.addProperty( "text", "hi" );
         final JsonObject res = post( null, "/" + threadId + "/comments", reply );
         assertFalse( res.has( "id" ), res.toString() );
+    }
+
+    @Test
+    void create_thread_with_an_at_mention_records_a_direct_mention() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "exact", "hello" );
+        body.addProperty( "text", "ping @bob" );
+        final String threadId = post( "?page=PageOne", null, body ).get( "id" ).getAsString();
+        final java.util.UUID commentId = store.findThread( java.util.UUID.fromString( threadId ) )
+                .orElseThrow().comments().get( 0 ).id();
+        final var rows = mentionService.findByComment( commentId );
+        assertEquals( 1, rows.size() );
+        assertEquals( "bob", rows.get( 0 ).mentionedLogin() );
+        assertFalse( rows.get( 0 ).isOwnerMention() );
+    }
+
+    @Test
+    void create_thread_writes_owner_mention_when_owner_differs_from_author() throws Exception {
+        Mockito.when( pageOwnerSvc.getOwner( "CID1" ) ).thenReturn( "carol" );
+        final JsonObject body = new JsonObject();
+        body.addProperty( "exact", "hello" );
+        body.addProperty( "text", "fyi" );
+        final String threadId = post( "?page=PageOne", null, body ).get( "id" ).getAsString();
+        final java.util.UUID commentId = store.findThread( java.util.UUID.fromString( threadId ) )
+                .orElseThrow().comments().get( 0 ).id();
+        final var rows = mentionService.findByComment( commentId );
+        assertEquals( 1, rows.size() );
+        assertEquals( "carol", rows.get( 0 ).mentionedLogin() );
+        assertTrue( rows.get( 0 ).isOwnerMention() );
+    }
+
+    @Test
+    void edit_diff_preserves_read_state_on_surviving_mentions() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "exact", "hello" );
+        body.addProperty( "text", "@bob @carol" );
+        final String threadId = post( "?page=PageOne", null, body ).get( "id" ).getAsString();
+        final java.util.UUID commentId = store.findThread( java.util.UUID.fromString( threadId ) )
+                .orElseThrow().comments().get( 0 ).id();
+        final var bobMention = mentionService.findByComment( commentId ).stream()
+                .filter( m -> m.mentionedLogin().equals( "bob" ) ).findFirst().orElseThrow();
+        mentionService.markRead( bobMention.id(), "bob" );
+
+        // Edit to remove @carol.
+        final JsonObject editBody = new JsonObject();
+        editBody.addProperty( "text", "@bob only" );
+        patch( "/" + threadId + "/comments/" + commentId, editBody );
+
+        final var rows = mentionService.findByComment( commentId );
+        assertEquals( 1, rows.size() );
+        assertEquals( "bob", rows.get( 0 ).mentionedLogin() );
+        assertNotNull( rows.get( 0 ).readAt(), "bob's read_at preserved across the edit" );
     }
 
     private String createThread() throws Exception {

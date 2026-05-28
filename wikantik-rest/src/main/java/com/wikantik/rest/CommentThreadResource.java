@@ -25,6 +25,8 @@ import com.wikantik.api.comments.TextQuoteSelector;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.comments.CommentStore;
+import com.wikantik.comments.PageOwnerService;
+import com.wikantik.comments.mentions.MentionService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -50,6 +52,14 @@ public class CommentThreadResource extends RestServletBase {
 
     protected CommentStore commentStore() {
         return getSubsystems().persistence().comments();
+    }
+
+    protected MentionService mentionService() {
+        return getSubsystems().persistence().mentions();
+    }
+
+    protected PageOwnerService pageOwnerService() {
+        return getSubsystems().persistence().pageOwners();
     }
 
     protected Optional< String > resolveCanonicalId( final String slug ) {
@@ -185,8 +195,13 @@ public class CommentThreadResource extends RestServletBase {
         }
         final TextQuoteSelector anchor = new TextQuoteSelector(
                 exact, getJsonString( body, "prefix" ), getJsonString( body, "suffix" ) );
+        final String canonical = canonicalId.get();
+        final String user = currentUser( request );
+        final String owner = pageOwnerService().getOwner( canonical );
+        final Optional< String > ownerForMention =
+                owner.equals( user ) ? Optional.empty() : Optional.of( owner );
         final CommentThread t = commentStore().createThread(
-                canonicalId.get(), anchor, currentUser( request ), text );
+                canonical, anchor, user, text, mentionService(), ownerForMention );
         sendJson( response, threadToMap( t ) );
     }
 
@@ -201,7 +216,8 @@ public class CommentThreadResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "text is required and must not be blank" );
             return;
         }
-        final Comment c = commentStore().addComment( ctx.threadId, currentUser( request ), text );
+        final Comment c = commentStore().addComment(
+                ctx.threadId, currentUser( request ), text, mentionService() );
         sendJson( response, commentToMap( c ) );
     }
 
@@ -243,7 +259,9 @@ public class CommentThreadResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "text is required and must not be blank" );
             return;
         }
-        final Comment updated = commentStore().editComment( commentId, text ).orElse( null );
+        final Comment updated = commentStore().editComment(
+                commentId, existing.get().body(), text, currentUser( request ), mentionService() )
+                .orElse( null );
         if ( updated == null ) { sendNotFound( response, "Comment not found" ); return; }
         sendJson( response, commentToMap( updated ) );
     }

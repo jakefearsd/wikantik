@@ -162,6 +162,18 @@ class PageOwnerServiceTest {
     }
 
     @Test
+    void reassignFromOrphaned_moves_all_null_owner_rows() {
+        svc.setOwner( "CID-1", null,    "admin" );
+        svc.setOwner( "CID-2", null,    "admin" );
+        svc.setOwner( "CID-3", "bob",   "admin" );
+        final int moved = svc.reassignFromOrphaned( "alice", "admin" );
+        assertEquals( 2, moved );
+        assertEquals( "alice", svc.findRaw( "CID-1" ).orElseThrow().ownerLogin() );
+        assertEquals( "alice", svc.findRaw( "CID-2" ).orElseThrow().ownerLogin() );
+        assertEquals( "bob", svc.findRaw( "CID-3" ).orElseThrow().ownerLogin() );
+    }
+
+    @Test
     void listByOwner_returns_owned_pages_paginated() {
         svc.setOwner( "CID-1", "alice", "admin" );
         svc.setOwner( "CID-2", "alice", "admin" );

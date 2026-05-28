@@ -119,6 +119,23 @@ public class PageOwnerService {
         }
     }
 
+    /** Bulk-move every row whose {@code owner_login IS NULL} to {@code toOwner}.
+     *  Mirrors {@link #bulkReassign}: same audit-stamp semantics, returns the
+     *  number of rows updated. */
+    public int reassignFromOrphaned( final String toOwner, final String assignedBy ) {
+        try ( Connection c = ds.getConnection();
+              PreparedStatement ps = c.prepareStatement(
+                      "UPDATE page_owners SET owner_login = ?, assigned_by = ?, " +
+                      "assigned_at = CURRENT_TIMESTAMP WHERE owner_login IS NULL" ) ) {
+            ps.setString( 1, toOwner );
+            ps.setString( 2, assignedBy );
+            return ps.executeUpdate();
+        } catch ( final SQLException e ) {
+            LOG.warn( "reassignFromOrphaned({}) failed: {}", toOwner, e.getMessage(), e );
+            throw new RuntimeException( "reassignFromOrphaned failed", e );
+        }
+    }
+
     public int orphanByOwner( final String owner, final String assignedBy ) {
         try ( Connection c = ds.getConnection();
               PreparedStatement ps = c.prepareStatement(

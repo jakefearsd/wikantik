@@ -141,6 +141,15 @@ public class CommentThreadIT {
         return client.send( request, HttpResponse.BodyHandlers.ofString() );
     }
 
+    private HttpResponse< String > delete( final String path ) throws IOException, InterruptedException {
+        final HttpRequest request = HttpRequest.newBuilder()
+                .uri( URI.create( baseUrl + path ) )
+                .header( "Accept", "application/json" )
+                .DELETE()
+                .build();
+        return client.send( request, HttpResponse.BodyHandlers.ofString() );
+    }
+
     private Map< String, Object > parseJson( final String body ) {
         return GSON.fromJson( body, MAP_TYPE );
     }
@@ -255,6 +264,16 @@ public class CommentThreadIT {
         assertEquals( 200, reopenResp.statusCode(),
                 "POST reopen should return 200: " + reopenResp.body() );
         assertEquals( 1, threadsFor( "open" ).size(), "open list should have 1 thread after reopen" );
+
+        // (f) Moderator deletes the thread → 200 {deleted:true}, list empty across all filters.
+        final HttpResponse< String > deleteResp = delete( "/api/comment-threads/" + threadId );
+        assertEquals( 200, deleteResp.statusCode(),
+                "DELETE thread should return 200 for an admin caller: " + deleteResp.body() );
+        @SuppressWarnings( "unchecked" )
+        final Map< String, Object > delJson = parseJson( deleteResp.body() );
+        assertEquals( Boolean.TRUE, delJson.get( "deleted" ),
+                "DELETE response should include deleted:true: " + deleteResp.body() );
+        assertEquals( 0, threadsFor( "all" ).size(), "no threads should remain after delete" );
     }
 
     // ---- negative: GET without ?page must be a 400 ----

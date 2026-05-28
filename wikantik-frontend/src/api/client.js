@@ -148,6 +148,9 @@ export const api = {
   reopenCommentThread: (threadId) =>
     request(`/api/comment-threads/${encodeURIComponent(threadId)}/reopen`, { method: 'POST' }),
 
+  deleteCommentThread: (threadId) =>
+    request(`/api/comment-threads/${encodeURIComponent(threadId)}`, { method: 'DELETE' }),
+
   // Conversion
   convertWikiToMarkdown: (content) =>
     request('/api/convert/wiki-to-markdown', {

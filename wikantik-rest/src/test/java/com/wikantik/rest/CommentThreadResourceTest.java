@@ -340,6 +340,48 @@ class CommentThreadResourceTest {
         assertEquals( 404, res.get( "status" ).getAsInt() );
     }
 
+    // ---- thread-delete (moderator-only) ----
+
+    @Test
+    void delete_thread_by_moderator_succeeds_and_cascades() throws Exception {
+        final String threadId = createThread();
+        // setUp stubs checkPagePermission(any,any,any,any) -> true, so the "delete" check passes.
+        // Add a reply first to prove the cascade really removes everything.
+        final JsonObject reply = new JsonObject();
+        reply.addProperty( "text", "still relevant" );
+        post( null, "/" + threadId + "/comments", reply );
+
+        final JsonObject res = del( "/" + threadId );
+        assertFalse( res.has( "error" ), res.toString() );
+        assertTrue( res.get( "deleted" ).getAsBoolean() );
+        assertEquals( threadId, res.get( "id" ).getAsString() );
+        // Thread + all its comments are gone from the store.
+        assertTrue( store.findThread( java.util.UUID.fromString( threadId ) ).isEmpty() );
+        assertTrue( store.listByCanonicalId( "CID1", "all" ).isEmpty() );
+    }
+
+    @Test
+    void delete_thread_denied_when_caller_lacks_page_delete_permission() throws Exception {
+        final String threadId = createThread();
+        // Override the blanket-true stub specifically for the "delete" action.
+        Mockito.doReturn( false ).when( servlet ).checkPagePermission(
+                Mockito.any(), Mockito.any(), Mockito.eq( "PageOne" ), Mockito.eq( "delete" ) );
+        del( "/" + threadId );
+        // Authz blocked the delete: thread is still in the store.
+        assertTrue( store.findThread( java.util.UUID.fromString( threadId ) ).isPresent() );
+        // And the resource really asked for the "delete" permission on the page.
+        Mockito.verify( servlet, Mockito.atLeastOnce() ).checkPagePermission(
+                Mockito.any(), Mockito.any(), Mockito.eq( "PageOne" ), Mockito.eq( "delete" ) );
+    }
+
+    @Test
+    void delete_thread_unknown_id_is_404() throws Exception {
+        final String missing = java.util.UUID.randomUUID().toString();
+        final JsonObject res = del( "/" + missing );
+        assertTrue( res.get( "error" ).getAsBoolean() );
+        assertEquals( 404, res.get( "status" ).getAsInt() );
+    }
+
     @Test
     void get_missing_page_param_is_400() throws Exception {
         final JsonObject res = get( "" );

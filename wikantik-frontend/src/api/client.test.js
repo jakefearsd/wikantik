@@ -235,6 +235,13 @@ describe('anchored comment thread methods', () => {
     expect(url).toContain('/api/comment-threads/tid/reopen');
     expect(opts.method).toBe('POST');
   });
+
+  it('deleteCommentThread DELETEs the thread root path', async () => {
+    await api.deleteCommentThread('tid');
+    const [url, opts] = lastCall();
+    expect(url).toMatch(/\/api\/comment-threads\/tid$/);
+    expect(opts.method).toBe('DELETE');
+  });
 });
 
 describe('api.knowledge.listProposalsFiltered', () => {

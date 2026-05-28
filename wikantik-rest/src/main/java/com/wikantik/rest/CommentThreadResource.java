@@ -137,9 +137,25 @@ public class CommentThreadResource extends RestServletBase {
         final String[] seg = segments( request );
         if ( seg.length == 3 && "comments".equals( seg[ 1 ] ) ) {
             deleteComment( request, response, seg[ 0 ], seg[ 2 ] );
+        } else if ( seg.length == 1 ) {
+            deleteThread( request, response, seg[ 0 ] );
         } else {
             sendNotFound( response, "Unknown comment route" );
         }
+    }
+
+    /** Moderator-only thread delete. Requires the page {@code delete} permission;
+     *  cascades to all comments in the thread via the DAO's ON DELETE CASCADE. */
+    private void deleteThread( final HttpServletRequest request, final HttpServletResponse response,
+                               final String threadIdRaw ) throws IOException {
+        final ThreadCtx ctx = authorizeThread( request, response, threadIdRaw, "delete" );
+        if ( ctx == null ) return;
+        final boolean removed = commentStore().deleteThread( ctx.threadId );
+        if ( !removed ) { sendNotFound( response, "Comment thread not found" ); return; }
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "deleted", true );
+        result.put( "id", ctx.threadId.toString() );
+        sendJson( response, result );
     }
 
     private void createThread( final HttpServletRequest request, final HttpServletResponse response )

@@ -21,6 +21,7 @@ package com.wikantik.comments;
 import com.wikantik.api.comments.Comment;
 import com.wikantik.api.comments.CommentThread;
 import com.wikantik.api.comments.TextQuoteSelector;
+import com.wikantik.comments.mentions.MentionService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -48,7 +49,9 @@ public class CommentStore {
     }
 
     public CommentThread createThread( final String canonicalId, final TextQuoteSelector anchor,
-                                       final String author, final String body ) {
+                                       final String author, final String body,
+                                       final MentionService mentionSvc,
+                                       final Optional< String > ownerForMention ) {
         final UUID threadId = UUID.randomUUID();
         final UUID commentId = UUID.randomUUID();
         try ( Connection c = ds.getConnection() ) {
@@ -66,6 +69,7 @@ public class CommentStore {
                     ps.executeUpdate();
                 }
                 insertComment( c, commentId, threadId, author, body );
+                mentionSvc.recordCreate( c, commentId, author, body, ownerForMention );
                 c.commit();
             } catch ( final SQLException e ) {
                 c.rollback();
@@ -81,10 +85,21 @@ public class CommentStore {
                 () -> new RuntimeException( "thread vanished after insert: " + threadId ) );
     }
 
-    public Comment addComment( final UUID threadId, final String author, final String body ) {
+    public Comment addComment( final UUID threadId, final String author, final String body,
+                               final MentionService mentionSvc ) {
         final UUID commentId = UUID.randomUUID();
         try ( Connection c = ds.getConnection() ) {
-            insertComment( c, commentId, threadId, author, body );
+            c.setAutoCommit( false );
+            try {
+                insertComment( c, commentId, threadId, author, body );
+                mentionSvc.recordReply( c, commentId, author, body );
+                c.commit();
+            } catch ( final SQLException e ) {
+                c.rollback();
+                throw e;
+            } finally {
+                c.setAutoCommit( true );
+            }
         } catch ( final SQLException e ) {
             LOG.warn( "addComment(threadId={}) failed: {}", threadId, e.getMessage(), e );
             throw new RuntimeException( "comment add failed", e );
@@ -105,13 +120,29 @@ public class CommentStore {
         }
     }
 
-    public Optional< Comment > editComment( final UUID commentId, final String newBody ) {
-        try ( Connection c = ds.getConnection();
-              PreparedStatement ps = c.prepareStatement(
-                      "UPDATE comments SET body = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?" ) ) {
-            ps.setString( 1, newBody );
-            ps.setObject( 2, commentId );
-            if ( ps.executeUpdate() == 0 ) return Optional.empty();
+    public Optional< Comment > editComment( final UUID commentId, final String oldBody,
+                                            final String newBody, final String mentioningLogin,
+                                            final MentionService mentionSvc ) {
+        try ( Connection c = ds.getConnection() ) {
+            c.setAutoCommit( false );
+            try {
+                try ( PreparedStatement ps = c.prepareStatement(
+                        "UPDATE comments SET body = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?" ) ) {
+                    ps.setString( 1, newBody );
+                    ps.setObject( 2, commentId );
+                    if ( ps.executeUpdate() == 0 ) {
+                        c.rollback();
+                        return Optional.empty();
+                    }
+                }
+                mentionSvc.recordEdit( c, commentId, mentioningLogin, oldBody, newBody );
+                c.commit();
+            } catch ( final SQLException e ) {
+                c.rollback();
+                throw e;
+            } finally {
+                c.setAutoCommit( true );
+            }
         } catch ( final SQLException e ) {
             LOG.warn( "editComment(id={}) failed: {}", commentId, e.getMessage(), e );
             throw new RuntimeException( "comment edit failed", e );

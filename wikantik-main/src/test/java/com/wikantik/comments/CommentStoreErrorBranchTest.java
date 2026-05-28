@@ -19,12 +19,14 @@
 package com.wikantik.comments;
 
 import com.wikantik.api.comments.TextQuoteSelector;
+import com.wikantik.comments.mentions.MentionService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,11 +48,18 @@ class CommentStoreErrorBranchTest {
 
     private static final TextQuoteSelector ANCHOR = new TextQuoteSelector( "x", null, null );
 
+    /** Mention service that never executes (every CommentStore failure path here
+     *  fails BEFORE we get to the mention call, so the service is unused). */
+    private static MentionService unusedMentions() {
+        return new MentionService( mock( DataSource.class ), s -> false );
+    }
+
     @Test
     void createThread_outerCatch_wrapsInRuntimeException() throws SQLException {
         final CommentStore store = new CommentStore( failingDataSource() );
         final RuntimeException ex = assertThrows( RuntimeException.class,
-                () -> store.createThread( "CID1", ANCHOR, "alice", "body" ) );
+                () -> store.createThread( "CID1", ANCHOR, "alice", "body",
+                        unusedMentions(), Optional.empty() ) );
         assertTrue( ex.getCause() instanceof SQLException );
     }
 
@@ -67,7 +76,8 @@ class CommentStoreErrorBranchTest {
 
         final CommentStore store = new CommentStore( ds );
         final RuntimeException ex = assertThrows( RuntimeException.class,
-                () -> store.createThread( "CID1", ANCHOR, "alice", "body" ) );
+                () -> store.createThread( "CID1", ANCHOR, "alice", "body",
+                        unusedMentions(), Optional.empty() ) );
         assertTrue( ex.getCause() instanceof SQLException );
         verify( c ).rollback();
         verify( c ).setAutoCommit( true );
@@ -77,14 +87,14 @@ class CommentStoreErrorBranchTest {
     void addComment_catch_wrapsInRuntimeException() throws SQLException {
         final CommentStore store = new CommentStore( failingDataSource() );
         assertThrows( RuntimeException.class,
-                () -> store.addComment( UUID.randomUUID(), "alice", "body" ) );
+                () -> store.addComment( UUID.randomUUID(), "alice", "body", unusedMentions() ) );
     }
 
     @Test
     void editComment_catch_wrapsInRuntimeException() throws SQLException {
         final CommentStore store = new CommentStore( failingDataSource() );
         assertThrows( RuntimeException.class,
-                () -> store.editComment( UUID.randomUUID(), "body" ) );
+                () -> store.editComment( UUID.randomUUID(), "old", "body", "alice", unusedMentions() ) );
     }
 
     @Test

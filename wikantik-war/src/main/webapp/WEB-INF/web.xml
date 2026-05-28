@@ -460,6 +460,18 @@
        <servlet-name>ConvertResource</servlet-name>
        <servlet-class>com.wikantik.rest.ConvertResource</servlet-class>
    </servlet>
+   <servlet>
+       <servlet-name>MentionableUsersResource</servlet-name>
+       <servlet-class>com.wikantik.rest.MentionableUsersResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>MyMentionsResource</servlet-name>
+       <servlet-class>com.wikantik.rest.MyMentionsResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>AdminPageOwnershipResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminPageOwnershipResource</servlet-class>
+   </servlet>
 
    <!-- Blog API -->
    <servlet>
@@ -627,6 +639,10 @@
        <url-pattern>/admin/kg-policy/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
+       <servlet-name>AdminPageOwnershipResource</servlet-name>
+       <url-pattern>/admin/page-ownership/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
        <servlet-name>PageForAgentResource</servlet-name>
        <url-pattern>/api/pages/for-agent/*</url-pattern>
    </servlet-mapping>
@@ -661,6 +677,14 @@
    <servlet-mapping>
        <servlet-name>CommentThreadResource</servlet-name>
        <url-pattern>/api/comment-threads/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>MentionableUsersResource</servlet-name>
+       <url-pattern>/api/users/mentionable/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>MyMentionsResource</servlet-name>
+       <url-pattern>/api/me/mentions/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>ConvertResource</servlet-name>

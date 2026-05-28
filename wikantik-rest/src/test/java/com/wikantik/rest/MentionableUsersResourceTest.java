@@ -37,6 +37,7 @@ import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -70,7 +71,6 @@ class MentionableUsersResourceTest {
 
         servlet = Mockito.spy( new MentionableUsersResource() );
         Mockito.doReturn( db ).when( servlet ).users();
-        Mockito.doReturn( true ).when( servlet ).isAuthenticated( Mockito.any() );
     }
 
     private static UserProfile profile( final String login, final String full, final boolean locked ) {
@@ -82,11 +82,12 @@ class MentionableUsersResourceTest {
     }
 
     @Test
-    void unauthenticated_returns_401() throws Exception {
-        Mockito.doReturn( false ).when( servlet ).isAuthenticated( Mockito.any() );
-        final JsonObject res = invoke( "" );
-        assertTrue( res.get( "error" ).getAsBoolean() );
-        assertEquals( 401, res.get( "status" ).getAsInt() );
+    void anonymous_access_returns_users() throws Exception {
+        // No isAuthenticated stub — the endpoint is open by design.
+        final JsonObject res = invoke( "?q=ali" );
+        assertFalse( res.has( "error" ), "anonymous access should succeed: " + res );
+        assertTrue( res.has( "users" ) );
+        assertTrue( res.getAsJsonArray( "users" ).size() >= 1 );
     }
 
     @Test

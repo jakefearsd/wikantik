@@ -18,9 +18,6 @@
  */
 package com.wikantik.rest;
 
-import com.wikantik.api.core.Engine;
-import com.wikantik.api.core.Session;
-import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.user.UserDatabase;
@@ -43,9 +40,10 @@ import java.util.Map;
  * REST servlet backing the @-mention autocomplete picker in the comment
  * composer. Mapped to {@code /api/users/mentionable}.
  * <p>
- * Login-required (anonymous callers get a 401 — the picker is only useful to
- * authenticated users and exposing the user list publicly would be a privacy
- * leak). Locked accounts are filtered out so muted users cannot be summoned.
+ * Open to anonymous users — if a page allows anonymous comments/edits,
+ * commenters should be able to mention real users. The user list is not
+ * sensitive (login names already appear in page authorship throughout the wiki).
+ * Locked accounts are filtered out so muted users cannot be summoned.
  * <p>
  * Matching rules:
  * <ul>
@@ -70,20 +68,9 @@ public class MentionableUsersResource extends RestServletBase {
         return getSubsystems().auth().users().getUserDatabase();
     }
 
-    /** Seam — auth gate, overridable for unit tests. */
-    protected boolean isAuthenticated( final HttpServletRequest request ) {
-        final Engine engine = getEngine();
-        final Session s = Wiki.session().find( engine, request );
-        return s != null && s.isAuthenticated();
-    }
-
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
-        if ( !isAuthenticated( request ) ) {
-            sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Login required" );
-            return;
-        }
         final String qRaw = request.getParameter( "q" );
         final String q = qRaw == null ? "" : qRaw.trim().toLowerCase( Locale.ROOT );
         final int limit = clampLimit( request.getParameter( "limit" ) );

@@ -1515,6 +1515,20 @@ public class WikiEngine implements Engine {
             filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), -1004 );
             com.wikantik.pagegraph.subsystem.PageGraphWiringHelper.wireSpineFilters(
                 props, structuralIndex, coreSubsystem, filterManager, pageManager, this );
+            // PageOwnershipSaveFilter — postSave hook ensures every saved page has a
+            // page_owners row. Uses StructuralIndexService::resolveCanonicalIdFromSlug
+            // and PageOwnerService::getOwner (find-or-create). Gated by
+            // wikantik.page_ownership.enforcement.enabled (default true).
+            final boolean ownershipEnforcement = Boolean.parseBoolean(
+                props.getProperty(
+                    com.wikantik.comments.PageOwnershipSaveFilter.PROP_ENFORCEMENT_ENABLED,
+                    "true" ) );
+            filterManager.addPageFilter(
+                new com.wikantik.comments.PageOwnershipSaveFilter(
+                    persistenceSubsystem.pageOwners(),
+                    structuralIndex::resolveCanonicalIdFromSlug,
+                    ownershipEnforcement ),
+                -998 );
             filterManager.addPageFilter( svcs.hubSyncFilter(), -999 );
 
             // Assign the typed snapshot ONLY after all helpers have run.

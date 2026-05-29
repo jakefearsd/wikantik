@@ -117,6 +117,7 @@ export default function PageView() {
   const [statusFilter, setStatusFilter] = useState('open');
   const [selection, setSelection] = useState(null); // {selector, rect} | {error} | null
   const [composerOpen, setComposerOpen] = useState(false);
+  const [focusedThreadId, setFocusedThreadId] = useState(null);
 
   const loadThreads = useCallback(async () => {
     try {
@@ -161,6 +162,7 @@ export default function PageView() {
   };
 
   const focusThread = (threadId) => {
+    setFocusedThreadId(threadId);
     const mark = articleRef.current?.querySelector(`mark[data-thread-id="${threadId}"]`);
     if (mark) {
       mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -402,6 +404,7 @@ export default function PageView() {
         detachedIds={detachedIds}
         statusFilter={statusFilter}
         canModerate={!!page.permissions?.delete}
+        focusedThreadId={focusedThreadId}
         onStatusFilter={setStatusFilter}
         onReply={async (threadId, text) => {
           try { await api.addCommentReply(threadId, text); }
@@ -424,7 +427,7 @@ export default function PageView() {
           finally { await loadThreads(); }
         }}
         onFocusThread={focusThread}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => { setDrawerOpen(false); setFocusedThreadId(null); }}
       />
 
       {selection?.selector && !composerOpen && (

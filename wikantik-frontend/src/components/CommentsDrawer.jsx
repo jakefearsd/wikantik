@@ -5,11 +5,13 @@ import MentionPicker from './MentionPicker';
 import CommentBody from './CommentBody';
 
 function ThreadCard({
-  thread, detached, canModerate, onReply, onResolve, onReopen, onDeleteThread, onFocusThread,
+  thread, detached, canModerate, focusedThreadId,
+  onReply, onResolve, onReopen, onDeleteThread, onFocusThread,
 }) {
   const [reply, setReply] = useState('');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const replyRef = useRef(null);
+  const isFocused = thread.id === focusedThreadId;
   // Match the composer's auto-grow behaviour: set the textarea's height to its
   // scrollHeight on every change so the input expands with the user's text and
   // wraps within the drawer's width. Capped with internal scroll via CSS.
@@ -54,7 +56,7 @@ function ThreadCard({
     </button>
   );
   return (
-    <div className="comment-thread" onClick={() => onFocusThread(thread.id)}>
+    <div className={`comment-thread${isFocused ? ' focused' : ''}`} onClick={() => onFocusThread(thread.id)}>
       <div className="comment-thread-anchor">“{thread.anchor?.exact}”</div>
       {thread.comments.map((c) => (
         <div key={c.id} className="comment-item">
@@ -130,6 +132,7 @@ function ThreadCard({
 
 export default function CommentsDrawer({
   open, threads, detachedIds = [], statusFilter, canModerate = false,
+  focusedThreadId = null,
   onStatusFilter, onReply, onResolve, onReopen, onDeleteThread = () => {},
   onFocusThread, onClose,
 }) {
@@ -143,7 +146,7 @@ export default function CommentsDrawer({
   const attached = visible.filter((t) => !isDetached(t.id));
   const detached = visible.filter((t) => isDetached(t.id));
   const cardProps = {
-    canModerate, onReply, onResolve, onReopen, onDeleteThread, onFocusThread,
+    canModerate, focusedThreadId, onReply, onResolve, onReopen, onDeleteThread, onFocusThread,
   };
 
   return (

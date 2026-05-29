@@ -90,4 +90,19 @@ describe('CommentsDrawer', () => {
     fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
     expect(props.onDeleteThread).toHaveBeenCalledWith('T2');
   });
+
+  it('marks the focused thread card with the "focused" class', () => {
+    const { container } = setup({ statusFilter: 'open', focusedThreadId: 'T1' });
+    const cards = container.querySelectorAll('.comment-thread');
+    expect(cards.length).toBeGreaterThanOrEqual(1);
+    const focused = container.querySelector('.comment-thread.focused');
+    expect(focused).not.toBeNull();
+    // Sanity: only ONE focused card.
+    expect(container.querySelectorAll('.comment-thread.focused').length).toBe(1);
+  });
+
+  it('no .focused class when focusedThreadId is null', () => {
+    const { container } = setup({ statusFilter: 'open', focusedThreadId: null });
+    expect(container.querySelector('.comment-thread.focused')).toBeNull();
+  });
 });

@@ -7,6 +7,8 @@ import { reconstructContent, stripFrontmatter } from '../utils/frontmatterUtils'
 import { remarkAttachments } from '../utils/remarkAttachments';
 import { useAttachments } from '../hooks/useAttachments';
 import { useEditorDrop } from '../hooks/useEditorDrop';
+import { useDraft } from '../hooks/useDraft';
+import { useAuth } from '../hooks/useAuth';
 import AttachmentPanel from './AttachmentPanel';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -26,6 +28,16 @@ export default function BlogEditor() {
   const isHome = pageName === 'Blog';
   const blogPageName = `blog/${username}/${pageName}`;
   const attachments = useAttachments(blogPageName);
+
+  const { user } = useAuth();
+  const login = user?.authenticated ? user.loginPrincipal : null;
+  const { draft, saveDraft, clearDraft } = useDraft({
+    login,
+    pageId: blogPageName,
+    enabled: !!login,
+  });
+  const [restorePrompt, setRestorePrompt] = useState(false);
+  const loadedContentRef = useRef(null);
 
   const handleInsert = useCallback((text, pos) => {
     setContent(prev => prev.slice(0, pos) + text + prev.slice(pos));
@@ -51,7 +63,12 @@ export default function BlogEditor() {
       : api.blog.getEntry(username, pageName);
 
     fetcher.then(data => {
-      setContent(reconstructContent(data.metadata, data.content));
+      const loaded = reconstructContent(data.metadata, data.content);
+      setContent(loaded);
+      loadedContentRef.current = loaded;
+      if (draft && draft.content && draft.content !== loaded) {
+        setRestorePrompt(true);
+      }
       setOriginalVersion(data.version);
       setLoading(false);
     }).catch(err => {
@@ -59,6 +76,22 @@ export default function BlogEditor() {
       setLoading(false);
     });
   }, [username, pageName]);
+
+  // Debounced autosave — fires 800 ms after the user stops typing.
+  // Guards on loadedContentRef so no draft is written during the initial load.
+  // Clears the draft when the editor content returns to the loaded baseline.
+  useEffect(() => {
+    if (!login) return;
+    if (loadedContentRef.current === null) return;
+    const id = setTimeout(() => {
+      if (content === loadedContentRef.current) {
+        clearDraft();
+      } else {
+        saveDraft({ content, title: blogPageName });
+      }
+    }, 800);
+    return () => clearTimeout(id);
+  }, [content, blogPageName, login, saveDraft, clearDraft]);
 
   const save = async () => {
     setSaving(true);
@@ -69,6 +102,7 @@ export default function BlogEditor() {
       } else {
         await api.blog.updateEntry(username, pageName, content);
       }
+      clearDraft();
       navigate(`/blog/${encodeURIComponent(username)}/${encodeURIComponent(pageName)}`);
     } catch (err) {
       setError(err.message || 'Save failed');
@@ -123,6 +157,23 @@ export default function BlogEditor() {
       </div>
 
       {error && <div className="error-banner">{error}</div>}
+
+      {restorePrompt && (
+        <div className="draft-restore-banner" role="status">
+          <span>
+            You have unsaved changes from{' '}
+            {new Date(draft.savedAt).toLocaleString()}.
+          </span>
+          <button type="button" className="btn-link"
+            onClick={() => { setContent(draft.content); setRestorePrompt(false); }}>
+            Restore
+          </button>
+          <button type="button" className="btn-link"
+            onClick={() => { clearDraft(); setRestorePrompt(false); }}>
+            Discard
+          </button>
+        </div>
+      )}
 
       <div className="editor-container">
         <div className="editor-pane">

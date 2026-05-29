@@ -9,6 +9,8 @@ import { reconstructContent, stripFrontmatter } from '../utils/frontmatterUtils'
 import { remarkAttachments } from '../utils/remarkAttachments';
 import { useAttachments } from '../hooks/useAttachments';
 import { useEditorDrop } from '../hooks/useEditorDrop';
+import { useDraft } from '../hooks/useDraft';
+import { useAuth } from '../hooks/useAuth';
 import AttachmentPanel from './AttachmentPanel';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -31,6 +33,16 @@ export default function PageEditor() {
   const [panelOpen, setPanelOpen] = useState(false);
   const textareaRef = useRef(null);
   const attachments = useAttachments(name);
+
+  const { user } = useAuth();
+  const login = user?.authenticated ? user.loginPrincipal : null;
+  const { draft, saveDraft, clearDraft } = useDraft({
+    login,
+    pageId: name,
+    enabled: !!login,
+  });
+  const [restorePrompt, setRestorePrompt] = useState(false);
+  const loadedContentRef = useRef(null);
 
   const handleInsert = useCallback((text, pos) => {
     setContent(prev => prev.slice(0, pos) + text + prev.slice(pos));
@@ -70,6 +82,23 @@ export default function PageEditor() {
     });
   }, [name]);
 
+  // Show restore banner when a draft exists and differs from the loaded content.
+  useEffect(() => {
+    if (draft && draft.content && draft.content !== content) {
+      setRestorePrompt(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft]);
+
+  // Debounced autosave — fires 800 ms after the user stops typing.
+  useEffect(() => {
+    if (!login) return;
+    const id = setTimeout(() => {
+      saveDraft({ content, title: name });
+    }, 800);
+    return () => clearTimeout(id);
+  }, [content, name, login, saveDraft]);
+
   // Sync document.title so selenide tests can assert editor context.
   useEffect(() => {
     document.title = `Wikantik: ${isNew ? 'Create' : 'Edit'} ${name}`;
@@ -100,6 +129,7 @@ export default function PageEditor() {
         expectedVersion: isNew ? undefined : originalVersion,
         markupSyntax: markupSyntax === 'markdown' ? 'markdown' : undefined,
       });
+      clearDraft();
       navigate(`/wiki/${name}`);
     } catch (err) {
       if (err.status === 409) {
@@ -127,6 +157,7 @@ export default function PageEditor() {
         content,
         changeNote: changeNote || 'Updated page (overwrite)',
       });
+      clearDraft();
       navigate(`/wiki/${name}`);
     } catch (err) {
       setError(err.message || 'Save failed');
@@ -223,6 +254,23 @@ export default function PageEditor() {
       )}
 
       {error && <div className="error-banner" data-testid="editor-error">{error}</div>}
+
+      {restorePrompt && (
+        <div className="draft-restore-banner" role="status">
+          <span>
+            You have unsaved changes from{' '}
+            {new Date(draft.savedAt).toLocaleString()}.
+          </span>
+          <button type="button" className="btn-link"
+            onClick={() => { setContent(draft.content); setRestorePrompt(false); }}>
+            Restore
+          </button>
+          <button type="button" className="btn-link"
+            onClick={() => { clearDraft(); setRestorePrompt(false); }}>
+            Discard
+          </button>
+        </div>
+      )}
 
       <div className="editor-container">
         <div className="editor-pane">

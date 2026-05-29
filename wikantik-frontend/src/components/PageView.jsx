@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
+import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { renderMath } from '../utils/math';
 import PageMeta from './PageMeta';
 import MetadataPanel from './MetadataPanel';
@@ -105,6 +106,10 @@ function CommentComposer({ rect, quote, onSubmit, onCancel }) {
 export default function PageView() {
   const { name = 'Main' } = useParams();
   const { user } = useAuth();
+  const recent = useRecentlyViewed({
+    login: user?.authenticated ? user.loginPrincipal : null,
+    enabled: !!user?.authenticated,
+  });
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data: page, loading, error } = useApi((signal) => api.getPage(name, { render: true, signal }), [name, user?.authenticated]);
@@ -225,6 +230,16 @@ export default function PageView() {
       document.title = `Wikantik: ${name}`;
     }
   }, [name, page, error]);
+
+  // Record this page in the per-user recently-viewed ring buffer (localStorage).
+  // Only fires for authenticated users on successfully-loaded pages (not 404s).
+  useEffect(() => {
+    if (user?.authenticated && name && !error) {
+      recent.record({ slug: name, title: name });
+    }
+    // record on page change only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, user?.authenticated]);
 
   // If the current page is forbidden (403) or requires authentication (401),
   // bounce to Main. This mirrors the legacy haddock template's server-side

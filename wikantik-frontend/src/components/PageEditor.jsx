@@ -66,13 +66,23 @@ export default function PageEditor() {
 
   useEffect(() => {
     api.getPage(name).then(page => {
-      setContent(reconstructContent(page.metadata, page.content));
+      const loaded = reconstructContent(page.metadata, page.content);
+      setContent(loaded);
+      loadedContentRef.current = loaded;
+      if (draft && draft.content && draft.content !== loaded) {
+        setRestorePrompt(true);
+      }
       setOriginalVersion(page.version);
       setMarkupSyntax(page.markupSyntax || 'markdown');
       setIsNew(false);
     }).catch(err => {
       if (err.status === 404) {
-        setContent(location.state?.initialContent || `# ${name}\n\nWrite your content here.`);
+        const loaded = location.state?.initialContent || `# ${name}\n\nWrite your content here.`;
+        setContent(loaded);
+        loadedContentRef.current = loaded;
+        if (draft && draft.content && draft.content !== loaded) {
+          setRestorePrompt(true);
+        }
         setIsNew(true);
       } else {
         setError(err.message);
@@ -82,22 +92,21 @@ export default function PageEditor() {
     });
   }, [name]);
 
-  // Show restore banner when a draft exists and differs from the loaded content.
-  useEffect(() => {
-    if (draft && draft.content && draft.content !== content) {
-      setRestorePrompt(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft]);
-
   // Debounced autosave — fires 800 ms after the user stops typing.
+  // Guards on loadedContentRef so no draft is written during the initial load.
+  // Clears the draft when the editor content returns to the loaded baseline.
   useEffect(() => {
     if (!login) return;
+    if (loadedContentRef.current === null) return;
     const id = setTimeout(() => {
-      saveDraft({ content, title: name });
+      if (content === loadedContentRef.current) {
+        clearDraft();
+      } else {
+        saveDraft({ content, title: name });
+      }
     }, 800);
     return () => clearTimeout(id);
-  }, [content, name, login, saveDraft]);
+  }, [content, name, login, saveDraft, clearDraft]);
 
   // Sync document.title so selenide tests can assert editor context.
   useEffect(() => {

@@ -162,6 +162,9 @@ export const api = {
   getMyMentionsUnreadCount: () =>
     request('/api/me/mentions/unread-count'),
 
+  getMyPages: (limit = 15) =>
+    request(`/api/me/pages?limit=${limit}`),
+
   markMentionRead: (id) =>
     request(`/api/me/mentions/${encodeURIComponent(id)}/read`, { method: 'POST' }),
 

@@ -13,17 +13,16 @@
 **Key facts established during design (do not re-derive):**
 - Current user login on the server: `Wiki.session().find( engine, request ).getLoginPrincipal().getName()` (see `MyMentionsResource.currentUser`).
 - Frontend user object (`useAuth().user`): `{ authenticated, username, loginPrincipal, roles }`. `username` is the display/wiki name; `loginPrincipal` is the login used for ownership + blog paths. Anonymous shape is `{ authenticated: false, username: 'anonymous' }` (no `loginPrincipal`).
-- `PageOwnerService.listByOwner(owner, limit, offset)` returns `List<PageOwnership>`; `PageOwnership(String canonicalId, String ownerLogin, String assignedBy, Instant assignedAt)` (package `com.wikantik.api.comments`). `countByOwner(owner)` returns `int`.
-- A brand-new page save assigns its first author as owner (`PageOwnerFilter`, postSave) — so the my-pages IT can save a page as admin and expect it back from `/api/me/pages`.
-- **Integration-test layout (verified by reading the real files):** REST ITs live in `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/` (package `com.wikantik.its.rest`); examples: `CommentThreadIT`, `SelfDeleteAccountIT`, `ChangesFeedIT`, `RestApiIT`. They use the JDK 21 `java.net.http.HttpClient` + Gson against `System.getProperty("it-wikantik.base.url", "http://localhost:18080/wikantik-it-test-rest")` — **NOT RestAssured**, and there is no shared base class. The seed helper `com.wikantik.its.RestSeedHelper` (in `wikantik-selenide-tests`, on the test classpath) has verified static methods `void writePage(String name, String markdown)`, `void awaitAdminReady()` (no args), `String get(String path)`, `String post(String path, String jsonBody)` — there is **no** `loginAsAdmin`/`savePage`/`Cookies` API. Authenticated ITs log in as `janne` with a secure-cookie-over-http shim (see `CommentThreadIT`). Copy the scaffold from `CommentThreadIT` rather than inventing one. (Full details in Task 2.)
-- **Servlets are registered in `wikantik-war/src/main/webapp/WEB-INF/web.xml`** — there is NO `RestInitializer.java`. Each servlet needs a `<servlet>` block (name + class, the existing `MyMentionsResource` block is at ~line 469) AND a matching `<servlet-mapping>` block (name + url-pattern, the existing `MyMentionsResource` mapping is at ~line 687). The base servlet path-prefix filter is already mapped to `/api/*`, so no filter change is needed.
+- `PageOwnerService.listByOwner(owner, limit, offset)` returns `List<PageOwnership>`; `PageOwnership(String canonicalId, String ownerLogin, String assignedBy, Instant assignedAt)` (package `com.wikantik.api.comments`). `countByOwner(owner)` returns `int`. Accessor: `getSubsystems().persistence().pageOwners()` (see `AdminPageOwnershipResource.pageOwners`).
+- A brand-new page save assigns its first author as owner (`PageOwnerFilter`, postSave) — whichever principal first saves a page owns it.
+- **Servlets are registered in `wikantik-war/src/main/webapp/WEB-INF/web.xml`** — there is NO `RestInitializer.java`. Each servlet needs a `<servlet>` block (name + class; the existing `MyMentionsResource` block is ~line 469) AND a matching `<servlet-mapping>` block (name + url-pattern; the existing `MyMentionsResource` mapping is ~line 687). The servlet dispatch filter is already mapped to `/api/*`, so no filter change is needed.
 - No new SPA route is added (PersonalZone links only to existing routes: `/preferences`, `/me/mentions`, `/wiki/:name`, `/blog/:login/...`, `/edit/:name`). So **no `SpaRoutingFilter`/web.xml SPA change** is required.
-- Slug/title resolution: `getSubsystems().pageGraph().structuralIndexService().resolveSlugFromCanonicalId( canonicalId )` returns `Optional<String>` (see `MyMentionsResource.resolveSlug`). The full `StructuralIndexService` interface is `com.wikantik.api.pagegraph.StructuralIndexService`.
-- `PageOwnerService` seam accessor used elsewhere: `getSubsystems().persistence().pageOwners()` (see `AdminPageOwnershipResource.pageOwners`).
+- Slug/title resolution: `getSubsystems().pageGraph().structuralIndexService().resolveSlugFromCanonicalId( canonicalId )` returns `Optional<String>` (see `MyMentionsResource.resolveSlug`). Interface: `com.wikantik.api.pagegraph.StructuralIndexService`.
 - The blog client API already exists: `api.blog.listEntries(login)` → `GET /api/blog/{login}/entries`.
 - `useAuth` exposes `{ user, loading, sso, login, logout, refresh }`. `useUnreadMentions({enabled})` returns `{count, refresh}`. The frontend `request(path, options)` helper is the low-level fetch wrapper in `client.js`.
 - `PageView` route param: `const { name = 'Main' } = useParams();` (page slug is `name`).
 - Vitest config: `environment: 'happy-dom'`, `setupFiles: ['./src/setupTests.js']`. Existing tests use `@testing-library/react` and `vitest`.
+- **Integration-test layout (verified by reading the real files):** REST ITs live in `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/` (package `com.wikantik.its.rest`); examples: `CommentThreadIT`, `SelfDeleteAccountIT`, `ChangesFeedIT`, `RestApiIT`. They use the JDK 21 `java.net.http.HttpClient` + Gson against `System.getProperty("it-wikantik.base.url", "http://localhost:18080/wikantik-it-test-rest")` — **NOT RestAssured**, and there is no shared base class. The seed helper `com.wikantik.its.RestSeedHelper` (in `wikantik-selenide-tests`, on the test classpath) has verified static methods `void writePage(String name, String markdown)`, `void awaitAdminReady()` (no args), `String get(String path)`, `String post(String path, String jsonBody)` — there is **no** `loginAsAdmin`/`savePage`/`Cookies` API. Authenticated ITs log in as `janne` with a secure-cookie-over-http shim (see `CommentThreadIT`). Copy that scaffold rather than inventing one.
 - Single-file test commands: backend `mvn test -pl wikantik-rest -Dtest=ClassName`; frontend `npx vitest run <path>` from `wikantik-frontend/`. Integration tests: `mvn clean install -Pintegration-tests -fae` (sequential, never `-T`).
 - **No DB migration is needed** — `page_owners` already exists.
 
@@ -286,14 +285,14 @@ git commit -m "feat(nav): GET /api/me/pages lists pages owned by current user"
 **Verified facts about this IT module (do not assume otherwise):**
 - REST ITs in `wikantik-it-test-rest` do **NOT** use RestAssured. They use the JDK 21 `java.net.http.HttpClient` + Gson, against base URL `System.getProperty("it-wikantik.base.url", "http://localhost:18080/wikantik-it-test-rest")`, set up in an `@BeforeAll static void setUp()`. There is no shared base class — each IT is standalone.
 - Authenticated ITs (e.g. `CommentThreadIT`) log in as user **`janne`** (Admin group) and install a secure-cookie-over-http shim on the `HttpClient` so `JSESSIONID` is sent. Public ITs (e.g. `ChangesFeedIT`) use a plain client and no cookies.
-- `com.wikantik.its.RestSeedHelper` verified static API: `void writePage(String name, String markdown)`, `void awaitAdminReady()` (no args), `String get(String path)`, `String post(String path, String jsonBody)`. **There is no `loginAsAdmin`/`savePage`/`Cookies`-based API** — earlier drafts of this plan were wrong.
-- Page ownership: `PageOwnerFilter` assigns the **first author** of a new page as its owner. So whichever principal seeds the page is the owner. The authenticated user in the test must be that same principal for the page to show up in their `/api/me/pages`.
+- `com.wikantik.its.RestSeedHelper` verified static API: `void writePage(String name, String markdown)`, `void awaitAdminReady()` (no args), `String get(String path)`, `String post(String path, String jsonBody)`. **There is no `loginAsAdmin`/`savePage`/`Cookies`-based API.**
+- Page ownership: `PageOwnerFilter` assigns the **first author** of a new page as its owner. The authenticated user in the test must be the principal that seeded the page for it to show up in their `/api/me/pages`.
 
 - [ ] **Step 1: Write the IT**
 
 Create `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/MyPagesIT.java`. **Copy the full scaffold from `CommentThreadIT.java`** verbatim — license header, `package com.wikantik.its.rest;`, the JDK-HttpClient imports, the `@BeforeAll setUp()` building `baseUrl` + `client`, the `secureCookieOverHttp()` shim, and its `janne` login helper. Then implement two tests:
 
-1. `anonymousIsUnauthorized` — model on `ChangesFeedIT`'s plain-`get` style: a `GET baseUrl + "/api/me/pages"` with **no** auth cookie must return **401**.
+1. `anonymousIsUnauthorized` — model on `ChangesFeedIT`'s plain-`get` style: `GET baseUrl + "/api/me/pages"` with **no** auth cookie must return **401**.
 
 ```java
     @Test
@@ -338,7 +337,7 @@ Imports needed beyond CommentThreadIT's scaffold: `com.google.gson.JsonArray`, `
 - [ ] **Step 2: Run the IT to verify it passes**
 
 Run (from repo root): `mvn clean install -Pintegration-tests -fae`
-Expected: `MyPagesIT` green. Note: ITs must run sequentially (no `-T`), per CLAUDE.md.
+Expected: `MyPagesIT` green. ITs must run sequentially (no `-T`), per CLAUDE.md.
 
 - [ ] **Step 3: Commit**
 
@@ -1643,7 +1642,7 @@ git commit -m "feat(nav): render PersonalZone in Sidebar, drop inline auth block
 
 - [ ] **Step 1: Append the styles**
 
-At the end of `wikantik-frontend/src/styles/globals.css`, add (uses existing design-system variables; if `--sage-light`/`--sage` are not defined, substitute `--bg-elevated`/`--border`):
+At the end of `wikantik-frontend/src/styles/globals.css`, add (uses existing design-system variables):
 
 ```css
 /* ---- Personalized "me" zone ---- */
@@ -1755,11 +1754,12 @@ git commit -m "chore(nav): final verification fixups for personalized left navig
 ## Self-Review Notes (author check)
 
 - **Spec coverage:** identity/profile (Task 14) ✓; mentions reuse (14) ✓; My pages — backend (1,2) + client (3) + hook (11) + UI (14) ✓; Recently viewed (9,10,14) ✓; My blog (12,14) ✓; Drafts + autosave (4–8,14) ✓; CollapsibleSection a11y/persistence (13) ✓; PersonalZone extraction + Sidebar slimming (14,15) ✓; localStorage login-namespacing (4,9) ✓; no DB migration ✓; testing backend unit+IT and frontend vitest ✓; out-of-scope items (server-side blog drafts, bookmarks, new /me routes) not implemented ✓.
-- **Type/name consistency:** `useDraft({login,pageId,enabled})→{draft,saveDraft,clearDraft}`, `useDrafts({login,enabled})→{drafts,removeDraft}`, `useRecentlyViewed({login,enabled})→{items,record}`, `useMyPages({enabled})→{pages,loading}`, `useMyBlog({login,enabled})→{entries,loading}` — used consistently in PersonalZone (Task 14). Draft item shape `{pageId,title,savedAt}` matches between Tasks 8 and 14. Backend `pageOwners()`/`resolveSlug()`/`currentUser()`/`isAuthenticated()` seam names match between resource (Task 1) and its test. Registration is web.xml `<servlet>`+`<servlet-mapping>` (Task 1 Step 4), matching the real project pattern.
+- **Type/name consistency:** `useDraft({login,pageId,enabled})→{draft,saveDraft,clearDraft}`, `useDrafts({login,enabled})→{drafts,removeDraft}`, `useRecentlyViewed({login,enabled})→{items,record}`, `useMyPages({enabled})→{pages,loading}`, `useMyBlog({login,enabled})→{entries,loading}` — used consistently in PersonalZone (Task 14). Draft item shape `{pageId,title,savedAt}` matches between Tasks 8 and 14. Backend `pageOwners()`/`resolveSlug()`/`currentUser()`/`isAuthenticated()` seam names match between resource (Task 1) and its test. Registration is web.xml `<servlet>`+`<servlet-mapping>` (Task 1 Step 4).
 - **Placeholders:** none — every code step is concrete.
 - **Known soft spots for the implementer (verify against real source, don't assume):**
   1. Blog entries JSON key — confirm `entries` vs another key from `BlogResource`/an existing caller (Task 12 note).
   2. `PageEditor`/`BlogEditor` content-state setter name (`setContent` assumed) for the Restore button (Tasks 6/7).
   3. `RestServletBase` helper names — mirror `MyMentionsResource.java` exactly (Task 1 note).
-  4. If `Sidebar.test.jsx` asserted the inline mentions link, migrate that assertion (Task 15 Step 5).
+  4. The IT scaffold (login, get, page-seed helpers) — copy from `CommentThreadIT`, do not invent (Task 2).
+  5. If `Sidebar.test.jsx` asserted the inline mentions link, migrate that assertion (Task 15 Step 5).
 ```

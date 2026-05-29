@@ -470,6 +470,10 @@
        <servlet-class>com.wikantik.rest.MyMentionsResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>MyPagesResource</servlet-name>
+       <servlet-class>com.wikantik.rest.MyPagesResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminPageOwnershipResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminPageOwnershipResource</servlet-class>
    </servlet>
@@ -686,6 +690,10 @@
    <servlet-mapping>
        <servlet-name>MyMentionsResource</servlet-name>
        <url-pattern>/api/me/mentions/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>MyPagesResource</servlet-name>
+       <url-pattern>/api/me/pages/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>ConvertResource</servlet-name>

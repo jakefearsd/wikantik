@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
 import { renderMath } from '../utils/math';
 import '../styles/article.css';
+import '../styles/admin.css';
 
 export default function BlogHome() {
   const { username } = useParams();
@@ -15,6 +16,18 @@ export default function BlogHome() {
   );
 
   const articleRef = useRef(null);
+  const navigate = useNavigate();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  async function handleDeleteBlog() {
+    try {
+      await api.blog.remove(username);
+      navigate('/blog');
+    } catch (err) {
+      setDeleteError(err.body?.message || err.message || 'Failed to delete blog');
+    }
+  }
 
   // Depend on the `page` object reference (not the contentHtml string) so the
   // effect fires on every refetch — e.g. auth state transitions where
@@ -69,6 +82,12 @@ export default function BlogHome() {
                 Edit Blog Page
               </Link>
             )}
+            {(isOwner || isAdmin) && (
+              <button className="btn btn-ghost btn-danger" data-testid="delete-blog-button"
+                onClick={() => { setConfirmDelete(true); setDeleteError(null); }}>
+                Delete Blog
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -78,6 +97,20 @@ export default function BlogHome() {
         className="article-prose"
         dangerouslySetInnerHTML={{ __html: page.contentHtml || page.content || '' }}
       />
+
+      {confirmDelete && (
+        <div className="modal-overlay" onClick={() => setConfirmDelete(false)}>
+          <div className="modal-content admin-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete Blog</h3>
+            <p>Delete {username}'s entire blog, including all entries? This action cannot be undone.</p>
+            {deleteError && <p className="error-banner" style={{ marginBottom: 'var(--space-sm)' }}>{deleteError}</p>}
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button className="btn btn-primary btn-danger" onClick={handleDeleteBlog}>Delete Blog</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

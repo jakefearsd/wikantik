@@ -178,6 +178,7 @@ class BlogResourceTest {
         assertEquals( TEST_USER, obj.get( "username" ).getAsString() );
         assertTrue( obj.has( "title" ), "Response should include title" );
         assertTrue( obj.has( "entryCount" ), "Response should include entryCount" );
+        assertTrue( obj.has( "authorFullName" ), "Response should include authorFullName" );
     }
 
     // ----- DELETE /api/blog/{username} — Delete blog -----
@@ -320,6 +321,69 @@ class BlogResourceTest {
 
         assertTrue( obj.get( "error" ).getAsBoolean() );
         assertEquals( 404, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testGetEntryReturnsTitleAndDateAtRoot() throws Exception {
+        final BlogManager blogManager = engine.getManager( BlogManager.class );
+        blogManager.createBlog( mockSession );
+        final Page entryPage = blogManager.createEntry( mockSession, "ReadMe" );
+        final String entrySlug = entryPage.getName().substring( entryPage.getName().lastIndexOf( '/' ) + 1 );
+
+        final String json = doGet( TEST_USER + "/entries/" + entrySlug );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        // The entry view reads entry.title / entry.date off the response root,
+        // so they must be present there (not only nested in metadata).
+        assertTrue( obj.has( "title" ), "Entry response should include a root-level title" );
+        assertEquals( "Read Me", obj.get( "title" ).getAsString(),
+                "title should be the spaced, human-readable form" );
+        assertTrue( obj.has( "date" ), "Entry response should include a root-level date" );
+        assertFalse( obj.get( "date" ).getAsString().isBlank(), "date should be populated" );
+    }
+
+    @Test
+    void testGetEntryRenderExcludesFrontmatter() throws Exception {
+        final BlogManager blogManager = engine.getManager( BlogManager.class );
+        blogManager.createBlog( mockSession );
+        final Page entryPage = blogManager.createEntry( mockSession, "Rendered", "Body text here." );
+        final String entrySlug = entryPage.getName().substring( entryPage.getName().lastIndexOf( '/' ) + 1 );
+
+        final HttpServletRequest request = createRequest( TEST_USER + "/entries/" + entrySlug );
+        Mockito.doReturn( "true" ).when( request ).getParameter( "render" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.doGet( request, response );
+
+        final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+        final String html = obj.get( "contentHtml" ).getAsString();
+        assertFalse( html.contains( "title:" ),
+                "Rendered entry HTML must not contain raw frontmatter, got: " + html );
+        assertTrue( html.contains( "Body text here" ),
+                "Rendered entry HTML should contain the body, got: " + html );
+    }
+
+    // ----- PUT /api/blog/{username} — Update blog home -----
+
+    @Test
+    void testUpdateBlogHome() throws Exception {
+        final BlogManager blogManager = engine.getManager( BlogManager.class );
+        blogManager.createBlog( mockSession );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "Fresh blog home content." );
+
+        final String json = doPutAuthenticated( TEST_USER, body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        assertTrue( obj.get( "success" ).getAsBoolean(), "Blog home update should succeed" );
+
+        final String getJson = doGet( TEST_USER );
+        final JsonObject getObj = gson.fromJson( getJson, JsonObject.class );
+        assertTrue( getObj.get( "content" ).getAsString().contains( "Fresh blog home content." ),
+                "Updated blog home content should be returned by GET" );
     }
 
     // ----- PUT /api/blog/{username}/entries/{name} — Update entry -----

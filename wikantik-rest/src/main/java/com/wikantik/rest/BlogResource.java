@@ -266,6 +266,7 @@ public class BlogResource extends RestServletBase {
             result.put( "title", blogInfo.title() );
             result.put( "description", blogInfo.description() );
             result.put( "entryCount", blogInfo.entryCount() );
+            result.put( "authorFullName", blogInfo.authorFullName() );
 
             // Return body and metadata separately (consistent with entry endpoint)
             final Page blogPage = blogManager.getBlog( username );
@@ -434,17 +435,24 @@ public class BlogResource extends RestServletBase {
 
         final String rawText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
         final ParsedPage parsed = FrontmatterParser.parse( rawText );
+        final Map< String, Object > metadata = parsed.metadata();
 
         final Map< String, Object > result = new LinkedHashMap<>();
         result.put( "name", entryName );
+        // Surface title/date at the root so the entry view can show a human title
+        // and a date without digging into the metadata map.
+        result.put( "title", metadata.getOrDefault( "title", entryName ) );
+        result.put( "date", metadata.getOrDefault( "date", "" ) );
         result.put( "content", parsed.body() );
 
-        // Rendered HTML option
+        // Rendered HTML option — render the body only. The raw text still carries
+        // the YAML frontmatter block, which the renderer does not strip; render
+        // parsed.body() to match handleGetBlog and keep the frontmatter out of the HTML.
         if ( "true".equalsIgnoreCase( request.getParameter( "render" ) ) ) {
             try {
                 final RenderingManager renderingManager = getSubsystems().rendering().renderingManager();
                 final Context context = Wiki.context().create( engine, request, page );
-                final String html = renderingManager.textToHTML( context, rawText );
+                final String html = renderingManager.textToHTML( context, parsed.body() );
                 result.put( "contentHtml", html );
             } catch ( final Exception e ) {
                 LOG.warn( "Failed to render entry {}: {}", entryName, e.getMessage() );
@@ -452,7 +460,7 @@ public class BlogResource extends RestServletBase {
             }
         }
 
-        result.put( "metadata", parsed.metadata() );
+        result.put( "metadata", metadata );
         result.put( "version", Math.max( page.getVersion(), 1 ) );
         result.put( "author", page.getAuthor() );
         result.put( "lastModified", page.getLastModified() );

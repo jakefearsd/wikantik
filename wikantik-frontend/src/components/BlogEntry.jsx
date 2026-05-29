@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
 import { renderMath } from '../utils/math';
 import '../styles/article.css';
+import '../styles/admin.css';
 
 export default function BlogEntry() {
   const { username, entryName } = useParams();
@@ -15,6 +16,18 @@ export default function BlogEntry() {
   );
 
   const articleRef = useRef(null);
+  const navigate = useNavigate();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  async function handleDelete() {
+    try {
+      await api.blog.deleteEntry(username, entryName);
+      navigate(`/blog/${encodeURIComponent(username)}/Blog`);
+    } catch (err) {
+      setDeleteError(err.body?.message || err.message || 'Failed to delete entry');
+    }
+  }
 
   // Depend on the `entry` object reference (not the contentHtml string) so
   // the effect fires on every refetch — e.g. auth state transitions where
@@ -55,9 +68,15 @@ export default function BlogEntry() {
           ← {username}'s Blog
         </Link>
         {(isOwner || isAdmin) && (
-          <Link to={`/edit/blog/${encodeURIComponent(username)}/${encodeURIComponent(entryName)}`} className="btn btn-ghost">
-            Edit Entry
-          </Link>
+          <div style={{ display: 'flex', gap: 'var(--space-sm)', flexShrink: 0 }}>
+            <Link to={`/edit/blog/${encodeURIComponent(username)}/${encodeURIComponent(entryName)}`} className="btn btn-ghost">
+              Edit Entry
+            </Link>
+            <button className="btn btn-ghost btn-danger" data-testid="delete-entry-button"
+              onClick={() => { setConfirmDelete(true); setDeleteError(null); }}>
+              Delete
+            </button>
+          </div>
         )}
       </div>
 
@@ -76,6 +95,20 @@ export default function BlogEntry() {
         className="article-prose"
         dangerouslySetInnerHTML={{ __html: entry.contentHtml || entry.content || '' }}
       />
+
+      {confirmDelete && (
+        <div className="modal-overlay" onClick={() => setConfirmDelete(false)}>
+          <div className="modal-content admin-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete Entry</h3>
+            <p>Delete "{entry.title || entryName}"? This action cannot be undone.</p>
+            {deleteError && <p className="error-banner" style={{ marginBottom: 'var(--space-sm)' }}>{deleteError}</p>}
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button className="btn btn-primary btn-danger" onClick={handleDelete}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

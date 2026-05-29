@@ -6,7 +6,7 @@
 
 **Architecture:** One new read-only REST endpoint (`GET /api/me/pages`) reusing the existing `PageOwnerService`; everything else is React. A new `PersonalZone` component is extracted from `Sidebar.jsx` and composes small hooks. Recently-viewed and drafts live in `localStorage`, namespaced by login. A new `useDraft` hook adds autosave to `PageEditor`/`BlogEditor`.
 
-**Tech Stack:** Java 21 servlets (`wikantik-rest`), JUnit 5 + Mockito + REST-assured IT (`wikantik-it-tests/jspwiki-it-tests`), React 18 + React Router, Vitest + happy-dom + Testing Library (`wikantik-frontend`), plain CSS with design-system variables.
+**Tech Stack:** Java 21 servlets (`wikantik-rest`), JUnit 5 + Mockito (unit) and JDK-`HttpClient` Cargo IT (`wikantik-it-tests/wikantik-it-test-rest`), React 18 + React Router, Vitest + happy-dom + Testing Library (`wikantik-frontend`), plain CSS with design-system variables.
 
 **Reference spec:** `docs/superpowers/specs/2026-05-29-personalized-left-navigation-design.md`
 
@@ -15,7 +15,7 @@
 - Frontend user object (`useAuth().user`): `{ authenticated, username, loginPrincipal, roles }`. `username` is the display/wiki name; `loginPrincipal` is the login used for ownership + blog paths. Anonymous shape is `{ authenticated: false, username: 'anonymous' }` (no `loginPrincipal`).
 - `PageOwnerService.listByOwner(owner, limit, offset)` returns `List<PageOwnership>`; `PageOwnership(String canonicalId, String ownerLogin, String assignedBy, Instant assignedAt)` (package `com.wikantik.api.comments`). `countByOwner(owner)` returns `int`.
 - A brand-new page save assigns its first author as owner (`PageOwnerFilter`, postSave) — so the my-pages IT can save a page as admin and expect it back from `/api/me/pages`.
-- **Integration-test layout (verified):** REST ITs live in `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/` (package `com.wikantik.its.rest`); examples: `CommentThreadIT`, `SelfDeleteAccountIT`, `ChangesFeedIT`, `RestApiIT`. The seed helper is `com.wikantik.its.RestSeedHelper` (in the `wikantik-selenide-tests` module, on the test classpath) with verified static methods: `Cookies loginAsAdmin()`, `Cookies awaitAdminReady(Cookies)`, `void savePage(Cookies cookies, String pageName, String markdown)`. The REST IT base class / RestAssured `baseURI` setup is NOT reproduced here — copy it from an existing sibling IT (`CommentThreadIT`) rather than inventing it.
+- **Integration-test layout (verified by reading the real files):** REST ITs live in `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/` (package `com.wikantik.its.rest`); examples: `CommentThreadIT`, `SelfDeleteAccountIT`, `ChangesFeedIT`, `RestApiIT`. They use the JDK 21 `java.net.http.HttpClient` + Gson against `System.getProperty("it-wikantik.base.url", "http://localhost:18080/wikantik-it-test-rest")` — **NOT RestAssured**, and there is no shared base class. The seed helper `com.wikantik.its.RestSeedHelper` (in `wikantik-selenide-tests`, on the test classpath) has verified static methods `void writePage(String name, String markdown)`, `void awaitAdminReady()` (no args), `String get(String path)`, `String post(String path, String jsonBody)` — there is **no** `loginAsAdmin`/`savePage`/`Cookies` API. Authenticated ITs log in as `janne` with a secure-cookie-over-http shim (see `CommentThreadIT`). Copy the scaffold from `CommentThreadIT` rather than inventing one. (Full details in Task 2.)
 - **Servlets are registered in `wikantik-war/src/main/webapp/WEB-INF/web.xml`** — there is NO `RestInitializer.java`. Each servlet needs a `<servlet>` block (name + class, the existing `MyMentionsResource` block is at ~line 469) AND a matching `<servlet-mapping>` block (name + url-pattern, the existing `MyMentionsResource` mapping is at ~line 687). The base servlet path-prefix filter is already mapped to `/api/*`, so no filter change is needed.
 - No new SPA route is added (PersonalZone links only to existing routes: `/preferences`, `/me/mentions`, `/wiki/:name`, `/blog/:login/...`, `/edit/:name`). So **no `SpaRoutingFilter`/web.xml SPA change** is required.
 - Slug/title resolution: `getSubsystems().pageGraph().structuralIndexService().resolveSlugFromCanonicalId( canonicalId )` returns `Optional<String>` (see `MyMentionsResource.resolveSlug`). The full `StructuralIndexService` interface is `com.wikantik.api.pagegraph.StructuralIndexService`.
@@ -34,7 +34,7 @@
 **Create:**
 - `wikantik-rest/src/main/java/com/wikantik/rest/MyPagesResource.java` — `GET /api/me/pages` servlet.
 - `wikantik-rest/src/test/java/com/wikantik/rest/MyPagesResourceTest.java` — Mockito unit test.
-- `wikantik-it-tests/jspwiki-it-tests/src/test/java/com/wikantik/it/rest/MyPagesIT.java` — wire-level IT.
+- `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/MyPagesIT.java` — wire-level IT.
 - `wikantik-frontend/src/hooks/useDraft.js` — editor autosave/restore for one page.
 - `wikantik-frontend/src/hooks/useDraft.test.js`
 - `wikantik-frontend/src/hooks/useDrafts.js` — enumerate all local drafts for current login.
@@ -283,51 +283,57 @@ git commit -m "feat(nav): GET /api/me/pages lists pages owned by current user"
 **Files:**
 - Create: `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/MyPagesIT.java`
 
-Model on an existing sibling REST IT — **open `CommentThreadIT.java` in the same package and copy its exact class scaffold**: the license header, `package com.wikantik.its.rest;`, the base class it extends (and its import), and any RestAssured `baseURI`/setup it relies on. Then add the two test methods below. Do NOT invent a base class — reuse whatever `CommentThreadIT` uses. `RestSeedHelper` is `com.wikantik.its.RestSeedHelper` (verified API: `loginAsAdmin()`, `awaitAdminReady(Cookies)`, `savePage(Cookies, pageName, markdown)`).
+**Verified facts about this IT module (do not assume otherwise):**
+- REST ITs in `wikantik-it-test-rest` do **NOT** use RestAssured. They use the JDK 21 `java.net.http.HttpClient` + Gson, against base URL `System.getProperty("it-wikantik.base.url", "http://localhost:18080/wikantik-it-test-rest")`, set up in an `@BeforeAll static void setUp()`. There is no shared base class — each IT is standalone.
+- Authenticated ITs (e.g. `CommentThreadIT`) log in as user **`janne`** (Admin group) and install a secure-cookie-over-http shim on the `HttpClient` so `JSESSIONID` is sent. Public ITs (e.g. `ChangesFeedIT`) use a plain client and no cookies.
+- `com.wikantik.its.RestSeedHelper` verified static API: `void writePage(String name, String markdown)`, `void awaitAdminReady()` (no args), `String get(String path)`, `String post(String path, String jsonBody)`. **There is no `loginAsAdmin`/`savePage`/`Cookies`-based API** — earlier drafts of this plan were wrong.
+- Page ownership: `PageOwnerFilter` assigns the **first author** of a new page as its owner. So whichever principal seeds the page is the owner. The authenticated user in the test must be that same principal for the page to show up in their `/api/me/pages`.
 
 - [ ] **Step 1: Write the IT**
 
-Create `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/MyPagesIT.java`. Copy the header + class scaffold from `CommentThreadIT.java` (license, package, base class, imports, setup), then add the test methods and these imports:
+Create `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/MyPagesIT.java`. **Copy the full scaffold from `CommentThreadIT.java`** verbatim — license header, `package com.wikantik.its.rest;`, the JDK-HttpClient imports, the `@BeforeAll setUp()` building `baseUrl` + `client`, the `secureCookieOverHttp()` shim, and its `janne` login helper. Then implement two tests:
 
-```java
-import com.wikantik.its.RestSeedHelper;
-import io.restassured.http.Cookies;
-import org.junit.jupiter.api.Test;
-
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.is;
-```
-
-Test methods (place inside the class):
+1. `anonymousIsUnauthorized` — model on `ChangesFeedIT`'s plain-`get` style: a `GET baseUrl + "/api/me/pages"` with **no** auth cookie must return **401**.
 
 ```java
     @Test
-    void listsPagesOwnedByCaller() {
-        final Cookies admin = RestSeedHelper.loginAsAdmin();
-        RestSeedHelper.awaitAdminReady( admin );
-
-        final String page = "MyPagesITPage_" + System.currentTimeMillis();
-        RestSeedHelper.savePage( admin, page, "Content owned by admin for the my-pages IT." );
-
-        given().cookies( admin )
-                .queryParam( "limit", 50 )
-                .when().get( "/api/me/pages" )
-                .then().statusCode( 200 )
-                .body( "pages.size()", greaterThanOrEqualTo( 1 ) )
-                .body( "pages.slug", hasItem( page ) );
-    }
-
-    @Test
-    void anonymousIsUnauthorized() {
-        given()
-                .when().get( "/api/me/pages" )
-                .then().statusCode( is( 401 ) );
+    void anonymousIsUnauthorized() throws Exception {
+        final HttpResponse< String > resp = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri( URI.create( baseUrl + "/api/me/pages" ) )
+                        .header( "Accept", "application/json" )
+                        .GET().build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertEquals( 401, resp.statusCode(), "anonymous must be 401: " + resp.body() );
     }
 ```
 
-> Notes: (1) If `CommentThreadIT` builds request specs differently (e.g. a base-URI builder method instead of bare `given()`), use that same idiom so the host/port resolves correctly. (2) `savePage` saves under the page name; the structural index resolves the canonical id back to that slug, so `pages.slug` should contain `page`. If slug normalization alters the name, relax to just `body("pages.size()", greaterThanOrEqualTo(1))` and drop the `hasItem` line.
+2. `listsPagesOwnedByCaller` — authenticate as `janne` (the same login + cookie-shim `client` that `CommentThreadIT` uses), seed a page **as that same principal**, wait for the index, then GET `/api/me/pages` and assert the page appears. Use `RestSeedHelper.writePage` only if it writes as `janne`; if it writes as a different principal, instead seed the page through the authenticated `client` with the same `PUT /api/pages/...` call `CommentThreadIT` uses to seed its page (copy that helper). Sketch:
+
+```java
+    @Test
+    void listsPagesOwnedByCaller() throws Exception {
+        login( "janne" );                       // CommentThreadIT's login helper (copied)
+        final String page = "MyPagesITPage";
+        seedPageAsCurrentUser( page, "Owned by the caller for the my-pages IT." ); // copy CommentThreadIT's PUT-seed helper
+        RestSeedHelper.awaitAdminReady();       // wait for structural index UP
+
+        final HttpResponse< String > resp = get( "/api/me/pages?limit=50" ); // authenticated `client`
+        assertEquals( 200, resp.statusCode(), "should be 200: " + resp.body() );
+        final JsonObject body = JsonParser.parseString( resp.body() ).getAsJsonObject();
+        final JsonArray pages = body.getAsJsonArray( "pages" );
+        assertTrue( pages.size() >= 1, "caller should own at least the seeded page" );
+        boolean found = false;
+        for ( int i = 0; i < pages.size(); i++ ) {
+            if ( page.equals( pages.get( i ).getAsJsonObject().get( "slug" ).getAsString() ) ) found = true;
+        }
+        assertTrue( found, "seeded page must appear in /api/me/pages: " + resp.body() );
+    }
+```
+
+Imports needed beyond CommentThreadIT's scaffold: `com.google.gson.JsonArray`, `com.google.gson.JsonObject`, `com.google.gson.JsonParser`, `com.wikantik.its.RestSeedHelper`, and the JUnit `assertEquals`/`assertTrue` statics (CommentThreadIT already imports the latter).
+
+> The exact `login(...)`, `get(...)`, and page-seeding helper method names come from `CommentThreadIT` — read that file and reuse its members rather than re-deriving them. If the seeded page's slug is normalized, relax the slug assertion to just `pages.size() >= 1`.
 
 - [ ] **Step 2: Run the IT to verify it passes**
 
@@ -337,7 +343,7 @@ Expected: `MyPagesIT` green. Note: ITs must run sequentially (no `-T`), per CLAU
 - [ ] **Step 3: Commit**
 
 ```bash
-git add wikantik-it-tests/jspwiki-it-tests/src/test/java/com/wikantik/it/rest/MyPagesIT.java
+git add wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/MyPagesIT.java
 git commit -m "test(nav): wire-level IT for /api/me/pages ownership listing"
 ```
 

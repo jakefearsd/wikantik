@@ -1,22 +1,24 @@
 ---
-canonical_id: 01KQ0P44WP7ACK88FQ77QPPBCC
+date: 2026-03-14T00:00:00Z
 summary: When and how to claim Social Security — breakeven analysis, spousal and survivor
   benefits, the bridge strategy, and coordination with portfolio withdrawals
-date: 2026-03-14T00:00:00Z
-tags:
-- personal-finance
-- retirement-planning
-- social-security
+cluster: retirement-planning
 related:
 - RetirementPlanningGuide
 - RetirementIncomeBlueprint
 - SafeWithdrawalRates
 - RetirementWithdrawalSequencing
 - RothConversionStrategy
-type: article
-cluster: retirement-planning
-status: active
+canonical_id: 01KQ0P44WP7ACK88FQ77QPPBCC
 part-of:
+- RetirementPlanningGuide
+type: article
+status: active
+tags:
+- personal-finance
+- retirement-planning
+- social-security
+hubs:
 - RetirementPlanningGuide
 ---
 # Social Security Claiming Strategy

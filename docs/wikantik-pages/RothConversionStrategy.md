@@ -1,21 +1,27 @@
 ---
-title: Roth Conversion Strategy
-type: article
-cluster: retirement-planning
-status: published
 date: '2026-05-10'
-summary: A comprehensive framework for timing Roth conversions, targeting tax brackets, managing the "Tax Torpedo" of Social Security, and avoiding IRMAA cliffs.
+summary: A comprehensive framework for timing Roth conversions, targeting tax brackets,
+  managing the "Tax Torpedo" of Social Security, and avoiding IRMAA cliffs.
+cluster: retirement-planning
+canonical_id: 01KQ0P44VXGRJWXQXJFE9QSNTX
+title: Roth Conversion Strategy
+relations:
+- type: component_of
+  target_id: RetirementPlanningGuide
+- type: related_to
+  target_id: 01KQ0P44VW76C0E6HNSB8R6EJ8
+- type: related_to
+  target_id: 01KQ0P44M86FN49B5KBJR74VB9
+type: article
+status: published
 tags:
 - personal-finance
 - retirement-planning
 - roth-conversion
 - tax-strategy
 - irmaa
-relations:
-- {type: component_of, target_id: "RetirementPlanningGuide"}
-- {type: related_to, target_id: 01KQ0P44VW76C0E6HNSB8R6EJ8} # Roth Conversion Ladder
-- {type: related_to, target_id: 01KQ0P44M86FN49B5KBJR74VB9} # Backdoor Roth
-canonical_id: 01KQ0P44VXGRJWXQXJFE9QSNTX
+hubs:
+- RetirementPlanningGuide
 ---
 
 # Roth Conversion Strategy: Bracket Targeting and Cliff Avoidance

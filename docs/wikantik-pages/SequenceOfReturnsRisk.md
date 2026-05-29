@@ -1,14 +1,8 @@
 ---
-canonical_id: 01KQ0P44W8P0401F969G5MGMW3
+date: 2026-03-21T00:00:00Z
 summary: Deep dive into sequence of returns risk — why the first 5-10 years of retirement
   determine everything, and concrete strategies to protect yourself
-date: 2026-03-21T00:00:00Z
-tags:
-- finance
-- retirement
-- risk-management
-- withdrawal-strategy
-- asset-allocation
+cluster: retirement-planning
 related:
 - RetirementPlanningGuide
 - SafeWithdrawalRates
@@ -18,10 +12,18 @@ related:
 - InvestingInYourTwenties
 - AssetAllocationGuide
 - RothConversionStrategy
-type: article
-cluster: retirement-planning
-status: active
+canonical_id: 01KQ0P44W8P0401F969G5MGMW3
 part-of:
+- RetirementPlanningGuide
+type: article
+status: active
+tags:
+- finance
+- retirement
+- risk-management
+- withdrawal-strategy
+- asset-allocation
+hubs:
 - RetirementPlanningGuide
 ---
 # Sequence of Returns Risk: Protecting Your Early Retirement Years

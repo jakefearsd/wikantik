@@ -1,21 +1,28 @@
 ---
-title: Monte Carlo Simulation in Retirement Planning
-type: article
-cluster: retirement-planning
-status: published
 date: '2026-05-10'
-summary: How Monte Carlo simulation stress-tests retirement spending strategies using stochastic modeling (Geometric Brownian Motion) across thousands of possible return sequences.
+summary: How Monte Carlo simulation stress-tests retirement spending strategies using
+  stochastic modeling (Geometric Brownian Motion) across thousands of possible return
+  sequences.
+cluster: retirement-planning
+canonical_id: 01KQ0P44SRPADVP4CV9AZFQ47T
+title: Monte Carlo Simulation in Retirement Planning
+relations:
+- type: component_of
+  target_id: RetirementPlanningGuide
+- type: related_to
+  target_id: 01KS8J2Z2A938D4EYVWFA9F36M
+- type: related_to
+  target_id: 01KS8K3Z3B938D4EYVWFA9F36N
+type: article
+status: published
 tags:
 - personal-finance
 - retirement-planning
 - monte-carlo
 - stochastic-modeling
 - investing
-relations:
-- {type: component_of, target_id: "RetirementPlanningGuide"}
-- {type: related_to, target_id: 01KS8J2Z2A938D4EYVWFA9F36M} # GeometricBrownianMotion
-- {type: related_to, target_id: 01KS8K3Z3B938D4EYVWFA9F36N} # BlackScholesModel
-canonical_id: 01KQ0P44SRPADVP4CV9AZFQ47T
+hubs:
+- RetirementPlanningGuide
 ---
 # Monte Carlo Simulation in Retirement Planning
 

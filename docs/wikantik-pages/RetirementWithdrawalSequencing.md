@@ -1,13 +1,8 @@
 ---
-canonical_id: 01KQ0P44VQNR04JS1WACCZ54JZ
+date: 2026-03-14T00:00:00Z
 summary: Which retirement accounts to draw from first and how the optimal withdrawal
   order changes across retirement phases — tax bracket management in practice
-date: 2026-03-14T00:00:00Z
-tags:
-- personal-finance
-- retirement-planning
-- withdrawal-strategy
-- tax-strategy
+cluster: retirement-planning
 related:
 - RetirementPlanningGuide
 - RothConversionStrategy
@@ -15,10 +10,17 @@ related:
 - RequiredMinimumDistributions
 - AccountTypeStrategy
 - RetirementAccountWithdrawalRules
-type: article
-cluster: retirement-planning
-status: active
+canonical_id: 01KQ0P44VQNR04JS1WACCZ54JZ
 part-of:
+- RetirementPlanningGuide
+type: article
+status: active
+tags:
+- personal-finance
+- retirement-planning
+- withdrawal-strategy
+- tax-strategy
+hubs:
 - RetirementPlanningGuide
 ---
 # Retirement Withdrawal Sequencing

@@ -1,15 +1,7 @@
 ---
-status: active
-canonical_id: 01KQ0P44R3DT6V9W45AD06JFRW
-summary: Complete investing framework for building wealth with index funds to retire early, covering costs, allocation, and account strategy
-tags:
-- personal-finance
-- investing
-- index-funds
-- early-retirement
-- FIRE
-- financial-independence
-type: hub
+summary: Complete investing framework for building wealth with index funds to retire
+  early, covering costs, allocation, and account strategy
+date: 2026-03-21T00:00:00Z
 cluster: index-fund-investing
 related:
 - ExpenseRatioDeepDive
@@ -20,7 +12,18 @@ related:
 - RothConversionLadder
 - EarlyRetirementInvestmentPlan
 - RetirementPlanningGuide
-date: 2026-03-21T00:00:00Z
+canonical_id: 01KQ0P44R3DT6V9W45AD06JFRW
+type: hub
+tags:
+- personal-finance
+- investing
+- index-funds
+- early-retirement
+- FIRE
+- financial-independence
+status: active
+hubs:
+- RetirementPlanningGuide
 ---
 
 

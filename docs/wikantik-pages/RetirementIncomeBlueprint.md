@@ -1,13 +1,8 @@
 ---
-canonical_id: 01KQ0P44VMBD2J4E6X7DR6KCAT
+date: 2026-03-14T00:00:00Z
 summary: Building a reliable retirement paycheck from Social Security, portfolio withdrawals,
   and other sources using the bucket strategy and floor-and-upside approach
-date: 2026-03-14T00:00:00Z
-tags:
-- personal-finance
-- retirement-planning
-- income-planning
-- bucket-strategy
+cluster: retirement-planning
 related:
 - RetirementPlanningGuide
 - SafeWithdrawalRates
@@ -16,10 +11,17 @@ related:
 - RothConversionStrategy
 - EarlyRetirementInvestmentPlan
 - GuardrailsSpendingStrategy
-type: article
-cluster: retirement-planning
-status: active
+canonical_id: 01KQ0P44VMBD2J4E6X7DR6KCAT
 part-of:
+- RetirementPlanningGuide
+type: article
+status: active
+tags:
+- personal-finance
+- retirement-planning
+- income-planning
+- bucket-strategy
+hubs:
 - RetirementPlanningGuide
 ---
 # Retirement Income Blueprint

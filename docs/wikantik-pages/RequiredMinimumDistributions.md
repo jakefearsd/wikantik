@@ -1,23 +1,25 @@
 ---
-canonical_id: 01KQ0P44VHN0YZJXBTF6AJ990M
-status: published
 summary: Complete guide to required minimum distributions from retirement accounts,
   including age thresholds, calculation methods, and strategies to minimize tax impact.
+date: 2026-03-15T00:00:00Z
+cluster: retirement-planning
+related:
+- RetirementAccountWithdrawalRules
+- TaxPlanningForRetirementAccountWithdrawals
+- RetirementWithdrawalSequencing
+canonical_id: 01KQ0P44VHN0YZJXBTF6AJ990M
+part-of:
+- RetirementPlanningGuide
+type: article
 title: Required Minimum Distributions
+status: published
 tags:
 - retirement
 - taxes
 - RMD
 - IRA
 - 401k
-type: article
-cluster: retirement-planning
-related:
-- RetirementAccountWithdrawalRules
-- TaxPlanningForRetirementAccountWithdrawals
-- RetirementWithdrawalSequencing
-date: 2026-03-15T00:00:00Z
-part-of:
+hubs:
 - RetirementPlanningGuide
 ---
 

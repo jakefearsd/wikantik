@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give logged-in users a clearly-separated, personalized "me" zone at the top of the left sidebar (profile, mentions, owned pages, recently viewed, blog, and resume-editing drafts), plus the editor autosave that the drafts feature depends on.
+**Goal:** Give logged-in users a clearly-separated, personalized "me" zone at the top of the left sidebar (profile, mentions, owned pages, recently viewed, blog, and resume-editing drafts), plus the editor autosave the drafts feature depends on.
 
 **Architecture:** One new read-only REST endpoint (`GET /api/me/pages`) reusing the existing `PageOwnerService`; everything else is React. A new `PersonalZone` component is extracted from `Sidebar.jsx` and composes small hooks. Recently-viewed and drafts live in `localStorage`, namespaced by login. A new `useDraft` hook adds autosave to `PageEditor`/`BlogEditor`.
 
@@ -18,11 +18,11 @@
 - **Servlets are registered in `wikantik-war/src/main/webapp/WEB-INF/web.xml`** — there is NO `RestInitializer.java`. Each servlet needs a `<servlet>` block (name + class; the existing `MyMentionsResource` block is ~line 469) AND a matching `<servlet-mapping>` block (name + url-pattern; the existing `MyMentionsResource` mapping is ~line 687). The servlet dispatch filter is already mapped to `/api/*`, so no filter change is needed.
 - No new SPA route is added (PersonalZone links only to existing routes: `/preferences`, `/me/mentions`, `/wiki/:name`, `/blog/:login/...`, `/edit/:name`). So **no `SpaRoutingFilter`/web.xml SPA change** is required.
 - Slug/title resolution: `getSubsystems().pageGraph().structuralIndexService().resolveSlugFromCanonicalId( canonicalId )` returns `Optional<String>` (see `MyMentionsResource.resolveSlug`). Interface: `com.wikantik.api.pagegraph.StructuralIndexService`.
-- The blog client API already exists: `api.blog.listEntries(login)` → `GET /api/blog/{login}/entries`.
+- The blog client API already exists: `api.blog.listEntries(login)` -> `GET /api/blog/{login}/entries`.
 - `useAuth` exposes `{ user, loading, sso, login, logout, refresh }`. `useUnreadMentions({enabled})` returns `{count, refresh}`. The frontend `request(path, options)` helper is the low-level fetch wrapper in `client.js`.
 - `PageView` route param: `const { name = 'Main' } = useParams();` (page slug is `name`).
 - Vitest config: `environment: 'happy-dom'`, `setupFiles: ['./src/setupTests.js']`. Existing tests use `@testing-library/react` and `vitest`.
-- **Integration-test layout (verified by reading the real files):** REST ITs live in `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/` (package `com.wikantik.its.rest`); examples: `CommentThreadIT`, `SelfDeleteAccountIT`, `ChangesFeedIT`, `RestApiIT`. They use the JDK 21 `java.net.http.HttpClient` + Gson against `System.getProperty("it-wikantik.base.url", "http://localhost:18080/wikantik-it-test-rest")` — **NOT RestAssured**, and there is no shared base class. The seed helper `com.wikantik.its.RestSeedHelper` (in `wikantik-selenide-tests`, on the test classpath) has verified static methods `void writePage(String name, String markdown)`, `void awaitAdminReady()` (no args), `String get(String path)`, `String post(String path, String jsonBody)` — there is **no** `loginAsAdmin`/`savePage`/`Cookies` API. Authenticated ITs log in as `janne` with a secure-cookie-over-http shim (see `CommentThreadIT`). Copy that scaffold rather than inventing one.
+- **Integration-test layout (verified by reading the real files):** REST ITs live in `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/` (package `com.wikantik.its.rest`); examples: `CommentThreadIT`, `SelfDeleteAccountIT`, `ChangesFeedIT`, `RestApiIT`. They use the JDK 21 `java.net.http.HttpClient` + Gson against `System.getProperty("it-wikantik.base.url", "http://localhost:18080/wikantik-it-test-rest")` (no RestAssured), and there is no shared base class. The seed helper `com.wikantik.its.RestSeedHelper` (in `wikantik-selenide-tests`, on the test classpath) has verified static methods `void writePage(String name, String markdown)`, `void awaitAdminReady()` (no args), `String get(String path)`, `String post(String path, String jsonBody)`. Authenticated ITs log in as `janne` with a secure-cookie-over-http shim (see `CommentThreadIT`). Copy that scaffold rather than inventing one.
 - Single-file test commands: backend `mvn test -pl wikantik-rest -Dtest=ClassName`; frontend `npx vitest run <path>` from `wikantik-frontend/`. Integration tests: `mvn clean install -Pintegration-tests -fae` (sequential, never `-T`).
 - **No DB migration is needed** — `page_owners` already exists.
 
@@ -62,7 +62,7 @@
 
 ---
 
-## Task 1: `GET /api/me/pages` REST endpoint
+## Task 1: GET /api/me/pages REST endpoint
 
 **Files:**
 - Create: `wikantik-rest/src/main/java/com/wikantik/rest/MyPagesResource.java`
@@ -71,7 +71,7 @@
 
 - [ ] **Step 1: Write the failing unit test**
 
-Create `wikantik-rest/src/test/java/com/wikantik/rest/MyPagesResourceTest.java` (Apache license header copied verbatim from `MyMentionsResource.java` lines 1–18, then):
+Create `wikantik-rest/src/test/java/com/wikantik/rest/MyPagesResourceTest.java` (Apache license header copied verbatim from `MyMentionsResource.java` lines 1-18, then):
 
 ```java
 package com.wikantik.rest;
@@ -142,7 +142,7 @@ Expected: FAIL — compilation error, `MyPagesResource` does not exist.
 
 - [ ] **Step 3: Write the implementation**
 
-Create `wikantik-rest/src/main/java/com/wikantik/rest/MyPagesResource.java` (license header verbatim from `MyMentionsResource.java` lines 1–18, then):
+Create `wikantik-rest/src/main/java/com/wikantik/rest/MyPagesResource.java` (license header verbatim from `MyMentionsResource.java` lines 1-18, then):
 
 ```java
 package com.wikantik.rest;
@@ -241,7 +241,7 @@ public class MyPagesResource extends RestServletBase {
 
 - [ ] **Step 4: Register the servlet in web.xml**
 
-In `wikantik-war/src/main/webapp/WEB-INF/web.xml`, immediately after the existing `MyMentionsResource` `<servlet>` block (around line 469–471), add:
+In `wikantik-war/src/main/webapp/WEB-INF/web.xml`, immediately after the existing `MyMentionsResource` `<servlet>` block (around line 469-471), add:
 
 ```xml
    <servlet>
@@ -250,7 +250,7 @@ In `wikantik-war/src/main/webapp/WEB-INF/web.xml`, immediately after the existin
    </servlet>
 ```
 
-Then, immediately after the existing `MyMentionsResource` `<servlet-mapping>` block (around line 687–689), add:
+Then, immediately after the existing `MyMentionsResource` `<servlet-mapping>` block (around line 687-689), add:
 
 ```xml
    <servlet-mapping>
@@ -277,20 +277,20 @@ git commit -m "feat(nav): GET /api/me/pages lists pages owned by current user"
 
 ---
 
-## Task 2: Wire-level IT for `/api/me/pages`
+## Task 2: Wire-level IT for /api/me/pages
 
 **Files:**
 - Create: `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/MyPagesIT.java`
 
 **Verified facts about this IT module (do not assume otherwise):**
-- REST ITs in `wikantik-it-test-rest` do **NOT** use RestAssured. They use the JDK 21 `java.net.http.HttpClient` + Gson, against base URL `System.getProperty("it-wikantik.base.url", "http://localhost:18080/wikantik-it-test-rest")`, set up in an `@BeforeAll static void setUp()`. There is no shared base class — each IT is standalone.
+- REST ITs in `wikantik-it-test-rest` use the JDK 21 `java.net.http.HttpClient` + Gson, against base URL `System.getProperty("it-wikantik.base.url", "http://localhost:18080/wikantik-it-test-rest")`, set up in an `@BeforeAll static void setUp()`. No RestAssured, no shared base class — each IT is standalone.
 - Authenticated ITs (e.g. `CommentThreadIT`) log in as user **`janne`** (Admin group) and install a secure-cookie-over-http shim on the `HttpClient` so `JSESSIONID` is sent. Public ITs (e.g. `ChangesFeedIT`) use a plain client and no cookies.
-- `com.wikantik.its.RestSeedHelper` verified static API: `void writePage(String name, String markdown)`, `void awaitAdminReady()` (no args), `String get(String path)`, `String post(String path, String jsonBody)`. **There is no `loginAsAdmin`/`savePage`/`Cookies`-based API.**
+- `com.wikantik.its.RestSeedHelper` verified static API: `void writePage(String name, String markdown)`, `void awaitAdminReady()` (no args), `String get(String path)`, `String post(String path, String jsonBody)`. There is no cookie-returning login helper — copy the login + cookie shim from `CommentThreadIT`.
 - Page ownership: `PageOwnerFilter` assigns the **first author** of a new page as its owner. The authenticated user in the test must be the principal that seeded the page for it to show up in their `/api/me/pages`.
 
 - [ ] **Step 1: Write the IT**
 
-Create `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/MyPagesIT.java`. **Copy the full scaffold from `CommentThreadIT.java`** verbatim — license header, `package com.wikantik.its.rest;`, the JDK-HttpClient imports, the `@BeforeAll setUp()` building `baseUrl` + `client`, the `secureCookieOverHttp()` shim, and its `janne` login helper. Then implement two tests:
+Create `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/MyPagesIT.java`. **Copy the full scaffold from `CommentThreadIT.java`** verbatim — license header, `package com.wikantik.its.rest;`, the JDK-HttpClient imports, the `@BeforeAll setUp()` building `baseUrl` + `client`, the `secureCookieOverHttp()` shim, and its `janne` login + page-seeding helpers. Then implement two tests:
 
 1. `anonymousIsUnauthorized` — model on `ChangesFeedIT`'s plain-`get` style: `GET baseUrl + "/api/me/pages"` with **no** auth cookie must return **401**.
 
@@ -307,7 +307,7 @@ Create `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/r
     }
 ```
 
-2. `listsPagesOwnedByCaller` — authenticate as `janne` (the same login + cookie-shim `client` that `CommentThreadIT` uses), seed a page **as that same principal**, wait for the index, then GET `/api/me/pages` and assert the page appears. Use `RestSeedHelper.writePage` only if it writes as `janne`; if it writes as a different principal, instead seed the page through the authenticated `client` with the same `PUT /api/pages/...` call `CommentThreadIT` uses to seed its page (copy that helper). Sketch:
+2. `listsPagesOwnedByCaller` — authenticate as `janne` (the same login + cookie-shim `client` that `CommentThreadIT` uses), seed a page **as that same principal**, wait for the index, then GET `/api/me/pages` and assert the page appears. Use the authenticated `client` to PUT-seed the page exactly as `CommentThreadIT` seeds its page (copy that helper). Sketch:
 
 ```java
     @Test
@@ -330,7 +330,7 @@ Create `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/r
     }
 ```
 
-Imports needed beyond CommentThreadIT's scaffold: `com.google.gson.JsonArray`, `com.google.gson.JsonObject`, `com.google.gson.JsonParser`, `com.wikantik.its.RestSeedHelper`, and the JUnit `assertEquals`/`assertTrue` statics (CommentThreadIT already imports the latter).
+Imports beyond CommentThreadIT's scaffold: `com.google.gson.JsonArray`, `com.google.gson.JsonObject`, `com.google.gson.JsonParser`, `com.wikantik.its.RestSeedHelper`, and the JUnit `assertEquals`/`assertTrue` statics (CommentThreadIT already imports the latter).
 
 > The exact `login(...)`, `get(...)`, and page-seeding helper method names come from `CommentThreadIT` — read that file and reuse its members rather than re-deriving them. If the seeded page's slug is normalized, relax the slug assertion to just `pages.size() >= 1`.
 
@@ -348,7 +348,7 @@ git commit -m "test(nav): wire-level IT for /api/me/pages ownership listing"
 
 ---
 
-## Task 3: API client method `getMyPages`
+## Task 3: API client method getMyPages
 
 **Files:**
 - Modify: `wikantik-frontend/src/api/client.js`
@@ -376,7 +376,7 @@ git commit -m "feat(nav): api.getMyPages client method"
 
 ---
 
-## Task 4: `draftKeys` localStorage helpers
+## Task 4: draftKeys localStorage helpers
 
 **Files:**
 - Create: `wikantik-frontend/src/utils/draftKeys.js`
@@ -449,13 +449,13 @@ git commit -m "feat(nav): namespaced localStorage key helpers for editor drafts"
 
 ---
 
-## Task 5: `useDraft` autosave/restore hook
+## Task 5: useDraft autosave/restore hook
 
 **Files:**
 - Create: `wikantik-frontend/src/hooks/useDraft.js`
 - Create: `wikantik-frontend/src/hooks/useDraft.test.js`
 
-API contract: `useDraft({ login, pageId, enabled })` returns `{ draft, saveDraft, clearDraft }` where `draft` is the stored object (or `null`) read once on mount, `saveDraft(fields)` writes immediately (caller debounces), and `clearDraft()` removes the key.
+API: `useDraft({ login, pageId, enabled })` returns `{ draft, saveDraft, clearDraft }` where `draft` is the stored object (or `null`) read once on mount, `saveDraft(fields)` writes immediately (caller debounces), and `clearDraft()` removes the key.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -575,7 +575,7 @@ git commit -m "feat(nav): useDraft editor autosave/restore hook"
 
 ---
 
-## Task 6: Wire autosave + restore banner into `PageEditor`
+## Task 6: Wire autosave + restore banner into PageEditor
 
 **Files:**
 - Modify: `wikantik-frontend/src/components/PageEditor.jsx`
@@ -584,7 +584,7 @@ Goal: while editing, debounce-save the editor content to a draft; on mount, if a
 
 - [ ] **Step 1: Add imports**
 
-At the top of `wikantik-frontend/src/components/PageEditor.jsx`, add (next to the existing imports):
+At the top of `wikantik-frontend/src/components/PageEditor.jsx`, add:
 
 ```js
 import { useDraft } from '../hooks/useDraft';
@@ -624,8 +624,6 @@ After the effect that loads the page content into the `content` state, add:
 
 - [ ] **Step 4: Autosave on edit (debounced)**
 
-Add a debounced autosave effect keyed on `content`:
-
 ```js
   useEffect(() => {
     if (!login) return;
@@ -638,7 +636,7 @@ Add a debounced autosave effect keyed on `content`:
 
 - [ ] **Step 5: Clear draft on successful save**
 
-In the existing save handler, after the API save resolves successfully (where the component currently navigates away or sets a success state), add:
+In the existing save handler, after the API save resolves successfully, add:
 
 ```js
       clearDraft();
@@ -689,7 +687,7 @@ git commit -m "feat(nav): autosave + restore-on-return in PageEditor"
 
 ---
 
-## Task 7: Wire autosave + restore banner into `BlogEditor`
+## Task 7: Wire autosave + restore banner into BlogEditor
 
 **Files:**
 - Modify: `wikantik-frontend/src/components/BlogEditor.jsx`
@@ -697,8 +695,6 @@ git commit -m "feat(nav): autosave + restore-on-return in PageEditor"
 `BlogEditor` keeps content in `content` state and computes `blogPageName = blog/${username}/${pageName}` (around line 27). Use that as the draft `pageId`.
 
 - [ ] **Step 1: Add imports**
-
-At the top of `wikantik-frontend/src/components/BlogEditor.jsx`:
 
 ```js
 import { useDraft } from '../hooks/useDraft';
@@ -769,7 +765,7 @@ git commit -m "feat(nav): autosave + restore-on-return in BlogEditor"
 
 ---
 
-## Task 8: `useDrafts` enumeration hook
+## Task 8: useDrafts enumeration hook
 
 **Files:**
 - Create: `wikantik-frontend/src/hooks/useDrafts.js`
@@ -874,7 +870,7 @@ git commit -m "feat(nav): useDrafts enumeration hook for resume-editing"
 
 ---
 
-## Task 9: `useRecentlyViewed` hook
+## Task 9: useRecentlyViewed hook
 
 **Files:**
 - Create: `wikantik-frontend/src/hooks/useRecentlyViewed.js`
@@ -986,14 +982,12 @@ git commit -m "feat(nav): useRecentlyViewed ring-buffer hook"
 
 ---
 
-## Task 10: Record recently-viewed in `PageView`
+## Task 10: Record recently-viewed in PageView
 
 **Files:**
 - Modify: `wikantik-frontend/src/components/PageView.jsx`
 
 - [ ] **Step 1: Add imports**
-
-At the top of `wikantik-frontend/src/components/PageView.jsx` add (next to existing imports):
 
 ```js
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
@@ -1026,7 +1020,7 @@ After the page content/title is loaded into state (after the existing load effec
   }, [name, user?.authenticated]);
 ```
 
-(If the component exposes a nicer human title in state, pass it as `title`; `name` is an acceptable fallback. `useEffect` is already imported in this file.)
+(If the component exposes a nicer human title in state, pass it as `title`; `name` is an acceptable fallback. `useEffect` is already imported.)
 
 - [ ] **Step 4: Verify the build**
 
@@ -1042,7 +1036,7 @@ git commit -m "feat(nav): record recently-viewed pages on PageView load"
 
 ---
 
-## Task 11: `useMyPages` hook
+## Task 11: useMyPages hook
 
 **Files:**
 - Create: `wikantik-frontend/src/hooks/useMyPages.js`
@@ -1132,7 +1126,7 @@ git commit -m "feat(nav): useMyPages hook"
 
 ---
 
-## Task 12: `useMyBlog` hook
+## Task 12: useMyBlog hook
 
 **Files:**
 - Create: `wikantik-frontend/src/hooks/useMyBlog.js`
@@ -1225,13 +1219,13 @@ git commit -m "feat(nav): useMyBlog hook"
 
 ---
 
-## Task 13: `CollapsibleSection` component
+## Task 13: CollapsibleSection component
 
 **Files:**
 - Create: `wikantik-frontend/src/components/CollapsibleSection.jsx`
 - Create: `wikantik-frontend/src/components/CollapsibleSection.test.jsx`
 
-API: `<CollapsibleSection id="my-pages" icon="📄" title="My pages" count={5} defaultOpen>{children}</CollapsibleSection>`. Header is a real `<button>` with `aria-expanded`; open/closed persisted under `wikantik.section.<id>`.
+API: `<CollapsibleSection id="my-pages" icon="..." title="My pages" count={5} defaultOpen>{children}</CollapsibleSection>`. Header is a real `<button>` with `aria-expanded`; open/closed persisted under `wikantik.section.<id>`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1247,7 +1241,7 @@ beforeEach(() => localStorage.clear());
 describe('CollapsibleSection', () => {
   it('renders the title and toggles aria-expanded', () => {
     render(
-      <CollapsibleSection id="t" icon="📄" title="My pages" defaultOpen>
+      <CollapsibleSection id="t" title="My pages" defaultOpen>
         <a href="/x">child</a>
       </CollapsibleSection>,
     );
@@ -1338,13 +1332,13 @@ git commit -m "feat(nav): accessible CollapsibleSection component"
 
 ---
 
-## Task 14: `PersonalZone` component
+## Task 14: PersonalZone component
 
 **Files:**
 - Create: `wikantik-frontend/src/components/PersonalZone.jsx`
 - Create: `wikantik-frontend/src/components/PersonalZone.test.jsx`
 
-Composes identity header, New Article, mentions link + badge, and the four collapsible sections (My pages, Recently viewed, My blog, Drafts). Renders nothing for anonymous users. Each list shows up to 3 inline items with a "View all (N) →" that expands inline up to ~15; per-section empty states. The Drafts section is hidden when empty.
+Composes identity header, New Article, mentions link + badge, and four collapsible sections (My pages, Recently viewed, My blog, Drafts). Renders nothing for anonymous users. Each list shows up to 3 inline items with a "View all (N)" that expands inline up to ~15; per-section empty states. The Drafts section is hidden when empty.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1381,8 +1375,8 @@ describe('PersonalZone', () => {
     useAuth.mockReturnValue({ user: { authenticated: true, username: 'Alice', loginPrincipal: 'alice', roles: [] }, logout: () => {} });
     renderZone();
     expect(screen.getByText('Alice')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument(); // unread badge
-    expect(screen.getByText('Foo')).toBeInTheDocument(); // owned page
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('Foo')).toBeInTheDocument();
   });
 
   it('hides the Drafts section when there are no drafts', () => {
@@ -1425,7 +1419,7 @@ function PreviewList({ items, render, emptyLabel }) {
       {visible.map(render)}
       {!showAll && items.length > INLINE && (
         <button type="button" className="personal-viewall" onClick={() => setShowAll(true)}>
-          View all {items.length} →
+          View all {items.length}
         </button>
       )}
     </>
@@ -1541,6 +1535,8 @@ export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = 
 }
 ```
 
+> The `\uXXXX` escapes above are emoji/symbol placeholders (bell, page, clock, pen, memo, ✕, ▾/▸, ·) — when typing the file, use the actual glyphs from the design mockup. They are escaped here only to survive plan transport.
+
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/PersonalZone.test.jsx`
@@ -1555,14 +1551,12 @@ git commit -m "feat(nav): PersonalZone component composing the me-zone"
 
 ---
 
-## Task 15: Integrate `PersonalZone` into `Sidebar`
+## Task 15: Integrate PersonalZone into Sidebar
 
 **Files:**
 - Modify: `wikantik-frontend/src/components/Sidebar.jsx`
 
 - [ ] **Step 1: Add the import**
-
-At the top of `wikantik-frontend/src/components/Sidebar.jsx`, add:
 
 ```js
 import PersonalZone from './PersonalZone';
@@ -1570,33 +1564,11 @@ import PersonalZone from './PersonalZone';
 
 - [ ] **Step 2: Remove the now-duplicated inline block**
 
-Delete the authenticated block currently at lines 88–106 (the fragment containing the `+ New Article` button and the `My mentions` link):
+Delete the authenticated block currently at lines 88-106 (the fragment containing the `+ New Article` button and the `My mentions` link with `mentionsCount`).
 
-```jsx
-        {user?.authenticated && (
-          <>
-            <button
-              className="btn btn-primary"
-              onClick={() => setNewArticleOpen(true)}
-              style={{ width: '100%', margin: 'var(--space-sm) 0', justifyContent: 'center' }}
-            >
-              + New Article
-            </button>
-            <Link
-              to="/me/mentions"
-              className="sidebar-link"
-              onClick={onMobileClose}
-            >
-              My mentions
-              {mentionsCount > 0 && <span className="sidebar-mentions-badge">{mentionsCount}</span>}
-            </Link>
-          </>
-        )}
-```
+- [ ] **Step 3: Render PersonalZone in its place**
 
-- [ ] **Step 3: Render `PersonalZone` in its place**
-
-Where that block was (just after the `search-trigger` button, before the `{/* Primary Navigation */}` section), add:
+Where that block was (just after the `search-trigger` button, before the Primary Navigation section), add:
 
 ```jsx
         <PersonalZone
@@ -1605,26 +1577,14 @@ Where that block was (just after the `search-trigger` button, before the `{/* Pr
         />
 ```
 
-- [ ] **Step 4: Remove the now-unused `useUnreadMentions` usage**
+- [ ] **Step 4: Remove the now-unused useUnreadMentions usage**
 
-`PersonalZone` owns the unread count now. In `Sidebar.jsx` delete the line:
-
-```js
-  const { count: mentionsCount } = useUnreadMentions({ enabled: !!user?.authenticated });
-```
-
-and remove its import:
-
-```js
-import { useUnreadMentions } from '../hooks/useUnreadMentions';
-```
-
-(Leave `useAuth`/`user` — still used for the Admin section.)
+`PersonalZone` owns the unread count now. In `Sidebar.jsx` delete the line `const { count: mentionsCount } = useUnreadMentions({ enabled: !!user?.authenticated });` and its import `import { useUnreadMentions } from '../hooks/useUnreadMentions';`. (Leave `useAuth`/`user` — still used for the Admin section.)
 
 - [ ] **Step 5: Run the existing Sidebar tests + build**
 
 Run (from `wikantik-frontend/`): `npx vitest run src/components/Sidebar.test.jsx` (if the file exists) then `npx vite build`
-Expected: tests pass and build succeeds. If a Sidebar test asserted the old inline "My mentions" link directly in `Sidebar`, move that assertion to `PersonalZone.test.jsx` (the markup now lives there).
+Expected: tests pass and build succeeds. If a Sidebar test asserted the old inline "My mentions" link directly in `Sidebar`, move that assertion to `PersonalZone.test.jsx`.
 
 - [ ] **Step 6: Commit**
 
@@ -1723,43 +1683,24 @@ git commit -m "feat(nav): styles for the personalized me-zone"
 
 ## Task 17: Final verification
 
-- [ ] **Step 1: Full frontend test suite**
-
-Run (from `wikantik-frontend/`): `npx vitest run`
-Expected: all tests pass (new hooks/components + existing).
-
-- [ ] **Step 2: Full build with unit tests (parallel OK, no ITs)**
-
-Run (from repo root): `mvn clean install -T 1C -DskipITs`
-Expected: BUILD SUCCESS (includes `MyPagesResourceTest` and the npm/vite frontend build wired into `wikantik-war`).
-
-- [ ] **Step 3: Full integration-test reactor (sequential, no -T)**
-
-Run (from repo root): `mvn clean install -Pintegration-tests -fae`
-Expected: BUILD SUCCESS — `MyPagesIT` green; no regressions. (Per CLAUDE.md and memory `feedback_full_it_after_targeted_fix`, gate the commit on the full IT reactor.)
-
-- [ ] **Step 4: Manual smoke (recommended)**
-
-Redeploy locally (`mvn clean install -Dmaven.test.skip -T 1C && bin/redeploy.sh`), log in as `testbot` (creds in `test.properties`), and confirm: the me-zone shows identity/profile/mentions, My pages lists owned pages, viewing a page adds it to Recently viewed, opening the editor then leaving and returning offers Restore, and the draft appears under Resume editing until saved.
-
-- [ ] **Step 5: Final commit (if any incidental fixes were needed)**
-
-```bash
-git add -A
-git commit -m "chore(nav): final verification fixups for personalized left navigation"
-```
+- [ ] **Step 1: Full frontend test suite** — `npx vitest run` (from `wikantik-frontend/`). All tests pass.
+- [ ] **Step 2: Full build with unit tests (no ITs)** — `mvn clean install -T 1C -DskipITs` from repo root. BUILD SUCCESS (includes `MyPagesResourceTest` and the vite frontend build).
+- [ ] **Step 3: Full integration-test reactor (sequential)** — `mvn clean install -Pintegration-tests -fae` from repo root. BUILD SUCCESS; `MyPagesIT` green; no regressions. (Per CLAUDE.md and memory `feedback_full_it_after_targeted_fix`, gate the commit on the full IT reactor.)
+- [ ] **Step 4: Manual smoke (recommended)** — `mvn clean install -Dmaven.test.skip -T 1C && bin/redeploy.sh`, log in as `testbot` (creds in `test.properties`), and confirm: me-zone shows identity/profile/mentions; My pages lists owned pages; viewing a page adds it to Recently viewed; opening the editor, leaving, and returning offers Restore; the draft appears under Resume editing until saved.
+- [ ] **Step 5: Final commit (if incidental fixups were needed)** — `git add -A && git commit -m "chore(nav): final verification fixups for personalized left navigation"`.
 
 ---
 
 ## Self-Review Notes (author check)
 
-- **Spec coverage:** identity/profile (Task 14) ✓; mentions reuse (14) ✓; My pages — backend (1,2) + client (3) + hook (11) + UI (14) ✓; Recently viewed (9,10,14) ✓; My blog (12,14) ✓; Drafts + autosave (4–8,14) ✓; CollapsibleSection a11y/persistence (13) ✓; PersonalZone extraction + Sidebar slimming (14,15) ✓; localStorage login-namespacing (4,9) ✓; no DB migration ✓; testing backend unit+IT and frontend vitest ✓; out-of-scope items (server-side blog drafts, bookmarks, new /me routes) not implemented ✓.
-- **Type/name consistency:** `useDraft({login,pageId,enabled})→{draft,saveDraft,clearDraft}`, `useDrafts({login,enabled})→{drafts,removeDraft}`, `useRecentlyViewed({login,enabled})→{items,record}`, `useMyPages({enabled})→{pages,loading}`, `useMyBlog({login,enabled})→{entries,loading}` — used consistently in PersonalZone (Task 14). Draft item shape `{pageId,title,savedAt}` matches between Tasks 8 and 14. Backend `pageOwners()`/`resolveSlug()`/`currentUser()`/`isAuthenticated()` seam names match between resource (Task 1) and its test. Registration is web.xml `<servlet>`+`<servlet-mapping>` (Task 1 Step 4).
+- **Spec coverage:** identity/profile (Task 14); mentions reuse (14); My pages — backend (1,2) + client (3) + hook (11) + UI (14); Recently viewed (9,10,14); My blog (12,14); Drafts + autosave (4-8,14); CollapsibleSection a11y/persistence (13); PersonalZone extraction + Sidebar slimming (14,15); localStorage login-namespacing (4,9); no DB migration; backend unit+IT and frontend vitest; out-of-scope items (server-side blog drafts, bookmarks, new /me routes) not implemented.
+- **Type/name consistency:** `useDraft({login,pageId,enabled})->{draft,saveDraft,clearDraft}`, `useDrafts({login,enabled})->{drafts,removeDraft}`, `useRecentlyViewed({login,enabled})->{items,record}`, `useMyPages({enabled})->{pages,loading}`, `useMyBlog({login,enabled})->{entries,loading}` — used consistently in PersonalZone (Task 14). Draft item shape `{pageId,title,savedAt}` matches Tasks 8 and 14. Backend seam names (`pageOwners`/`resolveSlug`/`currentUser`/`isAuthenticated`) match resource (Task 1) and test. Registration is web.xml `<servlet>`+`<servlet-mapping>` (Task 1 Step 4).
 - **Placeholders:** none — every code step is concrete.
-- **Known soft spots for the implementer (verify against real source, don't assume):**
+- **Known soft spots for the implementer (verify against real source, do not assume):**
   1. Blog entries JSON key — confirm `entries` vs another key from `BlogResource`/an existing caller (Task 12 note).
   2. `PageEditor`/`BlogEditor` content-state setter name (`setContent` assumed) for the Restore button (Tasks 6/7).
   3. `RestServletBase` helper names — mirror `MyMentionsResource.java` exactly (Task 1 note).
   4. The IT scaffold (login, get, page-seed helpers) — copy from `CommentThreadIT`, do not invent (Task 2).
-  5. If `Sidebar.test.jsx` asserted the inline mentions link, migrate that assertion (Task 15 Step 5).
+  5. Replace the `\uXXXX` emoji placeholders in `PersonalZone.jsx` with real glyphs (Task 14 note).
+  6. If `Sidebar.test.jsx` asserted the inline mentions link, migrate that assertion (Task 15 Step 5).
 ```

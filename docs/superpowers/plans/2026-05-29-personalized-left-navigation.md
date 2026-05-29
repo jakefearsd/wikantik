@@ -14,7 +14,8 @@
 - Current user login on the server: `Wiki.session().find( engine, request ).getLoginPrincipal().getName()` (see `MyMentionsResource.currentUser`).
 - Frontend user object (`useAuth().user`): `{ authenticated, username, loginPrincipal, roles }`. `username` is the display/wiki name; `loginPrincipal` is the login used for ownership + blog paths. Anonymous shape is `{ authenticated: false, username: 'anonymous' }` (no `loginPrincipal`).
 - `PageOwnerService.listByOwner(owner, limit, offset)` returns `List<PageOwnership>`; `PageOwnership(String canonicalId, String ownerLogin, String assignedBy, Instant assignedAt)` (package `com.wikantik.api.comments`). `countByOwner(owner)` returns `int`.
-- A brand-new page save assigns its first author as owner (`PageOwnerFilter`, postSave). `PageOwnershipIT.newPageGetsAuthorAsOwner` proves admin owns a page it just saved — so the my-pages IT can do the same.
+- A brand-new page save assigns its first author as owner (`PageOwnerFilter`, postSave) — so the my-pages IT can save a page as admin and expect it back from `/api/me/pages`.
+- **Integration-test layout (verified):** REST ITs live in `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/` (package `com.wikantik.its.rest`); examples: `CommentThreadIT`, `SelfDeleteAccountIT`, `ChangesFeedIT`, `RestApiIT`. The seed helper is `com.wikantik.its.RestSeedHelper` (in the `wikantik-selenide-tests` module, on the test classpath) with verified static methods: `Cookies loginAsAdmin()`, `Cookies awaitAdminReady(Cookies)`, `void savePage(Cookies cookies, String pageName, String markdown)`. The REST IT base class / RestAssured `baseURI` setup is NOT reproduced here — copy it from an existing sibling IT (`CommentThreadIT`) rather than inventing it.
 - **Servlets are registered in `wikantik-war/src/main/webapp/WEB-INF/web.xml`** — there is NO `RestInitializer.java`. Each servlet needs a `<servlet>` block (name + class, the existing `MyMentionsResource` block is at ~line 469) AND a matching `<servlet-mapping>` block (name + url-pattern, the existing `MyMentionsResource` mapping is at ~line 687). The base servlet path-prefix filter is already mapped to `/api/*`, so no filter change is needed.
 - No new SPA route is added (PersonalZone links only to existing routes: `/preferences`, `/me/mentions`, `/wiki/:name`, `/blog/:login/...`, `/edit/:name`). So **no `SpaRoutingFilter`/web.xml SPA change** is required.
 - Slug/title resolution: `getSubsystems().pageGraph().structuralIndexService().resolveSlugFromCanonicalId( canonicalId )` returns `Optional<String>` (see `MyMentionsResource.resolveSlug`). The full `StructuralIndexService` interface is `com.wikantik.api.pagegraph.StructuralIndexService`.
@@ -280,17 +281,16 @@ git commit -m "feat(nav): GET /api/me/pages lists pages owned by current user"
 ## Task 2: Wire-level IT for `/api/me/pages`
 
 **Files:**
-- Create: `wikantik-it-tests/jspwiki-it-tests/src/test/java/com/wikantik/it/rest/MyPagesIT.java`
+- Create: `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/MyPagesIT.java`
 
-Model exactly on the sibling `PageOwnershipIT.java` (same package, extends `AbstractRestIT`, uses `RestSeedHelper`).
+Model on an existing sibling REST IT — **open `CommentThreadIT.java` in the same package and copy its exact class scaffold**: the license header, `package com.wikantik.its.rest;`, the base class it extends (and its import), and any RestAssured `baseURI`/setup it relies on. Then add the two test methods below. Do NOT invent a base class — reuse whatever `CommentThreadIT` uses. `RestSeedHelper` is `com.wikantik.its.RestSeedHelper` (verified API: `loginAsAdmin()`, `awaitAdminReady(Cookies)`, `savePage(Cookies, pageName, markdown)`).
 
 - [ ] **Step 1: Write the IT**
 
-Create `wikantik-it-tests/jspwiki-it-tests/src/test/java/com/wikantik/it/rest/MyPagesIT.java` (license header verbatim from `PageOwnershipIT.java` lines 1–18, then):
+Create `wikantik-it-tests/wikantik-it-test-rest/src/test/java/com/wikantik/its/rest/MyPagesIT.java`. Copy the header + class scaffold from `CommentThreadIT.java` (license, package, base class, imports, setup), then add the test methods and these imports:
 
 ```java
-package com.wikantik.it.rest;
-
+import com.wikantik.its.RestSeedHelper;
 import io.restassured.http.Cookies;
 import org.junit.jupiter.api.Test;
 
@@ -298,13 +298,11 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+```
 
-/**
- * Wire-level IT for {@code GET /api/me/pages}. A page saved by admin is owned by
- * admin (PageOwnerFilter), so it must appear in admin's owned-pages listing.
- */
-public class MyPagesIT extends AbstractRestIT {
+Test methods (place inside the class):
 
+```java
     @Test
     void listsPagesOwnedByCaller() {
         final Cookies admin = RestSeedHelper.loginAsAdmin();
@@ -327,10 +325,9 @@ public class MyPagesIT extends AbstractRestIT {
                 .when().get( "/api/me/pages" )
                 .then().statusCode( is( 401 ) );
     }
-}
 ```
 
-> Note: `savePage` saves under the page name; the structural index resolves the canonical id back to that slug, so `pages.slug` contains `page`. If the project's slug normalization alters the name, relax the assertion to `body("pages.size()", greaterThanOrEqualTo(1))` and drop the `hasItem` line.
+> Notes: (1) If `CommentThreadIT` builds request specs differently (e.g. a base-URI builder method instead of bare `given()`), use that same idiom so the host/port resolves correctly. (2) `savePage` saves under the page name; the structural index resolves the canonical id back to that slug, so `pages.slug` should contain `page`. If slug normalization alters the name, relax to just `body("pages.size()", greaterThanOrEqualTo(1))` and drop the `hasItem` line.
 
 - [ ] **Step 2: Run the IT to verify it passes**
 

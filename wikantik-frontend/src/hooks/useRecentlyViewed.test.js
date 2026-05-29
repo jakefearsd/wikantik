@@ -35,4 +35,14 @@ describe('useRecentlyViewed', () => {
     expect(result.current.items).toHaveLength(0);
     expect(localStorage.length).toBe(0);
   });
+
+  it('reflects records made by another live instance with the same login', () => {
+    // The sidebar (PersonalZone) and the article view (PageView) mount separate
+    // instances and the sidebar never unmounts during SPA navigation; a view
+    // recorded in one must surface in the other without a full page reload.
+    const a = renderHook(() => useRecentlyViewed({ login: 'alice', enabled: true }));
+    const b = renderHook(() => useRecentlyViewed({ login: 'alice', enabled: true }));
+    act(() => a.result.current.record({ slug: 'Foo', title: 'Foo' }));
+    expect(b.result.current.items.map((i) => i.slug)).toEqual(['Foo']);
+  });
 });

@@ -551,6 +551,11 @@ Claude Code sessions on this project are expensive. Follow these rules to minimi
 ### Subagents
 - **Don't use subagents for tasks you can do in 1-2 tool calls.** Creating a file, making an edit, running a grep — just do it directly.
 - **Don't duplicate work.** If you delegate research to a subagent, don't also run the same searches yourself.
+- **Default to the cheapest capable model per subtask** (pass it via the `Agent`/`Task` `model` param — don't ask first; omitting it inherits the expensive session model, which is the wrong default):
+  - **haiku** — mechanical, single-file tasks with a complete spec (boilerplate, a TDD unit with the test/impl already written out, a one-line client method, a CSS append).
+  - **sonnet** — multi-file integration, pattern-matching against existing code, debugging, and the spec-compliance / code-quality review subagents.
+  - **opus** — architecture, planning, and the final cross-cutting review only.
+  - Appropriateness is still a per-task judgment (there's no automatic classifier); when genuinely unsure, step up one tier rather than risk a cheap model botching integration work.
 
 ### Edits and Commits
 - **Accumulate related edits, then build once.** Don't: edit file → build → edit file → build → edit file → build. Do: edit all files → build.

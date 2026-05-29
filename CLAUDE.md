@@ -48,9 +48,9 @@ cat test.properties
 Use these credentials wherever a logged-in admin is needed — browser login, REST API calls, curl:
 
 ```bash
-# Example: trigger an on-demand news page refresh
+# Example: trigger a search-index rebuild as an authenticated admin
 source <(grep -v '^#' test.properties | sed 's/^test.user.//' | sed 's/=/="/' | sed 's/$/"/')
-curl -u "${login}:${password}" -X POST http://localhost:8080/admin/content/refresh-news
+curl -u "${login}:${password}" -X POST http://localhost:8080/admin/content/rebuild-indexes
 ```
 
 The account (`testbot`, role `Admin`) lives in the local PostgreSQL database alongside `admin`.

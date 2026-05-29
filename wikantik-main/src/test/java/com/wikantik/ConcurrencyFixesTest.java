@@ -19,7 +19,6 @@
 package com.wikantik;
 
 import com.wikantik.auth.DefaultAuthenticationManager;
-import com.wikantik.content.NewsPageGenerator;
 import com.wikantik.filters.SpamFilter;
 import com.wikantik.search.LuceneSearchProvider;
 import org.junit.jupiter.api.Test;
@@ -79,15 +78,6 @@ class ConcurrencyFixesTest {
     @Test
     void spamFilter_lastUpdate_shouldBeVolatile() throws Exception {
         assertFieldIsVolatile( SpamFilter.class, "lastUpdate" );
-    }
-
-    /**
-     * Bug 5: NewsPageGenerator.disabled is written by startupTask() (background thread)
-     * and read by backgroundTask() (same or different thread invocation). Must be volatile.
-     */
-    @Test
-    void newsPageGenerator_disabled_shouldBeVolatile() throws Exception {
-        assertFieldIsVolatile( NewsPageGenerator.class, "disabled" );
     }
 
     /**

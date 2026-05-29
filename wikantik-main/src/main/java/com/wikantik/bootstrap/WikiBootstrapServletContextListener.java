@@ -124,8 +124,7 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
      *       so no new work starts after this point.</li>
      *   <li>Call {@code engine.shutdown()} — fires {@code WikiEngineEvent.SHUTDOWN},
      *       which sets {@code killMe=true} on all {@code WikiBackgroundThread}
-     *       instances (LuceneUpdater, PageDirectoryWatcher, NewsPageGenerator,
-     *       WatchDogThread).</li>
+     *       instances (LuceneUpdater, PageDirectoryWatcher, WatchDogThread).</li>
      *   <li>Interrupt all non-daemon threads whose names match the known set so
      *       they wake up immediately instead of sleeping through their full interval.</li>
      *   <li>Await thread termination with a short bound (3 s); force-interrupt
@@ -265,7 +264,6 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
         return name != null && (
             name.startsWith( "JSPWiki Lucene Indexer" )
             || name.startsWith( "JSPWiki Page Directory Watcher" )
-            || name.startsWith( "JSPWiki News Page Generator" )
             || name.startsWith( "WatchDog for '" )
             || name.startsWith( "kg-judge-runner" )
             || name.startsWith( "retrieval-quality-runner" )

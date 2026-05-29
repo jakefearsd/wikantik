@@ -6,6 +6,11 @@
 **Inputs:** [docs/ArchitectureCritique.md](../../ArchitectureCritique.md) (Gemini-authored)
 **Successor docs:** a series of implementation plans under `docs/superpowers/plans/2026-XX-YY-decomposition-phase-N-*.md`
 
+> **Historical note (2026-05-29):** `NewsPageGenerator` and the
+> `/admin/content/refresh-news` endpoint referenced below have been retired.
+> `News.md` is now a regular hand-edited wiki page; the `newsPageGenerator`
+> slot was removed from `RenderingSubsystem.Services`.
+
 ## Why this exists
 
 The architecture critique correctly diagnoses the Service Locator anti-pattern in `WikiEngine` and the cost it imposes on testability and dependency wiring. It then prescribes a Guice migration. After review I disagree with the prescription's risk/reward profile in a single-developer codebase: most of Guice's benefits can be earned by growing the patterns that already exist in this codebase (`KnowledgeGraphServiceFactory.Services`, constructor injection in newer code) without adopting a framework. Doing the structural work first also makes a future Guice migration cheaper if we still want it.

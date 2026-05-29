@@ -236,7 +236,6 @@ public class WikiEngine implements Engine {
         w.put( com.wikantik.plugin.PluginManager.class,            ( e, m ) -> e.mgr_PluginManager              = (com.wikantik.plugin.PluginManager) m );
         w.put( com.wikantik.filters.FilterManager.class,           ( e, m ) -> e.mgr_FilterManager              = (com.wikantik.filters.FilterManager) m );
         w.put( com.wikantik.diff.DifferenceManager.class,          ( e, m ) -> e.mgr_DifferenceManager          = (com.wikantik.diff.DifferenceManager) m );
-        w.put( com.wikantik.content.NewsPageGenerator.class,       ( e, m ) -> e.mgr_NewsPageGenerator          = (com.wikantik.content.NewsPageGenerator) m );
         // Search
         w.put( com.wikantik.search.SearchManager.class,                                  ( e, m ) -> e.mgr_SearchManager                = (com.wikantik.search.SearchManager) m );
         w.put( com.wikantik.search.SearchProvider.class,                                 ( e, m ) -> e.mgr_SearchProvider               = (com.wikantik.search.SearchProvider) m );
@@ -321,7 +320,6 @@ public class WikiEngine implements Engine {
         r.put( com.wikantik.plugin.PluginManager.class,            e -> e.mgr_PluginManager );
         r.put( com.wikantik.filters.FilterManager.class,           e -> e.mgr_FilterManager );
         r.put( com.wikantik.diff.DifferenceManager.class,          e -> e.mgr_DifferenceManager );
-        r.put( com.wikantik.content.NewsPageGenerator.class,       e -> e.mgr_NewsPageGenerator );
         // Search
         r.put( com.wikantik.search.SearchManager.class,                                  e -> e.mgr_SearchManager );
         r.put( com.wikantik.search.SearchProvider.class,                                 e -> e.mgr_SearchProvider );
@@ -427,7 +425,6 @@ public class WikiEngine implements Engine {
         s.put( com.wikantik.plugin.PluginManager.class,            rebuildRendering );
         s.put( com.wikantik.filters.FilterManager.class,           rebuildRendering );
         s.put( com.wikantik.diff.DifferenceManager.class,          rebuildRendering );
-        s.put( com.wikantik.content.NewsPageGenerator.class,       rebuildRendering );
         // Search
         java.util.function.Consumer<WikiEngine> rebuildSearch =
             e -> { if ( e.searchSubsystem != null ) e.searchSubsystem = com.wikantik.search.subsystem.SearchSubsystemBridge.rebuildFromManagers( e ); };
@@ -526,7 +523,6 @@ public class WikiEngine implements Engine {
     private com.wikantik.plugin.PluginManager mgr_PluginManager;
     private com.wikantik.filters.FilterManager mgr_FilterManager;
     private com.wikantik.diff.DifferenceManager mgr_DifferenceManager;
-    private com.wikantik.content.NewsPageGenerator mgr_NewsPageGenerator;
 
     // Search group
     private com.wikantik.search.SearchManager mgr_SearchManager;
@@ -1269,13 +1265,6 @@ public class WikiEngine implements Engine {
     /** Registers {@link com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer}. Called by KnowledgeWiringHelper. */
     public void registerBootstrapEntityExtractionIndexer( final com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer svc ) {
         setManager( com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer.class, svc );
-    }
-
-    // -- Content --
-
-    /** Registers {@link com.wikantik.content.NewsPageGenerator}. Called by CachingProvider. */
-    public void registerNewsPageGenerator( final com.wikantik.content.NewsPageGenerator svc ) {
-        setManager( com.wikantik.content.NewsPageGenerator.class, svc );
     }
 
     /** {@inheritDoc} */

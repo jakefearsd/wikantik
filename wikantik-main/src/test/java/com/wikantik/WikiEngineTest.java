@@ -56,37 +56,18 @@ class WikiEngineTest {
     }
 
     /**
-     * Regression test for the snapshot-poisoning bug introduced by Phase 9 Ckpt 4d-iii:
-     * {@code WikiEngine.setManager(NewsPageGenerator.class, ...)} was called from
-     * {@code CachingProvider.initialize} (during {@code initComponent(PageManager.class)})
-     * BEFORE {@code FilterManager} had been registered. setManager eagerly rebuilt the
-     * {@code renderingSubsystem} snapshot from a partial registry, baking in
-     * {@code filterManager == null}. {@code DefaultRenderingManager.initialize} then
-     * read the cached null snapshot through the bridge, leaving its {@code filterManager}
-     * field null forever — every subsequent {@code textToHTML} call NPE'd.
-     *
-     * <p>This caught the bug only in the Selenide IT (raw markdown rendered into the page).
-     * This unit-level test reproduces the same path: build a real engine via
+     * Boot-time smoke test for the rendering pipeline: builds a real engine via
      * {@link TestEngine} (which runs the full {@code WikiEngine.initialize} sequence
-     * including {@code CachingProvider}), call {@code textToHTML} with markdown link
-     * syntax, and assert the output is rendered HTML — not literal markdown.</p>
+     * including {@code CachingProvider}), saves a page with markdown link + heading
+     * syntax, and asserts {@code textToHTML} produces rendered HTML rather than passing
+     * the markdown through verbatim. Originally introduced to catch a registry-rebuild
+     * race during boot; kept as a generic FilterManager/RenderingManager wiring check.
      */
     @Test
     void engineBoot_renderingPipelineConvertsMarkdownToHtml() throws Exception {
-        // Force the CachingProvider + directory-watcher + news-generator path that production
-        // uses (and that Phase 9 broke). The default test config has
-        // wikantik.newsPageGenerator.enabled=false, which sidesteps the bug — we enable it
-        // explicitly so the regression is caught here, not only in the IT.
-        //
-        // The bug: CachingProvider.initialize calls registerNewsPageGenerator BEFORE
-        // FilterManager is registered. setManager prematurely rebuilt the renderingSubsystem
-        // snapshot from the partial registry, baking in filterManager=null. The cached null
-        // snapshot then poisoned RenderingManager.initialize via the bridge — every
-        // subsequent textToHTML call NPE'd, leaving raw markdown in the rendered output.
         final Properties props = TestEngine.getTestProperties();
         props.setProperty( "wikantik.cache.enable", "true" );
         props.setProperty( "wikantik.cache.watcherEnabled", "true" );
-        props.setProperty( "wikantik.newsPageGenerator.enabled", "true" );
         m_engine.stop();
         m_engine = new TestEngine( props );
 

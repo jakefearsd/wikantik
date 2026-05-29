@@ -19,7 +19,6 @@
 package com.wikantik.render.subsystem;
 
 import com.wikantik.WikiEngine;
-import com.wikantik.content.NewsPageGenerator;
 import com.wikantik.diff.DifferenceManager;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.filters.SpamFilter;
@@ -73,12 +72,9 @@ public final class RenderingSubsystemFactory {
         final SpamExternalSignals spamExternalSignals = spam != null ? spam.getExternalSignals() : null;
         final SpamPolicy          spamPolicy          = spam != null ? spam.getPolicy()          : null;
 
-        final NewsPageGenerator newsPageGenerator = engine.getManager( NewsPageGenerator.class );
-
         return new RenderingSubsystem.Services(
             renderingManager, pluginManager, filterManager, differenceManager,
-            spamRateLimiter, spamPatternMatcher, spamExternalSignals, spamPolicy,
-            newsPageGenerator );
+            spamRateLimiter, spamPatternMatcher, spamExternalSignals, spamPolicy );
     }
 
     private static SpamFilter findSpamFilter( final FilterManager filterManager ) {

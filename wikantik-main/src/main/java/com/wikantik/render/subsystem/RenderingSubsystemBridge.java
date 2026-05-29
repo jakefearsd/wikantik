@@ -44,7 +44,7 @@ public final class RenderingSubsystemBridge {
         if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
             // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
             return new RenderingSubsystem.Services(
-                null, null, null, null, null, null, null, null, null );
+                null, null, null, null, null, null, null, null );
         }
         final RenderingSubsystem.Services typed = wikiEngine.getRenderingSubsystem();
         if ( typed != null ) return typed;

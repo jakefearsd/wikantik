@@ -21,7 +21,6 @@ package com.wikantik.providers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Context;
-import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
@@ -32,7 +31,6 @@ import com.wikantik.api.search.SearchResult;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.cache.CacheInfo;
 import com.wikantik.cache.CachingManager;
-import com.wikantik.content.NewsPageGenerator;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.parser.MarkupParser;
 import com.wikantik.render.RenderingManager;
@@ -85,12 +83,6 @@ public class CachingProvider implements PageProvider {
      * and triggers cache invalidation. Default is {@code true}.
      */
     public static final String PROP_WATCHER_ENABLED = "wikantik.cache.watcherEnabled";
-
-    /**
-     * Property name for enabling/disabling the news page generator.
-     * Default is {@code true}.
-     */
-    public static final String PROP_NEWS_GENERATOR_ENABLED = "wikantik.newsPageGenerator.enabled";
 
     /**
      * Property name for configuring the watcher polling interval in seconds.
@@ -158,15 +150,6 @@ public class CachingProvider implements PageProvider {
             pageDirectoryWatcher = new PageDirectoryWatcher( engine, watcherInterval, fileProvider, cachingManager );
             pageDirectoryWatcher.start();
             LOG.info( "Page directory watcher started with {}s interval", watcherInterval );
-
-            // Start news page generator (auto-generates News.md from git history)
-            final boolean newsEnabled = TextUtil.getBooleanProperty( properties, PROP_NEWS_GENERATOR_ENABLED, true );
-            if( newsEnabled ) {
-                final String pageDir = fileProvider.getPageDirectory();
-                final NewsPageGenerator newsGenerator = new NewsPageGenerator( engine, pageDir );
-                newsGenerator.start();
-                ( ( WikiEngine ) engine ).registerNewsPageGenerator( newsGenerator );
-            }
         }
     }
 

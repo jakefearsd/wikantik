@@ -18,31 +18,42 @@
  */
 package com.wikantik.rest;
 
-import com.wikantik.api.comments.PageOwnership;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.core.Page;
 import com.wikantik.api.core.Session;
+import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.comments.PageOwnerService;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 
 /**
- * REST servlet listing the pages owned by the current user.
- * Mapped to {@code /api/me/pages/*}.
+ * REST servlet listing the pages the current user authored — i.e. is the
+ * recorded author (most-recent editor) of — newest-first. Mapped to
+ * {@code /api/me/pages/*}.
  *
  * <ul>
- *   <li>{@code GET /api/me/pages?limit=N} — {@code {pages:[{canonicalId,slug,title,assignedAt}]}}, newest-first.</li>
+ *   <li>{@code GET /api/me/pages?limit=N} — {@code {pages:[{slug,title,lastModified}]}}.</li>
  * </ul>
  *
- * Requires authentication; anonymous callers get a 401.
+ * <p>"Authored" means {@link Page#getAuthor()} matches the caller's login. This
+ * is the author of the current version (the last person to save), so a page
+ * someone else last edited will not appear; full version history is not walked.
+ * Backed by {@link PageManager#getRecentChanges()}, which already returns pages
+ * ordered most-recently-modified-first and carries author + last-modified on
+ * each {@link Page} (the same scan that powers {@code /api/recent-changes}).</p>
+ *
+ * <p>Requires authentication; anonymous callers get a 401.</p>
  */
 public class MyPagesResource extends RestServletBase {
 
@@ -50,20 +61,29 @@ public class MyPagesResource extends RestServletBase {
     private static final int DEFAULT_LIMIT = 15;
     private static final int MAX_LIMIT = 100;
 
-    /** Seam — page-owner service, overridable for unit tests. */
-    protected PageOwnerService pageOwners() {
-        return getSubsystems().persistence().pageOwners();
+    /** Seam — candidate pages (recent changes, newest-first), overridable for unit tests. */
+    protected Collection< Page > candidatePages() {
+        return getSubsystems().page().pages().getRecentChanges();
     }
 
-    /** Seam — slug resolution from canonical id, overridable for unit tests. */
-    protected Optional< String > resolveSlug( final String canonicalId ) {
-        return getSubsystems().pageGraph().structuralIndexService().resolveSlugFromCanonicalId( canonicalId );
-    }
-
-    /** Seam — current authenticated user's login, overridable for unit tests. */
-    protected String currentUser( final HttpServletRequest request ) {
+    /**
+     * Seam — the set of identity names that count as "me", overridable for unit
+     * tests. A page is mine when its {@link Page#getAuthor()} matches any of
+     * these. We include both the user principal (wiki name — this is what
+     * {@code PageResource} stores as the author on save) and the login principal,
+     * so authorship recorded under either representation is matched.
+     */
+    protected Set< String > currentUserIdentities( final HttpServletRequest request ) {
         final Engine engine = getEngine();
-        return Wiki.session().find( engine, request ).getLoginPrincipal().getName();
+        final Session s = Wiki.session().find( engine, request );
+        final Set< String > ids = new HashSet<>();
+        if ( s.getUserPrincipal() != null && s.getUserPrincipal().getName() != null ) {
+            ids.add( s.getUserPrincipal().getName() );
+        }
+        if ( s.getLoginPrincipal() != null && s.getLoginPrincipal().getName() != null ) {
+            ids.add( s.getLoginPrincipal().getName() );
+        }
+        return ids;
     }
 
     /** Seam — auth gate, overridable for unit tests. */
@@ -75,21 +95,33 @@ public class MyPagesResource extends RestServletBase {
 
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
-            throws ServletException, IOException {
+            throws IOException {
         if ( !isAuthenticated( request ) ) {
             sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Login required" );
             return;
         }
+        final Set< String > me = currentUserIdentities( request );
         final int limit = clampLimit( request.getParameter( "limit" ) );
-        final List< PageOwnership > rows = pageOwners().listByOwner( currentUser( request ), limit, 0 );
+
+        final List< Page > mine = new ArrayList<>();
+        for ( final Page p : candidatePages() ) {
+            final String author = p.getAuthor();
+            if ( author != null && me.stream().anyMatch( author::equalsIgnoreCase ) ) {
+                mine.add( p );
+            }
+        }
+        // Newest-first; pages with no timestamp sort last.
+        mine.sort( Comparator.comparing( Page::getLastModified,
+                Comparator.nullsLast( Comparator.naturalOrder() ) ).reversed() );
+
         final List< Map< String, Object > > out = new ArrayList<>();
-        for ( final PageOwnership r : rows ) {
-            final Optional< String > slug = resolveSlug( r.canonicalId() );
+        for ( final Page p : mine ) {
+            if ( out.size() >= limit ) break;
+            final Date lm = p.getLastModified();
             final Map< String, Object > m = new LinkedHashMap<>();
-            m.put( "canonicalId", r.canonicalId() );
-            m.put( "slug", slug.orElse( r.canonicalId() ) );
-            m.put( "title", slug.orElse( r.canonicalId() ) );
-            m.put( "assignedAt", r.assignedAt() == null ? null : r.assignedAt().toString() );
+            m.put( "slug", p.getName() );
+            m.put( "title", p.getName() );
+            m.put( "lastModified", lm == null ? null : lm.toInstant().toString() );
             out.add( m );
         }
         final Map< String, Object > body = new LinkedHashMap<>();

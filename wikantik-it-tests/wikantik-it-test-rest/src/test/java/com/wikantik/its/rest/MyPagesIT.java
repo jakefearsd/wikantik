@@ -47,11 +47,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>Two test scenarios:</p>
  * <ol>
  *   <li><b>Anonymous is 401</b> — a fresh no-cookie client must receive HTTP 401.</li>
- *   <li><b>Owned pages listing</b> — {@code janne} (Admin group) seeds a page as
- *       herself (making her the first author and therefore the owner via
- *       {@code PageOwnerFilter}), waits for the structural index to settle, then
- *       GETs {@code /api/me/pages?limit=50} and asserts the seeded slug appears in
- *       the {@code pages} array.</li>
+ *   <li><b>Authored pages listing</b> — {@code janne} (Admin group) saves a page as
+ *       herself (making her the last editor / author), waits for the structural
+ *       index to settle, then GETs {@code /api/me/pages?limit=50} and asserts the
+ *       saved slug appears in the {@code pages} array. {@code /api/me/pages} lists
+ *       pages whose {@code author} matches the caller.</li>
  * </ol>
  *
  * <p>Scaffold copied verbatim from {@link CommentThreadIT}: {@link #secureCookieOverHttp()},
@@ -62,7 +62,7 @@ public class MyPagesIT {
 
     private static final Gson GSON = new Gson();
 
-    /** Slug of the page seeded as janne so janne owns it. */
+    /** Slug of the page saved as janne so janne is its author. */
     private static final String PAGE_SLUG = "MyPagesITPage";
 
     private static String baseUrl;
@@ -147,10 +147,10 @@ public class MyPagesIT {
     }
 
     /**
-     * Seeds a wiki page via {@code PUT /api/pages/{slug}} as the currently
-     * authenticated user (i.e. janne, after {@link #loginAsAdmin()}). Because
-     * {@code PageOwnerFilter} assigns the first author as owner, janne will own
-     * this page. Copied from {@code CommentThreadIT}'s inline seed pattern.
+     * Saves a wiki page via {@code PUT /api/pages/{slug}} as the currently
+     * authenticated user (i.e. janne, after {@link #loginAsAdmin()}). The save
+     * records janne as the page author/last-editor, so the page appears in her
+     * {@code /api/me/pages}. Copied from {@code CommentThreadIT}'s inline seed pattern.
      */
     private void seedPage( final String slug ) throws IOException, InterruptedException {
         final HttpResponse< String > resp = put( "/api/pages/" + slug,
@@ -197,12 +197,12 @@ public class MyPagesIT {
     }
 
     /**
-     * Authenticate as janne, seed a page (making janne the owner), wait for the
-     * structural index, then assert {@code /api/me/pages} returns the seeded slug.
+     * Authenticate as janne, save a page (making janne the author), wait for the
+     * structural index, then assert {@code /api/me/pages} returns the saved slug.
      */
     @Test
     @SuppressWarnings( "unchecked" )
-    void listsPagesOwnedByCaller() throws Exception {
+    void listsPagesAuthoredByCaller() throws Exception {
         loginAsAdmin();
         seedPage( PAGE_SLUG );
         waitForStructuralIndexUp();

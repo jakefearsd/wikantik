@@ -51,7 +51,7 @@ public class MentionService {
         this.userExists = userExists;
     }
 
-    /** First comment of a thread. Writes direct mentions (minus the author);
+    /** First comment of a thread. Writes direct mentions (including self-mentions);
      *  if {@code owner} is present, distinct from the author, and not already
      *  in the direct set, also writes an owner-mention row. */
     public void recordCreate( final Connection c, final UUID commentId,
@@ -155,10 +155,12 @@ public class MentionService {
         }
     }
 
+    /** Resolved (existing-user-only) direct mentions in {@code body}.
+     *  Self-mentions are kept — users can intentionally @-mention themselves
+     *  (e.g., as a personal todo marker). */
     private Set< String > directMentionsFor( final String body, final String author ) {
         final Set< String > tokens = MentionExtractor.parse( body );
         final Set< String > resolved = MentionExtractor.resolve( tokens, userExists );
-        resolved.remove( author );
         return resolved;
     }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { titleToSlug, isValidSlug } from '../utils/slugUtils';
+import Modal from './ui/Modal';
 
 export default function NewArticleModal({ isOpen, onClose, existingPageNames, existingClusters }) {
   const navigate = useNavigate();
@@ -20,16 +21,6 @@ export default function NewArticleModal({ isOpen, onClose, existingPageNames, ex
       setArticleType('article');
     }
   }, [isOpen]);
-
-  // Escape key closes the modal
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -73,10 +64,9 @@ export default function NewArticleModal({ isOpen, onClose, existingPageNames, ex
   const typeOptions = ['article', 'hub', 'reference'];
 
   return (
-    <div className="search-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="search-dialog" style={{ maxWidth: '480px' }}>
-        <div style={{ padding: 'var(--space-xl)' }}>
-          <h2 style={{
+    <Modal isOpen={isOpen} onClose={onClose} labelledBy="new-article-modal-title" className="search-dialog" style={{ maxWidth: '480px' }}>
+      <div style={{ padding: 'var(--space-xl)' }}>
+          <h2 id="new-article-modal-title" style={{
             fontFamily: 'var(--font-display)',
             fontSize: '1.5rem',
             marginBottom: 'var(--space-lg)',
@@ -242,7 +232,6 @@ export default function NewArticleModal({ isOpen, onClose, existingPageNames, ex
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

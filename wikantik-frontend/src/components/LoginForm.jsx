@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import SsoLoginButton from './SsoLoginButton';
+import Modal from './ui/Modal';
 
 export default function LoginForm({ onClose }) {
   const { login } = useAuth();
@@ -25,10 +26,9 @@ export default function LoginForm({ onClose }) {
   };
 
   return (
-    <div className="search-overlay" data-testid="login-modal" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="search-dialog" style={{ maxWidth: '380px' }}>
+    <Modal isOpen onClose={onClose} labelledBy="login-modal-title" className="search-dialog" style={{ maxWidth: '380px' }}>
         <form onSubmit={handleSubmit} data-testid="login-form" style={{ padding: 'var(--space-xl)' }}>
-          <h2 style={{
+          <h2 id="login-modal-title" style={{
             fontFamily: 'var(--font-display)',
             fontSize: '1.5rem',
             marginBottom: 'var(--space-lg)',
@@ -118,7 +118,6 @@ export default function LoginForm({ onClose }) {
             </Link>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

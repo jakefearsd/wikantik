@@ -278,3 +278,26 @@ describe('#21 draft banner relative time and dismiss', () => {
     expect(mockClearDraft).toHaveBeenCalled();
   });
 });
+
+// ── #18 Formatting toolbar ────────────────────────────────────────────────────
+describe('#18 formatting toolbar', () => {
+  it('renders all six toolbar buttons', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    expect(screen.getByTitle(/bold/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/italic/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/heading/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/list/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/code/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/link/i)).toBeInTheDocument();
+  });
+
+  it('formatting toolbar is rendered above textarea', async () => {
+    const { container } = renderEditor();
+    await waitForEditor();
+
+    const toolbar = container.querySelector('.editor-format-toolbar');
+    expect(toolbar).not.toBeNull();
+  });
+});

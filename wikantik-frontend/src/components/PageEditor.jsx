@@ -13,6 +13,8 @@ import { useDraft } from '../hooks/useDraft';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { formatRelative } from '../utils/datetime';
+import { toggleWrap, toggleLinePrefix, insertLink } from '../utils/markdownFormat';
+import EditorToolbar from './EditorToolbar';
 import AttachmentPanel from './AttachmentPanel';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -135,14 +137,65 @@ export default function PageEditor() {
     }
   }, [isDirty]);
 
-  // #4 — Cmd/Ctrl+S global keyboard shortcut
+  // #18 — Apply a formatting command to the textarea
+  const applyFormat = useCallback((command) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const state = {
+      text: textarea.value,
+      selStart: textarea.selectionStart,
+      selEnd: textarea.selectionEnd,
+    };
+
+    let next;
+    switch (command) {
+      case 'bold':    next = toggleWrap(state, '**'); break;
+      case 'italic':  next = toggleWrap(state, '*');  break;
+      case 'code':    next = toggleWrap(state, '`');  break;
+      case 'heading': next = toggleLinePrefix(state, '## '); break;
+      case 'list':    next = toggleLinePrefix(state, '- ');  break;
+      case 'link':    next = insertLink(state); break;
+      default: return;
+    }
+
+    setContent(next.text);
+
+    // Restore selection after React re-renders
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(next.selStart, next.selEnd);
+      }
+    });
+  }, []);
+
+  // #4 — Cmd/Ctrl+S global keyboard shortcut; #18 — Cmd/Ctrl+B/I/K formatting shortcuts
   useEffect(() => {
     const handler = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      const hotkey = (e.metaKey || e.ctrlKey);
+      if (!hotkey) return;
+
+      if (e.key === 's') {
         e.preventDefault();
         if (!savingRef.current) {
           saveContent();
         }
+        return;
+      }
+
+      // Formatting shortcuts — only when textarea has focus
+      if (document.activeElement !== textareaRef.current) return;
+
+      if (e.key === 'b') {
+        e.preventDefault();
+        applyFormat('bold');
+      } else if (e.key === 'i') {
+        e.preventDefault();
+        applyFormat('italic');
+      } else if (e.key === 'k') {
+        e.preventDefault();
+        applyFormat('link');
       }
     };
     window.addEventListener('keydown', handler);
@@ -338,6 +391,9 @@ export default function PageEditor() {
           </button>
         </div>
       )}
+
+      {/* #18 — Formatting toolbar above the editor container */}
+      <EditorToolbar onCommand={applyFormat} />
 
       <div className="editor-container">
         <div className="editor-pane">

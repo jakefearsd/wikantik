@@ -87,15 +87,18 @@ describe('ProposalReviewQueue — rendering', () => {
     expect(screen.getByText('new-node')).toBeTruthy();
   });
 
-  it('shows per-row Approve/Reject/Judge now buttons', async () => {
+  it('shows per-row Approve/Reject buttons inline and Judge now in overflow', async () => {
     render(<ProposalReviewQueue />);
     await screen.findByText('new-edge');
     const approveButtons = screen.getAllByRole('button', { name: /^Approve$/i });
     expect(approveButtons.length).toBeGreaterThanOrEqual(1);
     const rejectButtons = screen.getAllByRole('button', { name: /^Reject$/i });
     expect(rejectButtons.length).toBeGreaterThanOrEqual(1);
-    const judgeButtons = screen.getAllByRole('button', { name: /Judge now/i });
-    expect(judgeButtons.length).toBeGreaterThanOrEqual(1);
+    // Judge now is in the overflow menu — open the first one to verify
+    const moreButtons = screen.getAllByRole('button', { name: /more actions/i });
+    expect(moreButtons.length).toBeGreaterThanOrEqual(1);
+    fireEvent.click(moreButtons[0]);
+    expect(screen.getByRole('menuitem', { name: /Judge now/i })).toBeInTheDocument();
   });
 
   it('per-row "Reject (skip)" dispatches without prompting and uses the placeholder reason', async () => {

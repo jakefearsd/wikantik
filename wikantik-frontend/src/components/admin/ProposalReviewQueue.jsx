@@ -4,6 +4,7 @@ import Badge from '../ui/Badge';
 import Chip from '../ui/Chip';
 import { formatRelative, formatTime } from '../../utils/datetime';
 import PageLink from './PageLink';
+import OverflowMenu from './OverflowMenu';
 import { AdminTable } from './table';
 
 /**
@@ -370,28 +371,28 @@ export default function ProposalReviewQueue() {
     return () => clearInterval(id);
   }, [polling, fetchJudgeStatus, loadProposals]);
 
-  const handleApprove = async (id) => {
+  const handleApprove = useCallback(async (id) => {
     await api.knowledge.approveProposal(id);
     await loadProposals();
-  };
+  }, [loadProposals]);
 
-  const handleReject = async (id) => {
+  const handleReject = useCallback(async (id) => {
     const reason = prompt('Rejection reason (optional):');
     await api.knowledge.rejectProposal(id, reason || '');
     await loadProposals();
-  };
+  }, [loadProposals]);
 
-  const handleQuickReject = async (id) => {
+  const handleQuickReject = useCallback(async (id) => {
     // Speed path: skip the prompt for obvious junk. Audit trail records
     // QUICK_REJECT_REASON so triagers can identify these later.
     await api.knowledge.rejectProposal(id, QUICK_REJECT_REASON);
     await loadProposals();
-  };
+  }, [loadProposals]);
 
-  const handleJudgeNow = async (id) => {
+  const handleJudgeNow = useCallback(async (id) => {
     await api.knowledge.judgeProposal(id);
     await loadProposals();
-  };
+  }, [loadProposals]);
 
   const handleRunRunner = async () => {
     setJudgeRunning(true);
@@ -460,38 +461,42 @@ export default function ProposalReviewQueue() {
         </span>
       ),
     },
-  ], [expandedReviews, reviewsCache, handleToggleExpand]);
+    {
+      id: 'actions',
+      label: 'Actions',
+      render: (p) => (
+        <div className="admin-cell-actions">
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => handleApprove(p.id)}
+          >
+            Approve
+          </button>
+          <button
+            className="btn btn-ghost btn-sm btn-danger"
+            onClick={() => handleReject(p.id)}
+          >
+            Reject
+          </button>
+          <button
+            className="btn btn-ghost btn-sm btn-danger"
+            onClick={() => handleQuickReject(p.id)}
+          >
+            Reject (skip)
+          </button>
+          <OverflowMenu
+            actions={[
+              { label: 'Judge now', onClick: () => handleJudgeNow(p.id) },
+            ]}
+          />
+        </div>
+      ),
+    },
+  ], [expandedReviews, reviewsCache, handleToggleExpand, handleApprove, handleReject, handleQuickReject, handleJudgeNow]);
 
   // Server-side filtering means `proposals` IS the matching set for the
   // active filter — no client-side post-filter needed.
   const visible = proposals;
-
-  const rowAction = (p) => [
-    {
-      id: 'approve',
-      label: 'Approve',
-      variant: 'primary',
-      onClick: () => handleApprove(p.id),
-    },
-    {
-      id: 'reject',
-      label: 'Reject',
-      variant: 'danger',
-      onClick: () => handleReject(p.id),
-    },
-    {
-      id: 'reject-quick',
-      label: 'Reject (skip)',
-      variant: 'danger',
-      onClick: () => handleQuickReject(p.id),
-    },
-    {
-      id: 'judge',
-      label: 'Judge now',
-      variant: 'default',
-      onClick: () => handleJudgeNow(p.id),
-    },
-  ];
 
   if (loading) return <div className="admin-loading">Loading proposals...</div>;
   if (error) return <div className="admin-error">{error}</div>;
@@ -536,7 +541,6 @@ export default function ProposalReviewQueue() {
         bulkActions={BULK_ACTIONS}
         onBulkAction={handleBulkAction}
         emptyMessage="No proposals match the current filter."
-        rowAction={rowAction}
         density="comfortable"
         pagination={{
           pageSize: PAGE_SIZE,

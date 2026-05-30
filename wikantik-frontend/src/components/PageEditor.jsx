@@ -33,6 +33,8 @@ export default function PageEditor() {
   const [converting, setConverting] = useState(false);
   const [conversionWarnings, setConversionWarnings] = useState([]);
   const [panelOpen, setPanelOpen] = useState(false);
+  // #20 — discard-confirm modal state
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const textareaRef = useRef(null);
   const attachments = useAttachments(name);
   // Track saving in a ref so the keyboard handler can read latest state without re-registering
@@ -47,6 +49,9 @@ export default function PageEditor() {
   });
   const [restorePrompt, setRestorePrompt] = useState(false);
   const loadedContentRef = useRef(null);
+
+  // #20 — isDirty: true only once the page has loaded and content differs from baseline
+  const isDirty = loaded && content !== loadedContentRef.current;
 
   const handleInsert = useCallback((text, pos) => {
     setContent(prev => prev.slice(0, pos) + text + prev.slice(pos));
@@ -117,6 +122,18 @@ export default function PageEditor() {
     document.title = `Wikantik: ${isNew ? 'Create' : 'Edit'} ${name}`;
   }, [name, isNew]);
 
+  // #20 — beforeunload handler: warn if navigating away with unsaved changes
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    if (isDirty) {
+      window.addEventListener('beforeunload', handler);
+      return () => window.removeEventListener('beforeunload', handler);
+    }
+  }, [isDirty]);
+
   // #4 — Cmd/Ctrl+S global keyboard shortcut
   useEffect(() => {
     const handler = (e) => {
@@ -181,6 +198,15 @@ export default function PageEditor() {
   };
 
   const save = saveContent;
+
+  // #20 — Cancel handler: confirm if dirty
+  const handleCancel = () => {
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      navigate(`/wiki/${name}`);
+    }
+  };
 
   const handleOverwrite = async () => {
     setSaving(true);
@@ -260,7 +286,7 @@ export default function PageEditor() {
             title="Attachments">
             Attach
           </button>
-          <button className="btn btn-ghost" data-testid="editor-cancel" onClick={() => navigate(`/wiki/${name}`)}>
+          <button className="btn btn-ghost" data-testid="editor-cancel" onClick={handleCancel}>
             Cancel
           </button>
           <button className="btn btn-primary" data-testid="editor-save" onClick={save} disabled={saving}>
@@ -359,6 +385,42 @@ export default function PageEditor() {
               </button>
               <button className="btn btn-ghost" onClick={handleCopyAndLoad}>
                 Copy my text to clipboard, then load server version
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* #20 — Discard-confirm modal for in-app Cancel */}
+      {showDiscardConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDiscardConfirm(false)}>
+          <div className="modal-content admin-modal" onClick={e => e.stopPropagation()}>
+            <h3 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              marginBottom: 'var(--space-md)',
+            }}>
+              Discard unsaved changes?
+            </h3>
+            <p style={{
+              fontFamily: 'var(--font-ui)',
+              fontSize: '0.9rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6,
+              marginBottom: 'var(--space-lg)',
+            }}>
+              You have unsaved changes. If you leave now they will be lost.
+            </p>
+            <div className="modal-actions">
+              <button className="btn btn-ghost" onClick={() => setShowDiscardConfirm(false)}>
+                Keep editing
+              </button>
+              <button className="btn btn-primary" onClick={() => {
+                setShowDiscardConfirm(false);
+                navigate(`/wiki/${name}`);
+              }}>
+                Discard
               </button>
             </div>
           </div>

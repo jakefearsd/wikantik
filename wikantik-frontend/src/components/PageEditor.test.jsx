@@ -143,3 +143,83 @@ describe('#4 Cmd/Ctrl+S save', () => {
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalledWith('Saved'));
   });
 });
+
+// ── #20 Unsaved-changes guard ────────────────────────────────────────────────
+describe('#20 unsaved-changes guard', () => {
+  it('registers beforeunload listener when editor is dirty', async () => {
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.change(screen.getByTestId('editor-textarea'), { target: { value: '# Changed!' } });
+
+    await waitFor(() => {
+      const calls = addSpy.mock.calls.filter(([ev]) => ev === 'beforeunload');
+      expect(calls.length).toBeGreaterThan(0);
+    });
+
+    addSpy.mockRestore();
+  });
+
+  it('beforeunload handler sets returnValue when content is dirty', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.change(screen.getByTestId('editor-textarea'), { target: { value: '# Different content' } });
+
+    const event = new Event('beforeunload', { cancelable: true });
+    await waitFor(() => {
+      window.dispatchEvent(event);
+    });
+    expect(event.returnValue).toBe('');
+  });
+
+  it('Cancel while dirty shows confirm modal (does not navigate immediately)', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.change(screen.getByTestId('editor-textarea'), { target: { value: '# Modified' } });
+
+    fireEvent.click(screen.getByTestId('editor-cancel'));
+
+    await waitFor(() => expect(screen.getByText(/discard unsaved changes/i)).toBeInTheDocument());
+    expect(screen.queryByTestId('wiki-view')).toBeNull();
+  });
+
+  it('Cancel while clean navigates immediately without modal', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(screen.getByTestId('editor-cancel'));
+
+    await screen.findByTestId('wiki-view');
+    expect(screen.queryByText(/discard unsaved changes/i)).toBeNull();
+  });
+
+  it('Discard button in confirm modal navigates away', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.change(screen.getByTestId('editor-textarea'), { target: { value: '# Modified' } });
+    fireEvent.click(screen.getByTestId('editor-cancel'));
+    await waitFor(() => screen.getByText(/discard unsaved changes/i));
+
+    fireEvent.click(screen.getByRole('button', { name: /^discard$/i }));
+
+    await screen.findByTestId('wiki-view');
+  });
+
+  it('Keep Editing button in confirm modal closes modal without navigating', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.change(screen.getByTestId('editor-textarea'), { target: { value: '# Modified' } });
+    fireEvent.click(screen.getByTestId('editor-cancel'));
+    await waitFor(() => screen.getByText(/discard unsaved changes/i));
+
+    fireEvent.click(screen.getByRole('button', { name: /keep editing/i }));
+
+    expect(screen.queryByText(/discard unsaved changes/i)).toBeNull();
+    expect(screen.queryByTestId('wiki-view')).toBeNull();
+  });
+});

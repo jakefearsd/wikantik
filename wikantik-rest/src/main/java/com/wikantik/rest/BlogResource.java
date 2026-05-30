@@ -486,14 +486,14 @@ public class BlogResource extends RestServletBase {
             return;
         }
 
-        if ( !body.has( "topic" ) || body.get( "topic" ).getAsString().isBlank() ) {
+        final String topicRaw = getJsonString( body, "topic" );
+        if ( topicRaw == null || topicRaw.isBlank() ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "topic is required and must not be blank" );
             return;
         }
 
-        final String topic = body.get( "topic" ).getAsString().trim();
-        final String content = body.has( "content" ) && !body.get( "content" ).isJsonNull()
-            ? body.get( "content" ).getAsString() : null;
+        final String topic = topicRaw.trim();
+        final String content = getJsonString( body, "content" );
 
         try {
             final BlogManager blogManager = getSubsystems().core().blogManager();
@@ -544,7 +544,8 @@ public class BlogResource extends RestServletBase {
             return;
         }
 
-        final String content = body.has( "content" ) ? body.get( "content" ).getAsString() : "";
+        final String contentRaw = getJsonString( body, "content" );
+        final String content = contentRaw != null ? contentRaw : "";
 
         try {
             pm.putPageText( page, content );
@@ -591,7 +592,8 @@ public class BlogResource extends RestServletBase {
             return;
         }
 
-        final String content = body.has( "content" ) ? body.get( "content" ).getAsString() : "";
+        final String contentRaw = getJsonString( body, "content" );
+        final String content = contentRaw != null ? contentRaw : "";
 
         try {
             pm.putPageText( page, content );

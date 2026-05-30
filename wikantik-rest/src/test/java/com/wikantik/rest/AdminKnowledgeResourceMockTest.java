@@ -420,6 +420,52 @@ class AdminKnowledgeResourceMockTest {
     }
 
     @Test
+    void postProposal_missingProposalType_returns400() throws Exception {
+        // A required field absent used to NPE (body.get(...).getAsString() on null) → 500.
+        // It must now be a clean 400.
+        final JsonObject obj = callWithBody( "/proposals", "POST", new JsonObject() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void postProposal_nonPrimitiveProposalType_returns400() throws Exception {
+        // A JSON object where a string is expected used to 500 (getAsString throws).
+        final JsonObject body = new JsonObject();
+        body.add( "proposal_type", new JsonObject() );
+        final JsonObject obj = callWithBody( "/proposals", "POST", body );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void postNodeUpsert_missingName_returns400() throws Exception {
+        final JsonObject obj = callWithBody( "/nodes", "POST", new JsonObject() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void postNodeMerge_missingIds_returns400() throws Exception {
+        // sourceId/targetId absent used to NPE; now a clean 400 before any merge.
+        final JsonObject obj = callWithBody( "/nodes/merge", "POST", new JsonObject() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void postNodeMerge_malformedUuid_returns400() throws Exception {
+        // A syntactically invalid UUID used to throw IllegalArgumentException → 500.
+        final JsonObject body = new JsonObject();
+        body.addProperty( "sourceId", "not-a-uuid" );
+        body.addProperty( "targetId", UUID.randomUUID().toString() );
+        final JsonObject obj = callWithBody( "/nodes/merge", "POST", body );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void postEdgeUpsert_missingFields_returns400() throws Exception {
+        final JsonObject obj = callWithBody( "/edges", "POST", new JsonObject() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
     void postProposal_approve_returns404WhenMissing() throws Exception {
         final UUID id = UUID.randomUUID();
         Mockito.when( service.approveProposal( Mockito.eq( id ), anyString() ) ).thenReturn( null );

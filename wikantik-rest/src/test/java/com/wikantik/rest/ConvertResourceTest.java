@@ -152,6 +152,27 @@ class ConvertResourceTest {
         }
     }
 
+    @Test
+    void doPost_nonPrimitiveContentDoesNotError() throws Exception {
+        // A JSON object where a string is expected used to 500 (getAsString() throws on
+        // a non-primitive value); it must degrade to empty content and convert cleanly.
+        final HttpServletRequest request = createRequest( "wiki-to-markdown" );
+        final JsonObject body = new JsonObject();
+        body.add( "content", new JsonObject() );
+        Mockito.doReturn( new BufferedReader( new StringReader( body.toString() ) ) ).when( request ).getReader();
+
+        final Session authed = Mockito.mock( Session.class );
+        Mockito.when( authed.isAuthenticated() ).thenReturn( true );
+        try ( final MockedStatic< Wiki > wiki = mockWikiSession( authed ) ) {
+            final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+            final StringWriter sw = new StringWriter();
+            Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+            servlet.doPost( request, response );
+            final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
+            assertTrue( obj.has( "markdown" ), "Non-primitive content must degrade to empty, got: " + sw );
+        }
+    }
+
     private HttpServletRequest createRequest( final String action ) {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/convert/" + action );
         Mockito.doReturn( "/" + action ).when( request ).getPathInfo();

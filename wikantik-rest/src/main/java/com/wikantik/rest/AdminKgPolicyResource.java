@@ -442,7 +442,7 @@ public class AdminKgPolicyResource extends RestServletBase {
     }
 
     private static String optString( final JsonObject body, final String key ) {
-        if ( body == null || !body.has( key ) || body.get( key ).isJsonNull() ) return null;
+        if ( body == null || !body.has( key ) || !body.get( key ).isJsonPrimitive() ) return null;
         return body.get( key ).getAsString();
     }
 

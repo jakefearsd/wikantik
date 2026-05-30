@@ -159,10 +159,10 @@ public class AdminHubDiscoveryResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "invalid JSON: " + e.getMessage() );
             return;
         }
-        final String suggestedName = body.has( "suggested_name" )
-            ? body.get( "suggested_name" ).getAsString() : "TestHub";
-        final String exemplarPage = body.has( "exemplar_page" )
-            ? body.get( "exemplar_page" ).getAsString() : "TestExemplarPage";
+        final String suggestedNameRaw = getJsonString( body, "suggested_name" );
+        final String suggestedName = suggestedNameRaw != null ? suggestedNameRaw : "TestHub";
+        final String exemplarPageRaw = getJsonString( body, "exemplar_page" );
+        final String exemplarPage = exemplarPageRaw != null ? exemplarPageRaw : "TestExemplarPage";
         final List< String > members = new ArrayList<>();
         if ( body.has( "members" ) && body.get( "members" ).isJsonArray() ) {
             body.getAsJsonArray( "members" ).forEach( e -> members.add( e.getAsString() ) );
@@ -170,8 +170,7 @@ public class AdminHubDiscoveryResource extends RestServletBase {
         if ( members.isEmpty() ) {
             members.add( exemplarPage );
         }
-        final double coherence = body.has( "coherence" )
-            ? body.get( "coherence" ).getAsDouble() : 0.85;
+        final double coherence = getJsonDouble( body, "coherence", 0.85 );
 
         final int id = repo.insert( suggestedName, exemplarPage, members, coherence );
         LOG.info( "Hub discovery: seeded synthetic proposal id={} (test fixture seam)", id );

@@ -193,6 +193,38 @@ class PageResourceTest {
     }
 
     @Test
+    void testPutPageEmptyContentReturns400() throws Exception {
+        // Empty content used to NPE (saveText returns null → getVersion() NPE → 500).
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "" );
+
+        final JsonObject obj = gson.fromJson( doPut( "RestEmptyPage", body ), JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testPutPageNullContentReturns400() throws Exception {
+        // JSON null content must not 500; it resolves to empty → 400.
+        final JsonObject body = new JsonObject();
+        body.add( "content", com.google.gson.JsonNull.INSTANCE );
+
+        final JsonObject obj = gson.fromJson( doPut( "RestNullContentPage", body ), JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testPutPageNonIntExpectedVersionDoesNotError() throws Exception {
+        // A non-numeric expectedVersion used to 500 (getAsInt threw); now it
+        // degrades to "no version check" and the save succeeds.
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "Body for the malformed-version test." );
+        body.addProperty( "expectedVersion", "not-a-number" );
+
+        final JsonObject obj = gson.fromJson( doPut( "RestBadVersionPage", body ), JsonObject.class );
+        assertTrue( obj.get( "success" ).getAsBoolean() );
+    }
+
+    @Test
     void testDeletePage() throws Exception {
         engine.saveText( "RestDeletePage", "Page to delete." );
 

@@ -439,8 +439,8 @@ public class AuthResource extends RestServletBase {
             return;
         }
 
-        final String username = body.has( "username" ) ? body.get( "username" ).getAsString() : null;
-        final String password = body.has( "password" ) ? body.get( "password" ).getAsString() : null;
+        final String username = getJsonString( body, "username" );
+        final String password = getJsonString( body, "password" );
 
         if ( username == null || username.isBlank() || password == null ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Username and password are required" );

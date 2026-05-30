@@ -257,7 +257,15 @@ public class PageResource extends RestServletBase {
         final JsonObject body = parseJsonBody( request, response );
         if ( body == null ) return;
 
-        final String content = body.has( "content" ) ? body.get( "content" ).getAsString() : "";
+        final String contentRaw = getJsonString( body, "content" );
+        final String content = contentRaw != null ? contentRaw : "";
+
+        // Reject an empty body up front: PageManager.saveText("") does not persist a
+        // page, so saveText() returns null and the caller would NPE on getVersion().
+        if ( content.isEmpty() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Page content must not be empty" );
+            return;
+        }
 
         // D22: enforce the configurable content-size limit before persistence.
         final int maxBytes = parseMaxPageBytes( getEngine() );
@@ -269,11 +277,11 @@ public class PageResource extends RestServletBase {
             return;
         }
 
-        final String changeNote = body.has( "changeNote" ) ? body.get( "changeNote" ).getAsString() : null;
-        final String author = body.has( "author" ) ? body.get( "author" ).getAsString() : null;
-        final int expectedVersion = body.has( "expectedVersion" ) ? body.get( "expectedVersion" ).getAsInt() : -1;
-        final String expectedContentHash = body.has( "expectedContentHash" ) ? body.get( "expectedContentHash" ).getAsString() : null;
-        final String markupSyntax = body.has( "markupSyntax" ) ? body.get( "markupSyntax" ).getAsString() : null;
+        final String changeNote = getJsonString( body, "changeNote" );
+        final String author = getJsonString( body, "author" );
+        final int expectedVersion = getJsonInt( body, "expectedVersion", -1 );
+        final String expectedContentHash = getJsonString( body, "expectedContentHash" );
+        final String markupSyntax = getJsonString( body, "markupSyntax" );
 
         // D20: optional strict mode — refuse a PUT that doesn't carry expectedVersion.
         if ( expectedVersion < 0 && isExpectedVersionRequired( getEngine() ) ) {
@@ -320,6 +328,14 @@ public class PageResource extends RestServletBase {
 
             final PageSaveHelper helper = new PageSaveHelper( engine, getSubsystems().page().pages() );
             final Page saved = helper.saveText( pageName, content, optionsBuilder.build() );
+
+            // Defence in depth: a save that did not persist (e.g. vetoed by a filter)
+            // returns null — surface a clean error rather than NPE on getVersion().
+            if ( saved == null ) {
+                LOG.warn( "Page save for '{}' did not persist a page (saveText returned null)", pageName );
+                sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Page save did not persist" );
+                return;
+            }
 
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
@@ -491,7 +507,8 @@ public class PageResource extends RestServletBase {
         }
 
         final Map< String, Object > callerMetadata = GSON.fromJson( body.get( "metadata" ), Map.class );
-        final String action = body.has( "action" ) ? body.get( "action" ).getAsString() : "merge";
+        final String actionRaw = getJsonString( body, "action" );
+        final String action = actionRaw != null ? actionRaw : "merge";
 
         // Read current page text and parse frontmatter
         final String currentText = pm.getPureText( pageName, PageProvider.LATEST_VERSION );
@@ -578,13 +595,14 @@ public class PageResource extends RestServletBase {
         if ( body == null ) return;
 
         // Validate newName
-        if ( !body.has( "newName" ) || body.get( "newName" ).getAsString().isBlank() ) {
+        final String rawNewName = getJsonString( body, "newName" );
+        if ( rawNewName == null || rawNewName.isBlank() ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "newName is required and must not be blank" );
             return;
         }
-        final String newName = body.get( "newName" ).getAsString().trim();
+        final String newName = rawNewName.trim();
 
-        final boolean changeReferrers = !body.has( "changeReferrers" ) || body.get( "changeReferrers" ).getAsBoolean();
+        final boolean changeReferrers = getJsonBoolean( body, "changeReferrers", true );
 
         final Engine engine = getEngine();
         final PageManager pm = getSubsystems().page().pages();

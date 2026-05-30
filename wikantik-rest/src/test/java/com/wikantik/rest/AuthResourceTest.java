@@ -160,6 +160,36 @@ class AuthResourceTest {
     }
 
     @Test
+    void testLoginNullFieldsReturns400() throws Exception {
+        // Explicit JSON nulls used to blow up with 500 (UnsupportedOperationException
+        // from JsonNull.getAsString()) — must be a clean 400.
+        final JsonObject body = new JsonObject();
+        body.add( "username", com.google.gson.JsonNull.INSTANCE );
+        body.add( "password", com.google.gson.JsonNull.INSTANCE );
+
+        final String json = doPost( "login", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
+    void testLoginNonPrimitiveUsernameReturns400() throws Exception {
+        // A JSON object/array where a string is expected must also degrade to 400,
+        // not 500 (getAsString() throws on non-primitive JSON values).
+        final JsonObject body = new JsonObject();
+        body.add( "username", new JsonObject() );
+        body.addProperty( "password", "x" );
+
+        final String json = doPost( "login", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
     void testLoginInvalidJsonReturns400() throws Exception {
         final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/auth/login" );
         Mockito.doReturn( "/login" ).when( request ).getPathInfo();

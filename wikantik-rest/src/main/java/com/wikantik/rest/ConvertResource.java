@@ -79,7 +79,8 @@ public class ConvertResource extends RestServletBase {
             return;
         }
 
-        final String content = body.has( "content" ) ? body.get( "content" ).getAsString() : "";
+        final String contentRaw = getJsonString( body, "content" );
+        final String content = contentRaw != null ? contentRaw : "";
 
         if( "markdown-to-html".equals( action ) ) {
             // D25: render markdown to HTML using the configured RenderingManager so the

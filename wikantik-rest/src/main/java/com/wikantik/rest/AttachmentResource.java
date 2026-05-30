@@ -219,6 +219,16 @@ public class AttachmentResource extends RestServletBase {
         }
         if ( !checkPagePermission( request, response, pageName, "upload" ) ) return;
 
+        // Guard the content type up front: request.getPart() throws on a
+        // non-multipart body, which would otherwise surface as a 500 (e.g. a
+        // client POSTing JSON). Return a clean 415 instead.
+        final String contentType = request.getContentType();
+        if ( contentType == null || !contentType.regionMatches( true, 0, "multipart/", 0, 10 ) ) {
+            sendError( response, HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE,
+                    "Attachment upload requires a multipart/form-data request" );
+            return;
+        }
+
         LOG.debug( "POST attachment upload: {}", pageName );
 
         try {
@@ -306,7 +316,7 @@ public class AttachmentResource extends RestServletBase {
 
         try {
             final JsonObject body = readJsonBody( request );
-            final String newName = body.has( "newName" ) ? body.get( "newName" ).getAsString() : null;
+            final String newName = getJsonString( body, "newName" );
 
             if ( newName == null || newName.isBlank() ) {
                 sendError( response, HttpServletResponse.SC_BAD_REQUEST, "newName is required" );

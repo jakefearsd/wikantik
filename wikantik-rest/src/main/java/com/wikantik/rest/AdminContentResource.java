@@ -220,7 +220,8 @@ public class AdminContentResource extends RestServletBase {
         final JsonObject body = parseJsonBody( request, response );
         if ( body == null ) return;
 
-        final JsonArray pagesArray = body.has( "pages" ) ? body.getAsJsonArray( "pages" ) : null;
+        final JsonArray pagesArray = body.has( "pages" ) && body.get( "pages" ).isJsonArray()
+            ? body.getAsJsonArray( "pages" ) : null;
         if ( pagesArray == null || pagesArray.isEmpty() ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "pages array is required" );
             return;
@@ -256,8 +257,8 @@ public class AdminContentResource extends RestServletBase {
         final JsonObject body = parseJsonBody( request, response );
         if ( body == null ) return;
 
-        final String pageName = body.has( "page" ) ? body.get( "page" ).getAsString() : null;
-        final int keepLatest = body.has( "keepLatest" ) ? body.get( "keepLatest" ).getAsInt() : 1;
+        final String pageName = getJsonString( body, "page" );
+        final int keepLatest = getJsonInt( body, "keepLatest", 1 );
 
         if ( pageName == null || pageName.isBlank() ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "page name is required" );
@@ -638,8 +639,7 @@ public class AdminContentResource extends RestServletBase {
             return;
         }
 
-        final String specificCache = body.has( "cache" ) && !body.get( "cache" ).isJsonNull()
-            ? body.get( "cache" ).getAsString() : null;
+        final String specificCache = getJsonString( body, "cache" );
 
         final String[] toFlush = specificCache != null ? new String[]{ specificCache } : CACHE_NAMES;
         int flushed = 0;

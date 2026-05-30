@@ -239,6 +239,22 @@ class BlogResourceTest {
     }
 
     @Test
+    void testCreateEntryNonPrimitiveTopicReturns400() throws Exception {
+        // A JSON object where a string topic is expected used to 500 (getAsString throws);
+        // it must be a clean 400.
+        engine.getManager( BlogManager.class ).createBlog( mockSession );
+
+        final JsonObject body = new JsonObject();
+        body.add( "topic", new JsonObject() );
+
+        final String json = doPostAuthenticated( TEST_USER + "/entries", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "error" ).getAsBoolean() );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+    }
+
+    @Test
     void testCreateEntryNoBlog() throws Exception {
         final JsonObject body = new JsonObject();
         body.addProperty( "topic", "OrphanPost" );

@@ -114,8 +114,8 @@ public class AdminRetrievalQualityResource extends RestServletBase {
         final JsonObject body = parseJsonBody( req, resp );
         if ( body == null ) return;  // 400 already sent
 
-        final String setId = body.has( "query_set_id" ) ? body.get( "query_set_id" ).getAsString() : null;
-        final String modeRaw = body.has( "mode" ) ? body.get( "mode" ).getAsString() : null;
+        final String setId = getJsonString( body, "query_set_id" );
+        final String modeRaw = getJsonString( body, "mode" );
         if ( setId == null || setId.isBlank() ) {
             sendError( resp, HttpServletResponse.SC_BAD_REQUEST, "Missing query_set_id" );
             return;

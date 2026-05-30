@@ -76,23 +76,32 @@ public class AdminProfilingServlet extends RestServletBase {
                         resp.sendError( 400, "missing required field: duration_s" );
                         return;
                     }
-                    final int dur = body.get( "duration_s" ).getAsInt();
-                    final String label = body.has( "label" ) ? body.get( "label" ).getAsString() : "";
-                    writeJson( resp, 200, r.start( dur, label ) );
+                    final int dur = getJsonInt( body, "duration_s", Integer.MIN_VALUE );
+                    if ( dur == Integer.MIN_VALUE ) {
+                        resp.sendError( 400, "duration_s must be an integer" );
+                        return;
+                    }
+                    final String label = getJsonString( body, "label" );
+                    writeJson( resp, 200, r.start( dur, label != null ? label : "" ) );
                 }
                 case "/stop" -> {
                     final JsonObject body = JsonParser.parseReader( req.getReader() ).getAsJsonObject();
-                    if ( !body.has( "recording_id" ) ) {
+                    final String recordingId = getJsonString( body, "recording_id" );
+                    if ( recordingId == null ) {
                         resp.sendError( 400, "missing required field: recording_id" );
                         return;
                     }
-                    writeJson( resp, 200, r.stop( body.get( "recording_id" ).getAsString() ) );
+                    writeJson( resp, 200, r.stop( recordingId ) );
                 }
                 default -> resp.sendError( HttpServletResponse.SC_NOT_FOUND, "unknown profiling route: " + path );
             }
         } catch ( final ProfilingResource.RestError e ) {
             LOG.info( "POST /admin/profiling/jfr{}: {} {}", path, e.status(), e.getMessage() );
             resp.sendError( e.status(), e.getMessage() );
+        } catch ( final com.google.gson.JsonParseException | IllegalStateException e ) {
+            // Malformed JSON body or a non-object top-level value — a client error, not a 500.
+            LOG.info( "POST /admin/profiling/jfr{}: rejecting malformed body: {}", path, e.getMessage() );
+            resp.sendError( HttpServletResponse.SC_BAD_REQUEST, "invalid JSON body" );
         }
     }
 

@@ -507,13 +507,59 @@ public abstract class RestServletBase extends HttpServlet {
 
     /**
      * Returns a string value from a {@link JsonObject}, or {@code null} if the
-     * key is absent or the value is JSON null.
+     * key is absent, JSON null, or a non-primitive value (object/array). Guarding
+     * on {@code isJsonPrimitive} (rather than only {@code !isJsonNull}) keeps
+     * {@code getAsString()} from throwing {@code UnsupportedOperationException} on
+     * a JSON object/array — which otherwise surfaces as a 500 instead of a 400.
      */
     protected String getJsonString( final JsonObject obj, final String key ) {
-        if ( obj.has( key ) && !obj.get( key ).isJsonNull() ) {
+        if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
             return obj.get( key ).getAsString();
         }
         return null;
+    }
+
+    /**
+     * Returns an int from a {@link JsonObject}, or {@code def} if the key is
+     * absent, JSON null, or not a parseable number. Never throws on malformed
+     * input (a non-numeric or non-primitive value yields {@code def} rather than
+     * a 500).
+     */
+    protected int getJsonInt( final JsonObject obj, final String key, final int def ) {
+        if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
+            try {
+                return obj.get( key ).getAsInt();
+            } catch ( final NumberFormatException e ) {
+                return def;
+            }
+        }
+        return def;
+    }
+
+    /**
+     * Returns a boolean from a {@link JsonObject}, or {@code def} if the key is
+     * absent, JSON null, or non-primitive. Never throws on malformed input.
+     */
+    protected boolean getJsonBoolean( final JsonObject obj, final String key, final boolean def ) {
+        if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
+            return obj.get( key ).getAsBoolean();
+        }
+        return def;
+    }
+
+    /**
+     * Returns a double from a {@link JsonObject}, or {@code def} if the key is
+     * absent, JSON null, or not a parseable number. Never throws on malformed input.
+     */
+    protected double getJsonDouble( final JsonObject obj, final String key, final double def ) {
+        if ( obj.has( key ) && obj.get( key ).isJsonPrimitive() ) {
+            try {
+                return obj.get( key ).getAsDouble();
+            } catch ( final NumberFormatException e ) {
+                return def;
+            }
+        }
+        return def;
     }
 
     /**

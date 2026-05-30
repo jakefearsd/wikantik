@@ -458,12 +458,16 @@ public class AdminKnowledgeResource extends RestServletBase {
         if ( segments.length == 1 ) {
             final JsonObject body = parseJsonBody( request, response );
             if ( body == null ) return;
-            final String proposalType = body.get( "proposal_type" ).getAsString();
-            final String sourcePage = body.has( "source_page" ) ? body.get( "source_page" ).getAsString() : null;
+            final String proposalType = getJsonString( body, "proposal_type" );
+            if ( proposalType == null || proposalType.isBlank() ) {
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST, "proposal_type is required" );
+                return;
+            }
+            final String sourcePage = getJsonString( body, "source_page" );
             final Map< String, Object > proposedData = body.has( "proposed_data" )
                     ? GSON.fromJson( body.get( "proposed_data" ), MAP_TYPE ) : Map.of();
-            final double confidence = body.has( "confidence" ) ? body.get( "confidence" ).getAsDouble() : 0.5;
-            final String reasoning = body.has( "reasoning" ) ? body.get( "reasoning" ).getAsString() : null;
+            final double confidence = getJsonDouble( body, "confidence", 0.5 );
+            final String reasoning = getJsonString( body, "reasoning" );
             final KgProposal proposal = service.submitProposal( proposalType, sourcePage,
                     proposedData, confidence, reasoning );
             sendJson( response, proposalToMap( proposal ) );
@@ -497,7 +501,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             case "reject" -> {
                 final JsonObject body = parseJsonBody( request, response );
                 if ( body == null ) return;
-                final String reason = body.has( "reason" ) ? body.get( "reason" ).getAsString() : null;
+                final String reason = getJsonString( body, "reason" );
                 final java.util.Optional< String > err = ops.tryRejectProposal( proposalId, reviewedBy, reason );
                 if ( err.isPresent() ) {
                     sendNotFound( response, err.get() );
@@ -665,8 +669,16 @@ public class AdminKnowledgeResource extends RestServletBase {
             // POST /admin/knowledge-graph/nodes/merge
             final JsonObject body = parseJsonBody( request, response );
             if ( body == null ) return;
-            final UUID sourceId = UUID.fromString( body.get( "sourceId" ).getAsString() );
-            final UUID targetId = UUID.fromString( body.get( "targetId" ).getAsString() );
+            final String sourceIdStr = getJsonString( body, "sourceId" );
+            final String targetIdStr = getJsonString( body, "targetId" );
+            if ( sourceIdStr == null || targetIdStr == null ) {
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST, "sourceId and targetId are required" );
+                return;
+            }
+            final UUID sourceId = parseUuid( sourceIdStr, response );
+            if ( sourceId == null ) return;
+            final UUID targetId = parseUuid( targetIdStr, response );
+            if ( targetId == null ) return;
 
             // Resolve names and update frontmatter BEFORE merge (edges are deleted during merge)
             final KgNode sourceNode = service.getNode( sourceId, true );
@@ -688,9 +700,13 @@ public class AdminKnowledgeResource extends RestServletBase {
             // POST /admin/knowledge-graph/nodes — upsert
             final JsonObject body = parseJsonBody( request, response );
             if ( body == null ) return;
-            final String name = body.get( "name" ).getAsString();
-            final String nodeType = body.has( "node_type" ) ? body.get( "node_type" ).getAsString() : null;
-            final String sourcePage = body.has( "source_page" ) ? body.get( "source_page" ).getAsString() : null;
+            final String name = getJsonString( body, "name" );
+            if ( name == null || name.isBlank() ) {
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST, "name is required" );
+                return;
+            }
+            final String nodeType = getJsonString( body, "node_type" );
+            final String sourcePage = getJsonString( body, "source_page" );
             final Map< String, Object > properties = body.has( "properties" )
                     ? GSON.fromJson( body.get( "properties" ), MAP_TYPE ) : Map.of();
             final KgCurationOps.NodeResult nodeResult = ops.tryUpsertNode( name, nodeType, sourcePage,
@@ -758,9 +774,18 @@ public class AdminKnowledgeResource extends RestServletBase {
                                        final HttpServletResponse response ) throws IOException {
         final JsonObject body = parseJsonBody( request, response );
         if ( body == null ) return;
-        final UUID sourceId = UUID.fromString( body.get( "source_id" ).getAsString() );
-        final UUID targetId = UUID.fromString( body.get( "target_id" ).getAsString() );
-        final String relType = body.get( "relationship_type" ).getAsString();
+        final String sourceIdStr = getJsonString( body, "source_id" );
+        final String targetIdStr = getJsonString( body, "target_id" );
+        final String relType = getJsonString( body, "relationship_type" );
+        if ( sourceIdStr == null || targetIdStr == null || relType == null || relType.isBlank() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                    "source_id, target_id and relationship_type are required" );
+            return;
+        }
+        final UUID sourceId = parseUuid( sourceIdStr, response );
+        if ( sourceId == null ) return;
+        final UUID targetId = parseUuid( targetIdStr, response );
+        if ( targetId == null ) return;
         final Map< String, Object > properties = body.has( "properties" )
                 ? GSON.fromJson( body.get( "properties" ), MAP_TYPE ) : Map.of();
 
@@ -832,12 +857,15 @@ public class AdminKnowledgeResource extends RestServletBase {
                 "expected_count is required for bulk-delete" );
             return;
         }
-        final String relType = body.has( "relationship_type" )
-            ? body.get( "relationship_type" ).getAsString() : null;
-        final String search = body.has( "search" ) ? body.get( "search" ).getAsString() : null;
-        final String endpointKind = body.has( "endpoint_kind" )
-            ? body.get( "endpoint_kind" ).getAsString() : null;
-        final int expectedCount = body.get( "expected_count" ).getAsInt();
+        final String relType = getJsonString( body, "relationship_type" );
+        final String search = getJsonString( body, "search" );
+        final String endpointKind = getJsonString( body, "endpoint_kind" );
+        final int expectedCount = getJsonInt( body, "expected_count", Integer.MIN_VALUE );
+        if ( expectedCount == Integer.MIN_VALUE ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                "expected_count must be an integer" );
+            return;
+        }
 
         // Snapshot before delete for per-row audit
         List< Map< String, Object > > snapshot;
@@ -897,7 +925,7 @@ public class AdminKnowledgeResource extends RestServletBase {
         try {
             final JsonObject body = parseJsonBody( request, response );
             if ( body == null ) return;
-            reason = body.has( "reason" ) ? body.get( "reason" ).getAsString() : null;
+            reason = getJsonString( body, "reason" );
         } catch ( final RuntimeException e ) {
             // Body is optional — proceed with null reason if parsing fails
             LOG.warn( "handlePostEdgeDeleteAndReject: could not parse body (edge={}): {}", id, e.getMessage() );
@@ -1424,7 +1452,11 @@ public class AdminKnowledgeResource extends RestServletBase {
                                                       final HubProposalRepository repo ) throws IOException {
         final JsonObject body = parseJsonBody( request, response );
         if ( body == null ) return;
-        final double threshold = body.get( "threshold" ).getAsDouble();
+        final double threshold = getJsonDouble( body, "threshold", Double.NaN );
+        if ( Double.isNaN( threshold ) ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "threshold must be a number" );
+            return;
+        }
         final String reviewedBy = optString( body, "reviewedBy", "admin" );
         final var ids = repo.listProposalsAboveThreshold( threshold ).stream()
             .map( HubProposalRepository.HubProposal::id ).toList();
@@ -1455,8 +1487,7 @@ public class AdminKnowledgeResource extends RestServletBase {
             }
             case "reject" -> {
                 final JsonObject body = parseJsonBody( request, response );
-                final String reason = body != null && body.has( "reason" )
-                    ? body.get( "reason" ).getAsString() : null;
+                final String reason = body != null ? getJsonString( body, "reason" ) : null;
                 repo.updateStatus( id, "rejected", "admin", reason );
                 sendJson( response, Map.of( "status", "ok" ) );
             }
@@ -1464,9 +1495,9 @@ public class AdminKnowledgeResource extends RestServletBase {
         }
     }
 
-    /** Returns the string value of {@code key} if present and non-null, otherwise {@code defaultValue}. */
+    /** Returns the string value of {@code key} if present and a JSON primitive, otherwise {@code defaultValue}. */
     private static String optString( final JsonObject body, final String key, final String defaultValue ) {
-        return body.has( key ) && !body.get( key ).isJsonNull()
+        return body.has( key ) && body.get( key ).isJsonPrimitive()
             ? body.get( key ).getAsString() : defaultValue;
     }
 

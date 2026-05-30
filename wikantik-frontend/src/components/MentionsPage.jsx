@@ -97,10 +97,11 @@ export default function MentionsPage() {
         />
       )}
       <ul className="mentions-list">
-        {items.map((m) => (
+        {items.map((m, i) => (
           <li
             key={m.id}
-            className={`mentions-item ${m.readAt ? 'read' : 'unread'} ${m.isOwnerMention ? 'owner' : ''}`}
+            className={`mentions-item stagger-in ${m.readAt ? 'read' : 'unread'} ${m.isOwnerMention ? 'owner' : ''}`}
+            style={{ animationDelay: i < 10 ? `${i * 40}ms` : '400ms' }}
           >
             <div className="mentions-item-meta">
               <span className="mentions-item-author">@{m.mentionedBy}</span>

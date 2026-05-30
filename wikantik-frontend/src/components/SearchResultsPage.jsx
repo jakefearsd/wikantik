@@ -73,8 +73,14 @@ export default function SearchResultsPage() {
       {results.length > 0 && (
         <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }} data-testid="search-results-list">
-            {visibleResults.map(result => (
-              <SearchResultCard key={result.name} result={result} query={query} />
+            {visibleResults.map((result, i) => (
+              <div
+                key={result.name}
+                className="stagger-in"
+                style={{ animationDelay: i < 10 ? `${i * 40}ms` : '400ms' }}
+              >
+                <SearchResultCard result={result} query={query} />
+              </div>
             ))}
           </div>
 

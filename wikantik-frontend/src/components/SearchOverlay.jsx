@@ -9,6 +9,20 @@ export default function SearchOverlay({ onClose }) {
   const [searching, setSearching] = useState(false);
   const inputRef = useRef(null);
   const navigate = useNavigate();
+  // Keep refs for use in event handlers to avoid stale closures
+  const focusedRef = useRef(0);
+  const resultsRef = useRef([]);
+
+  const setFocusedSync = (val) => {
+    const next = typeof val === 'function' ? val(focusedRef.current) : val;
+    focusedRef.current = next;
+    setFocused(next);
+  };
+
+  const setResultsSync = (val) => {
+    resultsRef.current = val;
+    setResults(val);
+  };
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -25,15 +39,15 @@ export default function SearchOverlay({ onClose }) {
 
   // Debounced search
   useEffect(() => {
-    if (!query.trim()) { setResults([]); return; }
+    if (!query.trim()) { setResultsSync([]); return; }
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
         const data = await api.search(query);
-        setResults(data.results || []);
-        setFocused(0);
+        setResultsSync(data.results || []);
+        setFocusedSync(0);
       } catch {
-        setResults([]);
+        setResultsSync([]);
       } finally {
         setSearching(false);
       }
@@ -56,13 +70,19 @@ export default function SearchOverlay({ onClose }) {
   const handleKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setFocused(f => Math.min(f + 1, results.length - 1));
+      if (resultsRef.current.length === 0) return;
+      setFocusedSync(f => (f + 1) % resultsRef.current.length);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setFocused(f => Math.max(f - 1, 0));
+      if (resultsRef.current.length === 0) return;
+      setFocusedSync(f => (f - 1 + resultsRef.current.length) % resultsRef.current.length);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      goToSearchResults();
+      if (resultsRef.current.length > 0) {
+        select(resultsRef.current[focusedRef.current].name);
+      } else {
+        goToSearchResults();
+      }
     }
   };
 
@@ -87,7 +107,7 @@ export default function SearchOverlay({ onClose }) {
               data-testid="search-overlay-result"
               data-page-name={r.name}
               onClick={() => select(r.name)}
-              onMouseEnter={() => setFocused(i)}
+              onMouseEnter={() => setFocusedSync(i)}
             >
               {r.name}
               {r.score != null && <span className="search-result-score">{Math.round(r.score * 100)}%</span>}

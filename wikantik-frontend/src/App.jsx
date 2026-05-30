@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import AdminSidebar from './components/admin/AdminSidebar';
 import { useAuth } from './hooks/useAuth';
+import { ToastProvider } from './components/ui/ToastProvider';
 
 export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -37,6 +38,7 @@ export default function App() {
   }, [updateAvailable]);
 
   return (
+    <ToastProvider>
     <div className="app-layout">
       {updateAvailable && (
         <div className="update-toast" role="status">
@@ -72,5 +74,6 @@ export default function App() {
         )}
       </main>
     </div>
+    </ToastProvider>
   );
 }

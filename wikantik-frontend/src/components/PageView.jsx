@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { renderMath } from '../utils/math';
 import { addCopyButtons } from '../utils/codeCopy';
+import { addHeadingAnchors } from '../utils/headingAnchors';
 import PageMeta from './PageMeta';
 import Breadcrumbs from './Breadcrumbs';
 import TableOfContents from './TableOfContents';
@@ -186,6 +187,8 @@ export default function PageView() {
 
   // Inject matching id attributes into the live DOM heading elements so that
   // TOC anchor links (#id) actually scroll to the right place.
+  // Also appends hover-reveal anchor links (#13) after ids are assigned so
+  // the anchors reference the correct ids set in this same pass.
   useEffect(() => {
     const root = articleRef.current;
     if (!root || !headings.length) return;
@@ -197,6 +200,9 @@ export default function PageView() {
         hi++;
       }
     });
+    // addHeadingAnchors runs after ids are set; it is idempotent so a re-run
+    // on auth-driven refetches (which reset dangerouslySetInnerHTML) is safe.
+    addHeadingAnchors(root);
   }, [page, headings]);
 
   const onArticleMouseUp = () => {

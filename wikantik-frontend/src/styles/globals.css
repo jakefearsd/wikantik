@@ -449,6 +449,30 @@ input, textarea, select {
 }
 
 /* ============================================================
+   Card / Surface
+   ============================================================ */
+
+.surface {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  transition: box-shadow var(--duration) var(--ease), transform var(--duration) var(--ease);
+}
+
+.surface:hover {
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface:hover {
+    transform: none;
+    transition: box-shadow var(--duration) var(--ease);
+  }
+}
+
+/* ============================================================
    Buttons
    ============================================================ */
 

@@ -517,6 +517,16 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline-offset: 2px;
 }
 
+.btn:active {
+  transform: translateY(1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:active {
+    transform: none;
+  }
+}
+
 .btn-primary {
   background: var(--accent);
   color: #fff;

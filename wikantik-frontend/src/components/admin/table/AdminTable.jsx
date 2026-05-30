@@ -380,6 +380,8 @@ export default function AdminTable({
                         ? 'ascending'
                         : dir === 'desc'
                         ? 'descending'
+                        : col.sortable
+                        ? 'none'
                         : undefined
                     }
                   >

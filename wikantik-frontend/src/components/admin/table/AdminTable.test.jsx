@@ -246,6 +246,78 @@ describe('AdminTable — sort', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Sort-direction indicators (#42)
+// ---------------------------------------------------------------------------
+
+describe('AdminTable — sort-direction carets (#42)', () => {
+  function getNameTh() {
+    // The <th> contains "Name" plus the sort icon span — query the column header cell
+    const headers = screen.getAllByRole('columnheader');
+    return headers.find((h) => h.textContent.includes('Name'));
+  }
+
+  it('unsorted sortable column has aria-sort="none"', () => {
+    renderTable();
+    const nameTh = getNameTh();
+    expect(nameTh).toHaveAttribute('aria-sort', 'none');
+  });
+
+  it('clicking a sortable header sets aria-sort="ascending"', () => {
+    renderTable();
+    const nameTh = getNameTh();
+    fireEvent.click(nameTh);
+    expect(getNameTh()).toHaveAttribute('aria-sort', 'ascending');
+  });
+
+  it('clicking again flips aria-sort to "descending"', () => {
+    renderTable();
+    const nameTh = getNameTh();
+    fireEvent.click(nameTh);
+    fireEvent.click(getNameTh());
+    expect(getNameTh()).toHaveAttribute('aria-sort', 'descending');
+  });
+
+  it('clicking a third time resets aria-sort to "none"', () => {
+    renderTable();
+    const nameTh = getNameTh();
+    fireEvent.click(nameTh);
+    fireEvent.click(getNameTh());
+    fireEvent.click(getNameTh());
+    expect(getNameTh()).toHaveAttribute('aria-sort', 'none');
+  });
+
+  it('only the active column has ascending/descending; others have none', () => {
+    const COLS = [
+      { id: 'name', label: 'Name', sortable: true },
+      { id: 'role', label: 'Role', sortable: true },
+    ];
+    render(<AdminTable rows={ROWS} getRowKey={getKey} columns={COLS} />);
+    const headers = screen.getAllByRole('columnheader');
+    const nameTh = headers.find((h) => h.textContent.includes('Name'));
+    const roleTh = headers.find((h) => h.textContent.includes('Role'));
+
+    fireEvent.click(nameTh);
+    expect(nameTh).toHaveAttribute('aria-sort', 'ascending');
+    expect(roleTh).toHaveAttribute('aria-sort', 'none');
+  });
+
+  it('shows ascending glyph (↑) when sorted asc', () => {
+    renderTable();
+    const nameTh = getNameTh();
+    fireEvent.click(nameTh);
+    expect(getNameTh().textContent).toContain('↑');
+  });
+
+  it('shows descending glyph (↓) when sorted desc', () => {
+    renderTable();
+    const nameTh = getNameTh();
+    fireEvent.click(nameTh);
+    fireEvent.click(getNameTh());
+    expect(getNameTh().textContent).toContain('↓');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------
 

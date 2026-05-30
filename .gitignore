@@ -22,6 +22,10 @@ tmp
 /remote.env
 backups/
 docs/wikantik-pages/OLD/
+# JSPWiki-style version-history sidecar dirs anywhere under the page tree
+docs/wikantik-pages/**/OLD/
+# Vitest/Jest coverage output (generated)
+wikantik-frontend/coverage/
 .superpowers/
 .gemini/
 *.skill

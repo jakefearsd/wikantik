@@ -14,7 +14,9 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { formatRelative } from '../utils/datetime';
 import { toggleWrap, toggleLinePrefix, insertLink } from '../utils/markdownFormat';
+import { useDarkMode } from '../hooks/useDarkMode';
 import EditorToolbar from './EditorToolbar';
+import CodeEditor from './CodeEditor';
 import AttachmentPanel from './AttachmentPanel';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -40,7 +42,10 @@ export default function PageEditor() {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   // #22 — drag-over visual hint
   const [isDragging, setIsDragging] = useState(false);
-  const textareaRef = useRef(null);
+  // #19 — CodeMirror editor: imperative handle for selection + DOM container for drop
+  const editorRef = useRef(null);
+  const dropContainerRef = useRef(null);
+  const [dark] = useDarkMode();
   const attachments = useAttachments(name);
   // Track saving in a ref so the keyboard handler can read latest state without re-registering
   const savingRef = useRef(false);
@@ -58,11 +63,21 @@ export default function PageEditor() {
   // #20 — isDirty: true only once the page has loaded and content differs from baseline
   const isDirty = loaded && content !== loadedContentRef.current;
 
+  // #19 — keep latest content in a ref so the stable applyFormat / keymap
+  // callbacks read current text without re-registering.
+  const contentRef = useRef(content);
+  contentRef.current = content;
+
   const handleInsert = useCallback((text, pos) => {
     setContent(prev => prev.slice(0, pos) + text + prev.slice(pos));
   }, []);
 
-  useEditorDrop(textareaRef, handleInsert);
+  // #19 — current caret offset for drop insertion (CodeMirror has no selectionStart)
+  const getDropOffset = useCallback(() => {
+    return editorRef.current ? editorRef.current.getSelection().selStart : 0;
+  }, []);
+
+  useEditorDrop(dropContainerRef, handleInsert, getDropOffset);
 
   // Strip frontmatter from preview — show only the body portion
   const previewContent = useMemo(() => stripFrontmatter(content), [content]);
@@ -139,15 +154,16 @@ export default function PageEditor() {
     }
   }, [isDirty]);
 
-  // #18 — Apply a formatting command to the textarea
+  // #18/#19 — Apply a formatting command to the CodeMirror editor
   const applyFormat = useCallback((command) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    const editor = editorRef.current;
+    if (!editor) return;
 
+    const { selStart, selEnd } = editor.getSelection();
     const state = {
-      text: textarea.value,
-      selStart: textarea.selectionStart,
-      selEnd: textarea.selectionEnd,
+      text: contentRef.current,
+      selStart,
+      selEnd,
     };
 
     let next;
@@ -163,16 +179,17 @@ export default function PageEditor() {
 
     setContent(next.text);
 
-    // Restore selection after React re-renders
+    // Restore selection after React re-renders the controlled CodeMirror value
     requestAnimationFrame(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(next.selStart, next.selEnd);
-      }
+      editorRef.current?.setSelection(next.selStart, next.selEnd);
     });
   }, []);
 
-  // #4 — Cmd/Ctrl+S global keyboard shortcut; #18 — Cmd/Ctrl+B/I/K formatting shortcuts
+  // #4 — Cmd/Ctrl+S global keyboard shortcut. Registered on window so it works
+  // regardless of focus (change-note input, editor, etc.). CodeMirror does not
+  // bind Mod-s, so this keydown still fires when the editor has focus.
+  // #18/#19 — Cmd/Ctrl+B/I/K formatting shortcuts are handled by the CodeMirror
+  // keymap (CodeEditor) and delegate to handleBold/Italic/Link below.
   useEffect(() => {
     const handler = (e) => {
       const hotkey = (e.metaKey || e.ctrlKey);
@@ -183,27 +200,17 @@ export default function PageEditor() {
         if (!savingRef.current) {
           saveContent();
         }
-        return;
-      }
-
-      // Formatting shortcuts — only when textarea has focus
-      if (document.activeElement !== textareaRef.current) return;
-
-      if (e.key === 'b') {
-        e.preventDefault();
-        applyFormat('bold');
-      } else if (e.key === 'i') {
-        e.preventDefault();
-        applyFormat('italic');
-      } else if (e.key === 'k') {
-        e.preventDefault();
-        applyFormat('link');
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // #19 — stable handlers passed into the CodeMirror keymap
+  const handleBold = useCallback(() => applyFormat('bold'), [applyFormat]);
+  const handleItalic = useCallback(() => applyFormat('italic'), [applyFormat]);
+  const handleLink = useCallback(() => applyFormat('link'), [applyFormat]);
 
   const handleConvert = async () => {
     setConverting(true);
@@ -427,6 +434,7 @@ export default function PageEditor() {
       <div className="editor-container">
         {/* #22 — drag-over visual hint on the editor pane */}
         <div
+          ref={dropContainerRef}
           className="editor-pane"
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
@@ -439,13 +447,16 @@ export default function PageEditor() {
               Drop images to upload
             </div>
           )}
-          <textarea
-            ref={textareaRef}
-            className="editor-textarea"
+          <CodeEditor
+            ref={editorRef}
             data-testid="editor-textarea"
+            className="editor-textarea"
             value={content}
-            onChange={e => setContent(e.target.value)}
-            spellCheck="false"
+            onChange={setContent}
+            dark={dark}
+            onBold={handleBold}
+            onItalic={handleItalic}
+            onLink={handleLink}
           />
         </div>
         <div className="editor-pane editor-preview">

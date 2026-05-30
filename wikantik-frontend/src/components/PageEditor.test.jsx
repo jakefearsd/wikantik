@@ -3,9 +3,52 @@
  * The component is always mounted with a MemoryRouter so react-router hooks work.
  * api.getPage is mocked to return a simple page; api.savePage defaults to resolving.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+
+// ── #19 CodeMirror stub ──────────────────────────────────────────────────────
+// happy-dom cannot run CodeMirror's contenteditable/measuring layer, so the
+// real @uiw/react-codemirror is replaced with a lightweight <textarea>-backed
+// stub. The stub faithfully forwards value/onChange AND exposes a
+// CodeMirror-shaped `view` (state.selection.main + state.doc.length + dispatch +
+// focus) via onCreateEditor, backed by the textarea's real selectionStart/End.
+// Behavioral assertions therefore exercise the REAL CodeEditor imperative
+// handle and the REAL markdownFormat util — only the rendering engine is
+// stubbed. Real CodeMirror integration is verified by `npm run build` + manual
+// testing. The stub uses vi.importActual('react') so its createElement shares
+// the running renderer's React instance.
+vi.mock('@uiw/react-codemirror', async () => {
+  const React = (await vi.importActual('react')).default;
+  function makeView(ta) {
+    return {
+      get state() {
+        return {
+          selection: { main: { from: ta.selectionStart, to: ta.selectionEnd } },
+          doc: { length: ta.value.length },
+        };
+      },
+      focus() { ta.focus(); },
+      dispatch(tr) {
+        if (tr && tr.selection) {
+          ta.setSelectionRange(tr.selection.anchor, tr.selection.head);
+        }
+      },
+    };
+  }
+  return {
+    default: function CodeMirrorStub({ value, onChange, onCreateEditor }) {
+      return React.createElement('textarea', {
+        ref: (ta) => { if (ta && onCreateEditor) onCreateEditor(makeView(ta)); },
+        'data-testid': 'cm-stub-textarea',
+        className: 'editor-textarea',
+        value: value || '',
+        onChange: (e) => onChange && onChange(e.target.value),
+        spellCheck: 'false',
+      });
+    },
+  };
+});
 
 // ── Module mocks (hoisted) ──────────────────────────────────────────────────
 vi.mock('../api/client', () => ({
@@ -50,7 +93,19 @@ function renderEditor(pageName = 'TestPage') {
 }
 
 async function waitForEditor() {
-  await waitFor(() => expect(screen.getByTestId('editor-textarea')).toBeInTheDocument());
+  // #19 — wait for the inner editable (the stubbed CodeMirror textarea), which
+  // mounts after the wrapper div and after the page's async load resolves.
+  await waitFor(() => expect(screen.getByTestId('cm-stub-textarea')).toBeInTheDocument());
+}
+
+// #19 — the editable surface under the stub is the inner textarea.
+function getEditable() {
+  return screen.getByTestId('cm-stub-textarea');
+}
+
+// #19 — type into the editor (drives the controlled value through onChange).
+function typeInEditor(value) {
+  fireEvent.change(getEditable(), { target: { value } });
 }
 
 let mockToastSuccess;
@@ -97,6 +152,16 @@ beforeEach(() => {
   });
   api.savePage.mockResolvedValue({ success: true });
   api.listAttachments.mockResolvedValue({ attachments: [] });
+});
+
+// #19 — Unmount the tree and flush any pending async state (the page's load
+// effect, debounced draft writes, the save→navigate chain) BEFORE the next
+// test renders, so an unsettled promise from one test cannot resolve into the
+// next test's render. Keeps every assertion meaningful by guaranteeing a clean
+// DOM per test rather than weakening expectations.
+afterEach(async () => {
+  cleanup();
+  await act(async () => { await Promise.resolve(); });
 });
 
 // ── #4 Cmd/Ctrl+S keyboard save ─────────────────────────────────────────────
@@ -151,7 +216,7 @@ describe('#20 unsaved-changes guard', () => {
     renderEditor();
     await waitForEditor();
 
-    fireEvent.change(screen.getByTestId('editor-textarea'), { target: { value: '# Changed!' } });
+    typeInEditor('# Changed!');
 
     await waitFor(() => {
       const calls = addSpy.mock.calls.filter(([ev]) => ev === 'beforeunload');
@@ -165,7 +230,7 @@ describe('#20 unsaved-changes guard', () => {
     renderEditor();
     await waitForEditor();
 
-    fireEvent.change(screen.getByTestId('editor-textarea'), { target: { value: '# Different content' } });
+    typeInEditor('# Different content');
 
     const event = new Event('beforeunload', { cancelable: true });
     await waitFor(() => {
@@ -178,7 +243,7 @@ describe('#20 unsaved-changes guard', () => {
     renderEditor();
     await waitForEditor();
 
-    fireEvent.change(screen.getByTestId('editor-textarea'), { target: { value: '# Modified' } });
+    typeInEditor('# Modified');
 
     fireEvent.click(screen.getByTestId('editor-cancel'));
 
@@ -200,7 +265,7 @@ describe('#20 unsaved-changes guard', () => {
     renderEditor();
     await waitForEditor();
 
-    fireEvent.change(screen.getByTestId('editor-textarea'), { target: { value: '# Modified' } });
+    typeInEditor('# Modified');
     fireEvent.click(screen.getByTestId('editor-cancel'));
     await waitFor(() => screen.getByText(/discard unsaved changes/i));
 
@@ -213,7 +278,7 @@ describe('#20 unsaved-changes guard', () => {
     renderEditor();
     await waitForEditor();
 
-    fireEvent.change(screen.getByTestId('editor-textarea'), { target: { value: '# Modified' } });
+    typeInEditor('# Modified');
     fireEvent.click(screen.getByTestId('editor-cancel'));
     await waitFor(() => screen.getByText(/discard unsaved changes/i));
 
@@ -299,6 +364,37 @@ describe('#18 formatting toolbar', () => {
 
     const toolbar = container.querySelector('.editor-format-toolbar');
     expect(toolbar).not.toBeNull();
+  });
+
+  // #19 — exercises the REAL applyFormat + markdownFormat util through the
+  // CodeEditor imperative handle (stubbed view), asserting the document text is
+  // genuinely transformed, not mock behavior.
+  it('Bold toolbar button wraps the selection with ** via markdownFormat', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    const editable = getEditable();
+    fireEvent.change(editable, { target: { value: 'hello world' } });
+    editable.focus();
+    editable.setSelectionRange(6, 11); // "world"
+
+    fireEvent.mouseDown(screen.getByTitle(/bold/i));
+
+    await waitFor(() => expect(getEditable().value).toBe('hello **world**'));
+  });
+
+  it('Link toolbar button inserts a markdown link via markdownFormat', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    const editable = getEditable();
+    fireEvent.change(editable, { target: { value: 'see docs' } });
+    editable.focus();
+    editable.setSelectionRange(4, 8); // "docs"
+
+    fireEvent.mouseDown(screen.getByTitle(/link/i));
+
+    await waitFor(() => expect(getEditable().value).toBe('see [docs](url)'));
   });
 });
 

@@ -27,6 +27,15 @@
   --code-bg: #F3F0EA;
   --overlay: rgba(45, 45, 45, 0.5);
 
+  /* Semantic State Colors */
+  --success: #2a8d2a;
+  --success-bg: #f0f7f0;
+  --danger: #b13a3a;
+  --danger-bg: #faf2f2;
+  --warning: #b8860b;
+  --warning-bg: #fef8f0;
+  --focus-ring: var(--accent);
+
   /* Spacing */
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
@@ -70,6 +79,14 @@
   --shadow-strong: rgba(0, 0, 0, 0.4);
   --code-bg: #2A2A2E;
   --overlay: rgba(0, 0, 0, 0.6);
+
+  /* Semantic State Colors (dark theme) */
+  --success: #4ade80;
+  --success-bg: #1a3a1a;
+  --danger: #f87171;
+  --danger-bg: #3a1a1a;
+  --warning: #fbbf24;
+  --warning-bg: #3a2e1a;
 }
 
 /* ============================================================

@@ -461,6 +461,15 @@ public class AuthResource extends RestServletBase {
             final boolean success = authManager.login( wikiSession, request, username, password );
 
             if ( success ) {
+                // Remember-me: when cookie authentication is enabled, issue the
+                // signed, httpOnly, Lax remember-me cookie so a later request can
+                // silently re-authenticate after the server session is gone
+                // (Tomcat restart/redeploy, session timeout) instead of bouncing
+                // the user to the login screen. Secure follows the request scheme.
+                if ( authManager.allowsCookieAuthentication() ) {
+                    com.wikantik.auth.login.CookieAuthenticationLoginModule
+                            .setLoginCookie( engine, response, username, request.isSecure() );
+                }
                 final Map< String, Object > result = new LinkedHashMap<>();
                 result.put( "success", true );
                 result.put( "username", username );
@@ -482,6 +491,10 @@ public class AuthResource extends RestServletBase {
 
         LOG.debug( "POST auth/logout" );
 
+        // Clear the remember-me cookie too, otherwise a logged-out user would be
+        // silently re-authenticated from it on the next request.
+        com.wikantik.auth.login.CookieAuthenticationLoginModule
+                .clearLoginCookie( getEngine(), request, response );
         request.getSession().invalidate();
 
         final Map< String, Object > result = new LinkedHashMap<>();

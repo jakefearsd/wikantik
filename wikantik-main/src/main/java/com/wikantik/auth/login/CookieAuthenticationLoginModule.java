@@ -217,9 +217,25 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
      * @param username The username for whom to create the cookie.
      */
     public static void setLoginCookie( final Engine engine, final HttpServletResponse response, final String username ) {
+        // Default to a Secure cookie (prod-safe); callers with a request should
+        // use the overload so local plain-HTTP dev gets a non-Secure cookie.
+        setLoginCookie( engine, response, username, true );
+    }
+
+    /**
+     * Sets a login cookie, with the {@code Secure} attribute matching the request
+     * scheme so the remember-me cookie also works over plain HTTP in local dev.
+     *
+     * @param engine   The Engine
+     * @param response The HttpServletResponse
+     * @param username The username for whom to create the cookie.
+     * @param secure   whether to mark the cookie {@code Secure} (true behind HTTPS).
+     */
+    public static void setLoginCookie( final Engine engine, final HttpServletResponse response,
+            final String username, final boolean secure ) {
         final UUID uid = UUID.randomUUID();
         final int days = TextUtil.getIntegerProperty( CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), PROP_LOGIN_EXPIRY_DAYS, DEFAULT_EXPIRY_DAYS );
-        final Cookie userId = getLoginCookie( uid.toString() );
+        final Cookie userId = getLoginCookie( uid.toString(), secure );
         userId.setMaxAge( days * 24 * 60 * 60 );
         response.addCookie( userId );
 
@@ -243,14 +259,18 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
      * @param response Servlet response
      */
     public static void clearLoginCookie( final Engine engine, final HttpServletRequest request, final HttpServletResponse response ) {
-        final Cookie userId = getLoginCookie( "" );
+        // Match the live cookie's attributes (Secure follows the request scheme,
+        // Path=/) so the browser actually overwrites/expires it.
+        final boolean secure = request != null && request.isSecure();
+        final Cookie userId = getLoginCookie( "", secure );
         userId.setMaxAge( 0 );
         response.addCookie( userId );
 
         // Also clear legacy cookie during transition
         final Cookie legacyCookie = new Cookie( LEGACY_COOKIE_NAME, "" );
         legacyCookie.setHttpOnly( true );
-        legacyCookie.setSecure( true );
+        legacyCookie.setSecure( secure );
+        legacyCookie.setPath( "/" );
         legacyCookie.setMaxAge( 0 );
         response.addCookie( legacyCookie );
         final String uid = getLoginCookie( request );
@@ -267,11 +287,20 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
      *
      * @param value of the cookie
      */
-    private static Cookie getLoginCookie( final String value ) {
+    private static Cookie getLoginCookie( final String value, final boolean secure ) {
         final Cookie loginCookie = new Cookie( LOGIN_COOKIE_NAME, value );
         loginCookie.setHttpOnly( true );
-        loginCookie.setSecure( true );
-        loginCookie.setAttribute( "SameSite", "Strict" );
+        // Secure follows the request scheme: true behind HTTPS (prod, via the
+        // RemoteIpValve-corrected scheme), false on plain-HTTP local dev — a
+        // hard-coded Secure=true silently drops the cookie over http://localhost.
+        loginCookie.setSecure( secure );
+        loginCookie.setPath( "/" );
+        // Lax (not Strict): the remember-me cookie must ride along on top-level
+        // navigations — a page refresh after the server session is gone, or an
+        // SSO callback — so the request can silently re-authenticate. Strict
+        // withholds it there, the exact failure mode that produced random
+        // logouts for the JSESSIONID session cookie.
+        loginCookie.setAttribute( "SameSite", "Lax" );
         return loginCookie;
     }
 

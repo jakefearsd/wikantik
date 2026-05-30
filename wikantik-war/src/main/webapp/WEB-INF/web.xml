@@ -47,6 +47,20 @@
      <url-pattern>/*</url-pattern>
    </filter-mapping>
 
+   <!-- Session-cookie policy guard: logs ERROR (rate-limited) if the JSESSIONID
+        cookie is issued with SameSite=Strict or no SameSite, the misconfiguration
+        that causes random logouts (browsers withhold the cookie on top-level
+        navigations). Outermost so it sees the container's final Set-Cookie. -->
+   <filter>
+     <filter-name>SessionCookiePolicyFilter</filter-name>
+     <filter-class>com.wikantik.http.filter.SessionCookiePolicyFilter</filter-class>
+     <async-supported>true</async-supported>
+   </filter>
+   <filter-mapping>
+     <filter-name>SessionCookiePolicyFilter</filter-name>
+     <url-pattern>/*</url-pattern>
+   </filter-mapping>
+
    <!-- Internal network guard: restricts observability endpoints to localhost + private networks -->
    <filter>
      <filter-name>InternalNetworkFilter</filter-name>
@@ -106,6 +120,22 @@
    </filter>
    <filter-mapping>
      <filter-name>BasicAuthFilter</filter-name>
+     <url-pattern>/api/*</url-pattern>
+     <url-pattern>/admin/*</url-pattern>
+   </filter-mapping>
+
+   <!-- Remember-me re-auth: when cookie authentication is enabled and the request
+        carries a remember-me cookie but the server session is gone (restart/timeout),
+        re-establish the authenticated session from the cookie. Runs after BasicAuth
+        (explicit creds win) and before AdminAuthFilter (so /admin/* is authenticated
+        before AllPermission is checked). Anonymous requests (no remember-me cookie)
+        are untouched, preserving the no-session-per-anonymous-request behaviour. -->
+   <filter>
+     <filter-name>RememberMeAuthFilter</filter-name>
+     <filter-class>com.wikantik.rest.RememberMeAuthFilter</filter-class>
+   </filter>
+   <filter-mapping>
+     <filter-name>RememberMeAuthFilter</filter-name>
      <url-pattern>/api/*</url-pattern>
      <url-pattern>/admin/*</url-pattern>
    </filter-mapping>

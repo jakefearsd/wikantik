@@ -122,6 +122,32 @@ class CookieAuthenticationLoginModuleCITest {
         assertEquals( "janne", principals.iterator().next().getName() );
     }
 
+    // --- the remember-me cookie carries safe, navigation-surviving attributes ---
+
+    @Test
+    void testRememberMeCookieHasSafeAttributes() {
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final Cookie[] captured = new Cookie[ 1 ];
+        Mockito.doAnswer( inv -> { captured[ 0 ] = inv.getArgument( 0 ); return null; } )
+                .when( response ).addCookie( Mockito.any( Cookie.class ) );
+
+        // secure=false (plain-HTTP local dev): the cookie must still be issued, and
+        // it must be httpOnly + SameSite=Lax + Path=/ so it is sent on top-level
+        // navigations (a refresh after session loss) to silently re-authenticate.
+        CookieAuthenticationLoginModule.setLoginCookie( engine, response, "janne", false );
+        assertNotNull( captured[ 0 ], "addCookie should have been called" );
+        assertEquals( "WikantikUID", captured[ 0 ].getName() );
+        assertTrue( captured[ 0 ].isHttpOnly(), "remember-me cookie must be httpOnly" );
+        assertFalse( captured[ 0 ].getSecure(), "Secure must follow request scheme (false on http)" );
+        assertEquals( "/", captured[ 0 ].getPath() );
+        assertEquals( "Lax", captured[ 0 ].getAttribute( "SameSite" ),
+                "remember-me cookie must be SameSite=Lax, never Strict (Strict is withheld on refresh)" );
+
+        // secure=true (behind HTTPS) sets the Secure flag.
+        CookieAuthenticationLoginModule.setLoginCookie( engine, response, "janne", true );
+        assertTrue( captured[ 0 ].getSecure(), "Secure must be set behind HTTPS" );
+    }
+
     // --- clearLoginCookie removes the cookie file so subsequent login fails ---
 
     @Test

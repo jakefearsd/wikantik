@@ -379,14 +379,23 @@ if [[ ! -f "${CONFIG_DIR}/Tomcat-context.xml.template" ]]; then
     print_warning "Tomcat-context.xml.template missing — skipping conf/context.xml customization"
 elif ! diff -q "${TOMCAT_CONTEXT_DEST}" "${CONFIG_DIR}/Tomcat-context.xml.template" >/dev/null 2>&1; then
     # Either the file was just untar'd from a fresh Tomcat (no customization
-    # yet) or the user has hand-edited it. We only overwrite when the
-    # current contents are clearly the stock file — any other state means
-    # the operator has it the way they want.
-    if grep -q "CookieProcessor sameSiteCookies" "${TOMCAT_CONTEXT_DEST}" 2>/dev/null; then
-        print_status "conf/context.xml already customized (not overwritten)"
-    else
+    # yet) or the user has hand-edited it. We only overwrite when the current
+    # contents are clearly the stock file — any other state means the operator
+    # has it the way they want — EXCEPT a stale sameSiteCookies value: a Strict
+    # (or any non-template) SameSite policy silently breaks browser sessions
+    # (random logouts), so we always correct it to the template's value. This
+    # guard previously matched any sameSiteCookies line and so never fixed a
+    # stale Strict left over from an older template.
+    tmpl_samesite="$(grep -oP 'sameSiteCookies="\K[^"]+' "${CONFIG_DIR}/Tomcat-context.xml.template" 2>/dev/null || true)"
+    dest_samesite="$(grep -oP 'sameSiteCookies="\K[^"]+' "${TOMCAT_CONTEXT_DEST}" 2>/dev/null || true)"
+    if ! grep -q "CookieProcessor sameSiteCookies" "${TOMCAT_CONTEXT_DEST}" 2>/dev/null; then
         cp "${CONFIG_DIR}/Tomcat-context.xml.template" "${TOMCAT_CONTEXT_DEST}"
-        print_status "Applied Tomcat-context.xml.template (CookieProcessor sameSiteCookies=lax)"
+        print_status "Applied Tomcat-context.xml.template (CookieProcessor sameSiteCookies=${tmpl_samesite})"
+    elif [[ -n "${tmpl_samesite}" && "${dest_samesite}" != "${tmpl_samesite}" ]]; then
+        cp "${CONFIG_DIR}/Tomcat-context.xml.template" "${TOMCAT_CONTEXT_DEST}"
+        print_warning "conf/context.xml had stale sameSiteCookies=\"${dest_samesite}\" — corrected to \"${tmpl_samesite}\" (Strict causes random logouts)"
+    else
+        print_status "conf/context.xml already customized (not overwritten)"
     fi
 else
     print_status "conf/context.xml already matches template"

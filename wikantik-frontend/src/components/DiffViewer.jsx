@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api/client';
+import Spinner from './ui/Spinner';
 import '../styles/article.css';
 
 export default function DiffViewer() {
@@ -47,7 +48,7 @@ export default function DiffViewer() {
   if (loading) {
     return (
       <div className="page-enter" style={{ textAlign: 'center', padding: 'var(--space-2xl)', color: 'var(--text-muted)' }}>
-        Loading version history...
+        <Spinner label="Loading…" />
       </div>
     );
   }
@@ -145,7 +146,7 @@ export default function DiffViewer() {
 
           {diffLoading && (
             <div style={{ textAlign: 'center', padding: 'var(--space-xl)', color: 'var(--text-muted)' }}>
-              Loading diff...
+              <Spinner label="Loading…" />
             </div>
           )}
 

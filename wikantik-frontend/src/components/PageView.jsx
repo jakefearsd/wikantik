@@ -9,6 +9,7 @@ import { renderMath } from '../utils/math';
 import { addCopyButtons } from '../utils/codeCopy';
 import { addHeadingAnchors } from '../utils/headingAnchors';
 import Icon from './ui/Icon';
+import Spinner from './ui/Spinner';
 import PageMeta from './PageMeta';
 import Breadcrumbs from './Breadcrumbs';
 import TableOfContents from './TableOfContents';
@@ -382,7 +383,7 @@ export default function PageView() {
     navigate(internalPath);
   }, [navigate]);
 
-  if (loading) return <div className="loading">Loading…</div>;
+  if (loading) return <div className="loading"><Spinner label="Loading…" /></div>;
   if (error?.status === 404) return <NotFound name={name} />;
   if (error) return <div className="error-banner">Failed to load page: {error.message}</div>;
   if (!page) return null;

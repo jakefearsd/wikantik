@@ -327,3 +327,30 @@
 .graph-empty-overlay button {
   background: none; border: none; color: #2563eb; cursor: pointer; text-decoration: underline;
 }
+
+/* ── Responsive: compact the bottom-right panel on narrow screens ── */
+@media (max-width: 768px) {
+  .graph-bottom-right {
+    /* Move to bottom-left so it doesn't overlap the details drawer (right side) */
+    right: auto;
+    left: var(--space-sm);
+    /* Reduce gap and stack vertically to take less screen real estate */
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 4px;
+    /* Limit maximum width so it doesn't crowd the graph */
+    max-width: 180px;
+  }
+
+  .graph-legend {
+    /* Compact font and max-width on small screens */
+    font-size: 0.72rem;
+    max-width: 170px;
+    padding: 4px 6px;
+  }
+
+  .graph-zoom-slider .zoom-range {
+    /* Shorter slider on mobile */
+    height: 120px;
+  }
+}

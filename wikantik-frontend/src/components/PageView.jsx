@@ -9,6 +9,7 @@ import PageMeta from './PageMeta';
 import Breadcrumbs from './Breadcrumbs';
 import TableOfContents from './TableOfContents';
 import { extractHeadings } from '../utils/headings';
+import useScrollSpy from '../hooks/useScrollSpy';
 import MetadataPanel from './MetadataPanel';
 import SimilarPagesPanel from './SimilarPagesPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
@@ -166,6 +167,8 @@ export default function PageView() {
     () => extractHeadings(page?.contentHtml || ''),
     [page?.contentHtml]
   );
+  const headingIds = useMemo(() => headings.map((h) => h.id), [headings]);
+  const activeHeadingId = useScrollSpy(headingIds);
 
   // Inject matching id attributes into the live DOM heading elements so that
   // TOC anchor links (#id) actually scroll to the right place.
@@ -438,7 +441,7 @@ export default function PageView() {
           onMouseUp={onArticleMouseUp}
           dangerouslySetInnerHTML={{ __html: page.contentHtml || page.content || '' }}
         />
-        <TableOfContents headings={headings} />
+        <TableOfContents headings={headings} activeId={activeHeadingId} />
       </div>
 
       <CommentsDrawer

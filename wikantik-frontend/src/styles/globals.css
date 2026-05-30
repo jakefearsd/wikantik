@@ -420,6 +420,17 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   .modal-overlay-centered {
     animation: none;
   }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .fadeIn, .scaleIn, .slideUp, .comment-pulse {
+    animation: none !important;
+  }
 }
 
 .modal-overlay-centered .modal-content {

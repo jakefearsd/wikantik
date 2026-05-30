@@ -620,11 +620,6 @@
   z-index: 10;
 }
 
-/* Floating variant (when scrolled past natural bar position) */
-.admin-selection-bar--floating {
-  box-shadow: 0 4px 16px var(--shadow-strong);
-}
-
 .admin-selection-bar__count {
   font-weight: 600;
   color: var(--text);
@@ -643,44 +638,6 @@
 .admin-selection-bar__clear {
   margin-left: auto;
   color: var(--text-secondary);
-}
-
-/* Row status icons during dispatch */
-.admin-row-status-icon {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  line-height: 16px;
-  text-align: center;
-  font-size: 12px;
-  border-radius: 50%;
-  vertical-align: middle;
-}
-
-.admin-row-status-icon--pending {
-  border: 2px solid var(--text-muted);
-  animation: spin 1s linear infinite;
-}
-
-.admin-row-status-icon--done {
-  background: var(--sage);
-  color: #fff;
-}
-
-.admin-row-status-icon--failed {
-  background: #C44;
-  color: #fff;
-  cursor: help;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Indeterminate checkbox dash affordance — browsers handle :indeterminate
-   natively; this class is available if JS wants to style it explicitly */
-.admin-checkbox-indeterminate {
-  accent-color: var(--accent);
 }
 
 /* Version management */

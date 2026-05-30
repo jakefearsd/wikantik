@@ -592,4 +592,65 @@ describe('PageView comment integration', () => {
     await waitFor(() =>
       expect(screen.getByText('Thread deleted')).toBeInTheDocument());
   }, TEST_TIMEOUT);
+
+  // --- optimistic resolve/reopen: #54 ----------------------------------------
+
+  it('[#54] resolve flips thread status optimistically before API responds', async () => {
+    // Hold the resolve promise until we assert the optimistic state.
+    let resolveResolve;
+    api.resolveCommentThread.mockReturnValue(new Promise((res) => { resolveResolve = res; }));
+    await mountAndSettle();
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+
+    // Resolve button visible for the open thread.
+    const resolveBtn = screen.getByRole('button', { name: 'Resolve' });
+    fireEvent.click(resolveBtn);
+
+    // Optimistic: drawer switches to "no open threads" view immediately (Resolve
+    // button disappears, Reopen appears for the now-resolved thread).
+    // With the default 'open' filter, the thread disappears from view.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Resolve' })).toBeNull());
+
+    // Let the API call complete.
+    await act(async () => { resolveResolve({}); });
+    await waitFor(() => expect(api.resolveCommentThread).toHaveBeenCalledWith('T1'));
+  }, TEST_TIMEOUT);
+
+  it('[#54] resolve failure reverts status and shows error toast', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // First reject, keep threads returning open so revert is visible.
+    api.resolveCommentThread.mockRejectedValue(new Error('forbidden'));
+    await mountAndSettle();
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+
+    const resolveBtn = screen.getByRole('button', { name: 'Resolve' });
+    await act(async () => { fireEvent.click(resolveBtn); });
+
+    // After rejection, thread reverts to open → Resolve button is back.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resolve' })).toBeInTheDocument());
+    // Error toast with reason.
+    await waitFor(() =>
+      expect(screen.getByText(/Couldn't update thread.*forbidden/)).toBeInTheDocument());
+  }, TEST_TIMEOUT);
+
+  it('[#54] reopen flips thread status optimistically before API responds', async () => {
+    let resolveReopen;
+    api.reopenCommentThread.mockReturnValue(new Promise((res) => { resolveReopen = res; }));
+    api.listCommentThreads.mockResolvedValue({ threads: [{ ...THREAD, status: 'resolved' }] });
+    renderPageView();
+    await awaitStableLoaded();
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    // Switch to 'resolved' filter to see the resolved thread.
+    await act(async () => {
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'resolved' } });
+    });
+    const reopenBtn = await screen.findByRole('button', { name: 'Reopen' });
+    fireEvent.click(reopenBtn);
+
+    // Optimistic: resolved thread disappears from 'resolved' filter immediately.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull());
+
+    await act(async () => { resolveReopen({}); });
+    await waitFor(() => expect(api.reopenCommentThread).toHaveBeenCalledWith('T1'));
+  }, TEST_TIMEOUT);
 });

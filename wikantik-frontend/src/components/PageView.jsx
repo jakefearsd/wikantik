@@ -496,22 +496,32 @@ export default function PageView() {
           finally { await loadThreads(); }
         }}
         onResolve={async (threadId) => {
+          // Optimistic update: flip status immediately so the UI responds without
+          // waiting for the round-trip. Capture prior status for revert on failure.
+          const prior = threads.find((t) => t.id === threadId)?.status;
+          setThreads((prev) => prev.map((t) => t.id === threadId ? { ...t, status: 'resolved' } : t));
           try {
             await api.resolveCommentThread(threadId);
             toast.success('Thread resolved');
           }
           catch (e) {
+            // Revert to prior status on failure.
+            setThreads((prev) => prev.map((t) => t.id === threadId ? { ...t, status: prior } : t));
             console.warn('Failed to resolve thread', e);
             toast.error(`Couldn't update thread: ${e.message || 'unknown error'}`);
           }
           finally { await loadThreads(); }
         }}
         onReopen={async (threadId) => {
+          // Optimistic update: flip status immediately; revert on failure.
+          const prior = threads.find((t) => t.id === threadId)?.status;
+          setThreads((prev) => prev.map((t) => t.id === threadId ? { ...t, status: 'open' } : t));
           try {
             await api.reopenCommentThread(threadId);
             toast.success('Thread reopened');
           }
           catch (e) {
+            setThreads((prev) => prev.map((t) => t.id === threadId ? { ...t, status: prior } : t));
             console.warn('Failed to reopen thread', e);
             toast.error(`Couldn't update thread: ${e.message || 'unknown error'}`);
           }

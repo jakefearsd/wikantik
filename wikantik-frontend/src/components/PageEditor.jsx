@@ -38,6 +38,8 @@ export default function PageEditor() {
   const [panelOpen, setPanelOpen] = useState(false);
   // #20 — discard-confirm modal state
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  // #22 — drag-over visual hint
+  const [isDragging, setIsDragging] = useState(false);
   const textareaRef = useRef(null);
   const attachments = useAttachments(name);
   // Track saving in a ref so the keyboard handler can read latest state without re-registering
@@ -253,6 +255,33 @@ export default function PageEditor() {
 
   const save = saveContent;
 
+  // #22 — drag counter to handle enter/leave across child elements
+  const dragCounterRef = useRef(0);
+
+  const handleDragEnter = useCallback(() => {
+    dragCounterRef.current += 1;
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e) => {
+    // Allow drop — needed for onDrop to fire on some browsers
+    e.preventDefault();
+  }, []);
+
+  const handleDrop = useCallback(() => {
+    dragCounterRef.current = 0;
+    setIsDragging(false);
+    // Actual file handling is delegated to useEditorDrop on the textarea
+  }, []);
+
   // #20 — Cancel handler: confirm if dirty
   const handleCancel = () => {
     if (isDirty) {
@@ -396,7 +425,20 @@ export default function PageEditor() {
       <EditorToolbar onCommand={applyFormat} />
 
       <div className="editor-container">
-        <div className="editor-pane">
+        {/* #22 — drag-over visual hint on the editor pane */}
+        <div
+          className="editor-pane"
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          style={{ position: 'relative' }}
+        >
+          {isDragging && (
+            <div className="editor-dropzone-hint" aria-hidden="true">
+              Drop images to upload
+            </div>
+          )}
           <textarea
             ref={textareaRef}
             className="editor-textarea"

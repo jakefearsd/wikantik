@@ -790,6 +790,27 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 }
 
 /* ============================================================
+   Editor Drop-zone hint (#22)
+   ============================================================ */
+
+.editor-dropzone-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ============================================================
    Attachment Panel (slide-in from right)
    ============================================================ */
 

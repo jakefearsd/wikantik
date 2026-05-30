@@ -301,3 +301,48 @@ describe('#18 formatting toolbar', () => {
     expect(toolbar).not.toBeNull();
   });
 });
+
+// ── #22 Drag-and-drop drop-zone hint ─────────────────────────────────────────
+describe('#22 drag-and-drop drop-zone hint', () => {
+  it('shows drop-zone hint on dragenter', async () => {
+    const { container } = renderEditor();
+    await waitForEditor();
+
+    const pane = container.querySelector('.editor-pane');
+    expect(pane).not.toBeNull();
+
+    fireEvent.dragEnter(pane, {
+      dataTransfer: { types: ['Files'] },
+    });
+
+    await waitFor(() => {
+      expect(container.querySelector('.editor-dropzone-hint')).not.toBeNull();
+    });
+  });
+
+  it('hides drop-zone hint on dragleave', async () => {
+    const { container } = renderEditor();
+    await waitForEditor();
+
+    const pane = container.querySelector('.editor-pane');
+    fireEvent.dragEnter(pane, { dataTransfer: { types: ['Files'] } });
+    await waitFor(() => expect(container.querySelector('.editor-dropzone-hint')).not.toBeNull());
+
+    fireEvent.dragLeave(pane);
+
+    await waitFor(() => expect(container.querySelector('.editor-dropzone-hint')).toBeNull());
+  });
+
+  it('hides drop-zone hint on drop', async () => {
+    const { container } = renderEditor();
+    await waitForEditor();
+
+    const pane = container.querySelector('.editor-pane');
+    fireEvent.dragEnter(pane, { dataTransfer: { types: ['Files'] } });
+    await waitFor(() => expect(container.querySelector('.editor-dropzone-hint')).not.toBeNull());
+
+    fireEvent.drop(pane, { dataTransfer: { types: ['Files'] } });
+
+    await waitFor(() => expect(container.querySelector('.editor-dropzone-hint')).toBeNull());
+  });
+});

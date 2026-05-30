@@ -18,21 +18,18 @@
  */
 package com.wikantik.auth.user;
 
-import com.wikantik.TestEngine;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.Users;
-import com.wikantik.auth.WikiSecurityException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.security.Principal;
-import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Additional coverage tests for {@link AbstractUserDatabase} targeting paths
- * not exercised by the existing test suite:
+ * Coverage tests for {@link AbstractUserDatabase}, driven through the {@link InMemoryUserDatabase}
+ * test double (seeded with the same fixture users the retired XML store provided). Targets:
  * <ul>
  *   <li>{@code find()} falling through all three tries before throwing</li>
  *   <li>{@code find()} succeeding on each individual path (fullname, wikiname, loginname)</li>
@@ -40,20 +37,15 @@ import static org.junit.jupiter.api.Assertions.*;
  *   <li>{@code validatePassword()} with a stored SHA-1 prefix ({SHA}) — covers the legacy
  *       upgrade branch</li>
  *   <li>{@code getShaHash()} via {@code validatePassword()} with a SHA-prefixed password</li>
- *   <li>{@code parseLong()} via non-parsable lockExpiry in findByAttribute</li>
  * </ul>
  */
 class AbstractUserDatabaseCITest {
 
-    private XMLUserDatabase db;
+    private InMemoryUserDatabase db;
 
     @BeforeEach
-    void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        props.put( XMLUserDatabase.PROP_USERDATABASE, "target/test-classes/userdatabase.xml" );
-        final TestEngine engine = new TestEngine( props );
-        db = new XMLUserDatabase();
-        db.initialize( engine, props );
+    void setUp() {
+        db = new InMemoryUserDatabase();
     }
 
     // --- find() by full name ---
@@ -137,34 +129,14 @@ class AbstractUserDatabaseCITest {
     // --- validatePassword() with legacy SHA prefix — covers getShaHash() branch ---
 
     @Test
-    void testValidatePasswordWithLegacyShaPrefix() throws Exception {
-        // Build a fresh XML database file that already contains a {SHA}-prefixed password
-        // so we bypass save()'s hashing logic (which would re-hash it as {SHA-256}).
+    void testValidatePasswordWithLegacyShaPrefix() {
+        // Seed a user whose stored credential is a {SHA}-prefixed hash, verbatim, so the
+        // legacy upgrade branch in AbstractUserDatabase.validatePassword() is exercised.
         final String shaHash = computeSha1Hex( "legacypass" );
-        final java.io.File dbFile = java.io.File.createTempFile( "sha-legacy-", ".xml" );
-        dbFile.deleteOnExit();
+        final InMemoryUserDatabase legacyDb = new InMemoryUserDatabase();
+        legacyDb.putRaw( "legacyuser", "Legacy User", "LegacyUser", "legacy@example.com",
+                         "{SHA}" + shaHash, "uid-legacy-1" );
 
-        final String xml =
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-            "<users>\n" +
-            "  <user loginName=\"legacyuser\" fullName=\"Legacy User\" wikiName=\"LegacyUser\"\n" +
-            "        email=\"legacy@example.com\" password=\"{SHA}" + shaHash + "\" uid=\"uid-legacy-1\"\n" +
-            "        created=\"2020.01.01 at 00:00:00:000 UTC\"\n" +
-            "        lastModified=\"2020.01.01 at 00:00:00:000 UTC\"\n" +
-            "        lockExpiry=\"\" />\n" +
-            "</users>";
-
-        try ( final java.io.FileWriter fw = new java.io.FileWriter( dbFile ) ) {
-            fw.write( xml );
-        }
-
-        final Properties legacyProps = TestEngine.getTestProperties();
-        legacyProps.put( XMLUserDatabase.PROP_USERDATABASE, dbFile.getAbsolutePath() );
-        final TestEngine legacyEngine = new TestEngine( legacyProps );
-        final XMLUserDatabase legacyDb = new XMLUserDatabase();
-        legacyDb.initialize( legacyEngine, legacyProps );
-
-        // validatePassword exercises the {SHA} branch and getShaHash()
         assertTrue( legacyDb.validatePassword( "legacyuser", "legacypass" ),
                     "Legacy {SHA} password should validate correctly" );
     }
@@ -172,30 +144,11 @@ class AbstractUserDatabaseCITest {
     // --- validatePassword() with legacy {SHA} rejects wrong password ---
 
     @Test
-    void testValidatePasswordWithLegacyShaPrefixRejectsWrongPassword() throws Exception {
+    void testValidatePasswordWithLegacyShaPrefixRejectsWrongPassword() {
         final String shaHash = computeSha1Hex( "legacypass" );
-        final java.io.File dbFile = java.io.File.createTempFile( "sha-legacy-bad-", ".xml" );
-        dbFile.deleteOnExit();
-
-        final String xml =
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-            "<users>\n" +
-            "  <user loginName=\"legacybaduser\" fullName=\"Legacy Bad User\" wikiName=\"LegacyBadUser\"\n" +
-            "        email=\"legacybad@example.com\" password=\"{SHA}" + shaHash + "\" uid=\"uid-legacy-2\"\n" +
-            "        created=\"2020.01.01 at 00:00:00:000 UTC\"\n" +
-            "        lastModified=\"2020.01.01 at 00:00:00:000 UTC\"\n" +
-            "        lockExpiry=\"\" />\n" +
-            "</users>";
-
-        try ( final java.io.FileWriter fw = new java.io.FileWriter( dbFile ) ) {
-            fw.write( xml );
-        }
-
-        final Properties legacyProps = TestEngine.getTestProperties();
-        legacyProps.put( XMLUserDatabase.PROP_USERDATABASE, dbFile.getAbsolutePath() );
-        final TestEngine legacyEngine = new TestEngine( legacyProps );
-        final XMLUserDatabase legacyDb = new XMLUserDatabase();
-        legacyDb.initialize( legacyEngine, legacyProps );
+        final InMemoryUserDatabase legacyDb = new InMemoryUserDatabase();
+        legacyDb.putRaw( "legacybaduser", "Legacy Bad User", "LegacyBadUser", "legacybad@example.com",
+                         "{SHA}" + shaHash, "uid-legacy-2" );
 
         assertFalse( legacyDb.validatePassword( "legacybaduser", "wrongpass" ),
                      "Legacy {SHA} validation must reject a completely different password" );

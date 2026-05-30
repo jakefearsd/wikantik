@@ -1852,7 +1852,6 @@ package com.wikantik.auth.login;
 
 import com.wikantik.TestEngine;
 import com.wikantik.auth.oauth.OAuthUserInfo;
-import com.wikantik.auth.user.XMLUserDatabase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -1872,7 +1871,6 @@ class OAuthLoginModuleTest {
     @BeforeEach
     void setUp() throws Exception {
         Properties props = TestEngine.getTestProperties();
-        props.put(XMLUserDatabase.PROP_USERDATABASE, "target/test-classes/userdatabase.xml");
         engine = new TestEngine(props);
         subject = new Subject();
     }
@@ -2305,7 +2303,6 @@ These files are NOT modified and continue to function exactly as before:
 | `AnonymousLoginModule.java` | Anonymous user handling |
 | `NewProfile.jsp` / `ProfileTab.jsp` | Traditional user registration |
 | `UserPreferences.jsp` | Password management, user settings |
-| `XMLUserDatabase.java` | User storage (XML-based) |
 | `JDBCUserDatabase.java` | User storage (database-based) |
 | All existing JAAS configuration | Existing login module chain |
 

@@ -99,25 +99,6 @@ class ConcurrencyFixesTest {
         assertFieldIsVolatile( luceneUpdaterClass, "lastMissingPageCheck" );
     }
 
-    /**
-     * Bug 7: XMLUserDatabase.dom is accessed in synchronized methods (deleteByLoginName,
-     * save, rename) and also in findByAttribute and getWikiNames. All access must be
-     * consistently synchronized. We verify that findBy and getWikiNames are synchronized.
-     */
-    @Test
-    void xmlUserDatabase_findBy_shouldBeSynchronized() throws Exception {
-        final var method = com.wikantik.auth.user.XMLUserDatabase.class.getDeclaredMethod( "findBy", String.class, String.class );
-        assertTrue( Modifier.isSynchronized( method.getModifiers() ),
-                "XMLUserDatabase.findBy() should be synchronized" );
-    }
-
-    @Test
-    void xmlUserDatabase_getWikiNames_shouldBeSynchronized() throws Exception {
-        final var method = com.wikantik.auth.user.XMLUserDatabase.class.getDeclaredMethod( "getWikiNames" );
-        assertTrue( Modifier.isSynchronized( method.getModifiers() ),
-                "XMLUserDatabase.getWikiNames() should be synchronized" );
-    }
-
     private void assertFieldIsVolatile( final Class< ? > clazz, final String fieldName ) throws Exception {
         final Field field = clazz.getDeclaredField( fieldName );
         assertTrue( Modifier.isVolatile( field.getModifiers() ),

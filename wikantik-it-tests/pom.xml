@@ -33,7 +33,6 @@
 
   <modules>
     <module>wikantik-selenide-tests</module>
-    <module>wikantik-it-test-custom</module>
     <module>wikantik-it-test-custom-jdbc</module>
     <module>wikantik-it-test-rest</module>
     <module>wikantik-it-test-sso</module>

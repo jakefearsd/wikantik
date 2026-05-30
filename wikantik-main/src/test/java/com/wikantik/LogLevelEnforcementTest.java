@@ -74,7 +74,6 @@ public class LogLevelEnforcementTest {
             "WebContainerAuthorizer.java",
             "DefaultAclManager.java",
             "AbstractUserDatabase.java",
-            "XMLUserDatabase.java",
             "JDBCUserDatabase.java",
             "AbstractJDBCDatabase.java",
             "JDBCGroupDatabase.java",

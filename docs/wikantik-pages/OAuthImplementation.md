@@ -149,7 +149,7 @@ fireEvent(WikiSecurityEvent.LOGIN_AUTHENTICATED, principal, session);
 
     1. 4. User Database Abstraction Works Well
 
-Both XMLUserDatabase and JDBCUserDatabase support:
+The `JDBCUserDatabase` supports:
 - `findByEmail(String)` - Look up existing users
 - `save(UserProfile)` - Create new users
 - Custom attributes map for OAuth metadata
@@ -223,7 +223,7 @@ This separation keeps OAuth protocol details out of JAAS and allows the LoginMod
 - Profile interface: `/auth/user/UserProfile.java`
 - Profile impl: `/auth/user/DefaultUserProfile.java`
 - Database interface: `/auth/user/UserDatabase.java`
-- Database impl: `/auth/user/XMLUserDatabase.java`, `/auth/user/JDBCUserDatabase.java`
+- Database impl: `/auth/user/JDBCUserDatabase.java`
 
 ### Login Modules
 - Abstract: `/auth/login/AbstractLoginModule.java`

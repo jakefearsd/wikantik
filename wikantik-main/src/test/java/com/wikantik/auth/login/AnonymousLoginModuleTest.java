@@ -35,7 +35,7 @@ import com.wikantik.api.exceptions.NoRequiredPropertyException;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.authorize.Role;
 import com.wikantik.auth.user.UserDatabase;
-import com.wikantik.auth.user.XMLUserDatabase;
+import com.wikantik.auth.user.InMemoryUserDatabase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,9 +91,8 @@ class AnonymousLoginModuleTest {
     @BeforeEach
     void setUp() throws Exception {
         final Properties props = TestEngine.getTestProperties();
-        props.put(XMLUserDatabase.PROP_USERDATABASE, "target/test-classes/userdatabase.xml" );
         m_engine = new TestEngine(props);
-        m_db = new XMLUserDatabase();
+        m_db = new InMemoryUserDatabase();
         m_subject = new Subject();
         try {
             m_db.initialize( m_engine, props );

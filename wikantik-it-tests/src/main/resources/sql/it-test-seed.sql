@@ -41,6 +41,26 @@ ON CONFLICT DO NOTHING;
 INSERT INTO group_members (name, member) VALUES ('Admin', 'JanneJalkanen')
 ON CONFLICT DO NOTHING;
 
+-- Fixture users carried over from the retired XML user database (userdatabase.xml).
+-- IT suites reference these by login/wiki name — e.g. CommentThreadIT logs in as
+-- "Alice" (password "password") to verify the my-mentions round-trip. Hashes are the
+-- exact {SSHA} values the XML seed used, so the recorded passwords still validate.
+INSERT INTO users (uid, email, full_name, login_name, password, wiki_name) VALUES
+  ( 'it-seed-user-alice',   'alice@example.com',   'Alice',           'Alice',   '{SSHA}3V4zI5W6mT+x5NIHKI2KFQIYBdnAYKNOE9Aj+Q==', 'Alice' ),
+  ( 'it-seed-user-bob',     'bob@example.com',     'Bob',             'Bob',     '{SSHA}NP3aAmiwK0gHywTe4qbY6klKDqnZ+F9ym9YiLg==', 'Bob' ),
+  ( 'it-seed-user-charlie', 'charlie@example.com', 'Charlie',         'Charlie', '{SSHA}wn81B14F9axtTVYsipQKC2OWQHlc6EcpMSe58Q==', 'Charlie' ),
+  ( 'it-seed-user-fred',    'fred@example.com',    'Fred Flintstone', 'Fred',    '{SSHA}iDeE9dysPUE28SWd6yeIqiIj9sIVyiMM7VnMKQ==', 'FredFlintstone' ),
+  ( 'it-seed-user-biff',    'biff@example.com',    'Biff',            'Biff',    '{SSHA}xKAIienaZZHhKTGCNv5Li6lzeemaSs6ZYXTHFQ==', 'Biff' )
+ON CONFLICT (login_name) DO NOTHING;
+
+INSERT INTO roles (login_name, role) VALUES
+  ( 'Alice', 'Authenticated' ),
+  ( 'Bob', 'Authenticated' ),
+  ( 'Charlie', 'Authenticated' ),
+  ( 'Fred', 'Authenticated' ),
+  ( 'Biff', 'Authenticated' )
+ON CONFLICT DO NOTHING;
+
 -- -----------------------------------------------------------------------
 -- JDBCPluginIT sample data
 -- -----------------------------------------------------------------------

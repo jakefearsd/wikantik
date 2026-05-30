@@ -20,7 +20,6 @@ package com.wikantik.auth.login;
 
 import com.wikantik.TestEngine;
 import com.wikantik.auth.Users;
-import com.wikantik.auth.user.XMLUserDatabase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -51,7 +50,6 @@ class UserDatabaseLoginModuleCITest {
     @BeforeEach
     void setUp() throws Exception {
         final Properties props = TestEngine.getTestProperties();
-        props.put( XMLUserDatabase.PROP_USERDATABASE, "target/test-classes/userdatabase.xml" );
         engine = new TestEngine( props );
         subject = new Subject();
     }

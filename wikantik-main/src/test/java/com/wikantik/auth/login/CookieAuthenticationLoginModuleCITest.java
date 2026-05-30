@@ -21,7 +21,6 @@ package com.wikantik.auth.login;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.auth.WikiPrincipal;
-import com.wikantik.auth.user.XMLUserDatabase;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -56,7 +55,6 @@ class CookieAuthenticationLoginModuleCITest {
     @BeforeEach
     void setUp() throws Exception {
         final Properties props = TestEngine.getTestProperties();
-        props.put( XMLUserDatabase.PROP_USERDATABASE, "target/test-classes/userdatabase.xml" );
         engine = new TestEngine( props );
         subject = new Subject();
     }

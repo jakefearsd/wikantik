@@ -27,7 +27,6 @@ import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
-import com.wikantik.auth.user.XMLUserDatabase;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.api.managers.PageManager;
 import jakarta.servlet.http.HttpServletRequest;
@@ -63,7 +62,6 @@ class DefaultUserManagerCITest2 {
     @BeforeEach
     void setUp() throws Exception {
         final Properties props = TestEngine.getTestProperties();
-        props.put( XMLUserDatabase.PROP_USERDATABASE, "target/test-classes/userdatabase.xml" );
         m_engine = new TestEngine( props );
         m_mgr = m_engine.getManager( UserManager.class );
         m_db = m_mgr.getUserDatabase();

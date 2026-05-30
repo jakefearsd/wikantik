@@ -47,7 +47,7 @@ class DefaultUserManagerTest {
         final AuthenticationManager aMgr = mock( AuthenticationManager.class );
         when( aMgr.isContainerAuthenticated() ).thenReturn( false );
         final Properties props = new Properties();
-        props.put( "wikantik.userdatabase", "com.wikantik.auth.user.XMLUserDatabase" );
+        props.put( "wikantik.userdatabase", "com.wikantik.auth.user.InMemoryUserDatabase" );
         final WikiEngine engine = mock( WikiEngine.class );
         when( engine.getManager( AuthenticationManager.class ) ).thenReturn( aMgr );
         when( engine.getWikiProperties() ).thenReturn( props );

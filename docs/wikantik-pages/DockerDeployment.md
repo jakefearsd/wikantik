@@ -28,8 +28,7 @@ The following environment variables are available to configure your Wikantik ins
 - `jspwiki_pageProvider`: The page provider to use. Defaults to `VersioningFileProvider`.
 - `jspwiki_use_external_logconfig`: Set to `true` to use an external Log4j2 configuration file. Defaults to `true`.
 - `jspwiki_workDir`: The working directory for Wikantik. Defaults to `/var/jspwiki/work`.
-- `jspwiki_xmlUserDatabaseFile`: The path to the user database file. Defaults to `/var/jspwiki/etc/userdatabase.xml`.
-- `jspwiki_xmlGroupDatabaseFile`: The path to the group database file. Defaults to `/var/jspwiki/etc/groupdatabase.xml`.
+- User and group accounts are stored in PostgreSQL (the `JDBCUserDatabase` / `JDBCGroupDatabase` providers), accessed through the `jdbc/WikiDatabase` JNDI datasource — there are no XML user/group database files to configure.
 
 ## 2. Data Persistence and Backup Strategy
 

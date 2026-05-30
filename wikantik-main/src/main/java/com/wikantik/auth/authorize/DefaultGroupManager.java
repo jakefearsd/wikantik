@@ -110,7 +110,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             final Properties props = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
             dbClassName = props.getProperty( PROP_GROUPDATABASE );
             if( dbClassName == null ) {
-                dbClassName = XMLGroupDatabase.class.getName();
+                dbClassName = JDBCGroupDatabase.class.getName();
             }
             LOG.info( "Attempting to load group database class {}", dbClassName );
             groupDatabase = ClassUtil.buildInstance( "com.wikantik.auth.authorize", dbClassName );

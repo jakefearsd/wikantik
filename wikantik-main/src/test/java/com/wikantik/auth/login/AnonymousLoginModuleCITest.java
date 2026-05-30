@@ -19,7 +19,6 @@
 package com.wikantik.auth.login;
 
 import com.wikantik.TestEngine;
-import com.wikantik.auth.user.XMLUserDatabase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

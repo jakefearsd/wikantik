@@ -32,7 +32,6 @@ import com.wikantik.auth.permissions.PermissionFactory;
 import com.wikantik.auth.user.DuplicateUserException;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
-import com.wikantik.auth.user.XMLUserDatabase;
 import com.wikantik.api.managers.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -60,7 +59,6 @@ class UserManagerTest {
         final Properties props = TestEngine.getTestProperties();
 
         // Make sure we are using the XML user database
-        props.put( XMLUserDatabase.PROP_USERDATABASE, "target/test-classes/userdatabase.xml" );
         m_engine = new TestEngine( props );
         m_mgr = m_engine.getManager( UserManager.class );
         m_db = m_mgr.getUserDatabase();

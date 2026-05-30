@@ -46,7 +46,9 @@ import java.security.Principal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,6 +72,16 @@ public class AdminUserResource extends RestServletBase {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( AdminUserResource.class );
+
+    /**
+     * Sentinel "lock indefinitely" expiry. Must stay within the range every supported
+     * UserDatabase backend can persist: the JDBC backend writes this to a PostgreSQL
+     * {@code TIMESTAMP} column whose maximum is year 294276, so {@code new Date(Long.MAX_VALUE)}
+     * (year ~292278994) overflows and the lock save fails. Year 9999 is unambiguously
+     * "indefinite" for account-locking purposes and persists cleanly everywhere.
+     */
+    static final Date INDEFINITE_LOCK_EXPIRY =
+            new GregorianCalendar( 9999, Calendar.DECEMBER, 31, 23, 59, 59 ).getTime();
 
     @Override
     protected boolean isCrossOriginAllowed() {
@@ -274,7 +286,7 @@ public class AdminUserResource extends RestServletBase {
         try {
             final UserDatabase db = getUserDatabase();
             final UserProfile profile = db.findByLoginName( loginName );
-            profile.setLockExpiry( new Date( Long.MAX_VALUE ) );
+            profile.setLockExpiry( INDEFINITE_LOCK_EXPIRY );
             db.save( profile );
             return Optional.empty();
         } catch ( final Exception e ) {
@@ -538,8 +550,8 @@ public class AdminUserResource extends RestServletBase {
             if ( expiryStr != null && !expiryStr.isBlank() ) {
                 expiry = new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).parse( expiryStr );
             } else {
-                // Lock indefinitely — set expiry far in the future
-                expiry = new Date( Long.MAX_VALUE );
+                // Lock indefinitely — far-future but within every backend's persistable range.
+                expiry = INDEFINITE_LOCK_EXPIRY;
             }
 
             profile.setLockExpiry( expiry );

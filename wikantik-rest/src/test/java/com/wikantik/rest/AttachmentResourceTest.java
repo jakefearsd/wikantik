@@ -24,6 +24,7 @@ import com.google.gson.JsonObject;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.auth.SessionMonitor;
 import com.wikantik.api.core.Attachment;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
@@ -64,6 +65,17 @@ class AttachmentResourceTest {
         final ServletConfig config = Mockito.mock( ServletConfig.class );
         Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
         servlet.init( config );
+
+        // saveText() above logged in as admin on the shared mock HttpSession (all
+        // HttpMockFactory requests share the fixed id "mock-session"). Evict that cached
+        // WikiSession so each test starts from a genuine anonymous session — otherwise the
+        // permission-enforcement tests would inherit admin's AllPermission and never see 403.
+        anonymizeMockSession();
+    }
+
+    /** Clears the shared mock WikiSession so the next request resolves as anonymous. */
+    private void anonymizeMockSession() {
+        SessionMonitor.getInstance( engine ).remove( "mock-session" );
     }
 
     @AfterEach

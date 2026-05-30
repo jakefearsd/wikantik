@@ -516,6 +516,26 @@
   border-color: #F88;
 }
 
+/* Stand-alone error banner (not nested inside .admin-message) */
+.admin-error {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--danger, #b13a3a);
+  border-left: 4px solid var(--danger, #b13a3a);
+  background: var(--danger-bg, #faf2f2);
+  color: var(--danger, #b13a3a);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-bottom: var(--space-md);
+}
+
+[data-theme="dark"] .admin-error {
+  background: var(--danger-bg, #3a1a1a);
+  color: var(--danger, #f87171);
+  border-color: var(--danger, #f87171);
+}
+
 /* Count indicators */
 .admin-count {
   font-family: var(--font-ui);

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -6,10 +6,18 @@ import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { highlightTerms } from '../utils/highlight';
 
+const PAGE_SIZE = 20;
+
 export default function SearchResultsPage() {
   const [params] = useSearchParams();
   const query = params.get('q') || '';
   const { data, loading, error } = useApi((signal) => api.search(query, 50, { signal }), [query]);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Reset pagination when query changes
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [query]);
 
   useEffect(() => {
     document.title = query ? `Wikantik: Search results for ${query}` : 'Wikantik: Search';
@@ -30,6 +38,8 @@ export default function SearchResultsPage() {
   if (error) return <div className="error-banner">Search failed: {error.message}</div>;
 
   const results = data?.results || [];
+  const visibleResults = results.slice(0, visibleCount);
+  const hasMore = results.length > visibleCount;
 
   return (
     <div className="page-enter" data-testid="search-results-page" data-query={query}>
@@ -56,10 +66,37 @@ export default function SearchResultsPage() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }} data-testid="search-results-list">
-        {results.map(result => (
+        {visibleResults.map(result => (
           <SearchResultCard key={result.name} result={result} query={query} />
         ))}
       </div>
+
+      {hasMore && (
+        <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center' }}>
+          <p
+            data-testid="results-count"
+            style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 'var(--space-sm)' }}
+          >
+            Showing {visibleCount} of {results.length}
+          </p>
+          <button
+            data-testid="load-more-button"
+            onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+            style={{
+              padding: 'var(--space-sm) var(--space-lg)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-elevated)',
+              color: 'var(--text)',
+              cursor: 'pointer',
+              fontSize: '0.95rem',
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            Load more
+          </button>
+        </div>
+      )}
     </div>
   );
 }

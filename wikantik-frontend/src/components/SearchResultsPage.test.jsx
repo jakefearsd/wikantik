@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('../api/client', () => ({
@@ -72,4 +72,40 @@ describe('SearchResultsPage', () => {
     expect(matchTexts).toContain('testing');
   });
 
+  // ── #28: Pagination / load-more ──────────────────────────────────────────
+
+  it('#28 shows first 20 results initially when more than 20 exist', () => {
+    useApi.mockReturnValue({
+      data: { results: makeResults(25) },
+      loading: false,
+      error: null,
+    });
+    renderPage('?q=page');
+    expect(screen.getAllByTestId('search-result-card')).toHaveLength(20);
+    expect(screen.getByTestId('load-more-button')).toBeInTheDocument();
+    expect(screen.getByTestId('results-count')).toHaveTextContent('Showing 20 of 25');
+  });
+
+  it('#28 clicking Load more shows all results and hides the button', () => {
+    useApi.mockReturnValue({
+      data: { results: makeResults(25) },
+      loading: false,
+      error: null,
+    });
+    renderPage('?q=page');
+    fireEvent.click(screen.getByTestId('load-more-button'));
+    expect(screen.getAllByTestId('search-result-card')).toHaveLength(25);
+    expect(screen.queryByTestId('load-more-button')).not.toBeInTheDocument();
+  });
+
+  it('#28 does not show load-more when 20 or fewer results', () => {
+    useApi.mockReturnValue({
+      data: { results: makeResults(20) },
+      loading: false,
+      error: null,
+    });
+    renderPage('?q=page');
+    expect(screen.getAllByTestId('search-result-card')).toHaveLength(20);
+    expect(screen.queryByTestId('load-more-button')).not.toBeInTheDocument();
+  });
 });

@@ -11,6 +11,7 @@ import { useAttachments } from '../hooks/useAttachments';
 import { useEditorDrop } from '../hooks/useEditorDrop';
 import { useDraft } from '../hooks/useDraft';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 import AttachmentPanel from './AttachmentPanel';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -19,6 +20,7 @@ export default function PageEditor() {
   const { name } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const toast = useToast();
   const [content, setContent] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [originalVersion, setOriginalVersion] = useState(null);
@@ -33,6 +35,8 @@ export default function PageEditor() {
   const [panelOpen, setPanelOpen] = useState(false);
   const textareaRef = useRef(null);
   const attachments = useAttachments(name);
+  // Track saving in a ref so the keyboard handler can read latest state without re-registering
+  const savingRef = useRef(false);
 
   const { user } = useAuth();
   const login = user?.authenticated ? user.loginPrincipal : null;
@@ -113,6 +117,21 @@ export default function PageEditor() {
     document.title = `Wikantik: ${isNew ? 'Create' : 'Edit'} ${name}`;
   }, [name, isNew]);
 
+  // #4 — Cmd/Ctrl+S global keyboard shortcut
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        if (!savingRef.current) {
+          saveContent();
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleConvert = async () => {
     setConverting(true);
     setError(null);
@@ -128,8 +147,10 @@ export default function PageEditor() {
     }
   };
 
-  const save = async () => {
+  // #4 — extracted save function used by button and keyboard shortcut
+  const saveContent = async () => {
     setSaving(true);
+    savingRef.current = true;
     setError(null);
     try {
       await api.savePage(name, {
@@ -139,6 +160,7 @@ export default function PageEditor() {
         markupSyntax: markupSyntax === 'markdown' ? 'markdown' : undefined,
       });
       clearDraft();
+      toast.success('Saved');
       navigate(`/wiki/${name}`);
     } catch (err) {
       if (err.status === 409) {
@@ -154,8 +176,11 @@ export default function PageEditor() {
       }
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   };
+
+  const save = saveContent;
 
   const handleOverwrite = async () => {
     setSaving(true);

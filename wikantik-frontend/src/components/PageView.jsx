@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
+import { useToast } from '../hooks/useToast';
 import { renderMath } from '../utils/math';
 import { addCopyButtons } from '../utils/codeCopy';
 import { addHeadingAnchors } from '../utils/headingAnchors';
@@ -113,6 +114,7 @@ function CommentComposer({ rect, quote, onSubmit, onCancel }) {
 export default function PageView() {
   const { name = 'Main' } = useParams();
   const { user } = useAuth();
+  const toast = useToast();
   const recent = useRecentlyViewed({
     login: user?.authenticated ? user.loginPrincipal : null,
     enabled: !!user?.authenticated,
@@ -259,6 +261,7 @@ export default function PageView() {
       await api.createCommentThread(name, { ...selection.selector, text: text.trim() });
     } catch (e) {
       console.warn('Failed to create comment thread', e);
+      toast.error(`Couldn't post comment: ${e.message || 'unknown error'}`);
     } finally {
       if (articleRef.current) clearPendingHighlight(articleRef.current);
       setComposerOpen(false);
@@ -475,22 +478,43 @@ export default function PageView() {
         onStatusFilter={setStatusFilter}
         onReply={async (threadId, text) => {
           try { await api.addCommentReply(threadId, text); }
-          catch (e) { console.warn('Failed to add reply', e); }
+          catch (e) {
+            console.warn('Failed to add reply', e);
+            toast.error(`Couldn't post reply: ${e.message || 'unknown error'}`);
+          }
           finally { await loadThreads(); }
         }}
         onDeleteThread={async (threadId) => {
-          try { await api.deleteCommentThread(threadId); }
-          catch (e) { console.warn('Failed to delete thread', e); }
+          try {
+            await api.deleteCommentThread(threadId);
+            toast.success('Thread deleted');
+          }
+          catch (e) {
+            console.warn('Failed to delete thread', e);
+            toast.error(`Couldn't delete thread: ${e.message || 'unknown error'}`);
+          }
           finally { await loadThreads(); }
         }}
         onResolve={async (threadId) => {
-          try { await api.resolveCommentThread(threadId); }
-          catch (e) { console.warn('Failed to resolve thread', e); }
+          try {
+            await api.resolveCommentThread(threadId);
+            toast.success('Thread resolved');
+          }
+          catch (e) {
+            console.warn('Failed to resolve thread', e);
+            toast.error(`Couldn't update thread: ${e.message || 'unknown error'}`);
+          }
           finally { await loadThreads(); }
         }}
         onReopen={async (threadId) => {
-          try { await api.reopenCommentThread(threadId); }
-          catch (e) { console.warn('Failed to reopen thread', e); }
+          try {
+            await api.reopenCommentThread(threadId);
+            toast.success('Thread reopened');
+          }
+          catch (e) {
+            console.warn('Failed to reopen thread', e);
+            toast.error(`Couldn't update thread: ${e.message || 'unknown error'}`);
+          }
           finally { await loadThreads(); }
         }}
         onFocusThread={focusThread}

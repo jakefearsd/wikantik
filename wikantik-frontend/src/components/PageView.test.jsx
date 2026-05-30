@@ -2,6 +2,7 @@ import { describe, it, vi, beforeEach, afterEach, expect } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '../hooks/useAuth';
+import { ToastProvider } from '../components/ui/ToastProvider';
 import { api } from '../api/client';
 import PageView from './PageView';
 
@@ -95,11 +96,13 @@ afterEach(() => {
 function renderPageView(initialEntry = '/wiki/Foo') {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
-      <AuthProvider>
-        <Routes>
-          <Route path="/wiki/:name" element={<PageView />} />
-        </Routes>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <Routes>
+            <Route path="/wiki/:name" element={<PageView />} />
+          </Routes>
+        </AuthProvider>
+      </ToastProvider>
     </MemoryRouter>,
   );
 }
@@ -501,5 +504,92 @@ describe('PageView comment integration', () => {
     await act(async () => { fireEvent.click(screen.getByTitle('Delete thread')); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
     await waitFor(() => expect(warn).toHaveBeenCalledWith('Failed to delete thread', expect.any(Error)));
+  }, TEST_TIMEOUT);
+
+  // --- toast integration: #1-apply -------------------------------------------
+
+  it('[#1] createCommentThread failure shows an error toast with the reason', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.createCommentThread.mockRejectedValue(new Error('server exploded'));
+    const { container } = await mountAndSettle();
+    const article = container.querySelector('article.article-prose');
+    const p = article.querySelector('p');
+    const foxNode = Array.from(p.childNodes).find(
+      (n) => n.nodeType === Node.TEXT_NODE && n.data.includes('fox'));
+    const foxStart = foxNode.data.indexOf('fox');
+    const range = document.createRange();
+    range.setStart(foxNode, foxStart);
+    range.setEnd(foxNode, foxStart + 3);
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      rangeCount: 1, isCollapsed: false, getRangeAt: () => range, removeAllRanges: vi.fn(),
+    });
+    await act(async () => { fireEvent.mouseUp(article); });
+    const floating = await screen.findByTestId('comment-add-floating');
+    await act(async () => { fireEvent.click(floating); });
+    const textarea = await screen.findByPlaceholderText('Add a comment');
+    await act(async () => { fireEvent.change(textarea, { target: { value: 'hi' } }); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Comment$/ })); });
+    await waitFor(() =>
+      expect(screen.getByText(/Couldn't post comment.*server exploded/)).toBeInTheDocument());
+  }, TEST_TIMEOUT);
+
+  it('[#1] addCommentReply failure shows an error toast with the reason', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.addCommentReply.mockRejectedValue(new Error('network down'));
+    await mountAndSettle();
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    await act(async () => { fireEvent.change(screen.getByPlaceholderText('Reply…'), { target: { value: 'r' } }); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Reply' })); });
+    await waitFor(() =>
+      expect(screen.getByText(/Couldn't post reply.*network down/)).toBeInTheDocument());
+  }, TEST_TIMEOUT);
+
+  it('[#1] resolve failure shows error toast and revert shows original status', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.resolveCommentThread.mockRejectedValue(new Error('forbidden'));
+    await mountAndSettle();
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resolve' })); });
+    await waitFor(() =>
+      expect(screen.getByText(/Couldn't update thread.*forbidden/)).toBeInTheDocument());
+  }, TEST_TIMEOUT);
+
+  it('[#1] resolve success shows a success toast', async () => {
+    api.resolveCommentThread.mockResolvedValue({});
+    // After resolve, loadThreads returns the thread as resolved
+    api.listCommentThreads
+      .mockResolvedValueOnce({ threads: [THREAD] })
+      .mockResolvedValueOnce({ threads: [THREAD] })
+      .mockResolvedValueOnce({ threads: [{ ...THREAD, status: 'resolved' }] });
+    await mountAndSettle();
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Resolve' })); });
+    await waitFor(() =>
+      expect(screen.getByText('Thread resolved')).toBeInTheDocument());
+  }, TEST_TIMEOUT);
+
+  it('[#1] delete failure shows error toast', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    api.deleteCommentThread.mockRejectedValue(new Error('gone'));
+    api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true } }));
+    renderPageView();
+    await awaitStableLoaded();
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    await act(async () => { fireEvent.click(screen.getByTitle('Delete thread')); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
+    await waitFor(() =>
+      expect(screen.getByText(/Couldn't delete thread.*gone/)).toBeInTheDocument());
+  }, TEST_TIMEOUT);
+
+  it('[#1] delete success shows a success toast', async () => {
+    api.deleteCommentThread.mockResolvedValue({});
+    api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true } }));
+    renderPageView();
+    await awaitStableLoaded();
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
+    await act(async () => { fireEvent.click(screen.getByTitle('Delete thread')); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
+    await waitFor(() =>
+      expect(screen.getByText('Thread deleted')).toBeInTheDocument());
   }, TEST_TIMEOUT);
 });

@@ -4,12 +4,19 @@ import Sidebar from './components/Sidebar';
 import AdminSidebar from './components/admin/AdminSidebar';
 import { useAuth } from './hooks/useAuth';
 import { ToastProvider } from './components/ui/ToastProvider';
+import SearchOverlay from './components/SearchOverlay';
+import { useGlobalHotkeys } from './hooks/useGlobalHotkeys';
 
 export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { user } = useAuth();
+
+  // Cmd/Ctrl+K opens search from any route (admin or wiki)
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  useGlobalHotkeys({ onSearch: openSearch });
   const location = useLocation();
   const isEditorRoute = location.pathname.startsWith('/edit/');
   const isAdminRoute = location.pathname.startsWith('/admin');
@@ -75,6 +82,7 @@ export default function App() {
         )}
       </main>
     </div>
+      {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}
     </ToastProvider>
   );
 }

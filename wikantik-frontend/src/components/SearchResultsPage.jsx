@@ -5,6 +5,8 @@ import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { highlightTerms } from '../utils/highlight';
+import { formatDate } from '../utils/datetime';
+import Card from './ui/Card';
 import EmptyState from './ui/EmptyState';
 import Icon from './ui/Icon';
 
@@ -146,33 +148,15 @@ const SNIPPET_COMPONENTS = {
 };
 
 function SearchResultCard({ result, query }) {
-  const date = result.lastModified
-    ? new Date(result.lastModified).toLocaleDateString('en-US', {
-        year: 'numeric', month: 'short', day: 'numeric'
-      })
-    : null;
+  const date = result.lastModified ? formatDate(result.lastModified) : null;
 
   const tags = Array.isArray(result.tags) ? result.tags : result.tags ? [result.tags] : [];
 
   return (
-    <article
+    <Card
+      as="article"
       data-testid="search-result-card"
       data-page-name={result.name}
-      style={{
-        padding: 'var(--space-lg)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        transition: 'border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease)',
-        background: 'var(--bg-elevated)',
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.borderColor = 'var(--border-strong)';
-        e.currentTarget.style.boxShadow = '0 2px 12px var(--shadow)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = 'var(--border)';
-        e.currentTarget.style.boxShadow = 'none';
-      }}
     >
       {/* Title */}
       <Link
@@ -288,6 +272,6 @@ function SearchResultCard({ result, query }) {
           ))}
         </div>
       )}
-    </article>
+    </Card>
   );
 }

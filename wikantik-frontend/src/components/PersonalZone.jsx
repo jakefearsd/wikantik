@@ -65,72 +65,84 @@ export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = 
         + New Article
       </button>
 
-      <Link to="/me/mentions" className="sidebar-link personal-mentions" onClick={onMobileClose}>
-        <span aria-hidden="true">🔔</span> My mentions
-        {mentions > 0 && <span className="sidebar-mentions-badge">{mentions}</span>}
-      </Link>
+      {/* Everything below the New Article control collapses under one toggle,
+          default collapsed, so the personal zone stays out of the way until
+          wanted. The unread-mentions badge is surfaced on the header so the
+          notification signal survives while collapsed. */}
+      <CollapsibleSection
+        id="me-zone"
+        icon="👤"
+        title="Me"
+        defaultOpen={false}
+        badge={mentions > 0 ? <span className="sidebar-mentions-badge">{mentions}</span> : null}
+      >
+        <Link to="/me/mentions" className="sidebar-link personal-mentions" onClick={onMobileClose}>
+          <span aria-hidden="true">🔔</span> My mentions
+          {mentions > 0 && <span className="sidebar-mentions-badge">{mentions}</span>}
+        </Link>
 
-      <CollapsibleSection id="my-pages" icon="📄" title="My pages" count={pages.length}>
-        <PreviewList
-          items={pages}
-          emptyLabel="No pages yet."
-          render={(p) => (
-            <Link key={p.slug} to={`/wiki/${p.slug}`} className="sidebar-link" onClick={onMobileClose}>
-              {p.title}
-            </Link>
-          )}
-        />
-      </CollapsibleSection>
-
-      <CollapsibleSection id="recent" icon="🕘" title="Recently viewed">
-        <PreviewList
-          items={recent}
-          emptyLabel="Pages you view will appear here."
-          render={(r) => (
-            <Link key={r.slug} to={`/wiki/${r.slug}`} className="sidebar-link" onClick={onMobileClose}>
-              {r.title}
-            </Link>
-          )}
-        />
-      </CollapsibleSection>
-
-      <CollapsibleSection id="my-blog" icon="✍️" title="My blog" count={entries.length}>
-        <Link to={`/blog/${login}/Blog`} className="sidebar-link" onClick={onMobileClose}>Blog home</Link>
-        <PreviewList
-          items={entries}
-          emptyLabel="No blog entries yet."
-          render={(e) => (
-            <Link
-              key={e.name}
-              to={`/blog/${login}/${e.name}`}
-              className="sidebar-link"
-              onClick={onMobileClose}
-            >
-              {e.title || e.name}
-            </Link>
-          )}
-        />
-      </CollapsibleSection>
-
-      {drafts.length > 0 && (
-        <CollapsibleSection id="drafts" icon="📝" title="Resume editing" count={drafts.length}>
-          {drafts.map((d) => (
-            <div key={d.pageId} className="personal-draft-row">
-              <Link to={`/edit/${d.pageId}`} className="sidebar-link" onClick={onMobileClose}>
-                {d.title}
+        <CollapsibleSection id="my-pages" icon="📄" title="My pages" count={pages.length}>
+          <PreviewList
+            items={pages}
+            emptyLabel="No pages yet."
+            render={(p) => (
+              <Link key={p.slug} to={`/wiki/${p.slug}`} className="sidebar-link" onClick={onMobileClose}>
+                {p.title}
               </Link>
-              <button
-                type="button"
-                className="btn-link personal-draft-discard"
-                aria-label={`Discard draft for ${d.title}`}
-                onClick={() => removeDraft(d.pageId)}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
+            )}
+          />
         </CollapsibleSection>
-      )}
+
+        <CollapsibleSection id="recent" icon="🕘" title="Recently viewed">
+          <PreviewList
+            items={recent}
+            emptyLabel="Pages you view will appear here."
+            render={(r) => (
+              <Link key={r.slug} to={`/wiki/${r.slug}`} className="sidebar-link" onClick={onMobileClose}>
+                {r.title}
+              </Link>
+            )}
+          />
+        </CollapsibleSection>
+
+        <CollapsibleSection id="my-blog" icon="✍️" title="My blog" count={entries.length}>
+          <Link to={`/blog/${login}/Blog`} className="sidebar-link" onClick={onMobileClose}>Blog home</Link>
+          <PreviewList
+            items={entries}
+            emptyLabel="No blog entries yet."
+            render={(e) => (
+              <Link
+                key={e.name}
+                to={`/blog/${login}/${e.name}`}
+                className="sidebar-link"
+                onClick={onMobileClose}
+              >
+                {e.title || e.name}
+              </Link>
+            )}
+          />
+        </CollapsibleSection>
+
+        {drafts.length > 0 && (
+          <CollapsibleSection id="drafts" icon="📝" title="Resume editing" count={drafts.length}>
+            {drafts.map((d) => (
+              <div key={d.pageId} className="personal-draft-row">
+                <Link to={`/edit/${d.pageId}`} className="sidebar-link" onClick={onMobileClose}>
+                  {d.title}
+                </Link>
+                <button
+                  type="button"
+                  className="btn-link personal-draft-discard"
+                  aria-label={`Discard draft for ${d.title}`}
+                  onClick={() => removeDraft(d.pageId)}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </CollapsibleSection>
+        )}
+      </CollapsibleSection>
     </div>
   );
 }

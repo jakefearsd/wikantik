@@ -14,11 +14,12 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
   const [recentChanges, setRecentChanges] = useState([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [newArticleOpen, setNewArticleOpen] = useState(false);
+  const [showAllRecent, setShowAllRecent] = useState(false);
   const [dark, toggleDark] = useDarkMode();
   const { user } = useAuth();
   useEffect(() => {
     api.listPages({ limit: 500 }).then(d => setPages(d.pages || [])).catch(() => {});
-    api.getRecentChanges(10).then(d => setRecentChanges(d.changes || [])).catch(() => {});
+    api.getRecentChanges(20).then(d => setRecentChanges(d.changes || [])).catch(() => {});
   }, []);
 
   // Cmd+K / Ctrl+K to open search
@@ -100,8 +101,6 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
         <div className="sidebar-section">
           <div className="sidebar-section-title">Wiki Tools</div>
           {navLink('/wiki/PageIndex', 'Page Index')}
-          {navLink('/wiki/UnusedPages', 'Unused pages')}
-          {navLink('/wiki/UndefinedPages', 'Undefined pages')}
           {navLink('/wiki/SystemInfo', 'System Info')}
           <Link
             to={activePage ? `/page-graph?focus=${encodeURIComponent(activePage)}` : '/page-graph'}
@@ -119,11 +118,11 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           </Link>
         </div>
 
-        {/* Recent Changes — live feed */}
+        {/* Recent Changes — live feed, capped at 5 until expanded */}
         {recentChanges.length > 0 && (
           <div className="sidebar-section">
             <div className="sidebar-section-title">Recently Modified</div>
-            {recentChanges.slice(0, 8).map(c => (
+            {(showAllRecent ? recentChanges : recentChanges.slice(0, 5)).map(c => (
               <Link
                 key={c.name}
                 to={`/wiki/${c.name}`}
@@ -133,6 +132,15 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
                 {c.name}
               </Link>
             ))}
+            {!showAllRecent && recentChanges.length > 5 && (
+              <button
+                type="button"
+                className="personal-viewall"
+                onClick={() => setShowAllRecent(true)}
+              >
+                Show all {recentChanges.length}
+              </button>
+            )}
           </div>
         )}
 
@@ -168,6 +176,8 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
             >
               Knowledge Graph
             </Link>
+            {navLink('/wiki/UnusedPages', 'Unused pages')}
+            {navLink('/wiki/UndefinedPages', 'Undefined pages')}
           </div>
         )}
 

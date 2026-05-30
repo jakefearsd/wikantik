@@ -856,6 +856,7 @@
 }
 .admin-empty-message { font-family: var(--font-ui); font-size: 0.9375rem; margin: 0 0 var(--space-md); }
 .admin-empty-action { display: flex; justify-content: center; gap: var(--space-sm); }
+.empty-state-icon { margin-bottom: var(--space-lg); font-size: 2.5rem; }
 
 /* ── Hybrid table density (tool-grade rows; titles stay serif) ───── */
 .admin-table { font-family: var(--font-ui); font-size: 0.8125rem; }

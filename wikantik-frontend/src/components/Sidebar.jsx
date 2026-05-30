@@ -7,6 +7,7 @@ import SearchOverlay from './SearchOverlay';
 import PersonalZone from './PersonalZone';
 import UserBadge from './UserBadge';
 import NewArticleModal from './NewArticleModal';
+import Icon from './ui/Icon';
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose = () => {}, onMobileOpen = () => {} }) {
   const { name: activePage } = useParams();
@@ -64,7 +65,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
     <>
       <aside className={`app-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'open' : ''}`}>
         <div className="sidebar-tab-handle" onClick={onMobileOpen} aria-label="Open navigation">
-          ☰
+          <Icon name="chevron" size={18} />
         </div>
         <div className="sidebar-brand">
           <Link to="/wiki/Main" style={{ color: 'inherit', textDecoration: 'none' }} onClick={onMobileClose}>

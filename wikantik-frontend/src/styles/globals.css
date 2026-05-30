@@ -1103,11 +1103,25 @@ a[data-attachment-missing] {
     background: var(--bg-sidebar);
     border-right: 1px solid var(--border);
     color: var(--text-muted);
-    font-size: 1rem;
     user-select: none;
     /* Subtle shadow to hint it extends further */
     box-shadow: 2px 0 6px var(--shadow);
     z-index: 1;
+    /* First-visit pulse: nudge right then settle — hints at tap-to-expand */
+    animation: sidebar-tab-pulse 1.2s var(--ease) 0.8s 2 both;
+  }
+
+  @keyframes sidebar-tab-pulse {
+    0%   { transform: translateX(0); color: var(--text-muted); }
+    35%  { transform: translateX(4px); color: var(--accent); }
+    70%  { transform: translateX(0); color: var(--text-muted); }
+    100% { transform: translateX(0); color: var(--text-muted); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar-tab-handle {
+      animation: none;
+    }
   }
   /* Hide handle when sidebar is fully open (backdrop handles close) */
   .app-sidebar.open .sidebar-tab-handle {

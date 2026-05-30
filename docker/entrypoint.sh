@@ -45,6 +45,8 @@
 #                                503 + Retry-After:1 instead of queueing for up to 60 s.
 #                                /api/health and /metrics bypass.
 #                                Metric: wikantik_backpressure.rejected_total
+#   WIKANTIK_COOKIE_AUTHENTICATION  "true" to enable remember-me re-auth so users
+#                                stay logged in across restarts/timeouts (default false)
 #   WIKANTIK_SSO_ENABLED         "true" to enable Single Sign-On (default off)
 #   WIKANTIK_SSO_TYPE            oidc | saml | both (default oidc)
 #   WIKANTIK_SSO_OIDC_DISCOVERY_URI  provider OIDC discovery doc URL
@@ -88,6 +90,12 @@ wikantik.workDir = ${WIKANTIK_WORK_DIR:-/var/wikantik/work}
 wikantik.basicAttachmentProvider.storageDir = ${WIKANTIK_ATTACHMENT_DIR:-/var/wikantik/pages}
 
 wikantik.cache.allPagesTTL = 60
+
+# Remember-me: when true, a successful password login issues a Lax, httpOnly,
+# scheme-Secure remember-me cookie so a request silently re-authenticates after
+# the server session is gone (restart/redeploy/timeout) instead of logging the
+# user out. Default off (conservative).
+wikantik.cookieAuthentication = ${WIKANTIK_COOKIE_AUTHENTICATION:-false}
 
 # PostgreSQL JDBC user/group database — single shared DataSource named
 # jdbc/WikiDatabase. Matches the canonical bare-metal template; the app

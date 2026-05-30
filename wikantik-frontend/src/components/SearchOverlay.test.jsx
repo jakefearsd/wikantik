@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 // Hoisted mocks — factory functions must not reference outer variables
@@ -13,8 +13,22 @@ vi.mock('../api/client', () => ({
   api: { search: vi.fn() },
 }));
 
+vi.mock('../hooks/useAuth', () => ({
+  useAuth: vi.fn(() => ({ user: null })),
+}));
+
+vi.mock('../hooks/useRecentSearches', () => ({
+  useRecentSearches: vi.fn(() => ({ searches: [], record: vi.fn(), clear: vi.fn() })),
+}));
+
+vi.mock('../hooks/useRecentlyViewed', () => ({
+  useRecentlyViewed: vi.fn(() => ({ items: [], record: vi.fn() })),
+}));
+
 import SearchOverlay from './SearchOverlay';
 import { api } from '../api/client';
+import { useRecentSearches } from '../hooks/useRecentSearches';
+import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 
 const mockSearch = api.search;
 
@@ -157,6 +171,49 @@ describe('SearchOverlay', () => {
     });
     expect(items[2]).toHaveClass('focused');
     expect(items[0]).not.toHaveClass('focused');
+  });
+
+  // ── #26: Recent searches + recently viewed in empty state ────────────────
+
+  it('#26 shows recent searches when query is empty', async () => {
+    useRecentSearches.mockReturnValue({
+      searches: ['previous query', 'another search'],
+      record: vi.fn(),
+      clear: vi.fn(),
+    });
+    renderOverlay();
+    expect(screen.getByTestId('recent-searches-section')).toBeInTheDocument();
+    expect(screen.getByText(/previous query/)).toBeInTheDocument();
+    expect(screen.getByText(/another search/)).toBeInTheDocument();
+  });
+
+  it('#26 clicking a recent search sets the query input', async () => {
+    useRecentSearches.mockReturnValue({
+      searches: ['my search'],
+      record: vi.fn(),
+      clear: vi.fn(),
+    });
+    renderOverlay();
+    const item = screen.getByTestId('recent-search-item');
+    await act(async () => { fireEvent.click(item); });
+    expect(screen.getByTestId('search-overlay-input')).toHaveValue('my search');
+  });
+
+  it('#26 shows recently viewed when query is empty', async () => {
+    useRecentlyViewed.mockReturnValue({
+      items: [{ slug: 'PageX', title: 'Page X' }],
+      record: vi.fn(),
+    });
+    renderOverlay();
+    expect(screen.getByTestId('recently-viewed-section')).toBeInTheDocument();
+    expect(screen.getByText(/Page X/)).toBeInTheDocument();
+  });
+
+  it('#26 shows "Type to search" when both lists are empty', () => {
+    useRecentSearches.mockReturnValue({ searches: [], record: vi.fn(), clear: vi.fn() });
+    useRecentlyViewed.mockReturnValue({ items: [], record: vi.fn() });
+    renderOverlay();
+    expect(screen.getByText('Type to search…')).toBeInTheDocument();
   });
 
   it('#25 arrow keys are no-op when results are empty', async () => {

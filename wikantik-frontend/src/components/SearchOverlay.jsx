@@ -1,6 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import { useAuth } from '../hooks/useAuth';
+import { useRecentSearches } from '../hooks/useRecentSearches';
+import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 
 export default function SearchOverlay({ onClose }) {
   const [query, setQuery] = useState('');
@@ -12,6 +15,14 @@ export default function SearchOverlay({ onClose }) {
   // Keep refs for use in event handlers to avoid stale closures
   const focusedRef = useRef(0);
   const resultsRef = useRef([]);
+
+  const { user } = useAuth();
+  const login = user?.loginPrincipal || null;
+  const { searches: recentSearches, record: recordSearch } = useRecentSearches();
+  const { items: recentlyViewed } = useRecentlyViewed({
+    login,
+    enabled: !!login,
+  });
 
   const setFocusedSync = (val) => {
     const next = typeof val === 'function' ? val(focusedRef.current) : val;
@@ -55,17 +66,18 @@ export default function SearchOverlay({ onClose }) {
     return () => clearTimeout(timer);
   }, [query]);
 
-  const select = (name) => {
+  const select = useCallback((name) => {
     navigate(`/wiki/${name}`);
     onClose();
-  };
+  }, [navigate, onClose]);
 
-  const goToSearchResults = () => {
+  const goToSearchResults = useCallback(() => {
     if (query.trim()) {
+      recordSearch(query.trim());
       navigate(`/search?q=${encodeURIComponent(query.trim())}`);
       onClose();
     }
-  };
+  }, [query, navigate, onClose, recordSearch]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
@@ -79,12 +91,21 @@ export default function SearchOverlay({ onClose }) {
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (resultsRef.current.length > 0) {
+        recordSearch(query.trim());
         select(resultsRef.current[focusedRef.current].name);
       } else {
         goToSearchResults();
       }
     }
   };
+
+  const applyRecentSearch = (term) => {
+    setQuery(term);
+  };
+
+  const hasRecentSearches = recentSearches.length > 0;
+  const hasRecentlyViewed = recentlyViewed.length > 0;
+  const showEmptyState = !query.trim();
 
   return (
     <div className="search-overlay" data-testid="search-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -106,7 +127,7 @@ export default function SearchOverlay({ onClose }) {
               className={`search-result-item ${i === focused ? 'focused' : ''}`}
               data-testid="search-overlay-result"
               data-page-name={r.name}
-              onClick={() => select(r.name)}
+              onClick={() => { recordSearch(query.trim()); select(r.name); }}
               onMouseEnter={() => setFocusedSync(i)}
             >
               {r.name}
@@ -114,8 +135,42 @@ export default function SearchOverlay({ onClose }) {
             </button>
           )) : query.trim() && !searching ? (
             <div className="search-empty">No results for "{query}"</div>
-          ) : !query.trim() ? (
-            <div className="search-empty">Type to search…</div>
+          ) : showEmptyState ? (
+            <>
+              {hasRecentSearches && (
+                <div className="search-section" data-testid="recent-searches-section">
+                  <div className="search-section-title">Recent searches</div>
+                  {recentSearches.map((term) => (
+                    <button
+                      key={term}
+                      className="search-result-item"
+                      data-testid="recent-search-item"
+                      onClick={() => applyRecentSearch(term)}
+                    >
+                      🔍 {term}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {hasRecentlyViewed && (
+                <div className="search-section" data-testid="recently-viewed-section">
+                  <div className="search-section-title">Recently viewed</div>
+                  {recentlyViewed.map((item) => (
+                    <button
+                      key={item.slug}
+                      className="search-result-item"
+                      data-testid="recently-viewed-item"
+                      onClick={() => select(item.slug)}
+                    >
+                      📄 {item.title || item.slug}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!hasRecentSearches && !hasRecentlyViewed && (
+                <div className="search-empty">Type to search…</div>
+              )}
+            </>
           ) : null}
         </div>
       </div>

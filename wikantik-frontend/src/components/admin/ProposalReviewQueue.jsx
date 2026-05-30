@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { api } from '../../api/client';
+import Badge from '../ui/Badge';
+import Chip from '../ui/Chip';
 import PageLink from './PageLink';
 import { AdminTable } from './table';
 
@@ -98,9 +100,9 @@ export function formatRelativeTime(isoString) {
 
 function VerdictBadge({ status, expanded, onToggle }) {
   const map = {
-    approved: { glyph: '✓', color: '#2a8d2a', label: 'approved' },
-    rejected: { glyph: '✗', color: '#b13a3a', label: 'rejected' },
-    abstain:  { glyph: '◯', color: '#888',    label: 'abstain'  },
+    approved: { glyph: '✓', variant: 'success', label: 'approved' },
+    rejected: { glyph: '✗', variant: 'danger',  label: 'rejected' },
+    abstain:  { glyph: '◯', variant: 'default', label: 'abstain'  },
   };
   const info = map[status];
   if (!info) {
@@ -113,8 +115,9 @@ function VerdictBadge({ status, expanded, onToggle }) {
       title="Click to see judge reasoning"
       aria-expanded={!!expanded}
       style={{
-        color: info.color, fontWeight: 600, cursor: 'pointer',
+        fontWeight: 600, cursor: 'pointer',
         background: 'none', border: 'none', padding: 0, font: 'inherit',
+        color: `var(--${info.variant === 'default' ? 'text-secondary' : info.variant})`,
       }}
     >
       {info.glyph} {info.label} {expanded ? '▾' : '▸'}
@@ -123,28 +126,18 @@ function VerdictBadge({ status, expanded, onToggle }) {
 }
 
 function ConflictBadge({ kind, title }) {
-  const colors = {
-    conflict:  { bg: '#fff4e6', border: '#e8a04c', fg: '#a35d12', text: 'Conflict' },
-    rejected:  { bg: '#fff0f0', border: '#d88',    fg: '#a33',    text: 'Already rejected' },
+  const meta = {
+    conflict: { variant: 'warning', text: 'Conflict' },
+    rejected: { variant: 'danger',  text: 'Already rejected' },
   }[kind];
   return (
-    <span
+    <Badge
+      variant={meta.variant}
       title={title}
-      style={{
-        display: 'inline-block',
-        marginLeft: 8,
-        padding: '1px 8px',
-        background: colors.bg,
-        border: `1px solid ${colors.border}`,
-        borderRadius: 12,
-        fontSize: '0.75em',
-        color: colors.fg,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-      }}
+      className="conflict-badge"
     >
-      {colors.text}
-    </span>
+      {meta.text}
+    </Badge>
   );
 }
 
@@ -155,18 +148,7 @@ function PropertyChips({ properties }) {
   return (
     <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
       {entries.map(([k, v]) => (
-        <span
-          key={k}
-          style={{
-            fontSize: '0.75em',
-            background: 'var(--bg-sidebar, #f4f1ec)',
-            padding: '1px 6px',
-            borderRadius: 4,
-            color: 'var(--text-secondary, #666)',
-          }}
-        >
-          {k}={typeof v === 'object' ? JSON.stringify(v) : String(v)}
-        </span>
+        <Chip key={k} label={`${k}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`} />
       ))}
     </div>
   );
@@ -531,7 +513,7 @@ export default function ProposalReviewQueue() {
             <> · Last run: {judgeStatus.last_run_completed}/{judgeStatus.last_run_submitted} at {new Date(judgeStatus.last_run_finished_at).toLocaleTimeString()}</>
           )}
           {judgeStatus.last_run_error && (
-            <> · <span style={{ color: '#b13a3a' }}>Error: {judgeStatus.last_run_error}</span></>
+            <> · <span style={{ color: 'var(--danger)' }}>Error: {judgeStatus.last_run_error}</span></>
           )}
         </div>
       )}

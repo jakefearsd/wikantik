@@ -185,6 +185,13 @@
   color: var(--text-secondary, #555);
 }
 
+/* ConflictBadge — inline conflict/rejected pill next to proposal entity name */
+.conflict-badge {
+  margin-left: 8px;
+  font-size: 0.75em;
+  white-space: nowrap;
+}
+
 /* KG policy — callout banner */
 .admin-callout {
   padding: var(--space-sm) var(--space-md);

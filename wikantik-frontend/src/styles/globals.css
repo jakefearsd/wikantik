@@ -507,6 +507,76 @@ input, textarea, select {
 }
 
 /* ============================================================
+   Badge
+   ============================================================ */
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.badge-default {
+  color: var(--text-muted);
+  background: var(--bg-sidebar);
+}
+
+.badge-success {
+  color: var(--success);
+  background: var(--success-bg);
+}
+
+.badge-danger {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.badge-warning {
+  color: var(--warning);
+  background: var(--warning-bg);
+}
+
+/* ============================================================
+   Chip
+   ============================================================ */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 6px 12px;
+  background: var(--sage-light);
+  color: var(--sage);
+  border-radius: 100px;
+  font-size: 0.875rem;
+}
+
+.chip-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background var(--duration) var(--ease);
+}
+
+.chip-remove:hover {
+  background: rgba(122, 139, 111, 0.2);
+}
+
+/* ============================================================
    Tags
    ============================================================ */
 

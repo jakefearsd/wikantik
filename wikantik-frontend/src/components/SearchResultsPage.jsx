@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
+import { highlightTerms } from '../utils/highlight';
 
 export default function SearchResultsPage() {
   const [params] = useSearchParams();
@@ -56,7 +57,7 @@ export default function SearchResultsPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }} data-testid="search-results-list">
         {results.map(result => (
-          <SearchResultCard key={result.name} result={result} />
+          <SearchResultCard key={result.name} result={result} query={query} />
         ))}
       </div>
     </div>
@@ -101,7 +102,7 @@ const SNIPPET_COMPONENTS = {
   a:  ({ href, children }) => (href ? <a href={href}>{children}</a> : <span>{children}</span>),
 };
 
-function SearchResultCard({ result }) {
+function SearchResultCard({ result, query }) {
   const date = result.lastModified
     ? new Date(result.lastModified).toLocaleDateString('en-US', {
         year: 'numeric', month: 'short', day: 'numeric'
@@ -145,7 +146,7 @@ function SearchResultCard({ result }) {
         onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
         onMouseLeave={e => e.currentTarget.style.color = 'var(--text)'}
       >
-        {result.name}
+        {highlightTerms(result.name, query)}
       </Link>
 
       {/* Summary */}
@@ -158,7 +159,7 @@ function SearchResultCard({ result }) {
           marginTop: 'var(--space-sm)',
           marginBottom: 0,
         }}>
-          {result.summary}
+          {highlightTerms(result.summary, query)}
         </p>
       )}
 

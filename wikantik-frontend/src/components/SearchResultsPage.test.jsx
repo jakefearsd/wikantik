@@ -1,0 +1,75 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+
+vi.mock('../api/client', () => ({
+  api: { search: vi.fn() },
+}));
+
+vi.mock('../hooks/useApi', () => ({
+  useApi: vi.fn(),
+}));
+
+import SearchResultsPage from './SearchResultsPage';
+import { useApi } from '../hooks/useApi';
+
+const makeResults = (n) =>
+  Array.from({ length: n }, (_, i) => ({
+    name: `Page${i + 1}`,
+    summary: `Summary for page ${i + 1}`,
+    score: 0.9,
+  }));
+
+const renderPage = (search = '') =>
+  render(
+    <MemoryRouter initialEntries={[`/search${search}`]}>
+      <Routes>
+        <Route path="/search" element={<SearchResultsPage />} />
+      </Routes>
+    </MemoryRouter>
+  );
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  useApi.mockReturnValue({ data: { results: [] }, loading: false, error: null });
+});
+
+describe('SearchResultsPage', () => {
+  it('shows empty search state with no query', () => {
+    renderPage();
+    expect(screen.getByText('Enter a search term to find articles.')).toBeInTheDocument();
+  });
+
+  it('renders result cards', () => {
+    useApi.mockReturnValue({ data: { results: makeResults(3) }, loading: false, error: null });
+    renderPage('?q=page');
+    expect(screen.getAllByTestId('search-result-card')).toHaveLength(3);
+  });
+
+  it('#27 highlights query terms in result titles', () => {
+    useApi.mockReturnValue({
+      data: { results: [{ name: 'Hello World', summary: '', score: 1 }] },
+      loading: false,
+      error: null,
+    });
+    renderPage('?q=hello');
+    const marks = document.querySelectorAll('mark');
+    expect(marks.length).toBeGreaterThanOrEqual(1);
+    expect(marks[0].textContent).toBe('Hello');
+  });
+
+  it('#27 highlights query terms in summaries', () => {
+    useApi.mockReturnValue({
+      data: {
+        results: [{ name: 'MyPage', summary: 'This page is about testing', score: 1 }],
+      },
+      loading: false,
+      error: null,
+    });
+    renderPage('?q=testing');
+    const marks = document.querySelectorAll('mark');
+    const matchTexts = Array.from(marks).map((m) => m.textContent);
+    expect(matchTexts).toContain('testing');
+  });
+
+});

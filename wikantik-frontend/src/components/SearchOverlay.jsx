@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useRecentSearches } from '../hooks/useRecentSearches';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
+import { highlightTerms } from '../utils/highlight';
 
 export default function SearchOverlay({ onClose }) {
   const [query, setQuery] = useState('');
@@ -130,7 +131,7 @@ export default function SearchOverlay({ onClose }) {
               onClick={() => { recordSearch(query.trim()); select(r.name); }}
               onMouseEnter={() => setFocusedSync(i)}
             >
-              {r.name}
+              {highlightTerms(r.name, query)}
               {r.score != null && <span className="search-result-score">{Math.round(r.score * 100)}%</span>}
             </button>
           )) : query.trim() && !searching ? (

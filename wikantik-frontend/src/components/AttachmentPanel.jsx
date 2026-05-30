@@ -83,6 +83,7 @@ function AttachmentUploadForm({ onUpload }) {
 function AttachmentRow({ attachment, pageName, onRename, onDelete, editorContent }) {
   const [renaming, setRenaming] = useState(false);
   const [newStem, setNewStem] = useState('');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const ext = getExtension(attachment.fileName);
   const stem = attachment.fileName.substring(0, attachment.fileName.lastIndexOf('.'));
 
@@ -116,16 +117,23 @@ function AttachmentRow({ attachment, pageName, onRename, onDelete, editorContent
     }
   };
 
-  const handleDelete = () => {
-    const pattern = new RegExp(`(!?\\[[^\\]]*\\])\\(${attachment.fileName.replace(/\./g, '\\.')}\\)`);
-    const isReferenced = pattern.test(editorContent || '');
-    const message = isReferenced
-      ? `"${attachment.fileName}" is referenced in your content. Deleting it will leave broken references. Continue?`
-      : `Delete "${attachment.fileName}"?`;
-    if (confirm(message)) {
-      onDelete(attachment.fileName);
-    }
+  const handleDeleteClick = () => {
+    setConfirmingDelete(true);
   };
+
+  const handleDeleteConfirm = () => {
+    setConfirmingDelete(false);
+    onDelete(attachment.fileName);
+  };
+
+  const handleDeleteCancel = () => {
+    setConfirmingDelete(false);
+  };
+
+  const isReferenced = (() => {
+    const pattern = new RegExp(`(!?\\[[^\\]]*\\])\\(${attachment.fileName.replace(/\./g, '\\.')}\\)`);
+    return pattern.test(editorContent || '');
+  })();
 
   const thumbUrl = attachment.isImage
     ? `/attach/${pageName}/${attachment.fileName}`
@@ -160,10 +168,25 @@ function AttachmentRow({ attachment, pageName, onRename, onDelete, editorContent
             <button onClick={confirmRename} title="Confirm">OK</button>
             <button onClick={() => setRenaming(false)} title="Cancel">X</button>
           </>
+        ) : confirmingDelete ? (
+          <div className="attachment-delete-confirm">
+            {isReferenced && (
+              <span className="attachment-delete-warning">
+                referenced {(() => {
+                  const pattern = new RegExp(`(!?\\[[^\\]]*\\])\\(${attachment.fileName.replace(/\./g, '\\.')}\\)`, 'g');
+                  const matches = (editorContent || '').match(pattern);
+                  return matches ? matches.length : 1;
+                })()} time(s)
+              </span>
+            )}
+            <span className="attachment-delete-label">Delete &ldquo;{attachment.fileName}&rdquo;?</span>
+            <button onClick={handleDeleteCancel}>Cancel</button>
+            <button className="delete" onClick={handleDeleteConfirm}>Delete</button>
+          </div>
         ) : (
           <>
             <button onClick={startRename} title="Rename">R</button>
-            <button className="delete" onClick={handleDelete} title="Delete">D</button>
+            <button className="delete" onClick={handleDeleteClick} title="Delete">D</button>
           </>
         )}
       </div>

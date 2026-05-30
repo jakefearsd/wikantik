@@ -159,7 +159,7 @@ export default function PageGraphView() {
   return (
     <GraphErrorBoundary>
       <div className="graph-view">
-        <div style={{ padding: '4px 12px', fontSize: '0.75rem', opacity: 0.7 }}>
+        <div className="graph-info-banner">
           Page Graph — edges are real wikilinks.{' '}
           <a href="/wiki/PageGraphVsKnowledgeGraph">What is the Page Graph?</a>
         </div>

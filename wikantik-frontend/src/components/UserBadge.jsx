@@ -33,21 +33,20 @@ export default function UserBadge() {
       data-authenticated="true"
       data-username={user.username}
       data-login-name={user.loginPrincipal || user.username}
-      style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', fontSize: '0.8rem' }}
+      className="user-badge-identity"
     >
       <Link
         to="/preferences"
         data-testid="user-badge-name"
-        style={{ color: 'var(--text-secondary)', fontWeight: 500, textDecoration: 'none' }}
+        className="user-badge-name"
         title="Preferences"
       >
         {user.username}
       </Link>
       <button
-        className="btn btn-ghost"
+        className="btn btn-ghost user-badge-logout"
         data-testid="user-badge-logout"
         onClick={logout}
-        style={{ fontSize: '0.75rem', padding: '2px 6px' }}
       >
         Logout
       </button>

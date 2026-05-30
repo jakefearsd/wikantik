@@ -61,7 +61,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           </Link>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: 'var(--space-md) 0' }}>
+        <div className="sidebar-user-row">
           <UserBadge />
           <button className="theme-toggle" onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'}>
             {dark ? '☀️' : '🌙'}

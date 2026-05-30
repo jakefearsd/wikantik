@@ -1724,3 +1724,121 @@ h2:focus-within .heading-anchor,
 h3:focus-within .heading-anchor {
   opacity: 1;
 }
+
+/* ============================================================
+   #39 – Extracted inline styles
+   ============================================================ */
+
+/* UserBadge */
+.user-badge-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.8rem;
+}
+
+.user-badge-name {
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.user-badge-logout {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+}
+
+/* Sidebar user-row (UserBadge + theme-toggle) */
+.sidebar-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: var(--space-md) 0;
+}
+
+/* PersonalZone — block new-article button */
+.btn-block {
+  width: 100%;
+  justify-content: center;
+}
+
+/* SearchResultsPage — card internals */
+.search-result-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  line-height: 1.3;
+}
+
+.search-result-title:hover {
+  color: var(--accent);
+}
+
+.search-result-summary {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-top: var(--space-sm);
+  margin-bottom: 0;
+}
+
+.search-result-snippet {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-sidebar);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-family: var(--font-body);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.search-result-snippet-sep {
+  color: var(--text-muted);
+}
+
+.search-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-md);
+  margin-top: var(--space-sm);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.search-result-meta-author {
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.search-result-meta-author:hover {
+  color: var(--accent);
+}
+
+.search-result-meta-sep {
+  color: var(--border-strong);
+}
+
+.search-result-meta-score {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.search-result-tags {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  margin-top: var(--space-sm);
+}
+
+/* PageGraphView — info banner */
+.graph-info-banner {
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}

@@ -162,30 +162,14 @@ function SearchResultCard({ result, query }) {
       <Link
         to={`/wiki/${result.name}`}
         data-testid="search-result-link"
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '1.3rem',
-          fontWeight: 600,
-          color: 'var(--text)',
-          textDecoration: 'none',
-          lineHeight: 1.3,
-        }}
-        onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
-        onMouseLeave={e => e.currentTarget.style.color = 'var(--text)'}
+        className="search-result-title"
       >
         {highlightTerms(result.name, query)}
       </Link>
 
       {/* Summary */}
       {result.summary && (
-        <p style={{
-          fontFamily: 'var(--font-body)',
-          fontSize: '0.95rem',
-          color: 'var(--text-secondary)',
-          lineHeight: 1.6,
-          marginTop: 'var(--space-sm)',
-          marginBottom: 0,
-        }}>
+        <p className="search-result-summary">
           {highlightTerms(result.summary, query)}
         </p>
       )}
@@ -196,79 +180,52 @@ function SearchResultCard({ result, query }) {
           raw markup. Fragments may start mid-element; react-markdown is forgiving
           enough to make sense of partial trees. */}
       {result.contexts && result.contexts.length > 0 && (
-        <div className="search-snippet" style={{
-          marginTop: 'var(--space-sm)',
-          padding: 'var(--space-sm) var(--space-md)',
-          background: 'var(--bg-sidebar)',
-          borderRadius: 'var(--radius-sm)',
-          fontSize: '0.85rem',
-          fontFamily: 'var(--font-body)',
-          color: 'var(--text-secondary)',
-          lineHeight: 1.6,
-        }}>
+        <div className="search-result-snippet">
           {result.contexts.slice(0, 2).map((ctx, i) => (
             <div key={i} style={{ marginTop: i === 0 ? 0 : 'var(--space-xs)' }}>
-              <span style={{ color: 'var(--text-muted)' }}>…</span>
+              <span className="search-result-snippet-sep">…</span>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={SNIPPET_COMPONENTS}
               >
                 {ctx}
               </ReactMarkdown>
-              <span style={{ color: 'var(--text-muted)' }}>…</span>
+              <span className="search-result-snippet-sep">…</span>
             </div>
           ))}
         </div>
       )}
 
       {/* Metadata row */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: 'var(--space-xs) var(--space-md)',
-        marginTop: 'var(--space-sm)',
-        fontSize: '0.8rem',
-        color: 'var(--text-muted)',
-      }}>
+      <div className="search-result-meta">
         {result.author && (
           <Link to={`/search?q=${encodeURIComponent(result.author)}`}
-            style={{ fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none' }}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+            className="search-result-meta-author"
           >{result.author}</Link>
         )}
         {date && (
           <>
-            <span style={{ color: 'var(--border-strong)' }}>·</span>
+            <span className="search-result-meta-sep">·</span>
             <span>{date}</span>
           </>
         )}
         {result.cluster && (
           <>
-            <span style={{ color: 'var(--border-strong)' }}>·</span>
-            <Link to={`/search?q=${encodeURIComponent(result.cluster)}`} className="tag"
-              style={{ textDecoration: 'none', cursor: 'pointer' }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-            >{result.cluster}</Link>
+            <span className="search-result-meta-sep">·</span>
+            <Link to={`/search?q=${encodeURIComponent(result.cluster)}`} className="tag">{result.cluster}</Link>
           </>
         )}
-        <span style={{ color: 'var(--border-strong)' }}>·</span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+        <span className="search-result-meta-sep">·</span>
+        <span className="search-result-meta-score">
           {Math.round(result.score)}% match
         </span>
       </div>
 
       {/* Tags */}
       {tags.length > 0 && (
-        <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', marginTop: 'var(--space-sm)' }}>
+        <div className="search-result-tags">
           {tags.map(tag => (
-            <Link key={tag} to={`/search?q=${encodeURIComponent(tag)}`} className="tag"
-              style={{ textDecoration: 'none', cursor: 'pointer' }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-            >{tag}</Link>
+            <Link key={tag} to={`/search?q=${encodeURIComponent(tag)}`} className="tag">{tag}</Link>
           ))}
         </div>
       )}

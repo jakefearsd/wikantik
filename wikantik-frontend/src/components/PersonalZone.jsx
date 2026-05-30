@@ -58,9 +58,8 @@ export default function PersonalZone({ onMobileClose = () => {}, onNewArticle = 
       </div>
 
       <button
-        className="btn btn-primary personal-new-article"
+        className="btn btn-primary personal-new-article btn-block"
         onClick={onNewArticle}
-        style={{ width: '100%', justifyContent: 'center' }}
       >
         + New Article
       </button>

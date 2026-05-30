@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Spinner from '../ui/Spinner.jsx';
 
 export default function GraphLoadingFallback() {
   const [slow, setSlow] = useState(false);
@@ -10,7 +11,7 @@ export default function GraphLoadingFallback() {
 
   return (
     <div className="graph-loading">
-      <p>Loading page graph...</p>
+      <Spinner label="Loading page graph…" />
       {slow && <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary, #64748b)' }}>
         Still working — large graphs can take a few seconds.
       </p>}

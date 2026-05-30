@@ -55,3 +55,23 @@ BEGIN
           wiki_name = EXCLUDED.wiki_name;
   END IF;
 END $$;
+
+-- `agents` service account: the default owner for AI-agent-authored pages
+-- (wikantik.page_ownership.default_owner). Required system account, no roles,
+-- un-loginable password (SHA-256 of a discarded random secret). Mirrors the
+-- V035 migration so local dev also has the account.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM users WHERE wiki_name = 'Agents' AND login_name <> 'agents') THEN
+    INSERT INTO users (uid, email, full_name, login_name, password, wiki_name)
+    VALUES (
+      'agents-service-account',
+      'agents@localhost',
+      'AI Agents (service account)',
+      'agents',
+      '{SHA-256}Ub6qgHVQhnEDNdD2l202SLf1pVllUU6X/WO7cVsmn4LCrK6lT97JFw==',
+      'Agents'
+    )
+    ON CONFLICT (login_name) DO NOTHING;
+  END IF;
+END $$;

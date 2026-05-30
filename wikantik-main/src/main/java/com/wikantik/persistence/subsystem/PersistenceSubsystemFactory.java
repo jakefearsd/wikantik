@@ -82,6 +82,12 @@ public final class PersistenceSubsystemFactory {
                 ? deps.pageAuthorLookup()
                 : canonicalId -> Optional.empty();
 
+        // Default owner for agent/unresolvable-author pages (e.g. the `agents`
+        // service account). Stored at bootstrap only when it is itself a real
+        // user, so an unseeded default degrades safely to NULL.
+        final String defaultPageOwner = deps.properties().get(
+                "wikantik.page_ownership.default_owner", "agents" );
+
         return new PersistenceSubsystem.Services(
             ds,
             kgNodes,
@@ -101,7 +107,7 @@ public final class PersistenceSubsystemFactory {
             new PageVerificationDao( ds ),
             new TrustedAuthorsDao( ds ),
             new CommentStore( ds ),
-            new PageOwnerService( ds, userExists, authorResolver ),
+            new PageOwnerService( ds, userExists, authorResolver, defaultPageOwner ),
             new MentionService( ds, userExists ),
             new MentionFeedDao( ds )
         );

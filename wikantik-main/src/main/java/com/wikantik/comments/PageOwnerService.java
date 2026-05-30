@@ -49,8 +49,12 @@ public class PageOwnerService {
     private final DataSource ds;
     private final Predicate< String > userExists;
     private final Function< String, Optional< String > > authorResolver;
+    private final String defaultOwner;
 
     /**
+     * Back-compat constructor: no configured default owner. Agent/unresolvable-author
+     * pages bootstrap to a {@code NULL} (orphaned) owner.
+     *
      * @param ds JDBC data source
      * @param userExists predicate: does this login_name exist in the user database?
      * @param authorResolver canonical_id → bootstrap login (typically the
@@ -59,9 +63,29 @@ public class PageOwnerService {
     public PageOwnerService( final DataSource ds,
                              final Predicate< String > userExists,
                              final Function< String, Optional< String > > authorResolver ) {
+        this( ds, userExists, authorResolver, null );
+    }
+
+    /**
+     * @param ds JDBC data source
+     * @param userExists predicate: does this login_name exist in the user database?
+     * @param authorResolver canonical_id → bootstrap login (typically the
+     *        frontmatter {@code author}); empty when no author is available.
+     * @param defaultOwner login stored as the owner when the frontmatter author
+     *        cannot be resolved to a real user (e.g. AI-agent-authored pages).
+     *        Typically the {@code agents} service account. When {@code null},
+     *        blank, or not itself a real user, such pages bootstrap to a
+     *        {@code NULL} (orphaned) owner — so a missing/unseeded default
+     *        degrades safely rather than persisting a dangling owner_login.
+     */
+    public PageOwnerService( final DataSource ds,
+                             final Predicate< String > userExists,
+                             final Function< String, Optional< String > > authorResolver,
+                             final String defaultOwner ) {
         this.ds = ds;
         this.userExists = userExists;
         this.authorResolver = authorResolver;
+        this.defaultOwner = defaultOwner;
     }
 
     /** Resolved owner with the admin fallback applied. Find-or-create. */
@@ -70,11 +94,21 @@ public class PageOwnerService {
         if ( existing.isPresent() ) {
             return resolveWithFallback( existing.get().ownerLogin() );
         }
-        // No row → bootstrap from the resolver.
+        // No row → bootstrap from the resolver. When the frontmatter author is not
+        // a real user (e.g. AI-agent-authored pages), fall back to the configured
+        // default owner so the stored data is consistent rather than orphaned.
         final Optional< String > author = authorResolver.apply( canonicalId );
-        final String initial = author.filter( userExists ).orElse( null );
+        final String initial = author.filter( userExists ).orElseGet( this::defaultOwnerOrNull );
         insertRow( canonicalId, initial, BOOTSTRAP_ASSIGNER );
         return resolveWithFallback( initial );
+    }
+
+    /** The configured default owner if it is set and a real user; else {@code null}. */
+    private String defaultOwnerOrNull() {
+        if ( defaultOwner == null || defaultOwner.isBlank() ) {
+            return null;
+        }
+        return userExists.test( defaultOwner ) ? defaultOwner : null;
     }
 
     /** Raw row (owner_login may be null). Read-only — does not bootstrap. */

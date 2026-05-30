@@ -96,6 +96,48 @@ class PageOwnerServiceTest {
     }
 
     @Test
+    void getOwner_stores_configured_default_owner_when_author_unresolvable() {
+        // A service configured with a default owner ("agents", a real user) must
+        // STORE that owner for agent/unresolvable-author pages — not leave NULL —
+        // so the data structure is consistent and By-Owner can find them.
+        users.add( "agents" );
+        final PageOwnerService withDefault =
+                new PageOwnerService( ds, users::contains, defaultAuthorResolver(), "agents" );
+        assertEquals( "agents", withDefault.getOwner( "CID-GHOST" ) );
+        assertEquals( "agents", withDefault.findRaw( "CID-GHOST" ).orElseThrow().ownerLogin(),
+                "unresolvable author must be stored as the configured default owner, not NULL" );
+    }
+
+    @Test
+    void getOwner_stores_default_owner_when_no_author_at_all() {
+        users.add( "agents" );
+        final PageOwnerService withDefault =
+                new PageOwnerService( ds, users::contains, defaultAuthorResolver(), "agents" );
+        assertEquals( "agents", withDefault.getOwner( "CID-NONE" ) );
+        assertEquals( "agents", withDefault.findRaw( "CID-NONE" ).orElseThrow().ownerLogin() );
+    }
+
+    @Test
+    void getOwner_still_prefers_a_real_author_over_the_default_owner() {
+        users.add( "agents" );
+        final PageOwnerService withDefault =
+                new PageOwnerService( ds, users::contains, defaultAuthorResolver(), "agents" );
+        assertEquals( "alice", withDefault.getOwner( "CID-A" ) );
+        assertEquals( "alice", withDefault.findRaw( "CID-A" ).orElseThrow().ownerLogin() );
+    }
+
+    @Test
+    void getOwner_stores_null_when_default_owner_is_not_a_real_user() {
+        // Misconfigured / unseeded default owner must degrade safely to NULL
+        // rather than writing a dangling owner_login. Read still falls back to admin.
+        final PageOwnerService withMissingDefault =
+                new PageOwnerService( ds, users::contains, defaultAuthorResolver(), "agents" );
+        assertEquals( "admin", withMissingDefault.getOwner( "CID-NONE" ) );
+        assertNull( withMissingDefault.findRaw( "CID-NONE" ).orElseThrow().ownerLogin(),
+                "unseeded default owner must not be persisted; row stays NULL" );
+    }
+
+    @Test
     void getOwner_returns_admin_when_owner_was_later_deleted() {
         svc.setOwner( "CID-A", "alice", "admin" );
         users.remove( "alice" );

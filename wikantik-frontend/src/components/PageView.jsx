@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
@@ -7,6 +7,8 @@ import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { renderMath } from '../utils/math';
 import PageMeta from './PageMeta';
 import Breadcrumbs from './Breadcrumbs';
+import TableOfContents from './TableOfContents';
+import { extractHeadings } from '../utils/headings';
 import MetadataPanel from './MetadataPanel';
 import SimilarPagesPanel from './SimilarPagesPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
@@ -158,6 +160,27 @@ export default function PageView() {
     const { detached } = anchorThreads(root, threads);
     setDetachedIds(detached);
   }, [page, threads]);
+
+  // Extract headings from the page HTML to drive the Table of Contents.
+  const headings = useMemo(
+    () => extractHeadings(page?.contentHtml || ''),
+    [page?.contentHtml]
+  );
+
+  // Inject matching id attributes into the live DOM heading elements so that
+  // TOC anchor links (#id) actually scroll to the right place.
+  useEffect(() => {
+    const root = articleRef.current;
+    if (!root || !headings.length) return;
+    const domHeadings = root.querySelectorAll('h2, h3');
+    let hi = 0;
+    domHeadings.forEach((el) => {
+      if (hi < headings.length) {
+        el.id = headings[hi].id;
+        hi++;
+      }
+    });
+  }, [page, headings]);
 
   const onArticleMouseUp = () => {
     const root = articleRef.current;
@@ -407,13 +430,16 @@ export default function PageView() {
       <SimilarPagesPanel pageName={name} />
       <ChangeNotesPanel pageName={name} />
 
-      <article
-        ref={articleRef}
-        className="article-prose"
-        onClick={handleContentClick}
-        onMouseUp={onArticleMouseUp}
-        dangerouslySetInnerHTML={{ __html: page.contentHtml || page.content || '' }}
-      />
+      <div className="page-toc-wrapper">
+        <article
+          ref={articleRef}
+          className="article-prose"
+          onClick={handleContentClick}
+          onMouseUp={onArticleMouseUp}
+          dangerouslySetInnerHTML={{ __html: page.contentHtml || page.content || '' }}
+        />
+        <TableOfContents headings={headings} />
+      </div>
 
       <CommentsDrawer
         open={drawerOpen}

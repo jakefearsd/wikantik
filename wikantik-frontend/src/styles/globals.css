@@ -1454,6 +1454,93 @@ a[data-attachment-missing] {
 }
 
 /* ============================================================
+   Table of Contents (#8)
+   ============================================================ */
+
+.page-toc-wrapper {
+  display: flex;
+  gap: var(--space-2xl);
+  align-items: flex-start;
+  /* Article occupies its natural width; TOC takes only what it needs */
+}
+
+.page-toc-wrapper .article-prose {
+  flex: 1;
+  min-width: 0;
+}
+
+.page-toc {
+  position: sticky;
+  top: var(--space-lg);
+  max-height: calc(100vh - var(--space-2xl));
+  overflow-y: auto;
+  width: 220px;
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  /* Sits in a right-rail outside the centered content column */
+  align-self: flex-start;
+}
+
+.page-toc-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.page-toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid var(--border);
+}
+
+.page-toc-item {
+  padding: 0;
+}
+
+.page-toc-level-3 {
+  padding-left: var(--space-md);
+}
+
+.page-toc-link {
+  display: block;
+  padding: 0.2rem var(--space-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  margin-left: -2px;
+  transition: color var(--duration) var(--ease),
+              border-color var(--duration) var(--ease);
+}
+
+.page-toc-link:hover {
+  color: var(--accent);
+}
+
+.toc-active .page-toc-link {
+  color: var(--accent);
+  border-left-color: var(--accent);
+  font-weight: 500;
+}
+
+/* Hide TOC on narrow screens and below the editor breakpoint */
+@media (max-width: 1100px) {
+  .page-toc {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-toc-link {
+    transition: none;
+  }
+}
+
+/* ============================================================
    Toast Notification System
    ============================================================ */
 

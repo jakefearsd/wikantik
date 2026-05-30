@@ -1276,6 +1276,26 @@ a[data-attachment-missing] {
    Utilities
    ================================================================ */
 
+/* Skip-to-content link — visually hidden until focused */
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10001;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: 0 0 var(--radius-md) 0;
+  transform: translateY(-100%);
+  transition: transform var(--duration) var(--ease);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 /* Screen reader only — visually hidden but accessible */
 .sr-only {
   position: absolute;

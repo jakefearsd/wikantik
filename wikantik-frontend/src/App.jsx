@@ -40,6 +40,7 @@ export default function App() {
   return (
     <ToastProvider>
     <div className="app-layout">
+      <a href="#main-content" className="skip-link">Skip to content</a>
       {updateAvailable && (
         <div className="update-toast" role="status">
           <span>A new version is available.</span>
@@ -62,7 +63,7 @@ export default function App() {
         />
       )}
       <main className={`app-main ${sidebarCollapsed ? 'expanded' : ''}`}>
-        <div className={`app-content${(isEditorRoute || isAdminRoute) ? ' app-content-wide' : ''}${isGraphRoute ? ' app-content-full' : ''}`}>
+        <div id="main-content" className={`app-content${(isEditorRoute || isAdminRoute) ? ' app-content-wide' : ''}${isGraphRoute ? ' app-content-full' : ''}`}>
           <Outlet />
         </div>
         {!isAdminRoute && !isEditorRoute && (

@@ -139,6 +139,11 @@ input, textarea, select {
   background: inherit;
 }
 
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 /* ============================================================
    Layout Shell
    ============================================================ */
@@ -236,6 +241,11 @@ input, textarea, select {
   text-overflow: ellipsis;
 }
 
+.sidebar-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .sidebar-link:hover {
   color: var(--text);
   background: var(--border);
@@ -274,6 +284,11 @@ input, textarea, select {
   font-size: 0.875rem;
   margin-bottom: var(--space-lg);
   transition: all var(--duration) var(--ease);
+}
+
+.search-trigger:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .search-trigger:hover {
@@ -345,7 +360,6 @@ input, textarea, select {
   font-size: 1.125rem;
   border: none;
   border-bottom: 1px solid var(--border);
-  outline: none;
   background: transparent;
 }
 
@@ -485,6 +499,11 @@ input, textarea, select {
   font-weight: 500;
   border-radius: var(--radius-md);
   transition: all var(--duration) var(--ease);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .btn-primary {

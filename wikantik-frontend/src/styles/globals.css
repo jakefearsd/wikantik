@@ -106,6 +106,10 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
+::selection {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
 body {
   font-family: var(--font-ui);
   background: var(--bg);

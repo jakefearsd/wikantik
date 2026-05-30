@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { api } from '../../api/client';
 import Badge from '../ui/Badge';
 import Chip from '../ui/Chip';
+import { formatRelative, formatTime } from '../../utils/datetime';
 import PageLink from './PageLink';
 import { AdminTable } from './table';
 
@@ -81,21 +82,15 @@ const BULK_ACTIONS = [
 const QUICK_REJECT_REASON = '(no reason given)';
 
 /**
- * Compact relative-time formatter for the judge-rationale disclosure. Returns
- * one of "just now", "Xm ago", "Xh ago", "Xd ago", or a localized date for
- * anything older than a month. Pair with a {@code title} attribute carrying
- * the full {@code toLocaleString()} so hover yields the precise timestamp.
+ * Compact relative-time formatter for the judge-rationale disclosure. Delegates
+ * to the shared {@code formatRelative} util; returns '' for null/undefined/invalid
+ * input (guarding the unparseable-string case that formatRelative passes through).
  */
 export function formatRelativeTime(isoString) {
   if (!isoString) return '';
   const ts = new Date(isoString);
   if (Number.isNaN(ts.getTime())) return '';
-  const diffSec = Math.max(0, Math.floor((Date.now() - ts.getTime()) / 1000));
-  if (diffSec < 60)         return 'just now';
-  if (diffSec < 3600)       return `${Math.floor(diffSec / 60)}m ago`;
-  if (diffSec < 86400)      return `${Math.floor(diffSec / 3600)}h ago`;
-  if (diffSec < 86400 * 30) return `${Math.floor(diffSec / 86400)}d ago`;
-  return ts.toLocaleDateString();
+  return formatRelative(isoString);
 }
 
 function VerdictBadge({ status, expanded, onToggle }) {
@@ -510,7 +505,7 @@ export default function ProposalReviewQueue() {
             <> · Running ({judgeStatus.last_run_completed}/{judgeStatus.last_run_submitted})</>
           )}
           {!judgeStatus.in_flight && judgeStatus.last_run_finished_at && (
-            <> · Last run: {judgeStatus.last_run_completed}/{judgeStatus.last_run_submitted} at {new Date(judgeStatus.last_run_finished_at).toLocaleTimeString()}</>
+            <> · Last run: {judgeStatus.last_run_completed}/{judgeStatus.last_run_submitted} at {formatTime(judgeStatus.last_run_finished_at)}</>
           )}
           {judgeStatus.last_run_error && (
             <> · <span style={{ color: 'var(--danger)' }}>Error: {judgeStatus.last_run_error}</span></>

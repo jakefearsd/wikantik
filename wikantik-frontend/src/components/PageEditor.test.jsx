@@ -223,3 +223,58 @@ describe('#20 unsaved-changes guard', () => {
     expect(screen.queryByTestId('wiki-view')).toBeNull();
   });
 });
+
+// ── #21 Draft banner: relative time + dismiss ────────────────────────────────
+describe('#21 draft banner relative time and dismiss', () => {
+  it('shows relative time in banner when draft exists', async () => {
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    useDraft.mockReturnValue({
+      draft: { content: '# Draft content (different)', savedAt: twoHoursAgo, title: 'TestPage' },
+      saveDraft: vi.fn(),
+      clearDraft: vi.fn(),
+    });
+
+    renderEditor();
+    await waitForEditor();
+
+    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
+    expect(screen.getByRole('status').textContent).toContain('2h ago');
+  });
+
+  it('dismiss button hides banner but does NOT call clearDraft', async () => {
+    const mockClearDraft = vi.fn();
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    useDraft.mockReturnValue({
+      draft: { content: '# Draft content (different)', savedAt: twoHoursAgo, title: 'TestPage' },
+      saveDraft: vi.fn(),
+      clearDraft: mockClearDraft,
+    });
+
+    renderEditor();
+    await waitForEditor();
+    await waitFor(() => screen.getByRole('status'));
+
+    fireEvent.click(screen.getByLabelText('Dismiss draft notice'));
+
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+    expect(mockClearDraft).not.toHaveBeenCalled();
+  });
+
+  it('Discard button in banner calls clearDraft', async () => {
+    const mockClearDraft = vi.fn();
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    useDraft.mockReturnValue({
+      draft: { content: '# Draft content (different)', savedAt: twoHoursAgo, title: 'TestPage' },
+      saveDraft: vi.fn(),
+      clearDraft: mockClearDraft,
+    });
+
+    renderEditor();
+    await waitForEditor();
+    await waitFor(() => screen.getByRole('status'));
+
+    fireEvent.click(screen.getByRole('button', { name: /^Discard$/i }));
+
+    expect(mockClearDraft).toHaveBeenCalled();
+  });
+});

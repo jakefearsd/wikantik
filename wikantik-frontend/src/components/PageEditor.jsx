@@ -12,6 +12,7 @@ import { useEditorDrop } from '../hooks/useEditorDrop';
 import { useDraft } from '../hooks/useDraft';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
+import { formatRelative } from '../utils/datetime';
 import AttachmentPanel from './AttachmentPanel';
 import '../styles/article.css';
 import '../styles/admin.css';
@@ -315,11 +316,12 @@ export default function PageEditor() {
 
       {error && <div className="error-banner" data-testid="editor-error">{error}</div>}
 
+      {/* #21 — Draft restore banner with relative time and dismiss button */}
       {restorePrompt && (
         <div className="draft-restore-banner" role="status">
-          <span>
+          <span title={new Date(draft.savedAt).toLocaleString()}>
             You have unsaved changes from{' '}
-            {new Date(draft.savedAt).toLocaleString()}.
+            {formatRelative(draft.savedAt)}.
           </span>
           <button type="button" className="btn-link"
             onClick={() => { setContent(draft.content); setRestorePrompt(false); }}>
@@ -328,6 +330,11 @@ export default function PageEditor() {
           <button type="button" className="btn-link"
             onClick={() => { clearDraft(); setRestorePrompt(false); }}>
             Discard
+          </button>
+          <button type="button" className="btn-link"
+            aria-label="Dismiss draft notice"
+            onClick={() => setRestorePrompt(false)}>
+            ×
           </button>
         </div>
       )}

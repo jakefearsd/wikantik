@@ -46,15 +46,19 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
   const existingPageNames = new Set(pages.map(p => p.name));
   const existingClusters = Object.keys(clusters).sort();
 
-  const navLink = (to, label) => (
-    <Link
-      to={to}
-      className={`sidebar-link ${activePage === to.replace('/wiki/', '') ? 'active' : ''}`}
-      onClick={onMobileClose}
-    >
-      {label}
-    </Link>
-  );
+  const navLink = (to, label) => {
+    const isActive = activePage === to.replace('/wiki/', '');
+    return (
+      <Link
+        to={to}
+        className={`sidebar-link ${isActive ? 'active' : ''}`}
+        onClick={onMobileClose}
+        {...(isActive ? { 'aria-current': 'page' } : {})}
+      >
+        {label}
+      </Link>
+    );
+  };
 
   return (
     <>
@@ -122,16 +126,20 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
         {recentChanges.length > 0 && (
           <div className="sidebar-section">
             <div className="sidebar-section-title">Recently Modified</div>
-            {(showAllRecent ? recentChanges : recentChanges.slice(0, 5)).map(c => (
-              <Link
-                key={c.name}
-                to={`/wiki/${c.name}`}
-                className={`sidebar-link ${activePage === c.name ? 'active' : ''}`}
-                onClick={onMobileClose}
-              >
-                {c.name}
-              </Link>
-            ))}
+            {(showAllRecent ? recentChanges : recentChanges.slice(0, 5)).map(c => {
+              const isActive = activePage === c.name;
+              return (
+                <Link
+                  key={c.name}
+                  to={`/wiki/${c.name}`}
+                  className={`sidebar-link ${isActive ? 'active' : ''}`}
+                  onClick={onMobileClose}
+                  {...(isActive ? { 'aria-current': 'page' } : {})}
+                >
+                  {c.name}
+                </Link>
+              );
+            })}
             {!showAllRecent && recentChanges.length > 5 && (
               <button
                 type="button"

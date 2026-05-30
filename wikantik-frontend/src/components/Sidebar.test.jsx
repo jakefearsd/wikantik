@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('../api/client', () => ({
   api: {
@@ -19,8 +19,15 @@ import Sidebar from './Sidebar';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 
-const renderSidebar = () =>
-  render(<MemoryRouter><Sidebar collapsed={false} onToggle={() => {}} /></MemoryRouter>);
+const renderSidebar = (initialEntry = '/') =>
+  render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <Routes>
+        <Route path="/wiki/:name" element={<Sidebar collapsed={false} onToggle={() => {}} />} />
+        <Route path="*" element={<Sidebar collapsed={false} onToggle={() => {}} />} />
+      </Routes>
+    </MemoryRouter>
+  );
 
 const makeChanges = (n) => Array.from({ length: n }, (_, i) => ({ name: `Page${i + 1}` }));
 
@@ -63,5 +70,28 @@ describe('Sidebar', () => {
     renderSidebar();
     expect(screen.getByText('Unused pages')).toBeInTheDocument();
     expect(screen.getByText('Undefined pages')).toBeInTheDocument();
+  });
+
+  describe('aria-current on active nav links (#6)', () => {
+    it('active nav link has aria-current="page" when route matches', () => {
+      renderSidebar('/wiki/Main');
+      const mainLink = screen.getByRole('link', { name: 'Main page' });
+      expect(mainLink).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('non-active nav links do not have aria-current', () => {
+      renderSidebar('/wiki/Main');
+      const aboutLink = screen.getByRole('link', { name: 'About' });
+      expect(aboutLink).not.toHaveAttribute('aria-current');
+    });
+
+    it('active recently-modified link has aria-current="page"', async () => {
+      api.getRecentChanges.mockResolvedValue({ changes: [{ name: 'ActivePage' }, { name: 'OtherPage' }] });
+      renderSidebar('/wiki/ActivePage');
+      const activeLink = await screen.findByRole('link', { name: 'ActivePage' });
+      expect(activeLink).toHaveAttribute('aria-current', 'page');
+      const otherLink = screen.getByRole('link', { name: 'OtherPage' });
+      expect(otherLink).not.toHaveAttribute('aria-current');
+    });
   });
 });

@@ -722,193 +722,42 @@ public class WikiEngine implements Engine {
         startTime  = new Date();
         properties = props;
 
-        LOG.info( "*******************************************" );
-        LOG.info( "{} {} starting. Whee!", Release.APPNAME, Release.getVersionString() );
-        LOG.debug( "Java version: {}", System.getProperty( "java.runtime.version" ) );
-        LOG.debug( "Java vendor: {}", System.getProperty( "java.vm.vendor" ) );
-        LOG.debug( "OS: {} {} {}", System.getProperty( "os.name" ), System.getProperty( "os.version" ), System.getProperty( "os.arch" ) );
-        LOG.debug( "Default server locale: {}", Locale.getDefault() );
-        LOG.debug( "Default server timezone: {}", TimeZone.getDefault().getDisplayName( true, TimeZone.LONG ) );
-
-        if( servletContext != null ) {
-            LOG.info( "Servlet container: {}", servletContext.getServerInfo() );
-            if( servletContext.getMajorVersion() < 3 || ( servletContext.getMajorVersion() == 3 && servletContext.getMinorVersion() < 1 ) ) {
-                throw new InternalWikiException( "JSPWiki requires a container which supports at least version 3.1 of Servlet specification" );
-            }
-        }
+        logStartupBannerAndValidateContainer();
 
         fireEvent( WikiEngineEvent.INITIALIZING ); // begin initialization
 
         LOG.debug( "Configuring WikiEngine..." );
 
-        createAndFindWorkingDirectory( props );
-
-        useUTF8        = StandardCharsets.UTF_8.name().equals( TextUtil.getStringProperty( props, PROP_ENCODING, StandardCharsets.ISO_8859_1.name() ) );
-        saveUserInfo   = TextUtil.getBooleanProperty( props, PROP_STOREUSERNAME, saveUserInfo );
-        frontPage      = TextUtil.getStringProperty( props, PROP_FRONTPAGE, "Main" );
-        templateDir    = TextUtil.getStringProperty( props, PROP_TEMPLATEDIR, "default" );
-        enforceValidTemplateDirectory();
+        configureWorkingDirectoryAndProperties( props );
 
         //
         //  Initialize the important modules.  Any exception thrown by the managers means that we will not start up.
-        //
-        //  Initialization order matters due to dependencies between managers:
-        //  - Phase 1: Core infrastructure (CommandResolver, URLConstructor, CachingManager)
-        //  - Phase 2: Storage providers (PageManager, AttachmentManager) - depend on CachingManager
-        //  - Phase 3: Utility and security managers - all run on main thread because:
-        //      * Security managers (Auth*, UserManager, GroupManager) require JNDI context
-        //      * UserManager eagerly initializes UserDatabase which needs JNDI for JDBCUserDatabase
-        //      * Utility managers (Plugin, Difference, Variable, Search) are fast and don't benefit from parallelization
-        //  - Phase 4: Dependent managers (Editor, Progress, Acl, Workflow, etc.)
-        //  - Phase 5: RenderingManager (depends on FilterManager)
-        //  - Phase 6: ReferenceManager - initialized asynchronously in background thread
-        //      * This is the key optimization: ReferenceManager scans all pages which is expensive
-        //      * Running it async allows the wiki to start serving requests immediately
+        //  initManagers() (managers) and the subsystem-factory phases below must run inside this try so a startup
+        //  failure aborts the whole engine; the catch handlers below preserve the original per-type diagnostics.
         //
         try {
-            final String aclClassName = properties.getProperty( PROP_ACL_MANAGER_IMPL, ClassUtil.getMappedClass( AclManager.class.getName() ).getName() );
-            final String urlConstructorClassName = TextUtil.getStringProperty( props, PROP_URLCONSTRUCTOR, "DefaultURLConstructor" );
-            final Class< URLConstructor > urlclass = ClassUtil.findClass( "com.wikantik.url", urlConstructorClassName );
+            initManagers( props );
 
-            // Phase 1: Core infrastructure
-            initComponent( CommandResolver.class, this, props );
-            initComponent( urlclass.getName(), URLConstructor.class );
-            initComponent( CachingManager.class, this, props );
-
-            // Phase 2: Storage providers
-            initComponent( PageManager.class, this, props );
-            initComponent( AttachmentManager.class, this, props );
-
-            // Phase 3: Utility managers and security managers (all on main thread)
-            initComponent( PluginManager.class, this, props );
-            initComponent( DifferenceManager.class, this, props );
-            initComponent( VariableManager.class, props );
-            initComponent( SearchManager.class, this, props );
-            initComponent( AuthenticationManager.class );
-            initComponent( AuthorizationManager.class );
-            initComponent( UserManager.class );
-            initComponent( GroupManager.class );
-
-            // Phase 4: Managers that depend on earlier phases
-            initComponent( ProgressManager.class, this );
-            initComponent( aclClassName, AclManager.class );
-            initComponent( InternationalizationManager.class, this );
-            initComponent( FilterManager.class, this, props );
-            initComponent( PageRenamer.class, this, props );
-
-            // Phase 5: RenderingManager depends on FilterManager events.
-            initComponent( RenderingManager.class );
-
-            // Phase 6: SystemPageRegistry discovers template/system pages from classpath.
-            initComponent( SystemPageRegistry.class );
-
-            // Phase 7: RecentArticlesManager for article listing APIs and plugins.
-            initComponent( RecentArticlesManager.class );
-
-            // Phase 7b: BlogManager for user blog lifecycle and plugins.
-            initComponent( BlogManager.class );
-
-            // Phase 8: ReferenceManager scans all pages for cross-references.
-            initReferenceManager();
-
-            // Frontmatter metadata cache used by the search response path so we
-            // don't re-read and re-parse every result on every /api/search call.
-            // Keyed on (pageName, lastModified) so a page edit naturally invalidates.
-            final com.wikantik.search.FrontmatterMetadataCache fmCacheInstance =
-                new com.wikantik.search.FrontmatterMetadataCache( getManager( PageManager.class ) );
-            setManager( com.wikantik.search.FrontmatterMetadataCache.class, fmCacheInstance );
-            // Publish Caffeine cache size/hits/misses/evictions for this cache
-            // — registration is colocated with construction so wireHybridRetrieval
-            // doesn't need an extra getManager call (blocked by the decomposition
-            // ArchUnit rule).
-            try {
-                final io.micrometer.core.instrument.MeterRegistry meterReg =
-                    com.wikantik.api.observability.MeterRegistryHolder.get();
-                if ( meterReg != null ) {
-                    com.wikantik.observability.CaffeineCacheMetricsBridge
-                        .register( meterReg, "frontmatter_metadata", fmCacheInstance.cache() );
-                    // likely-wiki syntax heuristic cache: keyed on content hash so the
-                    // 6-regex scan over the page body runs once per distinct body, not
-                    // on every /api/pages/{name} GET. Static cache lives in the converter.
-                    com.wikantik.observability.CaffeineCacheMetricsBridge
-                        .register( meterReg, "likely_wiki_syntax",
-                            com.wikantik.content.WikiToMarkdownConverter.likelyWikiCache() );
-                }
-            } catch ( final Throwable t ) {
-                LOG.warn( "FrontmatterMetadataCache metric registration failed: {}", t.getMessage(), t );
-            }
-
-            //  Hook the different manager routines into the system.
-            getManager( FilterManager.class ).addPageFilter( getManager( ReferenceManager.class ), -1001 );
-            getManager( FilterManager.class ).addPageFilter( getManager( SearchManager.class ), -1002 );
-
-            // Phase 2 of the wikantik-main subsystem decomposition: build
-            // the Core subsystem after its leaf managers are constructed.
-            // Knowledge (built next, in initKnowledgeGraph) will consume
-            // Core via WikiSubsystems in a subsequent checkpoint.
-            this.coreSubsystem = com.wikantik.core.subsystem.CoreSubsystemFactory.create(
-                new com.wikantik.core.subsystem.CoreSubsystem.Deps(
-                    props,
-                    servletContext,
-                    com.wikantik.api.observability.MeterRegistryHolder.get(),
-                    getManager( SystemPageRegistry.class ),
-                    getManager( RecentArticlesManager.class ),
-                    getManager( BlogManager.class ),
-                    this ) );
-
-            // Phase 4 of the wikantik-main subsystem decomposition: build
-            // the Auth subsystem after the four auth managers are
-            // registered. Persistence is null at this point — it gets
-            // built inside initKnowledgeGraph below — and the auth
-            // factory tolerates that.
-            this.authSubsystem = com.wikantik.auth.subsystem.AuthSubsystemFactory.create(
-                new com.wikantik.auth.subsystem.AuthSubsystem.Deps(
-                    coreSubsystem, persistenceSubsystem, servletContext, this ) );
-
-            // Phase 5 of the wikantik-main subsystem decomposition: build
-            // the Page subsystem BEFORE initKnowledgeGraph so the KG
-            // factory can declare a typed PageSubsystem.Services
-            // dependency. Page doesn't currently consume persistence; the
-            // null-persistence Deps is fine.
-            this.pageSubsystem = com.wikantik.page.subsystem.PageSubsystemFactory.create(
-                new com.wikantik.page.subsystem.PageSubsystem.Deps(
-                    coreSubsystem, persistenceSubsystem, authSubsystem, this ) );
-
-            // Phase 6 of the wikantik-main subsystem decomposition: build
-            // the Rendering subsystem after Page (Rendering depends on Page
-            // for the page-save filter chain seam) and BEFORE
-            // initKnowledgeGraph so KG can evolve to consume Rendering in a
-            // Phase 6 follow-up.
-            this.renderingSubsystem = com.wikantik.render.subsystem.RenderingSubsystemFactory.create(
-                new com.wikantik.render.subsystem.RenderingSubsystem.Deps(
-                    coreSubsystem, authSubsystem, pageSubsystem, this ) );
+            // getManager() lookups stay in initialize() — the decomposition
+            // ArchUnit rule freezes getManager callers by method, so the helpers
+            // receive their collaborators as parameters rather than looking them up.
+            initFrontmatterMetadataCache( getManager( PageManager.class ) );
+            wireCorePageFilters( getManager( FilterManager.class ),
+                getManager( ReferenceManager.class ), getManager( SearchManager.class ) );
+            buildCoreAuthPageRenderingSubsystems( props,
+                getManager( SystemPageRegistry.class ),
+                getManager( RecentArticlesManager.class ),
+                getManager( BlogManager.class ) );
 
             // Phase 9: Knowledge graph (optional — requires datasource
             // configuration). Builds persistenceSubsystem internally and
             // consumes pageSubsystem via KnowledgeSubsystem.Deps.
             initKnowledgeGraph( props );
 
-            // Phase 7 of the wikantik-main subsystem decomposition: build
-            // the Search subsystem AFTER Knowledge. Search depends on
-            // Knowledge for the graph-rerank step; Knowledge today
-            // receives a LuceneMlt seam that is resolved earlier in
-            // initKnowledgeGraph by reading the live SearchManager. The
-            // ordering here keeps Search → Knowledge as the dependency
-            // direction; the LuceneMlt cycle stays nullable until a
-            // post-construction wiring lands in a later checkpoint.
-            this.searchSubsystem = com.wikantik.search.subsystem.SearchSubsystemFactory.create(
-                new com.wikantik.search.subsystem.SearchSubsystem.Deps(
-                    persistenceSubsystem != null ? persistenceSubsystem.dataSource() : null,
-                    coreSubsystem, persistenceSubsystem, pageSubsystem, knowledgeSubsystem, this ) );
+            buildSearchSubsystem();
 
             // Phase 7 Ckpt 4: post-construction wire of the LuceneMlt seam
-            // onto HubOverviewService. Resolves the Search↔Knowledge cycle
-            // (Search is built AFTER Knowledge, but Knowledge needs an MLT
-            // implementation backed by Lucene). Skipped when Knowledge
-            // didn't initialise (no datasource), or when the configured
-            // search provider isn't Lucene — in either case the no-op MLT
-            // installed by HubOverviewService at construction time stays
-            // active. Delegates to the decomposed LuceneSearcher (Ckpt 3).
+            // onto HubOverviewService. Resolves the Search↔Knowledge cycle.
             wireLuceneMltPostConstruction();
         } catch( final RuntimeException e ) {
             // RuntimeExceptions may occur here, even if they shouldn't.
@@ -932,15 +781,6 @@ public class WikiEngine implements Engine {
         final Map< String, String > extraComponents = ClassUtil.getExtraClassMappings();
         initExtraComponents( extraComponents );
 
-        // Phase 1 of the wikantik-main subsystem decomposition: stash the
-        // typed subsystem services on the ServletContext so servlets can
-        // reach them without going through getManager(Class). Subsequent
-        // phases append fields to the WikiSubsystems record. Skipped when
-        // running outside a servlet container OR when the Knowledge
-        // subsystem didn't initialise (no datasource — e.g. unit-test
-        // engines built via TestEngine.setManager). In those cases
-        // RestServletBase falls back to a synthetic bundle reading the
-        // legacy manager registry.
         // Phase 8 Ckpt 1.5: rebuild the KnowledgeSubsystem.Services record with the five
         // post-construction services that were wired into the manager registry by
         // initKnowledgeGraph (ForAgentProjectionService, BootstrapEntityExtractionIndexer,
@@ -952,27 +792,233 @@ public class WikiEngine implements Engine {
             knowledgeSubsystem = rebuildKnowledgeSubsystemWithPostConstructionServices( knowledgeSubsystem );
         }
 
-        // Phase 9 Ckpt 1: build the Page Graph subsystem after page + knowledge
-        // (both may be deps of PG services in future phases). The four services
-        // (StructuralIndexService, PageGraphService, ReferenceManager,
-        // ContentIndexRebuildService) are registered in initPageGraphServices()
-        // which fires earlier in initialize(). This call just wraps them into
-        // the typed Services record.
+        buildPageGraphSubsystem();
+        stashSubsystemsOnServletContext();
+
+        fireEvent( WikiEngineEvent.INITIALIZED ); // initialization complete
+
+        LOG.info( "WikiEngine configured." );
+        isConfigured = true;
+    }
+
+    /**
+     *  Logs the startup banner and enforces the minimum Servlet container
+     *  version (3.1). Throws {@link InternalWikiException} on an older container.
+     */
+    private void logStartupBannerAndValidateContainer() {
+        LOG.info( "*******************************************" );
+        LOG.info( "{} {} starting. Whee!", Release.APPNAME, Release.getVersionString() );
+        LOG.debug( "Java version: {}", System.getProperty( "java.runtime.version" ) );
+        LOG.debug( "Java vendor: {}", System.getProperty( "java.vm.vendor" ) );
+        LOG.debug( "OS: {} {} {}", System.getProperty( "os.name" ), System.getProperty( "os.version" ), System.getProperty( "os.arch" ) );
+        LOG.debug( "Default server locale: {}", Locale.getDefault() );
+        LOG.debug( "Default server timezone: {}", TimeZone.getDefault().getDisplayName( true, TimeZone.LONG ) );
+
+        if( servletContext != null ) {
+            LOG.info( "Servlet container: {}", servletContext.getServerInfo() );
+            if( servletContext.getMajorVersion() < 3 || ( servletContext.getMajorVersion() == 3 && servletContext.getMinorVersion() < 1 ) ) {
+                throw new InternalWikiException( "JSPWiki requires a container which supports at least version 3.1 of Servlet specification" );
+            }
+        }
+    }
+
+    /**
+     *  Resolves and validates the working directory, then loads the core engine
+     *  properties (encoding, user-info storage, front page, template directory).
+     */
+    private void configureWorkingDirectoryAndProperties( final Properties props ) throws WikiException {
+        createAndFindWorkingDirectory( props );
+
+        useUTF8        = StandardCharsets.UTF_8.name().equals( TextUtil.getStringProperty( props, PROP_ENCODING, StandardCharsets.ISO_8859_1.name() ) );
+        saveUserInfo   = TextUtil.getBooleanProperty( props, PROP_STOREUSERNAME, saveUserInfo );
+        frontPage      = TextUtil.getStringProperty( props, PROP_FRONTPAGE, "Main" );
+        templateDir    = TextUtil.getStringProperty( props, PROP_TEMPLATEDIR, "default" );
+        enforceValidTemplateDirectory();
+    }
+
+    /**
+     *  Initializes every manager in dependency order. Any exception aborts
+     *  startup — see {@link #initialize}'s catch block, whose specific handlers
+     *  rely on the checked exceptions declared here.
+     *
+     *  Initialization order matters due to dependencies between managers:
+     *  - Phase 1: Core infrastructure (CommandResolver, URLConstructor, CachingManager)
+     *  - Phase 2: Storage providers (PageManager, AttachmentManager) - depend on CachingManager
+     *  - Phase 3: Utility and security managers - all run on main thread because:
+     *      * Security managers (Auth*, UserManager, GroupManager) require JNDI context
+     *      * UserManager eagerly initializes UserDatabase which needs JNDI for JDBCUserDatabase
+     *      * Utility managers (Plugin, Difference, Variable, Search) are fast and don't benefit from parallelization
+     *  - Phase 4: Dependent managers (Editor, Progress, Acl, Workflow, etc.)
+     *  - Phase 5: RenderingManager (depends on FilterManager)
+     *  - Phase 6: ReferenceManager - initialized asynchronously in background thread
+     *      * This is the key optimization: ReferenceManager scans all pages which is expensive
+     *      * Running it async allows the wiki to start serving requests immediately
+     */
+    private void initManagers( final Properties props ) throws Exception {
+        final String aclClassName = properties.getProperty( PROP_ACL_MANAGER_IMPL, ClassUtil.getMappedClass( AclManager.class.getName() ).getName() );
+        final String urlConstructorClassName = TextUtil.getStringProperty( props, PROP_URLCONSTRUCTOR, "DefaultURLConstructor" );
+        final Class< URLConstructor > urlclass = ClassUtil.findClass( "com.wikantik.url", urlConstructorClassName );
+
+        // Phase 1: Core infrastructure
+        initComponent( CommandResolver.class, this, props );
+        initComponent( urlclass.getName(), URLConstructor.class );
+        initComponent( CachingManager.class, this, props );
+
+        // Phase 2: Storage providers
+        initComponent( PageManager.class, this, props );
+        initComponent( AttachmentManager.class, this, props );
+
+        // Phase 3: Utility managers and security managers (all on main thread)
+        initComponent( PluginManager.class, this, props );
+        initComponent( DifferenceManager.class, this, props );
+        initComponent( VariableManager.class, props );
+        initComponent( SearchManager.class, this, props );
+        initComponent( AuthenticationManager.class );
+        initComponent( AuthorizationManager.class );
+        initComponent( UserManager.class );
+        initComponent( GroupManager.class );
+
+        // Phase 4: Managers that depend on earlier phases
+        initComponent( ProgressManager.class, this );
+        initComponent( aclClassName, AclManager.class );
+        initComponent( InternationalizationManager.class, this );
+        initComponent( FilterManager.class, this, props );
+        initComponent( PageRenamer.class, this, props );
+
+        // Phase 5: RenderingManager depends on FilterManager events.
+        initComponent( RenderingManager.class );
+
+        // Phase 6: SystemPageRegistry discovers template/system pages from classpath.
+        initComponent( SystemPageRegistry.class );
+
+        // Phase 7: RecentArticlesManager for article listing APIs and plugins.
+        initComponent( RecentArticlesManager.class );
+
+        // Phase 7b: BlogManager for user blog lifecycle and plugins.
+        initComponent( BlogManager.class );
+
+        // Phase 8: ReferenceManager scans all pages for cross-references.
+        initReferenceManager();
+    }
+
+    /**
+     *  Builds the frontmatter metadata cache used by the search response path —
+     *  keyed on (pageName, lastModified) so a page edit naturally invalidates the
+     *  entry — and publishes its Caffeine size/hits/misses/evictions metrics. The
+     *  metric registration is colocated with construction so wireHybridRetrieval
+     *  doesn't need an extra getManager call (blocked by the decomposition ArchUnit rule).
+     */
+    private void initFrontmatterMetadataCache( final PageManager pageManager ) {
+        final com.wikantik.search.FrontmatterMetadataCache fmCacheInstance =
+            new com.wikantik.search.FrontmatterMetadataCache( pageManager );
+        setManager( com.wikantik.search.FrontmatterMetadataCache.class, fmCacheInstance );
+        try {
+            final io.micrometer.core.instrument.MeterRegistry meterReg =
+                com.wikantik.api.observability.MeterRegistryHolder.get();
+            if ( meterReg != null ) {
+                com.wikantik.observability.CaffeineCacheMetricsBridge
+                    .register( meterReg, "frontmatter_metadata", fmCacheInstance.cache() );
+                // likely-wiki syntax heuristic cache: keyed on content hash so the
+                // 6-regex scan over the page body runs once per distinct body, not
+                // on every /api/pages/{name} GET. Static cache lives in the converter.
+                com.wikantik.observability.CaffeineCacheMetricsBridge
+                    .register( meterReg, "likely_wiki_syntax",
+                        com.wikantik.content.WikiToMarkdownConverter.likelyWikiCache() );
+            }
+        } catch ( final Throwable t ) {
+            LOG.warn( "FrontmatterMetadataCache metric registration failed: {}", t.getMessage(), t );
+        }
+    }
+
+    /**
+     *  Hooks the Reference and Search managers into the page-filter chain so they
+     *  react to page saves.
+     */
+    private void wireCorePageFilters( final FilterManager filterManager,
+            final ReferenceManager referenceManager, final SearchManager searchManager ) {
+        filterManager.addPageFilter( referenceManager, -1001 );
+        filterManager.addPageFilter( searchManager, -1002 );
+    }
+
+    /**
+     *  Builds the Core, Auth, Page and Rendering subsystem service records in
+     *  dependency order, after their leaf managers are constructed and BEFORE
+     *  {@link #initKnowledgeGraph}. Persistence is still null at this point — it
+     *  is built inside initKnowledgeGraph — and these factories tolerate that.
+     */
+    private void buildCoreAuthPageRenderingSubsystems( final Properties props,
+            final SystemPageRegistry systemPageRegistry,
+            final RecentArticlesManager recentArticlesManager,
+            final BlogManager blogManager ) {
+        // Build the Core subsystem after its leaf managers are constructed.
+        // Knowledge (built next, in initKnowledgeGraph) consumes Core via WikiSubsystems.
+        this.coreSubsystem = com.wikantik.core.subsystem.CoreSubsystemFactory.create(
+            new com.wikantik.core.subsystem.CoreSubsystem.Deps(
+                props,
+                servletContext,
+                com.wikantik.api.observability.MeterRegistryHolder.get(),
+                systemPageRegistry,
+                recentArticlesManager,
+                blogManager,
+                this ) );
+
+        // Build the Auth subsystem after the four auth managers are registered.
+        // Persistence is null here (built inside initKnowledgeGraph); the factory tolerates it.
+        this.authSubsystem = com.wikantik.auth.subsystem.AuthSubsystemFactory.create(
+            new com.wikantik.auth.subsystem.AuthSubsystem.Deps(
+                coreSubsystem, persistenceSubsystem, servletContext, this ) );
+
+        // Build the Page subsystem BEFORE initKnowledgeGraph so the KG factory can
+        // declare a typed PageSubsystem.Services dependency.
+        this.pageSubsystem = com.wikantik.page.subsystem.PageSubsystemFactory.create(
+            new com.wikantik.page.subsystem.PageSubsystem.Deps(
+                coreSubsystem, persistenceSubsystem, authSubsystem, this ) );
+
+        // Build the Rendering subsystem after Page (Rendering depends on Page for the
+        // page-save filter-chain seam) and BEFORE initKnowledgeGraph.
+        this.renderingSubsystem = com.wikantik.render.subsystem.RenderingSubsystemFactory.create(
+            new com.wikantik.render.subsystem.RenderingSubsystem.Deps(
+                coreSubsystem, authSubsystem, pageSubsystem, this ) );
+    }
+
+    /**
+     *  Builds the Search subsystem AFTER Knowledge — Search depends on Knowledge
+     *  for the graph-rerank step. The Search↔Knowledge LuceneMlt cycle stays
+     *  nullable until {@link #wireLuceneMltPostConstruction} resolves it.
+     */
+    private void buildSearchSubsystem() {
+        this.searchSubsystem = com.wikantik.search.subsystem.SearchSubsystemFactory.create(
+            new com.wikantik.search.subsystem.SearchSubsystem.Deps(
+                persistenceSubsystem != null ? persistenceSubsystem.dataSource() : null,
+                coreSubsystem, persistenceSubsystem, pageSubsystem, knowledgeSubsystem, this ) );
+    }
+
+    /**
+     *  Wraps the already-registered Page Graph services (StructuralIndexService,
+     *  PageGraphService, ReferenceManager, ContentIndexRebuildService — registered
+     *  earlier in initPageGraphServices()) into the typed Services record.
+     */
+    private void buildPageGraphSubsystem() {
         this.pageGraphSubsystem = com.wikantik.pagegraph.subsystem.PageGraphSubsystemFactory.create(
             new com.wikantik.pagegraph.subsystem.PageGraphSubsystem.Deps(
                 coreSubsystem, persistenceSubsystem, pageSubsystem, this ) );
+    }
 
+    /**
+     *  Stashes the typed subsystem bundle on the ServletContext so servlets can
+     *  reach the services without going through getManager(Class). Skipped when
+     *  running outside a servlet container OR when the Knowledge subsystem didn't
+     *  initialise (no datasource — e.g. unit-test engines built via
+     *  TestEngine.setManager); RestServletBase then falls back to a synthetic
+     *  bundle reading the legacy manager registry.
+     */
+    private void stashSubsystemsOnServletContext() {
         if ( servletContext != null && coreSubsystem != null && knowledgeSubsystem != null ) {
             final WikiSubsystems subsystems = new WikiSubsystems(
                 coreSubsystem, persistenceSubsystem, authSubsystem, pageSubsystem,
                 renderingSubsystem, searchSubsystem, knowledgeSubsystem, pageGraphSubsystem );
             servletContext.setAttribute( WikiSubsystems.SERVLET_CONTEXT_ATTRIBUTE, subsystems );
         }
-
-        fireEvent( WikiEngineEvent.INITIALIZED ); // initialization complete
-
-        LOG.info( "WikiEngine configured." );
-        isConfigured = true;
     }
 
     void createAndFindWorkingDirectory( final Properties props ) throws WikiException {

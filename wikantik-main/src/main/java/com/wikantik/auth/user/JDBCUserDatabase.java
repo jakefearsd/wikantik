@@ -31,9 +31,6 @@ import com.wikantik.util.Serializer;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
 import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.Serializable;
@@ -383,14 +380,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     @SuppressWarnings( "PMD.UnusedLocalVariable" ) // try-with-resources below holds the prepared statement only for its side effect.
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, WikiSecurityException {
         final String jndiName = props.getProperty( AbstractJDBCDatabase.PROP_DATASOURCE, AbstractJDBCDatabase.DEFAULT_DATASOURCE );
-        try {
-            final Context initCtx = new InitialContext();
-            final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
-            ds = (DataSource) ctx.lookup( jndiName );
-        } catch( final NamingException e ) {
-            LOG.error( "JDBCUserDatabase initialization error: {}", e.getMessage() );
-            throw new NoRequiredPropertyException( AbstractJDBCDatabase.PROP_DATASOURCE, "JDBCUserDatabase initialization error: " + e.getMessage(), e );
-        }
+        ds = com.wikantik.auth.JndiDataSources.lookup( jndiName, "JDBCUserDatabase", AbstractJDBCDatabase.PROP_DATASOURCE );
 
         // Test connection by doing a quickie select
         try( Connection conn = ds.getConnection(); PreparedStatement ps = conn.prepareStatement( FIND_ALL ) ) {

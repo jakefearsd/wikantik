@@ -22,9 +22,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
 
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -64,15 +61,7 @@ public abstract class AbstractJDBCDatabase {
      */
     public void lookupDataSource( final String jndiName, final String datasourcePropertyName )
             throws NoRequiredPropertyException {
-        try {
-            final Context initCtx = new InitialContext();
-            final Context ctx = (Context) initCtx.lookup( "java:comp/env" );
-            ds = (DataSource) ctx.lookup( jndiName );
-        } catch( final NamingException e ) {
-            LOG.error( "{} initialization error: {}", getClass().getSimpleName(), e.getMessage() );
-            throw new NoRequiredPropertyException( datasourcePropertyName,
-                    getClass().getSimpleName() + " initialization error: " + e.getMessage(), e );
-        }
+        ds = JndiDataSources.lookup( jndiName, getClass().getSimpleName(), datasourcePropertyName );
     }
 
     /**

@@ -20,7 +20,6 @@ Method <com.wikantik.WikiEngine.initialize(java.util.Properties)> calls method <
 Method <com.wikantik.WikiEngine.initialize(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:826)
 Method <com.wikantik.WikiEngine.initialize(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:837)
 Method <com.wikantik.WikiEngine.initialize(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:838)
-Method <com.wikantik.WikiEngine.initialize(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:839)
 Method <com.wikantik.WikiEngine.rebuildKnowledgeSubsystemWithPostConstructionServices(com.wikantik.knowledge.subsystem.KnowledgeSubsystem$Services)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1603)
 Method <com.wikantik.WikiEngine.rebuildKnowledgeSubsystemWithPostConstructionServices(com.wikantik.knowledge.subsystem.KnowledgeSubsystem$Services)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1604)
 Method <com.wikantik.WikiEngine.rebuildKnowledgeSubsystemWithPostConstructionServices(com.wikantik.knowledge.subsystem.KnowledgeSubsystem$Services)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1605)

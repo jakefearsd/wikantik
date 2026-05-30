@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useToast } from '../hooks/useToast';
+import { formatRelative } from '../utils/datetime';
 import EmptyState from './ui/EmptyState';
 import Icon from './ui/Icon';
 
@@ -107,7 +108,7 @@ export default function MentionsPage() {
                 >{m.pageName}</Link>
               </span>
               {m.isOwnerMention && <span className="mentions-item-owner-tag">(your page)</span>}
-              <span className="mentions-item-when">{formatWhen(m.mentionedAt)}</span>
+              <span className="mentions-item-when">{formatRelative(m.mentionedAt)}</span>
               {!m.readAt && (
                 <button
                   type="button"
@@ -125,12 +126,3 @@ export default function MentionsPage() {
   );
 }
 
-function formatWhen(iso) {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString();
-  } catch {
-    return iso;
-  }
-}

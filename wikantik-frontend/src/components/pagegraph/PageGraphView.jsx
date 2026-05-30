@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
+import { formatTime } from '../../utils/datetime';
 import { toCytoscapeElements } from './graph-data.js';
 import { applyFilters } from './filter-engine.js';
 import { paramsToFilterState, filterStateToParams } from './filter-url.js';
@@ -83,8 +84,7 @@ export default function PageGraphView() {
 
   const timestamp = useMemo(() => {
     if (!snapshot?.generatedAt) return '';
-    try { return new Date(snapshot.generatedAt).toLocaleTimeString(); }
-    catch { return snapshot.generatedAt; }
+    return formatTime(snapshot.generatedAt);
   }, [snapshot]);
 
   const selectedNode = useMemo(() => {

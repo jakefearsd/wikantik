@@ -1,5 +1,5 @@
 import Badge from './ui/Badge';
-import { formatRelative } from '../utils/datetime';
+import { formatDate, formatRelative } from '../utils/datetime';
 import { readingTime } from '../utils/readingTime';
 
 /** Map confidence wire name → { variant, label } */
@@ -12,11 +12,7 @@ const CONFIDENCE_CHIP = {
 export default function PageMeta({ page }) {
   if (!page) return null;
 
-  const date = page.lastModified
-    ? new Date(page.lastModified).toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric'
-      })
-    : null;
+  const date = page.lastModified ? formatDate(page.lastModified) : null;
 
   // Verification chip — driven by page.metadata.confidence + page.metadata.verified_at
   const confidence = page.metadata?.confidence;

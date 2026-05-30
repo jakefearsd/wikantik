@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
 import { renderMath } from '../utils/math';
+import { formatDate } from '../utils/datetime';
 import '../styles/article.css';
 import '../styles/admin.css';
 
@@ -86,7 +87,7 @@ export default function BlogEntry() {
 
       {entry.date && (
         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: 'var(--space-lg)' }}>
-          {new Date(entry.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+          {formatDate(entry.date)}
         </p>
       )}
 

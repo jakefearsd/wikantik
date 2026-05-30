@@ -384,6 +384,48 @@ input, textarea, select {
 }
 
 /* ============================================================
+   Modal overlay — portal-based centering variant (Task 0.7)
+   Unlike .search-overlay (which uses padding-top: 15vh), this
+   variant flex-centers content both axes with max-height + scroll.
+   New modals built on Modal.jsx use this; legacy modals keep their
+   own overlay class and are migrated in a later phase.
+   ============================================================ */
+
+.modal-overlay-centered {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: fadeIn var(--duration) var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay-centered {
+    animation: none;
+  }
+}
+
+.modal-overlay-centered .modal-content {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px var(--shadow-strong);
+  max-height: 90vh;
+  overflow-y: auto;
+  width: min(560px, 90vw);
+  animation: scaleIn var(--duration) var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay-centered .modal-content {
+    animation: none;
+  }
+}
+
+/* ============================================================
    Animations
    ============================================================ */
 

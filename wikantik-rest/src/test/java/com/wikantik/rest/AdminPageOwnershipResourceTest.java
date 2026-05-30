@@ -23,6 +23,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.api.comments.PageOwnership;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
@@ -39,6 +40,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -60,6 +62,8 @@ class AdminPageOwnershipResourceTest {
         this.servlet = Mockito.spy( new AdminPageOwnershipResource() );
         Mockito.doReturn( pageOwners ).when( servlet ).pageOwners();
         Mockito.doReturn( "admin" ).when( servlet ).currentUser( Mockito.any() );
+        // Default: no structural index wired (engine-free spy) → page names resolve null.
+        Mockito.doReturn( null ).when( servlet ).structuralIndex();
         // Known logins; "ghost" is unknown.
         Mockito.doReturn( true ).when( servlet ).userExists( "alice" );
         Mockito.doReturn( true ).when( servlet ).userExists( "bob" );
@@ -85,6 +89,24 @@ class AdminPageOwnershipResourceTest {
         // Gson drops null map values by default — ownerLogin must be absent or json-null.
         assertTrue( !row.has( "ownerLogin" ) || row.get( "ownerLogin" ).isJsonNull(),
                 "orphaned row must have null ownerLogin: " + row );
+    }
+
+    @Test
+    void get_orphaned_row_includes_current_page_name() throws Exception {
+        // The Orphaned table must carry the current page name (slug) alongside the
+        // canonical_id, resolved through the structural index.
+        final StructuralIndexService idx = Mockito.mock( StructuralIndexService.class );
+        Mockito.doReturn( idx ).when( servlet ).structuralIndex();
+        Mockito.when( idx.resolveSlugFromCanonicalId( "CID-1" ) ).thenReturn( Optional.of( "Main" ) );
+
+        Mockito.when( pageOwners.listOrphaned( 50, 0 ) ).thenReturn( List.of(
+                new PageOwnership( "CID-1", null, "admin", Instant.parse( "2026-01-01T00:00:00Z" ) ) ) );
+        Mockito.when( pageOwners.countOrphaned() ).thenReturn( 1 );
+
+        final JsonObject body = get( "?filter=orphaned" );
+        final JsonObject row = body.getAsJsonArray( "pages" ).get( 0 ).getAsJsonObject();
+        assertEquals( "Main", row.get( "pageName" ).getAsString(),
+                "orphaned row must carry the current page name: " + row );
     }
 
     @Test

@@ -823,7 +823,7 @@
 .admin-sidebar-group { margin-top: var(--space-md); }
 .admin-sidebar-group-title {
   font-family: var(--font-ui); font-size: 0.6875rem; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--text-muted); margin: 0 0 4px var(--space-sm);
+  text-transform: uppercase; color: var(--text); font-weight: 700; margin: 0 0 4px var(--space-sm);
 }
 .admin-sidebar-link {
   display: block; padding: 5px var(--space-sm); border-radius: var(--radius-sm);

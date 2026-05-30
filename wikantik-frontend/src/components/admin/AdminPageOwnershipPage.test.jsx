@@ -15,6 +15,7 @@ import { api } from '../../api/client';
 
 const orphanedRow = {
   canonicalId: 'page-001',
+  pageName: 'RetirementPlanningGuide',
   ownerLogin: null,
   assignedBy: 'system',
   assignedAt: '2026-05-01T10:00:00Z',
@@ -22,6 +23,7 @@ const orphanedRow = {
 
 const ownedRow = {
   canonicalId: 'page-042',
+  pageName: 'AlicePage',
   ownerLogin: 'alice',
   assignedBy: 'admin',
   assignedAt: '2026-05-10T10:00:00Z',
@@ -56,6 +58,9 @@ describe('AdminPageOwnershipPage', () => {
       expect(api.admin.pageOwnership.listOrphaned).toHaveBeenCalled(),
     );
     expect(await screen.findByText('page-001')).toBeInTheDocument();
+    // The current page name renders alongside the canonical id.
+    expect(screen.getByText('RetirementPlanningGuide')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Page name' })).toBeInTheDocument();
     expect(api.admin.pageOwnership.listByOwner).not.toHaveBeenCalled();
   });
 

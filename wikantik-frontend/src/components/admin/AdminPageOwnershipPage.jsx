@@ -217,6 +217,7 @@ export default function AdminPageOwnershipPage() {
         <table className="admin-table">
           <thead>
             <tr>
+              <th>Page name</th>
               <th>Canonical id</th>
               <th>Owner</th>
               <th>Assigned by</th>
@@ -227,7 +228,7 @@ export default function AdminPageOwnershipPage() {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan="5" className="admin-empty">
+                <td colSpan="6" className="admin-empty">
                   {filter === FILTER_BY_OWNER && !submittedOwner
                     ? 'Enter a login above and hit Search.'
                     : 'No pages found.'}
@@ -236,6 +237,7 @@ export default function AdminPageOwnershipPage() {
             ) : (
               rows.map((r) => (
                 <tr key={r.canonicalId}>
+                  <td>{r.pageName || '—'}</td>
                   <td><strong>{r.canonicalId}</strong></td>
                   <td>{r.ownerLogin || '—'}</td>
                   <td>{r.assignedBy ?? ''}</td>

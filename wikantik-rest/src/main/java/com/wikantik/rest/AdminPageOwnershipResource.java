@@ -21,6 +21,7 @@ package com.wikantik.rest;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.wikantik.api.comments.PageOwnership;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
@@ -76,6 +77,29 @@ public class AdminPageOwnershipResource extends RestServletBase {
         return getSubsystems().auth().users().getUserDatabase();
     }
 
+    protected StructuralIndexService structuralIndex() {
+        return getSubsystems().pageGraph().structuralIndexService();
+    }
+
+    /**
+     * Resolves a canonical_id to its current page name (slug). Returns
+     * {@code null} when the structural index is unavailable or carries no
+     * entry for the id. Never throws — a missing page name must degrade
+     * gracefully rather than break the ownership listing.
+     */
+    protected String resolvePageName( final String canonicalId ) {
+        try {
+            final StructuralIndexService idx = structuralIndex();
+            if ( idx == null ) {
+                return null;
+            }
+            return idx.resolveSlugFromCanonicalId( canonicalId ).orElse( null );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "resolvePageName({}) failed: {}", canonicalId, e.getMessage() );
+            return null;
+        }
+    }
+
     protected String currentUser( final HttpServletRequest request ) {
         return Wiki.session().find( getEngine(), request ).getLoginPrincipal().getName();
     }
@@ -120,7 +144,7 @@ public class AdminPageOwnershipResource extends RestServletBase {
         }
 
         final Map< String, Object > body = new LinkedHashMap<>();
-        body.put( "pages", rows.stream().map( AdminPageOwnershipResource::toMap ).toList() );
+        body.put( "pages", rows.stream().map( this::toMap ).toList() );
         body.put( "total", total );
         sendJson( response, body );
     }
@@ -206,9 +230,10 @@ public class AdminPageOwnershipResource extends RestServletBase {
 
     /* ---- helpers ---- */
 
-    private static Map< String, Object > toMap( final PageOwnership p ) {
+    private Map< String, Object > toMap( final PageOwnership p ) {
         final Map< String, Object > m = new LinkedHashMap<>();
         m.put( "canonicalId", p.canonicalId() );
+        m.put( "pageName",    resolvePageName( p.canonicalId() ) );
         m.put( "ownerLogin",  p.ownerLogin() );
         m.put( "assignedBy",  p.assignedBy() );
         m.put( "assignedAt",  p.assignedAt() == null ? null : p.assignedAt().toString() );

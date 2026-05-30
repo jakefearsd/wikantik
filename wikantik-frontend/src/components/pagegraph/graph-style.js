@@ -1,3 +1,24 @@
+const CLUSTER_SHAPES = [
+  'ellipse', 'rectangle', 'diamond', 'hexagon', 'triangle', 'pentagon', 'octagon',
+];
+
+function stableHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * Deterministically map a cluster name to a Cytoscape node shape.
+ * Same cluster always produces the same shape; cycles through CLUSTER_SHAPES.
+ */
+export function shapeForCluster(cluster) {
+  if (!cluster) return 'ellipse';
+  return CLUSTER_SHAPES[stableHash(cluster) % CLUSTER_SHAPES.length];
+}
+
 export const graphStylesheet = [
   {
     selector: 'node',
@@ -108,6 +129,10 @@ export const graphStylesheet = [
   {
     selector: 'node[clusterColor]',
     style: { 'border-color': 'data(clusterColor)', 'border-width': 3 },
+  },
+  {
+    selector: 'node[clusterShape]',
+    style: { 'shape': 'data(clusterShape)' },
   },
   {
     selector: ':selected',

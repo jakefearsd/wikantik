@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { shapeForCluster } from './graph-style.js';
 
 const NODE_ROLES = [
   { role: 'hub', color: '#059669', label: 'Hub' },
@@ -10,7 +11,18 @@ const NODE_ROLES = [
 
 const PAGE_LINK_COLOR = '#94a3b8';
 
-export default function GraphLegend({ hubDegreeThreshold, timestamp }) {
+/** Map Cytoscape shape name → a small unicode / ASCII glyph for the legend. */
+const SHAPE_GLYPH = {
+  ellipse: '○',
+  rectangle: '▭',
+  diamond: '◇',
+  hexagon: '⬡',
+  triangle: '△',
+  pentagon: '⬠',
+  octagon: '⯃',
+};
+
+export default function GraphLegend({ hubDegreeThreshold, timestamp, clusters }) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -48,6 +60,29 @@ export default function GraphLegend({ hubDegreeThreshold, timestamp }) {
               <span>{'\u2194'} bidirectional</span>
             </div>
           </div>
+          {clusters && clusters.length > 0 && (
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--space-xs)', marginTop: 'var(--space-xs)' }}>
+              <div style={{ fontWeight: 600, marginBottom: 2, fontSize: '0.75rem' }}>Clusters</div>
+              {clusters.map(({ name, color }) => {
+                const shape = shapeForCluster(name);
+                const glyph = SHAPE_GLYPH[shape] || '○';
+                return (
+                  <div key={name} className="graph-legend-item">
+                    <span
+                      className="graph-legend-swatch"
+                      style={{ backgroundColor: color }}
+                      aria-hidden="true"
+                    />
+                    <span
+                      aria-label={`shape: ${shape}`}
+                      style={{ fontFamily: 'monospace', fontSize: '0.85rem', lineHeight: 1 }}
+                    >{glyph}</span>
+                    <span>{name}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div style={{ marginTop: 'var(--space-xs)', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
             snapshot: {timestamp}
           </div>

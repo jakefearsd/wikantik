@@ -15,6 +15,7 @@ import GraphErrorState from './GraphErrorState.jsx';
 import GraphErrorBoundary from './GraphErrorBoundary.jsx';
 import GraphLoadingFallback from './GraphLoadingFallback.jsx';
 import { setEdgeTypeHidden, setShowOrphansStubs } from './filter-state.js';
+import { colorForCluster } from './filter-engine.js';
 import './graph.css';
 
 export default function PageGraphView() {
@@ -81,6 +82,15 @@ export default function PageGraphView() {
   }, [snapshot]);
 
   /* edgeTypes kept for GraphToolbar edge-filter popover; not passed to GraphLegend */
+
+  const clusterList = useMemo(() => {
+    if (!snapshot) return [];
+    const seen = new Map();
+    for (const n of snapshot.nodes) {
+      if (n.cluster && !seen.has(n.cluster)) seen.set(n.cluster, colorForCluster(n.cluster));
+    }
+    return [...seen.entries()].map(([name, color]) => ({ name, color }));
+  }, [snapshot]);
 
   const timestamp = useMemo(() => {
     if (!snapshot?.generatedAt) return '';
@@ -199,6 +209,7 @@ export default function PageGraphView() {
           <GraphLegend
             hubDegreeThreshold={snapshot?.hubDegreeThreshold || 10}
             timestamp={timestamp}
+            clusters={clusterList}
           />
         </div>
         {noVisibleNodes && (

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import GraphLegend from './GraphLegend.jsx';
+import { shapeForCluster } from './graph-style.js';
 
 describe('GraphLegend', () => {
   const defaultProps = {
@@ -45,5 +46,43 @@ describe('GraphLegend', () => {
   it('shows timestamp', () => {
     render(<GraphLegend {...defaultProps} />);
     expect(screen.getByText(/14:32:07/)).toBeTruthy();
+  });
+});
+
+describe('GraphLegend cluster shapes', () => {
+  const clusterProps = {
+    hubDegreeThreshold: 10,
+    timestamp: '14:32:07',
+    clusters: [
+      { name: 'math', color: '#2563eb' },
+      { name: 'science', color: '#dc2626' },
+    ],
+  };
+
+  it('renders a Clusters section when clusters prop is provided', () => {
+    render(<GraphLegend {...clusterProps} />);
+    expect(screen.getByText('Clusters')).toBeTruthy();
+  });
+
+  it('renders each cluster name', () => {
+    render(<GraphLegend {...clusterProps} />);
+    expect(screen.getByText('math')).toBeTruthy();
+    expect(screen.getByText('science')).toBeTruthy();
+  });
+
+  it('renders a shape glyph aria-label for each cluster', () => {
+    render(<GraphLegend {...clusterProps} />);
+    const mathShape = shapeForCluster('math');
+    expect(screen.getByLabelText(`shape: ${mathShape}`)).toBeTruthy();
+  });
+
+  it('does not render Clusters section when clusters prop is empty', () => {
+    render(<GraphLegend hubDegreeThreshold={10} timestamp="14:32:07" clusters={[]} />);
+    expect(screen.queryByText('Clusters')).toBeNull();
+  });
+
+  it('does not render Clusters section when clusters prop is absent', () => {
+    render(<GraphLegend hubDegreeThreshold={10} timestamp="14:32:07" />);
+    expect(screen.queryByText('Clusters')).toBeNull();
   });
 });

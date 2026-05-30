@@ -1,3 +1,5 @@
+import { shapeForCluster } from './graph-style.js';
+
 const PAGE_LINK_COLOR = '#94a3b8';
 
 function colorFor() {
@@ -84,7 +86,7 @@ export function toCytoscapeElements(snapshot, filter) {
         cluster: n.cluster ?? null,
         tags: n.tags ?? [],
         status: n.status ?? null,
-        ...(clusterColor ? { clusterColor } : {}),
+        ...(clusterColor ? { clusterColor, clusterShape: shapeForCluster(n.cluster) } : {}),
       },
       classes: classList.join(' '),
     };

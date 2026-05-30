@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { graphStylesheet } from './graph-style.js';
+import { graphStylesheet, shapeForCluster } from './graph-style.js';
 
 const selectors = graphStylesheet.map((rule) => rule.selector);
 
@@ -36,5 +36,44 @@ describe('graphStylesheet', () => {
   it('renders bidirectional edges with source arrows', () => {
     const bidir = graphStylesheet.find((r) => r.selector === 'edge[?bidirectional]');
     expect(bidir.style['source-arrow-shape']).toBe('triangle');
+  });
+});
+
+const VALID_SHAPES = ['ellipse', 'rectangle', 'diamond', 'hexagon', 'triangle', 'pentagon', 'octagon'];
+
+describe('shapeForCluster', () => {
+  it('returns a known Cytoscape shape name', () => {
+    expect(VALID_SHAPES).toContain(shapeForCluster('math'));
+    expect(VALID_SHAPES).toContain(shapeForCluster('science'));
+    expect(VALID_SHAPES).toContain(shapeForCluster('history'));
+  });
+
+  it('is deterministic — same cluster always same shape', () => {
+    const clusters = ['math', 'science', 'history', 'art', 'bio'];
+    for (const c of clusters) {
+      expect(shapeForCluster(c)).toBe(shapeForCluster(c));
+    }
+  });
+
+  it('cycles through shape set (different clusters map to different shapes)', () => {
+    // Generate enough clusters to cycle the full shape set
+    const names = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta'];
+    const shapes = names.map(shapeForCluster);
+    // All returned values must be in the valid set
+    for (const s of shapes) expect(VALID_SHAPES).toContain(s);
+    // Across 8 clusters we must see at least 2 distinct shapes (cycle exists)
+    expect(new Set(shapes).size).toBeGreaterThan(1);
+  });
+
+  it('returns "ellipse" for null/undefined (no cluster)', () => {
+    expect(shapeForCluster(null)).toBe('ellipse');
+    expect(shapeForCluster(undefined)).toBe('ellipse');
+    expect(shapeForCluster('')).toBe('ellipse');
+  });
+
+  it('stylesheet includes a node[clusterShape] selector', () => {
+    const rule = graphStylesheet.find((r) => r.selector === 'node[clusterShape]');
+    expect(rule).toBeTruthy();
+    expect(rule.style['shape']).toBe('data(clusterShape)');
   });
 });

@@ -57,8 +57,11 @@ vi.mock('../api/client', () => ({
     resolveCommentThread: vi.fn(),
     reopenCommentThread: vi.fn(),
     deleteCommentThread: vi.fn(),
+    deletePage: vi.fn(),
+    renamePage: vi.fn(),
     getSimilarPages: vi.fn(),
     getHistory: vi.fn(),
+    listMentionableUsers: vi.fn(),
   },
 }));
 
@@ -82,6 +85,9 @@ beforeEach(() => {
   api.deleteCommentThread.mockResolvedValue({});
   api.getSimilarPages.mockResolvedValue({ pages: [] });
   api.getHistory.mockResolvedValue({ versions: [] });
+  api.deletePage.mockResolvedValue({});
+  api.renamePage.mockResolvedValue({ newName: 'FooRenamed' });
+  api.listMentionableUsers.mockResolvedValue({ users: [] });
 
   // happy-dom lacks layout: stub the APIs the comment paths reach for.
   Element.prototype.scrollIntoView = vi.fn();
@@ -652,5 +658,64 @@ describe('PageView comment integration', () => {
 
     await act(async () => { resolveReopen({}); });
     await waitFor(() => expect(api.reopenCommentThread).toHaveBeenCalledWith('T1'));
+  }, TEST_TIMEOUT);
+
+  // --- Modal shell for delete and rename: #31/#33 ----------------------------
+
+  it('[#31] delete modal uses Modal shell (role=dialog, Esc closes)', async () => {
+    api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true, rename: true } }));
+    renderPageView();
+    await awaitStableLoaded();
+
+    // Open delete modal.
+    await act(async () => { fireEvent.click(screen.getByTestId('delete-page-button')); });
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByText(/Are you sure you want to delete/)).toBeInTheDocument();
+
+    // Esc closes.
+    await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }); });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  }, TEST_TIMEOUT);
+
+  it('[#31] delete modal Delete button calls api.deletePage', async () => {
+    api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true } }));
+    renderPageView();
+    await awaitStableLoaded();
+    await act(async () => { fireEvent.click(screen.getByTestId('delete-page-button')); });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
+    await waitFor(() => expect(api.deletePage).toHaveBeenCalledWith('Foo'));
+  }, TEST_TIMEOUT);
+
+  it('[#33] rename modal uses Modal shell (role=dialog, Esc closes)', async () => {
+    api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, rename: true } }));
+    renderPageView();
+    await awaitStableLoaded();
+
+    // Open rename modal.
+    await act(async () => { fireEvent.click(screen.getByTestId('rename-page-button')); });
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByText(/Enter a new name for/)).toBeInTheDocument();
+
+    // Esc closes.
+    await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }); });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  }, TEST_TIMEOUT);
+
+  it('[#33] rename modal Rename button calls api.renamePage', async () => {
+    api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, rename: true } }));
+    renderPageView();
+    await awaitStableLoaded();
+    await act(async () => { fireEvent.click(screen.getByTestId('rename-page-button')); });
+    const dialog = await screen.findByRole('dialog');
+    // Query within the modal dialog to avoid clashing with the trigger button.
+    const input = dialog.querySelector('input[type="text"]');
+    await act(async () => { fireEvent.change(input, { target: { value: 'NewName' } }); });
+    // The submit "Rename" button inside the modal has class btn-primary.
+    const submitBtn = dialog.querySelector('.btn-primary');
+    await act(async () => { fireEvent.click(submitBtn); });
+    await waitFor(() => expect(api.renamePage).toHaveBeenCalledWith('Foo', 'NewName'));
   }, TEST_TIMEOUT);
 });

@@ -19,6 +19,7 @@ import SimilarPagesPanel from './SimilarPagesPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
 import CommentsDrawer from './CommentsDrawer';
 import MentionPicker from './MentionPicker';
+import Modal from './ui/Modal';
 import { useMentionPicker } from '../hooks/useMentionPicker';
 import { captureSelection } from '../utils/commentAnchor';
 import { anchorThreads, clearHighlights, anchorPendingHighlight, clearPendingHighlight } from '../utils/commentHighlight';
@@ -415,44 +416,46 @@ export default function PageView() {
         </div>
       </div>
 
-      {confirmDelete && (
-        <div className="modal-overlay" onClick={() => setConfirmDelete(false)}>
-          <div className="modal-content admin-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete Page</h3>
-            <p>Are you sure you want to delete "{name}"? This action cannot be undone.</p>
-            {deleteError && <p className="error-banner" style={{ marginBottom: 'var(--space-sm)' }}>{deleteError}</p>}
-            <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
-              <button className="btn btn-primary btn-danger" onClick={handleDelete}>Delete</button>
-            </div>
-          </div>
+      <Modal
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        labelledBy="delete-page-modal-title"
+        className="admin-modal"
+      >
+        <h3 id="delete-page-modal-title">Delete Page</h3>
+        <p>Are you sure you want to delete "{name}"? This action cannot be undone.</p>
+        {deleteError && <p className="error-banner" style={{ marginBottom: 'var(--space-sm)' }}>{deleteError}</p>}
+        <div className="modal-actions">
+          <button className="btn btn-ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
+          <button className="btn btn-primary btn-danger" onClick={handleDelete}>Delete</button>
         </div>
-      )}
+      </Modal>
 
-      {showRename && (
-        <div className="modal-overlay" onClick={() => setShowRename(false)}>
-          <div className="modal-content admin-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Rename Page</h3>
-            <p>Enter a new name for "{name}":</p>
-            <input
-              type="text"
-              className="form-input"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !renaming) handleRename(); }}
-              autoFocus
-              style={{ width: '100%', marginBottom: 'var(--space-sm)' }}
-            />
-            {renameError && <p className="error-banner" style={{ marginBottom: 'var(--space-sm)' }}>{renameError}</p>}
-            <div className="modal-actions">
-              <button className="btn btn-ghost" onClick={() => setShowRename(false)} disabled={renaming}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleRename} disabled={renaming}>
-                {renaming ? 'Renaming...' : 'Rename'}
-              </button>
-            </div>
-          </div>
+      <Modal
+        isOpen={showRename}
+        onClose={() => setShowRename(false)}
+        labelledBy="rename-page-modal-title"
+        className="admin-modal"
+      >
+        <h3 id="rename-page-modal-title">Rename Page</h3>
+        <p>Enter a new name for "{name}":</p>
+        <input
+          type="text"
+          className="form-input"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !renaming) handleRename(); }}
+          autoFocus
+          style={{ width: '100%', marginBottom: 'var(--space-sm)' }}
+        />
+        {renameError && <p className="error-banner" style={{ marginBottom: 'var(--space-sm)' }}>{renameError}</p>}
+        <div className="modal-actions">
+          <button className="btn btn-ghost" onClick={() => setShowRename(false)} disabled={renaming}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleRename} disabled={renaming}>
+            {renaming ? 'Renaming...' : 'Rename'}
+          </button>
         </div>
-      )}
+      </Modal>
       <MetadataPanel metadata={page.metadata} />
       <SimilarPagesPanel pageName={name} />
       <ChangeNotesPanel pageName={name} />

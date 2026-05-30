@@ -337,7 +337,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 }
 
 .theme-toggle {
-  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: var(--space-xs);
   border-radius: var(--radius-sm);
   transition: background var(--duration) var(--ease);
@@ -345,6 +347,23 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 
 .theme-toggle:hover {
   background: var(--border);
+}
+
+/* Icon inside the theme toggle — crossfade + slight rotation on swap */
+@keyframes theme-icon-in {
+  from { opacity: 0; transform: rotate(-30deg) scale(0.8); }
+  to   { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+
+.theme-toggle-icon {
+  animation: theme-icon-in var(--duration-slow) var(--ease) both;
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle-icon {
+    animation: none;
+  }
 }
 
 /* ============================================================

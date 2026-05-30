@@ -63,8 +63,13 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
 
         <div className="sidebar-user-row">
           <UserBadge />
-          <button className="theme-toggle" onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'}>
-            {dark ? '☀️' : '🌙'}
+          <button
+            className="theme-toggle"
+            onClick={toggleDark}
+            title={dark ? 'Light mode' : 'Dark mode'}
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            <Icon name={dark ? 'sun' : 'moon'} className="theme-toggle-icon" size={18} />
           </button>
         </div>
 

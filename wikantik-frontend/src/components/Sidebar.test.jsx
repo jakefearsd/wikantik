@@ -9,7 +9,11 @@ vi.mock('../api/client', () => ({
   },
 }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));
-vi.mock('../hooks/useDarkMode', () => ({ useDarkMode: () => [false, () => {}] }));
+
+// useDarkMode is a module-level mock so individual tests can override it.
+const mockToggleDark = vi.fn();
+vi.mock('../hooks/useDarkMode', () => ({ useDarkMode: vi.fn(() => [false, mockToggleDark]) }));
+
 vi.mock('./PersonalZone', () => ({ default: () => null }));
 vi.mock('./UserBadge', () => ({ default: () => null }));
 vi.mock('./SearchOverlay', () => ({ default: () => null }));
@@ -18,6 +22,7 @@ vi.mock('./NewArticleModal', () => ({ default: () => null }));
 import Sidebar from './Sidebar';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
+import { useDarkMode } from '../hooks/useDarkMode';
 
 const renderSidebar = (initialEntry = '/') =>
   render(
@@ -36,6 +41,8 @@ beforeEach(() => {
   useAuth.mockReturnValue({ user: { authenticated: false, roles: [] } });
   api.listPages.mockResolvedValue({ pages: [] });
   api.getRecentChanges.mockResolvedValue({ changes: [] });
+  // Default: light mode
+  useDarkMode.mockReturnValue([false, mockToggleDark]);
 });
 
 describe('Sidebar', () => {
@@ -70,6 +77,32 @@ describe('Sidebar', () => {
     renderSidebar();
     expect(screen.getByText('Unused pages')).toBeInTheDocument();
     expect(screen.getByText('Undefined pages')).toBeInTheDocument();
+  });
+
+  describe('#50 animated theme toggle + aria-label', () => {
+    it('theme toggle button has aria-label in light mode', () => {
+      useDarkMode.mockReturnValue([false, mockToggleDark]);
+      renderSidebar();
+      const btn = screen.getByRole('button', { name: /Switch to dark mode/i });
+      expect(btn).toBeInTheDocument();
+      expect(btn).toHaveAttribute('aria-label', 'Switch to dark mode');
+    });
+
+    it('theme toggle button has aria-label in dark mode', () => {
+      useDarkMode.mockReturnValue([true, mockToggleDark]);
+      renderSidebar();
+      const btn = screen.getByRole('button', { name: /Switch to light mode/i });
+      expect(btn).toBeInTheDocument();
+      expect(btn).toHaveAttribute('aria-label', 'Switch to light mode');
+    });
+
+    it('clicking the theme toggle calls toggleDark', () => {
+      useDarkMode.mockReturnValue([false, mockToggleDark]);
+      renderSidebar();
+      const btn = screen.getByRole('button', { name: /Switch to dark mode/i });
+      fireEvent.click(btn);
+      expect(mockToggleDark).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('aria-current on active nav links (#6)', () => {

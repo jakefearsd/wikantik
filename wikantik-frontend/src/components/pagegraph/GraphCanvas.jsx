@@ -3,6 +3,7 @@ import CytoscapeComponent from 'react-cytoscapejs';
 import coseBilkent from 'cytoscape-cose-bilkent';
 import cytoscape from 'cytoscape';
 import { graphStylesheet } from './graph-style.js';
+import { graphSummary } from './graph-a11y.js';
 
 cytoscape.use(coseBilkent);
 
@@ -180,8 +181,11 @@ export default function GraphCanvas({
     };
   }, [selectedId]);
 
+  const summary = graphSummary(elements);
+
   return (
-    <div className="graph-canvas-container">
+    <div className="graph-canvas-container" role="img" aria-label={summary}>
+      <p className="sr-only">{summary}</p>
       <CytoscapeComponent
         elements={CytoscapeComponent.normalizeElements(elements)}
         stylesheet={stylesheet}

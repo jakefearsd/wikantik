@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { useGlobalHotkeys } from '../hooks/useGlobalHotkeys';
 import SearchOverlay from './SearchOverlay';
 import PersonalZone from './PersonalZone';
 import UserBadge from './UserBadge';
@@ -23,17 +24,10 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
     api.getRecentChanges(20).then(d => setRecentChanges(d.changes || [])).catch(() => {});
   }, []);
 
-  // Cmd+K / Ctrl+K to open search
-  useEffect(() => {
-    const handler = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setSearchOpen(true);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
+  // Cmd+K / Ctrl+K to open search (via shared hook so the shortcut can be
+  // reused from other layouts without duplicating the listener logic)
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  useGlobalHotkeys({ onSearch: openSearch });
 
   // Group pages by cluster
   const clusters = {};

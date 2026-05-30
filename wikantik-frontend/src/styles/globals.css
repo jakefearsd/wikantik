@@ -173,6 +173,17 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   overflow-y: auto;
   transition: transform var(--duration-slow) var(--ease);
   z-index: 10;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.app-sidebar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.app-sidebar::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 100px;
 }
 
 .app-sidebar.collapsed {
@@ -699,11 +710,33 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline: none;
   resize: none;
   background: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.editor-textarea::-webkit-scrollbar {
+  width: 10px;
+}
+
+.editor-textarea::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 100px;
 }
 
 .editor-preview {
   overflow-y: auto;
   max-height: 70vh;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.editor-preview::-webkit-scrollbar {
+  width: 10px;
+}
+
+.editor-preview::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 100px;
 }
 
 .editor-toolbar {

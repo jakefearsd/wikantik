@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useToast } from '../hooks/useToast';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { formatRelative } from '../utils/datetime';
 import EmptyState from './ui/EmptyState';
 import Icon from './ui/Icon';
@@ -12,6 +13,7 @@ export default function MentionsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const toast = useToast();
+  useDocumentTitle('My mentions');
 
   const load = useCallback(async () => {
     setLoading(true);

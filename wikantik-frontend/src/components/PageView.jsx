@@ -5,6 +5,7 @@ import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { useToast } from '../hooks/useToast';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { renderMath } from '../utils/math';
 import { addCopyButtons } from '../utils/codeCopy';
 import { addHeadingAnchors } from '../utils/headingAnchors';
@@ -274,15 +275,11 @@ export default function PageView() {
     setDrawerOpen(true);
   };
 
-  // Sync document.title with current page. Integration tests assert titles
-  // like "Wikantik: Main" so keep the format stable.
-  useEffect(() => {
-    if (error?.status === 404) {
-      document.title = `Wikantik: Not Found`;
-    } else if (page) {
-      document.title = `Wikantik: ${name}`;
-    }
-  }, [name, page, error]);
+  // Sync document.title with current page via hook. Integration tests assert
+  // titles like "Wikantik: Main" so keep the format stable.
+  // Pass "Not Found" for 404s, the page name once loaded, or nothing while loading.
+  const titleArg = error?.status === 404 ? 'Not Found' : (page ? name : null);
+  useDocumentTitle(titleArg);
 
   // Record this page in the per-user recently-viewed ring buffer (localStorage).
   // Only fires for authenticated users on successfully-loaded pages (not 404s).

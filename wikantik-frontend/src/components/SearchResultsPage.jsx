@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { highlightTerms } from '../utils/highlight';
 import { formatDate } from '../utils/datetime';
 import Card from './ui/Card';
@@ -23,9 +24,9 @@ export default function SearchResultsPage() {
     setVisibleCount(PAGE_SIZE);
   }, [query]);
 
-  useEffect(() => {
-    document.title = query ? `Wikantik: Search results for ${query}` : 'Wikantik: Search';
-  }, [query]);
+  // Set document title via hook — keeps the "Wikantik: " prefix consistent.
+  const searchTitle = query ? `Search results for ${query}` : 'Search';
+  useDocumentTitle(searchTitle);
 
   if (!query) {
     return (

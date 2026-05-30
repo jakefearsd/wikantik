@@ -3,6 +3,8 @@ import { api } from '../api/client';
 import { useMentionPicker } from '../hooks/useMentionPicker';
 import MentionPicker from './MentionPicker';
 import CommentBody from './CommentBody';
+import EmptyState from './ui/EmptyState';
+import Icon from './ui/Icon';
 
 function ThreadCard({
   thread, detached, canModerate, focusedThreadId,
@@ -172,7 +174,12 @@ export default function CommentsDrawer({
             ))}
           </div>
         )}
-        {visible.length === 0 && <p className="comments-empty">No comments.</p>}
+        {visible.length === 0 && (
+          <EmptyState
+            icon={<Icon name="comment" />}
+            message="No comments yet."
+          />
+        )}
       </div>
     </aside>
   );

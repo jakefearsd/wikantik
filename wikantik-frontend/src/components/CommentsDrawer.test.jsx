@@ -105,4 +105,20 @@ describe('CommentsDrawer', () => {
     const { container } = setup({ statusFilter: 'open', focusedThreadId: null });
     expect(container.querySelector('.comment-thread.focused')).toBeNull();
   });
+
+  // --- #55: friendly empty state -------------------------------------------
+
+  it('[#55] renders EmptyState when there are no visible threads', () => {
+    setup({ statusFilter: 'open', threads: [] });
+    // EmptyState renders an admin-empty-message class element with the message.
+    expect(screen.getByText('No comments yet.')).toBeTruthy();
+    // The old "No comments." text should not appear.
+    expect(screen.queryByText('No comments.')).toBeNull();
+  });
+
+  it('[#55] renders EmptyState when all threads are filtered out', () => {
+    // Only open threads exist; filter is resolved → nothing visible.
+    setup({ statusFilter: 'resolved', threads: [threads[0]] }); // only the open thread (T1)
+    expect(screen.getByText('No comments yet.')).toBeTruthy();
+  });
 });

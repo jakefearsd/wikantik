@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+
+vi.mock('../hooks/useToast', () => ({
+  useToast: vi.fn(),
+}));
 
 vi.mock('../api/client', () => ({
   api: {
@@ -12,6 +16,7 @@ vi.mock('../api/client', () => ({
 
 import MentionsPage from './MentionsPage';
 import { api } from '../api/client';
+import { useToast } from '../hooks/useToast';
 
 const SAMPLE = [
   {
@@ -48,6 +53,7 @@ describe('MentionsPage', () => {
     api.listMyMentions.mockResolvedValue({ mentions: SAMPLE });
     api.markMentionRead.mockResolvedValue({ ok: true });
     api.markAllMentionsRead.mockResolvedValue({ updated: 2 });
+    useToast.mockReturnValue({ success: vi.fn(), error: vi.fn(), info: vi.fn() });
   });
 
   it('renders mentions list on mount with default unread filter', async () => {
@@ -95,5 +101,57 @@ describe('MentionsPage', () => {
     const links = screen.getAllByRole('link');
     const fooLink = links.find((l) => l.textContent === 'Foo');
     expect(fooLink.getAttribute('href')).toContain('/wiki/Foo?thread=t1&comment=c1');
+  });
+
+  describe('#54 optimistic mark-as-read', () => {
+    it('mark-one flips item to read synchronously before API resolves', async () => {
+      // Use a deferred promise so we can check state while API is in-flight
+      let resolveMarkOne;
+      api.markMentionRead.mockReturnValue(new Promise(res => { resolveMarkOne = res; }));
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText(/hi @alice please/)).toBeTruthy());
+
+      // Item m1 is unread — dismiss button visible
+      const dismissButtons = screen.getAllByTitle('Mark read');
+      expect(dismissButtons.length).toBeGreaterThan(0);
+
+      fireEvent.click(dismissButtons[0]);
+
+      // Synchronously: dismiss button for m1 should disappear (item is now read)
+      await waitFor(() => {
+        const btns = screen.queryAllByTitle('Mark read');
+        // Should have one fewer dismiss button (m1 is now read, m2 still unread)
+        expect(btns.length).toBeLessThan(dismissButtons.length);
+      });
+
+      // API not yet resolved, no reload yet
+      expect(api.listMyMentions).toHaveBeenCalledTimes(1);
+
+      // Now resolve to let cleanup happen
+      resolveMarkOne({ ok: true });
+      await waitFor(() => expect(api.listMyMentions).toHaveBeenCalledTimes(2));
+    });
+
+    it('mark-one reverts and shows error toast on API failure', async () => {
+      const errorToast = vi.fn();
+      useToast.mockReturnValue({ success: vi.fn(), error: errorToast, info: vi.fn() });
+      api.markMentionRead.mockRejectedValue(new Error('network error'));
+
+      renderPage();
+      await waitFor(() => expect(screen.getByText(/hi @alice please/)).toBeTruthy());
+
+      const dismissButtons = screen.getAllByTitle('Mark read');
+      const initialCount = dismissButtons.length;
+
+      fireEvent.click(dismissButtons[0]);
+
+      // After rejection: reverted — dismiss button count should be back to original
+      await waitFor(() => {
+        expect(errorToast).toHaveBeenCalled();
+      });
+      // Item should be reverted (dismiss button visible again)
+      expect(screen.getAllByTitle('Mark read').length).toBe(initialCount);
+    });
   });
 });

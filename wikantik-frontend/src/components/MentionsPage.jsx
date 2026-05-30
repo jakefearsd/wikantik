@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { useToast } from '../hooks/useToast';
 
 export default function MentionsPage() {
   const [status, setStatus] = useState('unread');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const toast = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -25,13 +27,32 @@ export default function MentionsPage() {
   useEffect(() => { load(); }, [load]);
 
   const markOne = async (id) => {
-    try { await api.markMentionRead(id); } catch (e) { console.warn('mark one failed', e); }
-    await load();
+    // Optimistic update: immediately mark item as read in local state
+    const prev = items;
+    setItems(current => current.map(m => m.id === id ? { ...m, readAt: new Date().toISOString() } : m));
+    try {
+      await api.markMentionRead(id);
+      await load();
+    } catch (e) {
+      // Revert on failure
+      setItems(prev);
+      toast.error('Failed to mark mention as read');
+    }
   };
 
   const markAll = async () => {
-    try { await api.markAllMentionsRead(); } catch (e) { console.warn('mark all failed', e); }
-    await load();
+    // Optimistic update: immediately mark all items as read
+    const prev = items;
+    const now = new Date().toISOString();
+    setItems(current => current.map(m => ({ ...m, readAt: m.readAt || now })));
+    try {
+      await api.markAllMentionsRead();
+      await load();
+    } catch (e) {
+      // Revert on failure
+      setItems(prev);
+      toast.error('Failed to mark all mentions as read');
+    }
   };
 
   return (

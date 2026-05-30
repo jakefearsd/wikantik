@@ -467,3 +467,26 @@ mark.comment-highlight-pulse { animation: comment-pulse 1.2s ease-out; }
   font-weight: 600;
 }
 .comment-mention-chip:hover { background: var(--border-strong); }
+
+/* ── Code-copy button ─────────────────────────────────────────────── */
+.article-prose pre { position: relative; }
+.code-copy-btn {
+  position: absolute;
+  top: var(--space-sm, 0.5rem);
+  right: var(--space-sm, 0.5rem);
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--surface, #fff);
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1;
+}
+.article-prose pre:hover .code-copy-btn,
+.article-prose pre:focus-within .code-copy-btn {
+  opacity: 1;
+}

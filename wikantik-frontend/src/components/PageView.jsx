@@ -5,6 +5,7 @@ import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { renderMath } from '../utils/math';
+import { addCopyButtons } from '../utils/codeCopy';
 import PageMeta from './PageMeta';
 import Breadcrumbs from './Breadcrumbs';
 import TableOfContents from './TableOfContents';
@@ -147,6 +148,19 @@ export default function PageView() {
   useEffect(() => {
     if (articleRef.current && page?.contentHtml) {
       renderMath(articleRef.current);
+    }
+  }, [page]);
+
+  // Inject copy-to-clipboard buttons into every <pre> block in the article.
+  // addCopyButtons is idempotent (data-copy-injected guard), so re-running on
+  // refetch is safe. Depends on `page` so it re-runs whenever the HTML is
+  // re-injected (auth state transitions, etc.).
+  useEffect(() => {
+    if (articleRef.current && page?.contentHtml) {
+      addCopyButtons(articleRef.current, {
+        onCopy: () => { /* toast is not wired here to keep this effect pure; button label updates inline */ },
+        onError: (err) => { console.warn('[codeCopy] clipboard write failed', err?.message || err); },
+      });
     }
   }, [page]);
 

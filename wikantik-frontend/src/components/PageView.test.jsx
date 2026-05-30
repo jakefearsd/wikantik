@@ -121,7 +121,7 @@ async function awaitStableLoaded() {
   await waitFor(() => expect(api.getPage.mock.calls.length).toBeGreaterThanOrEqual(2));
   await waitFor(() => {
     expect(screen.getByTestId('page-view')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /💬 Comments/ })).toBeInTheDocument();
+    expect(screen.getByTestId('comments-toggle-button')).toBeInTheDocument();
   });
 }
 
@@ -150,7 +150,7 @@ describe('PageView comment integration', () => {
   it('renders the page and the Comments toggle reflecting the loaded thread count', async () => {
     await mountAndSettle();
     expect(screen.getByTestId('page-view')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /💬 Comments \(1\)/ })).toBeInTheDocument();
+    expect(screen.getByTestId('comments-toggle-button')).toBeInTheDocument();
   }, TEST_TIMEOUT);
 
   it('anchors the open thread as a <mark> in the rendered article', async () => {
@@ -184,7 +184,7 @@ describe('PageView comment integration', () => {
 
   it('toggle button opens the drawer showing the loaded thread', async () => {
     await mountAndSettle();
-    const toggle = screen.getByRole('button', { name: /💬 Comments \(1\)/ });
+    const toggle = screen.getByTestId('comments-toggle-button');
     await act(async () => { fireEvent.click(toggle); });
     expect(screen.getByText(/first comment/)).toBeInTheDocument();
   }, TEST_TIMEOUT);
@@ -217,7 +217,7 @@ describe('PageView comment integration', () => {
 
     await act(async () => { fireEvent.mouseUp(article); });
 
-    const floating = await screen.findByRole('button', { name: /💬 Comment$/ });
+    const floating = await screen.findByTestId('comment-add-floating');
     expect(floating).toBeInTheDocument();
 
     // createThread: floating button opens the composer popover; the user types
@@ -257,12 +257,12 @@ describe('PageView comment integration', () => {
     await act(async () => { fireEvent.mouseUp(article); });
 
     expect(screen.getByText(/Can.t comment on math/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /💬 Comment$/ })).toBeNull();
+    expect(screen.queryByTestId('comment-add-floating')).toBeNull();
   }, TEST_TIMEOUT);
 
   it('drawer Reply and Resolve callbacks call the api then reload threads', async () => {
     await mountAndSettle();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /💬 Comments \(1\)/ })); });
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
 
     // Reply.
     const replyInput = screen.getByPlaceholderText('Reply…');
@@ -286,7 +286,7 @@ describe('PageView comment integration', () => {
     await waitFor(() => expect(api.getPage.mock.calls.length).toBeGreaterThanOrEqual(2));
     await waitFor(() => expect(screen.getByTestId('page-view')).toBeInTheDocument());
     // No threads → don't render the toggle, period.
-    expect(screen.queryByRole('button', { name: /💬 Comments/ })).toBeNull();
+    expect(screen.queryByTestId('comments-toggle-button')).toBeNull();
   }, TEST_TIMEOUT);
 
   it('toggle stays visible with (0) when only resolved threads exist', async () => {
@@ -294,7 +294,7 @@ describe('PageView comment integration', () => {
     renderPageView();
     await awaitStableLoaded();
     // 1 thread total (resolved), 0 open → "(0)" so the user can still click through.
-    expect(screen.getByRole('button', { name: /💬 Comments \(0\)/ })).toBeInTheDocument();
+    expect(screen.getByTestId('comments-toggle-button')).toHaveTextContent('Comments (0)');
   }, TEST_TIMEOUT);
 
   it('count reflects open threads only, not total', async () => {
@@ -308,9 +308,9 @@ describe('PageView comment integration', () => {
     renderPageView();
     await awaitStableLoaded();
     // 2 open + 1 resolved → "(2)".
-    expect(screen.getByRole('button', { name: /💬 Comments \(2\)/ })).toBeInTheDocument();
+    expect(screen.getByTestId('comments-toggle-button')).toHaveTextContent('Comments (2)');
     // No "(3)" anywhere (total count would be wrong).
-    expect(screen.queryByRole('button', { name: /💬 Comments \(3\)/ })).toBeNull();
+    expect(screen.getByTestId('comments-toggle-button')).not.toHaveTextContent('(3)');
   }, TEST_TIMEOUT);
 
   it('drawer Reopen callback calls api.reopenCommentThread then reloads', async () => {
@@ -318,7 +318,7 @@ describe('PageView comment integration', () => {
     api.listCommentThreads.mockResolvedValue({ threads: [{ ...THREAD, status: 'resolved' }] });
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /💬 Comments/ })); });
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
 
     // Default filter is "open"; switch to "resolved" to reveal the thread + Reopen.
     await act(async () => {
@@ -347,7 +347,7 @@ describe('PageView comment integration', () => {
     // waitFor so a loading transient between queries can't trip us.
     await waitFor(() => {
       expect(screen.getByTestId('page-view')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /💬 Comments/ })).toBeNull();
+      expect(screen.queryByTestId('comments-toggle-button')).toBeNull();
     });
     expect(warn).toHaveBeenCalledWith('Failed to load comment threads', expect.any(Error));
   }, TEST_TIMEOUT);
@@ -368,7 +368,7 @@ describe('PageView comment integration', () => {
       rangeCount: 1, isCollapsed: false, getRangeAt: () => range, removeAllRanges: vi.fn(),
     });
     await act(async () => { fireEvent.mouseUp(article); });
-    const floating = await screen.findByRole('button', { name: /💬 Comment$/ });
+    const floating = await screen.findByTestId('comment-add-floating');
     await act(async () => { fireEvent.click(floating); });
     const textarea = await screen.findByPlaceholderText('Add a comment');
     await act(async () => { fireEvent.change(textarea, { target: { value: 'hi' } }); });
@@ -383,7 +383,7 @@ describe('PageView comment integration', () => {
     api.addCommentReply.mockRejectedValue(new Error('x'));
     api.resolveCommentThread.mockRejectedValue(new Error('x'));
     await mountAndSettle();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /💬 Comments \(1\)/ })); });
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
 
     // Reply failure → warn + finally reload.
     await act(async () => { fireEvent.change(screen.getByPlaceholderText('Reply…'), { target: { value: 'r' } }); });
@@ -402,7 +402,7 @@ describe('PageView comment integration', () => {
     api.listCommentThreads.mockResolvedValue({ threads: [{ ...THREAD, status: 'resolved' }] });
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /💬 Comments/ })); });
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
     await act(async () => {
       fireEvent.change(screen.getByRole('combobox'), { target: { value: 'resolved' } });
     });
@@ -418,7 +418,7 @@ describe('PageView comment integration', () => {
     api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true } }));
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /💬 Comments \(1\)/ })); });
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
     expect(screen.queryByTitle('Delete thread')).toBeNull();
   }, TEST_TIMEOUT);
 
@@ -427,7 +427,7 @@ describe('PageView comment integration', () => {
     api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true } }));
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /💬 Comments \(1\)/ })); });
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
     const callsBefore = api.listCommentThreads.mock.calls.length;
 
     // First click reveals the in-app confirm — api is NOT called yet.
@@ -497,7 +497,7 @@ describe('PageView comment integration', () => {
     api.getPage.mockImplementation(async () => ({ ...PAGE, permissions: { edit: true, delete: true } }));
     renderPageView();
     await awaitStableLoaded();
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /💬 Comments \(1\)/ })); });
+    await act(async () => { fireEvent.click(screen.getByTestId('comments-toggle-button')); });
     await act(async () => { fireEvent.click(screen.getByTitle('Delete thread')); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Delete$/ })); });
     await waitFor(() => expect(warn).toHaveBeenCalledWith('Failed to delete thread', expect.any(Error)));

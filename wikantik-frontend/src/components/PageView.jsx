@@ -7,6 +7,7 @@ import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { renderMath } from '../utils/math';
 import { addCopyButtons } from '../utils/codeCopy';
 import { addHeadingAnchors } from '../utils/headingAnchors';
+import Icon from './ui/Icon';
 import PageMeta from './PageMeta';
 import Breadcrumbs from './Breadcrumbs';
 import TableOfContents from './TableOfContents';
@@ -389,13 +390,13 @@ export default function PageView() {
         <PageMeta page={page} />
         <div style={{ display: 'flex', gap: 'var(--space-sm)', flexShrink: 0 }}>
           {threads.length > 0 && (
-            <button className="btn btn-ghost" onClick={() => setDrawerOpen((o) => !o)}>
-              💬 Comments ({threads.filter((t) => t.status === 'open').length})
+            <button className="btn btn-ghost" data-testid="comments-toggle-button" onClick={() => setDrawerOpen((o) => !o)}>
+              <Icon name="comment" title="Comments" size={15} /> Comments ({threads.filter((t) => t.status === 'open').length})
             </button>
           )}
           {page.permissions?.edit && (
             <Link to={`/edit/${name}`} className="btn btn-ghost" data-testid="edit-page-link">
-              ✎ Edit
+              <Icon name="edit" title="Edit" size={15} /> Edit
             </Link>
           )}
           {page.permissions?.rename && (
@@ -405,7 +406,7 @@ export default function PageView() {
           )}
           {page.permissions?.delete && (
             <button className="btn btn-ghost btn-danger" data-testid="delete-page-button" onClick={() => { setConfirmDelete(true); setDeleteError(null); }}>
-              🗑 Delete
+              <Icon name="trash" title="Delete" size={15} /> Delete
             </button>
           )}
         </div>
@@ -499,6 +500,7 @@ export default function PageView() {
       {selection?.selector && !composerOpen && (
         <button
           className="comment-add-floating"
+          data-testid="comment-add-floating"
           style={{ position: 'fixed', top: selection.rect.bottom + 6, left: selection.rect.left }}
           onClick={() => {
             // Paint a pending-highlight before opening the composer so the
@@ -510,7 +512,7 @@ export default function PageView() {
             setComposerOpen(true);
           }}
         >
-          💬 Comment
+          <Icon name="comment" title="Add comment" size={14} /> Comment
         </button>
       )}
       {selection?.selector && composerOpen && (

@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { renderMath } from '../utils/math';
 import PageMeta from './PageMeta';
+import Breadcrumbs from './Breadcrumbs';
 import MetadataPanel from './MetadataPanel';
 import SimilarPagesPanel from './SimilarPagesPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
@@ -337,6 +338,7 @@ export default function PageView() {
 
   return (
     <div className="page-enter" data-testid="page-view" data-page-name={name}>
+      <Breadcrumbs page={page} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-md)' }}>
         <PageMeta page={page} />
         <div style={{ display: 'flex', gap: 'var(--space-sm)', flexShrink: 0 }}>

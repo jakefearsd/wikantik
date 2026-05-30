@@ -1402,6 +1402,58 @@ a[data-attachment-missing] {
 }
 
 /* ============================================================
+   Breadcrumbs (#7)
+   ============================================================ */
+
+.breadcrumbs {
+  margin-bottom: var(--space-sm);
+}
+
+.breadcrumbs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.breadcrumbs-item {
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumbs-separator {
+  display: flex;
+  align-items: center;
+  margin: 0 var(--space-xs);
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.breadcrumbs-link {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.breadcrumbs-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.breadcrumbs-label {
+  color: var(--text-muted);
+}
+
+.breadcrumbs-current {
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* ============================================================
    Toast Notification System
    ============================================================ */
 

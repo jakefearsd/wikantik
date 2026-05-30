@@ -73,6 +73,14 @@
   text-decoration-color: var(--accent-hover);
 }
 
+.article-prose a:visited {
+  color: color-mix(in srgb, var(--accent) 60%, var(--text-muted) 40%);
+}
+
+.article-prose a:visited:hover {
+  color: color-mix(in srgb, var(--accent) 75%, var(--text-muted) 25%);
+}
+
 /* Lists */
 .article-prose ul, .article-prose ol {
   margin-bottom: var(--space-lg);

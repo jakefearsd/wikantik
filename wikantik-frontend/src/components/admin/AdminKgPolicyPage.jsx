@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../api/client';
+import Badge from '../ui/Badge';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
 import '../../styles/admin.css';
@@ -213,18 +214,18 @@ function ClusterRow({ row, onEdit, onClear }) {
 }
 
 function ActionBadge({ action }) {
-  if (action == null) return <span className="admin-badge badge-warning">Unset</span>;
-  if (action === 'include') return <span className="admin-badge badge-success">Include</span>;
-  return <span className="admin-badge badge-default">Exclude</span>;
+  if (action == null) return <Badge variant="warning">Unset</Badge>;
+  if (action === 'include') return <Badge variant="success">Include</Badge>;
+  return <Badge variant="default">Exclude</Badge>;
 }
 
 function LastReviewed({ at }) {
-  if (!at) return <span style={{ color: '#a00' }}>never</span>;
+  if (!at) return <span style={{ color: 'var(--danger)' }}>never</span>;
   const days = Math.floor((Date.now() - new Date(at).getTime()) / 86_400_000);
   const label = days < 1 ? 'today' : days === 1 ? '1 day ago' : `${days} days ago`;
   const stale = days > 90;
   return (
-    <span title={at} style={{ color: stale ? '#a00' : 'inherit' }}>
+    <span title={at} style={{ color: stale ? 'var(--danger)' : 'inherit' }}>
       {label}{stale && <span title="Policy is stale (>90 days)" style={{ marginLeft: '4px' }}>⚠</span>}
     </span>
   );

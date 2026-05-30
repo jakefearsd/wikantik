@@ -5,6 +5,8 @@ import remarkGfm from 'remark-gfm';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { highlightTerms } from '../utils/highlight';
+import EmptyState from './ui/EmptyState';
+import Icon from './ui/Icon';
 
 const PAGE_SIZE = 20;
 
@@ -43,6 +45,13 @@ export default function SearchResultsPage() {
 
   return (
     <div className="page-enter" data-testid="search-results-page" data-query={query}>
+      {results.length === 0 ? (
+        <EmptyState
+          icon={<Icon name="search" />}
+          message={`No results for "${query}"`}
+          action={<span>Try different keywords or check spelling.</span>}
+        />
+      ) : (
       <div style={{ marginBottom: 'var(--space-xl)' }}>
         <h1
           data-testid="search-results-heading"
@@ -53,49 +62,46 @@ export default function SearchResultsPage() {
             marginBottom: 'var(--space-xs)',
           }}
         >
-          {results.length > 0
-            ? `${results.length} result${results.length !== 1 ? 's' : ''} for "${query}"`
-            : `No results for "${query}"`
-          }
+          {`${results.length} result${results.length !== 1 ? 's' : ''} for "${query}"`}
         </h1>
-        {results.length === 0 && (
-          <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: 'var(--space-md)' }}>
-            Try different keywords or check the spelling.
-          </p>
-        )}
       </div>
+      )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }} data-testid="search-results-list">
-        {visibleResults.map(result => (
-          <SearchResultCard key={result.name} result={result} query={query} />
-        ))}
-      </div>
+      {results.length > 0 && (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }} data-testid="search-results-list">
+            {visibleResults.map(result => (
+              <SearchResultCard key={result.name} result={result} query={query} />
+            ))}
+          </div>
 
-      {hasMore && (
-        <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center' }}>
-          <p
-            data-testid="results-count"
-            style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 'var(--space-sm)' }}
-          >
-            Showing {visibleCount} of {results.length}
-          </p>
-          <button
-            data-testid="load-more-button"
-            onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-            style={{
-              padding: 'var(--space-sm) var(--space-lg)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-elevated)',
-              color: 'var(--text)',
-              cursor: 'pointer',
-              fontSize: '0.95rem',
-              fontFamily: 'var(--font-body)',
-            }}
-          >
-            Load more
-          </button>
-        </div>
+          {hasMore && (
+            <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center' }}>
+              <p
+                data-testid="results-count"
+                style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 'var(--space-sm)' }}
+              >
+                Showing {visibleCount} of {results.length}
+              </p>
+              <button
+                data-testid="load-more-button"
+                onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                style={{
+                  padding: 'var(--space-sm) var(--space-lg)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--text)',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                Load more
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

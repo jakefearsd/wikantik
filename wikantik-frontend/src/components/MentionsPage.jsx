@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useToast } from '../hooks/useToast';
+import EmptyState from './ui/EmptyState';
+import Icon from './ui/Icon';
 
 export default function MentionsPage() {
   const [status, setStatus] = useState('unread');
@@ -86,7 +88,10 @@ export default function MentionsPage() {
       {loading && <p className="mentions-empty">Loading…</p>}
       {error && <p className="mentions-error">Failed to load: {error}</p>}
       {!loading && !error && items.length === 0 && (
-        <p className="mentions-empty">No mentions{status === 'unread' ? ' to catch up on' : ''}.</p>
+        <EmptyState
+          icon={<Icon name="comment" />}
+          message="No mentions yet."
+        />
       )}
       <ul className="mentions-list">
         {items.map((m) => (

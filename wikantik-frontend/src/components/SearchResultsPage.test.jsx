@@ -108,4 +108,16 @@ describe('SearchResultsPage', () => {
     expect(screen.getAllByTestId('search-result-card')).toHaveLength(20);
     expect(screen.queryByTestId('load-more-button')).not.toBeInTheDocument();
   });
+
+  // #55 friendly empty state
+  it('#55 shows EmptyState when search returns zero results', () => {
+    useApi.mockReturnValue({ data: { results: [] }, loading: false, error: null });
+    renderPage('?q=nothing');
+    // EmptyState should render instead of a "No results" heading
+    expect(screen.getByTestId('search-results-page')).toBeInTheDocument();
+    // Should show empty state message
+    expect(screen.getByText(/No results for "nothing"/)).toBeInTheDocument();
+    // Should NOT render any result cards
+    expect(screen.queryAllByTestId('search-result-card')).toHaveLength(0);
+  });
 });

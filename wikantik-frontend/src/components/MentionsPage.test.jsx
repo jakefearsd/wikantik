@@ -92,7 +92,16 @@ describe('MentionsPage', () => {
   it('empty state shown when no mentions', async () => {
     api.listMyMentions.mockResolvedValue({ mentions: [] });
     renderPage();
-    await waitFor(() => expect(screen.getByText(/No mentions/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/No mentions yet/)).toBeTruthy());
+  });
+
+  it('#55 empty state uses EmptyState component', async () => {
+    api.listMyMentions.mockResolvedValue({ mentions: [] });
+    renderPage();
+    // The EmptyState renders an .admin-empty-state (or the ui EmptyState)
+    await waitFor(() => {
+      expect(screen.getByText(/No mentions yet/)).toBeInTheDocument();
+    });
   });
 
   it('view-in-context link goes to /wiki/<page>?thread=...&comment=...', async () => {

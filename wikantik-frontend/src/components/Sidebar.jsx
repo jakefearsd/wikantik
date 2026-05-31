@@ -1,19 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
-import SearchOverlay from './SearchOverlay';
 import PersonalZone from './PersonalZone';
 import UserBadge from './UserBadge';
 import NewArticleModal from './NewArticleModal';
 import Icon from './ui/Icon';
 
-export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose = () => {}, onMobileOpen = () => {} }) {
+export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose = () => {}, onMobileOpen = () => {}, onOpenSearch = () => {} }) {
   const { name: activePage } = useParams();
   const [pages, setPages] = useState([]);
   const [recentChanges, setRecentChanges] = useState([]);
-  const [searchOpen, setSearchOpen] = useState(false);
   const [newArticleOpen, setNewArticleOpen] = useState(false);
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [dark, toggleDark] = useDarkMode();
@@ -76,9 +74,9 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
         <button
           className="search-trigger"
           data-testid="sidebar-search-trigger"
-          onClick={() => setSearchOpen(true)}
+          onClick={onOpenSearch}
         >
-          <span>🔍</span> Search…
+          <Icon name="search" /> Search…
           <kbd>⌘K</kbd>
         </button>
 
@@ -202,7 +200,6 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
 
       </aside>
 
-      {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}
       {newArticleOpen && (
         <NewArticleModal
           isOpen={newArticleOpen}

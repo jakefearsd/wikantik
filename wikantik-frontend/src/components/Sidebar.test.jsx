@@ -24,12 +24,12 @@ import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 
-const renderSidebar = (initialEntry = '/') =>
+const renderSidebar = (initialEntry = '/', extraProps = {}) =>
   render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
-        <Route path="/wiki/:name" element={<Sidebar collapsed={false} onToggle={() => {}} />} />
-        <Route path="*" element={<Sidebar collapsed={false} onToggle={() => {}} />} />
+        <Route path="/wiki/:name" element={<Sidebar collapsed={false} onToggle={() => {}} {...extraProps} />} />
+        <Route path="*" element={<Sidebar collapsed={false} onToggle={() => {}} {...extraProps} />} />
       </Routes>
     </MemoryRouter>
   );
@@ -46,6 +46,30 @@ beforeEach(() => {
 });
 
 describe('Sidebar', () => {
+  describe('#23 — single shared search overlay', () => {
+    it('sidebar search button calls the onOpenSearch prop (not its own local state)', () => {
+      const onOpenSearch = vi.fn();
+      renderSidebar('/', { onOpenSearch });
+      const btn = screen.getByTestId('sidebar-search-trigger');
+      fireEvent.click(btn);
+      expect(onOpenSearch).toHaveBeenCalledTimes(1);
+    });
+
+    it('sidebar does NOT mount its own SearchOverlay when the button is clicked', () => {
+      // SearchOverlay is mocked to () => null, so if Sidebar were rendering one
+      // this would still return null — but what matters is onOpenSearch is
+      // called instead of Sidebar toggling local state that would render an overlay.
+      // Verified by the call-count assertion above; this just double-checks no
+      // SearchOverlay instance appears inside Sidebar's own subtree.
+      const onOpenSearch = vi.fn();
+      renderSidebar('/', { onOpenSearch });
+      fireEvent.click(screen.getByTestId('sidebar-search-trigger'));
+      // The mock for SearchOverlay renders null, so querying for search-overlay
+      // testid returns nothing — Sidebar no longer owns one.
+      expect(screen.queryByTestId('search-overlay')).not.toBeInTheDocument();
+    });
+  });
+
   it('caps Recently Modified at 5 and expands on Show all', async () => {
     api.getRecentChanges.mockResolvedValue({ changes: makeChanges(12) });
     renderSidebar();

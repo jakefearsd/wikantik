@@ -67,6 +67,7 @@ export default function App() {
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
           onMobileOpen={() => setMobileOpen(true)}
+          onOpenSearch={openSearch}
         />
       )}
       <main className={`app-main ${sidebarCollapsed ? 'expanded' : ''}`}>

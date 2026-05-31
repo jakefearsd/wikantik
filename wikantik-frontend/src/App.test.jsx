@@ -4,7 +4,15 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 // Mock all the heavy dependencies
 vi.mock('./hooks/useAuth', () => ({ useAuth: vi.fn() }));
-vi.mock('./components/Sidebar', () => ({ default: () => <div data-testid="sidebar" /> }));
+// Sidebar mock captures and exposes the onOpenSearch prop so App tests can
+// fire the sidebar search trigger and verify the single shared overlay opens.
+let capturedOnOpenSearch = null;
+vi.mock('./components/Sidebar', () => ({
+  default: (props) => {
+    capturedOnOpenSearch = props.onOpenSearch;
+    return <div data-testid="sidebar" />;
+  },
+}));
 vi.mock('./components/admin/AdminSidebar', () => ({ default: () => <div data-testid="admin-sidebar" /> }));
 vi.mock('./components/SearchOverlay', () => ({
   default: ({ onClose }) => (
@@ -17,6 +25,7 @@ vi.mock('./components/SearchOverlay', () => ({
 
 import App from './App';
 import { useAuth } from './hooks/useAuth';
+import { act } from '@testing-library/react';
 
 function renderApp(initialPath = '/') {
   return render(
@@ -30,7 +39,32 @@ function renderApp(initialPath = '/') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  capturedOnOpenSearch = null;
   useAuth.mockReturnValue({ user: { authenticated: false, roles: [] } });
+});
+
+describe('App #23 — single shared SearchOverlay', () => {
+  it('passes onOpenSearch prop to Sidebar', async () => {
+    renderApp('/wiki/Main');
+    expect(typeof capturedOnOpenSearch).toBe('function');
+  });
+
+  it('sidebar onOpenSearch opens the single shared overlay (exactly one)', async () => {
+    renderApp('/wiki/Main');
+    expect(screen.queryByTestId('search-overlay')).not.toBeInTheDocument();
+    await act(async () => { capturedOnOpenSearch(); });
+    // Only one search-overlay in the entire tree.
+    expect(screen.getAllByTestId('search-overlay').length).toBe(1);
+  });
+
+  it('Cmd+K and sidebar onOpenSearch both open the same overlay — still only one', async () => {
+    renderApp('/wiki/Main');
+    await act(async () => { capturedOnOpenSearch(); });
+    // Fire Cmd+K while already open — should not duplicate.
+    fireEvent.keyDown(window, { key: 'k', metaKey: true });
+    await waitFor(() =>
+      expect(screen.getAllByTestId('search-overlay').length).toBe(1));
+  });
 });
 
 describe('App #23-finish — Cmd+K search on all routes', () => {

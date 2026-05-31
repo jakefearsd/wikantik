@@ -660,6 +660,46 @@ describe('PageView comment integration', () => {
     await waitFor(() => expect(api.reopenCommentThread).toHaveBeenCalledWith('T1'));
   }, TEST_TIMEOUT);
 
+  // --- code-copy clipboard failure: #12 ----------------------------------------
+
+  it('[#12] clipboard write failure in addCopyButtons shows an error toast', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // Inject a <pre><code> block into the page HTML so addCopyButtons has something to inject.
+    api.getPage.mockImplementation(async () => ({
+      ...PAGE,
+      contentHtml: '<p>The quick brown fox jumps</p><pre><code>some code</code></pre>',
+    }));
+    // Clipboard will reject — simulating a permissions-denied scenario.
+    const writeText = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
+    vi.stubGlobal('navigator', { ...globalThis.navigator, clipboard: { writeText } });
+
+    const { container } = renderPageView();
+    // Wait for page to load fully.
+    await waitFor(() => expect(api.getPage.mock.calls.length).toBeGreaterThanOrEqual(2));
+    await waitFor(() => expect(screen.getByTestId('page-view')).toBeInTheDocument());
+
+    // addCopyButtons effect will have run; find the injected button inside the <pre>.
+    const copyBtn = await waitFor(() => {
+      const btn = container.querySelector('.code-copy-btn');
+      if (!btn) throw new Error('copy button not yet injected');
+      return btn;
+    });
+
+    await act(async () => { copyBtn.click(); });
+
+    // Flush the rejected promise chain.
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Error toast must appear.
+    await waitFor(() =>
+      expect(screen.getByText(/Couldn't copy to clipboard/i)).toBeInTheDocument());
+    // console.warn is still called for diagnostics.
+    expect(console.warn).toHaveBeenCalledWith(
+      '[codeCopy] clipboard write failed',
+      expect.anything(),
+    );
+  }, TEST_TIMEOUT);
+
   // --- Modal shell for delete and rename: #31/#33 ----------------------------
 
   it('[#31] delete modal uses Modal shell (role=dialog, Esc closes)', async () => {

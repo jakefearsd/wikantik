@@ -162,14 +162,19 @@ export default function PageView() {
   // addCopyButtons is idempotent (data-copy-injected guard), so re-running on
   // refetch is safe. Depends on `page` so it re-runs whenever the HTML is
   // re-injected (auth state transitions, etc.).
+  // useToast returns stable function references, so capturing toast inside the
+  // effect closure is safe — no stale reference risk.
   useEffect(() => {
     if (articleRef.current && page?.contentHtml) {
       addCopyButtons(articleRef.current, {
-        onCopy: () => { /* toast is not wired here to keep this effect pure; button label updates inline */ },
-        onError: (err) => { console.warn('[codeCopy] clipboard write failed', err?.message || err); },
+        onCopy: () => { /* button label updates inline; no toast needed on success */ },
+        onError: (err) => {
+          console.warn('[codeCopy] clipboard write failed', err?.message || err);
+          toast.error("Couldn't copy to clipboard");
+        },
       });
     }
-  }, [page]);
+  }, [page, toast]);
 
   // Re-anchor comment highlights into the rendered article. Placed AFTER the
   // renderMath effect so it runs after KaTeX has settled the DOM. Depends on

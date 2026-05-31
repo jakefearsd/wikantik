@@ -231,4 +231,39 @@ describe('SearchOverlay', () => {
     });
     expect(screen.queryAllByTestId('search-overlay-result')).toHaveLength(0);
   });
+
+  // ── View-all affordance: a discoverable path to the full results page ─────
+
+  it('shows a clickable "view all results" button when results exist', async () => {
+    mockSearch.mockResolvedValue(makeResults(['PageA', 'PageB']));
+    renderOverlay();
+    const input = screen.getByTestId('search-overlay-input');
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'page' } });
+      await new Promise((r) => setTimeout(r, 250));
+    });
+    const viewAll = screen.getByTestId('search-overlay-view-all');
+    expect(viewAll).toBeInTheDocument();
+    await act(async () => { fireEvent.click(viewAll); });
+    expect(mockNavigate).toHaveBeenCalledWith('/search?q=page');
+  });
+
+  it('offers "view all results" even when quick results are empty', async () => {
+    mockSearch.mockResolvedValue({ results: [] });
+    renderOverlay();
+    const input = screen.getByTestId('search-overlay-input');
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'obscure' } });
+      await new Promise((r) => setTimeout(r, 250));
+    });
+    const viewAll = screen.getByTestId('search-overlay-view-all');
+    expect(viewAll).toBeInTheDocument();
+    await act(async () => { fireEvent.click(viewAll); });
+    expect(mockNavigate).toHaveBeenCalledWith('/search?q=obscure');
+  });
+
+  it('does not show "view all results" before any query is entered', () => {
+    renderOverlay();
+    expect(screen.queryByTestId('search-overlay-view-all')).not.toBeInTheDocument();
+  });
 });

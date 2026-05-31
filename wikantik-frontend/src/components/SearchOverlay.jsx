@@ -173,6 +173,17 @@ export default function SearchOverlay({ onClose }) {
               )}
             </>
           ) : null}
+          {query.trim() && (
+            <button
+              type="button"
+              className="search-result-item search-view-all"
+              data-testid="search-overlay-view-all"
+              onClick={goToSearchResults}
+            >
+              <span>View all results for “{query.trim()}”</span>
+              <kbd className="search-view-all-kbd">Enter</kbd>
+            </button>
+          )}
         </div>
       </div>
     </div>

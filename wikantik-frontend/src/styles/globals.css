@@ -1542,6 +1542,37 @@ a[data-attachment-missing] {
   font-weight: 500;
 }
 
+/* Search overlay — "view all results" footer affordance.
+   Reuses .search-result-item for base layout/hover; adds a separator,
+   accent treatment, and a right-aligned Enter hint. */
+.search-view-all {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+  border-top: 1px solid var(--border);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.search-view-all span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-view-all-kbd {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: transparent;
+}
+
 /* ============================================================
    Table of Contents (#8)
    ============================================================ */

@@ -26,7 +26,7 @@ export default function LoginForm({ onClose }) {
   };
 
   return (
-    <Modal isOpen onClose={onClose} labelledBy="login-modal-title" className="search-dialog" style={{ maxWidth: '380px' }}>
+    <Modal isOpen onClose={onClose} labelledBy="login-modal-title" className="search-dialog" testId="login-modal">
         <form onSubmit={handleSubmit} data-testid="login-form" style={{ padding: 'var(--space-xl)' }}>
           <h2 id="login-modal-title" style={{
             fontFamily: 'var(--font-display)',

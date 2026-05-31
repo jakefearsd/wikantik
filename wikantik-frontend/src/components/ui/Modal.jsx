@@ -28,7 +28,7 @@ function getModalRoot() {
  *   labelledBy {string}         id of the element that labels this dialog.
  *   className  {string}         Optional extra class on the content element.
  */
-export default function Modal({ isOpen, onClose, children, labelledBy, className }) {
+export default function Modal({ isOpen, onClose, children, labelledBy, className, testId }) {
   const contentRef = useRef(null);
 
   // Activate focus trap and scroll lock while the modal is open.
@@ -59,6 +59,7 @@ export default function Modal({ isOpen, onClose, children, labelledBy, className
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
+        data-testid={testId}
         className={contentClasses}
         onClick={(e) => e.stopPropagation()}
       >

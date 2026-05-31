@@ -44,6 +44,14 @@ describe('LoginForm (#30)', () => {
     expect(screen.getByTestId('login-password')).toBeInTheDocument();
   });
 
+  // Regression guard: the Selenide login helper (ViewWikiPage.clickOnLogin →
+  // LoginPage.performLogin) waits for [data-testid=login-modal]. The Modal-shell
+  // migration must keep exposing it, or every browser IT that logs in breaks.
+  it('exposes the login-modal testid for the IT login helper', () => {
+    renderForm();
+    expect(screen.getByTestId('login-modal')).toBeInTheDocument();
+  });
+
   it('shows error on failed login', async () => {
     useAuth.mockReturnValue({ login: vi.fn().mockRejectedValue(new Error('bad')) });
     renderForm();

@@ -1484,7 +1484,7 @@ a[data-attachment-missing] {
     opacity: 0.6;
   }
 
-  .toast {
+  .wk-toast {
     animation: none;
     transform: none;
   }
@@ -1633,7 +1633,7 @@ a[data-attachment-missing] {
    Toast Notification System
    ============================================================ */
 
-.toast-container {
+.wk-toast-container {
   position: fixed;
   bottom: var(--space-lg);
   right: var(--space-lg);
@@ -1645,7 +1645,7 @@ a[data-attachment-missing] {
   pointer-events: none;
 }
 
-.toast {
+.wk-toast {
   display: flex;
   align-items: flex-start;
   gap: var(--space-sm);
@@ -1661,35 +1661,35 @@ a[data-attachment-missing] {
   animation: toast-in var(--duration) var(--ease);
 }
 
-.toast-success {
+.wk-toast-success {
   border-left: 4px solid var(--success);
   background: var(--success-bg);
 }
 
-.toast-error {
+.wk-toast-error {
   border-left: 4px solid var(--danger);
   background: var(--danger-bg);
 }
 
-.toast-info {
+.wk-toast-info {
   border-left: 4px solid var(--accent);
   background: var(--bg-elevated);
 }
 
-.toast-message {
+.wk-toast-message {
   flex: 1;
   color: var(--text);
 }
 
-.toast-success .toast-message {
+.wk-toast-success .wk-toast-message {
   color: var(--success);
 }
 
-.toast-error .toast-message {
+.wk-toast-error .wk-toast-message {
   color: var(--danger);
 }
 
-.toast-dismiss {
+.wk-toast-dismiss {
   flex-shrink: 0;
   background: none;
   border: none;
@@ -1702,7 +1702,7 @@ a[data-attachment-missing] {
   transition: color var(--duration) var(--ease);
 }
 
-.toast-dismiss:hover {
+.wk-toast-dismiss:hover {
   color: var(--text);
 }
 
@@ -1718,7 +1718,7 @@ a[data-attachment-missing] {
 }
 
 @media (max-width: 600px) {
-  .toast-container {
+  .wk-toast-container {
     bottom: var(--space-md);
     right: var(--space-md);
     left: var(--space-md);

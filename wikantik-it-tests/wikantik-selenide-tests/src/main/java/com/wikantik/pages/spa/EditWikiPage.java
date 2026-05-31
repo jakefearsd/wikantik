@@ -22,6 +22,7 @@ import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.SelenideElement;
 import com.codeborne.selenide.WebDriverRunner;
 import com.wikantik.pages.Page;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
@@ -32,9 +33,9 @@ import static com.codeborne.selenide.Selenide.$;
  * Page object for the React SPA page editor (the {@code PageEditor} component).
  *
  * <p>The editor route is {@code /edit/<pageName>}, served by the SPA routing
- * filter. The component renders a two-pane layout with a textarea
- * ({@code [data-testid=editor-textarea]}) and a markdown preview. Save/Cancel
- * buttons are located in the toolbar.
+ * filter. The component renders a two-pane layout with a CodeMirror 6 editor
+ * ({@code [data-testid=editor-textarea] .cm-content}) and a markdown preview.
+ * Save/Cancel buttons are located in the toolbar.
  */
 public class EditWikiPage implements SpaPage {
 
@@ -83,15 +84,19 @@ public class EditWikiPage implements SpaPage {
      * @return {@link ViewWikiPage} instance, to allow chaining of actions.
      */
     public ViewWikiPage saveText( final String text, final String preview ) {
-        // The textarea is a React controlled input (value={state} +
-        // onChange={setState}). Selenide's .val() / .clear() do not reliably
-        // trigger React's onChange, so the component's state would remain at
-        // whatever was loaded from the server and the Save button would post
-        // the old content. Use the native-setter helper to force React to
-        // pick up the new value via its synthetic event pipeline.
-        final SelenideElement textarea = $( "[data-testid=editor-textarea]" )
+        // The editor is now a CodeMirror 6 instance. The wrapper div carries
+        // data-testid="editor-textarea" but is not an <input> or <textarea>,
+        // so the old ReactInputs.setTextareaValue() JS prototype trick throws
+        // "Illegal invocation". Drive CodeMirror via its contenteditable
+        // .cm-content element instead: click to focus, select-all, delete any
+        // existing content, then send the new text. CodeMirror handles keyboard
+        // events natively and fires its onChange prop, updating React state.
+        final SelenideElement cmContent = $( "[data-testid=editor-textarea] .cm-content" )
             .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) );
-        ReactInputs.setTextareaValue( textarea, text );
+        cmContent.click();
+        cmContent.sendKeys( Keys.chord( Keys.CONTROL, "a" ) );
+        cmContent.sendKeys( Keys.DELETE );
+        cmContent.sendKeys( text );
 
         // The preview pane is a live-updated ReactMarkdown render; give it
         // a moment to reflect the new content before clicking Save.

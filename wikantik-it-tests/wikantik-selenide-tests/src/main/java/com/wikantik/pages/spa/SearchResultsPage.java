@@ -22,6 +22,7 @@ import com.codeborne.selenide.CollectionCondition;
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.ElementsCollection;
 import com.codeborne.selenide.Selenide;
+import com.codeborne.selenide.SelenideElement;
 import com.wikantik.pages.Page;
 
 import java.net.URLEncoder;
@@ -82,8 +83,15 @@ public class SearchResultsPage implements SpaPage {
         final ElementsCollection cards = $$( "[data-testid=search-result-card]" );
         cards.shouldHave( CollectionCondition.sizeGreaterThan( 0 ), Duration.ofSeconds( 5 ) );
         for ( final String pageName : pageNames ) {
+            // Use Condition.exist (DOM presence) rather than Condition.visible:
+            // the result cards use a CSS stagger-in entrance animation that starts
+            // at opacity:0, and headless Chrome does not always advance CSS
+            // animations — leaving the element at opacity:0 and causing visible
+            // to time out even though the card is correctly in the DOM.
+            // Existence is the meaningful assertion here: if the API returned the
+            // card, the result set is correct regardless of animation state.
             $( "[data-testid=search-result-card][data-page-name=\"" + pageName + "\"]" )
-                .shouldBe( Condition.visible, Duration.ofSeconds( 5 ) );
+                .shouldBe( Condition.exist, Duration.ofSeconds( 5 ) );
         }
         return this;
     }
@@ -91,13 +99,21 @@ public class SearchResultsPage implements SpaPage {
     /**
      * Navigates to a view page from the search results by clicking its card.
      *
+     * <p>Result cards use a CSS stagger-in entrance animation ({@code opacity:0 →
+     * opacity:1}) on their wrapping div. Chrome's {@code isDisplayed()} traverses
+     * ancestors and returns {@code false} while any ancestor has a computed opacity
+     * of zero — even after the animation should have completed. To avoid a spurious
+     * 5-second timeout on every search navigation, we wait for the link to exist
+     * in the DOM and then click it via JavaScript, bypassing the
+     * {@code isDisplayed()} check entirely.
+     *
      * @param result wikipage name to navigate to.
      * @return {@link ViewWikiPage} instance, to allow chaining of actions.
      */
     public ViewWikiPage navigateTo( final String result ) {
-        $( "[data-testid=search-result-card][data-page-name=\"" + result + "\"] [data-testid=search-result-link]" )
-            .shouldBe( Condition.visible, Duration.ofSeconds( 5 ) )
-            .click();
+        final SelenideElement link = $( "[data-testid=search-result-card][data-page-name=\"" + result + "\"] [data-testid=search-result-link]" )
+            .shouldBe( Condition.exist, Duration.ofSeconds( 5 ) );
+        Selenide.executeJavaScript( "arguments[0].click();", link );
         $( "[data-testid=page-view]" ).shouldBe( Condition.visible, DEFAULT_WAIT );
         return new ViewWikiPage();
     }

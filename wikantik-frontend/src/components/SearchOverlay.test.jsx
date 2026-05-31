@@ -87,7 +87,7 @@ describe('SearchOverlay', () => {
 
   // ── #24: Enter opens focused result ──────────────────────────────────────
 
-  it('#24 Enter with results and focused index 0 navigates to first result', async () => {
+  it('#24 Enter without selecting a result opens the full search results page', async () => {
     mockSearch.mockResolvedValue(makeResults(['PageA', 'PageB']));
     renderOverlay();
     const input = screen.getByTestId('search-overlay-input');
@@ -95,13 +95,14 @@ describe('SearchOverlay', () => {
       fireEvent.change(input, { target: { value: 'page' } });
       await new Promise((r) => setTimeout(r, 250));
     });
+    // No arrow-key selection -> Enter must land on /search, not open result #0.
     await act(async () => {
       fireEvent.keyDown(input, { key: 'Enter' });
     });
-    expect(mockNavigate).toHaveBeenCalledWith('/wiki/PageA');
+    expect(mockNavigate).toHaveBeenCalledWith('/search?q=page');
   });
 
-  it('#24 Enter after ArrowDown navigates to second result', async () => {
+  it('#24 Enter after ArrowDown opens the highlighted result', async () => {
     mockSearch.mockResolvedValue(makeResults(['PageA', 'PageB']));
     renderOverlay();
     const input = screen.getByTestId('search-overlay-input');
@@ -109,11 +110,12 @@ describe('SearchOverlay', () => {
       fireEvent.change(input, { target: { value: 'page' } });
       await new Promise((r) => setTimeout(r, 250));
     });
+    // From the unselected state, one ArrowDown highlights the first result.
     await act(async () => {
       fireEvent.keyDown(input, { key: 'ArrowDown' });
       fireEvent.keyDown(input, { key: 'Enter' });
     });
-    expect(mockNavigate).toHaveBeenCalledWith('/wiki/PageB');
+    expect(mockNavigate).toHaveBeenCalledWith('/wiki/PageA');
   });
 
   it('#24 Enter with query but zero results navigates to search results page', async () => {
@@ -140,8 +142,9 @@ describe('SearchOverlay', () => {
       fireEvent.change(input, { target: { value: 'page' } });
       await new Promise((r) => setTimeout(r, 250));
     });
-    // Navigate to last item (index 2)
+    // From unselected (-1): three ArrowDowns -> index 0,1,2 (last item).
     await act(async () => {
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
       fireEvent.keyDown(input, { key: 'ArrowDown' });
       fireEvent.keyDown(input, { key: 'ArrowDown' });
     });
@@ -164,8 +167,8 @@ describe('SearchOverlay', () => {
       await new Promise((r) => setTimeout(r, 250));
     });
     const items = screen.getAllByTestId('search-overlay-result');
-    // focused starts at 0
-    expect(items[0]).toHaveClass('focused');
+    // Nothing is highlighted until the user navigates.
+    expect(items[0]).not.toHaveClass('focused');
     await act(async () => {
       fireEvent.keyDown(input, { key: 'ArrowUp' });
     });

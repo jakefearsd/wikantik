@@ -9,12 +9,12 @@ import { highlightTerms } from '../utils/highlight';
 export default function SearchOverlay({ onClose }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
-  const [focused, setFocused] = useState(0);
+  const [focused, setFocused] = useState(-1);
   const [searching, setSearching] = useState(false);
   const inputRef = useRef(null);
   const navigate = useNavigate();
   // Keep refs for use in event handlers to avoid stale closures
-  const focusedRef = useRef(0);
+  const focusedRef = useRef(-1);
   const resultsRef = useRef([]);
 
   const { user } = useAuth();
@@ -57,7 +57,7 @@ export default function SearchOverlay({ onClose }) {
       try {
         const data = await api.search(query);
         setResultsSync(data.results || []);
-        setFocusedSync(0);
+        setFocusedSync(-1);
       } catch {
         setResultsSync([]);
       } finally {
@@ -88,10 +88,10 @@ export default function SearchOverlay({ onClose }) {
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (resultsRef.current.length === 0) return;
-      setFocusedSync(f => (f - 1 + resultsRef.current.length) % resultsRef.current.length);
+      setFocusedSync(f => (f <= 0 ? resultsRef.current.length - 1 : f - 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (resultsRef.current.length > 0) {
+      if (resultsRef.current.length > 0 && focusedRef.current >= 0) {
         recordSearch(query.trim());
         select(resultsRef.current[focusedRef.current].name);
       } else {

@@ -22,7 +22,6 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.PageDescriptor;
-import com.wikantik.api.pagegraph.StructuralFilter;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 
 import jakarta.servlet.ServletException;
@@ -160,7 +159,10 @@ public class PageListResource extends RestServletBase {
             if ( idx == null ) {
                 return clusterBySlug;
             }
-            for ( final PageDescriptor d : idx.listPagesByFilter( StructuralFilter.none() ) ) {
+            // Use sitemap() — the full, unbounded projection. listPagesByFilter
+            // (with StructuralFilter.none()) silently caps at 100 pages, which
+            // would leave all but the first 100 pages clusterless in the sidebar.
+            for ( final PageDescriptor d : idx.sitemap().pages() ) {
                 if ( d.cluster() != null && !d.cluster().isBlank() ) {
                     clusterBySlug.put( d.slug(), d.cluster() );
                 }

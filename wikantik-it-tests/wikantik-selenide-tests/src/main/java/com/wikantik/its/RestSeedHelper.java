@@ -74,6 +74,26 @@ public final class RestSeedHelper {
         writePage( name, content );
     }
 
+    /**
+     * Best-effort delete of a seeded page, for test cleanup. Swallows failures
+     * (a 404 for an already-absent page is fine) so it is safe in a finally
+     * block. Some provider stores (e.g. the custom-JDBC IT profile) persist
+     * across runs, so tests that seed pages should clean up after themselves.
+     */
+    public static void deletePageQuietly( final String name ) {
+        try {
+            final String url = Env.TESTS_BASE_URL + "/api/pages/" + name;
+            final HttpRequest req = HttpRequest.newBuilder( URI.create( url ) )
+                .header( "Authorization", authHeader() )
+                .DELETE()
+                .build();
+            CLIENT.send( req, HttpResponse.BodyHandlers.ofString() );
+        } catch ( final Exception e ) {
+            // best-effort — cleanup failure must not fail the test, but surface it
+            System.err.println( "deletePageQuietly: failed to delete '" + name + "': " + e );
+        }
+    }
+
     /** POST /admin/knowledge-graph/hub-discovery/run; returns the raw JSON body. */
     public static String runDiscovery() throws Exception {
         return post( "/admin/knowledge-graph/hub-discovery/run", "" );
@@ -97,42 +117,48 @@ public final class RestSeedHelper {
      * Throws {@link IllegalStateException} if the budget expires without a 200,
      * which signals a real auth misconfiguration rather than a propagation race.
      */
+    /** How long to wait for the post-login admin session-principal binding. */
+    private static final long ADMIN_READY_BUDGET_MS = 15_000;
+
     public static void awaitAdminReady() {
+        // Each call is a single-shot fetch that resolves in milliseconds; the
+        // retry budget lives in Java rather than a long-running async script, so
+        // it never collides with Selenide's async-script timeout. The JDBC
+        // profile can take several seconds to bind the session principal after
+        // performLogin (returning 403 until then), so poll generously.
         final String script = """
             const cb = arguments[arguments.length - 1];
             const base = window.__WIKANTIK_BASE__ || '';
-            const deadline = Date.now() + 3000;
-            const poll = () => {
-                fetch(base + '/admin/users', {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' },
-                    credentials: 'same-origin'
-                })
-                .then(r => {
-                    if (r.status === 200) { cb({ status: 200, body: '' }); return; }
-                    if (Date.now() > deadline) {
-                        r.text().then(b => cb({ status: r.status, body: b }));
-                        return;
-                    }
-                    setTimeout(poll, 50);
-                })
-                .catch(err => {
-                    if (Date.now() > deadline) { cb({ status: -1, body: String(err) }); return; }
-                    setTimeout(poll, 50);
-                });
-            };
-            poll();
+            fetch(base + '/admin/users', {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            })
+            .then(r => r.text().then(b => cb({ status: r.status, body: b })))
+            .catch(err => cb({ status: -1, body: String(err) }));
             """;
-        final Object result = com.codeborne.selenide.Selenide.executeAsyncJavaScript( script );
-        if ( result instanceof java.util.Map< ?, ? > m ) {
-            final Object status = m.get( "status" );
-            if ( status instanceof Number n && n.intValue() == 200 ) return;
-            throw new IllegalStateException(
-                "awaitAdminReady: 3s budget expired without 200 (last status="
-                + status + " body=" + m.get( "body" ) + ")" );
+
+        final long deadline = System.currentTimeMillis() + ADMIN_READY_BUDGET_MS;
+        Object lastStatus = null;
+        Object lastBody = null;
+        while ( System.currentTimeMillis() < deadline ) {
+            final Object result = com.codeborne.selenide.Selenide.executeAsyncJavaScript( script );
+            if ( result instanceof java.util.Map< ?, ? > m ) {
+                final Object status = m.get( "status" );
+                if ( status instanceof Number n && n.intValue() == 200 ) {
+                    return;
+                }
+                lastStatus = status;
+                lastBody = m.get( "body" );
+            } else {
+                lastStatus = ( result == null ? "null" : result.getClass().getName() );
+                lastBody = null;
+            }
+            com.codeborne.selenide.Selenide.sleep( 250 );
         }
-        throw new IllegalStateException( "awaitAdminReady: unexpected JS result "
-            + ( result == null ? "null" : result.getClass().getName() ) );
+        throw new IllegalStateException(
+            "awaitAdminReady: " + ADMIN_READY_BUDGET_MS + "ms budget expired without 200 (last status="
+            + lastStatus + " body=" + lastBody + ")" );
     }
 
     /**

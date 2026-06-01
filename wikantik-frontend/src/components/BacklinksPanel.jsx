@@ -22,7 +22,7 @@ export default function BacklinksPanel({ pageName }) {
   if (backlinks.length === 0) return null;
 
   return (
-    <div style={{ marginTop: 'var(--space-sm)', padding: 'var(--space-sm) var(--space-md)', background: 'var(--surface-secondary)', borderRadius: 'var(--radius-md)', fontSize: '0.85em' }}>
+    <div data-testid="backlinks-panel" style={{ marginTop: 'var(--space-sm)', padding: 'var(--space-sm) var(--space-md)', background: 'var(--surface-secondary)', borderRadius: 'var(--radius-md)', fontSize: '0.85em' }}>
       <strong>Referenced by:</strong>{' '}
       {backlinks.map((name, i) => (
         <span key={name}>

@@ -143,6 +143,28 @@ class PageListResourceTest {
         assertTrue( entry.has( "author" ) );
     }
 
+    /**
+     * Cluster enrichment is best-effort: it reads the structural index, which
+     * is not wired in this bare TestEngine harness. The resource must still
+     * return the page list without erroring and simply omit {@code cluster}
+     * when the index is unavailable (the null-guard in {@code loadClusterBySlug}).
+     * The positive path — {@code cluster} populated from frontmatter — is
+     * covered end-to-end by {@code ClusterTreeIT} against the wired WAR.
+     */
+    @Test
+    void testListPageOmitsClusterGracefullyWhenIndexUnavailable() throws Exception {
+        final String json = doGetList( "RestListAlpha", null, null );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "missing structural index must not error the list" );
+        final JsonArray pages = obj.getAsJsonArray( "pages" );
+        assertTrue( pages.size() >= 1 );
+        final JsonObject entry = pages.get( 0 ).getAsJsonObject();
+        assertTrue( entry.has( "name" ) );
+        assertFalse( entry.has( "cluster" ),
+                "cluster is omitted (not null/blank) when the index has no entry" );
+    }
+
     @Test
     void testListPagesWithInvalidLimit() throws Exception {
         final String json = doGetList( null, "not-a-number", null );

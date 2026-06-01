@@ -21,6 +21,9 @@ package com.wikantik.rest;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.api.pagegraph.PageDescriptor;
+import com.wikantik.api.pagegraph.StructuralFilter;
+import com.wikantik.api.pagegraph.StructuralIndexService;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,6 +35,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,6 +119,11 @@ public class PageListResource extends RestServletBase {
                 .limit( limit )
                 .toList();
 
+        // Cluster membership lives in the structural index (frontmatter-derived),
+        // not on the Page itself. Build a slug→cluster map so the sidebar can
+        // group pages by cluster. Degrade gracefully if the index is unavailable.
+        final Map< String, String > clusterBySlug = loadClusterBySlug();
+
         final List< Map< String, Object > > pageList = filtered.stream()
                 .map( page -> {
                     final Map< String, Object > entry = new LinkedHashMap<>();
@@ -122,6 +131,10 @@ public class PageListResource extends RestServletBase {
                     entry.put( "lastModified", page.getLastModified() );
                     entry.put( "version", Math.max( page.getVersion(), 1 ) );
                     entry.put( "author", page.getAuthor() );
+                    final String cluster = clusterBySlug.get( page.getName() );
+                    if ( cluster != null ) {
+                        entry.put( "cluster", cluster );
+                    }
                     return entry;
                 } )
                 .toList();
@@ -133,6 +146,29 @@ public class PageListResource extends RestServletBase {
         result.put( "limit", limit );
 
         sendJson( response, result );
+    }
+
+    /**
+     * Slug → cluster map sourced from the structural index. Returns an empty
+     * map (never null) when the index is unavailable or errors, so the page
+     * list still renders — just without cluster grouping in the sidebar.
+     */
+    private Map< String, String > loadClusterBySlug() {
+        final Map< String, String > clusterBySlug = new HashMap<>();
+        try {
+            final StructuralIndexService idx = getSubsystems().pageGraph().structuralIndexService();
+            if ( idx == null ) {
+                return clusterBySlug;
+            }
+            for ( final PageDescriptor d : idx.listPagesByFilter( StructuralFilter.none() ) ) {
+                if ( d.cluster() != null && !d.cluster().isBlank() ) {
+                    clusterBySlug.put( d.slug(), d.cluster() );
+                }
+            }
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "Could not load cluster metadata for page list: {}", e.getMessage() );
+        }
+        return clusterBySlug;
     }
 
 }

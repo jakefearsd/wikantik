@@ -6,6 +6,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Backlinks panel.** The reader page view now shows a "Referenced by" panel
+  listing the pages that link to the current page (backed by `/api/backlinks`).
+- **Collapsible cluster tree** in the reader sidebar — clusters are now
+  expandable/collapsible sections (state persisted), with the active page's
+  cluster auto-expanded and an "Uncategorized" bucket for clusterless pages.
+- **Search faceting.** The search results page gained a filter rail
+  (topic / author / tag / modified-date) that narrows results client-side.
+- **Editor insert helpers.** Table and fenced-code-block toolbar buttons, plus
+  `[[`-triggered autocomplete that inserts internal `[Name](Name)` wiki links
+  from the page list.
+
+### Fixed
+
+- **Sidebar cluster grouping.** `/api/pages` returned a cluster for only the
+  first 100 pages (the structural-index query silently capped at 100), so the
+  sidebar dumped most pages into "Uncategorized". It now reads the full sitemap
+  projection — cluster coverage went from 100 to 1161 of 1204 pages.
+
 ## [2.0.7] - 2026-05-31
 
 ## [2.0.6] - 2026-05-30

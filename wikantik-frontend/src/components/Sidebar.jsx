@@ -6,7 +6,16 @@ import { useDarkMode } from '../hooks/useDarkMode';
 import PersonalZone from './PersonalZone';
 import UserBadge from './UserBadge';
 import NewArticleModal from './NewArticleModal';
+import CollapsibleSection from './CollapsibleSection';
 import Icon from './ui/Icon';
+
+// Pages that already have a dedicated link in the Navigation / Wiki Tools /
+// Admin sections. They are excluded from the "Uncategorized" bucket so a
+// clusterless system page isn't listed twice.
+const KNOWN_NAV_PAGES = new Set([
+  'Main', 'About', 'News', 'RecentChanges', 'PageIndex', 'SystemInfo',
+  'UnusedPages', 'UndefinedPages',
+]);
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMobileClose = () => {}, onMobileOpen = () => {}, onOpenSearch = () => {} }) {
   const { name: activePage } = useParams();
@@ -21,17 +30,41 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
     api.getRecentChanges(20).then(d => setRecentChanges(d.changes || [])).catch(() => {});
   }, []);
 
-  // Group pages by cluster
+  // Group pages by cluster; clusterless pages (minus system nav pages) fall
+  // into an "Uncategorized" bucket.
   const clusters = {};
+  const uncategorized = [];
   pages.forEach(p => {
     const cluster = p.cluster || p.metadata?.cluster;
     if (cluster) {
       (clusters[cluster] = clusters[cluster] || []).push(p);
+    } else if (!KNOWN_NAV_PAGES.has(p.name)) {
+      uncategorized.push(p);
     }
   });
 
   const existingPageNames = new Set(pages.map(p => p.name));
   const existingClusters = Object.keys(clusters).sort();
+
+  // The cluster (or the Uncategorized bucket) holding the active page opens by
+  // default so a reader always sees where the current page sits in the tree.
+  const isActiveCluster = (clusterPages) => clusterPages.some(p => p.name === activePage);
+
+  const clusterLinks = (clusterPages) =>
+    clusterPages
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(p => (
+        <Link
+          key={p.name}
+          to={`/wiki/${p.name}`}
+          className={`sidebar-link ${activePage === p.name ? 'active' : ''}`}
+          onClick={onMobileClose}
+          {...(activePage === p.name ? { 'aria-current': 'page' } : {})}
+        >
+          {p.name}
+        </Link>
+      ));
 
   const navLink = (to, label) => {
     const isActive = activePage === to.replace('/wiki/', '');
@@ -181,22 +214,30 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           </div>
         )}
 
-        {/* Clusters */}
-        {Object.keys(clusters).sort().map(cluster => (
-          <div key={cluster} className="sidebar-section">
-            <div className="sidebar-section-title">{cluster}</div>
-            {clusters[cluster].sort((a, b) => a.name.localeCompare(b.name)).map(p => (
-              <Link
-                key={p.name}
-                to={`/wiki/${p.name}`}
-                className={`sidebar-link ${activePage === p.name ? 'active' : ''}`}
-                onClick={onMobileClose}
-              >
-                {p.name}
-              </Link>
-            ))}
-          </div>
+        {/* Clusters — collapsible tree; the active page's cluster opens by default */}
+        {existingClusters.map(cluster => (
+          <CollapsibleSection
+            key={cluster}
+            id={`cluster-${cluster}`}
+            title={cluster}
+            count={clusters[cluster].length}
+            defaultOpen={isActiveCluster(clusters[cluster])}
+          >
+            {clusterLinks(clusters[cluster])}
+          </CollapsibleSection>
         ))}
+
+        {/* Clusterless pages */}
+        {uncategorized.length > 0 && (
+          <CollapsibleSection
+            id="cluster-__uncategorized__"
+            title="Uncategorized"
+            count={uncategorized.length}
+            defaultOpen={isActiveCluster(uncategorized)}
+          >
+            {clusterLinks(uncategorized)}
+          </CollapsibleSection>
+        )}
 
       </aside>
 

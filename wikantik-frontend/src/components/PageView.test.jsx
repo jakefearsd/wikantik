@@ -10,8 +10,8 @@ import PageView from './PageView';
 // Determinism strategy (see the note at the bottom for the prior-flake history):
 //   * Mock every heavy collaborator so the render is cheap and never starves a
 //     parallel worker's event loop: ../utils/math (renderMath → no-op) and the
-//     four side panels (MetadataPanel/SimilarPagesPanel/ChangeNotesPanel/
-//     PageMeta → () => null). CommentsDrawer, commentAnchor and commentHighlight
+//     side panels (MetadataPanel/SimilarPagesPanel/BacklinksPanel/
+//     ChangeNotesPanel/PageMeta → () => null). CommentsDrawer, commentAnchor and commentHighlight
 //     stay REAL — they are the integration under test.
 //   * Mock ../api/client fully; every method resolves IMMEDIATELY (microtasks,
 //     not timers), so waitFor settles in a couple of ticks with no wall-clock
@@ -26,6 +26,7 @@ import PageView from './PageView';
 vi.mock('../utils/math', () => ({ renderMath: vi.fn() }));
 vi.mock('./MetadataPanel', () => ({ default: () => null }));
 vi.mock('./SimilarPagesPanel', () => ({ default: () => null }));
+vi.mock('./BacklinksPanel', () => ({ default: () => null }));
 vi.mock('./ChangeNotesPanel', () => ({ default: () => null }));
 vi.mock('./PageMeta', () => ({ default: () => null }));
 

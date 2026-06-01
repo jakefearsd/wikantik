@@ -38,6 +38,7 @@ const makeChanges = (n) => Array.from({ length: n }, (_, i) => ({ name: `Page${i
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear(); // CollapsibleSection persists open/closed state here.
   useAuth.mockReturnValue({ user: { authenticated: false, roles: [] } });
   api.listPages.mockResolvedValue({ pages: [] });
   api.getRecentChanges.mockResolvedValue({ changes: [] });
@@ -126,6 +127,64 @@ describe('Sidebar', () => {
       const btn = screen.getByRole('button', { name: /Switch to dark mode/i });
       fireEvent.click(btn);
       expect(mockToggleDark).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('collapsible cluster tree (#5)', () => {
+    const clusteredPages = [
+      { name: 'AclModel', cluster: 'Security' },
+      { name: 'PolicyGrants', cluster: 'Security' },
+      { name: 'DeployGuide', cluster: 'Operations' },
+    ];
+
+    it('renders each cluster as a collapsible header button', async () => {
+      api.listPages.mockResolvedValue({ pages: clusteredPages });
+      renderSidebar('/wiki/Main');
+      expect(await screen.findByRole('button', { name: /Security/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Operations/ })).toBeInTheDocument();
+    });
+
+    it('auto-expands the cluster containing the active page', async () => {
+      api.listPages.mockResolvedValue({ pages: clusteredPages });
+      renderSidebar('/wiki/AclModel');
+      // Security contains the active page → open, so its links are rendered.
+      expect(await screen.findByRole('link', { name: 'AclModel' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'PolicyGrants' })).toBeInTheDocument();
+    });
+
+    it('collapses clusters that do not contain the active page', async () => {
+      api.listPages.mockResolvedValue({ pages: clusteredPages });
+      renderSidebar('/wiki/AclModel');
+      await screen.findByRole('button', { name: /Operations/ });
+      // Operations is not the active cluster → collapsed, link not rendered.
+      expect(screen.queryByRole('link', { name: 'DeployGuide' })).not.toBeInTheDocument();
+      // Expanding it reveals the page.
+      fireEvent.click(screen.getByRole('button', { name: /Operations/ }));
+      expect(screen.getByRole('link', { name: 'DeployGuide' })).toBeInTheDocument();
+    });
+
+    it('places clusterless pages under Uncategorized, excluding system nav pages', async () => {
+      api.listPages.mockResolvedValue({
+        pages: [
+          { name: 'Main' },        // system nav page → must not appear under Uncategorized
+          { name: 'LoosePage' },   // genuinely uncategorized
+        ],
+      });
+      renderSidebar('/wiki/LoosePage');
+      const header = await screen.findByRole('button', { name: /Uncategorized/ });
+      expect(header).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'LoosePage' })).toBeInTheDocument();
+      // 'Main' is already a primary-nav link; it should not be duplicated here.
+      // (The primary "Main page" link has a different label, so any 'Main' link
+      // would be the duplicate we are guarding against.)
+      expect(screen.queryByRole('link', { name: 'Main' })).not.toBeInTheDocument();
+    });
+
+    it('does not render an Uncategorized section when every page is clustered', async () => {
+      api.listPages.mockResolvedValue({ pages: clusteredPages });
+      renderSidebar('/wiki/AclModel');
+      await screen.findByRole('button', { name: /Security/ });
+      expect(screen.queryByRole('button', { name: /Uncategorized/ })).not.toBeInTheDocument();
     });
   });
 

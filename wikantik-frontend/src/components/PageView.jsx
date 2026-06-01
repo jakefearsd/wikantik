@@ -18,6 +18,7 @@ import { extractHeadings } from '../utils/headings';
 import useScrollSpy from '../hooks/useScrollSpy';
 import MetadataPanel from './MetadataPanel';
 import SimilarPagesPanel from './SimilarPagesPanel';
+import BacklinksPanel from './BacklinksPanel';
 import ChangeNotesPanel from './ChangeNotesPanel';
 import CommentsDrawer from './CommentsDrawer';
 import MentionPicker from './MentionPicker';
@@ -461,6 +462,7 @@ export default function PageView() {
       </Modal>
       <MetadataPanel metadata={page.metadata} />
       <SimilarPagesPanel pageName={name} />
+      <BacklinksPanel pageName={name} />
       <ChangeNotesPanel pageName={name} />
 
       <div className="page-toc-wrapper">

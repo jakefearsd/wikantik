@@ -13,7 +13,7 @@ import { useDraft } from '../hooks/useDraft';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { formatRelative } from '../utils/datetime';
-import { toggleWrap, toggleLinePrefix, insertLink } from '../utils/markdownFormat';
+import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock } from '../utils/markdownFormat';
 import { useDarkMode } from '../hooks/useDarkMode';
 import EditorToolbar from './EditorToolbar';
 import CodeEditor from './CodeEditor';
@@ -67,6 +67,19 @@ export default function PageEditor() {
   // callbacks read current text without re-registering.
   const contentRef = useRef(content);
   contentRef.current = content;
+
+  // Page names for `[[`-triggered internal-link autocomplete in the editor.
+  // Held in a ref so CodeEditor's completion source (built once) always reads
+  // the freshly-loaded list without rebuilding the editor.
+  const pageNamesRef = useRef([]);
+  useEffect(() => {
+    let cancelled = false;
+    api.listPages({ limit: 1000 })
+      .then(d => { if (!cancelled) pageNamesRef.current = (d.pages || []).map(p => p.name); })
+      .catch(() => { /* autocomplete is a nicety; degrade silently */ });
+    return () => { cancelled = true; };
+  }, []);
+  const getPageNames = useCallback(() => pageNamesRef.current, []);
 
   const handleInsert = useCallback((text, pos) => {
     setContent(prev => prev.slice(0, pos) + text + prev.slice(pos));
@@ -171,8 +184,10 @@ export default function PageEditor() {
       case 'bold':    next = toggleWrap(state, '**'); break;
       case 'italic':  next = toggleWrap(state, '*');  break;
       case 'code':    next = toggleWrap(state, '`');  break;
+      case 'codeblock': next = insertCodeBlock(state); break;
       case 'heading': next = toggleLinePrefix(state, '## '); break;
       case 'list':    next = toggleLinePrefix(state, '- ');  break;
+      case 'table':   next = insertTable(state); break;
       case 'link':    next = insertLink(state); break;
       default: return;
     }
@@ -457,6 +472,7 @@ export default function PageEditor() {
             onBold={handleBold}
             onItalic={handleItalic}
             onLink={handleLink}
+            getLinkCompletions={getPageNames}
           />
         </div>
         <div className="editor-pane editor-preview">

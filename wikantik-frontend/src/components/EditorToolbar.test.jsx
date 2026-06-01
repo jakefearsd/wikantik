@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import EditorToolbar from './EditorToolbar';
 
 describe('EditorToolbar', () => {
-  it('renders six formatting buttons', () => {
+  it('renders all formatting buttons', () => {
     render(<EditorToolbar onCommand={vi.fn()} />);
 
     // Use title attributes — each button has a unique title
@@ -11,7 +11,9 @@ describe('EditorToolbar', () => {
     expect(screen.getByTitle(/italic/i)).toBeInTheDocument();
     expect(screen.getByTitle(/heading/i)).toBeInTheDocument();
     expect(screen.getByTitle(/list/i)).toBeInTheDocument();
-    expect(screen.getByTitle(/code/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/inline code/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/code block/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/table/i)).toBeInTheDocument();
     expect(screen.getByTitle(/link/i)).toBeInTheDocument();
   });
 
@@ -19,7 +21,7 @@ describe('EditorToolbar', () => {
     render(<EditorToolbar onCommand={vi.fn()} />);
     const toolbar = screen.getByRole('toolbar');
     const buttons = toolbar.querySelectorAll('button');
-    expect(buttons.length).toBe(6);
+    expect(buttons.length).toBe(8);
     buttons.forEach(btn => {
       expect(btn).toHaveAttribute('aria-label');
       expect(btn.getAttribute('aria-label').length).toBeGreaterThan(0);
@@ -54,11 +56,25 @@ describe('EditorToolbar', () => {
     expect(onCommand).toHaveBeenCalledWith('list');
   });
 
-  it('clicking Code calls onCommand("code")', () => {
+  it('clicking Inline code calls onCommand("code")', () => {
     const onCommand = vi.fn();
     render(<EditorToolbar onCommand={onCommand} />);
-    fireEvent.mouseDown(screen.getByTitle(/code/i));
+    fireEvent.mouseDown(screen.getByTitle(/inline code/i));
     expect(onCommand).toHaveBeenCalledWith('code');
+  });
+
+  it('clicking Code block calls onCommand("codeblock")', () => {
+    const onCommand = vi.fn();
+    render(<EditorToolbar onCommand={onCommand} />);
+    fireEvent.mouseDown(screen.getByTitle(/code block/i));
+    expect(onCommand).toHaveBeenCalledWith('codeblock');
+  });
+
+  it('clicking Table calls onCommand("table")', () => {
+    const onCommand = vi.fn();
+    render(<EditorToolbar onCommand={onCommand} />);
+    fireEvent.mouseDown(screen.getByTitle(/table/i));
+    expect(onCommand).toHaveBeenCalledWith('table');
   });
 
   it('clicking Link calls onCommand("link")', () => {

@@ -117,6 +117,49 @@ export function toggleLinePrefix(state, prefix) {
  * @param {{ text: string, selStart: number, selEnd: number }} state
  * @returns {{ text: string, selStart: number, selEnd: number }}
  */
+/**
+ * Leading newline needed so a block insertion starts on its own line: none
+ * when at the document start or already after a newline, otherwise '\n'.
+ */
+function blockLead(text, selStart) {
+  return (selStart === 0 || text[selStart - 1] === '\n') ? '' : '\n';
+}
+
+/**
+ * Insert a GFM table skeleton at the cursor (replacing any selection). The
+ * first header cell is selected so the user can type over it immediately.
+ *
+ * @param {{ text: string, selStart: number, selEnd: number }} state
+ * @returns {{ text: string, selStart: number, selEnd: number }}
+ */
+export function insertTable(state) {
+  const { text, selStart, selEnd } = state;
+  const lead = blockLead(text, selStart);
+  const block = '| Header 1 | Header 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n';
+  const newText = text.slice(0, selStart) + lead + block + text.slice(selEnd);
+  // 'Header 1' starts after the leading newline and the opening '| '.
+  const cellStart = selStart + lead.length + 2;
+  return { text: newText, selStart: cellStart, selEnd: cellStart + 'Header 1'.length };
+}
+
+/**
+ * Insert a fenced code block. Any selection becomes the block body; the
+ * `language` token is selected so the user can name the language (or delete it).
+ *
+ * @param {{ text: string, selStart: number, selEnd: number }} state
+ * @returns {{ text: string, selStart: number, selEnd: number }}
+ */
+export function insertCodeBlock(state) {
+  const { text, selStart, selEnd } = state;
+  const selected = text.slice(selStart, selEnd);
+  const lead = blockLead(text, selStart);
+  const block = '```language\n' + selected + '\n```\n';
+  const newText = text.slice(0, selStart) + lead + block + text.slice(selEnd);
+  // 'language' follows the leading newline and the opening ``` fence.
+  const langStart = selStart + lead.length + 3;
+  return { text: newText, selStart: langStart, selEnd: langStart + 'language'.length };
+}
+
 export function insertLink(state) {
   const { text, selStart, selEnd } = state;
   const selected = text.slice(selStart, selEnd);

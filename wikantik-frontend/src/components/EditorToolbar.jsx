@@ -3,16 +3,18 @@
  *
  * Props:
  *   onCommand(commandName) — called with one of:
- *     'bold' | 'italic' | 'heading' | 'list' | 'code' | 'link'
+ *     'bold' | 'italic' | 'heading' | 'list' | 'code' | 'codeblock' | 'table' | 'link'
  */
 export default function EditorToolbar({ onCommand }) {
   const buttons = [
-    { command: 'bold',    label: 'B',  title: 'Bold (⌘B)',    style: { fontWeight: 'bold' } },
-    { command: 'italic',  label: 'I',  title: 'Italic (⌘I)',  style: { fontStyle: 'italic' } },
-    { command: 'heading', label: 'H',  title: 'Heading',      style: {} },
-    { command: 'list',    label: '≡',  title: 'List',         style: {} },
-    { command: 'code',    label: '`',  title: 'Code',         style: { fontFamily: 'monospace' } },
-    { command: 'link',    label: '⌘K', title: 'Link (⌘K)',    style: {} },
+    { command: 'bold',      label: 'B',   title: 'Bold (⌘B)',   style: { fontWeight: 'bold' } },
+    { command: 'italic',    label: 'I',   title: 'Italic (⌘I)', style: { fontStyle: 'italic' } },
+    { command: 'heading',   label: 'H',   title: 'Heading',     style: {} },
+    { command: 'list',      label: '≡',   title: 'List',        style: {} },
+    { command: 'code',      label: '`',   title: 'Inline code', style: { fontFamily: 'monospace' } },
+    { command: 'codeblock', label: '{ }', title: 'Code block',  style: { fontFamily: 'monospace' } },
+    { command: 'table',     label: '▦',   title: 'Table',       style: {} },
+    { command: 'link',      label: '⌘K',  title: 'Link (⌘K)',   style: {} },
   ];
 
   return (

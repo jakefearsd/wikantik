@@ -56,6 +56,7 @@ vi.mock('../api/client', () => ({
     getPage: vi.fn(),
     savePage: vi.fn(),
     listAttachments: vi.fn(),
+    listPages: vi.fn(() => Promise.resolve({ pages: [] })),
   },
 }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));
@@ -346,7 +347,7 @@ describe('#21 draft banner relative time and dismiss', () => {
 
 // ── #18 Formatting toolbar ────────────────────────────────────────────────────
 describe('#18 formatting toolbar', () => {
-  it('renders all six toolbar buttons', async () => {
+  it('renders all toolbar buttons', async () => {
     renderEditor();
     await waitForEditor();
 
@@ -354,7 +355,9 @@ describe('#18 formatting toolbar', () => {
     expect(screen.getByTitle(/italic/i)).toBeInTheDocument();
     expect(screen.getByTitle(/heading/i)).toBeInTheDocument();
     expect(screen.getByTitle(/list/i)).toBeInTheDocument();
-    expect(screen.getByTitle(/code/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/inline code/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/code block/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/table/i)).toBeInTheDocument();
     expect(screen.getByTitle(/link/i)).toBeInTheDocument();
   });
 

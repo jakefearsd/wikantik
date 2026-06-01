@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toggleWrap, toggleLinePrefix, insertLink } from './markdownFormat';
+import { toggleWrap, toggleLinePrefix, insertLink, insertTable, insertCodeBlock } from './markdownFormat';
 
 describe('toggleWrap', () => {
   it('wraps selection with marker', () => {
@@ -112,5 +112,44 @@ describe('insertLink', () => {
     const urlIndex = result.text.indexOf('url');
     expect(result.selStart).toBe(urlIndex);
     expect(result.selEnd).toBe(urlIndex + 3);
+  });
+});
+
+describe('insertTable', () => {
+  it('inserts a GFM table skeleton and selects the first header cell', () => {
+    const state = { text: '', selStart: 0, selEnd: 0 };
+    const result = insertTable(state);
+    expect(result.text).toContain('| Header 1 | Header 2 |');
+    expect(result.text).toContain('| --- | --- |');
+    expect(result.text).toContain('| Cell 1 | Cell 2 |');
+    // Selection lands on the first header label so the user can type over it.
+    expect(result.text.slice(result.selStart, result.selEnd)).toBe('Header 1');
+  });
+
+  it('prefixes a newline when the cursor is mid-line, but not at line start', () => {
+    const atStart = insertTable({ text: 'abc', selStart: 0, selEnd: 0 });
+    expect(atStart.text.startsWith('| Header 1')).toBe(true);
+
+    const midLine = insertTable({ text: 'abc', selStart: 3, selEnd: 3 });
+    expect(midLine.text).toBe('abc\n| Header 1 | Header 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n');
+
+    const afterNewline = insertTable({ text: 'abc\n', selStart: 4, selEnd: 4 });
+    expect(afterNewline.text).toBe('abc\n| Header 1 | Header 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n');
+  });
+});
+
+describe('insertCodeBlock', () => {
+  it('wraps the selection in a fenced block and selects the language token', () => {
+    const state = { text: 'foo bar baz', selStart: 4, selEnd: 7 }; // "bar"
+    const result = insertCodeBlock(state);
+    expect(result.text).toBe('foo \n```language\nbar\n```\n baz');
+    expect(result.text.slice(result.selStart, result.selEnd)).toBe('language');
+  });
+
+  it('inserts an empty fence with the language selected when there is no selection', () => {
+    const state = { text: '', selStart: 0, selEnd: 0 };
+    const result = insertCodeBlock(state);
+    expect(result.text).toBe('```language\n\n```\n');
+    expect(result.text.slice(result.selStart, result.selEnd)).toBe('language');
   });
 });

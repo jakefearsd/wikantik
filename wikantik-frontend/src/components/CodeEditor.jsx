@@ -3,6 +3,8 @@ import CodeMirror from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorView, keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
+import { autocompletion } from '@codemirror/autocomplete';
+import { createWikiLinkSource } from '../utils/wikiLinkComplete';
 
 /**
  * #19 — CodeMirror 6 markdown source editor.
@@ -33,10 +35,16 @@ import { Prec } from '@codemirror/state';
  *   'data-testid' string         applied to the wrapping div
  */
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, getLinkCompletions, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
+
+  // `[[`-triggered internal-link autocomplete. The getter is held in a ref so
+  // the completion source — built once below — always reads the latest page
+  // list without forcing the editor to reconfigure.
+  const linkCompletionsRef = useRef(getLinkCompletions);
+  linkCompletionsRef.current = getLinkCompletions;
 
   const handleCreateEditor = useCallback((view) => {
     viewRef.current = view;
@@ -84,9 +92,16 @@ const CodeEditor = forwardRef(function CodeEditor(
     );
   }, [onSave, onBold, onItalic, onLink]);
 
+  const wikiLinkAutocomplete = useMemo(
+    () => autocompletion({
+      override: [createWikiLinkSource(() => (linkCompletionsRef.current ? linkCompletionsRef.current() : []))],
+    }),
+    [],
+  );
+
   const extensions = useMemo(
-    () => [markdown(), EditorView.lineWrapping, shortcutKeymap],
-    [shortcutKeymap],
+    () => [markdown(), EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete],
+    [shortcutKeymap, wikiLinkAutocomplete],
   );
 
   return (

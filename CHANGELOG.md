@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.8] - 2026-06-01
+
 ### Added
 
 - **Backlinks panel.** The reader page view now shows a "Referenced by" panel

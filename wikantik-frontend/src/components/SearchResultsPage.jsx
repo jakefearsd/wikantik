@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -7,6 +7,14 @@ import { useApi } from '../hooks/useApi';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { highlightTerms } from '../utils/highlight';
 import { formatDate } from '../utils/datetime';
+import {
+  deriveFacets,
+  applyFacets,
+  toggleValue,
+  hasActiveFacets,
+  EMPTY_SELECTION,
+} from '../utils/searchFacets';
+import SearchFacets from './SearchFacets';
 import Card from './ui/Card';
 import EmptyState from './ui/EmptyState';
 import Icon from './ui/Icon';
@@ -18,10 +26,20 @@ export default function SearchResultsPage() {
   const query = params.get('q') || '';
   const { data, loading, error } = useApi((signal) => api.search(query, 50, { signal }), [query]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [selection, setSelection] = useState(EMPTY_SELECTION);
+  const [sinceKey, setSinceKey] = useState(null);
 
-  // Reset pagination when query changes
+  // All hooks must run before any early return, so derive from the (possibly
+  // undefined while loading) response defensively.
+  const results = data?.results || [];
+  const facets = useMemo(() => deriveFacets(results), [results]);
+  const filtered = useMemo(() => applyFacets(results, selection), [results, selection]);
+
+  // Reset pagination and any active filters when the query changes.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
+    setSelection(EMPTY_SELECTION);
+    setSinceKey(null);
   }, [query]);
 
   // Set document title via hook — keeps the "Wikantik: " prefix consistent.
@@ -42,9 +60,21 @@ export default function SearchResultsPage() {
   if (loading) return <div className="loading">Searching…</div>;
   if (error) return <div className="error-banner">Search failed: {error.message}</div>;
 
-  const results = data?.results || [];
-  const visibleResults = results.slice(0, visibleCount);
-  const hasMore = results.length > visibleCount;
+  const visibleResults = filtered.slice(0, visibleCount);
+  const hasMore = filtered.length > visibleCount;
+  const filtersActive = hasActiveFacets(selection);
+  // Facets are only useful once there is more than one result to narrow.
+  const showFacets = results.length > 1;
+
+  const handleToggle = (group, value) => setSelection(s => toggleValue(s, group, value));
+  const handleSetSince = (since, key) => {
+    setSelection(s => ({ ...s, since }));
+    setSinceKey(key);
+  };
+  const handleClear = () => {
+    setSelection(EMPTY_SELECTION);
+    setSinceKey(null);
+  };
 
   return (
     <div className="page-enter" data-testid="search-results-page" data-query={query}>
@@ -65,52 +95,84 @@ export default function SearchResultsPage() {
             marginBottom: 'var(--space-xs)',
           }}
         >
-          {`${results.length} result${results.length !== 1 ? 's' : ''} for "${query}"`}
+          {`${filtered.length} result${filtered.length !== 1 ? 's' : ''} for "${query}"`}
+          {filtersActive && results.length !== filtered.length && (
+            <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '1rem' }}>
+              {' '}(filtered from {results.length})
+            </span>
+          )}
         </h1>
       </div>
       )}
 
       {results.length > 0 && (
-        <>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }} data-testid="search-results-list">
-            {visibleResults.map((result, i) => (
-              <div
-                key={result.name}
-                className="stagger-in"
-                style={{ animationDelay: i < 10 ? `${i * 40}ms` : '400ms' }}
-              >
-                <SearchResultCard result={result} query={query} />
-              </div>
-            ))}
-          </div>
-
-          {hasMore && (
-            <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center' }}>
-              <p
-                data-testid="results-count"
-                style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 'var(--space-sm)' }}
-              >
-                Showing {visibleCount} of {results.length}
-              </p>
-              <button
-                data-testid="load-more-button"
-                onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
-                style={{
-                  padding: 'var(--space-sm) var(--space-lg)',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-elevated)',
-                  color: 'var(--text)',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
-                  fontFamily: 'var(--font-body)',
-                }}
-              >
-                Load more
-              </button>
-            </div>
+        <div className="search-layout">
+          {showFacets && (
+            <SearchFacets
+              facets={facets}
+              selection={selection}
+              sinceKey={sinceKey}
+              onToggle={handleToggle}
+              onSetSince={handleSetSince}
+              onClear={handleClear}
+            />
           )}
-        </>
+
+          <div className="search-results-column">
+            {filtered.length === 0 ? (
+              <EmptyState
+                icon={<Icon name="search" />}
+                message="No results match these filters"
+                action={
+                  <button type="button" className="facet-clear" onClick={handleClear}>
+                    Clear all filters
+                  </button>
+                }
+              />
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }} data-testid="search-results-list">
+                  {visibleResults.map((result, i) => (
+                    <div
+                      key={result.name}
+                      className="stagger-in"
+                      style={{ animationDelay: i < 10 ? `${i * 40}ms` : '400ms' }}
+                    >
+                      <SearchResultCard result={result} query={query} />
+                    </div>
+                  ))}
+                </div>
+
+                {hasMore && (
+                  <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center' }}>
+                    <p
+                      data-testid="results-count"
+                      style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 'var(--space-sm)' }}
+                    >
+                      Showing {visibleCount} of {filtered.length}
+                    </p>
+                    <button
+                      data-testid="load-more-button"
+                      onClick={() => setVisibleCount(c => c + PAGE_SIZE)}
+                      style={{
+                        padding: 'var(--space-sm) var(--space-lg)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-elevated)',
+                        color: 'var(--text)',
+                        cursor: 'pointer',
+                        fontSize: '0.95rem',
+                        fontFamily: 'var(--font-body)',
+                      }}
+                    >
+                      Load more
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

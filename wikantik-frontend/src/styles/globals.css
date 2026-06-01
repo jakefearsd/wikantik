@@ -1886,6 +1886,108 @@ h3:focus-within .heading-anchor {
   margin-top: var(--space-sm);
 }
 
+/* ============================================================
+   Search facets (#filters) — left rail on the results page
+   ============================================================ */
+
+.search-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-xl);
+}
+
+.search-results-column {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.search-facets {
+  flex: 0 0 220px;
+  position: sticky;
+  top: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.facet-group-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.facet-heading {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.facet-clear {
+  border: none;
+  background: none;
+  color: var(--sage);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.facet-clear:hover { text-decoration: underline; }
+
+.facet-group-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.facet-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.facet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background 120ms var(--ease), border-color 120ms var(--ease);
+}
+
+.facet-chip:hover { border-color: var(--sage); }
+
+.facet-chip.active {
+  background: var(--sage-light);
+  border-color: var(--sage);
+  color: var(--sage);
+  font-weight: 600;
+}
+
+.facet-chip-count {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+@media (max-width: 768px) {
+  .search-layout {
+    flex-direction: column;
+  }
+  .search-facets {
+    position: static;
+    flex-basis: auto;
+    width: 100%;
+  }
+}
+
 /* PageGraphView — info banner */
 .graph-info-banner {
   padding: 4px 12px;

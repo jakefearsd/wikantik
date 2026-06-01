@@ -109,6 +109,41 @@ describe('SearchResultsPage', () => {
     expect(screen.queryByTestId('load-more-button')).not.toBeInTheDocument();
   });
 
+  // ── Search faceting ──────────────────────────────────────────────────────
+
+  const facetedResults = [
+    { name: 'P1', summary: '', score: 1, cluster: 'Security', author: 'alice', tags: ['acl'] },
+    { name: 'P2', summary: '', score: 1, cluster: 'Security', author: 'bob', tags: [] },
+    { name: 'P3', summary: '', score: 1, cluster: 'Operations', author: 'alice', tags: [] },
+  ];
+
+  it('filters results when a facet chip is selected', () => {
+    useApi.mockReturnValue({ data: { results: facetedResults }, loading: false, error: null });
+    renderPage('?q=page');
+    expect(screen.getAllByTestId('search-result-card')).toHaveLength(3);
+
+    // Selecting the Operations topic narrows to the single matching result.
+    fireEvent.click(screen.getByRole('button', { name: /Operations/ }));
+    const cards = screen.getAllByTestId('search-result-card');
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toHaveAttribute('data-page-name', 'P3');
+    expect(screen.getByTestId('search-results-heading')).toHaveTextContent('filtered from 3');
+  });
+
+  it('shows a no-match state with a clear control when filters exclude everything', () => {
+    useApi.mockReturnValue({ data: { results: facetedResults }, loading: false, error: null });
+    renderPage('?q=page');
+    // Operations AND author bob never co-occur → empty.
+    fireEvent.click(screen.getByRole('button', { name: /Operations/ }));
+    fireEvent.click(screen.getByRole('button', { name: /bob/ }));
+    expect(screen.queryAllByTestId('search-result-card')).toHaveLength(0);
+    expect(screen.getByText('No results match these filters')).toBeInTheDocument();
+
+    // Clearing restores the full set.
+    fireEvent.click(screen.getByRole('button', { name: /Clear all filters/ }));
+    expect(screen.getAllByTestId('search-result-card')).toHaveLength(3);
+  });
+
   // #55 friendly empty state
   it('#55 shows EmptyState when search returns zero results', () => {
     useApi.mockReturnValue({ data: { results: [] }, loading: false, error: null });

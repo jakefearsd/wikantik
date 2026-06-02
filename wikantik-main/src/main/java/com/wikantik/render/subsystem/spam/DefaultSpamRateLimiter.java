@@ -19,7 +19,6 @@
 package com.wikantik.render.subsystem.spam;
 
 import com.wikantik.api.core.Context;
-import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.exceptions.RedirectException;
 import com.wikantik.util.HttpUtil;
 import com.wikantik.util.TextUtil;
@@ -41,11 +40,10 @@ import java.util.regex.Pattern;
  * {@code SpamFilter} in Phase 6 Checkpoint 3 of the wikantik-main subsystem
  * decomposition.</p>
  */
-public class DefaultSpamRateLimiter implements SpamRateLimiter {
+public class DefaultSpamRateLimiter extends AbstractSpamStrategy implements SpamRateLimiter {
 
     private static final Logger LOG = LogManager.getLogger( DefaultSpamRateLimiter.class );
 
-    private static final String ATTR_SPAMFILTER_SCORE = "spamfilter.score";
     private static final String REASON_IP_BANNED_TEMPORARILY = "IPBannedTemporarily";
     private static final String REASON_SIMILAR_MODIFICATIONS = "SimilarModifications";
     private static final String REASON_TOO_MANY_MODIFICATIONS = "TooManyModifications";
@@ -60,20 +58,17 @@ public class DefaultSpamRateLimiter implements SpamRateLimiter {
     private final int    limitSinglePageChanges;
     private final int    limitSimilarChanges;
     private final int    maxUrls;
-    private final boolean stopAtFirstMatch;
-    private final String  errorPage;
 
     private final Pattern urlPattern;
 
     public DefaultSpamRateLimiter( final Properties props,
                                    final boolean stopAtFirstMatch,
                                    final String errorPage ) {
+        super( stopAtFirstMatch, errorPage );
         this.banTime               = TextUtil.getIntegerProperty( props, "bantime",             60 );
         this.limitSinglePageChanges = TextUtil.getIntegerProperty( props, "pagechangesinminute",  5 );
         this.limitSimilarChanges    = TextUtil.getIntegerProperty( props, "similarchanges",       2 );
         this.maxUrls                = TextUtil.getIntegerProperty( props, "maxurls",             10 );
-        this.stopAtFirstMatch       = stopAtFirstMatch;
-        this.errorPage              = errorPage;
         this.urlPattern             = Pattern.compile( URL_REGEXP );
     }
 
@@ -176,26 +171,4 @@ public class DefaultSpamRateLimiter implements SpamRateLimiter {
         lastModifications.add( new SpamHost( addr, change, banTime ) );
     }
 
-    // ---- internal helpers (verbatim from SpamFilter) ----
-
-    private void checkStrategy( final Context context, final String message ) throws RedirectException {
-        if( stopAtFirstMatch ) {
-            throw new RedirectException( message, getRedirectPage( context ) );
-        }
-        Integer score = context.getVariable( ATTR_SPAMFILTER_SCORE );
-        if( score != null ) {
-            score = score + 1;
-        } else {
-            score = 1;
-        }
-        context.setVariable( ATTR_SPAMFILTER_SCORE, score );
-    }
-
-    private String getRedirectPage( final Context ctx ) {
-        return ctx.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), errorPage );
-    }
-
-    private static String log( final Context ctx, final int type, final String source, final String message ) {
-        return SpamLog.log( ctx, type, source, message );
-    }
 }

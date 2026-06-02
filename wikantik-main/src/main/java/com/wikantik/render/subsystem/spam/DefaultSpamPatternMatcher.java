@@ -19,7 +19,6 @@
 package com.wikantik.render.subsystem.spam;
 
 import com.wikantik.api.core.Context;
-import com.wikantik.api.core.ContextEnum;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.exceptions.RedirectException;
@@ -63,14 +62,13 @@ import java.util.regex.PatternSyntaxException;
  * Moved verbatim from {@code SpamFilter} in Phase 6 Checkpoint 3 of the
  * wikantik-main subsystem decomposition.</p>
  */
-public class DefaultSpamPatternMatcher implements SpamPatternMatcher {
+public class DefaultSpamPatternMatcher extends AbstractSpamStrategy implements SpamPatternMatcher {
 
     private static final Logger LOG = LogManager.getLogger( DefaultSpamPatternMatcher.class );
 
     private static final String LISTVAR   = "spamwords";
     private static final String LISTIPVAR = "ips";
 
-    private static final String ATTR_SPAMFILTER_SCORE = "spamfilter.score";
     private static final String REASON_REGEXP            = "Regexp";
     private static final String REASON_IP_BANNED_PERMANENTLY = "IPBannedPermanently";
     private static final String REASON_PAGENAME_TOO_LONG = "PageNameTooLong";
@@ -81,9 +79,7 @@ public class DefaultSpamPatternMatcher implements SpamPatternMatcher {
     private final String  forbiddenWordsPage;
     private final String  forbiddenIPsPage;
     private final String  pageNameMaxLength;
-    private final String  errorPage;
     private final String  blacklist;
-    private final boolean stopAtFirstMatch;
 
     private Collection<Pattern> spamPatterns;
     private Collection<Pattern> IPPatterns;
@@ -93,14 +89,13 @@ public class DefaultSpamPatternMatcher implements SpamPatternMatcher {
                                       final AttachmentManager attachmentManager,
                                       final Properties props,
                                       final boolean stopAtFirstMatch ) {
+        super( stopAtFirstMatch, props.getProperty( "errorpage", "RejectedMessage" ) );
         this.pageManager       = pageManager;
         this.attachmentManager = attachmentManager;
         this.forbiddenWordsPage = props.getProperty( "wordlist",        "SpamFilterWordList" );
         this.forbiddenIPsPage   = props.getProperty( "IPlist",          "SpamFilterIPList" );
         this.pageNameMaxLength  = props.getProperty( "maxpagenamelength", "100" );
-        this.errorPage          = props.getProperty( "errorpage",       "RejectedMessage" );
         this.blacklist          = props.getProperty( "blacklist",       "SpamFilterWordList/blacklist.txt" );
-        this.stopAtFirstMatch   = stopAtFirstMatch;
     }
 
     @Override
@@ -295,26 +290,5 @@ public class DefaultSpamPatternMatcher implements SpamPatternMatcher {
             }
         }
         return compiledpatterns;
-    }
-
-    private void checkStrategy( final Context context, final String message ) throws RedirectException {
-        if( stopAtFirstMatch ) {
-            throw new RedirectException( message, getRedirectPage( context ) );
-        }
-        Integer score = context.getVariable( ATTR_SPAMFILTER_SCORE );
-        if( score != null ) {
-            score = score + 1;
-        } else {
-            score = 1;
-        }
-        context.setVariable( ATTR_SPAMFILTER_SCORE, score );
-    }
-
-    private String getRedirectPage( final Context ctx ) {
-        return ctx.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), errorPage );
-    }
-
-    private static String log( final Context ctx, final int type, final String source, final String message ) {
-        return SpamLog.log( ctx, type, source, message );
     }
 }

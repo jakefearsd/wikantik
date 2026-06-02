@@ -40,11 +40,10 @@ import java.util.Properties;
  * Moved verbatim from {@code SpamFilter} in Phase 6 Checkpoint 3 of the
  * wikantik-main subsystem decomposition.</p>
  */
-public class DefaultSpamExternalSignals implements SpamExternalSignals {
+public class DefaultSpamExternalSignals extends AbstractSpamStrategy implements SpamExternalSignals {
 
     private static final Logger LOG = LogManager.getLogger( DefaultSpamExternalSignals.class );
 
-    private static final String ATTR_SPAMFILTER_SCORE = "spamfilter.score";
     private static final String REASON_BOT_TRAP  = "BotTrap";
     private static final String REASON_UTF8_TRAP = "UTF8Trap";
     private static final String REASON_AKISMET   = "Akismet";
@@ -52,15 +51,11 @@ public class DefaultSpamExternalSignals implements SpamExternalSignals {
     private String  akismetAPIKey;
     private Akismet akismet;
 
-    private final boolean stopAtFirstMatch;
-    private final String  errorPage;
-
     public DefaultSpamExternalSignals( final Properties props,
                                        final boolean stopAtFirstMatch,
                                        final String errorPage ) {
+        super( stopAtFirstMatch, errorPage );
         this.akismetAPIKey  = TextUtil.getStringProperty( props, "akismet-apikey", null );
-        this.stopAtFirstMatch = stopAtFirstMatch;
-        this.errorPage        = errorPage;
     }
 
     @Override
@@ -149,26 +144,5 @@ public class DefaultSpamExternalSignals implements SpamExternalSignals {
         }
     }
 
-    // ---- private helpers (verbatim from SpamFilter) ----
-
-    private void checkStrategy( final Context context, final String message ) throws RedirectException {
-        if( stopAtFirstMatch ) {
-            throw new RedirectException( message, getRedirectPage( context ) );
-        }
-        Integer score = context.getVariable( ATTR_SPAMFILTER_SCORE );
-        if( score != null ) {
-            score = score + 1;
-        } else {
-            score = 1;
-        }
-        context.setVariable( ATTR_SPAMFILTER_SCORE, score );
-    }
-
-    private String getRedirectPage( final Context ctx ) {
-        return ctx.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), errorPage );
-    }
-
-    private static String log( final Context ctx, final int type, final String source, final String message ) {
-        return SpamLog.log( ctx, type, source, message );
-    }
+    // SpamLog/checkStrategy/getRedirectPage helpers are inherited from AbstractSpamStrategy.
 }

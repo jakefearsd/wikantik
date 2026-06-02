@@ -36,9 +36,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Mirror of {@link OllamaProposalJudge} that talks to the Anthropic Messages
@@ -57,8 +55,6 @@ public final class ClaudeProposalJudge implements ProposalJudge {
     private static final Gson GSON = new Gson();
     private static final String ANTHROPIC_BASE = "https://api.anthropic.com/v1/messages";
     private static final String ANTHROPIC_VERSION = "2023-06-01";
-    private static final Set< String > ALLOWED_REASONS = Set.of(
-        "ungrounded", "redundant_with_existing_node", "wrong_type", "too_generic", "weak_support" );
 
     private final String apiKey;
     private final String model;
@@ -91,7 +87,7 @@ public final class ClaudeProposalJudge implements ProposalJudge {
         }
         try {
             final String raw = callAnthropic( proposal, context );
-            return parseVerdict( raw, proposal );
+            return ProposalVerdictParser.parse( raw, proposal );
         } catch( final InterruptedException ie ) {
             Thread.currentThread().interrupt();
             return new Verdict.Accept( proposal.aggregateConfidence(), "judge_failed: interrupted" );
@@ -142,28 +138,4 @@ public final class ClaudeProposalJudge implements ProposalJudge {
         return text == null || text.isJsonNull() ? null : text.getAsString();
     }
 
-    private Verdict parseVerdict( final String raw, final ConsolidatedProposal proposal ) {
-        if( raw == null ) {
-            return new Verdict.Accept( proposal.aggregateConfidence(), "judge_failed: empty response" );
-        }
-        try {
-            final JsonObject obj = JsonParser.parseString( raw ).getAsJsonObject();
-            final String verdict = obj.get( "verdict" ).getAsString().toLowerCase( Locale.ROOT );
-            final String reason  = obj.has( "reason_code" )
-                ? obj.get( "reason_code" ).getAsString() : "ok";
-            final String rationale = obj.has( "rationale" )
-                ? obj.get( "rationale" ).getAsString() : "";
-            return switch( verdict ) {
-                case "accept"  -> new Verdict.Accept( proposal.aggregateConfidence(), rationale );
-                case "reject"  -> new Verdict.Reject(
-                    ALLOWED_REASONS.contains( reason ) ? reason : "weak_support", rationale );
-                case "rewrite" -> new Verdict.Accept( proposal.aggregateConfidence(),
-                    "judge_failed: rewrite parsing not implemented yet" );
-                default -> new Verdict.Accept( proposal.aggregateConfidence(),
-                    "judge_failed: unknown verdict " + verdict );
-            };
-        } catch( final RuntimeException e ) {
-            return new Verdict.Accept( proposal.aggregateConfidence(), "judge_failed: " + e.getMessage() );
-        }
-    }
 }

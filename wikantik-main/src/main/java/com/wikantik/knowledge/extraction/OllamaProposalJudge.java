@@ -39,7 +39,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Opt-in proposal judge backed by an Ollama /api/chat endpoint with
@@ -54,8 +53,6 @@ public final class OllamaProposalJudge implements ProposalJudge {
 
     private static final Logger LOG = LogManager.getLogger( OllamaProposalJudge.class );
     private static final Gson GSON = new Gson();
-    private static final Set< String > ALLOWED_REASONS = Set.of(
-        "ungrounded", "redundant_with_existing_node", "wrong_type", "too_generic", "weak_support" );
 
     /** System prompt shared with {@link ClaudeProposalJudge} so A/B comparisons are apples-to-apples. */
     static final String SYSTEM_PROMPT = """
@@ -102,7 +99,7 @@ public final class OllamaProposalJudge implements ProposalJudge {
     public Verdict judge( final ConsolidatedProposal proposal, final JudgeContext context ) {
         try {
             final String raw = callOllama( proposal, context );
-            return parseVerdict( raw, proposal );
+            return ProposalVerdictParser.parse( raw, proposal );
         } catch( final InterruptedException ie ) {
             Thread.currentThread().interrupt();
             return new Verdict.Accept( proposal.aggregateConfidence(), "judge_failed: interrupted" );
@@ -177,32 +174,4 @@ public final class OllamaProposalJudge implements ProposalJudge {
         return s.endsWith( "/" ) ? s.substring( 0, s.length() - 1 ) : s;
     }
 
-    private Verdict parseVerdict( final String raw, final ConsolidatedProposal proposal ) {
-        if( raw == null ) {
-            return new Verdict.Accept( proposal.aggregateConfidence(), "judge_failed: empty response" );
-        }
-        try {
-            final JsonObject obj = JsonParser.parseString( raw ).getAsJsonObject();
-            final String verdict = obj.get( "verdict" ).getAsString().toLowerCase( Locale.ROOT );
-            final String reason  = obj.has( "reason_code" )
-                ? obj.get( "reason_code" ).getAsString() : "ok";
-            final String rationale = obj.has( "rationale" )
-                ? obj.get( "rationale" ).getAsString() : "";
-            return switch( verdict ) {
-                case "accept"  -> new Verdict.Accept( proposal.aggregateConfidence(), rationale );
-                case "reject"  -> new Verdict.Reject(
-                    ALLOWED_REASONS.contains( reason ) ? reason : "weak_support", rationale );
-                case "rewrite" ->
-                    // Rewrite path: full canonicalization is deferred — a parsed but
-                    // unused 'rewritten' object would regress to Accept-with-rationale
-                    // anyway, so for now we fail open and leave the proposal untouched.
-                    new Verdict.Accept( proposal.aggregateConfidence(),
-                        "judge_failed: rewrite parsing not implemented yet" );
-                default -> new Verdict.Accept( proposal.aggregateConfidence(),
-                    "judge_failed: unknown verdict " + verdict );
-            };
-        } catch( final RuntimeException e ) {
-            return new Verdict.Accept( proposal.aggregateConfidence(), "judge_failed: " + e.getMessage() );
-        }
-    }
 }

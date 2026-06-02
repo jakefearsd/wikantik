@@ -6,6 +6,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Side-by-side editor overhaul.** The source and preview panes now share one
+  fixed-height region and each scroll internally (the preview no longer clipped
+  early while the source grew). Scrolling/typing in either pane keeps the other
+  aligned (bidirectional, frontmatter-zone-aware), and clicking a block in the
+  preview jumps + centers the editor caret on that block's source line. The
+  stripped frontmatter is shown as a compact collapsible card atop the preview.
+
+### Fixed
+
+- **Theme toggle now updates the editor pane immediately.** `useDarkMode` held
+  per-instance state, so toggling in the sidebar left the editor's CodeMirror on
+  its old theme until a refresh; all consumers now share one store.
+
+### Dependencies
+
+- npm: react-markdown 9→10, react-router-dom 6→7, plus minor/patch bumps
+  (cytoscape, happy-dom, katex). React 19 and the vite 8 / vitest 4 toolchain
+  deferred (real migrations).
+- Maven GA minor/patch: junit 6.1.0, selenide 7.16.2, pac4j 6.5.3,
+  anthropic-java 2.35.0, jaxen 2.0.5, jaxb-runtime 4.0.9, plus surefire,
+  maven-dependency, and sonar plugins.
+
 ## [2.0.9] - 2026-06-02
 
 ### Changed

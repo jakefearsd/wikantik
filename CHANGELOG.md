@@ -6,6 +6,33 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Sidebar cluster navigation** is consolidated under a single collapsible
+  **"Browse Clusters"** section (collapsed by default) rather than a long stack
+  of per-cluster sections; the active page's cluster still auto-expands inside.
+  Its header matches the other section titles, top-level nav titles now use full
+  text colour, and the expanded cluster tree has tighter spacing.
+
+### Security
+
+- **HTTP response-splitting guard** on the SPA `Location` redirects in
+  `SpaRoutingFilter` — request-derived path/query fragments are rejected if they
+  contain CR/LF before being written to the redirect header.
+
+### Fixed
+
+- SpotBugs `WMI_WRONG_MAP_ITERATOR` in `WatchDog`, `AbstractFileProvider`, and
+  `DefaultKnowledgeGraphService` (iterate `entrySet()` instead of `keySet()` + `get()`).
+
+### Internal
+
+- Cut `PageForAgentResource.toJson` from an NPath complexity of ~110k to
+  straight-line by extracting per-section JSON builders (wire format unchanged).
+- Removed duplication flagged by CPD: shared `KgProposalRepository` filter clause,
+  an `AbstractSpamStrategy` base for the spam helpers, a shared `ProposalVerdictParser`
+  for the Claude/Ollama judges, and `denseRanking` lifted into `ExperimentHarness`.
+
 ## [2.0.8] - 2026-06-01
 
 ### Added

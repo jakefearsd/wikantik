@@ -31,7 +31,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -142,6 +144,42 @@ final class ExperimentHarness {
             if( ranked.get( i ).equals( target ) ) return i + 1;
         }
         return 0;
+    }
+
+    /** Top chunks to consider before page aggregation in {@link #denseRanking}. */
+    private static final int DENSE_CHUNK_TOP = 500;
+    /** Pages returned by {@link #denseRanking}. */
+    private static final int DENSE_TOP       = 100;
+
+    /**
+     * Cosine-similarity dense ranking: score every chunk, keep the top
+     * {@value #DENSE_CHUNK_TOP}, aggregate to pages by best chunk score, and
+     * return the top {@value #DENSE_TOP} pages. Shared by the experiment
+     * evaluator and the RRF sweep (was copy-pasted verbatim into both).
+     */
+    static List< String > denseRanking( final ChunkCorpus corpus, final float[] queryVec, final double queryNorm ) {
+        final int n = corpus.vectors.size();
+        final int k = Math.min( DENSE_CHUNK_TOP, n );
+        final double[] scores = new double[ n ];
+        for( int i = 0; i < n; i++ ) {
+            scores[ i ] = CosineSimilarity.cosine( queryVec, queryNorm,
+                corpus.vectors.get( i ), corpus.norms.get( i ) );
+        }
+        final Integer[] idx = new Integer[ n ];
+        for( int i = 0; i < n; i++ ) idx[ i ] = i;
+        java.util.Arrays.sort( idx, Comparator.comparingDouble( ( Integer a ) -> scores[ a ] ).reversed() );
+
+        final Map< String, Double > pageBest = new LinkedHashMap<>();
+        for( int i = 0; i < k; i++ ) {
+            final int j = idx[ i ];
+            final String page = corpus.pagesForChunk.get( corpus.chunkIds.get( j ) );
+            pageBest.merge( page, scores[ j ], Math::max );
+        }
+        final List< Map.Entry< String, Double > > entries = new ArrayList<>( pageBest.entrySet() );
+        entries.sort( Comparator.comparingDouble( Map.Entry< String, Double >::getValue ).reversed() );
+        final List< String > out = new ArrayList<>( entries.size() );
+        for( final Map.Entry< String, Double > e : entries ) out.add( e.getKey() );
+        return out.size() > DENSE_TOP ? out.subList( 0, DENSE_TOP ) : out;
     }
 
     /**

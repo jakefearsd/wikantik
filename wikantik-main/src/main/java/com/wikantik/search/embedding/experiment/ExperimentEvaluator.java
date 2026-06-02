@@ -34,8 +34,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -51,8 +49,6 @@ public final class ExperimentEvaluator {
     private static final Logger LOG = LogManager.getLogger( ExperimentEvaluator.class );
 
     private static final int BM25_TOP       = 100;
-    private static final int DENSE_TOP      = 100;
-    private static final int DENSE_CHUNK_TOP = 500;  // chunks considered before page aggregation
 
     private ExperimentEvaluator() {}
 
@@ -109,7 +105,7 @@ public final class ExperimentEvaluator {
 
         final float[] queryVec = client.embed( List.of( q.query() ), EmbeddingKind.QUERY ).get( 0 );
         final double queryNorm = CosineSimilarity.norm( queryVec );
-        final List< String > densePagesRanked = denseRanking( corpus, queryVec, queryNorm );
+        final List< String > densePagesRanked = ExperimentHarness.denseRanking( corpus, queryVec, queryNorm );
 
         final List< String > hybridRanked = ReciprocalRankFusion.fuse(
             List.of( new Ranking( bm25Ranked ), new Ranking( densePagesRanked ) ),
@@ -121,32 +117,6 @@ public final class ExperimentEvaluator {
             ExperimentHarness.rankOf( q.idealPage(), hybridRanked ) );
     }
 
-    private static List< String > denseRanking( final ChunkCorpus corpus, final float[] queryVec, final double queryNorm ) {
-        final int n = corpus.vectors.size();
-        final int k = Math.min( DENSE_CHUNK_TOP, n );
-        // Min-heap of top-k by cosine similarity.
-        final double[] scores = new double[ n ];
-        for( int i = 0; i < n; i++ ) {
-            scores[ i ] = CosineSimilarity.cosine( queryVec, queryNorm,
-                corpus.vectors.get( i ), corpus.norms.get( i ) );
-        }
-        // Simple sort — n=10K is trivial.
-        final Integer[] idx = new Integer[ n ];
-        for( int i = 0; i < n; i++ ) idx[ i ] = i;
-        java.util.Arrays.sort( idx, Comparator.comparingDouble( ( Integer a ) -> scores[ a ] ).reversed() );
-
-        final Map< String, Double > pageBest = new LinkedHashMap<>();
-        for( int i = 0; i < k; i++ ) {
-            final int j = idx[ i ];
-            final String page = corpus.pagesForChunk.get( corpus.chunkIds.get( j ) );
-            pageBest.merge( page, scores[ j ], Math::max );
-        }
-        final List< Map.Entry< String, Double > > entries = new ArrayList<>( pageBest.entrySet() );
-        entries.sort( Comparator.comparingDouble( Map.Entry< String, Double >::getValue ).reversed() );
-        final List< String > out = new ArrayList<>( entries.size() );
-        for( final Map.Entry< String, Double > e : entries ) out.add( e.getKey() );
-        return out.size() > DENSE_TOP ? out.subList( 0, DENSE_TOP ) : out;
-    }
 
     private static Path defaultOutputPath( final String modelCode ) {
         final String stamp = Instant.now().toString().replaceAll( "[:.]", "-" );

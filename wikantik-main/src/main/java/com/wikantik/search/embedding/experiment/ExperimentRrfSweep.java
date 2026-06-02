@@ -34,7 +34,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -53,8 +52,6 @@ public final class ExperimentRrfSweep {
     private static final Logger LOG = LogManager.getLogger( ExperimentRrfSweep.class );
 
     private static final int BM25_TOP       = 100;
-    private static final int DENSE_TOP      = 100;
-    private static final int DENSE_CHUNK_TOP = 500;
 
     /** Parameter grid — covers the three tuning levers called out in the RFC. */
     private static final int[]    K_VALUES     = { 10, 20, 40, 60, 100 };
@@ -96,7 +93,7 @@ public final class ExperimentRrfSweep {
                 final List< String > bm25Ranked = bm25.search( q.query(), BM25_TOP );
                 final float[] qv = client.embed( List.of( q.query() ), EmbeddingKind.QUERY ).get( 0 );
                 final double qn = CosineSimilarity.norm( qv );
-                final List< String > denseRanked = denseRanking( corpus, qv, qn );
+                final List< String > denseRanked = ExperimentHarness.denseRanking( corpus, qv, qn );
                 cache.add( new CachedRankings( q, bm25Ranked, denseRanked ) );
             }
 
@@ -160,33 +157,6 @@ public final class ExperimentRrfSweep {
         double sum = 0;
         for( final int r : ranks ) if( r > 0 ) sum += 1.0 / r;
         return sum / ranks.length;
-    }
-
-    // ---- dense-ranking helpers (copied from ExperimentEvaluator) ----
-
-    private static List< String > denseRanking( final ChunkCorpus corpus, final float[] queryVec, final double queryNorm ) {
-        final int n = corpus.vectors.size();
-        final int k = Math.min( DENSE_CHUNK_TOP, n );
-        final double[] scores = new double[ n ];
-        for( int i = 0; i < n; i++ ) {
-            scores[ i ] = CosineSimilarity.cosine( queryVec, queryNorm,
-                corpus.vectors.get( i ), corpus.norms.get( i ) );
-        }
-        final Integer[] idx = new Integer[ n ];
-        for( int i = 0; i < n; i++ ) idx[ i ] = i;
-        java.util.Arrays.sort( idx, Comparator.comparingDouble( ( Integer a ) -> scores[ a ] ).reversed() );
-
-        final Map< String, Double > pageBest = new LinkedHashMap<>();
-        for( int i = 0; i < k; i++ ) {
-            final int j = idx[ i ];
-            final String page = corpus.pagesForChunk.get( corpus.chunkIds.get( j ) );
-            pageBest.merge( page, scores[ j ], Math::max );
-        }
-        final List< Map.Entry< String, Double > > entries = new ArrayList<>( pageBest.entrySet() );
-        entries.sort( Comparator.comparingDouble( Map.Entry< String, Double >::getValue ).reversed() );
-        final List< String > out = new ArrayList<>( entries.size() );
-        for( final Map.Entry< String, Double > e : entries ) out.add( e.getKey() );
-        return out.size() > DENSE_TOP ? out.subList( 0, DENSE_TOP ) : out;
     }
 
     private record CachedRankings( EvalQuery query, List< String > bm25Ranked, List< String > denseRanked ) {}

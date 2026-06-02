@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.9] - 2026-06-02
+
 ### Changed
 
 - **Sidebar cluster navigation** is consolidated under a single collapsible

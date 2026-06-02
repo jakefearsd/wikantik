@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { metadataToYaml, reconstructContent, stripFrontmatter } from './frontmatterUtils.js';
+import { metadataToYaml, reconstructContent, stripFrontmatter, frontmatterOffsetLines } from './frontmatterUtils.js';
 
 describe('metadataToYaml', () => {
   it('serializes a plain string value without quoting', () => {
@@ -147,6 +147,28 @@ describe('stripFrontmatter', () => {
   it('handles empty frontmatter block', () => {
     const input = '---\n---\n\nBody after empty frontmatter.';
     expect(stripFrontmatter(input)).toBe('Body after empty frontmatter.');
+  });
+
+  // The offset must equal exactly how many leading lines stripFrontmatter removed,
+  // so a preview (body) line + offset lands on the right full-document line.
+  describe('frontmatterOffsetLines', () => {
+    it('is 0 when there is no frontmatter', () => {
+      expect(frontmatterOffsetLines('Just a paragraph.')).toBe(0);
+      expect(frontmatterOffsetLines('')).toBe(0);
+    });
+
+    it('counts the block including the trailing blank line the strip consumes', () => {
+      // '---','type: concept','tags: [ai, wiki]','---','' → 4 newlines removed,
+      // so body line 1 maps to full-document line 5.
+      const input = '---\ntype: concept\ntags: [ai, wiki]\n---\n\nThis is the body.';
+      const offset = frontmatterOffsetLines(input);
+      // body's first line ("This is the body.") is original line offset+1
+      expect(input.split('\n')[offset]).toBe('This is the body.');
+    });
+
+    it('does not count a body horizontal rule', () => {
+      expect(frontmatterOffsetLines('Some text\n\n---\n\nMore.')).toBe(0);
+    });
   });
 
   it('handles CRLF line endings', () => {

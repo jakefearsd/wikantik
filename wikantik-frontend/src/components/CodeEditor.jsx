@@ -106,6 +106,22 @@ const CodeEditor = forwardRef(function CodeEditor(
         // best-effort sync — leave the scroll position unchanged
       }
     },
+    /**
+     * Place the caret at the start of `line` (1-based), focus, and center it in
+     * the viewport. Used by click-to-source from the preview.
+     */
+    jumpToLine(line) {
+      const view = viewRef.current;
+      if (!view) return;
+      const total = view.state.doc.lines;
+      const clamped = Math.max(1, Math.min(Math.round(line), total));
+      const pos = view.state.doc.line(clamped).from;
+      view.focus();
+      view.dispatch({
+        selection: { anchor: pos },
+        effects: EditorView.scrollIntoView(pos, { y: 'center' }),
+      });
+    },
   }), []);
 
   // Notify the parent on scroll, caret move, or edit (so it can sync the preview).

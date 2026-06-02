@@ -61,3 +61,16 @@ export function stripFrontmatter(content) {
   if (!content) return content || '';
   return content.replace(FRONTMATTER_RE, '');
 }
+
+/**
+ * Number of leading source lines that {@link stripFrontmatter} removes — i.e.
+ * the line offset between a body (preview) line and the full-document line.
+ * Derived from the actual matched prefix (which may also consume a trailing
+ * blank line), so it stays exact rather than approximating from a line count.
+ * Returns 0 when there is no frontmatter.
+ */
+export function frontmatterOffsetLines(content) {
+  if (!content) return 0;
+  const m = content.match(FRONTMATTER_RE);
+  return m ? m[0].split('\n').length - 1 : 0;
+}

@@ -5,8 +5,9 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { api } from '../api/client';
-import { reconstructContent, stripFrontmatter } from '../utils/frontmatterUtils';
+import { reconstructContent, stripFrontmatter, frontmatterOffsetLines } from '../utils/frontmatterUtils';
 import { frontmatterLineCount, caretToPreviewFraction, previewFractionToLine, previewScrollTopFor } from '../utils/scrollSync';
+import rehypeSourceLine from '../utils/rehypeSourceLine';
 import FrontmatterPreview from './FrontmatterPreview';
 import { remarkAttachments } from '../utils/remarkAttachments';
 import { useAttachments } from '../hooks/useAttachments';
@@ -119,6 +120,17 @@ export default function PageEditor() {
   useEffect(() => () => {
     if (syncRafRef.current) cancelAnimationFrame(syncRafRef.current);
     if (editorRafRef.current) cancelAnimationFrame(editorRafRef.current);
+  }, []);
+
+  // Click-to-source: a click in the preview walks up to the nearest block tagged
+  // with its source line (data-line, body-relative), adds the frontmatter offset,
+  // and jumps + centers the editor caret there so you can orient from a click.
+  const handlePreviewClick = useCallback((e) => {
+    const el = e.target.closest?.('[data-line]');
+    if (!el) return;
+    const bodyLine = parseInt(el.getAttribute('data-line'), 10);
+    if (Number.isNaN(bodyLine)) return;
+    editorRef.current?.jumpToLine?.(bodyLine + frontmatterOffsetLines(contentRef.current));
   }, []);
 
   // Page names for `[[`-triggered internal-link autocomplete in the editor.
@@ -531,12 +543,12 @@ export default function PageEditor() {
         </div>
         <div className="editor-pane editor-preview" ref={previewRef} onScroll={syncEditor}>
           <FrontmatterPreview content={content} />
-          <article className="article-prose">
+          <article className="article-prose" onClick={handlePreviewClick}>
             <ReactMarkdown remarkPlugins={[
               remarkGfm,
               remarkMath,
               [remarkAttachments, { attachments: attachments.list, pageName: name }],
-            ]} rehypePlugins={[rehypeKatex]}>
+            ]} rehypePlugins={[rehypeKatex, rehypeSourceLine]}>
               {previewContent}
             </ReactMarkdown>
           </article>

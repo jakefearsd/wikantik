@@ -41,6 +41,19 @@ export function caretToPreviewFraction(caretLine, totalLines, frontmatterLines) 
 }
 
 /**
+ * Inverse of {@link caretToPreviewFraction}: maps a preview scroll fraction back
+ * to the 1-based source line the editor should scroll to the top — so the
+ * preview can drive the editor. fraction 0 lands on the first body line (just
+ * past the frontmatter); the frontmatter itself is reached by scrolling the
+ * editor above that line.
+ */
+export function previewFractionToLine(fraction, totalLines, frontmatterLines) {
+  const bodyLines = Math.max(1, totalLines - frontmatterLines);
+  const line = frontmatterLines + 1 + Math.round(clamp01(fraction) * bodyLines);
+  return Math.max(1, Math.min(line, totalLines));
+}
+
+/**
  * Target preview scrollTop for a given fraction and preview geometry.
  */
 export function previewScrollTopFor(fraction, scrollHeight, clientHeight) {

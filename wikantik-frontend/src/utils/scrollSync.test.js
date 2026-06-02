@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { frontmatterLineCount, caretToPreviewFraction, previewScrollTopFor } from './scrollSync';
+import { frontmatterLineCount, caretToPreviewFraction, previewFractionToLine, previewScrollTopFor } from './scrollSync';
 
 describe('frontmatterLineCount', () => {
   it('counts both fences of a leading frontmatter block', () => {
@@ -42,6 +42,26 @@ describe('caretToPreviewFraction', () => {
   it('handles no-frontmatter documents', () => {
     expect(caretToPreviewFraction(1, 10, 0)).toBe(0);
     expect(caretToPreviewFraction(10, 10, 0)).toBeGreaterThan(0.8);
+  });
+});
+
+describe('previewFractionToLine (preview → editor)', () => {
+  const fm = 4; // frontmatter lines 1..4, total 24 → 20 body lines
+  it('maps fraction 0 to the first body line', () => {
+    expect(previewFractionToLine(0, 24, fm)).toBe(5);
+  });
+  it('maps fraction 1 to the last line (clamped)', () => {
+    expect(previewFractionToLine(1, 24, fm)).toBe(24);
+  });
+  it('round-trips approximately with caretToPreviewFraction', () => {
+    // a body line → fraction → line should land back near the same line
+    const line = 14;
+    const f = caretToPreviewFraction(line, 24, fm);
+    expect(Math.abs(previewFractionToLine(f, 24, fm) - line)).toBeLessThanOrEqual(1);
+  });
+  it('clamps out-of-range fractions', () => {
+    expect(previewFractionToLine(-0.5, 24, fm)).toBe(5);
+    expect(previewFractionToLine(2, 24, fm)).toBe(24);
   });
 });
 

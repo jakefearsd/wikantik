@@ -93,6 +93,19 @@ const CodeEditor = forwardRef(function CodeEditor(
       }
       return { topLine, totalLines: view.state.doc.lines };
     },
+    /** Scroll the editor so `line` (1-based) sits at the top — preview→editor sync. */
+    scrollToLine(line) {
+      const view = viewRef.current;
+      if (!view) return;
+      const total = view.state.doc.lines;
+      const clamped = Math.max(1, Math.min(Math.round(line), total));
+      const pos = view.state.doc.line(clamped).from;
+      try {
+        view.scrollDOM.scrollTop = view.lineBlockAt(pos).top;
+      } catch {
+        // best-effort sync — leave the scroll position unchanged
+      }
+    },
   }), []);
 
   // Notify the parent on scroll, caret move, or edit (so it can sync the preview).

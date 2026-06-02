@@ -43,7 +43,7 @@ fi
 
 if [[ ! -f "${WAR_SOURCE}" ]]; then
     echo "ERROR: ${WAR_SOURCE} not found." >&2
-    echo "       Run: mvn clean install -Dmaven.test.skip -T 1C" >&2
+    echo "       Run: mvn clean install -DskipTests -T 1C" >&2
     exit 1
 fi
 

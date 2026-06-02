@@ -3,7 +3,9 @@
 # deploy-local.sh - Deploy Wikantik to local Tomcat 11 with PostgreSQL configuration
 #
 # Prerequisites:
-#   1. Run 'mvn clean install' (or 'mvn clean install -Dmaven.test.skip') first
+#   1. Run 'mvn clean install' (or 'mvn clean install -DskipTests' — not
+#      -Dmaven.test.skip, which omits wikantik-main's test-jar and breaks the
+#      full-reactor build) first
 #   2. PostgreSQL running with 'wikantik' database created (use bin/db/install-fresh.sh)
 #   3. Edit tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml to set your password
 #

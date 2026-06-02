@@ -50,8 +50,13 @@ The `tomcat/` directory is **gitignored** and created on first run of `deploy-lo
 # Standard build (includes tests and Apache RAT check)
 mvn clean install
 
-# Build without tests (faster, but not recommended for final checks)
-mvn clean install -Dmaven.test.skip
+# Build without RUNNING tests (faster; not for final checks). Use -DskipTests,
+# NOT -Dmaven.test.skip: the latter also skips building wikantik-main's test-jar,
+# which wikantik-tools and the IT modules depend on — so a full-reactor build
+# fails ("could not resolve …:jar:tests"), most reliably right after a release
+# version bump when no prior test-jar is cached in ~/.m2. -DskipTests still
+# builds the test-jars, it just doesn't run the tests.
+mvn clean install -DskipTests
 
 # Parallel build for faster execution (unit tests only, NOT integration tests)
 mvn clean install -T 1C -DskipITs
@@ -134,7 +139,7 @@ sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
     bin/db/install-fresh.sh
 
 # 2. Build the WAR (also builds the React frontend via npm automatically)
-mvn clean install -Dmaven.test.skip -T 1C
+mvn clean install -DskipTests -T 1C
 
 # 3. Bootstrap — downloads Tomcat if absent, copies and patches config templates,
 #    removes stale files, deploys the WAR. deploy-local.sh also runs migrate.sh
@@ -177,7 +182,7 @@ in production — fix mistakes with a follow-up migration.
 #### Routine redeploy (after first-time setup)
 
 ```bash
-mvn clean install -Dmaven.test.skip -T 1C
+mvn clean install -DskipTests -T 1C
 bin/redeploy.sh    # shutdown + rotate catalina.out + swap WAR + startup
 ```
 

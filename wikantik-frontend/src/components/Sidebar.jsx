@@ -220,7 +220,8 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
         {(existingClusters.length > 0 || uncategorized.length > 0) && (
           <CollapsibleSection
             id="clusters-root"
-            title="Clusters"
+            title="Browse Clusters"
+            headerClassName="personal-section-header--title"
             count={existingClusters.length + (uncategorized.length > 0 ? 1 : 0)}
             defaultOpen={false}
           >

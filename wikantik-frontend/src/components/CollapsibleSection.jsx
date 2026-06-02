@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 const keyFor = (id) => `wikantik.section.${id}`;
 
-export default function CollapsibleSection({ id, icon, title, count, badge = null, defaultOpen = true, children }) {
+export default function CollapsibleSection({ id, icon, title, count, badge = null, defaultOpen = true, headerClassName = '', children }) {
   const [open, setOpen] = useState(() => {
     const saved = localStorage.getItem(keyFor(id));
     return saved === null ? defaultOpen : saved === '1';
@@ -20,7 +20,7 @@ export default function CollapsibleSection({ id, icon, title, count, badge = nul
     <div className="sidebar-section personal-section">
       <button
         type="button"
-        className="personal-section-header"
+        className={`personal-section-header ${headerClassName}`.trim()}
         aria-expanded={open}
         onClick={toggle}
       >

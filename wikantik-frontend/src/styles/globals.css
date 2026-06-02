@@ -243,7 +243,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--text-muted);
+  color: var(--text);
   margin-bottom: var(--space-sm);
   padding-left: var(--space-sm);
 }
@@ -1341,6 +1341,20 @@ a[data-attachment-missing] {
 .personal-section-count { margin-left: var(--space-xs); color: var(--text-muted); }
 .personal-section-chevron { margin-left: auto; opacity: 0.6; }
 .personal-section-body { padding-left: var(--space-xs); }
+
+/* Top-level collapsible header styled to match the section titles
+   (NAVIGATION, WIKI TOOLS): same size/weight/letter-spacing and full text color. */
+.personal-section-header--title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text);
+}
+
+/* Tighten the nested cluster tree when "Browse Clusters" is expanded — the
+   per-cluster sections otherwise inherit the full inter-section margin. */
+.personal-section-body .sidebar-section { margin-bottom: var(--space-xs); }
+.personal-section-body .personal-section-header { padding-top: 2px; padding-bottom: 2px; }
 .personal-empty { color: var(--text-muted); font-style: italic; font-size: 0.78rem; padding: var(--space-xs); }
 .personal-viewall {
   background: none; border: none; cursor: pointer;

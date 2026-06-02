@@ -47,6 +47,13 @@ public class ClusterTreeIT extends WithIntegrationTestSetup {
     void sidebarGroupsPagesUnderCollapsibleClusterHeaders() {
         ViewWikiPage.open( PAGE );
 
+        // Clusters live under one top-level "Clusters" section, collapsed by
+        // default — expand it to reach the per-cluster headers.
+        $$( ".app-sidebar .personal-section-header" )
+            .findBy( Condition.text( "Clusters" ) )
+            .shouldBe( Condition.visible, Duration.ofSeconds( 10 ) )
+            .click();
+
         // The cluster appears as a collapsible section header in the sidebar.
         final SelenideElement header = $$( ".app-sidebar .personal-section-header" )
             .findBy( Condition.text( CLUSTER ) )

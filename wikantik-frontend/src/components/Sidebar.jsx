@@ -214,28 +214,39 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen = false, onMob
           </div>
         )}
 
-        {/* Clusters — collapsible tree; the active page's cluster opens by default */}
-        {existingClusters.map(cluster => (
+        {/* Clusters — one top-level collapsible wrapper (collapsed by default so it
+            stays a single line) holding the per-cluster collapsible tree. The active
+            page's cluster still auto-expands inside, so opening this lands on it. */}
+        {(existingClusters.length > 0 || uncategorized.length > 0) && (
           <CollapsibleSection
-            key={cluster}
-            id={`cluster-${cluster}`}
-            title={cluster}
-            count={clusters[cluster].length}
-            defaultOpen={isActiveCluster(clusters[cluster])}
+            id="clusters-root"
+            title="Clusters"
+            count={existingClusters.length + (uncategorized.length > 0 ? 1 : 0)}
+            defaultOpen={false}
           >
-            {clusterLinks(clusters[cluster])}
-          </CollapsibleSection>
-        ))}
+            {existingClusters.map(cluster => (
+              <CollapsibleSection
+                key={cluster}
+                id={`cluster-${cluster}`}
+                title={cluster}
+                count={clusters[cluster].length}
+                defaultOpen={isActiveCluster(clusters[cluster])}
+              >
+                {clusterLinks(clusters[cluster])}
+              </CollapsibleSection>
+            ))}
 
-        {/* Clusterless pages */}
-        {uncategorized.length > 0 && (
-          <CollapsibleSection
-            id="cluster-__uncategorized__"
-            title="Uncategorized"
-            count={uncategorized.length}
-            defaultOpen={isActiveCluster(uncategorized)}
-          >
-            {clusterLinks(uncategorized)}
+            {/* Clusterless pages */}
+            {uncategorized.length > 0 && (
+              <CollapsibleSection
+                id="cluster-__uncategorized__"
+                title="Uncategorized"
+                count={uncategorized.length}
+                defaultOpen={isActiveCluster(uncategorized)}
+              >
+                {clusterLinks(uncategorized)}
+              </CollapsibleSection>
+            )}
           </CollapsibleSection>
         )}
 

@@ -137,25 +137,43 @@ describe('Sidebar', () => {
       { name: 'DeployGuide', cluster: 'Operations' },
     ];
 
-    it('renders each cluster as a collapsible header button', async () => {
+    // Clusters now live under one top-level "Clusters" section that is collapsed
+    // by default (so the sidebar stays compact); expand it to reach the
+    // per-cluster sections.
+    const expandClusters = async () =>
+      fireEvent.click( await screen.findByRole( 'button', { name: /Clusters/ } ) );
+
+    it('keeps cluster sections behind a single collapsed "Clusters" header by default', async () => {
       api.listPages.mockResolvedValue({ pages: clusteredPages });
       renderSidebar('/wiki/Main');
-      expect(await screen.findByRole('button', { name: /Security/ })).toBeInTheDocument();
+      // The top-level wrapper is present, but the individual cluster headers are
+      // not rendered until it is expanded.
+      expect(await screen.findByRole('button', { name: /Clusters/ })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Security/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Operations/ })).not.toBeInTheDocument();
+    });
+
+    it('reveals each cluster as a collapsible header button once expanded', async () => {
+      api.listPages.mockResolvedValue({ pages: clusteredPages });
+      renderSidebar('/wiki/Main');
+      await expandClusters();
+      expect(screen.getByRole('button', { name: /Security/ })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Operations/ })).toBeInTheDocument();
     });
 
-    it('auto-expands the cluster containing the active page', async () => {
+    it('auto-expands the cluster containing the active page once Clusters is open', async () => {
       api.listPages.mockResolvedValue({ pages: clusteredPages });
       renderSidebar('/wiki/AclModel');
+      await expandClusters();
       // Security contains the active page → open, so its links are rendered.
-      expect(await screen.findByRole('link', { name: 'AclModel' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'AclModel' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'PolicyGrants' })).toBeInTheDocument();
     });
 
     it('collapses clusters that do not contain the active page', async () => {
       api.listPages.mockResolvedValue({ pages: clusteredPages });
       renderSidebar('/wiki/AclModel');
-      await screen.findByRole('button', { name: /Operations/ });
+      await expandClusters();
       // Operations is not the active cluster → collapsed, link not rendered.
       expect(screen.queryByRole('link', { name: 'DeployGuide' })).not.toBeInTheDocument();
       // Expanding it reveals the page.
@@ -171,19 +189,18 @@ describe('Sidebar', () => {
         ],
       });
       renderSidebar('/wiki/LoosePage');
-      const header = await screen.findByRole('button', { name: /Uncategorized/ });
-      expect(header).toBeInTheDocument();
+      await expandClusters();
+      expect(screen.getByRole('button', { name: /Uncategorized/ })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'LoosePage' })).toBeInTheDocument();
       // 'Main' is already a primary-nav link; it should not be duplicated here.
-      // (The primary "Main page" link has a different label, so any 'Main' link
-      // would be the duplicate we are guarding against.)
       expect(screen.queryByRole('link', { name: 'Main' })).not.toBeInTheDocument();
     });
 
     it('does not render an Uncategorized section when every page is clustered', async () => {
       api.listPages.mockResolvedValue({ pages: clusteredPages });
       renderSidebar('/wiki/AclModel');
-      await screen.findByRole('button', { name: /Security/ });
+      await expandClusters();
+      expect(screen.getByRole('button', { name: /Security/ })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Uncategorized/ })).not.toBeInTheDocument();
     });
   });

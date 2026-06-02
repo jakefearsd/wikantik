@@ -6,6 +6,8 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { api } from '../api/client';
 import { reconstructContent, stripFrontmatter } from '../utils/frontmatterUtils';
+import { frontmatterLineCount, caretToPreviewFraction, previewScrollTopFor } from '../utils/scrollSync';
+import FrontmatterPreview from './FrontmatterPreview';
 import { remarkAttachments } from '../utils/remarkAttachments';
 import { useAttachments } from '../hooks/useAttachments';
 import { useEditorDrop } from '../hooks/useEditorDrop';
@@ -45,6 +47,9 @@ export default function PageEditor() {
   // #19 — CodeMirror editor: imperative handle for selection + DOM container for drop
   const editorRef = useRef(null);
   const dropContainerRef = useRef(null);
+  // Editor→preview scroll sync: preview scroll container + a rAF coalescer.
+  const previewRef = useRef(null);
+  const syncRafRef = useRef(0);
   const [dark] = useDarkMode();
   const attachments = useAttachments(name);
   // Track saving in a ref so the keyboard handler can read latest state without re-registering
@@ -67,6 +72,27 @@ export default function PageEditor() {
   // callbacks read current text without re-registering.
   const contentRef = useRef(content);
   contentRef.current = content;
+
+  // Editor→preview scroll sync. Driven by the editor's top-visible line so it
+  // follows both manual scrolling and typing; frontmatter-zone-aware (caret in
+  // the frontmatter pins the preview to its top card). One-directional, so there
+  // is no feedback loop. Coalesced into a single rAF per burst.
+  const syncPreview = useCallback(() => {
+    if (syncRafRef.current) return;
+    syncRafRef.current = requestAnimationFrame(() => {
+      syncRafRef.current = 0;
+      const editor = editorRef.current;
+      const preview = previewRef.current;
+      if (!editor?.getViewport || !preview) return;
+      const vp = editor.getViewport();
+      if (!vp) return;
+      const fm = frontmatterLineCount(contentRef.current);
+      const fraction = caretToPreviewFraction(vp.topLine, vp.totalLines, fm);
+      preview.scrollTop = previewScrollTopFor(fraction, preview.scrollHeight, preview.clientHeight);
+    });
+  }, []);
+
+  useEffect(() => () => { if (syncRafRef.current) cancelAnimationFrame(syncRafRef.current); }, []);
 
   // Page names for `[[`-triggered internal-link autocomplete in the editor.
   // Held in a ref so CodeEditor's completion source (built once) always reads
@@ -473,9 +499,11 @@ export default function PageEditor() {
             onItalic={handleItalic}
             onLink={handleLink}
             getLinkCompletions={getPageNames}
+            onViewChange={syncPreview}
           />
         </div>
-        <div className="editor-pane editor-preview">
+        <div className="editor-pane editor-preview" ref={previewRef}>
+          <FrontmatterPreview content={content} />
           <article className="article-prose">
             <ReactMarkdown remarkPlugins={[
               remarkGfm,

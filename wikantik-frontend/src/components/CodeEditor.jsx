@@ -35,7 +35,7 @@ import { createWikiLinkSource } from '../utils/wikiLinkComplete';
  *   'data-testid' string         applied to the wrapping div
  */
 const CodeEditor = forwardRef(function CodeEditor(
-  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, getLinkCompletions, className, ...rest },
+  { value, onChange, dark = false, onSave, onBold, onItalic, onLink, getLinkCompletions, onViewChange, className, ...rest },
   ref,
 ) {
   const viewRef = useRef(null);
@@ -45,6 +45,11 @@ const CodeEditor = forwardRef(function CodeEditor(
   // list without forcing the editor to reconfigure.
   const linkCompletionsRef = useRef(getLinkCompletions);
   linkCompletionsRef.current = getLinkCompletions;
+
+  // Fired on scroll / caret move / edit so the parent can sync the preview.
+  // Held in a ref so the extension (built once) always calls the latest handler.
+  const onViewChangeRef = useRef(onViewChange);
+  onViewChangeRef.current = onViewChange;
 
   const handleCreateEditor = useCallback((view) => {
     viewRef.current = view;
@@ -69,7 +74,34 @@ const CodeEditor = forwardRef(function CodeEditor(
     focus() {
       viewRef.current?.focus();
     },
+    /**
+     * The 1-based source line currently at the top of the editor viewport, plus
+     * the document line count — drives editor→preview scroll sync. Using the
+     * top-visible line follows both manual scrolling and typing (CodeMirror keeps
+     * the caret in view, so the caret's line stays within the viewport).
+     */
+    getViewport() {
+      const view = viewRef.current;
+      if (!view) return null;
+      let topLine = 1;
+      try {
+        const block = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
+        topLine = view.state.doc.lineAt(block.from).number;
+      } catch {
+        // best-effort sync — fall back to the top of the document
+        topLine = 1;
+      }
+      return { topLine, totalLines: view.state.doc.lines };
+    },
   }), []);
+
+  // Notify the parent on scroll, caret move, or edit (so it can sync the preview).
+  const syncExtension = useMemo(() => [
+    EditorView.domEventHandlers({ scroll() { onViewChangeRef.current?.(); return false; } }),
+    EditorView.updateListener.of((u) => {
+      if (u.selectionSet || u.docChanged) onViewChangeRef.current?.();
+    }),
+  ], []);
 
   // High-precedence keymap so our shortcuts win over CodeMirror's defaults
   // (e.g. Mod-s is normally undefined but the browser-level Save dialog would
@@ -100,8 +132,8 @@ const CodeEditor = forwardRef(function CodeEditor(
   );
 
   const extensions = useMemo(
-    () => [markdown(), EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete],
-    [shortcutKeymap, wikiLinkAutocomplete],
+    () => [markdown(), EditorView.lineWrapping, shortcutKeymap, wikiLinkAutocomplete, syncExtension],
+    [shortcutKeymap, wikiLinkAutocomplete, syncExtension],
   );
 
   return (

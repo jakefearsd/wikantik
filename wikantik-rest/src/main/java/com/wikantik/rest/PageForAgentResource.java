@@ -34,6 +34,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -101,8 +102,28 @@ public class PageForAgentResource extends RestServletBase {
         resp.getWriter().write( body );
     }
 
+    // toJson is split into small per-section builders. Inlined, the optional
+    // scalar fields plus the array loops multiplied out to an NPath complexity of
+    // ~110k; extracting each section keeps every method straight-line and the
+    // wire format byte-identical.
     private static JsonObject toJson( final ForAgentProjection p ) {
         final JsonObject d = new JsonObject();
+        addScalars( d, p );
+        d.add( "key_facts",        keyFactsJson( p ) );
+        d.add( "headings_outline", headingsJson( p ) );
+        d.add( "recent_changes",   recentChangesJson( p ) );
+        d.add( "mcp_tool_hints",   toolHintsJson( p ) );
+        d.add( "runbook",     p.runbook()    == null ? JsonNull.INSTANCE : AGENT_GSON.toJsonTree( p.runbook() ) );
+        d.add( "agent_hints", p.agentHints() == null ? JsonNull.INSTANCE : AGENT_GSON.toJsonTree( p.agentHints() ) );
+        d.addProperty( "summary_synthesized", p.summarySynthesized() );
+        d.addProperty( "full_body_url",    p.fullBodyUrl() );
+        d.addProperty( "raw_markdown_url", p.rawMarkdownUrl() );
+        d.addProperty( "degraded",         p.degraded() );
+        d.add( "missing_fields", stringArray( p.missingFields() ) );
+        return d;
+    }
+
+    private static void addScalars( final JsonObject d, final ForAgentProjection p ) {
         d.addProperty( "id",         p.canonicalId() );
         d.addProperty( "slug",       p.slug() );
         d.addProperty( "title",      p.title() );
@@ -114,7 +135,9 @@ public class PageForAgentResource extends RestServletBase {
         if ( p.verifiedBy() != null ) d.addProperty( "verified_by", p.verifiedBy() );
         if ( p.updated()    != null ) d.addProperty( "updated",     p.updated().toString() );
         if ( p.summary()    != null ) d.addProperty( "summary",     p.summary() );
+    }
 
+    private static JsonArray keyFactsJson( final ForAgentProjection p ) {
         final JsonArray facts = new JsonArray();
         for ( final KeyFact kf : p.keyFacts() ) {
             final JsonObject o = new JsonObject();
@@ -122,8 +145,10 @@ public class PageForAgentResource extends RestServletBase {
             if ( kf.sourceHint() != null ) o.addProperty( "source", kf.sourceHint() );
             facts.add( o );
         }
-        d.add( "key_facts", facts );
+        return facts;
+    }
 
+    private static JsonArray headingsJson( final ForAgentProjection p ) {
         final JsonArray outline = new JsonArray();
         for ( final HeadingOutline h : p.headingsOutline() ) {
             final JsonObject o = new JsonObject();
@@ -131,8 +156,10 @@ public class PageForAgentResource extends RestServletBase {
             o.addProperty( "text",  h.text() );
             outline.add( o );
         }
-        d.add( "headings_outline", outline );
+        return outline;
+    }
 
+    private static JsonArray recentChangesJson( final ForAgentProjection p ) {
         final JsonArray changes = new JsonArray();
         for ( final RecentChange c : p.recentChanges() ) {
             final JsonObject o = new JsonObject();
@@ -142,8 +169,10 @@ public class PageForAgentResource extends RestServletBase {
             if ( c.summary() != null ) o.addProperty( "summary", c.summary() );
             changes.add( o );
         }
-        d.add( "recent_changes", changes );
+        return changes;
+    }
 
+    private static JsonArray toolHintsJson( final ForAgentProjection p ) {
         final JsonArray hints = new JsonArray();
         for ( final McpToolHint h : p.mcpToolHints() ) {
             final JsonObject o = new JsonObject();
@@ -151,21 +180,13 @@ public class PageForAgentResource extends RestServletBase {
             o.addProperty( "when", h.when() );
             hints.add( o );
         }
-        d.add( "mcp_tool_hints", hints );
+        return hints;
+    }
 
-        d.add( "runbook", p.runbook() == null ? JsonNull.INSTANCE
-                : AGENT_GSON.toJsonTree( p.runbook() ) );
-        d.add( "agent_hints", p.agentHints() == null ? JsonNull.INSTANCE
-                : AGENT_GSON.toJsonTree( p.agentHints() ) );
-        d.addProperty( "summary_synthesized", p.summarySynthesized() );
-        d.addProperty( "full_body_url",    p.fullBodyUrl() );
-        d.addProperty( "raw_markdown_url", p.rawMarkdownUrl() );
-        d.addProperty( "degraded",         p.degraded() );
-
-        final JsonArray missing = new JsonArray();
-        for ( final String f : p.missingFields() ) missing.add( f );
-        d.add( "missing_fields", missing );
-        return d;
+    private static JsonArray stringArray( final List< String > values ) {
+        final JsonArray arr = new JsonArray();
+        for ( final String v : values ) arr.add( v );
+        return arr;
     }
 
 }

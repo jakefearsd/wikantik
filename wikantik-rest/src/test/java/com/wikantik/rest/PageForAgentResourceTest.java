@@ -121,6 +121,24 @@ class PageForAgentResourceTest {
         assertTrue( data.has( "runbook" ) );
         assertTrue( data.get( "runbook" ).isJsonNull() );
         assertEquals( false, data.get( "degraded" ).getAsBoolean() );
+        // Guard the optional/scalar fields too, so the toJson extraction refactor
+        // cannot silently drop one.
+        assertEquals( "Hybrid Retrieval", data.get( "title" ).getAsString() );
+        assertEquals( "article",          data.get( "type" ).getAsString() );
+        assertEquals( "wikantik-development", data.get( "cluster" ).getAsString() );
+        assertTrue( data.has( "audience" ) && !data.get( "audience" ).isJsonNull() );
+        assertEquals( "2026-04-20T00:00:00Z", data.get( "verified_at" ).getAsString() );
+        assertEquals( "jakefear",             data.get( "verified_by" ).getAsString() );
+        assertEquals( "2026-04-22T11:10:00Z", data.get( "updated" ).getAsString() );
+        assertEquals( "Operator reference for hybrid retrieval.", data.get( "summary" ).getAsString() );
+        assertEquals( "BM25 + dense via RRF.", facts.get( 0 ).getAsJsonObject().get( "text" ).getAsString() );
+        assertEquals( "frontmatter",           facts.get( 0 ).getAsJsonObject().get( "source" ).getAsString() );
+        assertEquals( 2, outline.get( 0 ).getAsJsonObject().get( "level" ).getAsInt() );
+        assertEquals( "/api/pages/HybridRetrieval",          data.get( "full_body_url" ).getAsString() );
+        assertEquals( "/wiki/HybridRetrieval?format=md",     data.get( "raw_markdown_url" ).getAsString() );
+        assertTrue( data.has( "key_facts" ) && data.has( "headings_outline" )
+                && data.has( "recent_changes" ) && data.has( "mcp_tool_hints" )
+                && data.has( "missing_fields" ) );
     }
 
     @Test

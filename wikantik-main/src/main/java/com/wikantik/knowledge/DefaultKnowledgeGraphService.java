@@ -167,9 +167,10 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
         }
 
         final Map< String, SchemaDescription.PropertyInfo > propertyKeys = new LinkedHashMap<>();
-        for ( final String key : propCounts.keySet() ) {
+        for ( final Map.Entry< String, Long > entry : propCounts.entrySet() ) {
+            final String key = entry.getKey();
             propertyKeys.put( key, new SchemaDescription.PropertyInfo(
-                    propCounts.get( key ),
+                    entry.getValue(),
                     propSamples.getOrDefault( key, List.of() )
             ) );
         }

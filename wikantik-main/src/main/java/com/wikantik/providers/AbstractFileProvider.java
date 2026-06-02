@@ -832,8 +832,9 @@ public abstract class AbstractFileProvider implements PageProvider {
         final Properties customProperties = new Properties();
         if( page != null ) {
             final Map< String, Object > atts = page.getAttributes();
-            for( final String key : atts.keySet() ) {
-                final Object value = atts.get( key );
+            for( final Map.Entry< String, Object > entry : atts.entrySet() ) {
+                final String key = entry.getKey();
+                final Object value = entry.getValue();
                 if( key.startsWith( "@" ) && value != null ) {
                     customProperties.put( key, value.toString() );
                 }

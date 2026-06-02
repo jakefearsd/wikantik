@@ -23,9 +23,7 @@ import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
 
 import java.lang.ref.WeakReference;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -274,19 +272,17 @@ public final class WatchDog {
         }
 
         final Map< Thread, StackTraceElement[] > stackTraces = Thread.getAllStackTraces();
-        final Set< Thread > threads = stackTraces.keySet();
-        final Iterator< Thread > threadIterator = threads.iterator();
         final StringBuilder stacktrace = new StringBuilder();
 
-        while ( threadIterator.hasNext() ) {
-            final Thread t = threadIterator.next();
+        for ( final Map.Entry< Thread, StackTraceElement[] > entry : stackTraces.entrySet() ) {
+            final Thread t = entry.getKey();
             if( t.getName().equals( watchable.getName() ) ) {
                 if( t.getName().equals( watchable.getName() ) ) {
                     stacktrace.append( "dumping stacktrace for too long running thread : " ).append( t );
                 } else {
                     stacktrace.append( "dumping stacktrace for other running thread : " ).append( t );
                 }
-                final StackTraceElement[] ste = stackTraces.get( t );
+                final StackTraceElement[] ste = entry.getValue();
                 for( final StackTraceElement stackTraceElement : ste ) {
                     stacktrace.append('\n').append( stackTraceElement );
                 }

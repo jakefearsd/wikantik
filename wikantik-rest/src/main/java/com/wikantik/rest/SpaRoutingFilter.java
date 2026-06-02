@@ -141,8 +141,7 @@ public class SpaRoutingFilter implements Filter {
         if ( "/graph".equals( path ) ) {
             final String qs = req.getQueryString();
             final String target = contextPath + "/page-graph" + ( qs != null ? "?" + qs : "" );
-            resp.setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
-            resp.setHeader( "Location", target );
+            sendMovedPermanently( resp, target );
             return;
         }
 
@@ -150,8 +149,7 @@ public class SpaRoutingFilter implements Filter {
             final String suffix = path.substring( "/admin/knowledge".length() );
             final String qs = req.getQueryString();
             final String target = contextPath + "/admin/knowledge-graph" + suffix + ( qs != null ? "?" + qs : "" );
-            resp.setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
-            resp.setHeader( "Location", target );
+            sendMovedPermanently( resp, target );
             return;
         }
 
@@ -431,6 +429,22 @@ public class SpaRoutingFilter implements Filter {
         resp.setHeader( "Pragma", "no-cache" );
         resp.setHeader( "Expires", "0" );
         resp.setHeader( "Vary", "*" );
+    }
+
+    /**
+     * Emits a 301 with the given {@code Location} only when the target is free
+     * of CR/LF — guarding against HTTP response-splitting, since the redirect
+     * target is built from request-derived path/query fragments. A tainted
+     * target yields a 400 instead.
+     */
+    private static void sendMovedPermanently( final HttpServletResponse resp, final String target )
+            throws IOException {
+        if ( target.indexOf( '\r' ) >= 0 || target.indexOf( '\n' ) >= 0 ) {
+            resp.sendError( HttpServletResponse.SC_BAD_REQUEST );
+            return;
+        }
+        resp.setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
+        resp.setHeader( "Location", target );
     }
 
     @Override

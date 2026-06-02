@@ -176,22 +176,7 @@ public final class KgProposalRepository extends KgJdbcSupport {
         final StringBuilder sql = new StringBuilder( "SELECT * FROM kg_proposals WHERE 1=1" );
         final List< Object > params = new ArrayList<>();
 
-        if ( status != null ) { sql.append( " AND status = ?" ); params.add( status ); }
-        if ( tier != null ) { sql.append( " AND tier = ?" ); params.add( tier ); }
-        if ( machineStatus != null ) {
-            // The "(null)" sentinel maps to IS NULL — used by the admin queue's
-            // "Awaiting machine review" filter, which would otherwise be
-            // forced to filter client-side and break pagination accuracy.
-            if ( MACHINE_STATUS_NULL_SENTINEL.equals( machineStatus ) ) {
-                sql.append( " AND machine_status IS NULL" );
-            } else {
-                sql.append( " AND machine_status = ?" ); params.add( machineStatus );
-            }
-        }
-        if ( !includeMachineRejected ) {
-            sql.append( " AND ( machine_status IS NULL OR machine_status <> 'rejected' )" );
-        }
-        if ( sourcePage != null ) { sql.append( " AND source_page = ?" ); params.add( sourcePage ); }
+        appendProposalFilters( sql, params, status, tier, machineStatus, includeMachineRejected, sourcePage );
         // The id-DESC tiebreak is required for stable pagination — without it
         // two rows with equal `created` could swap positions across page
         // boundaries, causing one to appear twice or get skipped entirely.
@@ -218,9 +203,10 @@ public final class KgProposalRepository extends KgJdbcSupport {
      * {@link #listProposalsFiltered} ignores the {@code limit}/{@code offset}.
      * Required for the pagination footer in the admin queue ("Showing X–Y of Z").
      *
-     * <p>The WHERE clause is intentionally identical to listProposalsFiltered;
-     * a divergence between the two would mis-state totals and silently truncate
-     * pages in the UI. If you change one, change the other.
+     * <p>The WHERE clause is shared with {@link #listProposalsFiltered} via
+     * {@link #appendProposalFilters} — keeping them in one place prevents the
+     * two queries from drifting and mis-stating totals (which would silently
+     * truncate pages in the UI).
      */
     public long countProposalsFiltered( final String status, final String tier,
                                          final String machineStatus,
@@ -228,19 +214,7 @@ public final class KgProposalRepository extends KgJdbcSupport {
                                          final String sourcePage ) {
         final StringBuilder sql = new StringBuilder( "SELECT COUNT(*) FROM kg_proposals WHERE 1=1" );
         final List< Object > params = new ArrayList<>();
-        if ( status != null ) { sql.append( " AND status = ?" ); params.add( status ); }
-        if ( tier != null ) { sql.append( " AND tier = ?" ); params.add( tier ); }
-        if ( machineStatus != null ) {
-            if ( MACHINE_STATUS_NULL_SENTINEL.equals( machineStatus ) ) {
-                sql.append( " AND machine_status IS NULL" );
-            } else {
-                sql.append( " AND machine_status = ?" ); params.add( machineStatus );
-            }
-        }
-        if ( !includeMachineRejected ) {
-            sql.append( " AND ( machine_status IS NULL OR machine_status <> 'rejected' )" );
-        }
-        if ( sourcePage != null ) { sql.append( " AND source_page = ?" ); params.add( sourcePage ); }
+        appendProposalFilters( sql, params, status, tier, machineStatus, includeMachineRejected, sourcePage );
         try ( Connection conn = dataSource.getConnection();
               PreparedStatement ps = conn.prepareStatement( sql.toString() ) ) {
             for ( int i = 0; i < params.size(); i++ ) ps.setObject( i + 1, params.get( i ) );
@@ -251,6 +225,35 @@ public final class KgProposalRepository extends KgJdbcSupport {
             LOG.warn( "countProposalsFiltered failed: {}", e.getMessage(), e );
             throw new RuntimeException( "countProposalsFiltered failed: " + e.getMessage(), e );
         }
+    }
+
+    /**
+     * Appends the shared proposal-filter WHERE conditions to {@code sql} and
+     * collects their bind parameters into {@code params}, in the order the
+     * placeholders are emitted. Used identically by {@link #listProposalsFiltered}
+     * and {@link #countProposalsFiltered} so their filters cannot diverge.
+     */
+    private static void appendProposalFilters( final StringBuilder sql, final List< Object > params,
+                                               final String status, final String tier,
+                                               final String machineStatus,
+                                               final boolean includeMachineRejected,
+                                               final String sourcePage ) {
+        if ( status != null ) { sql.append( " AND status = ?" ); params.add( status ); }
+        if ( tier != null ) { sql.append( " AND tier = ?" ); params.add( tier ); }
+        if ( machineStatus != null ) {
+            // The "(null)" sentinel maps to IS NULL — used by the admin queue's
+            // "Awaiting machine review" filter, which would otherwise be
+            // forced to filter client-side and break pagination accuracy.
+            if ( MACHINE_STATUS_NULL_SENTINEL.equals( machineStatus ) ) {
+                sql.append( " AND machine_status IS NULL" );
+            } else {
+                sql.append( " AND machine_status = ?" ); params.add( machineStatus );
+            }
+        }
+        if ( !includeMachineRejected ) {
+            sql.append( " AND ( machine_status IS NULL OR machine_status <> 'rejected' )" );
+        }
+        if ( sourcePage != null ) { sql.append( " AND source_page = ?" ); params.add( sourcePage ); }
     }
 
     public void updateProposalStatus( final UUID id, final String status, final String reviewedBy ) {

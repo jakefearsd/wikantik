@@ -222,8 +222,12 @@ The common path writes nothing; only regulated content pays the cost.
 - `GET /admin/audit/export?format=csv|json` — auditor export.
 - `GET /admin/audit/verify` — chain integrity check.
 - **SPA:** a new **Audit** tab in the admin panel — filter table, export buttons,
-  and a "Verify integrity" action. The new SPA route requires **dual
-  registration**: `web.xml` *and* the `SPA_EXACT` array in `SpaRoutingFilter`.
+  and a "Verify integrity" action. The audit page is a client-side sub-route of
+  the existing `/admin` panel; because `SpaRoutingFilter.SPA_PREFIXES` already
+  contains `/admin/`, **no `web.xml` / `SPA_EXACT` change is required** (this
+  corrects the original dual-registration note). The `/admin/audit*` REST
+  endpoints are servlets registered in `web.xml` alongside the other admin
+  resources.
 
 Access to the audit log is itself an `admin`-category audit event.
 
@@ -256,8 +260,36 @@ Mitigations:
 - Per project rules: run the full IT reactor (`mvn clean install
   -Pintegration-tests -fae`) before committing prod-code changes.
 
+## As-built notes (deltas from the original design)
+
+Three issues surfaced only under the wired Cargo + PostgreSQL integration test and
+were fixed during implementation:
+
+- **Listener strong reference.** `WikiEventManager` holds listeners in a
+  `WeakHashMap`; the `AuditEventListener` must be retained in a `WikiEngine` field
+  or it is garbage-collected and silently records nothing.
+- **Frontmatter source for read-gating.** `AuditReadPolicy`'s frontmatter lookup
+  parses the raw page text via `FrontmatterParser` — the `Page.FRONTMATTER_METADATA`
+  attribute is not reliably populated by providers.
+- **Timestamp precision.** `event_time` is truncated to **microseconds** before
+  both hashing (`AuditEntry.canonical()`) and storage, because PostgreSQL
+  `TIMESTAMPTZ` rounds sub-microsecond nanoseconds — otherwise `verifyChain` would
+  report a false tamper on clean data.
+
 ## Open items / v2
 
+- **CI does not yet prove the locked grant.** The integration test's PostgreSQL
+  runs the app role as a superuser, for which `REVOKE UPDATE/DELETE` is a no-op, so
+  the IT skips the immutability assertion. Production uses a non-superuser app role
+  where the grant is enforced. Follow-up: add a dedicated non-superuser role to the
+  IT to actually exercise the `REVOKE`.
+- **`ensurePartition` needs schema `CREATE`.** Runtime partition creation requires
+  the app role to hold `CREATE` on the schema; pre-created partitions cover through
+  Aug 2026. The v2 privileged retention job should own partition management (and
+  pre-create future partitions).
+- **Audit init is nested in `initKnowledgeGraph`.** A RuntimeException earlier in KG
+  init would skip audit init. Acceptable for v1 (datasource always present); v2
+  should hoist audit init to its own top-level step.
 - Retention purge via privileged partition-drop, archive-to-NAS first.
 - Optional durable staging for zero event loss.
 - Outbound forwarding to external WORM / SIEM (with the webhook work).

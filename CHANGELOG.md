@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Tamper-evident audit log.** A compliance-first, append-only audit trail
+  capturing authentication/authorization (login, logout, session expiry, access
+  denied), content changes (page save/delete/rename), admin/security-config
+  actions (policy-grant changes, user enable/disable, API-key issuance), and
+  opt-in sensitive page reads (frontmatter `audit_reads: true` or a configured
+  cluster set, default off). Records are written by a single async writer under a
+  PostgreSQL advisory lock and chained with SHA-256 (each row hashes the previous
+  row's hash), so any edit or deletion of history is detectable. The `audit_log`
+  table is month-partitioned and `INSERT`/`SELECT`-only to the app role
+  (`UPDATE`/`DELETE` revoked). New admin surface: `GET /admin/audit` (filterable),
+  `GET /admin/audit/verify` (chain integrity), `GET /admin/audit/export?format=csv`,
+  and an **Audit** tab in the admin panel. Dropped-entry count is exposed as the
+  `wikantik_audit_dropped_total` gauge. See
+  [AuditLogDesign](docs/wikantik-pages/AuditLogDesign.md).
+
 ## [2.0.10] - 2026-06-02
 
 ### Changed

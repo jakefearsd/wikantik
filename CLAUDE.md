@@ -273,7 +273,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 | `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 16 read-only retrieval + Knowledge Graph + Page Graph structural-spine + agent-projection + batched-read tools | `KnowledgeMcpAccessFilter` (same scheme) |
 | `/tools/*` | wikantik-tools | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) | API key |
 | `/api/*` | wikantik-rest | REST/JSON | 24 Resource classes | `RestServletBase.checkPagePermission()` (ACL + policy grants) |
-| `/admin/*` | wikantik-rest | REST/JSON | 9 admin resources (incl. `/admin/kg-policy/*`) | `AdminAuthFilter` (`AllPermission`) |
+| `/admin/*` | wikantik-rest | REST/JSON | 10 admin resources (incl. `/admin/kg-policy/*` and the tamper-evident `/admin/audit*` log: query/verify/export) | `AdminAuthFilter` (`AllPermission`) |
 | `/wiki/{slug}?format=md\|json` | wikantik-rest | HTTP | Raw content for RAG ingestion / crawlers | Public (same ACL as page view) |
 | `/api/changes?since=…` | wikantik-rest | REST/JSON | Incremental change feed for sync pipelines | Public |
 

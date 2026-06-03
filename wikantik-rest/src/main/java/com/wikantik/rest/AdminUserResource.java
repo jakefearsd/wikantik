@@ -26,9 +26,6 @@ import java.util.Optional;
 
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
-import com.wikantik.audit.AuditCategory;
-import com.wikantik.audit.AuditEntry;
-import com.wikantik.audit.AuditOutcome;
 import com.wikantik.audit.AuditService;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
@@ -238,8 +235,8 @@ public class AdminUserResource extends RestServletBase {
 
             final Optional< String > err;
             switch ( action ) {
-                case "lock"   -> err = tryLockUser( loginName );
-                case "unlock" -> err = tryUnlockUser( loginName );
+                case "lock"   -> err = tryLockUser( loginName, actor );
+                case "unlock" -> err = tryUnlockUser( loginName, actor );
                 case "delete" -> err = tryDeleteUser( loginName, actor );
                 case "add-to-group" -> err = tryAddToGroup( loginName, targetGroup, session, actor );
                 default -> err = Optional.of( "Unknown action" );  // unreachable
@@ -283,10 +280,28 @@ public class AdminUserResource extends RestServletBase {
     // ---- per-id helpers shared with single-item path ----
 
     /**
-     * Locks {@code loginName} indefinitely. Returns empty on success, an error
-     * message on failure.
+     * Locks {@code loginName} indefinitely via {@link com.wikantik.auth.UserLifecycleService}
+     * (when an audit service is available) or falls back to the inline mechanism.
+     * Returns empty on success, an error message on failure.
      */
-    Optional< String > tryLockUser( final String loginName ) {
+    Optional< String > tryLockUser( final String loginName, final String actor ) {
+        final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine we
+                ? we.getAuditService() : null;
+        if ( audit != null ) {
+            try {
+                final com.wikantik.auth.UserLifecycleService lifecycle =
+                        new com.wikantik.auth.UserLifecycleService( getUserDatabase(), audit );
+                lifecycle.deactivate( loginName, actor, "admin-ui" );
+                return Optional.empty();
+            } catch ( final WikiSecurityException e ) {
+                LOG.warn( "tryLockUser: failed to deactivate user={}: {}", loginName, e.getMessage(), e );
+                return Optional.of( e.getMessage() != null ? e.getMessage() : "Failed to lock user" );
+            } catch ( final Exception e ) {
+                LOG.warn( "tryLockUser: failed to deactivate user={}: {}", loginName, e.getMessage(), e );
+                return Optional.of( e.getMessage() != null ? e.getMessage() : "Failed to lock user" );
+            }
+        }
+        // Fallback: no audit subsystem — inline mechanism
         try {
             final UserDatabase db = getUserDatabase();
             final UserProfile profile = db.findByLoginName( loginName );
@@ -294,16 +309,34 @@ public class AdminUserResource extends RestServletBase {
             db.save( profile );
             return Optional.empty();
         } catch ( final Exception e ) {
-            LOG.warn( "bulk-lock: failed to lock user={}: {}", loginName, e.getMessage(), e );
+            LOG.warn( "tryLockUser: failed to lock user={}: {}", loginName, e.getMessage(), e );
             return Optional.of( e.getMessage() != null ? e.getMessage() : "Failed to lock user" );
         }
     }
 
     /**
-     * Unlocks {@code loginName}. Returns empty on success, error message on
-     * failure.
+     * Unlocks {@code loginName} via {@link com.wikantik.auth.UserLifecycleService}
+     * (when an audit service is available) or falls back to the inline mechanism.
+     * Returns empty on success, error message on failure.
      */
-    Optional< String > tryUnlockUser( final String loginName ) {
+    Optional< String > tryUnlockUser( final String loginName, final String actor ) {
+        final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine we
+                ? we.getAuditService() : null;
+        if ( audit != null ) {
+            try {
+                final com.wikantik.auth.UserLifecycleService lifecycle =
+                        new com.wikantik.auth.UserLifecycleService( getUserDatabase(), audit );
+                lifecycle.reactivate( loginName, actor, "admin-ui" );
+                return Optional.empty();
+            } catch ( final WikiSecurityException e ) {
+                LOG.warn( "tryUnlockUser: failed to reactivate user={}: {}", loginName, e.getMessage(), e );
+                return Optional.of( e.getMessage() != null ? e.getMessage() : "Failed to unlock user" );
+            } catch ( final Exception e ) {
+                LOG.warn( "tryUnlockUser: failed to reactivate user={}: {}", loginName, e.getMessage(), e );
+                return Optional.of( e.getMessage() != null ? e.getMessage() : "Failed to unlock user" );
+            }
+        }
+        // Fallback: no audit subsystem — inline mechanism
         try {
             final UserDatabase db = getUserDatabase();
             final UserProfile profile = db.findByLoginName( loginName );
@@ -311,7 +344,7 @@ public class AdminUserResource extends RestServletBase {
             db.save( profile );
             return Optional.empty();
         } catch ( final Exception e ) {
-            LOG.warn( "bulk-unlock: failed to unlock user={}: {}", loginName, e.getMessage(), e );
+            LOG.warn( "tryUnlockUser: failed to unlock user={}: {}", loginName, e.getMessage(), e );
             return Optional.of( e.getMessage() != null ? e.getMessage() : "Failed to unlock user" );
         }
     }
@@ -545,88 +578,48 @@ public class AdminUserResource extends RestServletBase {
         final JsonObject body = parseJsonBody( request, response );
         if ( body == null ) return;
 
-        try {
-            final UserDatabase db = getUserDatabase();
-            final UserProfile profile = db.findByLoginName( loginName );
+        final String actor = currentLogin( request );
+        final String expiryStr = getJsonString( body, "expiry" );
 
-            final String expiryStr = getJsonString( body, "expiry" );
-            final Date expiry;
-            if ( expiryStr != null && !expiryStr.isBlank() ) {
-                expiry = new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).parse( expiryStr );
-            } else {
-                // Lock indefinitely — far-future but within every backend's persistable range.
-                expiry = INDEFINITE_LOCK_EXPIRY;
-            }
-
-            profile.setLockExpiry( expiry );
-            db.save( profile );
-            LOG.info( "Locked user: {} until {}", loginName, expiry );
-
+        if ( expiryStr != null && !expiryStr.isBlank() ) {
+            // Timed lock with a specific expiry date — inline path.
             try {
-                final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
-                        ? wikiEngine.getAuditService() : null;
-                if ( audit != null ) {
-                    final java.security.Principal p = request.getUserPrincipal();
-                    final String actor = p != null ? p.getName() : null;
-                    audit.record( AuditEntry.builder()
-                            .eventTime( java.time.Instant.now() )
-                            .category( AuditCategory.ADMIN )
-                            .eventType( "user.disable" )
-                            .outcome( AuditOutcome.SUCCESS )
-                            .actorPrincipal( actor )
-                            .actorType( "user" )
-                            .targetType( "user" )
-                            .targetId( loginName )
-                            .targetLabel( loginName )
-                            .build() );
-                }
-            } catch ( final Exception auditEx ) {
-                LOG.warn( "Failed to record audit entry for user lock: {}", auditEx.getMessage(), auditEx );
+                final Date expiry = new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).parse( expiryStr );
+                final UserDatabase db = getUserDatabase();
+                final UserProfile profile = db.findByLoginName( loginName );
+                profile.setLockExpiry( expiry );
+                db.save( profile );
+                LOG.info( "Locked user: {} until {}", loginName, expiry );
+                sendJson( response, Map.of( "locked", true, "lockExpiry", formatDate( expiry ) ) );
+            } catch ( final ParseException e ) {
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid date format. Use yyyy-MM-dd" );
+            } catch ( final Exception e ) {
+                LOG.error( "Failed to lock user {}: {}", loginName, e.getMessage() );
+                sendNotFound( response, "User not found: " + loginName );
             }
-
-            sendJson( response, Map.of( "locked", true, "lockExpiry", formatDate( expiry ) ) );
-        } catch ( final ParseException e ) {
-            sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid date format. Use yyyy-MM-dd" );
-        } catch ( final Exception e ) {
-            LOG.error( "Failed to lock user {}: {}", loginName, e.getMessage() );
-            sendNotFound( response, "User not found: " + loginName );
+        } else {
+            // Indefinite lock — delegate to tryLockUser so the lifecycle service handles audit.
+            final Optional< String > err = tryLockUser( loginName, actor );
+            if ( err.isEmpty() ) {
+                LOG.info( "Locked user: {} indefinitely", loginName );
+                sendJson( response, Map.of( "locked", true,
+                        "lockExpiry", formatDate( INDEFINITE_LOCK_EXPIRY ) ) );
+            } else {
+                LOG.error( "Failed to lock user {}: {}", loginName, err.get() );
+                sendNotFound( response, "User not found: " + loginName );
+            }
         }
     }
 
     private void handleUnlockUser( final HttpServletRequest request, final HttpServletResponse response,
                                     final String loginName ) throws IOException {
-        try {
-            final UserDatabase db = getUserDatabase();
-            final UserProfile profile = db.findByLoginName( loginName );
-            profile.setLockExpiry( null );
-            db.save( profile );
+        final String actor = currentLogin( request );
+        final Optional< String > err = tryUnlockUser( loginName, actor );
+        if ( err.isEmpty() ) {
             LOG.info( "Unlocked user: {}", loginName );
-
-            try {
-                final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
-                        ? wikiEngine.getAuditService() : null;
-                if ( audit != null ) {
-                    final java.security.Principal p = request.getUserPrincipal();
-                    final String actor = p != null ? p.getName() : null;
-                    audit.record( AuditEntry.builder()
-                            .eventTime( java.time.Instant.now() )
-                            .category( AuditCategory.ADMIN )
-                            .eventType( "user.enable" )
-                            .outcome( AuditOutcome.SUCCESS )
-                            .actorPrincipal( actor )
-                            .actorType( "user" )
-                            .targetType( "user" )
-                            .targetId( loginName )
-                            .targetLabel( loginName )
-                            .build() );
-                }
-            } catch ( final Exception auditEx ) {
-                LOG.warn( "Failed to record audit entry for user unlock: {}", auditEx.getMessage(), auditEx );
-            }
-
             sendJson( response, Map.of( "locked", false ) );
-        } catch ( final Exception e ) {
-            LOG.error( "Failed to unlock user {}: {}", loginName, e.getMessage() );
+        } else {
+            LOG.error( "Failed to unlock user {}: {}", loginName, err.get() );
             sendNotFound( response, "User not found: " + loginName );
         }
     }

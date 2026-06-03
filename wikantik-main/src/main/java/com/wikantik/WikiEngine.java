@@ -762,6 +762,16 @@ public class WikiEngine implements Engine {
             // consumes pageSubsystem via KnowledgeSubsystem.Deps.
             initKnowledgeGraph( props );
 
+            // Audit subsystem is initialized independently of Knowledge-Graph init so a
+            // KG failure cannot silently disable auditing. initKnowledgeGraph swallows
+            // its own exceptions, so this runs on both the happy and the KG-failed path.
+            try {
+                initAuditSubsystem( props );
+            } catch ( final RuntimeException e ) {
+                // Never break engine startup because of auditing; never swallow silently.
+                LOG.warn( "Audit subsystem initialization failed; continuing without audit.", e );
+            }
+
             buildSearchSubsystem();
 
             // Phase 7 Ckpt 4: post-construction wire of the LuceneMlt seam
@@ -1607,9 +1617,6 @@ public class WikiEngine implements Engine {
                 props.getProperty( HubDiscoveryService.PROP_MIN_PTS, "default" ) );
             LOG.info( "Knowledge graph initialized with datasource '{}'", datasource );
 
-            // Audit subsystem — built here because the JNDI DataSource, the
-            // structural index, and the PageManager are all in scope.
-            initAuditSubsystem( props, ds, structuralIndex, pageManager );
         } catch ( final javax.naming.NamingException | RuntimeException e ) {
             LOG.warn( "Knowledge graph initialization failed: {}", e.getMessage(), e );
         }
@@ -1619,12 +1626,29 @@ public class WikiEngine implements Engine {
      * Construct the audit subsystem (JDBC repo + async writer), register the
      * {@link com.wikantik.audit.AuditEventListener} against the auth + page
      * managers, and build the {@link com.wikantik.audit.AuditReadPolicy}.
-     * Called from {@link #initKnowledgeGraph} where the DataSource resolves.
+     * Called from {@link #initialize} independently of Knowledge-Graph init so
+     * a KG failure cannot silently disable auditing.
      */
-    private void initAuditSubsystem( final Properties props,
-                                      final javax.sql.DataSource ds,
-                                      final com.wikantik.api.pagegraph.StructuralIndexService structuralIndex,
-                                      final PageManager pageManager ) {
+    private void initAuditSubsystem( final Properties props ) {
+        // Resolve the DataSource independently of Knowledge-Graph init (same JNDI
+        // lookup initKnowledgeGraph uses). Null when no datasource is configured.
+        javax.sql.DataSource ds = null;
+        try {
+            final String datasource = props.getProperty(
+                    AbstractJDBCDatabase.PROP_DATASOURCE, AbstractJDBCDatabase.DEFAULT_DATASOURCE );
+            final javax.naming.Context initCtx = new javax.naming.InitialContext();
+            final javax.naming.Context ctx = ( javax.naming.Context ) initCtx.lookup( "java:comp/env" );
+            ds = ( javax.sql.DataSource ) ctx.lookup( datasource );
+        } catch ( final javax.naming.NamingException e ) {
+            LOG.warn( "Audit subsystem: no JNDI DataSource resolved ({}); audit log disabled.",
+                    e.getMessage() );
+        }
+        // Resolve the page manager + structural index from the registry (may be null
+        // if their subsystems failed to build — read-gating degrades, audit still runs).
+        final PageManager pageManager = getManager( PageManager.class );
+        final com.wikantik.api.pagegraph.StructuralIndexService structuralIndex =
+                getManager( com.wikantik.api.pagegraph.StructuralIndexService.class );
+
         if ( ds == null ) {
             LOG.warn( "Audit subsystem disabled — no JNDI DataSource resolved; "
                     + "security and page events will not be written to the audit log." );

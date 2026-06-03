@@ -283,15 +283,21 @@ were fixed during implementation:
   `audit_log` are denied as that role (while `SELECT` succeeds) — so the `REVOKE` is
   exercised in CI exactly as production enforces it. (The IT's own `jspwiki` role
   remains a superuser; the proof uses a separate restricted role.)
-- **`ensurePartition` needs schema `CREATE`.** Runtime partition creation requires
-  the app role to hold `CREATE` on the schema; pre-created partitions cover through
-  Aug 2026. The v2 privileged retention job should own partition management (and
-  pre-create future partitions).
+- **RESOLVED (retention purge): partition management is owned by a scheduled job.**
+  `bin/db/audit-retention.sh` (run as the privileged `migrate` role via a monthly
+  systemd timer) **pre-creates** the next few months' partitions, so the app's
+  runtime `ensurePartition` no longer needs to fire — removing the schema-`CREATE`
+  dependency in practice (it stays as a safety net).
 - **RESOLVED (v2): audit init is its own top-level engine step.**
   `initAuditSubsystem` was hoisted out of `initKnowledgeGraph` into a dedicated
   `initialize()` step that resolves its own dependencies and runs in its own
   try/catch, so a Knowledge-Graph init failure no longer skips auditing.
-- Retention purge via privileged partition-drop, archive-to-NAS first.
+- **RESOLVED (retention purge): archive-then-drop of over-age partitions.**
+  `bin/db/audit-retention.sh` archives each partition older than the configured
+  window (default **84 months / 7 years**) with `pg_dump` to the off-box-backed
+  archive dir, verifies it (`pg_restore --list`), then `DROP`s it — strictly in that
+  order. The hash chain re-anchors on the oldest surviving row automatically
+  (`verifyChain` needs no change). Installed via `bin/db/audit-retention-install-timer.sh`.
 - Optional durable staging for zero event loss.
 - Outbound forwarding to external WORM / SIEM (with the webhook work).
 - Per-space read-audit policy UI (v1 ships frontmatter + cluster flag only).

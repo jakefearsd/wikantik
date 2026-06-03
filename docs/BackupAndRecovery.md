@@ -440,6 +440,49 @@ current, off-box archive is intact.
 
 ---
 
+## Audit log retention
+
+The tamper-evident `audit_log` (month-partitioned) is **keep-forever** until the retention
+job is installed. `bin/db/audit-retention.sh` enforces a window: it pre-creates upcoming
+monthly partitions and **archives-then-drops** partitions older than the window.
+
+**Configure** (`/etc/wikantik/audit-retention.env`, read by the systemd unit):
+
+```sh
+DB_NAME=wikantik
+PGHOST=localhost
+PGPORT=5432
+PGUSER=migrate                 # privileged role (CREATE + owns partitions); NOT the app role
+PGPASSWORD=…
+AUDIT_RETENTION_MONTHS=84      # 7 years (default). Set < 1 to disable the drop phase.
+AUDIT_PARTITION_LOOKAHEAD=3    # months of partitions to pre-create each run
+AUDIT_ARCHIVE_DIR=/var/backups/wikantik/audit-archive   # MUST be inside a path the NAS pull captures
+```
+
+**Inspect / dry-run** (touches nothing):
+
+```sh
+bin/db/audit-retention.sh --status     # window, cutoff month, existing partitions
+bin/db/audit-retention.sh --dry-run     # the CREATEs and archive+drops it WOULD do
+```
+
+**Install the monthly timer** (docker1, mirrors the NAS-pull timer):
+
+```sh
+bin/db/audit-retention-install-timer.sh           # installs + enables wikantik-audit-retention.timer
+sudo systemctl start wikantik-audit-retention.service   # run once now to test
+```
+
+**Safety:** each over-age partition is `pg_dump`ed to `AUDIT_ARCHIVE_DIR` and verified
+(`pg_restore --list`) **before** it is dropped; a verify failure skips the drop. The archive
+dir is captured by the off-box NAS pull, so dropped history is cold-stored, not lost. The
+audit hash chain re-anchors on the oldest surviving row automatically.
+
+**Restore an archived partition** (manual): `pg_restore -d wikantik <archive-dir>/audit_log_YYYY_MM_<stamp>.dump`
+recreates the dropped partition table; re-attach it with `ALTER TABLE audit_log ATTACH PARTITION audit_log_YYYY_MM FOR VALUES FROM ('YYYY-MM-01') TO ('<next>-01')` if you need it back under the parent.
+
+---
+
 ## Open item — NAS immutability on ext4
 
 The off-box archive currently has no immutable snapshot layer because the NAS volume is ext4

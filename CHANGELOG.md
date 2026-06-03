@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Audit log retention purge.** `bin/db/audit-retention.sh` (scheduled monthly via a
+  systemd timer, `bin/db/audit-retention-install-timer.sh`) pre-creates upcoming
+  `audit_log` partitions and **archives-then-drops** partitions older than a
+  configurable window (default **7 years**): each over-age partition is `pg_dump`ed to
+  the off-box-backed archive directory and verified before it is dropped. Runs as the
+  privileged `migrate` role (the app role stays INSERT/SELECT-only); the hash chain
+  re-anchors on the oldest surviving row with no application-code change. A `< 1`-month
+  guardrail and `--dry-run`/`--status` flags guard against accidental mass-drops.
 - **SCIM 2.0 group provisioning** (`/scim/v2/Groups`). An IdP can sync group
   membership (which drives Wikantik ACLs / policy grants) via SCIM: create / read /
   list+filter (by `displayName`) / `PUT` / `PATCH` (member add, remove via

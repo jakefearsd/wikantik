@@ -1486,6 +1486,22 @@ public class WikiEngine implements Engine {
                         + "is on the classpath and that onInit has run." );
             }
 
+            // Audit dropped-entry gauge — lazy, null-safe: the AuditService is
+            // built later in this same method (initAuditSubsystem). The supplier
+            // reads getAuditService() at scrape time so the gauge is always
+            // present even before the audit subsystem finishes constructing.
+            if ( meterRegistry != null ) {
+                io.micrometer.core.instrument.Gauge.builder(
+                        "wikantik_audit_dropped_total",
+                        this,
+                        e -> {
+                            final com.wikantik.audit.AuditService a = e.getAuditService();
+                            return a == null ? 0d : (double) a.droppedCount();
+                        } )
+                    .description( "Audit entries dropped due to full queue" )
+                    .register( meterRegistry );
+            }
+
             // Build Knowledge subsystem core.
             final com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps kgDeps =
                 new com.wikantik.knowledge.subsystem.KnowledgeSubsystem.Deps(

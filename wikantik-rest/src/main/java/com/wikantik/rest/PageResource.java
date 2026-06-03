@@ -134,6 +134,32 @@ public class PageResource extends RestServletBase {
         // Page-view metric: notify listeners (WikiMetrics) that a page was read.
         firePageRequested( engine, page.getName() );
 
+        // Audit sensitive reads only when the page opts in (default: no-op).
+        // The policy guard short-circuits cheaply — the normal path is allocation-free.
+        final var auditPolicy = engine instanceof com.wikantik.WikiEngine we ? we.getAuditReadPolicy() : null;
+        final var auditService = engine instanceof com.wikantik.WikiEngine we2 ? we2.getAuditService() : null;
+        if ( auditPolicy != null && auditService != null && auditPolicy.shouldAudit( pageName ) ) {
+            try {
+                final com.wikantik.api.core.Session auditSession = Wiki.session().find( engine, request );
+                final String principalName = auditSession.isAuthenticated()
+                        ? auditSession.getUserPrincipal().getName()
+                        : null;
+                auditService.record( com.wikantik.audit.AuditEntry.builder()
+                        .eventTime( java.time.Instant.now() )
+                        .category( com.wikantik.audit.AuditCategory.READ )
+                        .eventType( "page.read" )
+                        .outcome( com.wikantik.audit.AuditOutcome.SUCCESS )
+                        .actorPrincipal( principalName )
+                        .actorType( principalName == null ? "anonymous" : "user" )
+                        .targetType( "page" ).targetId( pageName ).targetLabel( pageName )
+                        .sourceIp( request.getRemoteAddr() )
+                        .userAgent( request.getHeader( "User-Agent" ) )
+                        .build() );
+            } catch ( final Exception auditEx ) {
+                LOG.warn( "Failed to record page-read audit for {}: {}", pageName, auditEx.getMessage(), auditEx );
+            }
+        }
+
         final ParsedPage parsed = FrontmatterParser.parse( rawText );
 
         final Map< String, Object > result = new LinkedHashMap<>();

@@ -75,10 +75,15 @@ public final class JdbcAuditRepository implements AuditRepository {
                     for ( final AuditEntry e : entries ) {
                         seq++;
                         final String rowHash = AuditChainHasher.hash( prev, e );
+                        // Store event_time at microsecond precision — the same precision
+                        // used in canonical() for hashing — so verifyChain() reads the
+                        // identical truncated value when recomputing hashes.
+                        final java.time.Instant usEventTime =
+                                e.eventTime().truncatedTo( java.time.temporal.ChronoUnit.MICROS );
                         int i = 1;
                         ps.setLong( i++, seq );
                         ps.setTimestamp( i++, now );
-                        ps.setTimestamp( i++, Timestamp.from( e.eventTime() ) );
+                        ps.setTimestamp( i++, Timestamp.from( usEventTime ) );
                         ps.setString( i++, e.category().name() );
                         ps.setString( i++, e.eventType() );
                         ps.setString( i++, e.actorId() );
@@ -185,13 +190,17 @@ public final class JdbcAuditRepository implements AuditRepository {
             boolean first = true;
             try ( ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) {
+                    final long seq = rs.getLong( "seq" );
                     if ( first ) { prev = rs.getString( "prev_hash" ); first = false; }
                     final AuditEntry e = mapEntry( rs );
                     final String expected = AuditChainHasher.hash( prev, e );
-                    if ( !expected.equals( rs.getString( "row_hash" ) ) ) {
-                        return Optional.of( rs.getLong( "seq" ) );
+                    final String stored = rs.getString( "row_hash" );
+                    if ( !expected.equals( stored ) ) {
+                        LOG.warn( "audit chain broken at seq={}: expected={} stored={}",
+                                seq, expected.substring( 0, 8 ), stored.substring( 0, 8 ) );
+                        return Optional.of( seq );
                     }
-                    prev = rs.getString( "row_hash" );
+                    prev = stored;
                 }
             }
         } catch ( final java.sql.SQLException e ) {

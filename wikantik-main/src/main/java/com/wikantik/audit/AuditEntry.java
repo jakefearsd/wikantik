@@ -58,11 +58,22 @@ public final class AuditEntry {
 
     private static String nz( String s ) { return s == null ? "" : s; }
 
-    /** Deterministic, versioned, fixed-order serialization used for hashing. */
+    /** Deterministic, versioned, fixed-order serialization used for hashing.
+     *
+     * <p>The {@code eventTime} is normalised to microsecond precision before
+     * serialisation so that the hash computed at write time matches the hash
+     * recomputed during chain verification — PostgreSQL {@code TIMESTAMPTZ}
+     * stores at most microsecond precision and truncates any sub-microsecond
+     * digits; without this normalisation the verification hash would differ
+     * from the stored hash for any event whose {@link java.time.Instant} has
+     * nanosecond precision. */
     public String canonical() {
+        // Truncate to microseconds: strip the last 3 nanosecond digits.
+        final java.time.Instant usTime =
+            eventTime.truncatedTo( java.time.temporal.ChronoUnit.MICROS );
         return String.join( "|",
             "v1",
-            eventTime.toString(),
+            usTime.toString(),
             category.name(),
             eventType,
             nz( actorId ), nz( actorPrincipal ), actorType,

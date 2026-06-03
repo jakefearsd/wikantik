@@ -586,6 +586,9 @@ public class WikiEngine implements Engine {
     private volatile com.wikantik.audit.AuditService auditService;
     private volatile com.wikantik.audit.AuditReadPolicy auditReadPolicy;
     private volatile com.wikantik.audit.AuditWriterThread auditWriter;
+    // Strong reference prevents the listener from being garbage-collected out of
+    // WikiEventManager's WeakHashMap before we can de-register it on shutdown.
+    private volatile com.wikantik.audit.AuditEventListener auditEventListener;
 
     /** Guice injector for modern dependency management. */
     private Injector injector;
@@ -1634,16 +1637,19 @@ public class WikiEngine implements Engine {
         this.auditWriter = sub.writer();
 
         // Frontmatter lookup — never throws; returns an empty map on any failure.
+        // Page providers do not populate Page.FRONTMATTER_METADATA, so we parse
+        // the raw page text via FrontmatterParser to extract the frontmatter map.
+        final var pmForLookup = getManager( com.wikantik.api.managers.PageManager.class );
         final java.util.function.Function< String, java.util.Map< String, Object > > frontmatterByPage = pageName -> {
             try {
-                final com.wikantik.api.core.Page p =
-                    getManager( com.wikantik.api.managers.PageManager.class ).getPage( pageName );
-                final Object fm = ( p == null ) ? null
-                    : p.getAttribute( com.wikantik.api.core.Page.FRONTMATTER_METADATA );
-                @SuppressWarnings( "unchecked" )
-                final java.util.Map< String, Object > map =
-                    ( fm instanceof java.util.Map ) ? ( java.util.Map< String, Object > ) fm : java.util.Map.of();
-                return map;
+                if ( pmForLookup == null ) return java.util.Map.of();
+                final String raw = pmForLookup.getPureText( pageName,
+                        com.wikantik.api.providers.PageProvider.LATEST_VERSION );
+                if ( raw == null || raw.isEmpty() ) return java.util.Map.of();
+                final com.wikantik.api.frontmatter.ParsedPage parsed =
+                        com.wikantik.api.frontmatter.FrontmatterParser.parse( raw );
+                final java.util.Map< String, Object > fm = parsed.metadata();
+                return fm != null ? fm : java.util.Map.of();
             } catch ( final Exception e ) {
                 LOG.warn( "audit frontmatter lookup({}) failed: {}", pageName, e.getMessage(), e );
                 return java.util.Map.of();
@@ -1675,22 +1681,23 @@ public class WikiEngine implements Engine {
         // Register the event listener against every manager that fires the events
         // the audit listener consumes: authn/authz/user/group (WikiSecurityEvent)
         // and the page manager (WikiPageEvent / WikiPageRenameEvent).
-        final com.wikantik.audit.AuditEventListener auditListener =
-            new com.wikantik.audit.AuditEventListener( this.auditService );
+        // Store in a field so the instance is strongly reachable and won't be
+        // evicted from WikiEventManager's WeakHashMap by the garbage collector.
+        this.auditEventListener = new com.wikantik.audit.AuditEventListener( this.auditService );
 
         final AuthenticationManager authnMgr = getManager( AuthenticationManager.class );
-        if ( authnMgr != null ) authnMgr.addWikiEventListener( auditListener );
+        if ( authnMgr != null ) authnMgr.addWikiEventListener( auditEventListener );
         final AuthorizationManager authzMgr = getManager( AuthorizationManager.class );
-        if ( authzMgr != null ) authzMgr.addWikiEventListener( auditListener );
+        if ( authzMgr != null ) authzMgr.addWikiEventListener( auditEventListener );
         final UserManager userMgr = getManager( UserManager.class );
-        if ( userMgr != null ) userMgr.addWikiEventListener( auditListener );
+        if ( userMgr != null ) userMgr.addWikiEventListener( auditEventListener );
         final GroupManager groupMgr = getManager( GroupManager.class );
-        if ( groupMgr != null ) groupMgr.addWikiEventListener( auditListener );
+        if ( groupMgr != null ) groupMgr.addWikiEventListener( auditEventListener );
         // PageManager has no addWikiEventListener on its interface; it fires page
         // events via WikiEventManager keyed on the manager instance, so register
         // the listener against that instance directly (same mechanism).
         if ( pageManager != null ) {
-            com.wikantik.event.WikiEventManager.addWikiEventListener( pageManager, auditListener );
+            com.wikantik.event.WikiEventManager.addWikiEventListener( pageManager, auditEventListener );
         }
 
         LOG.info( "Audit subsystem initialized (queue=10000)" );

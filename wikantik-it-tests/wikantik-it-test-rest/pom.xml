@@ -70,6 +70,13 @@
           </includes>
           <systemPropertyVariables>
             <it-wikantik.base.url>http://localhost:${it.wikantik.servlet.port}/${it-wikantik.context}</it-wikantik.base.url>
+            <!-- Forwarded so AuditLogIT can open a JDBC connection for the
+                 DB-immutability check (Step 8). Values come from it-db.properties
+                 loaded by the properties-maven-plugin in the parent IT pom. -->
+            <it.db.user>${it.db.user}</it.db.user>
+            <it.db.password>${it.db.password}</it.db.password>
+            <it.db.port>${it.db.port}</it.db.port>
+            <it.db.name>${it.db.name}</it.db.name>
           </systemPropertyVariables>
         </configuration>
       </plugin>

@@ -19,7 +19,7 @@
 package com.wikantik;
 
 import org.postgresql.ds.PGSimpleDataSource;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import javax.sql.DataSource;
@@ -34,7 +34,7 @@ import javax.sql.DataSource;
  */
 public final class PostgresTestContainer {
 
-    private static volatile PostgreSQLContainer< ? > container;
+    private static volatile PostgreSQLContainer container;
     private static volatile DataSource cachedDataSource;
 
     private PostgresTestContainer() {
@@ -72,7 +72,7 @@ public final class PostgresTestContainer {
             if( container != null ) {
                 return;
             }
-            container = new PostgreSQLContainer<>(
+            container = new PostgreSQLContainer(
                 DockerImageName.parse( "pgvector/pgvector:pg17" )
                     .asCompatibleSubstituteFor( "postgres" ) )
                 .withDatabaseName( "wikantik_test" )

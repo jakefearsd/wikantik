@@ -27,7 +27,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.postgresql.ds.PGSimpleDataSource;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
@@ -42,12 +42,12 @@ import static org.junit.jupiter.api.Assertions.*;
 @Testcontainers( disabledWithoutDocker = true )
 class KgPolicyCliTest {
 
-    private static PostgreSQLContainer<?> pg;
+    private static PostgreSQLContainer pg;
     private static DataSource ds;
 
     @BeforeAll
     static void up() {
-        pg = new PostgreSQLContainer<>( "postgres:15" )
+        pg = new PostgreSQLContainer( "postgres:15" )
                 .withDatabaseName( "wikantik_kgpolicy" )
                 .withUsername( "test" ).withPassword( "test" )
                 .withInitScript( "kgpolicy-cli-test.sql" );

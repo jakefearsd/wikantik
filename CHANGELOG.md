@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **SCIM 2.0 group provisioning** (`/scim/v2/Groups`). An IdP can sync group
+  membership (which drives Wikantik ACLs / policy grants) via SCIM: create / read /
+  list+filter (by `displayName`) / `PUT` / `PATCH` (member add, remove via
+  `members[value eq "<uid>"]`, replace) / hard `DELETE`. Member changes flow through
+  the audited `GroupManager` path. **Hard invariant: SCIM Groups never grant the
+  Wikantik `Admin` role** — groups and the role table are separate stores, enforced by
+  an integration-test assertion. `externalId` is keyed on `displayName` (not persisted).
 - **SCIM 2.0 user provisioning** (`/scim/v2/Users` + discovery endpoints). An IdP
   (Okta/Entra) can automate onboarding and offboarding via bearer-authed SCIM. All
   deactivate/reactivate flows go through one unified, audited `UserLifecycleService`

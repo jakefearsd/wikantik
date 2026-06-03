@@ -40,7 +40,11 @@ deactivation path shared by SCIM and the admin UI.
 
 ### Out of scope (deferred)
 
-- **`/scim/v2/Groups`** (role/permission sync) — a planned fast-follow increment.
+- ~~`/scim/v2/Groups`~~ — **SHIPPED** (membership sync). See
+  [SCIM Groups design](../superpowers/specs/2026-06-03-scim-groups-design.md): hard
+  delete, externalId keyed on displayName, member PATCH (incl. `members[value eq …]`),
+  and the hard invariant that **SCIM Groups never grant the Wikantik `Admin` role**
+  (groups and the role table are separate stores; enforced by an IT assertion).
 - **Physical user deletion via SCIM** — `DELETE` performs a *soft* decommission;
   hard removal stays a separate, explicit admin-only action.
 - **Full SCIM filter / PATCH grammar** — only the subsets IdPs actually use ship
@@ -201,8 +205,9 @@ not** adopt or overwrite a pre-existing *non-SSO* local account of the same
 
 ## Open items / next
 
-- `/scim/v2/Groups` (membership → `group_members`, role/permission sync) — the
-  fast-follow increment.
+- `/scim/v2/Groups` membership sync — **shipped** (see above).
+- `externalId` persistence for groups, and member paging for very large groups — only
+  if an IdP requires them.
 - Optional rotating/DB-stored SCIM credentials and multiple-IdP tokens.
 - `ServiceProviderConfig` advertising of supported features must stay in sync if
   the filter/PATCH subsets are later widened.

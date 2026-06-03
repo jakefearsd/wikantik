@@ -61,7 +61,7 @@ public final class JdbcAuditRepository implements AuditRepository {
         final String insert = "INSERT INTO audit_log ( seq, created_at, event_time, category, "
             + "event_type, actor_id, actor_principal, actor_type, target_type, target_id, "
             + "target_label, outcome, source_ip, user_agent, correlation_id, detail, prev_hash, "
-            + "row_hash ) VALUES ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, CAST(? AS JSONB), ?,? )";
+            + "row_hash ) VALUES ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? )";
         try ( Connection c = dataSource.getConnection() ) {
             c.setAutoCommit( false );
             try {
@@ -150,7 +150,7 @@ public final class JdbcAuditRepository implements AuditRepository {
         final StringBuilder sql = new StringBuilder(
             "SELECT seq, created_at, event_time, category, event_type, actor_id, actor_principal, "
           + "actor_type, target_type, target_id, target_label, outcome, source_ip, user_agent, "
-          + "correlation_id, detail::text, prev_hash, row_hash FROM audit_log WHERE seq < ?" );
+          + "correlation_id, detail, prev_hash, row_hash FROM audit_log WHERE seq < ?" );
         final List<Object> params = new ArrayList<>();
         params.add( q.beforeSeq() );
         if ( q.actorId() != null )   { sql.append( " AND actor_id = ?" );   params.add( q.actorId() ); }
@@ -180,7 +180,7 @@ public final class JdbcAuditRepository implements AuditRepository {
     public Optional<Long> verifyChain( final long fromSeq, final long toSeq ) {
         final String sql = "SELECT seq, event_time, category, event_type, actor_id, actor_principal, "
           + "actor_type, target_type, target_id, target_label, outcome, source_ip, user_agent, "
-          + "correlation_id, detail::text, prev_hash, row_hash FROM audit_log "
+          + "correlation_id, detail, prev_hash, row_hash FROM audit_log "
           + "WHERE seq >= ? AND seq <= ? ORDER BY seq ASC";
         try ( Connection c = dataSource.getConnection();
               PreparedStatement ps = c.prepareStatement( sql ) ) {

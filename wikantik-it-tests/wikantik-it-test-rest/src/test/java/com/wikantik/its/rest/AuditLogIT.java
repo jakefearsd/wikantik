@@ -82,6 +82,8 @@ public class AuditLogIT {
     private static final String DELETE_PAGE  = "AuditLogITDeletePage";
     private static final String AUDITED_PAGE = "AuditLogITAuditedPage";
     private static final String PLAIN_PAGE   = "AuditLogITPlainPage";
+    private static final String RENAME_PAGE  = "AuditLogITRenamePage";
+    private static final String RENAME_PAGE2 = "AuditLogITRenamedPage";
 
     @BeforeAll
     static void setUp() {
@@ -418,12 +420,60 @@ public class AuditLogIT {
     }
 
     /**
-     * Step 6: Consolidated assertion — poll the audit log and verify all expected
+     * Step 6: Create a page and rename it via the REST API.  A rename emits a
+     * {@code page.rename} audit event whose {@code detail} field carries a JSON
+     * string ({@code {"from":...,"to":...}}).  This step exists specifically to put
+     * a detail-bearing row into the chain BEFORE the hash-chain integrity check
+     * (Step 8), so that {@code audit_hash_chain_is_intact} proves the JSONB→TEXT
+     * fix (V037) works: prior to the fix PostgreSQL would reformat the stored JSON
+     * relative to the hashed value, breaking chain verification for any detail row.
+     */
+    @Test
+    @Order( 6 )
+    void page_rename_produces_detail_bearing_audit_event() throws Exception {
+        try {
+            loginAsAdmin();
+
+            // Create the page to rename.
+            final String createBody = GSON.toJson(
+                    Map.of( "content", "Page created for rename audit test.",
+                            "changeNote", "created by AuditLogIT rename step" ) );
+            final HttpResponse<String> putResp = put( "/api/pages/" + RENAME_PAGE, createBody );
+            assertTrue( putResp.statusCode() == 200 || putResp.statusCode() == 201,
+                    "Rename-source page create should succeed: " + putResp.body() );
+
+            // Rename it via POST /api/pages/{name}/rename — fires a page.rename
+            // event with detail={"from":...,"to":...}.
+            final String renameBody = GSON.toJson(
+                    Map.of( "newName", RENAME_PAGE2, "changeReferrers", false ) );
+            final HttpResponse<String> renameResp = post(
+                    "/api/pages/" + RENAME_PAGE + "/rename", renameBody );
+            assertEquals( 200, renameResp.statusCode(),
+                    "Page rename should succeed: " + renameResp.body() );
+
+            // Poll for the page.rename event — the targetId is set to the NEW name.
+            // Confirms the detail-bearing event landed in the chain.
+            final JsonObject row = pollForEvent( "page.rename", RENAME_PAGE2, POLL_TIMEOUT_MS );
+            assertNotNull( row );
+            assertEquals( "page.rename", row.get( "eventType" ).getAsString() );
+            // detail must be present and non-null (it carries {"from":...,"to":...}).
+            assertTrue( row.has( "detail" ) && !row.get( "detail" ).isJsonNull(),
+                    "page.rename event must carry a non-null detail field: " + row );
+
+            // Clean up the renamed page so it does not interfere with other tests.
+            delete( "/api/pages/" + RENAME_PAGE2 );
+        } finally {
+            logoutAdmin();
+        }
+    }
+
+    /**
+     * Step 7: Consolidated assertion — poll the audit log and verify all expected
      * event types (from the earlier steps) are present, and that no page.read
      * event exists for the ordinary page.
      */
     @Test
-    @Order( 6 )
+    @Order( 7 )
     void audit_log_contains_all_expected_events() throws Exception {
         try {
             loginAsAdmin();
@@ -464,10 +514,13 @@ public class AuditLogIT {
     }
 
     /**
-     * Step 7: {@code GET /admin/audit/verify} must return {@code {"ok":true}}.
+     * Step 8: {@code GET /admin/audit/verify} must return {@code {"ok":true}}.
+     * At this point the chain contains at least one detail-bearing row (the
+     * page.rename event from Step 6), so this assertion proves the JSONB→TEXT fix
+     * keeps detail rows hashing correctly end-to-end.
      */
     @Test
-    @Order( 7 )
+    @Order( 8 )
     void audit_hash_chain_is_intact() throws Exception {
         try {
             loginAsAdmin();
@@ -484,7 +537,7 @@ public class AuditLogIT {
     }
 
     /**
-     * Step 8: Prove the V036 locked grant. The IT PostgreSQL superuser
+     * Step 9: Prove the V036 locked grant. The IT PostgreSQL superuser
      * (Docker {@code POSTGRES_USER=jspwiki}) bypasses privilege checks, so we
      * cannot demonstrate {@code REVOKE} against it directly. Instead we use the
      * superuser connection to create a dedicated {@code NOSUPERUSER} role with the
@@ -494,7 +547,7 @@ public class AuditLogIT {
      * role) enforces it.
      */
     @Test
-    @Order( 8 )
+    @Order( 9 )
     void non_superuser_role_cannot_mutate_audit_log() throws Exception {
         final String suUser   = System.getProperty( "it.db.user" );
         final String suPass   = System.getProperty( "it.db.password" );

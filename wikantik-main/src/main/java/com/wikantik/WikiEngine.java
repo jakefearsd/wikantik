@@ -1723,6 +1723,14 @@ public class WikiEngine implements Engine {
         if ( pageManager != null ) {
             com.wikantik.event.WikiEventManager.addWikiEventListener( pageManager, auditEventListener );
         }
+        // DefaultPageRenamer fires WikiPageRenameEvent (which carries the detail
+        // field with {"from":...,"to":...}) keyed on itself, not on PageManager.
+        // Register the same listener against the PageRenamer instance so rename
+        // events are captured by the audit chain.
+        final com.wikantik.content.PageRenamer pageRenamer = getManager( com.wikantik.content.PageRenamer.class );
+        if ( pageRenamer != null ) {
+            com.wikantik.event.WikiEventManager.addWikiEventListener( pageRenamer, auditEventListener );
+        }
 
         LOG.info( "Audit subsystem initialized (queue=10000)" );
     }

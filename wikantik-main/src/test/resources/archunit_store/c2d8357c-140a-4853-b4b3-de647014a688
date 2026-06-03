@@ -6,6 +6,7 @@ Method <com.wikantik.WikiEngine.initAuditSubsystem(java.util.Properties)> calls 
 Method <com.wikantik.WikiEngine.initAuditSubsystem(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1714)
 Method <com.wikantik.WikiEngine.initAuditSubsystem(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1716)
 Method <com.wikantik.WikiEngine.initAuditSubsystem(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1718)
+Method <com.wikantik.WikiEngine.initAuditSubsystem(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1730)
 Method <com.wikantik.WikiEngine.getSpecialPageReference(java.lang.String)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1816)
 Method <com.wikantik.WikiEngine.getURL(java.lang.String, java.lang.String, java.lang.String)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1553)
 Method <com.wikantik.WikiEngine.initKnowledgeGraph(java.util.Properties)> calls method <com.wikantik.WikiEngine.getManager(java.lang.Class)> in (WikiEngine.java:1352)

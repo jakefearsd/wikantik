@@ -33,7 +33,7 @@ public final class ScimFilterParser {
         public UnsupportedFilterException( final String m ) { super( m ); }
     }
 
-    private static final Set<String> SUPPORTED = Set.of( "userName", "externalId" );
+    private static final Set<String> SUPPORTED = Set.of( "userName", "externalId", "displayName" );
     private static final Pattern EQ = Pattern.compile( "^\\s*(\\w+)\\s+eq\\s+\"([^\"]*)\"\\s*$" );
 
     private ScimFilterParser() {}

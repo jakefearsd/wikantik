@@ -572,6 +572,10 @@
        <servlet-class>com.wikantik.scim.ScimUserResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>ScimGroupResource</servlet-name>
+       <servlet-class>com.wikantik.scim.ScimGroupResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>ScimDiscoveryResource</servlet-name>
        <servlet-class>com.wikantik.scim.ScimDiscoveryResource</servlet-class>
    </servlet>
@@ -838,6 +842,14 @@
    <servlet-mapping>
        <servlet-name>ScimUserResource</servlet-name>
        <url-pattern>/scim/v2/Users/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>ScimGroupResource</servlet-name>
+       <url-pattern>/scim/v2/Groups</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>ScimGroupResource</servlet-name>
+       <url-pattern>/scim/v2/Groups/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>ScimDiscoveryResource</servlet-name>

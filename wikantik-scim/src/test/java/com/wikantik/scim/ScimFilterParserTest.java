@@ -45,10 +45,17 @@ class ScimFilterParserTest {
     }
 
     @Test
+    void parsesDisplayNameEq() {
+        ScimFilterParser.Eq eq = ScimFilterParser.parse( "displayName eq \"Engineering\"" ).orElseThrow();
+        assertEquals( "displayName", eq.attribute() );
+        assertEquals( "Engineering", eq.value() );
+    }
+
+    @Test
     void unsupportedFilterThrows() {
         assertThrows( ScimFilterParser.UnsupportedFilterException.class,
                 () -> ScimFilterParser.parse( "userName sw \"a\"" ) );
         assertThrows( ScimFilterParser.UnsupportedFilterException.class,
-                () -> ScimFilterParser.parse( "displayName eq \"x\"" ) ); // attr not supported
+                () -> ScimFilterParser.parse( "email eq \"x@y.com\"" ) ); // attr not supported
     }
 }

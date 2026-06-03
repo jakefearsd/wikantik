@@ -20,6 +20,10 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 
+import com.wikantik.audit.AuditCategory;
+import com.wikantik.audit.AuditEntry;
+import com.wikantik.audit.AuditOutcome;
+import com.wikantik.audit.AuditService;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.auth.DatabasePolicy;
 import com.wikantik.auth.DefaultAuthorizationManager;
@@ -129,7 +133,7 @@ public class AdminPolicyResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Grant ID required in path" );
             return;
         }
-        handleDeleteGrant( response, idStr );
+        handleDeleteGrant( request, response, idStr );
     }
 
     private void handleListGrants( final HttpServletResponse response ) throws IOException {
@@ -243,6 +247,28 @@ public class AdminPolicyResource extends RestServletBase {
             LOG.info( "Created policy grant: {} {} {} {} {}", gf.principalType, gf.principalName,
                     gf.permissionType, gf.target, gf.actions );
 
+            try {
+                final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
+                        ? wikiEngine.getAuditService() : null;
+                if ( audit != null ) {
+                    final java.security.Principal p = request.getUserPrincipal();
+                    final String actor = p != null ? p.getName() : null;
+                    audit.record( AuditEntry.builder()
+                            .eventTime( java.time.Instant.now() )
+                            .category( AuditCategory.ADMIN )
+                            .eventType( "policy.grant.update" )
+                            .outcome( AuditOutcome.SUCCESS )
+                            .actorPrincipal( actor )
+                            .actorType( "user" )
+                            .targetType( "policy" )
+                            .targetId( gf.principalType + ":" + gf.principalName + ":" + gf.permissionType + ":" + gf.target )
+                            .targetLabel( gf.actions )
+                            .build() );
+                }
+            } catch ( final Exception auditEx ) {
+                LOG.warn( "Failed to record audit entry for policy grant create: {}", auditEx.getMessage(), auditEx );
+            }
+
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
             result.put( "id", generatedId );
@@ -304,6 +330,28 @@ public class AdminPolicyResource extends RestServletBase {
             LOG.info( "Updated policy grant {}: {} {} {} {} {}", id, gf.principalType, gf.principalName,
                     gf.permissionType, gf.target, gf.actions );
 
+            try {
+                final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
+                        ? wikiEngine.getAuditService() : null;
+                if ( audit != null ) {
+                    final java.security.Principal p = request.getUserPrincipal();
+                    final String actor = p != null ? p.getName() : null;
+                    audit.record( AuditEntry.builder()
+                            .eventTime( java.time.Instant.now() )
+                            .category( AuditCategory.ADMIN )
+                            .eventType( "policy.grant.update" )
+                            .outcome( AuditOutcome.SUCCESS )
+                            .actorPrincipal( actor )
+                            .actorType( "user" )
+                            .targetType( "policy" )
+                            .targetId( String.valueOf( id ) )
+                            .targetLabel( gf.principalType + ":" + gf.principalName + ":" + gf.permissionType + ":" + gf.target )
+                            .build() );
+                }
+            } catch ( final Exception auditEx ) {
+                LOG.warn( "Failed to record audit entry for policy grant update: {}", auditEx.getMessage(), auditEx );
+            }
+
             final Map< String, Object > result = new LinkedHashMap<>();
             result.put( "success", true );
             result.put( "id", id );
@@ -321,7 +369,8 @@ public class AdminPolicyResource extends RestServletBase {
         }
     }
 
-    private void handleDeleteGrant( final HttpServletResponse response, final String idStr ) throws IOException {
+    private void handleDeleteGrant( final HttpServletRequest request, final HttpServletResponse response,
+                                     final String idStr ) throws IOException {
         final int id;
         try {
             id = Integer.parseInt( idStr );
@@ -351,6 +400,28 @@ public class AdminPolicyResource extends RestServletBase {
             dbPolicy.refresh();
 
             LOG.info( "Deleted policy grant: {}", id );
+
+            try {
+                final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
+                        ? wikiEngine.getAuditService() : null;
+                if ( audit != null ) {
+                    final java.security.Principal p = request.getUserPrincipal();
+                    final String actor = p != null ? p.getName() : null;
+                    audit.record( AuditEntry.builder()
+                            .eventTime( java.time.Instant.now() )
+                            .category( AuditCategory.ADMIN )
+                            .eventType( "policy.grant.delete" )
+                            .outcome( AuditOutcome.SUCCESS )
+                            .actorPrincipal( actor )
+                            .actorType( "user" )
+                            .targetType( "policy" )
+                            .targetId( String.valueOf( id ) )
+                            .build() );
+                }
+            } catch ( final Exception auditEx ) {
+                LOG.warn( "Failed to record audit entry for policy grant delete: {}", auditEx.getMessage(), auditEx );
+            }
+
             sendJson( response, Map.of( "success", true ) );
         } catch ( final SQLException e ) {
             LOG.error( "Failed to delete policy grant {}", id, e );

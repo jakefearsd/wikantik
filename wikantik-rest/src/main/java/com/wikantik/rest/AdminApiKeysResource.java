@@ -22,6 +22,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import com.wikantik.audit.AuditCategory;
+import com.wikantik.audit.AuditEntry;
+import com.wikantik.audit.AuditOutcome;
+import com.wikantik.audit.AuditService;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.UserManager;
 import com.wikantik.auth.apikeys.ApiKeyService;
@@ -138,6 +142,29 @@ public class AdminApiKeysResource extends RestServletBase {
             final ApiKeyService.Generated generated = svc.generate( principal, label, scope, createdBy );
             LOG.info( "API key generated: id={}, principal={}, scope={}, by={}",
                     generated.record().id(), principal, scope.wire(), createdBy );
+
+            try {
+                final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
+                        ? wikiEngine.getAuditService() : null;
+                if ( audit != null ) {
+                    final String keyId = String.valueOf( generated.record().id() );
+                    final String keyLabel = generated.record().label() != null ? generated.record().label() : keyId;
+                    audit.record( AuditEntry.builder()
+                            .eventTime( java.time.Instant.now() )
+                            .category( AuditCategory.ADMIN )
+                            .eventType( "apikey.issue" )
+                            .outcome( AuditOutcome.SUCCESS )
+                            .actorPrincipal( createdBy )
+                            .actorType( "user" )
+                            .targetType( "apikey" )
+                            .targetId( keyId )
+                            .targetLabel( keyLabel )
+                            .build() );
+                }
+            } catch ( final Exception auditEx ) {
+                LOG.warn( "Failed to record audit entry for API key issue: {}", auditEx.getMessage(), auditEx );
+            }
+
             final Map< String, Object > payload = new LinkedHashMap<>( toJsonRow( generated.record() ) );
             payload.put( "token", generated.plaintext() );
             response.setStatus( HttpServletResponse.SC_CREATED );

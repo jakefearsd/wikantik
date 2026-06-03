@@ -26,6 +26,10 @@ import java.util.Optional;
 
 import com.wikantik.api.core.Session;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.audit.AuditCategory;
+import com.wikantik.audit.AuditEntry;
+import com.wikantik.audit.AuditOutcome;
+import com.wikantik.audit.AuditService;
 import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiSecurityException;
 import com.wikantik.auth.authorize.Group;
@@ -130,7 +134,7 @@ public class AdminUserResource extends RestServletBase {
             handleLockUser( request, response, loginName );
         } else if ( pathParam.endsWith( "/unlock" ) ) {
             final String loginName = pathParam.substring( 0, pathParam.length() - "/unlock".length() );
-            handleUnlockUser( response, loginName );
+            handleUnlockUser( request, response, loginName );
         } else {
             sendError( response, HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint" );
         }
@@ -557,6 +561,29 @@ public class AdminUserResource extends RestServletBase {
             profile.setLockExpiry( expiry );
             db.save( profile );
             LOG.info( "Locked user: {} until {}", loginName, expiry );
+
+            try {
+                final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
+                        ? wikiEngine.getAuditService() : null;
+                if ( audit != null ) {
+                    final java.security.Principal p = request.getUserPrincipal();
+                    final String actor = p != null ? p.getName() : null;
+                    audit.record( AuditEntry.builder()
+                            .eventTime( java.time.Instant.now() )
+                            .category( AuditCategory.ADMIN )
+                            .eventType( "user.disable" )
+                            .outcome( AuditOutcome.SUCCESS )
+                            .actorPrincipal( actor )
+                            .actorType( "user" )
+                            .targetType( "user" )
+                            .targetId( loginName )
+                            .targetLabel( loginName )
+                            .build() );
+                }
+            } catch ( final Exception auditEx ) {
+                LOG.warn( "Failed to record audit entry for user lock: {}", auditEx.getMessage(), auditEx );
+            }
+
             sendJson( response, Map.of( "locked", true, "lockExpiry", formatDate( expiry ) ) );
         } catch ( final ParseException e ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid date format. Use yyyy-MM-dd" );
@@ -566,13 +593,37 @@ public class AdminUserResource extends RestServletBase {
         }
     }
 
-    private void handleUnlockUser( final HttpServletResponse response, final String loginName ) throws IOException {
+    private void handleUnlockUser( final HttpServletRequest request, final HttpServletResponse response,
+                                    final String loginName ) throws IOException {
         try {
             final UserDatabase db = getUserDatabase();
             final UserProfile profile = db.findByLoginName( loginName );
             profile.setLockExpiry( null );
             db.save( profile );
             LOG.info( "Unlocked user: {}", loginName );
+
+            try {
+                final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine wikiEngine
+                        ? wikiEngine.getAuditService() : null;
+                if ( audit != null ) {
+                    final java.security.Principal p = request.getUserPrincipal();
+                    final String actor = p != null ? p.getName() : null;
+                    audit.record( AuditEntry.builder()
+                            .eventTime( java.time.Instant.now() )
+                            .category( AuditCategory.ADMIN )
+                            .eventType( "user.enable" )
+                            .outcome( AuditOutcome.SUCCESS )
+                            .actorPrincipal( actor )
+                            .actorType( "user" )
+                            .targetType( "user" )
+                            .targetId( loginName )
+                            .targetLabel( loginName )
+                            .build() );
+                }
+            } catch ( final Exception auditEx ) {
+                LOG.warn( "Failed to record audit entry for user unlock: {}", auditEx.getMessage(), auditEx );
+            }
+
             sendJson( response, Map.of( "locked", false ) );
         } catch ( final Exception e ) {
             LOG.error( "Failed to unlock user {}: {}", loginName, e.getMessage() );

@@ -517,6 +517,24 @@ export const api = {
       },
     },
 
+    // Audit Log
+    listAuditLog: ({ actor, category, eventType, target, outcome, from, to, beforeSeq, limit } = {}) => {
+      const params = new URLSearchParams();
+      if (actor) params.set('actor', actor);
+      if (category) params.set('category', category);
+      if (eventType) params.set('eventType', eventType);
+      if (target) params.set('target', target);
+      if (outcome) params.set('outcome', outcome);
+      if (from) params.set('from', new Date(from).toISOString());
+      if (to) params.set('to', new Date(to).toISOString());
+      if (beforeSeq != null) params.set('beforeSeq', String(beforeSeq));
+      if (limit != null) params.set('limit', String(limit));
+      const qs = params.toString();
+      return request(`/admin/audit${qs ? '?' + qs : ''}`);
+    },
+
+    verifyAuditChain: () => request('/admin/audit/verify'),
+
     // Page Ownership Management
     pageOwnership: {
       listOrphaned: ({ limit = 50, offset = 0 } = {}) =>

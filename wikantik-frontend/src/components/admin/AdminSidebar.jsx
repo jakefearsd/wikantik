@@ -29,6 +29,12 @@ const GROUPS = [
       { to: '/admin/retrieval-quality', label: 'Retrieval Quality' },
     ],
   },
+  {
+    title: 'Observability',
+    links: [
+      { to: '/admin/audit', label: 'Audit' },
+    ],
+  },
 ];
 
 const linkClass = ({ isActive }) => `admin-sidebar-link${isActive ? ' active' : ''}`;

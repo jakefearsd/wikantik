@@ -278,18 +278,19 @@ were fixed during implementation:
 
 ## Open items / v2
 
-- **CI does not yet prove the locked grant.** The integration test's PostgreSQL
-  runs the app role as a superuser, for which `REVOKE UPDATE/DELETE` is a no-op, so
-  the IT skips the immutability assertion. Production uses a non-superuser app role
-  where the grant is enforced. Follow-up: add a dedicated non-superuser role to the
-  IT to actually exercise the `REVOKE`.
+- **RESOLVED (v2): CI now proves the locked grant.** `AuditLogIT` creates a
+  dedicated `NOSUPERUSER` role with the V036 grants and asserts `UPDATE`/`DELETE` on
+  `audit_log` are denied as that role (while `SELECT` succeeds) — so the `REVOKE` is
+  exercised in CI exactly as production enforces it. (The IT's own `jspwiki` role
+  remains a superuser; the proof uses a separate restricted role.)
 - **`ensurePartition` needs schema `CREATE`.** Runtime partition creation requires
   the app role to hold `CREATE` on the schema; pre-created partitions cover through
   Aug 2026. The v2 privileged retention job should own partition management (and
   pre-create future partitions).
-- **Audit init is nested in `initKnowledgeGraph`.** A RuntimeException earlier in KG
-  init would skip audit init. Acceptable for v1 (datasource always present); v2
-  should hoist audit init to its own top-level step.
+- **RESOLVED (v2): audit init is its own top-level engine step.**
+  `initAuditSubsystem` was hoisted out of `initKnowledgeGraph` into a dedicated
+  `initialize()` step that resolves its own dependencies and runs in its own
+  try/catch, so a Knowledge-Graph init failure no longer skips auditing.
 - Retention purge via privileged partition-drop, archive-to-NAS first.
 - Optional durable staging for zero event loss.
 - Outbound forwarding to external WORM / SIEM (with the webhook work).

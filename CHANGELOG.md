@@ -8,6 +8,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **SCIM 2.0 user provisioning** (`/scim/v2/Users` + discovery endpoints). An IdP
+  (Okta/Entra) can automate onboarding and offboarding via bearer-authed SCIM. All
+  deactivate/reactivate flows go through one unified, audited `UserLifecycleService`
+  (shared by the admin UI and SCIM): `active:false` and `DELETE` both soft-decommission
+  via the existing indefinite-lock mechanism (the user row is retained so audit and
+  page-ownership references stay intact), `active:true` reactivates. SCIM-created users
+  reconcile with SSO via the `sso.subject` marker (fail-closed on a non-SSO name
+  collision). New `wikantik-scim` module. See
+  [ScimProvisioningDesign](docs/wikantik-pages/ScimProvisioningDesign.md).
+
+### Fixed
+
+- **Audit hash chain now verifies for events with a `detail` payload.** `detail` was
+  stored as JSONB, which PostgreSQL reformats on read, so the verify-time rehash no
+  longer matched the insert-time hash — any audited event carrying `detail` (e.g.
+  `page.rename`, SCIM `user.deactivate`) broke `verifyChain`. `detail` is now stored as
+  TEXT (exact round-trip; migration V037). Also fixed `page.rename` events never being
+  audited (the listener was not registered against the `PageRenamer`).
+
 - **Tamper-evident audit log.** A compliance-first, append-only audit trail
   capturing authentication/authorization (login, logout, session expiry, access
   denied), content changes (page save/delete/rename), admin/security-config

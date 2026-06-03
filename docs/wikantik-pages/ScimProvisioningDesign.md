@@ -187,6 +187,18 @@ not** adopt or overwrite a pre-existing *non-SSO* local account of the same
    it.
 4. **SCIM-created users are SSO-auth** (random password + `sso.subject` stamp).
 
+## As-built notes
+
+- The SCIM bearer token reaches the deployed app via the `wikantik.scim.token`
+  system property (prod) or the filter `<init-param>` (empty in the shipped
+  web.xml). The integration test injects it into the **Cargo container JVM** via
+  `cargo.jvmargs` (`-Dwikantik.scim.token=it-scim-token`).
+- The SCIM IT (the first chain member carrying a `detail` payload) surfaced two
+  pre-existing audit bugs, both fixed alongside this work: `audit_log.detail` is now
+  stored as TEXT not JSONB (migration V037) so the hash chain verifies for
+  detail-bearing rows, and `page.rename` events are now actually audited (the
+  listener is registered against the `PageRenamer`, which fires the rename event).
+
 ## Open items / next
 
 - `/scim/v2/Groups` (membership → `group_members`, role/permission sync) — the

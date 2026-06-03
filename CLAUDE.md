@@ -258,6 +258,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 - **wikantik-admin-mcp**: Admin MCP server at `/wikantik-admin-mcp` — 25 tools — adds admin-bypass mirrors of query_nodes + search_knowledge so curators see freshly-created entities, plus `list_orphaned_kg_nodes` for finding degree-0 entities at scale. Reconciled 2026-05-14. See `com.wikantik.mcp.McpServerInitializer`.
 - **wikantik-knowledge**: Knowledge MCP server at `/knowledge-mcp` — 16 read-only tools (hybrid retrieval, Knowledge Graph traversal, schema discovery, structural-spine navigation, agent-grade page projection, batched markdown reads via `read_pages`) plus the Knowledge Graph service (pgvector-backed embeddings, co-mention graph, hub discovery). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 - **wikantik-tools**: OpenAPI 3.1 tool server at `/tools/*` — 2 tools (`search_wiki`, `get_page`) for OpenWebUI-compatible non-MCP clients.
+- **wikantik-scim**: SCIM 2.0 provisioning server at `/scim/v2/*` — bearer-authed `Users` CRUD + discovery (`ServiceProviderConfig`/`Schemas`/`ResourceTypes`) for IdP-driven onboarding/offboarding. Decommission routes through the unified `UserLifecycleService`.
 - **wikantik-extract-cli**: Standalone entity-extractor CLI (offline/batch extraction against the Knowledge Graph pipeline)
 - **wikantik-observability**: Health checks, Prometheus metrics, request correlation
 - **wikantik-frontend**: React SPA (Vite build) — reader, editor, admin panel, Knowledge Graph viewer, Page Graph viewer
@@ -272,6 +273,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 | `/wikantik-admin-mcp` | wikantik-admin-mcp | MCP (Streamable HTTP) | 25 write/analytics tools (incl. KG curation + admin-bypass reads + orphan-listing) | `McpAccessFilter` (bearer token / API key) |
 | `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 16 read-only retrieval + Knowledge Graph + Page Graph structural-spine + agent-projection + batched-read tools | `KnowledgeMcpAccessFilter` (same scheme) |
 | `/tools/*` | wikantik-tools | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) | API key |
+| `/scim/v2/*` | wikantik-scim | SCIM 2.0 | `Users` provisioning (CRUD, list+filter, PATCH active, soft-delete) + discovery | `ScimAccessFilter` (bearer `wikantik.scim.token`) |
 | `/api/*` | wikantik-rest | REST/JSON | 24 Resource classes | `RestServletBase.checkPagePermission()` (ACL + policy grants) |
 | `/admin/*` | wikantik-rest | REST/JSON | 10 admin resources (incl. `/admin/kg-policy/*` and the tamper-evident `/admin/audit*` log: query/verify/export) | `AdminAuthFilter` (`AllPermission`) |
 | `/wiki/{slug}?format=md\|json` | wikantik-rest | HTTP | Raw content for RAG ingestion / crawlers | Public (same ACL as page view) |

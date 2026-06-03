@@ -127,7 +127,7 @@ Table `audit_log`, **RANGE-partitioned by month on `created_at`**.
 | `source_ip` | `TEXT` | request origin IP |
 | `user_agent` | `TEXT` | request user agent |
 | `correlation_id` | `TEXT` | ties to `wikantik-observability` request correlation |
-| `detail` | `JSONB` | structured extras — **metadata only, never page bodies** |
+| `detail` | `TEXT` | structured extras (JSON string) — **metadata only, never page bodies**. Stored as TEXT, not JSONB (migration V037): JSONB reformats on read, which broke `verifyChain`'s rehash for any detail-bearing row. TEXT round-trips exactly; `detail` is never queried as JSON. |
 | `prev_hash` | `CHAR(64)` | previous row's `row_hash` |
 | `row_hash` | `CHAR(64)` | SHA-256 of this row (see "Tamper-evidence") |
 

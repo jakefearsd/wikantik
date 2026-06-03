@@ -49,6 +49,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -483,71 +484,89 @@ public class AuditLogIT {
     }
 
     /**
-     * Step 8 (best-effort): Attempt to UPDATE audit_log as the app role and
-     * assert permission is denied.  If the JDBC URL or credentials cannot be
-     * determined, the check is skipped with a note.
-     *
-     * <p>The IT DB credentials are read from the {@code it.db.user} /
-     * {@code it.db.password} system properties set by the Maven
-     * properties-maven-plugin during the integration-tests profile.  The DB
-     * runs on {@code localhost:${it.db.port}} (default 55432).
-     *
-     * <p><b>NOTE:</b> In the IT environment the {@code jspwiki} role is the
-     * PostgreSQL superuser (Docker {@code POSTGRES_USER=jspwiki}), so
-     * {@code REVOKE UPDATE} in V036 is a no-op — superusers bypass all privilege
-     * checks.  The test SKIPS (does not fail) when it detects that the connecting
-     * role is a superuser, since the revocation cannot be demonstrated against a
-     * superuser account.  Against a non-superuser app role (production deployments)
-     * the test asserts that UPDATE throws a permission-denied SQLException.
+     * Step 8: Prove the V036 locked grant. The IT PostgreSQL superuser
+     * (Docker {@code POSTGRES_USER=jspwiki}) bypasses privilege checks, so we
+     * cannot demonstrate {@code REVOKE} against it directly. Instead we use the
+     * superuser connection to create a dedicated {@code NOSUPERUSER} role with the
+     * SAME grants V036 applies to the app role, then connect AS that role and
+     * assert that {@code SELECT} works but {@code UPDATE}/{@code DELETE} on
+     * {@code audit_log} are denied — exactly as production (non-superuser app
+     * role) enforces it.
      */
     @Test
     @Order( 8 )
-    void app_role_cannot_update_audit_log() {
-        final String user     = System.getProperty( "it.db.user" );
-        final String password = System.getProperty( "it.db.password" );
+    void non_superuser_role_cannot_mutate_audit_log() throws Exception {
+        final String suUser   = System.getProperty( "it.db.user" );
+        final String suPass   = System.getProperty( "it.db.password" );
         final String port     = System.getProperty( "it.db.port", "55432" );
         final String dbName   = System.getProperty( "it.db.name", "wikantik" );
 
-        if ( user == null || user.isBlank() || password == null || password.isBlank() ) {
-            // Credentials not available as system properties in this execution context.
-            System.out.println( "[AuditLogIT] SKIPPING DB-immutability check: "
-                    + "it.db.user / it.db.password system properties not set" );
-            return;
+        if ( suUser == null || suUser.isBlank() || suPass == null || suPass.isBlank() ) {
+            fail( "it.db.user / it.db.password system properties not set — cannot run "
+                    + "the audit_log immutability proof (they are set by the IT failsafe run)" );
         }
 
         final String jdbcUrl = "jdbc:postgresql://localhost:" + port + "/" + dbName;
-        try ( Connection conn = DriverManager.getConnection( jdbcUrl, user, password ) ) {
+        final String roRole = "audit_ro";
+        final String roPass = "audit_ro";
 
-            // Detect superuser — superusers bypass all privilege checks so REVOKE is
-            // irrelevant.  Skip gracefully rather than fail.
-            try ( Statement chk = conn.createStatement();
-                  ResultSet rs = chk.executeQuery(
-                          "SELECT usesuper FROM pg_user WHERE usename = current_user" ) ) {
-                if ( rs.next() && rs.getBoolean( 1 ) ) {
-                    System.out.println( "[AuditLogIT] SKIPPING DB-immutability check: "
-                            + "role '" + user + "' is a PostgreSQL superuser; "
-                            + "REVOKE is a no-op for superusers (expected in the IT Docker environment)" );
-                    return;
-                }
-            } catch ( final SQLException e ) {
-                System.out.println( "[AuditLogIT] Could not determine superuser status: "
-                        + e.getMessage() + " — proceeding with UPDATE test" );
-            }
-
-            try ( Statement stmt = conn.createStatement() ) {
-                stmt.execute( "UPDATE audit_log SET event_type='x' WHERE seq < 0" );
-                // If UPDATE succeeded instead of throwing, the grant is wrong.
-                fail( "Expected UPDATE on audit_log to be denied for app role '" + user
-                        + "', but it succeeded — REVOKE UPDATE is missing!" );
-            }
-        } catch ( final SQLException e ) {
-            // Expected: permission denied for relation audit_log (or similar).
-            final String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-            assertTrue( msg.contains( "permission denied" ) || msg.contains( "42501" )
-                            || msg.contains( "must be owner" ),
-                    "Expected a permission-denied SQL error, got: " + e.getMessage() );
-            System.out.println( "[AuditLogIT] DB-immutability check PASSED: "
-                    + "UPDATE denied as expected — " + e.getMessage() );
+        // 1. Setup as superuser: create the NOSUPERUSER role + V036 grants (idempotent).
+        try ( Connection su = DriverManager.getConnection( jdbcUrl, suUser, suPass );
+              Statement st = su.createStatement() ) {
+            st.execute( "DO $$ BEGIN "
+                    + "IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='" + roRole + "') THEN "
+                    + "CREATE ROLE " + roRole + " LOGIN PASSWORD '" + roPass + "' NOSUPERUSER; "
+                    + "END IF; END $$;" );
+            st.execute( "GRANT CONNECT ON DATABASE \"" + dbName + "\" TO " + roRole );
+            st.execute( "GRANT USAGE ON SCHEMA public TO " + roRole );
+            // Exactly the V036 grant statements:
+            st.execute( "GRANT  SELECT, INSERT ON audit_log TO " + roRole );
+            st.execute( "REVOKE UPDATE, DELETE ON audit_log FROM " + roRole );
         }
+
+        // 2. Assert as the NOSUPERUSER role.
+        try ( Connection ro = DriverManager.getConnection( jdbcUrl, roRole, roPass ) ) {
+            // SELECT works (proves the role can read — denial below is write-specific).
+            try ( Statement s = ro.createStatement();
+                  ResultSet rs = s.executeQuery( "SELECT count(*) FROM audit_log" ) ) {
+                assertTrue( rs.next(), "SELECT count(*) should return a row" );
+            }
+            // UPDATE denied.
+            final SQLException up = assertThrows( SQLException.class, () -> {
+                try ( Statement s = ro.createStatement() ) {
+                    s.execute( "UPDATE audit_log SET event_type='x' WHERE seq < 0" );
+                }
+            }, "UPDATE on audit_log must be denied for the NOSUPERUSER role" );
+            assertPermissionDenied( up );
+            // DELETE denied.
+            final SQLException del = assertThrows( SQLException.class, () -> {
+                try ( Statement s = ro.createStatement() ) {
+                    s.execute( "DELETE FROM audit_log WHERE seq < 0" );
+                }
+            }, "DELETE on audit_log must be denied for the NOSUPERUSER role" );
+            assertPermissionDenied( del );
+            System.out.println( "[AuditLogIT] DB-immutability check PASSED: SELECT allowed, "
+                    + "UPDATE + DELETE denied for NOSUPERUSER role '" + roRole + "'" );
+        } finally {
+            // 3. Best-effort teardown so a persistent DB stays clean across re-runs.
+            try ( Connection su = DriverManager.getConnection( jdbcUrl, suUser, suPass );
+                  Statement st = su.createStatement() ) {
+                st.execute( "DROP OWNED BY " + roRole );
+                st.execute( "DROP ROLE IF EXISTS " + roRole );
+            } catch ( final SQLException e ) {
+                System.out.println( "[AuditLogIT] teardown of role '" + roRole
+                        + "' failed (non-fatal): " + e.getMessage() );
+            }
+        }
+    }
+
+    /** Asserts a SQLException is a PostgreSQL insufficient-privilege error. */
+    private static void assertPermissionDenied( final SQLException e ) {
+        final String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+        // SQLState 42501 = insufficient_privilege.
+        assertTrue( msg.contains( "permission denied" ) || msg.contains( "42501" )
+                        || "42501".equals( e.getSQLState() ),
+                "Expected an insufficient-privilege SQL error, got: " + e.getMessage()
+                        + " (SQLState=" + e.getSQLState() + ")" );
     }
 }

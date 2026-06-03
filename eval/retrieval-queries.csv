@@ -2,8 +2,8 @@
 # Categories (notes column): synonym-drift, indirect, multi-word-concept, specific, general, business-process, hard.
 # Every ideal_page MUST exist as a file in docs/wikantik-pages/ (without the .md extension).
 query,ideal_page,notes
-how do I deploy the wiki locally,JspwikiDeployment,indirect
-which embedding model should we pick for local RAG,EmbeddingsVectorDB,synonym-drift
+how do I deploy the wiki locally,BuildingAndDeployingLocally,indirect
+which embedding model should we pick for local RAG,LocalRAG,synonym-drift
 Ollama installation,OllamaSetup,specific
 running Wikantik in a container,WikantikOnDocker,synonym-drift
 setting up postgres on my laptop,PostgreSQLLocalDeployment,indirect
@@ -33,9 +33,9 @@ images and text embeddings together,MultimodalEmbeddings,indirect
 how agents remember things,AgentMemory,indirect
 evaluating and monitoring llm agents in production,AgentObservability,multi-word-concept
 prompt engineering for agents,AgentPromptEngineering,specific
-test driven development,TestDrivenDevelopmentGuide,general
+test driven development,TestDrivenDevelopment,general
 writing technical docs,TechnicalWritingGuide,synonym-drift
-setting up docker for development,DockerSetup,general
+setting up docker for development,DockerDeployment,general
 ai,ArtificialIntelligence,hard
 jvm gc,JavaMemoryManagement,hard
 overview of agent architectures,AgenticArchitecture,general

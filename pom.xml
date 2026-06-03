@@ -173,6 +173,7 @@
     <module>wikantik-main</module>
     <module>wikantik-admin-mcp</module>
     <module>wikantik-tools</module>
+    <module>wikantik-scim</module>
     <module>wikantik-knowledge</module>
     <module>wikantik-observability</module>
     <module>wikantik-rest</module>

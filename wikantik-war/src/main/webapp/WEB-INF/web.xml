@@ -150,6 +150,20 @@
      <url-pattern>/admin/*</url-pattern>
    </filter-mapping>
 
+   <!-- SCIM 2.0: bearer-token access filter — must run before SCIM servlet dispatch -->
+   <filter>
+     <filter-name>ScimAccessFilter</filter-name>
+     <filter-class>com.wikantik.scim.ScimAccessFilter</filter-class>
+     <init-param>
+       <param-name>wikantik.scim.token</param-name>
+       <param-value></param-value>
+     </init-param>
+   </filter>
+   <filter-mapping>
+     <filter-name>ScimAccessFilter</filter-name>
+     <url-pattern>/scim/v2/*</url-pattern>
+   </filter-mapping>
+
    <!-- Cache headers: immutable for hashed assets, no-store for index.html -->
    <filter>
      <filter-name>CacheHeaderFilter</filter-name>
@@ -552,6 +566,16 @@
        <servlet-class>com.wikantik.rest.AdminExtractionResource</servlet-class>
    </servlet>
 
+   <!-- SCIM 2.0 -->
+   <servlet>
+       <servlet-name>ScimUserResource</servlet-name>
+       <servlet-class>com.wikantik.scim.ScimUserResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>ScimDiscoveryResource</servlet-name>
+       <servlet-class>com.wikantik.scim.ScimDiscoveryResource</servlet-class>
+   </servlet>
+
    <!-- Observability -->
    <servlet>
        <servlet-name>HealthServlet</servlet-name>
@@ -804,6 +828,28 @@
    <servlet-mapping>
        <servlet-name>AdminExtractionResource</servlet-name>
        <url-pattern>/admin/knowledge-graph/extract-mentions/*</url-pattern>
+   </servlet-mapping>
+
+   <!-- SCIM 2.0 servlet mappings -->
+   <servlet-mapping>
+       <servlet-name>ScimUserResource</servlet-name>
+       <url-pattern>/scim/v2/Users</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>ScimUserResource</servlet-name>
+       <url-pattern>/scim/v2/Users/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>ScimDiscoveryResource</servlet-name>
+       <url-pattern>/scim/v2/ServiceProviderConfig</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>ScimDiscoveryResource</servlet-name>
+       <url-pattern>/scim/v2/Schemas</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>ScimDiscoveryResource</servlet-name>
+       <url-pattern>/scim/v2/ResourceTypes</url-pattern>
    </servlet-mapping>
 
    <servlet-mapping>

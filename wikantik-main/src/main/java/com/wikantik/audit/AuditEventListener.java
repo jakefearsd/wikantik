@@ -20,6 +20,8 @@ package com.wikantik.audit;
 
 import com.wikantik.event.WikiEvent;
 import com.wikantik.event.WikiEventListener;
+import com.wikantik.event.WikiPageEvent;
+import com.wikantik.event.WikiPageRenameEvent;
 import com.wikantik.event.WikiSecurityEvent;
 
 import java.security.Principal;
@@ -37,8 +39,14 @@ public final class AuditEventListener implements WikiEventListener {
         if ( event instanceof WikiSecurityEvent se ) {
             final AuditEntry entry = mapSecurity( se );
             if ( entry != null ) audit.record( entry );
+        } else if ( event instanceof WikiPageRenameEvent re ) {
+            // Must test WikiPageRenameEvent before WikiPageEvent — it's a subclass.
+            final AuditEntry entry = mapRename( re );
+            if ( entry != null ) audit.record( entry );
+        } else if ( event instanceof WikiPageEvent pe ) {
+            final AuditEntry entry = mapPage( pe );
+            if ( entry != null ) audit.record( entry );
         }
-        // WikiPageEvent / WikiPageRenameEvent mapping will be added in Task 8.
     }
 
     private AuditEntry mapSecurity( final WikiSecurityEvent se ) {
@@ -64,6 +72,50 @@ public final class AuditEventListener implements WikiEventListener {
             .actorPrincipal( principal )
             .actorType( principal == null ? "anonymous" : "user" )
             .build();
+    }
+
+    private AuditEntry mapPage( final WikiPageEvent pe ) {
+        final int t = pe.getType();
+        final String eventType = switch ( t ) {
+            case WikiPageEvent.PAGE_DELETED -> "page.delete";
+            case WikiPageEvent.POST_SAVE    -> "page.save";
+            default -> null;
+        };
+        if ( eventType == null ) return null;
+        final String pageName = pe.getPageName();
+        return AuditEntry.builder()
+            .eventTime( Instant.now() )
+            .category( AuditCategory.CONTENT )
+            .eventType( eventType )
+            .outcome( AuditOutcome.SUCCESS )
+            .actorType( "system" )
+            .targetType( "page" )
+            .targetId( pageName )
+            .targetLabel( pageName )
+            .build();
+    }
+
+    private AuditEntry mapRename( final WikiPageRenameEvent re ) {
+        final String oldName = re.getOldPageName();
+        final String newName = re.getNewPageName();
+        final String detail = "{\"from\":\"" + escape( oldName ) + "\",\"to\":\"" + escape( newName ) + "\"}";
+        return AuditEntry.builder()
+            .eventTime( Instant.now() )
+            .category( AuditCategory.CONTENT )
+            .eventType( "page.rename" )
+            .outcome( AuditOutcome.SUCCESS )
+            .actorType( "system" )
+            .targetType( "page" )
+            .targetId( newName )
+            .targetLabel( newName )
+            .detail( detail )
+            .build();
+    }
+
+    /** Minimal JSON string escaping for page names in detail JSON. */
+    private static String escape( final String s ) {
+        if ( s == null ) return "";
+        return s.replace( "\\", "\\\\" ).replace( "\"", "\\\"" );
     }
 
     /**

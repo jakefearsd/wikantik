@@ -582,17 +582,30 @@ public class AdminUserResource extends RestServletBase {
         final String expiryStr = getJsonString( body, "expiry" );
 
         if ( expiryStr != null && !expiryStr.isBlank() ) {
-            // Timed lock with a specific expiry date — inline path.
+            // Timed lock with a specific expiry date — route through lifecycle service for audit.
+            final Date expiry;
             try {
-                final Date expiry = new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).parse( expiryStr );
-                final UserDatabase db = getUserDatabase();
-                final UserProfile profile = db.findByLoginName( loginName );
-                profile.setLockExpiry( expiry );
-                db.save( profile );
-                LOG.info( "Locked user: {} until {}", loginName, expiry );
-                sendJson( response, Map.of( "locked", true, "lockExpiry", formatDate( expiry ) ) );
+                expiry = new SimpleDateFormat( "yyyy-MM-dd", Locale.ROOT ).parse( expiryStr );
             } catch ( final ParseException e ) {
                 sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Invalid date format. Use yyyy-MM-dd" );
+                return;
+            }
+            final AuditService audit = getEngine() instanceof com.wikantik.WikiEngine we
+                    ? we.getAuditService() : null;
+            try {
+                if ( audit != null ) {
+                    final com.wikantik.auth.UserLifecycleService lifecycle =
+                            new com.wikantik.auth.UserLifecycleService( getUserDatabase(), audit );
+                    lifecycle.deactivate( loginName, expiry, actor, "admin-ui" );
+                } else {
+                    // Fallback: no audit subsystem — inline mechanism
+                    final UserDatabase db = getUserDatabase();
+                    final UserProfile profile = db.findByLoginName( loginName );
+                    profile.setLockExpiry( expiry );
+                    db.save( profile );
+                }
+                LOG.info( "Locked user: {} until {}", loginName, expiry );
+                sendJson( response, Map.of( "locked", true, "lockExpiry", formatDate( expiry ) ) );
             } catch ( final Exception e ) {
                 LOG.error( "Failed to lock user {}: {}", loginName, e.getMessage() );
                 sendNotFound( response, "User not found: " + loginName );

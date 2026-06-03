@@ -28,6 +28,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -67,7 +69,17 @@ public final class UserLifecycleService {
         final UserProfile p = db.findByLoginName( loginName );
         p.setLockExpiry( INDEFINITE_LOCK_EXPIRY );
         db.save( p );
-        emit( "user.deactivate", p, actor, source );
+        emitDeactivate( p, actor, source, null );
+    }
+
+    /** Deactivate until a specific expiry (timed lock). Audited as {@code user.deactivate}
+     *  with the expiry timestamp recorded in the detail JSON. */
+    public void deactivate( final String loginName, final Date until, final String actor, final String source )
+            throws NoSuchPrincipalException, WikiSecurityException {
+        final UserProfile p = db.findByLoginName( loginName );
+        p.setLockExpiry( until );
+        db.save( p );
+        emitDeactivate( p, actor, source, until );
     }
 
     /** Reactivate (clear the lock). */
@@ -77,6 +89,38 @@ public final class UserLifecycleService {
         p.setLockExpiry( null );
         db.save( p );
         emit( "user.reactivate", p, actor, source );
+    }
+
+    /** Emit a {@code user.deactivate} audit entry. When {@code until} is non-null it is
+     *  included as an ISO-8601 {@code "until"} field in the detail JSON. */
+    private void emitDeactivate( final UserProfile p, final String actor, final String source,
+                                 final Date until ) {
+        try {
+            final String detail;
+            if ( until != null ) {
+                final String iso = DateTimeFormatter.ISO_INSTANT
+                        .format( until.toInstant().atOffset( ZoneOffset.UTC ) );
+                detail = "{\"source\":\"" + ( source == null ? "" : source )
+                        + "\",\"until\":\"" + iso + "\"}";
+            } else {
+                detail = "{\"source\":\"" + ( source == null ? "" : source ) + "\"}";
+            }
+            audit.record( AuditEntry.builder()
+                    .eventTime( Instant.now() )
+                    .category( AuditCategory.ADMIN )
+                    .eventType( "user.deactivate" )
+                    .outcome( AuditOutcome.SUCCESS )
+                    .actorPrincipal( actor )
+                    .actorType( actor == null ? "system" : "user" )
+                    .targetType( "user" )
+                    .targetId( p.getLoginName() )
+                    .targetLabel( p.getLoginName() )
+                    .detail( detail )
+                    .build() );
+        } catch ( final RuntimeException e ) {
+            // Auditing is best-effort; the lifecycle change already persisted.
+            LOG.warn( "Failed to record user.deactivate audit for user={}: {}", p.getLoginName(), e.getMessage(), e );
+        }
     }
 
     private void emit( final String eventType, final UserProfile p, final String actor, final String source ) {

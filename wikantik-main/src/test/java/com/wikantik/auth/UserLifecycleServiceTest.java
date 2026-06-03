@@ -88,6 +88,34 @@ class UserLifecycleServiceTest {
     }
 
     @Test
+    void timedDeactivateSetsExpiryAndAuditsWithUntilField() throws Exception {
+        UserDatabase db = mock( UserDatabase.class );
+        UserProfile p = mock( UserProfile.class );
+        when( p.getUid() ).thenReturn( "u-2" );
+        when( p.getLoginName() ).thenReturn( "bob" );
+        when( db.findByLoginName( "bob" ) ).thenReturn( p );
+        CapturingAudit audit = new CapturingAudit();
+
+        final Date until = new Date( System.currentTimeMillis() + 86_400_000L * 30 ); // ~30 days
+        UserLifecycleService svc = new UserLifecycleService( db, audit );
+        svc.deactivate( "bob", until, "admin-alice", "admin-ui" );
+
+        // Lock set to the supplied expiry date, profile saved.
+        verify( p ).setLockExpiry( until );
+        verify( db ).save( p );
+        // Audit event recorded with user.deactivate + source + until in detail.
+        assertEquals( 1, audit.entries.size() );
+        AuditEntry e = audit.entries.get( 0 );
+        assertEquals( AuditCategory.ADMIN, e.category() );
+        assertEquals( "user.deactivate", e.eventType() );
+        assertEquals( "user", e.targetType() );
+        assertEquals( "bob", e.targetId() );
+        assertEquals( "admin-alice", e.actorPrincipal() );
+        assertTrue( e.detail() != null && e.detail().contains( "admin-ui" ), "source in detail" );
+        assertTrue( e.detail() != null && e.detail().contains( "until" ), "until field in detail" );
+    }
+
+    @Test
     void auditFailureNeverBlocksTheLifecycleChange() throws Exception {
         UserDatabase db = mock( UserDatabase.class );
         UserProfile p = mock( UserProfile.class );

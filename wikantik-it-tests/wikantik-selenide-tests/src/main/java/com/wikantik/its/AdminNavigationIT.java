@@ -20,6 +20,7 @@ package com.wikantik.its;
 
 import com.codeborne.selenide.Selenide;
 import com.wikantik.its.environment.Env;
+import com.wikantik.pages.admin.AdminSectionPage;
 import com.wikantik.pages.admin.AdminSidebarPage;
 import com.wikantik.pages.admin.OverviewDashboardAdminPage;
 import com.wikantik.pages.spa.ViewWikiPage;
@@ -33,7 +34,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * End-to-end test for the admin sidebar navigation and the reader→admin
- * "context swap".
+ * "context swap". Also covers:
+ * <ul>
+ *   <li>Overview dashboard: metric cards visible, card link navigates to section.</li>
+ *   <li>Smoke-loads every admin section route asserting a non-empty header and
+ *       no error banner (previously {@code AdminSectionSmokeIT}).</li>
+ * </ul>
  *
  * <p>Confirms that on {@code /admin/*} the admin rail replaces the reader
  * Sidebar (the reader-only {@code sidebar-search-trigger} is absent), then
@@ -58,6 +64,15 @@ public class AdminNavigationIT extends WithIntegrationTestSetup {
         Map.entry( "kg-policy",         "/admin/kg-policy" ),
         Map.entry( "retrieval-quality", "/admin/retrieval-quality" ) );
 
+    /** Admin section routes to smoke-load (mirrors the admin rail order). */
+    private static final List< String > SMOKE_ROUTES = List.of(
+        "/admin/users",
+        "/admin/security",
+        "/admin/apikeys",
+        "/admin/content",
+        "/admin/retrieval-quality",
+        "/admin/kg-policy" );
+
     @BeforeEach
     void login() {
         // Fresh browser session per test so each starts anonymous — see the
@@ -72,16 +87,30 @@ public class AdminNavigationIT extends WithIntegrationTestSetup {
 
     @Test
     void contextSwap_thenNavigateEachLink_thenBackToWiki() {
+        // --- Overview dashboard: metric cards + card-link navigation (AdminOverviewIT) ---
+        final OverviewDashboardAdminPage dashboard = new OverviewDashboardAdminPage().open();
+        dashboard.assertDashboardVisible()
+            .assertMetricCardVisible( "users" )
+            .assertMetricCardVisible( "load" );
+
+        // The Users card wraps a link into /admin/users; clicking it swaps route.
+        dashboard.clickCardLink( "users" );
+        final String afterCardClick = new AdminSidebarPage().currentPath();
+        assertTrue( afterCardClick.endsWith( "/admin/users" ),
+            "After clicking the Users card the path should end with /admin/users, was: " + afterCardClick );
+
+        // --- Context swap: admin rail present, reader sidebar gone (AdminNavigationIT) ---
         new OverviewDashboardAdminPage().open();
         final AdminSidebarPage sidebar = new AdminSidebarPage();
 
-        // Context swap: admin rail present, reader sidebar gone.
         sidebar.assertSidebarVisible()
             .assertReaderSidebarAbsent()
             .assertNavVisible( "overview" );
 
         // Walk each nav link: route changes to the expected path and the link
-        // gets the active class.
+        // gets the active class. Also assert no error banner on each section
+        // (AdminSectionSmokeIT).
+        final AdminSectionPage section = new AdminSectionPage();
         for ( final Map.Entry< String, String > entry : NAV ) {
             final String slug = entry.getKey();
             final String expectedSuffix = entry.getValue();
@@ -90,11 +119,25 @@ public class AdminNavigationIT extends WithIntegrationTestSetup {
             assertTrue( path.endsWith( expectedSuffix ),
                 "Nav '" + slug + "' should land on a path ending with " + expectedSuffix
                 + ", was: " + path );
+            // Smoke-check: header non-empty and no error banner on this section.
+            section.assertHeaderTitleVisibleAndNonEmpty().assertNoErrorBanner();
+        }
+
+        // Smoke any routes not already visited by the nav walk.
+        for ( final String route : SMOKE_ROUTES ) {
+            final boolean alreadyCovered = NAV.stream()
+                .anyMatch( e -> route.endsWith( e.getValue() ) );
+            if ( !alreadyCovered ) {
+                section.open( route )
+                    .assertHeaderTitleVisibleAndNonEmpty()
+                    .assertNoErrorBanner();
+            }
         }
 
         // Door out: back to the reader wiki.
-        sidebar.clickBackToWiki();
-        final String backPath = sidebar.currentPath();
+        new OverviewDashboardAdminPage().open();
+        new AdminSidebarPage().clickBackToWiki();
+        final String backPath = new AdminSidebarPage().currentPath();
         assertTrue( backPath.contains( "/wiki/" ),
             "After Back to wiki the path should contain /wiki/, was: " + backPath );
     }

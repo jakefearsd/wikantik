@@ -16,13 +16,13 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.its;
+package com.wikantik.its.rest;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.wikantik.its.environment.Env;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
@@ -54,10 +54,21 @@ import static org.junit.jupiter.api.Assertions.*;
  * <p>
  * These tests fetch raw HTML via HTTP to inspect {@code <head>} content that the
  * browser DOM may rewrite or strip (e.g. duplicate meta tags, JSON-LD script blocks).
+ * No browser is involved — all requests use {@link HttpURLConnection}.
  */
-public class SemanticWebIT extends WithIntegrationTestSetup {
+public class SemanticWebIT {
 
     private static final Gson GSON = new Gson();
+
+    private static String baseUrl;
+
+    @BeforeAll
+    static void setUp() {
+        baseUrl = System.getProperty( "it-wikantik.base.url", "http://localhost:18080/wikantik-it-test-rest" );
+        if ( baseUrl.endsWith( "/" ) ) {
+            baseUrl = baseUrl.substring( 0, baseUrl.length() - 1 );
+        }
+    }
 
     // ---- Canonical URL ----
 
@@ -442,11 +453,7 @@ public class SemanticWebIT extends WithIntegrationTestSetup {
     }
 
     private HttpURLConnection openConnection( final String path ) throws Exception {
-        String base = Env.TESTS_BASE_URL;
-        if ( base.endsWith( "/" ) ) {
-            base = base.substring( 0, base.length() - 1 );
-        }
-        final URL url = URI.create( base + path ).toURL();
+        final URL url = URI.create( baseUrl + path ).toURL();
         final HttpURLConnection conn = ( HttpURLConnection ) url.openConnection();
         conn.setRequestMethod( "GET" );
         return conn;

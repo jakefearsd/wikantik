@@ -22,7 +22,7 @@ import com.codeborne.selenide.Selenide;
 import com.wikantik.its.environment.Env;
 import com.wikantik.pages.admin.HubDiscoveryAdminPage;
 import com.wikantik.pages.spa.ViewWikiPage;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -53,12 +53,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 public class HubDiscoveryAdminIT extends WithIntegrationTestSetup {
 
-    @BeforeEach
-    void login() {
-        // Reset the browser session between test methods so each test starts
-        // anonymous. Without this the second test in this class inherits the
-        // authenticated state from the first (whose flow never logs out) and
-        // {@code clickOnLogin()} fails because no signin button is rendered.
+    @BeforeAll
+    static void login() {
+        // Login once for the whole class. Each test method seeds its own unique
+        // proposals via System.currentTimeMillis(), so they do not share mutable
+        // browser state. A single authenticated session across all four methods
+        // avoids four login round-trips and four browser restarts.
         Selenide.closeWebDriver();
         ViewWikiPage.open( "Main" )
             .clickOnLogin()

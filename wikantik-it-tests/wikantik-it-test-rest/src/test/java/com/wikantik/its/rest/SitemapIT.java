@@ -16,10 +16,10 @@
     specific language governing permissions and limitations
     under the License.
  */
-package com.wikantik.its;
+package com.wikantik.its.rest;
 
-import com.wikantik.its.environment.Env;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
@@ -37,8 +37,21 @@ import java.util.stream.Collectors;
  * The sitemap follows the Sitemap Protocol and includes the Google Image Sitemap extension.
  * Note: changefreq and priority are intentionally omitted as Google ignores these values.
  * </p>
+ * <p>
+ * No browser is involved — all requests use {@link HttpURLConnection} directly.
+ * </p>
  */
-public class SitemapIT extends WithIntegrationTestSetup {
+public class SitemapIT {
+
+    private static String baseUrl;
+
+    @BeforeAll
+    static void setUp() {
+        baseUrl = System.getProperty( "it-wikantik.base.url", "http://localhost:18080/wikantik-it-test-rest" );
+        if ( baseUrl.endsWith( "/" ) ) {
+            baseUrl = baseUrl.substring( 0, baseUrl.length() - 1 );
+        }
+    }
 
     @Test
     void sitemapReturnsValidXml() throws Exception {
@@ -84,9 +97,9 @@ public class SitemapIT extends WithIntegrationTestSetup {
             "Sitemap URLs should not be relative paths" );
 
         // Verify URLs are anchored at the same host:port the test base URL points at.
-        // Derived from Env.TESTS_BASE_URL (driven by it-wikantik.base.url) so changing
-        // the Cargo IT port doesn't desync this assertion.
-        final java.net.URI base = java.net.URI.create( Env.TESTS_BASE_URL );
+        // Derived from the it-wikantik.base.url system property so changing the Cargo
+        // IT port doesn't desync this assertion.
+        final java.net.URI base = java.net.URI.create( baseUrl );
         final String hostPort = base.getHost() + ":" + base.getPort();
         Assertions.assertTrue( sitemap.contains( hostPort ),
             "Sitemap URLs should be anchored at " + hostPort + " (the configured IT base URL)" );
@@ -131,14 +144,7 @@ public class SitemapIT extends WithIntegrationTestSetup {
 
     @Test
     void sitemapHasCorrectContentType() throws Exception {
-        // Construct the sitemap URL
-        String baseUrl = Env.TESTS_BASE_URL;
-        String sitemapUrl;
-        if ( baseUrl.endsWith( "/" ) ) {
-            sitemapUrl = baseUrl + "sitemap.xml";
-        } else {
-            sitemapUrl = baseUrl + "/sitemap.xml";
-        }
+        final String sitemapUrl = baseUrl + "/sitemap.xml";
 
         final URL url = URI.create( sitemapUrl ).toURL();
         final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -165,14 +171,7 @@ public class SitemapIT extends WithIntegrationTestSetup {
      * @throws Exception if there's an error fetching the sitemap
      */
     private String fetchSitemap() throws Exception {
-        // Construct the sitemap URL - handle both root deployment and context path deployment
-        String baseUrl = Env.TESTS_BASE_URL;
-        String sitemapUrl;
-        if ( baseUrl.endsWith( "/" ) ) {
-            sitemapUrl = baseUrl + "sitemap.xml";
-        } else {
-            sitemapUrl = baseUrl + "/sitemap.xml";
-        }
+        final String sitemapUrl = baseUrl + "/sitemap.xml";
 
         final URL url = URI.create( sitemapUrl ).toURL();
         final HttpURLConnection connection = (HttpURLConnection) url.openConnection();

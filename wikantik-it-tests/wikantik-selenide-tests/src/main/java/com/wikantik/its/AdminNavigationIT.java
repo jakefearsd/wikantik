@@ -26,6 +26,8 @@ import com.wikantik.pages.admin.OverviewDashboardAdminPage;
 import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.util.List;
 import java.util.Map;
@@ -47,6 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * expected path and the clicked link becomes {@code active}, and finally that
  * "← Back to wiki" exits the admin shell to a {@code /wiki/} route.
  */
+@Execution( ExecutionMode.CONCURRENT )
 public class AdminNavigationIT extends WithIntegrationTestSetup {
 
     /**

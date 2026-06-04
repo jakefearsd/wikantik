@@ -22,6 +22,8 @@ import com.wikantik.pages.spa.LoginPage;
 import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 
 /**
@@ -34,6 +36,7 @@ import org.junit.jupiter.api.Test;
  * visible behind the modal, so the page name reported by {@link
  * LoginPage#wikiTitle()} is the page you were on when you opened the modal.
  */
+@Execution( ExecutionMode.CONCURRENT )
 public class LoginIT extends WithIntegrationTestSetup {
 
     @Test

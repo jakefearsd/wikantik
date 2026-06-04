@@ -25,6 +25,8 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.time.Duration;
 
@@ -39,6 +41,7 @@ import static com.codeborne.selenide.Selenide.*;
  * Tests are written to pass in both scenarios: they verify the route loads
  * and renders React components, not that graph data is present.
  */
+@Execution( ExecutionMode.CONCURRENT )
 @TestMethodOrder( MethodOrderer.OrderAnnotation.class )
 class KnowledgeGraphVisualizationIT extends WithIntegrationTestSetup {
 

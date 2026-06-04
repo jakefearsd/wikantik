@@ -22,6 +22,8 @@ import com.wikantik.pages.Page;
 import com.wikantik.pages.spa.ViewWikiPage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.io.File;
 
@@ -35,6 +37,7 @@ import java.io.File;
  * SPA has no equivalent toggle, and the sidebar is controlled by the user's
  * collapse/expand preference instead.
  */
+@Execution( ExecutionMode.CONCURRENT )
 public class AnonymousViewIT extends WithIntegrationTestSetup {
 
     @Test

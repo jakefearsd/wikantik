@@ -23,6 +23,8 @@ import com.codeborne.selenide.WebDriverRunner;
 import com.wikantik.pages.Page;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.net.URI;
 import java.time.Duration;
@@ -44,6 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>This test never logs in. It opens a fresh browser session so no leaked
  * auth state can mask the guard.
  */
+@Execution( ExecutionMode.CONCURRENT )
 public class AdminAuthRedirectIT extends WithIntegrationTestSetup {
 
     @BeforeEach

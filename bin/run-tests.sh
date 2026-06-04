@@ -75,7 +75,7 @@ case "${1:-}" in
   --help|-h) sed -n '2,28p' "$0"; exit 0 ;;
   --unit)    RUN_IT=0 ;;
   --it)      RUN_UNIT=0 ;;
-  --module)  RUN_UNIT=0; ONE_MODULE="${2:-}";
+  --module)  RUN_UNIT=0; RUN_IT=0; ONE_MODULE="${2:-}";
              [ -n "$ONE_MODULE" ] || { echo "--module needs a name (rest|sso|sso-saml|custom-jdbc)" >&2; exit 2; } ;;
   "" ) ;;
   *) echo "unknown argument: $1 (try --help)" >&2; exit 2 ;;

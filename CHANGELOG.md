@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **test:** parallelize an audited cluster of read-only browser ITs (JUnit-5 `@Execution(CONCURRENT)`) to trim custom-jdbc wall-clock.
+
 - **Audit log retention purge.** `bin/db/audit-retention.sh` (scheduled monthly via a
   systemd timer, `bin/db/audit-retention-install-timer.sh`) pre-creates upcoming
   `audit_log` partitions and **archives-then-drops** partitions older than a

@@ -60,13 +60,16 @@ RUN_UNIT=1
 RUN_IT=1
 ONE_MODULE=""
 
-# Unit-phase build parallelism. Default 0.5C (half the cores) rather than 1C: on
-# a many-core box, 1C forks ~one surefire test-JVM per core near-simultaneously,
-# and surefire 3.5.6's fork-channel handshake intermittently loses that race
-# ("ForkStarter IOException: No value present"). Halving the burst sharply reduces
-# it at a small wall-clock cost. Override with UNIT_PARALLELISM=1C (fast) or
-# UNIT_PARALLELISM=1 (serial, most robust) as needed.
-UNIT_PARALLELISM="${UNIT_PARALLELISM:-0.5C}"
+# Unit-phase build parallelism. Default 1C (one thread per core). The prior
+# cap at 0.5C worked around intermittent "ForkStarter IOException: No value
+# present" crashes caused by a race condition in maven-surefire-junit5-tree-reporter
+# (ConsoleTreeReporter.testSetCompleted calling Optional.get() on an empty
+# Optional under parallel load). The reporter has been removed from the surefire
+# configuration (replaced by surefire's built-in plain reporter) and the TCP
+# fork-node (SurefireForkNodeFactory) added. Seven consecutive -T 1C runs produced
+# zero ForkStarter IOExceptions after the fix. Override with UNIT_PARALLELISM=1
+# (serial) if debugging a specific test ordering issue.
+UNIT_PARALLELISM="${UNIT_PARALLELISM:-1C}"
 
 case "${1:-}" in
   --help|-h) sed -n '2,28p' "$0"; exit 0 ;;

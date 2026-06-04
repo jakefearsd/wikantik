@@ -60,6 +60,14 @@ RUN_UNIT=1
 RUN_IT=1
 ONE_MODULE=""
 
+# Unit-phase build parallelism. Default 0.5C (half the cores) rather than 1C: on
+# a many-core box, 1C forks ~one surefire test-JVM per core near-simultaneously,
+# and surefire 3.5.6's fork-channel handshake intermittently loses that race
+# ("ForkStarter IOException: No value present"). Halving the burst sharply reduces
+# it at a small wall-clock cost. Override with UNIT_PARALLELISM=1C (fast) or
+# UNIT_PARALLELISM=1 (serial, most robust) as needed.
+UNIT_PARALLELISM="${UNIT_PARALLELISM:-0.5C}"
+
 case "${1:-}" in
   --help|-h) sed -n '2,28p' "$0"; exit 0 ;;
   --unit)    RUN_IT=0 ;;
@@ -105,8 +113,8 @@ echo "Wikantik test suite — started ${start_ts}" | tee -a "$REPORT"
 
 if [ "$RUN_UNIT" = 1 ]; then
   # Parallel unit reactor: compile all, run unit tests, install artifacts (incl. WAR).
-  run_step "Phase 1: unit reactor (-T 1C -DskipITs)" "${LOG_DIR}/phase1-unit.log" \
-    clean install -T 1C -DskipITs
+  run_step "Phase 1: unit reactor (-T ${UNIT_PARALLELISM} -DskipITs)" "${LOG_DIR}/phase1-unit.log" \
+    clean install -T "${UNIT_PARALLELISM}" -DskipITs
 fi
 
 if [ "$RUN_IT" = 1 ]; then

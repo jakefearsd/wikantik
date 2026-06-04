@@ -21,6 +21,7 @@
 #   bin/run-tests.sh --unit          # unit phase only (Phase 1)
 #   bin/run-tests.sh --it            # IT phase only (assumes a prior --unit installed artifacts)
 #   bin/run-tests.sh --module rest   # IT phase for one module: rest|sso|sso-saml|custom-jdbc
+#   IT_PARALLELISM=4 bin/run-tests.sh --it   # opt-in: all IT modules in one -T 4 reactor
 #   bin/run-tests.sh --help
 #
 # Exit code: 0 only if every phase/module that ran reached BUILD SUCCESS with no
@@ -70,6 +71,14 @@ ONE_MODULE=""
 # zero ForkStarter IOExceptions after the fix. Override with UNIT_PARALLELISM=1
 # (serial) if debugging a specific test ordering issue.
 UNIT_PARALLELISM="${UNIT_PARALLELISM:-1C}"
+
+# IT-phase parallelism (opt-in). Default 1 = the safe sequential per-module loop
+# (one module at a time). IT_PARALLELISM=N (N>1) runs a SINGLE
+# `mvn install -Pintegration-tests -T N` reactor over all IT modules at once;
+# each module now reserves its own free ports + uniquely-named pgvector
+# container (build-helper reserve-network-ports), so they no longer collide.
+# One Maven process, so the surefire/failsafe fork-node fix handles the forks.
+IT_PARALLELISM="${IT_PARALLELISM:-1}"
 
 case "${1:-}" in
   --help|-h) sed -n '2,28p' "$0"; exit 0 ;;
@@ -128,12 +137,22 @@ if [ "$RUN_UNIT" = 1 ]; then
 fi
 
 if [ "$RUN_IT" = 1 ]; then
-  for mod in "${IT_MODULES[@]}"; do
-    # -pl <module> WITHOUT -am: deps resolve from the Phase-1 install, so unit
-    # tests are not re-run. Sequential (fixed ports). -fae within the module.
-    run_step "IT: ${mod}" "${LOG_DIR}/it-$(basename "$mod").log" \
-      install -Pintegration-tests -fae -pl "$mod"
-  done
+  if [ "$IT_PARALLELISM" -gt 1 ] 2>/dev/null; then
+    # Single parallel reactor over all IT modules. Each module reserves its own
+    # ports + container name, so -T N cannot collide. -fae so every module runs
+    # even if one fails. -pl <all four>, NO -am (deps already installed by
+    # Phase 1), so the ~6000 unit tests are not re-run.
+    it_pl="$(IFS=,; echo "${IT_MODULES[*]}")"
+    run_step "IT (parallel x${IT_PARALLELISM})" "${LOG_DIR}/it-parallel.log" \
+      install -Pintegration-tests -fae -T "${IT_PARALLELISM}" -pl "$it_pl"
+  else
+    for mod in "${IT_MODULES[@]}"; do
+      # -pl <module> WITHOUT -am: deps resolve from the Phase-1 install, so unit
+      # tests are not re-run. Sequential (default). -fae within the module.
+      run_step "IT: ${mod}" "${LOG_DIR}/it-$(basename "$mod").log" \
+        install -Pintegration-tests -fae -pl "$mod"
+    done
+  fi
 elif [ -n "$ONE_MODULE" ]; then
   mod="wikantik-it-tests/wikantik-it-test-${ONE_MODULE}"
   [ -d "$mod" ] || { echo "no such IT module: $mod" >&2; exit 2; }

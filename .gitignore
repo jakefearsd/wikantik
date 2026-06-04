@@ -58,3 +58,4 @@ __pycache__/
 
 # Load-test credentials (never commit)
 loadtest/loadtest.env
+.test-suite-logs/

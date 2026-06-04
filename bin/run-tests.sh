@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# Wikantik full test-suite runner.
+#
+# Runs the suite the ONLY way that is correct and fast here:
+#   Phase 1 (unit): one parallel reactor build that compiles every module, runs
+#     all unit tests, and INSTALLS the artifacts (incl. the WAR) to ~/.m2.
+#   Phase 2 (IT):   each integration-test module in turn — SEQUENTIALLY, because
+#     the IT modules share fixed Cargo/Tomcat ports (8080, 8205, …) and collide
+#     under any parallelism. Each runs with `-pl <module>` and NO `-am`, so the
+#     ~6000 unit tests are NOT re-run during the IT phase (they already passed and
+#     are installed). This is dramatically faster than a single
+#     `mvn clean install -Pintegration-tests` reactor, and it fits within
+#     wall-clock limits because each phase/module is a bounded build.
+#
+# Why a script: the full reactor cannot complete in one long-lived call in some
+# environments (it gets killed mid-build). Splitting into bounded steps with an
+# aggregated summary makes a full run reliable, scriptable, and CI/remote-friendly.
+#
+# Usage:
+#   bin/run-tests.sh                 # full suite: unit phase, then every IT module
+#   bin/run-tests.sh --unit          # unit phase only (Phase 1)
+#   bin/run-tests.sh --it            # IT phase only (assumes a prior --unit installed artifacts)
+#   bin/run-tests.sh --module rest   # IT phase for one module: rest|sso|sso-saml|custom-jdbc
+#   bin/run-tests.sh --help
+#
+# Exit code: 0 only if every phase/module that ran reached BUILD SUCCESS with no
+# test failures; non-zero otherwise. A per-run summary is written to
+# target/test-suite-report.txt and printed at the end.
+set -uo pipefail   # NOT -e: we want to run every module and aggregate, not bail early.
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_DIR"
+# Logs/report live OUTSIDE any target/ dir — `mvn clean` wipes target/ at the
+# start of the build, which would unlink an in-progress log. This dir is gitignored.
+LOG_DIR="${REPO_DIR}/.test-suite-logs"
+REPORT="${LOG_DIR}/report.txt"
+mkdir -p "$LOG_DIR"
+
+# IT modules in their required sequential order (custom-jdbc runs the Selenide
+# browser suite via the shared wikantik-selenide-tests jar).
+IT_MODULES=(
+  "wikantik-it-tests/wikantik-it-test-rest"
+  "wikantik-it-tests/wikantik-it-test-sso"
+  "wikantik-it-tests/wikantik-it-test-sso-saml"
+  "wikantik-it-tests/wikantik-it-test-custom-jdbc"
+)
+
+RUN_UNIT=1
+RUN_IT=1
+ONE_MODULE=""
+
+case "${1:-}" in
+  --help|-h) sed -n '2,28p' "$0"; exit 0 ;;
+  --unit)    RUN_IT=0 ;;
+  --it)      RUN_UNIT=0 ;;
+  --module)  RUN_UNIT=0; ONE_MODULE="${2:-}";
+             [ -n "$ONE_MODULE" ] || { echo "--module needs a name (rest|sso|sso-saml|custom-jdbc)" >&2; exit 2; } ;;
+  "" ) ;;
+  *) echo "unknown argument: $1 (try --help)" >&2; exit 2 ;;
+esac
+
+# Kill only OUR stray maven/surefire/cargo JVMs — never the dev Tomcat or app.jar.
+clean_zombies() {
+  pkill -9 -f "surefire.*booter|plexus.classworlds|org.codehaus.cargo" 2>/dev/null || true
+  rm -rf wikantik-main/target/test-classes 2>/dev/null || true
+}
+
+: > "$REPORT"
+overall_rc=0
+
+# Run one maven step, tee to a log, record PASS/FAIL + the failsafe/surefire
+# "Tests run" tail into the report. $1=label  $2=logfile  rest=mvn args
+run_step() {
+  local label="$1"; shift
+  local log="$1"; shift
+  echo ">>> ${label}"
+  clean_zombies
+  if mvn "$@" > "$log" 2>&1; then
+    local summary
+    summary="$(grep -E 'Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+' "$log" | tail -1)"
+    echo "PASS  ${label}   ${summary}" | tee -a "$REPORT"
+  else
+    overall_rc=1
+    local fails
+    fails="$(grep -E 'Tests run:.*(Failures: [1-9]|Errors: [1-9])|BUILD FAILURE' "$log" | head -5)"
+    echo "FAIL  ${label}" | tee -a "$REPORT"
+    [ -n "$fails" ] && echo "${fails}" | sed 's/^/        /' | tee -a "$REPORT"
+    echo "        (log: ${log})" | tee -a "$REPORT"
+  fi
+}
+
+start_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+echo "Wikantik test suite — started ${start_ts}" | tee -a "$REPORT"
+
+if [ "$RUN_UNIT" = 1 ]; then
+  # Parallel unit reactor: compile all, run unit tests, install artifacts (incl. WAR).
+  run_step "Phase 1: unit reactor (-T 1C -DskipITs)" "${LOG_DIR}/phase1-unit.log" \
+    clean install -T 1C -DskipITs
+fi
+
+if [ "$RUN_IT" = 1 ]; then
+  for mod in "${IT_MODULES[@]}"; do
+    # -pl <module> WITHOUT -am: deps resolve from the Phase-1 install, so unit
+    # tests are not re-run. Sequential (fixed ports). -fae within the module.
+    run_step "IT: ${mod}" "${LOG_DIR}/it-$(basename "$mod").log" \
+      install -Pintegration-tests -fae -pl "$mod"
+  done
+elif [ -n "$ONE_MODULE" ]; then
+  mod="wikantik-it-tests/wikantik-it-test-${ONE_MODULE}"
+  [ -d "$mod" ] || { echo "no such IT module: $mod" >&2; exit 2; }
+  run_step "IT: ${mod}" "${LOG_DIR}/it-${ONE_MODULE}.log" \
+    install -Pintegration-tests -fae -pl "$mod"
+fi
+
+echo "Wikantik test suite — finished $(date -u +%Y-%m-%dT%H:%M:%SZ) (started ${start_ts})" | tee -a "$REPORT"
+echo "---------- SUMMARY ----------"
+cat "$REPORT"
+[ "$overall_rc" = 0 ] && echo "RESULT: ALL PASSED" || echo "RESULT: FAILURES (see above)"
+exit "$overall_rc"

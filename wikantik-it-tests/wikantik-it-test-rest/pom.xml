@@ -45,6 +45,14 @@
         <artifactId>properties-maven-plugin</artifactId>
       </plugin>
 
+      <!-- Activates the parent pluginManagement reserve-it-ports execution
+           (dynamic it.db.port / it.wikantik.servlet.port / it.wikantik.rmi.port)
+           so this module is parallel-safe. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+      </plugin>
+
       <plugin>
         <groupId>io.fabric8</groupId>
         <artifactId>docker-maven-plugin</artifactId>

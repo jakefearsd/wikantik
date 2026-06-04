@@ -40,9 +40,19 @@
   </modules>
 
   <properties>
-    <it.db.port>55432</it.db.port>
+    <!-- it.db.port, it.wikantik.servlet.port (root pom) and it.wikantik.rmi.port
+         are intentionally NOT given static defaults — build-helper
+         reserve-network-port (the reserve-it-ports execution below) sets each to a
+         free port per module so the IT modules can run in parallel. A static value
+         here would be pre-interpolated into the docker/cargo config in the
+         effective POM and shadow the reservation, so the property must stay
+         undefined until the reserve goal sets it at generate-resources. -->
     <it.db.name>wikantik</it.db.name>
-    <it.db.container-alias>wikantik-pg</it.db.container-alias>
+    <!-- Per-module-unique so two parallel IT modules never collide on the
+         pgvector container name (combined with containerNamePattern=%a and a
+         dynamically-reserved it.db.port). ${project.artifactId} resolves
+         against the inheriting child module. -->
+    <it.db.container-alias>wikantik-pg-${project.artifactId}</it.db.container-alias>
     <it.db.migrate-script>${project.basedir}/../../bin/db/migrate.sh</it.db.migrate-script>
     <it.db.seed-script>${project.basedir}/../src/main/resources/sql/it-test-seed.sql</it.db.seed-script>
   </properties>
@@ -125,6 +135,32 @@
             </plugin>
 
             <plugin>
+              <groupId>org.codehaus.mojo</groupId>
+              <artifactId>build-helper-maven-plugin</artifactId>
+              <executions>
+                <!-- Reserve free TCP ports per module. Bound to generate-resources
+                     (NOT process-test-resources) so the ports are set BEFORE
+                     resource filtering at process-resources — the modules' filtered
+                     wikantik-custom.properties references ${it.wikantik.servlet.port}
+                     in wikantik.baseURL, which would otherwise stay literal. Runs
+                     before docker/cargo start (pre-integration-test) too. Inherited
+                     by all four IT modules; lets a -T N reactor run them concurrently. -->
+                <execution>
+                  <id>reserve-it-ports</id>
+                  <phase>generate-resources</phase>
+                  <goals><goal>reserve-network-port</goal></goals>
+                  <configuration>
+                    <portNames>
+                      <portName>it.db.port</portName>
+                      <portName>it.wikantik.servlet.port</portName>
+                      <portName>it.wikantik.rmi.port</portName>
+                    </portNames>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+
+            <plugin>
               <artifactId>maven-failsafe-plugin</artifactId>
               <version>${plugin.surefire.version}</version>
               <configuration>
@@ -168,6 +204,10 @@
                     <alias>${it.db.container-alias}</alias>
                     <name>${pgvector.image}</name>
                     <run>
+                      <!-- Name the container after the (per-module) alias, not
+                           the default %n-%i (pgvector-N), so parallel modules
+                           get distinct container names. -->
+                      <containerNamePattern>%a</containerNamePattern>
                       <ports>
                         <port>${it.db.port}:5432</port>
                       </ports>
@@ -212,7 +252,11 @@
                     <executable>bash</executable>
                     <arguments>
                       <argument>-c</argument>
-                      <argument>ids=$( { docker ps -aq --filter "ancestor=${pgvector.image}"; docker ps -aq --filter "publish=${it.db.port}"; } | sort -u ); if [ -n "$ids" ]; then echo "Removing stale pgvector containers (any state, by image or port ${it.db.port}): $ids"; docker rm -f $ids; fi</argument>
+                      <!-- Remove only THIS module's own container (by its
+                           per-module-unique name) so a concurrently-running
+                           sibling's pgvector container is never deleted. Keyed
+                           on the static name, not the (now-dynamic) port. -->
+                      <argument>docker rm -f "${it.db.container-alias}" &gt;/dev/null 2&gt;&amp;1 &amp;&amp; echo "Removed stale container ${it.db.container-alias}" || true</argument>
                     </arguments>
                   </configuration>
                 </execution>
@@ -326,6 +370,9 @@
                          so the JFR endpoint IT (ProfilingResourceIT) can
                          create the directory without root privileges. -->
                     <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading -Dwikantik.test.fixture-seam.enabled=true -Dwikantik.profiling.dir=${project.build.directory}/cargo-profiling --add-modules=jdk.incubator.vector -Dwikantik.scim.token=it-scim-token</cargo.jvmargs>
+                    <!-- Reserved per module by build-helper so parallel IT
+                         modules don't share Cargo's default RMI port (8205). -->
+                    <cargo.rmi.port>${it.wikantik.rmi.port}</cargo.rmi.port>
                   </properties>
                 </configuration>
                 <container>

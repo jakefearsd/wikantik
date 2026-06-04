@@ -37,9 +37,10 @@
     <it-wikantik.userdatabase>com.wikantik.auth.user.JDBCUserDatabase</it-wikantik.userdatabase>
     <it-wikantik.referenceStyle>relative</it-wikantik.referenceStyle>
 
-    <!-- Host port the SimpleSAMLphp IdP binds to. Fixed (like OIDC module's 8088)
-         because the integration-tests profile forbids parallel IT modules. -->
-    <it-wikantik.saml-idp.port>8089</it-wikantik.saml-idp.port>
+    <!-- Host port the SimpleSAMLphp IdP binds to. NO static default: reserved
+         dynamically by build-helper (reserve-saml-idp-port) so this module is
+         parallel-safe. A static value would be pre-interpolated into the docker
+         image config in the effective POM and shadow the reservation. -->
     <it-wikantik.saml-idp.image>kristophjunge/test-saml-idp:1.15</it-wikantik.saml-idp.image>
   </properties>
 
@@ -60,6 +61,24 @@
     </resources>
 
     <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <!-- Reserve the SAML-IdP host port dynamically (distinct id from the
+               inherited reserve-it-ports) so this module is parallel-safe. -->
+          <execution>
+            <id>reserve-saml-idp-port</id>
+            <phase>generate-resources</phase>
+            <goals><goal>reserve-network-port</goal></goals>
+            <configuration>
+              <portNames>
+                <portName>it-wikantik.saml-idp.port</portName>
+              </portNames>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>
         <configuration>

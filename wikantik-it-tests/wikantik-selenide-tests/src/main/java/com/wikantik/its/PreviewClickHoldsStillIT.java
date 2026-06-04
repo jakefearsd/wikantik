@@ -216,6 +216,15 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
             }, 200);
             """;
 
+        // Under heavy parallel-IT load (IT_PARALLELISM>1 runs four Cargo Tomcats +
+        // four Postgres + a headless Chrome on one host) the browser's JS event
+        // loop can starve past WebDriver's default 30s async-script timeout, even
+        // though this measurement is instant once it actually runs. Raise the
+        // script timeout so a CPU-starved run measures late instead of erroring
+        // with ScriptTimeoutException — the captured values are valid whenever the
+        // callback lands.
+        com.codeborne.selenide.WebDriverRunner.getWebDriver().manage().timeouts()
+            .scriptTimeout( Duration.ofSeconds( 120 ) );
         final Object rawMeasure = Selenide.executeAsyncJavaScript( measureScript, dataLine );
         @SuppressWarnings( "unchecked" )
         final java.util.Map< String, Object > m = (java.util.Map< String, Object >) rawMeasure;

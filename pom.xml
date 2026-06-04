@@ -75,11 +75,13 @@
     <jrcs-diff.version>0.4.2</jrcs-diff.version>
     <archunit.version>1.4.2</archunit.version>
 
-    <!-- Cargo-launched IT Tomcat HTTP port. Default 18080 instead of 8080
-         so a developer's local dev Tomcat (deploy-local.sh) on the
-         standard 8080 doesn't block IT runs. Override with
-         -Dit.wikantik.servlet.port=NNNN if 18080 is also in use. -->
-    <it.wikantik.servlet.port>18080</it.wikantik.servlet.port>
+    <!-- Cargo-launched IT Tomcat HTTP port. Deliberately NOT given a static
+         default: build-helper-maven-plugin:reserve-network-port reserves a free
+         port per IT module (so modules can run in parallel, and a dev Tomcat on
+         8080/18080 never blocks a run). A static <properties> value here would be
+         pre-interpolated into the cargo/failsafe config in the effective POM,
+         shadowing the reservation — so the property stays undefined until the
+         reserve goal sets it at process-test-resources. -->
     <junit.version>6.1.0</junit.version>
     <log4j2.version>2.26.0</log4j2.version>
     <lucene.version>10.4.0</lucene.version>

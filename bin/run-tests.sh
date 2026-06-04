@@ -89,23 +89,30 @@ clean_zombies() {
 
 : > "$REPORT"
 overall_rc=0
+run_start_epoch="$(date +%s)"
 
-# Run one maven step, tee to a log, record PASS/FAIL + the failsafe/surefire
-# "Tests run" tail into the report. $1=label  $2=logfile  rest=mvn args
+# Format a duration (seconds) as "Xm YYs".
+fmt_dur() { printf '%dm %02ds' $(( $1 / 60 )) $(( $1 % 60 )); }
+
+# Run one maven step, tee to a log, record PASS/FAIL + elapsed + the
+# failsafe/surefire "Tests run" tail. $1=label  $2=logfile  rest=mvn args
 run_step() {
   local label="$1"; shift
   local log="$1"; shift
   echo ">>> ${label}"
   clean_zombies
+  local t0 dur; t0="$(date +%s)"
   if mvn "$@" > "$log" 2>&1; then
+    dur="$(fmt_dur $(( $(date +%s) - t0 )) )"
     local summary
     summary="$(grep -E 'Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+' "$log" | tail -1)"
-    echo "PASS  ${label}   ${summary}" | tee -a "$REPORT"
+    echo "PASS  ${label}  [${dur}]   ${summary}" | tee -a "$REPORT"
   else
     overall_rc=1
+    dur="$(fmt_dur $(( $(date +%s) - t0 )) )"
     local fails
     fails="$(grep -E 'Tests run:.*(Failures: [1-9]|Errors: [1-9])|BUILD FAILURE' "$log" | head -5)"
-    echo "FAIL  ${label}" | tee -a "$REPORT"
+    echo "FAIL  ${label}  [${dur}]" | tee -a "$REPORT"
     [ -n "$fails" ] && echo "${fails}" | sed 's/^/        /' | tee -a "$REPORT"
     echo "        (log: ${log})" | tee -a "$REPORT"
   fi
@@ -134,8 +141,11 @@ elif [ -n "$ONE_MODULE" ]; then
     install -Pintegration-tests -fae -pl "$mod"
 fi
 
+total_dur="$(fmt_dur $(( $(date +%s) - run_start_epoch )) )"
 echo "Wikantik test suite — finished $(date -u +%Y-%m-%dT%H:%M:%SZ) (started ${start_ts})" | tee -a "$REPORT"
+echo "Total runtime: ${total_dur}" | tee -a "$REPORT"
 echo "---------- SUMMARY ----------"
 cat "$REPORT"
 [ "$overall_rc" = 0 ] && echo "RESULT: ALL PASSED" || echo "RESULT: FAILURES (see above)"
+echo "TOTAL RUNTIME: ${total_dur}"
 exit "$overall_rc"

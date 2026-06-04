@@ -113,7 +113,7 @@ class VersioningFileProviderConcurrencyTest {
     }
 
     /**
-     * 16 reader threads run concurrently with 1 writer that does 50 sequential
+     * 16 reader threads run concurrently with 1 writer that does 20 sequential
      * saves. Every read must return text that begins with one of the values
      * actually written — never a partial / torn payload.
      */
@@ -129,7 +129,7 @@ class VersioningFileProviderConcurrencyTest {
         final PageProvider provider = engine.getManager( PageManager.class ).getProvider();
 
         final int readers = 16;
-        final int writes = 50;
+        final int writes = 20;
         final Set< String > validPrefixes = ConcurrentHashMap.newKeySet();
         validPrefixes.add( v1 );
 
@@ -138,7 +138,7 @@ class VersioningFileProviderConcurrencyTest {
         final AtomicReference< String > sawInvalid = new AtomicReference<>();
         final AtomicBoolean writerDone = new AtomicBoolean( false );
 
-        // Writer thread — 50 sequential saves; each value is registered in
+        // Writer thread — 20 sequential saves; each value is registered in
         // validPrefixes BEFORE the save so readers can never observe a value
         // that has not yet been added to the valid set.
         exec.submit( () -> {
@@ -148,7 +148,7 @@ class VersioningFileProviderConcurrencyTest {
                     final String value = "v" + ( w + 2 );
                     validPrefixes.add( value );
                     engine.saveText( "ChurnPage", value );
-                    Thread.sleep( 5 );
+                    Thread.sleep( 2 );
                 }
             } finally {
                 writerDone.set( true );

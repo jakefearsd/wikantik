@@ -60,12 +60,14 @@ class PageDirectoryWatcherTest {
 
     /**
      * Builds a TestEngine with caching enabled and the watcher active.
-     * Uses a short watcher interval for faster test execution.
+     * Uses a short watcher interval and short self-modification guard for faster test execution.
      */
     private TestEngine buildEngine() {
         final Properties props = TestEngine.getTestProperties();
         props.setProperty( CachingManager.PROP_CACHE_ENABLE, "true" );
         props.setProperty( CachingProvider.PROP_WATCHER_INTERVAL, "1" );
+        // 500 ms guard instead of 5000 ms — tests that need to outlast the guard use Thread.sleep(700)
+        props.setProperty( PageDirectoryWatcher.PROP_INTERNAL_SAVE_GUARD_MILLIS, "500" );
         return TestEngine.build( props );
     }
 
@@ -194,8 +196,8 @@ class PageDirectoryWatcherTest {
         Assertions.assertTrue(
                 engine.getManager( PageManager.class ).getText( "ModTestPage" ).startsWith( "Original content" ) );
 
-        // Wait for the internal save guard to expire
-        Thread.sleep( 6000 );
+        // Wait for the internal save guard to expire (guard TTL is 500ms in tests)
+        Thread.sleep( 700 );
 
         // Modify the file externally (new pages are written as .md)
         final String dir = getPageDir();
@@ -229,8 +231,8 @@ class PageDirectoryWatcherTest {
         // Verify it exists
         Assertions.assertNotNull( engine.getManager( PageManager.class ).getPage( "DeleteTestPage" ) );
 
-        // Wait for the internal save guard to expire
-        Thread.sleep( 6000 );
+        // Wait for the internal save guard to expire (guard TTL is 500ms in tests)
+        Thread.sleep( 700 );
 
         // Delete the file externally (new pages are written as .md)
         final String dir = getPageDir();
@@ -265,8 +267,8 @@ class PageDirectoryWatcherTest {
         Assertions.assertTrue(
                 engine.getManager( PageManager.class ).getText( "PrecedencePage" ).startsWith( "Original txt content" ) );
 
-        // Wait for the internal save guard to expire
-        Thread.sleep( 6000 );
+        // Wait for the internal save guard to expire (guard TTL is 500ms in tests)
+        Thread.sleep( 700 );
 
         // Add a .md file externally for the same page name
         final File mdFile = new File( dir, "PrecedencePage.md" );
@@ -308,7 +310,7 @@ class PageDirectoryWatcherTest {
         }
 
         // Give the watcher time to process
-        Thread.sleep( 3000 );
+        Thread.sleep( 600 );
 
         // The watcher should have skipped processing because the page was recently saved internally.
         // We can verify this indirectly: the page cache should NOT have been invalidated by the watcher
@@ -364,7 +366,7 @@ class PageDirectoryWatcherTest {
         }
 
         // Give the watcher time to process
-        Thread.sleep( 3000 );
+        Thread.sleep( 600 );
 
         // The watcher should not have created a page for this .properties file
         final Page p = engine.getManager( PageManager.class ).getPage( "SomePage.properties" );

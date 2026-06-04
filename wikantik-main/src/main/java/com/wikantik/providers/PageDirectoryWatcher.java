@@ -74,8 +74,16 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
 
     private static final Logger LOG = LogManager.getLogger( PageDirectoryWatcher.class );
 
-    /** How long (in ms) to consider a page as "recently saved internally" and skip watcher processing. */
-    private static final long INTERNAL_SAVE_GUARD_MILLIS = 5_000L;
+    /**
+     * Property key for the self-modification guard window in milliseconds.
+     * Pages saved through JSPWiki's own API are suppressed in the watcher for this
+     * duration to avoid double-processing. Default: 5000 ms.
+     * Tests may set this to a much smaller value (e.g. 500 ms) to keep test cycle times short.
+     */
+    static final String PROP_INTERNAL_SAVE_GUARD_MILLIS = "wikantik.watcher.internalSaveGuardMillis";
+
+    /** Default self-modification guard window when the property is not set. */
+    private static final long DEFAULT_INTERNAL_SAVE_GUARD_MILLIS = 5_000L;
 
     /** How often (in ms) to clean up stale entries from the internal save guard map. */
     private static final long GUARD_CLEANUP_INTERVAL_MILLIS = 30_000L;
@@ -84,6 +92,7 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
     private final CachingManager cachingManager;
     private final Engine engine;
     private final Path pageDirectoryPath;
+    private final long internalSaveGuardMillis;
 
     private WatchService watchService;
 
@@ -107,6 +116,9 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
         this.fileProvider = fileProvider;
         this.cachingManager = cachingManager;
         this.pageDirectoryPath = new File( fileProvider.getPageDirectory() ).toPath();
+        this.internalSaveGuardMillis = com.wikantik.util.TextUtil.getIntegerProperty(
+                engine.getWikiProperties(), PROP_INTERNAL_SAVE_GUARD_MILLIS,
+                ( int ) DEFAULT_INTERNAL_SAVE_GUARD_MILLIS );
         setName( "JSPWiki Page Directory Watcher" );
     }
 
@@ -321,7 +333,7 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
      */
     boolean isRecentInternalSave( final String pageName ) {
         final Long timestamp = recentInternalSaves.get( pageName );
-        return timestamp != null && ( System.currentTimeMillis() - timestamp ) < INTERNAL_SAVE_GUARD_MILLIS;
+        return timestamp != null && ( System.currentTimeMillis() - timestamp ) < internalSaveGuardMillis;
     }
 
     /**
@@ -337,7 +349,7 @@ class PageDirectoryWatcher extends WikiBackgroundThread {
         final Iterator<Map.Entry<String, Long>> it = recentInternalSaves.entrySet().iterator();
         while( it.hasNext() ) {
             final Map.Entry<String, Long> entry = it.next();
-            if( ( now - entry.getValue() ) > INTERNAL_SAVE_GUARD_MILLIS ) {
+            if( ( now - entry.getValue() ) > internalSaveGuardMillis ) {
                 it.remove();
             }
         }

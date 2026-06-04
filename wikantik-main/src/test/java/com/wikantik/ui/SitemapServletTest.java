@@ -27,10 +27,13 @@ import com.wikantik.api.core.Attachment;
 import com.wikantik.api.spi.Wiki;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
 
 import java.io.File;
@@ -40,29 +43,40 @@ import java.io.StringWriter;
 import java.util.Properties;
 
 
+@TestInstance( TestInstance.Lifecycle.PER_CLASS )
 class SitemapServletTest {
 
     TestEngine m_engine;
     SitemapServlet servlet;
 
-    @BeforeEach
-    void setUp() throws Exception {
+    @BeforeAll
+    void setUpEngine() throws Exception {
         final Properties props = TestEngine.getTestProperties();
         m_engine = new TestEngine( props );
 
-        // Create test pages
+        // Initialize servlet once — the engine reference stays constant
+        servlet = new SitemapServlet();
+        final ServletConfig config = Mockito.mock( ServletConfig.class );
+        Mockito.doReturn( m_engine.getServletContext() ).when( config ).getServletContext();
+        servlet.init( config );
+    }
+
+    @AfterAll
+    void tearDownEngine() throws Exception {
+        if( m_engine != null ) {
+            m_engine.stop();
+        }
+    }
+
+    @BeforeEach
+    void setUp() throws Exception {
+        // Create the standard 6 pages that most tests rely on
         m_engine.saveText( "TestPage1", "This is test page 1." );
         m_engine.saveText( "TestPage2", "This is test page 2." );
         m_engine.saveText( "LeftMenu", "This is the left menu." );
         m_engine.saveText( "LeftMenuFooter", "This is the left menu footer." );
         m_engine.saveText( "TitleBox", "This is the title box." );
         m_engine.saveText( "CSSStyles", "This is a CSS styles page." );
-
-        // Initialize servlet with the same servlet context as the engine so it can find the WikiEngine
-        servlet = new SitemapServlet();
-        final ServletConfig config = Mockito.mock( ServletConfig.class );
-        Mockito.doReturn( m_engine.getServletContext() ).when( config ).getServletContext();
-        servlet.init( config );
     }
 
     @AfterEach
@@ -87,9 +101,10 @@ class SitemapServletTest {
             pm.deletePage( "LeftMenuFooter" );
             pm.deletePage( "TitleBox" );
             pm.deletePage( "CSSStyles" );
-            pm.deletePage( "About" );
+            try { pm.deletePage( "About" ); } catch ( final Exception ignored ) {}
             try { pm.deletePage( "SitemapLastmodPage" ); } catch ( final Exception ignored ) {}
-            m_engine.stop();
+            try { pm.deletePage( "NewPageAfterCache" ); } catch ( final Exception ignored ) {}
+            try { pm.deletePage( "NewsTestPage" ); } catch ( final Exception ignored ) {}
         }
     }
 

@@ -241,13 +241,15 @@ public class VersioningFileProviderTest {
      */
     @Test
     public void testMigrationMultiChangesNoCache() throws Exception {
-        // discard the default engine, and get another with different properties
-        // note: the originating properties file is unchanged.
+        // discard the default engine, and get another with different properties.
+        // Use a local copy of props so the shared PROPS object is not mutated.
         String cacheState = PROPS.getProperty( CachingManager.PROP_CACHE_ENABLE );
         Assertions.assertEquals( "true", cacheState, "should cache" );
         cacheState = "false";
-        PROPS.setProperty( CachingManager.PROP_CACHE_ENABLE, cacheState );
-        engine = new TestEngine(PROPS);
+        final Properties localProps = new Properties();
+        localProps.putAll( PROPS );
+        localProps.setProperty( CachingManager.PROP_CACHE_ENABLE, cacheState );
+        engine = new TestEngine( localProps );
 
         // the new TestEngine will have assigned a new page directory
         files = engine.getWikiProperties().getProperty( AbstractFileProvider.PROP_PAGEDIR );

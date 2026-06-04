@@ -36,6 +36,17 @@ LOG_DIR="${REPO_DIR}/.test-suite-logs"
 REPORT="${LOG_DIR}/report.txt"
 mkdir -p "$LOG_DIR"
 
+# Refuse to run concurrently with another instance on the same checkout. Parallel
+# Maven builds on one working tree clobber each other's surefire temp/classpath,
+# which surfaces as `ForkStarter IOException: No value present` + a cascade of
+# NoClassDefFound for classes that are actually present and compiled. One at a time.
+exec 9>"${LOG_DIR}/.run.lock"
+if command -v flock >/dev/null 2>&1 && ! flock -n 9; then
+  echo "ERROR: another bin/run-tests.sh is already running on this checkout (lock: ${LOG_DIR}/.run.lock)." >&2
+  echo "       Wait for it to finish — concurrent Maven builds corrupt each other. Refusing to run." >&2
+  exit 3
+fi
+
 # IT modules in their required sequential order (custom-jdbc runs the Selenide
 # browser suite via the shared wikantik-selenide-tests jar).
 IT_MODULES=(

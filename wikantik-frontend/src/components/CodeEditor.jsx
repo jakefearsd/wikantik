@@ -107,20 +107,58 @@ const CodeEditor = forwardRef(function CodeEditor(
       }
     },
     /**
-     * Place the caret at the start of `line` (1-based), focus, and center it in
-     * the viewport. Used by click-to-source from the preview.
+     * Returns the bounding rect of the CM6 scroll container (`.cm-scroller`).
+     * Used by the caller to compute viewport-relative offsets that account for
+     * any gap between the editor scroller's top and the preview container's top.
      */
-    jumpToLine(line) {
+    getScrollerRect() {
+      return viewRef.current?.scrollDOM?.getBoundingClientRect() ?? null;
+    },
+    /**
+     * Place the caret at the start of `line` (1-based), focus, and scroll so the
+     * line's top sits `viewportOffset` px below the top of the editor's scroll
+     * container (align, NOT center).
+     *
+     * Two-step alignment: first uses `lineBlockAt` (estimated) to bring the line
+     * into the viewport, then refines with `coordsAtPos` (actual rendered position)
+     * in the next animation frame — so the alignment is exact even when CM6's block
+     * height estimate differs from the rendered height (e.g. for lines outside the
+     * current render window).
+     *
+     * @param {number} line            1-based source line number
+     * @param {number} viewportOffset  desired px from the scroller top to the line
+     */
+    jumpToLineAligned(line, viewportOffset) {
       const view = viewRef.current;
       if (!view) return;
       const total = view.state.doc.lines;
       const clamped = Math.max(1, Math.min(Math.round(line), total));
       const pos = view.state.doc.line(clamped).from;
       view.focus();
-      view.dispatch({
-        selection: { anchor: pos },
-        effects: EditorView.scrollIntoView(pos, { y: 'center' }),
-      });
+      view.dispatch({ selection: { anchor: pos } }); // caret only — no scrollIntoView
+      try {
+        // Step 1 (synchronous): rough scroll using estimated position so the line
+        // enters the CM6 rendered viewport.
+        const roughTarget = view.lineBlockAt(pos).top - (viewportOffset || 0);
+        view.scrollDOM.scrollTop = Math.max(0, roughTarget);
+        // Step 2 (async, next rAF): after CM6 renders the line into the viewport,
+        // refine the scroll using the actual rendered position from coordsAtPos.
+        const scrollDom = view.scrollDOM;
+        requestAnimationFrame(() => {
+          try {
+            const coords = view.coordsAtPos(pos);
+            if (coords) {
+              const scrollerTop = scrollDom.getBoundingClientRect().top;
+              const lineDocTop = coords.top - scrollerTop + scrollDom.scrollTop;
+              scrollDom.scrollTop = Math.max(0, lineDocTop - (viewportOffset || 0));
+            }
+          } catch {
+            // best-effort — leave at the rough position
+          }
+        });
+      } catch {
+        // best-effort — leave the scroll position unchanged
+      }
     },
   }), []);
 

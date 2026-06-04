@@ -55,6 +55,11 @@ export default function PageEditor() {
   const syncRafRef = useRef(0);
   const editorRafRef = useRef(0);
   const syncingRef = useRef(false);
+  // Separate guard set by handlePreviewClick to prevent syncPreview from running
+  // during the click-to-source operation.  Unlike syncingRef (which is also used
+  // and released by syncPreview/syncEditor themselves), this ref is exclusively
+  // owned by handlePreviewClick and is released only by its own timer.
+  const clickSyncGuardRef = useRef(false);
   const [dark] = useDarkMode();
   const attachments = useAttachments(name);
   // Track saving in a ref so the keyboard handler can read latest state without re-registering
@@ -82,9 +87,10 @@ export default function PageEditor() {
   // manual scrolling and typing; frontmatter-zone-aware (caret in the frontmatter
   // pins the preview to its top card). Coalesced into one rAF per burst.
   const syncPreview = useCallback(() => {
-    if (syncingRef.current || syncRafRef.current) return; // skip echo / already queued
+    if (syncingRef.current || syncRafRef.current || clickSyncGuardRef.current) return; // skip echo / already queued / click-to-source active
     syncRafRef.current = requestAnimationFrame(() => {
       syncRafRef.current = 0;
+      if (clickSyncGuardRef.current) return; // re-check inside rAF — guard may have been set after queuing
       const editor = editorRef.current;
       const preview = previewRef.current;
       if (!editor?.getViewport || !preview) return;
@@ -124,13 +130,45 @@ export default function PageEditor() {
 
   // Click-to-source: a click in the preview walks up to the nearest block tagged
   // with its source line (data-line, body-relative), adds the frontmatter offset,
-  // and jumps + centers the editor caret there so you can orient from a click.
+  // and repositions the editor so the clicked source line lands at the SAME
+  // vertical position as the clicked preview block. The preview is held still.
   const handlePreviewClick = useCallback((e) => {
     const el = e.target.closest?.('[data-line]');
     if (!el) return;
     const bodyLine = parseInt(el.getAttribute('data-line'), 10);
     if (Number.isNaN(bodyLine)) return;
-    editorRef.current?.jumpToLine?.(bodyLine + frontmatterOffsetLines(contentRef.current));
+    const sourceLine = bodyLine + frontmatterOffsetLines(contentRef.current);
+    // Cancel any pending editor→preview sync rAF that was queued before this
+    // click; if it fired it would scroll the preview based on the OLD editor
+    // position, ruining the "preview holds still" guarantee.
+    if (syncRafRef.current) {
+      cancelAnimationFrame(syncRafRef.current);
+      syncRafRef.current = 0;
+    }
+    // Vertical offset of the clicked block RELATIVE TO THE EDITOR SCROLLER'S
+    // top. Using the scroller rect (not the preview rect) accounts for any
+    // difference in top position between the two panes (e.g. CM6's own padding).
+    // After jumpToLineAligned the source line's top sits at `offset` px below
+    // the editor scroller top = the same window-Y as the clicked block.
+    const scrollerRect = editorRef.current?.getScrollerRect?.();
+    const previewRect  = previewRef.current?.getBoundingClientRect?.() ?? null;
+    const scrollerTop  = scrollerRect ? scrollerRect.top
+                       : previewRect  ? previewRect.top
+                       : 0;
+    const offset = el.getBoundingClientRect().top - scrollerTop;
+    // Use a dedicated click-guard (not syncingRef) so the guard is NOT released
+    // by syncPreview/syncEditor's own rAF cleanup cycles during the operation.
+    clickSyncGuardRef.current = true;
+    syncingRef.current = true;
+    editorRef.current?.jumpToLineAligned?.(sourceLine, offset);
+    // Hold both guards long enough for CM6's internal measure/scroll cycles to
+    // complete. CM6 may schedule rAF-based DOM updates after scrollDOM is set
+    // directly; 300 ms outlasts the typical 1-2 frame delay so the echo into
+    // the preview is suppressed.
+    setTimeout(() => {
+      clickSyncGuardRef.current = false;
+      syncingRef.current = false;
+    }, 300);
   }, []);
 
   // Page names for `[[`-triggered internal-link autocomplete in the editor.

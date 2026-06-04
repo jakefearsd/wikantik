@@ -8,6 +8,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **test:** opt-in parallel IT execution. `IT_PARALLELISM=N bin/run-tests.sh` runs all
+  four IT modules in a single `-T N` reactor; each module now reserves its own free TCP
+  ports (Postgres, Cargo servlet + RMI, OIDC/SAML mock servers) via build-helper and uses
+  a per-module-unique pgvector container name, so they no longer collide on the shared
+  `55432`/`18080`/`8205` ports. Module configs (`jdbc.url`, OIDC `discoveryUri`,
+  `wikantik.baseURL`) were parameterised on the reserved ports. Default behaviour is
+  unchanged (sequential, one module at a time); `IT_PARALLELISM=4` cuts the IT phase from
+  ~3.5 min to ~1.5–2 min.
+
 - **test:** parallelize an audited cluster of read-only browser ITs (JUnit-5 `@Execution(CONCURRENT)`) to trim custom-jdbc wall-clock.
 
 - **Audit log retention purge.** `bin/db/audit-retention.sh` (scheduled monthly via a

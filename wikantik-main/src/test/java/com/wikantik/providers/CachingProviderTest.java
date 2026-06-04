@@ -558,11 +558,13 @@ class CachingProviderTest {
         engine.getManager( PageManager.class ).getAllPages();
         Assertions.assertEquals( 0, cp.m_getAllPagesCalls, "getAllPages should use cache immediately" );
 
-        // Wait for TTL to expire
-        Thread.sleep( 1500 );
-
-        // Now cache should be expired, and getAllPages should call provider
-        engine.getManager( PageManager.class ).getAllPages();
+        // Wait for TTL to expire and cache to refresh
+        Awaitility.await().atMost( 3, java.util.concurrent.TimeUnit.SECONDS )
+                  .pollInterval( 50, java.util.concurrent.TimeUnit.MILLISECONDS )
+                  .until( () -> {
+                      engine.getManager( PageManager.class ).getAllPages();
+                      return cp.m_getAllPagesCalls >= 1;
+                  } );
         Assertions.assertEquals( 1, cp.m_getAllPagesCalls, "getAllPages should refresh from provider after TTL" );
 
         // Reset counters
@@ -617,8 +619,10 @@ class CachingProviderTest {
         Assertions.assertEquals( initialCount, engine.getManager( PageManager.class ).getAllPages().size(),
                 "getAllPages should return cached count before TTL expires" );
 
-        // Wait for TTL to expire
-        Thread.sleep( 1500 );
+        // Wait for TTL to expire and the new page to be detected
+        Awaitility.await().atMost( 3, java.util.concurrent.TimeUnit.SECONDS )
+                  .pollInterval( 50, java.util.concurrent.TimeUnit.MILLISECONDS )
+                  .until( () -> engine.getManager( PageManager.class ).getAllPages().size() >= initialCount + 1 );
 
         // Now getAllPages should detect the new page
         final Collection<Page> pagesAfterTTL = engine.getManager( PageManager.class ).getAllPages();

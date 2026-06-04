@@ -35,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -53,6 +54,8 @@ class OllamaEntityExtractorTest {
     private HttpServer server;
     private int port;
     private final AtomicReference< String > lastBody = new AtomicReference<>();
+    /** Released by {@code @AfterEach} so that a slow-handler test can unblock quickly at teardown. */
+    private final CountDownLatch teardownLatch = new CountDownLatch( 1 );
 
     @BeforeEach
     void startServer() throws IOException {
@@ -63,6 +66,7 @@ class OllamaEntityExtractorTest {
 
     @AfterEach
     void stopServer() {
+        teardownLatch.countDown(); // unblock any handler waiting on teardownLatch
         server.stop( 0 );
     }
 
@@ -145,10 +149,12 @@ class OllamaEntityExtractorTest {
 
     @Test
     void returnsEmptyOnTimeout() {
-        // Handler never responds — client times out.
+        // Handler never responds — client times out after ~200 ms.
+        // We wait on teardownLatch so @AfterEach can unblock the handler thread
+        // immediately, preventing a 5-second stall during server.stop().
         server.createContext( "/api/chat", exchange -> {
             try {
-                Thread.sleep( 5_000 );
+                teardownLatch.await();
             } catch( final InterruptedException ignored ) {
                 Thread.currentThread().interrupt();
             }

@@ -22,10 +22,11 @@ import com.wikantik.TestEngine;
 import com.wikantik.WikiPage;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.spi.Wiki;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import java.util.Collections;
 import java.util.List;
@@ -37,12 +38,13 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests for {@link LinkParsingOperations} covering both pure-logic classification
  * methods and engine-dependent link resolution.
  */
+@TestInstance( TestInstance.Lifecycle.PER_CLASS )
 class LinkParsingOperationsTest {
 
     private TestEngine engine;
     private LinkParsingOperations lpo;
 
-    @BeforeEach
+    @BeforeAll
     void setUp() {
         engine = TestEngine.build();
         final WikiPage page = new WikiPage( engine, "TestPage" );
@@ -50,7 +52,7 @@ class LinkParsingOperationsTest {
         lpo = new LinkParsingOperations( context );
     }
 
-    @AfterEach
+    @AfterAll
     void tearDown() {
         engine.stop();
     }

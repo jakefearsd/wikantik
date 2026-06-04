@@ -22,14 +22,30 @@ import com.wikantik.TestEngine;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.spi.Wiki;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import java.io.IOException;
 import java.util.Properties;
 
 
+@TestInstance( TestInstance.Lifecycle.PER_CLASS )
 public class ContextualDiffProviderTest {
+
+    private TestEngine sharedEngine;
+
+    @BeforeAll
+    void setUpEngine() {
+        sharedEngine = TestEngine.build( TestEngine.getTestProperties() );
+    }
+
+    @AfterAll
+    void tearDownEngine() {
+        sharedEngine.stop();
+    }
 
     /**
      * Sets up some shorthand notation for writing test cases.
@@ -184,8 +200,7 @@ public class ContextualDiffProviderTest {
 
         diff.initialize( null, props );
 
-        final TestEngine engine = new TestEngine( props );
-        final Context ctx = Wiki.context().create( engine, Wiki.contents().page( engine, "Dummy" ) );
+        final Context ctx = Wiki.context().create( sharedEngine, Wiki.contents().page( sharedEngine, "Dummy" ) );
         final String actualDiff = diff.makeDiffHtml( ctx, oldText, newText );
 
         Assertions.assertEquals( expectedDiff, actualDiff );

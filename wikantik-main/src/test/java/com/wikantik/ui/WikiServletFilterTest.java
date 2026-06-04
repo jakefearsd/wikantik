@@ -21,6 +21,7 @@ package com.wikantik.ui;
 import com.wikantik.TestEngine;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
+import com.wikantik.providers.AbstractFileProvider;
 import com.wikantik.util.HttpUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
@@ -28,6 +29,9 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.Date;
 
 public class WikiServletFilterTest {
@@ -117,7 +121,12 @@ public class WikiServletFilterTest {
         final Date lastModified1 = page1.getLastModified();
         final String etag1 = HttpUtil.createETag( pageName, lastModified1 );
 
-        Thread.sleep( 1100 ); // Ensure different timestamp
+        // Wind the first file's mtime back by 2 seconds so the second save
+        // will have a strictly different mtime without any wall-clock sleep.
+        final String pageDir = engine.getWikiProperties().getProperty( AbstractFileProvider.PROP_PAGEDIR );
+        final Path pageFile = Path.of( pageDir, pageName + ".md" );
+        Files.setLastModifiedTime( pageFile, FileTime.fromMillis( lastModified1.getTime() - 2_000 ) );
+
         engine.saveText( pageName, "Second version" );
 
         final Page page2 = engine.getManager( PageManager.class ).getPage( pageName );
@@ -127,9 +136,4 @@ public class WikiServletFilterTest {
         Assertions.assertNotEquals( etag1, etag2, "ETags should differ after modification" );
     }
 
-    @Test
-    public void testCacheControlHeaderValue() {
-        // Verify that "private" is a valid Cache-Control value we can set
-        Assertions.assertEquals( "private", "private" );
-    }
 }

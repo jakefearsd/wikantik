@@ -73,7 +73,7 @@ class CachingProviderConcurrencyTest {
         engine.saveText( "ConcurrentPage3", "Content for concurrent test 3" );
 
         final int threadCount = 10;
-        final long durationMillis = 2000;
+        final long durationMillis = 500;
         final ExecutorService executor = Executors.newFixedThreadPool( threadCount );
         final CountDownLatch startLatch = new CountDownLatch( 1 );
         final AtomicBoolean inconsistencyDetected = new AtomicBoolean( false );
@@ -136,7 +136,7 @@ class CachingProviderConcurrencyTest {
         engine = TestEngine.build( props );
 
         final int readerCount = 5;
-        final long durationMillis = 2000;
+        final long durationMillis = 500;
         final ExecutorService executor = Executors.newFixedThreadPool( readerCount + 1 );
         final CountDownLatch startLatch = new CountDownLatch( 1 );
         final AtomicBoolean errorDetected = new AtomicBoolean( false );

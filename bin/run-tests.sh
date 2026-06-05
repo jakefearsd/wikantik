@@ -34,6 +34,49 @@ set -uo pipefail   # NOT -e: we want to run every module and aggregate, not bail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
+
+usage() {
+  cat <<'EOF'
+Usage: bin/run-tests.sh [MODE] [OPTIONS]
+
+MODES (default: full suite = unit, then default-gate IT modules)
+  --unit                 Unit reactor only (Phase 1)
+  --it                   Default-gate IT modules only (assumes --unit ran)
+  --module <name>        One IT module: rest|sso|custom-jdbc|scim-fullloop
+  --fullloop             Opt-in Authentik SCIM full-loop (-Pscim-fullloop)
+  --list                 Show modules and their gate, then exit
+
+OPTIONS
+  --parallel N, -p N     Run default-gate IT modules in one -T N reactor
+  --output MODE, -o MODE Build output routing: file (default) | console | both
+  --help, -h             This help
+
+ENVIRONMENT
+  UNIT_PARALLELISM=1C    Unit-phase -T value
+  IT_PARALLELISM=1       Fallback for --parallel (flag wins)
+
+EXAMPLES
+  bin/run-tests.sh                      # full deterministic gate (unit + rest,sso,custom-jdbc)
+  bin/run-tests.sh --unit               # fast unit-only pass
+  bin/run-tests.sh --module rest        # REST + SCIM IT only
+  bin/run-tests.sh --it --parallel 4    # default IT modules, 4-way
+  bin/run-tests.sh --module sso -o both # Keycloak SSO IT, output to log AND console
+  bin/run-tests.sh --fullloop           # opt-in Authentik full-loop (heavy)
+
+EXIT: 0 only if every phase/module that ran reached BUILD SUCCESS.
+EOF
+}
+
+list_modules() {
+  echo "Default gate (run by --it / no args):"
+  echo "  rest         wikantik-it-tests/wikantik-it-test-rest        (REST API + SCIM)"
+  echo "  sso          wikantik-it-tests/wikantik-it-test-sso         (Keycloak OIDC + SAML)"
+  echo "  custom-jdbc  wikantik-it-tests/wikantik-it-test-custom-jdbc (Selenide browser suite)"
+  echo
+  echo "Opt-in (run only via --fullloop / --module scim-fullloop):"
+  echo "  scim-fullloop  wikantik-it-tests/wikantik-it-test-scim-fullloop (Authentik SCIM full-loop)"
+}
+
 # Logs/report live OUTSIDE any target/ dir — `mvn clean` wipes target/ at the
 # start of the build, which would unlink an in-progress log. This dir is gitignored.
 LOG_DIR="${REPO_DIR}/.test-suite-logs"
@@ -90,7 +133,9 @@ OUTPUT_MODE="${OUTPUT_MODE:-file}"
 # (--it / --unit / --module). A single positional `case` could only express one.
 while [ $# -gt 0 ]; do
   case "$1" in
-    --help|-h) sed -n '2,32p' "$0"; exit 0 ;;
+    --help|-h) usage; exit 0 ;;
+    --list)    list_modules; exit 0 ;;
+    --fullloop) RUN_UNIT=0; RUN_IT=0; ONE_MODULE="scim-fullloop" ;;
     --unit)    RUN_IT=0 ;;
     --it)      RUN_UNIT=0 ;;
     --module)  RUN_UNIT=0; RUN_IT=0; ONE_MODULE="${2:-}"; shift
@@ -194,8 +239,13 @@ if [ "$RUN_IT" = 1 ]; then
 elif [ -n "$ONE_MODULE" ]; then
   mod="wikantik-it-tests/wikantik-it-test-${ONE_MODULE}"
   [ -d "$mod" ] || { echo "no such IT module: $mod" >&2; exit 2; }
-  run_step "IT: ${mod}" "${LOG_DIR}/it-${ONE_MODULE}.log" \
-    install -Pintegration-tests -fae -pl "$mod"
+  if [ "$ONE_MODULE" = "scim-fullloop" ]; then
+    run_step "IT: ${mod} (full-loop)" "${LOG_DIR}/it-${ONE_MODULE}.log" \
+      install -Pintegration-tests,scim-fullloop -fae -pl "$mod"
+  else
+    run_step "IT: ${mod}" "${LOG_DIR}/it-${ONE_MODULE}.log" \
+      install -Pintegration-tests -fae -pl "$mod"
+  fi
 fi
 
 total_dur="$(fmt_dur $(( $(date +%s) - run_start_epoch )) )"

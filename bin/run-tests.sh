@@ -4,13 +4,15 @@
 # Runs the suite the ONLY way that is correct and fast here:
 #   Phase 1 (unit): one parallel reactor build that compiles every module, runs
 #     all unit tests, and INSTALLS the artifacts (incl. the WAR) to ~/.m2.
-#   Phase 2 (IT):   each integration-test module in turn — SEQUENTIALLY, because
-#     the IT modules share fixed Cargo/Tomcat ports (8080, 8205, …) and collide
-#     under any parallelism. Each runs with `-pl <module>` and NO `-am`, so the
-#     ~6000 unit tests are NOT re-run during the IT phase (they already passed and
-#     are installed). This is dramatically faster than a single
+#   Phase 2 (IT):   each integration-test module in turn — SEQUENTIALLY by
+#     default. Each runs with `-pl <module>` and NO `-am`, so the ~6000 unit
+#     tests are NOT re-run during the IT phase (they already passed and are
+#     installed). This is dramatically faster than a single
 #     `mvn clean install -Pintegration-tests` reactor, and it fits within
 #     wall-clock limits because each phase/module is a bounded build.
+#     Pass --parallel N to instead run all IT modules in one -T N reactor:
+#     each module now reserves its own free ports + uniquely-named pgvector
+#     container, so they no longer collide.
 #
 # Why a script: the full reactor cannot complete in one long-lived call in some
 # environments (it gets killed mid-build). Splitting into bounded steps with an
@@ -21,7 +23,8 @@
 #   bin/run-tests.sh --unit          # unit phase only (Phase 1)
 #   bin/run-tests.sh --it            # IT phase only (assumes a prior --unit installed artifacts)
 #   bin/run-tests.sh --module rest   # IT phase for one module: rest|sso|sso-saml|custom-jdbc
-#   IT_PARALLELISM=4 bin/run-tests.sh --it   # opt-in: all IT modules in one -T 4 reactor
+#   bin/run-tests.sh --it --parallel 4   # opt-in: all IT modules in one -T 4 reactor
+#                                        # (-p 4 short form; or IT_PARALLELISM=4 env — flag wins)
 #   bin/run-tests.sh --help
 #
 # Exit code: 0 only if every phase/module that ran reached BUILD SUCCESS with no
@@ -73,22 +76,34 @@ ONE_MODULE=""
 UNIT_PARALLELISM="${UNIT_PARALLELISM:-1C}"
 
 # IT-phase parallelism (opt-in). Default 1 = the safe sequential per-module loop
-# (one module at a time). IT_PARALLELISM=N (N>1) runs a SINGLE
-# `mvn install -Pintegration-tests -T N` reactor over all IT modules at once;
-# each module now reserves its own free ports + uniquely-named pgvector
-# container (build-helper reserve-network-ports), so they no longer collide.
+# (one module at a time). Set via --parallel N (preferred) or the IT_PARALLELISM
+# env var as a fallback default; an explicit --parallel flag wins. N>1 runs a
+# SINGLE `mvn install -Pintegration-tests -T N` reactor over all IT modules at
+# once; each module reserves its own free ports + uniquely-named pgvector
+# container (build-helper reserve-network-port), so they no longer collide.
 # One Maven process, so the surefire/failsafe fork-node fix handles the forks.
 IT_PARALLELISM="${IT_PARALLELISM:-1}"
 
-case "${1:-}" in
-  --help|-h) sed -n '2,28p' "$0"; exit 0 ;;
-  --unit)    RUN_IT=0 ;;
-  --it)      RUN_UNIT=0 ;;
-  --module)  RUN_UNIT=0; RUN_IT=0; ONE_MODULE="${2:-}";
-             [ -n "$ONE_MODULE" ] || { echo "--module needs a name (rest|sso|sso-saml|custom-jdbc)" >&2; exit 2; } ;;
-  "" ) ;;
-  *) echo "unknown argument: $1 (try --help)" >&2; exit 2 ;;
-esac
+# Parse args as a shift-loop so flags (--parallel) can combine with mode tokens
+# (--it / --unit / --module). A single positional `case` could only express one.
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --help|-h) sed -n '2,32p' "$0"; exit 0 ;;
+    --unit)    RUN_IT=0 ;;
+    --it)      RUN_UNIT=0 ;;
+    --module)  RUN_UNIT=0; RUN_IT=0; ONE_MODULE="${2:-}"; shift
+               [ -n "$ONE_MODULE" ] || { echo "--module needs a name (rest|sso|sso-saml|custom-jdbc)" >&2; exit 2; } ;;
+    --parallel|-p)
+               IT_PARALLELISM="${2:-}"; shift
+               case "$IT_PARALLELISM" in
+                 ''|*[!0-9]*) echo "--parallel needs a positive integer (e.g. --parallel 4)" >&2; exit 2 ;;
+               esac
+               [ "$IT_PARALLELISM" -ge 1 ] || { echo "--parallel needs a positive integer (e.g. --parallel 4)" >&2; exit 2; } ;;
+    "" ) ;;
+    *) echo "unknown argument: $1 (try --help)" >&2; exit 2 ;;
+  esac
+  shift
+done
 
 # Kill only OUR stray maven/surefire/cargo JVMs — never the dev Tomcat or app.jar.
 clean_zombies() {

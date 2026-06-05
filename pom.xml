@@ -987,6 +987,7 @@
               <exclude>**/src/overlay/launchers/tomcat/woas.app/Contents/Resources/*.none</exclude>
               <exclude>**/.eslintrc</exclude>
               <exclude>marketing/**</exclude>                                  <!-- static marketing site, not part of the Java build -->
+              <exclude>**/src/main/webapp/ads.txt</exclude>                    <!-- Google AdSense authorized-sellers file; can't carry an Apache header -->
 
             </excludes>
           </configuration>

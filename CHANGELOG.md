@@ -8,6 +8,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **AdSense `ads.txt`.** Added the Google authorized-sellers record
+  (`google.com, pub-5083997587716933, DIRECT, f08c47fec0942fa0`) at the root of both
+  served domains so AdSense can verify ad ownership: `wikantik-war/src/main/webapp/ads.txt`
+  (served verbatim at `https://wiki.wikantik.com/ads.txt` — `SpaRoutingFilter` passes any
+  `.`-bearing, non-`.html` path through to the default servlet, so it isn't swallowed by
+  SPA routing) and `marketing/ads.txt` (served at `https://www.wikantik.com/ads.txt`; the
+  apex `wikantik.com/ads.txt` reaches it via the existing CF apex→www redirect). A
+  build-time guard (`AdsTxtTest`) pins the exact publisher line and fails closed on HTML
+  contamination.
+
 - **test:** opt-in parallel IT execution. `bin/run-tests.sh --it --parallel N` (or the
   `IT_PARALLELISM` env var) runs all four IT modules in a single `-T N` reactor; each
   module now reserves its own free TCP ports (Postgres, Cargo servlet + RMI + AJP,

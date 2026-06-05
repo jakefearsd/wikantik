@@ -398,6 +398,39 @@ class SpaRoutingFilterTest {
         verify( request, never() ).getRequestDispatcher( anyString() );
     }
 
+    @Test
+    void testAdsTxtPassesThroughAsStaticFile() throws Exception {
+        // ads.txt MUST be served as the real static file (Tomcat default servlet,
+        // text/plain) so Google AdSense can verify ad ownership. The danger is SPA
+        // routing swallowing it and returning index.html with a 200 — AdSense then
+        // silently fails ownership verification while the source file looks fine.
+        // mockRequest sends Accept: text/html (the worst case), so if the
+        // static-asset rule ever regressed below the Accept-gated SPA matching this
+        // test would catch it.
+        final HttpServletRequest request = mockRequest( "/ads.txt" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+        verify( request, never() ).getRequestDispatcher( anyString() );
+        assertFalse( capturedOutput.asString().contains( "<div id=\"root\">" ),
+                     "/ads.txt must NOT be served the SPA index.html — Google needs the raw file" );
+    }
+
+    @Test
+    void testRobotsTxtPassesThroughAsStaticFile() throws Exception {
+        // Same guard as ads.txt: robots.txt (Sitemap directive, crawl rules) must
+        // reach the default servlet, never the SPA shell.
+        final HttpServletRequest request = mockRequest( "/robots.txt" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain ).doFilter( request, response );
+        verify( request, never() ).getRequestDispatcher( anyString() );
+        assertFalse( capturedOutput.asString().contains( "<div id=\"root\">" ),
+                     "/robots.txt must NOT be served the SPA index.html" );
+    }
+
     // ---- Non-root context tests (IT test WARs deploy under subcontexts) ----
 
     @Test

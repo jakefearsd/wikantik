@@ -97,6 +97,15 @@
   </dependencies>
 
   <profiles>
+    <!-- Opt-in profile: builds wikantik-it-test-scim-fullloop ONLY when
+         -Pscim-fullloop is active. Never part of the default gate. -->
+    <profile>
+      <id>scim-fullloop</id>
+      <modules>
+        <module>wikantik-it-test-scim-fullloop</module>
+      </modules>
+    </profile>
+
     <profile>
       <id>integration-tests</id>
 

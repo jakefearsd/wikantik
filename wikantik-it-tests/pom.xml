@@ -40,8 +40,8 @@
   </modules>
 
   <properties>
-    <!-- it.db.port, it.wikantik.servlet.port (root pom) and it.wikantik.rmi.port
-         are intentionally NOT given static defaults — build-helper
+    <!-- it.db.port, it.wikantik.servlet.port (root pom), it.wikantik.rmi.port and
+         it.wikantik.ajp.port are intentionally NOT given static defaults — build-helper
          reserve-network-port (the reserve-it-ports execution below) sets each to a
          free port per module so the IT modules can run in parallel. A static value
          here would be pre-interpolated into the docker/cargo config in the
@@ -154,6 +154,7 @@
                       <portName>it.db.port</portName>
                       <portName>it.wikantik.servlet.port</portName>
                       <portName>it.wikantik.rmi.port</portName>
+                      <portName>it.wikantik.ajp.port</portName>
                     </portNames>
                   </configuration>
                 </execution>
@@ -373,6 +374,10 @@
                     <!-- Reserved per module by build-helper so parallel IT
                          modules don't share Cargo's default RMI port (8205). -->
                     <cargo.rmi.port>${it.wikantik.rmi.port}</cargo.rmi.port>
+                    <!-- Cargo opens a Tomcat AJP connector on 8009 by default;
+                         reserve it per module too, else parallel modules collide
+                         ("Port number 8009 (cargo.tomcat.ajp.port) is in use"). -->
+                    <cargo.tomcat.ajp.port>${it.wikantik.ajp.port}</cargo.tomcat.ajp.port>
                   </properties>
                 </configuration>
                 <container>

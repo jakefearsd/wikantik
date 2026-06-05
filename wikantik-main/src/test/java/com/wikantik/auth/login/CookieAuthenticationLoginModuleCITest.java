@@ -20,7 +20,11 @@ package com.wikantik.auth.login;
 
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
+import com.wikantik.auth.UserManager;
+import com.wikantik.auth.Users;
 import com.wikantik.auth.WikiPrincipal;
+import com.wikantik.auth.user.UserDatabase;
+import com.wikantik.auth.user.UserProfile;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -32,10 +36,13 @@ import javax.security.auth.Subject;
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.callback.UnsupportedCallbackException;
+import javax.security.auth.login.FailedLoginException;
 import javax.security.auth.login.LoginException;
 import javax.security.auth.spi.LoginModule;
 import java.io.IOException;
 import java.security.Principal;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.Set;
@@ -120,6 +127,43 @@ class CookieAuthenticationLoginModuleCITest {
         final Set<Principal> principals = subject.getPrincipals();
         assertEquals( 1, principals.size() );
         assertEquals( "janne", principals.iterator().next().getName() );
+    }
+
+    // --- remember-me cookie must not authenticate a locked/deactivated account ---
+
+    @Test
+    void testLockedUserCannotLoginViaCookie() throws Exception {
+        // Create the remember-me cookie for janne while the account is active.
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final Cookie[] capturedCookie = new Cookie[1];
+        Mockito.doAnswer( invocation -> {
+            capturedCookie[0] = invocation.getArgument( 0 );
+            return null;
+        } ).when( response ).addCookie( Mockito.any( Cookie.class ) );
+
+        CookieAuthenticationLoginModule.setLoginCookie( engine, response, Users.JANNE );
+        assertNotNull( capturedCookie[0], "addCookie should have been called" );
+        final String uid = capturedCookie[0].getValue();
+
+        // Now lock the account (simulate deactivation via indefinite lock).
+        final UserDatabase db = engine.getManager( UserManager.class ).getUserDatabase();
+        final UserProfile profile = db.findByLoginName( Users.JANNE );
+        final Calendar farFuture = Calendar.getInstance();
+        farFuture.clear();
+        farFuture.set( 9999, Calendar.DECEMBER, 31, 23, 59, 59 );
+        profile.setLockExpiry( farFuture.getTime() );
+        db.save( profile );
+
+        // Attempt cookie re-auth with the previously valid cookie — must be rejected.
+        final HttpServletRequest loginRequest = HttpMockFactory.createHttpRequest();
+        final Cookie uidCookie = new Cookie( "WikantikUID", uid );
+        Mockito.doReturn( new Cookie[]{ uidCookie } ).when( loginRequest ).getCookies();
+
+        final CallbackHandler handler = new WebContainerCallbackHandler( engine, loginRequest );
+        final LoginModule module = new CookieAuthenticationLoginModule();
+        module.initialize( new Subject(), handler, new HashMap<>(), new HashMap<>() );
+        assertThrows( FailedLoginException.class, module::login,
+            "Remember-me cookie must not authenticate a locked account" );
     }
 
     // --- the remember-me cookie carries safe, navigation-surviving attributes ---

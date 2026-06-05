@@ -21,6 +21,9 @@ package com.wikantik.auth.login;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.wikantik.api.core.Engine;
+import com.wikantik.auth.NoSuchPrincipalException;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
+import com.wikantik.auth.user.UserProfile;
 import com.wikantik.core.subsystem.CoreSubsystemBridge;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.util.FileUtil;
@@ -29,6 +32,7 @@ import com.wikantik.util.TextUtil;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.UnsupportedCallbackException;
+import javax.security.auth.login.FailedLoginException;
 import javax.security.auth.login.LoginException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -124,6 +128,23 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
                 if( cookieFile != null && cookieFile.exists() && cookieFile.canRead() ) {
                     try( Reader in = new BufferedReader( new InputStreamReader( Files.newInputStream( cookieFile.toPath() ), StandardCharsets.UTF_8 ) ) ) {
                         final String username = FileUtil.readContents( in );
+
+                        // Reject re-auth if the account has been locked/deactivated
+                        // since the cookie was issued (fail closed, same as password login).
+                        try {
+                            final UserProfile profile =
+                                AuthSubsystemBridge.fromLegacyEngine( engine ).users()
+                                    .getUserDatabase().findByLoginName( username );
+                            if ( profile.isLocked() ) {
+                                LOG.warn( "Cookie re-auth rejected: account is locked for user '{}'", username );
+                                throw new FailedLoginException( "Account is locked." );
+                            }
+                        } catch( final NoSuchPrincipalException e ) {
+                            // Username in cookie file has no matching profile — reject.
+                            LOG.warn( "Cookie re-auth rejected: no profile found for user '{}'", username );
+                            throw new FailedLoginException( "Account not found." );
+                        }
+
                         LOG.debug( "Logged in cookie authenticated name={}", username );
 
                         // If login succeeds, commit these principals/roles

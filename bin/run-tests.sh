@@ -83,6 +83,9 @@ UNIT_PARALLELISM="${UNIT_PARALLELISM:-1C}"
 # One Maven process, so the surefire/failsafe fork-node fix handles the forks.
 IT_PARALLELISM="${IT_PARALLELISM:-1}"
 
+# Build-output routing: file (log only, default) | console (stdout/err only) | both (tee).
+OUTPUT_MODE="${OUTPUT_MODE:-file}"
+
 # Parse args as a shift-loop so flags (--parallel) can combine with mode tokens
 # (--it / --unit / --module). A single positional `case` could only express one.
 while [ $# -gt 0 ]; do
@@ -98,6 +101,12 @@ while [ $# -gt 0 ]; do
                  ''|*[!0-9]*) echo "--parallel needs a positive integer (e.g. --parallel 4)" >&2; exit 2 ;;
                esac
                [ "$IT_PARALLELISM" -ge 1 ] || { echo "--parallel needs a positive integer (e.g. --parallel 4)" >&2; exit 2; } ;;
+    --output|-o)
+               OUTPUT_MODE="${2:-}"; shift
+               case "$OUTPUT_MODE" in
+                 file|console|both) ;;
+                 *) echo "--output needs one of: file | console | both" >&2; exit 2 ;;
+               esac ;;
     "" ) ;;
     *) echo "unknown argument: $1 (try --help)" >&2; exit 2 ;;
   esac
@@ -125,16 +134,31 @@ run_step() {
   echo ">>> ${label}"
   clean_zombies
   local t0 dur; t0="$(date +%s)"
-  if mvn "$@" > "$log" 2>&1; then
+  local rc
+  case "$OUTPUT_MODE" in
+    file)
+      mvn "$@" > "$log" 2>&1
+      rc=$?
+      ;;
+    console)
+      mvn "$@" 2>&1
+      rc=$?
+      ;;
+    both)
+      mvn "$@" 2>&1 | tee "$log"
+      rc=${PIPESTATUS[0]}
+      ;;
+  esac
+  if [ "$rc" -eq 0 ]; then
     dur="$(fmt_dur $(( $(date +%s) - t0 )) )"
     local summary
-    summary="$(grep -E 'Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+' "$log" | tail -1)"
+    summary="$(grep -E 'Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+' "$log" 2>/dev/null | tail -1)"
     echo "PASS  ${label}  [${dur}]   ${summary}" | tee -a "$REPORT"
   else
     overall_rc=1
     dur="$(fmt_dur $(( $(date +%s) - t0 )) )"
     local fails
-    fails="$(grep -E 'Tests run:.*(Failures: [1-9]|Errors: [1-9])|BUILD FAILURE' "$log" | head -5)"
+    fails="$(grep -E 'Tests run:.*(Failures: [1-9]|Errors: [1-9])|BUILD FAILURE' "$log" 2>/dev/null | head -5)"
     echo "FAIL  ${label}  [${dur}]" | tee -a "$REPORT"
     [ -n "$fails" ] && echo "${fails}" | sed 's/^/        /' | tee -a "$REPORT"
     echo "        (log: ${log})" | tee -a "$REPORT"

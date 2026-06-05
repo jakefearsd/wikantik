@@ -83,6 +83,10 @@ public class UserDatabaseLoginModule extends AbstractLoginModule {
             final UserProfile profile = db.findByLoginName( username );
             final String storedPassword = profile.getPassword();
             if ( storedPassword != null && db.validatePassword( username, password ) ) {
+                if ( profile.isLocked() ) {
+                    LOG.warn( "Login rejected: account is locked for user '{}'", username );
+                    throw new FailedLoginException( "Account is locked." );
+                }
                 LOG.debug( "Logged in user database user {}", username );
 
                 // If login succeeds, commit these principals/roles

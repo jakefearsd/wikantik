@@ -18,22 +18,27 @@
  */
 package com.wikantik.auth.login;
 import java.security.Principal;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.Set;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.login.FailedLoginException;
 import javax.security.auth.login.LoginException;
 import javax.security.auth.spi.LoginModule;
 
 import com.wikantik.TestEngine;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
+import com.wikantik.auth.UserManager;
 import com.wikantik.auth.Users;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.authorize.Role;
 import com.wikantik.auth.user.UserDatabase;
+import com.wikantik.auth.user.UserProfile;
 import com.wikantik.auth.user.InMemoryUserDatabase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
@@ -48,6 +53,26 @@ public class UserDatabaseLoginModuleTest
     UserDatabase m_db;
 
     Subject      m_subject;
+
+    @Test
+    public final void testLockedUserCannotLogin() throws Exception
+    {
+        // Obtain the engine's real UserDatabase and lock janne's account.
+        final UserDatabase engineDb = m_engine.getManager( UserManager.class ).getUserDatabase();
+        final UserProfile lockedProfile = engineDb.findByLoginName( Users.JANNE );
+        final Calendar farFuture = Calendar.getInstance();
+        farFuture.clear();
+        farFuture.set( 9999, Calendar.DECEMBER, 31, 23, 59, 59 );
+        lockedProfile.setLockExpiry( farFuture.getTime() );
+        engineDb.save( lockedProfile );
+
+        // A correct password for a locked account must NOT authenticate.
+        final CallbackHandler handler = new WikiCallbackHandler( m_engine, null, Users.JANNE, Users.JANNE_PASS );
+        final LoginModule module = new UserDatabaseLoginModule();
+        module.initialize( m_subject, handler, new HashMap<>(), new HashMap<>() );
+        Assertions.assertThrows( FailedLoginException.class, module::login,
+            "Locked account must not authenticate even with a correct password" );
+    }
 
     @Test
     public final void testLogin()

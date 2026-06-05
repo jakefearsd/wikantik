@@ -4,10 +4,25 @@
 **Status:** Approved — ready for implementation plan
 **Scope:** Integration-test infrastructure only. No production-code behavior change is required; this work adds end-to-end coverage and modernizes the SSO IdP container, and may surface (but does not plan) production bugs.
 
-> **Revision 2026-06-05:** Approach A was re-scoped after verification. The wire-level SCIM IT it
+> **Revision 2026-06-05 (a):** Approach A was re-scoped after verification. The wire-level SCIM IT it
 > originally called for **already exists** in `wikantik-it-test-rest` (`ScimUsersIT`, `ScimGroupsIT`),
 > including the admin-never-granted invariant. Approach A is therefore *extending* those existing ITs
 > with the two genuine gaps — not building a new `wikantik-it-test-scim` module. See "Approach A".
+>
+> **Revision 2026-06-05 (b):** Approach 2 originally folded SAML into the `-sso` module under
+> `wikantik.sso.type=both`. During implementation this hit a wiki limitation: with two pac4j clients
+> registered, the SAML ACS callback fails (`unable to find one indirect client for the callback`)
+> because the SAML2Client's callback URL carries no `client_name` resolver (only OIDC's does). This
+> path was never exercised before (OIDC and SAML always lived in separate single-client modules). Per
+> user decision, SAML stays in its **own** module (`wikantik-it-test-sso-saml`, `type=saml`, single
+> client) but is **converted from SimpleSAMLphp to Keycloak** — so both mocks are still replaced by
+> Keycloak, with no production-code change. Cost: two Keycloak containers (one per module) instead of
+> one. The `type=both` SAML-callback gap is a real product limitation worth a separate fix later.
+>
+> **Revision 2026-06-05 (c):** A pre-existing authentication-bypass was surfaced by the new
+> `ScimDeactivationAuthIT` and fixed (TDD): locked/deactivated accounts could still log in because
+> `UserDatabaseLoginModule` (and the remember-me `CookieAuthenticationLoginModule`) never checked
+> `UserProfile.isLocked()`. Both now fail closed. See the auth-lock memory note.
 
 ## Goal
 

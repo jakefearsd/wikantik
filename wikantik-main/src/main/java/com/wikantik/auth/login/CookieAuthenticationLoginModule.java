@@ -131,6 +131,10 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
 
                         // Reject re-auth if the account has been locked/deactivated
                         // since the cookie was issued (fail closed, same as password login).
+                        // A missing profile is NOT rejected here: the remember-me cookie is
+                        // server-issued and trusted, and authenticated identities without a
+                        // local users row (e.g. SSO/container-provisioned) legitimately reach
+                        // this path. Only an existing, locked profile blocks re-auth.
                         try {
                             final UserProfile profile =
                                 AuthSubsystemBridge.fromLegacyEngine( engine ).users()
@@ -140,9 +144,9 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
                                 throw new FailedLoginException( "Account is locked." );
                             }
                         } catch( final NoSuchPrincipalException e ) {
-                            // Username in cookie file has no matching profile — reject.
-                            LOG.warn( "Cookie re-auth rejected: no profile found for user '{}'", username );
-                            throw new FailedLoginException( "Account not found." );
+                            // No local profile — preserve the original trusted-cookie behavior
+                            // (the lock-bypass fix targets locked profiles, not missing ones).
+                            LOG.debug( "Cookie re-auth: no local profile for user '{}'; proceeding on trusted cookie", username );
                         }
 
                         LOG.debug( "Logged in cookie authenticated name={}", username );

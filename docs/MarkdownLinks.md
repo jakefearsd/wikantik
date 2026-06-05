@@ -41,6 +41,13 @@ The empty parentheses `()` tell Wikantik that the link text is the wiki page nam
 [text](PageName/attachment.txt)
 ```
 
+Attachment links are also resolved client-side in the React renderer by the
+`remarkAttachments` remark plugin
+(`wikantik-frontend/src/utils/remarkAttachments.js`). When the rendered page
+has a list of known attachments, the plugin rewrites relative filenames (e.g.
+`[diagram](diagram.png)`) to the canonical `/attach/{PageName}/{fileName}` path,
+and marks missing attachments with a `missing-attachment` CSS class.
+
 ## How It Works
 
 The Markdown parser uses Wikantik's custom empty link syntax extension. When the URL portion is empty `()`, Wikantik uses the link text as the wiki page name. When the URL has content, that content is the target.

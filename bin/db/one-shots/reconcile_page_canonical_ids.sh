@@ -22,7 +22,7 @@
 #   PGPORT       5432
 #   PGUSER       jspwiki
 #   PGPASSWORD   (required)
-#   DB_NAME      jspwiki
+#   DB_NAME      wikantik
 set -euo pipefail
 
 case "${1:-}" in
@@ -35,7 +35,7 @@ esac
 PGHOST="${PGHOST:-localhost}"
 PGPORT="${PGPORT:-5432}"
 PGUSER="${PGUSER:-jspwiki}"
-DB_NAME="${DB_NAME:-jspwiki}"
+DB_NAME="${DB_NAME:-wikantik}"
 
 if [ -z "${PGPASSWORD:-}" ]; then
     PGPASSWORD="$(grep -oE 'password="[^"]+"' \

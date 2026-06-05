@@ -61,7 +61,7 @@ Two follow-up migration policies:
 
 | Surface | Source of truth |
 |---------|------------------|
-| Active migrations | `bin/db/migrations/V001..V025` |
+| Active migrations | `bin/db/migrations/V001..V037` |
 | Migration runner | `bin/db/migrate.sh` (idempotent, single-tx per migration) |
 | Fresh install | `bin/db/install-fresh.sh` (creates DB + role + pgvector + runs migrations) |
 | Legacy reference DDL | `bin/db/postgresql*.ddl` (do not apply directly) |

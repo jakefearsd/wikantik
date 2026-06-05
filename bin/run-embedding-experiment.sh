@@ -24,7 +24,7 @@
 #
 # Optional env:
 #   MODELS            — space-separated list; default all three candidates
-#   DB_HOST/DB_NAME/DB_USER — defaults localhost/jspwiki/jspwiki
+#   DB_HOST/DB_NAME/DB_USER — defaults localhost/wikantik/jspwiki
 #   WIKI_URL          — default http://localhost:8080
 #   OUTPUT_DIR        — where reports land; default eval
 #   SKIP_DDL=1        — skip step 1
@@ -49,7 +49,7 @@ esac
 : "${WIKI_PASSWORD:?set WIKI_PASSWORD (from test.properties test.user.password)}"
 
 DB_HOST="${DB_HOST:-localhost}"
-DB_NAME="${DB_NAME:-jspwiki}"
+DB_NAME="${DB_NAME:-wikantik}"
 DB_USER="${DB_USER:-jspwiki}"
 WIKI_URL="${WIKI_URL:-http://localhost:8080}"
 OUTPUT_DIR="${OUTPUT_DIR:-eval}"

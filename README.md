@@ -37,8 +37,13 @@ Key capabilities:
 - **OpenAPI tool server** at `/tools/*` — OpenWebUI-compatible OpenAPI 3.1 endpoint exposing `search_wiki` and `get_page` for non-MCP LLM clients
 - **Raw content and change feed** — `GET /wiki/{slug}?format=md|json` and `GET /api/changes?since=…` for search-engine crawlers and RAG ingestion pipelines (see [IndexingSupport.md](IndexingSupport.md))
 - **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60), with Knowledge Graph-aware rerank; fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
-- **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, cache stats), security management (groups and policy grants)
+- **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, chunk inspector, index status), security management (groups and policy grants), API keys, page ownership, Knowledge-Graph curation, KG inclusion policy, retrieval-quality dashboard, and a tamper-evident audit log
 - **Database-backed authorisation** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
+- **SCIM 2.0 provisioning** at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD and discovery for IdP-driven onboarding/offboarding (see [ScimProvisioning.md](docs/ScimProvisioning.md))
+- **Programmatic API keys** — issue and revoke bearer tokens for the MCP / OpenAPI / REST surfaces from the admin panel (see [ApiKeys.md](docs/ApiKeys.md))
+- **Tamper-evident audit log** — hash-chained record of administrative and security-relevant actions, queryable / verifiable / exportable at `/admin/audit` (see [AuditLog.md](docs/AuditLog.md))
+- **Comments & @-mentions** — threaded discussion on pages with mention notifications and an unread inbox at `/me/mentions` (see [CommentsAndMentions.md](docs/CommentsAndMentions.md))
+- **Per-user blogs** — Markdown blog spaces under `/blog/*` with their own discovery, entries, and editor (see [Blog.md](docs/Blog.md))
 - **Observability** — health checks, Prometheus metrics at `/metrics` (IP-restricted to internal networks), structured logging with request correlation; monitoring is handled by the external jakemon stack
 - **Content clusters** — thematic article groupings with hub pages, sub-clusters, cross-references, and automated structural auditing
 - **NIST 800-63B password validation** — blocklist-checked password strength enforcement for account creation
@@ -89,6 +94,7 @@ flowchart LR
         Browser["Web browser<br/>(React SPA)"]
         Agent["LLM agents<br/>(Claude Code, Cursor,<br/>OpenWebUI, custom)"]
         Crawler["Crawlers / RAG<br/>(Googlebot, OpenWebUI,<br/>custom pipelines)"]
+        IdP["Identity provider<br/>(SCIM / SSO)"]
     end
 
     subgraph tomcat [Tomcat 11.0.22]
@@ -100,6 +106,7 @@ flowchart LR
         AdminMCP["/wikantik-admin-mcp<br/>25 admin/write tools"]
         KnowMCP["/knowledge-mcp<br/>16 read-only retrieval tools"]
         Tools["/tools/*<br/>OpenAPI 3.1<br/>(search_wiki, get_page)"]
+        Scim["/scim/v2/*<br/>SCIM 2.0<br/>Users + Groups"]
         Health["/api/health<br/>/metrics"]
     end
 
@@ -119,6 +126,7 @@ flowchart LR
     Agent --> AdminMCP
     Agent --> KnowMCP
     Agent --> Tools
+    IdP --> Scim
 
     REST --> PG
     REST --> Pages
@@ -131,6 +139,7 @@ flowchart LR
     Raw --> Pages
     Changes --> Pages
     Tools --> REST
+    Scim --> PG
 
     REST --> Ollama
     AdminMCP --> Ollama
@@ -272,8 +281,10 @@ sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
 cp .env.example .env
 $EDITOR .env
 
-# 3. Build (includes React frontend via npm)
-mvn clean install -Dmaven.test.skip -T 1C
+# 3. Build (includes React frontend via npm). Use -DskipTests, NOT
+#    -Dmaven.test.skip: the latter also skips building wikantik-main's
+#    test-jar, which downstream IT/tools modules depend on.
+mvn clean install -DskipTests -T 1C
 
 # 4. Bootstrap Tomcat, configure, and deploy. deploy-local.sh downloads
 #    Tomcat 11.0.22 if absent, materialises every config file from
@@ -292,12 +303,12 @@ tomcat/tomcat-11/bin/startup.sh
 For routine "edit code, see it running" iteration after first-time setup:
 
 ```bash
-mvn clean install -Dmaven.test.skip -T 1C
+mvn clean install -DskipTests -T 1C
 bin/redeploy.sh   # shutdown + rotate catalina.out + swap WAR + startup
 ```
 
 Database schema lives in [`bin/db/migrations/`](bin/db/migrations/README.md)
-(currently V001..V030 — applied idempotently via `schema_migrations`).
+(currently V001..V037 — applied idempotently via `schema_migrations`).
 To bring an existing database up to date (including production), run
 `bin/db/migrate.sh` with connection env vars set.
 
@@ -367,6 +378,7 @@ monitoring, and the bare-metal ↔ container migration.
 | `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 25 tools (writes + analytics + verification stamping), 6 resources, 8 prompts, 3 completions |
 | `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 16 read-only retrieval / Knowledge Graph traversal / structural-spine / agent-projection / batched-read tools; also hosts the Knowledge Graph service (pgvector embeddings, co-mention graph, hub discovery) |
 | `wikantik-tools` | OpenAPI 3.1 tool server at `/tools/*` — 2 tools for OpenWebUI-compatible non-MCP clients |
+| `wikantik-scim` | SCIM 2.0 provisioning server at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD and discovery for IdP onboarding/offboarding |
 | `wikantik-extract-cli` | Standalone entity-extractor CLI for offline batch extraction |
 | `wikantik-observability` | Health checks, Prometheus metrics, request correlation |
 | `wikantik-frontend` | React SPA (Vite build) — reader, editor, admin panel, Knowledge Graph viewer, Page Graph viewer |
@@ -453,11 +465,10 @@ cache-, I/O-, or pool-bound). To go further, the options are orthogonal:
 2. **Split PostgreSQL to its own host** — the CPU partition during the run is
    ~50/50 wikantik/db. Splitting frees a full machine for each side. Dense
    retrieval already runs in-process via Lucene HNSW
-   (`WIKANTIK_DENSE_BACKEND=lucene-hnsw`, the default — see
-   [the HNSW design spec](docs/superpowers/specs/2026-05-22-lucene-hnsw-dense-retrieval-design.md));
+   (`WIKANTIK_DENSE_BACKEND=lucene-hnsw`, the docker1 production default — see
+   [ScalingCharacterization.md](docs/ScalingCharacterization.md));
    for a split-DB topology the **pgvector** backend (`=pgvector`) keeps the
-   index server-side instead — see
-   [the pgvector design spec](docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md).
+   index server-side instead.
    For the DB pool itself, **PgBouncer** (transaction pooling) is the lever to
    grow app concurrency past Postgres's ~100-connection ceiling.
 3. **Horizontal app-tier scale** — once PG is split, the app tier is stateless
@@ -489,7 +500,10 @@ Migrating from a previous Wikantik install? See
 
 - [LoadTesting.md](docs/LoadTesting.md) — methodology for the k6 + JFR + Prometheus load-test workflow: when to run, how to isolate variables, how to read results, how to pair k6 with JFR to find contention. (Tactical harness reference lives at [`loadtest/README.md`](loadtest/README.md).)
 - [DockerDeployment.md](docs/DockerDeployment.md) — the container deployment guide: local & remote, first-deploy procedure, the release/upgrade wrappers, DB initialisation, backups, monitoring
+- [WikantikOperations.md](docs/WikantikOperations.md) — the **operations handbook**: container topology, admin/maintenance scripts (`bin/kg-*.sh`, `remote.sh` subcommands), index/KG rebuilds, performance & concurrency tuning
 - [production-container-architecture.md](docs/production-container-architecture.md) — production deployment topology: the single-host container stack and the tag-triggered release pipeline
+- [BackupAndRecovery.md](docs/BackupAndRecovery.md) — backup sidecar, off-box NAS pull, audit-archive retention, and the disaster-recovery restore drill
+- [ProductionDBWorkflow.md](docs/ProductionDBWorkflow.md) — the production database workflow: the `migrate` role split, migration safety, and what remains to be hardened
 - [ci-cd-step-by-step.md](docs/ci-cd-step-by-step.md) — the GitHub Actions workflows: tag-triggered `release.yml` plus the manual-only CI workflows
 - [migration-1.0-to-1.1.md](docs/migration-1.0-to-1.1.md) — historical migration notes for an early Wikantik upgrade
 - [SendingEmailFromTheWiki.md](docs/SendingEmailFromTheWiki.md) — SMTP relay setup (Brevo, SendGrid, Mailjet, SES, Resend)
@@ -504,13 +518,30 @@ Migrating from a previous Wikantik install? See
 - [KnowledgeGraphRerank.md](docs/KnowledgeGraphRerank.md) — Configuration, verification, and tuning guide for the entity extractor, unified embeddings, and Knowledge Graph-aware search rerank
 - [RelationalUserDatabase.md](docs/RelationalUserDatabase.md) — PostgreSQL user and group database configuration
 - [Sitemap.md](docs/Sitemap.md) — Sitemap.xml and Atom feed servlets
+- [SeoAndCrawling.md](docs/SeoAndCrawling.md) — SEO and crawler configuration: robots.txt, per-page `<title>`, JSON-LD, AI-crawler policy, and prerendering for bots
+- [SitemapOptimization.md](docs/SitemapOptimization.md) — sitemap tuning notes and rationale
 - [SingleSignOn.md](docs/SingleSignOn.md) — **SSO configuration reference** (OIDC + SAML via pac4j): properties, claim mapping, identity binding, container env vars
 - [OAuthImplementation.md](docs/OAuthImplementation.md) — original OAuth SSO planning notes (superseded by SingleSignOn.md)
 - [FullOAuth.md](docs/FullOAuth.md) — original OAuth/OpenID Connect design exploration (superseded by SingleSignOn.md)
 
+### Administration
+
+Operator-facing guides for the admin panel and integration surfaces. Each covers
+configuration, the relevant admin UI route, REST endpoints, auth model, and troubleshooting.
+
+- [ScimProvisioning.md](docs/ScimProvisioning.md) — **SCIM 2.0 provisioning** (`/scim/v2/*`): IdP-driven user/group onboarding and offboarding, bearer token, discovery endpoints
+- [ApiKeys.md](docs/ApiKeys.md) — **programmatic API keys** (`/admin/apikeys`): issuing, scoping, and revoking bearer tokens for the MCP / OpenAPI / REST surfaces
+- [AuditLog.md](docs/AuditLog.md) — **tamper-evident audit log** (`/admin/audit`): the hash-chained action record, query/verify/export, and retention
+- [PageOwnership.md](docs/PageOwnership.md) — **page ownership** (`/admin/page-ownership`): the owner model, the seeded `agents` account, and reassignment
+- [KgInclusionPolicy.md](docs/KgInclusionPolicy.md) — **Knowledge-Graph inclusion policy** (`/admin/kg-policy`): the cluster-primary default-exclude policy, `kg_include:` overrides, and `bin/kg-policy.sh`
+- [RetrievalQuality.md](docs/RetrievalQuality.md) — **retrieval-quality dashboard** (`/admin/retrieval-quality`): nightly nDCG/Recall/MRR CI and the Prometheus gauges
+- [CommentsAndMentions.md](docs/CommentsAndMentions.md) — **comments & @-mentions**: threaded page discussion, mention notifications, and the `/me/mentions` inbox
+- [Blog.md](docs/Blog.md) — **per-user blogs** (`/blog/*`): blog spaces, entries, discovery, and the editor
+- [PersonalZone.md](docs/PersonalZone.md) — **personal zone** (`/preferences`): user preferences, profile, and notification settings
+
 ### Security
 
-- Database-backed authorization — policy grants and groups managed via admin UI (see [design spec](docs/superpowers/specs/2026-03-28-database-backed-permissions-design.md))
+- Database-backed authorization — policy grants and groups managed via admin UI (see [RelationalUserDatabase.md](docs/RelationalUserDatabase.md))
 - Page-level ACLs via inline `[{ALLOW view Admin}]` syntax in page content
 - REST API permission enforcement — all endpoints check ACLs and policy grants
 - NIST 800-63B password validation with common-password blocklist
@@ -521,8 +552,8 @@ Migrating from a previous Wikantik install? See
 ### Architecture & Design
 
 - [ArchitectureCritique.md](docs/ArchitectureCritique.md) — Self-critical architecture review (strengths and weaknesses, no marketing gloss)
-- [Page Graph vs Knowledge Graph design spec](docs/superpowers/specs/2026-05-02-page-graph-vs-knowledge-graph-design.md) — Engineering rationale for keeping the two graph subsystems distinct (with the migration steps that landed)
-- [wikantik-main decomposition design](docs/superpowers/specs/2026-05-05-wikantik-main-decomposition-design.md) — 11-phase decomposition of the engine module (all phases shipped); shows how the codebase was modernised without breaking the test suite
+- [PageGraphVsKnowledgeGraph.md](docs/wikantik-pages/PageGraphVsKnowledgeGraph.md) — Engineering rationale for keeping the two graph subsystems distinct
+- [ProjectReference.md](docs/ProjectReference.md) — operational runbooks and the detailed design-doc status blocks (the wikantik-main decomposition and other multi-phase efforts are tracked here)
 - [RefactorToPatterns.md](docs/RefactorToPatterns.md) — GoF design patterns applied across the codebase
 - [PerformanceEvaluation.md](docs/PerformanceEvaluation.md) — I/O, indexing, and rendering bottleneck analysis
 - [complete_markdown_migration.md](docs/complete_markdown_migration.md) — Migration from legacy wiki syntax to Markdown-only rendering
@@ -565,8 +596,9 @@ mvn clean install
 # Parallel build, unit tests only (fastest for development)
 mvn clean install -T 1C -DskipITs
 
-# Build without tests
-mvn clean install -Dmaven.test.skip
+# Build without running tests (still builds the test-jars downstream
+# modules need — prefer this over -Dmaven.test.skip)
+mvn clean install -DskipTests
 
 # Integration tests (MUST be sequential — no -T flag)
 mvn clean install -Pintegration-tests -fae

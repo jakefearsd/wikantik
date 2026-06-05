@@ -62,7 +62,7 @@ case "${1:-}" in
         ;;
 esac
 
-DB_NAME="${DB_NAME:-jspwiki}"
+DB_NAME="${DB_NAME:-wikantik}"
 DB_MIGRATE_USER="${DB_MIGRATE_USER:-migrate}"
 DB_APP_USER="${DB_APP_USER:-jspwiki}"
 export PGHOST="${PGHOST:-localhost}"

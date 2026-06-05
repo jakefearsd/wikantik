@@ -65,11 +65,30 @@ flip in `.env`, then `bin/remote.sh deploy --skip-build` for a ~30 s restart.
 
 | Variable | Default | Maps to | Purpose |
 |---|---|---|---|
-| `WIKANTIK_DENSE_BACKEND` | `inmemory` | `wikantik.search.dense.backend` | `inmemory` or `pgvector`. In-memory dense scan (with Vector API SIMD) is the right call on a single-host deploy; `pgvector` becomes the win when you split the DB to its own host (architectural scaling lever). See [the pgvector design spec](../docs/superpowers/specs/2026-05-20-pgvector-hnsw-dense-retrieval-design.md). |
+| `WIKANTIK_DENSE_BACKEND` | `inmemory` | `wikantik.search.dense.backend` | `inmemory`, `pgvector`, or `lucene-hnsw`. In-memory dense scan (with Vector API SIMD) is the right call on a single-host dev deploy; `lucene-hnsw` is the recommended production backend (in-process Lucene HNSW ANN — replaced the brute-force scan that was ~60 % of search CPU on docker1); `pgvector` becomes the win when you split the DB to its own host. See [ScalingCharacterization.md](ScalingCharacterization.md) for the dense-backend trade-offs. |
 | `WIKANTIK_DENSE_EF_SEARCH` | `100` | `wikantik.search.dense.pgvector.ef_search` | Only used when `WIKANTIK_DENSE_BACKEND=pgvector`. HNSW recall/latency knob; higher = better recall, more CPU. |
 | `WIKANTIK_LUCENE_DIRECTORY` | `nio` | `wikantik.search.lucene.directory.kind` | Lucene index backend: `nio` (NIOFSDirectory — read syscall + buffer copy) or `mmap` (MMapDirectory — page-cache-served, but pays Java 21's per-access MemorySession overhead under high concurrency). On hardware where the OS page cache already serves Lucene reads, `nio` wins; on disk-bound deploys, `mmap` is Lucene's recommended default. |
 | `WIKANTIK_VERSIONING_CACHE_SIZE` | `100` | `wikantik.versioningFileProvider.cacheSize` | Page-properties cache size in `VersioningFileProvider`. Default `100` was small relative to a 12K-page corpus (load testing showed 56 % hit rate). Set to `5000` for a typical wiki (~5 MB heap cost, 99 %+ hit rate). `0` = single-entry, `-1` = disabled. |
-| `WIKANTIK_MAX_INFLIGHT_REQUESTS` | `700` | `BackpressureFilter` (read directly from env, not a property) | **Graceful-degradation backpressure cap.** Maximum concurrent in-flight HTTP requests; anything over the cap gets an immediate `503 Service Unavailable` + `Retry-After: 1` instead of queueing in the Tomcat accept queue for up to 60 s. Default `700` is one notch above docker1's measured-comfortable N=650 sustained ceiling, so under normal load it never engages. Set to `0` or negative to disable (pass-through). `/api/health` and `/metrics` bypass the cap entirely and are never rejected — a 503 there would make jakemon think the container is down. Deterministic by construction (rejection driven solely by the local in-flight counter — no latency window, no false alarms). See the [verification overload test](#fail-fast-backpressure) below and the metrics it exposes. |
+| `WIKANTIK_MAX_INFLIGHT_REQUESTS` | `390` | `BackpressureFilter` (read directly from env, not a property) | **Graceful-degradation backpressure cap.** Maximum concurrent in-flight HTTP requests; anything over the cap gets an immediate `503 Service Unavailable` + `Retry-After: 1` instead of queueing in the Tomcat accept queue for up to 60 s. Default `390` — must stay below Tomcat `maxThreads` (400) or the cap can never fire. Set to `0` or negative to disable (pass-through). `/api/health` and `/metrics` bypass the cap entirely and are never rejected — a 503 there would make jakemon think the container is down. Deterministic by construction (rejection driven solely by the local in-flight counter — no latency window, no false alarms). See the [verification overload test](#fail-fast-backpressure) below and the metrics it exposes. |
+| `WIKANTIK_COOKIE_AUTHENTICATION` | `false` | `wikantik.cookieAuthentication` | Enable remember-me re-auth: a successful login issues a `Lax`, `httpOnly`, scheme-`Secure` cookie so sessions survive restarts/timeouts without logging the user out. Default `false` (conservative). |
+| `WIKANTIK_SSO_ENABLED` | `false` | `wikantik.sso.enabled` | Enable Single Sign-On. Set `true` to activate the SSO block below. |
+| `WIKANTIK_SSO_TYPE` | `oidc` | `wikantik.sso.type` | `oidc` \| `saml` \| `both` |
+| `WIKANTIK_SSO_OIDC_DISCOVERY_URI` | *(none)* | `wikantik.sso.oidc.discoveryUri` | Provider OIDC discovery URL, e.g. `https://accounts.google.com/.well-known/openid-configuration`. |
+| `WIKANTIK_SSO_OIDC_CLIENT_ID` | *(none)* | `wikantik.sso.oidc.clientId` | OAuth client id from the provider console. |
+| `WIKANTIK_SSO_OIDC_CLIENT_SECRET` | *(none)* | `wikantik.sso.oidc.clientSecret` | OAuth client secret — keep in `.env.prod`, never in git. |
+| `WIKANTIK_SSO_OIDC_SCOPE` | `openid profile email` | `wikantik.sso.oidc.scope` | OAuth scope string. |
+| `WIKANTIK_SSO_IDENTITY_CLAIM` | `sub` | `wikantik.sso.identityClaim` | IdP claim used as the stable identity key. Set to `preferred_username` only to deliberately trust a mutable claim. |
+| `WIKANTIK_SSO_AUTO_PROVISION` | `true` | `wikantik.sso.autoProvision` | Auto-create a local profile on first SSO login. |
+| `WIKANTIK_SSO_CLAIM_LOGIN_NAME` | `preferred_username` | `wikantik.sso.claimMapping.loginName` | IdP claim mapped to the wiki login name. Google sends no `preferred_username` — set to `email` for Google OIDC. |
+| `WIKANTIK_SSO_CLAIM_FULL_NAME` | `name` | `wikantik.sso.claimMapping.fullName` | IdP claim mapped to the display name. |
+| `WIKANTIK_SSO_CLAIM_EMAIL` | `email` | `wikantik.sso.claimMapping.email` | IdP claim mapped to email. |
+| `MCP_ACCESS_KEYS` | *(none)* | `mcp.access.keys` in `wikantik-mcp.properties` | Comma-separated MCP bearer keys. DB-backed `api_keys` also work. |
+| `MCP_USERS` | `curator` | *(env only — for compose healthcheck context)* | Informational; records which user accounts are expected MCP callers. |
+| `MCP_RATE_LIMIT_GLOBAL` | `100` | `mcp.ratelimit.global` | Global request-per-minute cap across all MCP clients. |
+| `MCP_RATE_LIMIT_PER_CLIENT` | `10` | `mcp.ratelimit.perClient` | Per-client request-per-minute cap. |
+| `DB_HOST_BIND` | `172.17.0.1` | `docker-compose.prod.yml` port binding | Host interface PostgreSQL is published on (prod overlay only) — the docker0 bridge gateway by default, keeping the DB off the LAN. Set to `0.0.0.0` only to expose LAN-wide. |
+| `DB_EXPORTER_PASSWORD` | *(none)* | passed to V031 via `migrate.sh` as `:exporter_password` | Password for the `wikantik_exporter` monitoring role created by migration V031. Required in prod to let the jakemon postgres-exporter authenticate. |
+| `WIKANTIK_SEED_DEV_USERS` | `false` | entrypoint only | Set `true` to insert `admin/admin123` + `testbot` dev accounts on start (via `bin/db/seed-users.sql`). **Never set in production.** |
 
 #### Fail-fast backpressure
 
@@ -101,7 +120,7 @@ bin/loadtest.sh smoke --duration 3m --vus 650
 curl -s http://<host>:8080/metrics | grep wikantik_backpressure
 
 # Restore the production cap.
-sed -i 's/^WIKANTIK_MAX_INFLIGHT_REQUESTS=.*/WIKANTIK_MAX_INFLIGHT_REQUESTS=700/' .env.prod
+sed -i 's/^WIKANTIK_MAX_INFLIGHT_REQUESTS=.*/WIKANTIK_MAX_INFLIGHT_REQUESTS=390/' .env.prod
 bin/remote.sh deploy --skip-build
 ```
 
@@ -128,6 +147,10 @@ Three classes of state, with deliberately different storage:
   independent of container lifecycle. Mounted at `/var/wikantik/pages`.
 - **Work + logs** — named volumes (`wikantik-work`, `wikantik-logs`);
   regeneratable, no operator interest in their contents.
+- **JFR profiling recordings** — named volume `wikantik-profiling` (prod
+  overlay only), mounted at `/var/wikantik/profiling`. JFR recordings started
+  via `POST /admin/profiling/jfr/start` land here; download them with
+  `GET /admin/profiling/jfr/recordings/{id}`. Non-critical and not backed up.
 
 Both the DB volume and the page bind-mount **survive container replacement**,
 which is what makes a release upgrade a plain image swap (§3).
@@ -154,7 +177,27 @@ bin/container.sh logs -f
 bin/container.sh -e prod down
 ```
 
-Environments: `dev` (default), `prod` (backup sidecar), `test` (alt ports).
+Environments (passed via `-e`):
+
+| Env | Compose files | What it adds |
+|-----|--------------|--------------|
+| `dev` (default) | base + `docker-compose.dev.yml` | DB on host port 15432; JDWP debug port 5005; uses `Dockerfile.dev` for hot-swap (bind-mounts `wikantik-war/target/Wikantik.war` into the container); pages mounted from `docs/wikantik-pages/` |
+| `prod` | base + `docker-compose.prod.yml` | Backup sidecar; host bind-mount for pages (`WIKANTIK_PAGES_DIR`); resource limits (2G); `wikantik-profiling` volume; DB published on `${DB_HOST_BIND:-172.17.0.1}:5432` for jakemon; `start_period 90s` healthcheck |
+| `test` | `docker-compose.test.yml` only | Ephemeral DB + alt ports (wikantik on 18080, DB on 15432); used by `smoke-test` subcommand |
+| `base` | base only | No overlays — useful for debugging compose variable substitution in isolation |
+
+The base compose healthcheck `start_period` is **60 s**; the prod overlay raises it to **90 s** to accommodate migration time on a cold start.
+
+### Running migrations without a restart
+
+`bin/container.sh migrate` runs `migrate.sh` inside the live `wikantik` container without restarting Tomcat — useful when a new `V*.sql` is added during a long-running deployment:
+
+```bash
+bin/container.sh -e prod migrate            # apply pending migrations
+bin/container.sh -e prod migrate --status   # list applied versions without applying
+```
+
+The entrypoint also runs migrations automatically on every container start, so a routine redeploy doesn't need a manual migration step.
 
 ### Remote host — first deploy
 

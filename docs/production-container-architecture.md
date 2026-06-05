@@ -45,6 +45,7 @@ runs `migrate.sh` (idempotent) before starting Tomcat.
 | PostgreSQL cluster | named volume `pgdata` | **yes** | yes | no |
 | Lucene search index | named volume `wikantik-work` | no | no | yes — rebuilt at startup |
 | Application logs | named volume `wikantik-logs` | no | no | ephemeral |
+| JFR profiling recordings | named volume `wikantik-profiling` (prod overlay) | no | no | non-critical; operator downloads via `/admin/profiling/jfr/recordings/{id}` |
 | Metrics / log history | external (jakemon) | no | — | scrape target only; state held by jakemon |
 
 The page tree is a **host bind mount** so `rsync` (`bin/remote.sh pages-push`)
@@ -95,8 +96,11 @@ index rebuilds itself on first start.
 
 ## Security
 
-- **PostgreSQL is not published** — no host port mapping in the prod overlay;
-  reachable only on the internal compose network.
+- **PostgreSQL is published on the docker0 bridge only** — the prod overlay
+  maps `${DB_HOST_BIND:-172.17.0.1}:5432:5432`, binding the port to the docker0
+  bridge gateway by default so the jakemon monitoring agent's postgres-exporter
+  can reach it via `host.docker.internal:5432`. It is **not** on `0.0.0.0`
+  (not LAN-exposed) unless `DB_HOST_BIND` is explicitly overridden.
 - `/metrics` is restricted to RFC 1918 / loopback by `InternalNetworkFilter`; scraped by the external jakemon agent, not exposed publicly.
 - **MCP endpoints** require a bearer token / API key (`MCP_ACCESS_KEYS` plus
   the DB-backed `api_keys` table).

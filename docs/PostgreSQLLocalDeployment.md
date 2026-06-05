@@ -26,7 +26,7 @@ What ends up where:
     you deploy with `bin/deploy-local.sh` or `bin/redeploy.sh`: both run
     `migrate.sh` as `PGUSER=migrate`, so an unprovisioned/under-privileged
     `migrate` role makes the deploy abort mid-migration. See
-    [The `migrate` role](#the-migrate-role-required-for-deploy-localsh--redeploysh).
+    [The `migrate` role](#the-migrate-role-required-for-redeploysh-recommended-for-deploy-localsh).
 - **Configuration templates** in `wikantik-war/src/main/config/tomcat/`
   (git-tracked) are materialised into your Tomcat instance the first time
   `bin/deploy-local.sh` runs and are **write-once — never overwritten
@@ -87,10 +87,11 @@ For a routine "edit code, see it running" iteration:
 # 1. Build (also builds the React frontend via npm)
 mvn clean install -Dmaven.test.skip -T 1C
 
-# 2. Fast redeploy: shutdown + rotate catalina.out + swap WAR + startup.
-#    Skips template re-materialisation, secrets validation, and DB
-#    migrations — use bin/deploy-local.sh instead when those need to run
-#    (first-time setup, Tomcat upgrade, secrets rotation, new V*.sql).
+# 2. Fast redeploy: shutdown + rotate catalina.out + swap WAR + run
+#    pending migrations + startup.
+#    Skips template re-materialisation and secrets validation only —
+#    use bin/deploy-local.sh instead for those
+#    (first-time setup, Tomcat upgrade, secrets rotation, new config templates).
 bin/redeploy.sh
 
 # 3. Browse to the wiki at http://localhost:8080/.
@@ -180,7 +181,9 @@ The script will:
    `lib/wikantik-custom.properties` with `@@REPO_ROOT@@` substituted
    for your project root.
 8. Copy `Tomcat-context.xml.template` → `conf/context.xml` (adds
-   `<CookieProcessor sameSiteCookies="strict"/>` to the stock file).
+   `<CookieProcessor sameSiteCookies="lax"/>` to the stock file —
+   `lax` is required for SSO; `strict` causes random logouts because the IdP's
+   cross-site redirect back to `/sso/callback` withholds a `strict` cookie).
 9. Copy `Tomcat-server.xml.template` → `conf/server.xml` (adds the
    Cloudflare RemoteIpValve and the custom AccessLogValve).
 10. Copy `log4j2-local.xml.template` → `lib/log4j2.xml`.
@@ -226,10 +229,9 @@ mvn clean install -Dmaven.test.skip -T 1C
 bin/redeploy.sh
 ```
 
-It only does shutdown + rotate `catalina.out` + swap WAR + startup.
+It does shutdown + rotate `catalina.out` + swap WAR + **run pending migrations** + startup.
 Use `bin/deploy-local.sh` instead when you need any of:
 
-- a fresh schema migration applied (`migrate.sh` runs every deploy)
 - secrets re-validation against `.env`
 - a Tomcat upgrade (`bin/deploy-local.sh --upgrade-tomcat`)
 - regenerated config templates (rare in a stable working tree)
@@ -264,12 +266,18 @@ See [ProductionDBWorkflow.md](ProductionDBWorkflow.md) for the
 end-state plan that introduces the dedicated `migrate` role and
 extension-pre-install separation.
 
-### The `migrate` role (required for `deploy-local.sh` / `redeploy.sh`)
+### The `migrate` role (required for `redeploy.sh`; recommended for `deploy-local.sh`)
 
-`bin/redeploy.sh` and `bin/deploy-local.sh` both invoke `migrate.sh` with
-**`PGUSER=migrate`** (hardcoded). So even for a local install you need a properly
-provisioned `migrate` role, or the deploy aborts mid-migration and Tomcat never
-starts. The role is created and granted by `bin/db/create-migrate-user.sh`, which
+`bin/redeploy.sh` invokes `migrate.sh` with **`PGUSER=migrate`** (hardcoded), so
+a properly provisioned `migrate` role is required for fast redeployments or the
+deploy aborts mid-migration and Tomcat never starts.
+
+`bin/deploy-local.sh` is more lenient: it calls `migrate.sh` with no explicit
+`PGUSER` on the first attempt (whatever the environment provides — typically the
+`migrate` role if `.pgpass` is configured), and falls back to `PGUSER=postgres`
+if that fails. This means `deploy-local.sh` usually works even without a
+provisioned `migrate` role, but provisioning it is still recommended for a
+consistent setup. The role is created and granted by `bin/db/create-migrate-user.sh`, which
 `install-fresh.sh` runs automatically **when `DB_MIGRATE_PASSWORD` is set**:
 
 ```bash
@@ -343,6 +351,8 @@ Two things to keep in mind:
 |------|---------|
 | `Wikantik-context.xml.template` | JNDI DataSource configuration for PostgreSQL |
 | `wikantik-custom-postgresql.properties.template` | Wikantik runtime settings (page provider, sitemap base URL, hub thresholds, CORS allow-list, etc.) |
+| `wikantik-mcp.properties.template` | MCP server config: rate limits, server name/title/version. Rendered to `lib/wikantik-mcp.properties` on first deploy. |
+| `setenv.sh.template` | Tomcat launch environment: enables the JDK incubator Vector API for Lucene 10; also where `WIKANTIK_MAX_INFLIGHT_REQUESTS` is set (default 390) for the backpressure filter. Rendered to `bin/setenv.sh` (write-once). |
 | `log4j2-local.xml.template` | Local-dev logging config |
 
 ### Local files (gitignored)
@@ -353,8 +363,10 @@ Two things to keep in mind:
 |------|---------|
 | `lib/postgresql.jar` | PostgreSQL JDBC driver (auto-downloaded) |
 | `lib/wikantik-custom.properties` | Customized Wikantik settings — edit here, not in the template |
+| `lib/wikantik-mcp.properties` | MCP server config (rate limits, etc.) — rendered from template on first deploy; edit directly thereafter |
 | `lib/log4j2.xml` | Effective log config |
 | `conf/Catalina/localhost/ROOT.xml` | JNDI context with the actual DB password |
+| `bin/setenv.sh` | Tomcat launch env (Vector API flags, `WIKANTIK_MAX_INFLIGHT_REQUESTS`). Write-once — edit directly to change the backpressure cap or JVM flags without re-running `deploy-local.sh`. |
 
 ### Test credentials (for automated/manual API testing)
 
@@ -377,7 +389,7 @@ how to recreate the user after a database reset.
 | Login fails with correct password | Wrong password hash format in `users` table | Recreate the user with `CryptoUtil --hash` (see CLAUDE.md) |
 | WAR file not found | `mvn clean install` not run yet | Build first |
 | Migration fails midway | Idempotent retry usually safe — re-run `bin/db/migrate.sh` | Inspect the specific `V*.sql` file's error before retrying destructive changes |
-| `permission denied to create role` on V031 (deploy aborts, Tomcat not started) | The `migrate` role lacks `CREATEROLE` | Provision it: `sudo -u postgres … bin/db/create-migrate-user.sh` (grants `CREATEROLE`). See [The `migrate` role](#the-migrate-role-required-for-deploy-localsh--redeploysh). |
+| `permission denied to create role` on V031 (deploy aborts, Tomcat not started) | The `migrate` role lacks `CREATEROLE` | Provision it: `sudo -u postgres … bin/db/create-migrate-user.sh` (grants `CREATEROLE`). See [The `migrate` role](#the-migrate-role-required-for-redeploysh-recommended-for-deploy-localsh). |
 | `must have admin option on role "pg_monitor"` on V031 | `migrate` not a `pg_monitor` admin | Same provisioning step (grants `pg_monitor WITH ADMIN OPTION`) |
 | `permission denied for table schema_migrations` after a migration's DDL ran | `migrate` can't write the ledger (table owned by `postgres`, no grant) | Run `create-migrate-user.sh` (its ownership transfer covers `schema_migrations`), or `GRANT INSERT,SELECT,UPDATE,DELETE ON schema_migrations TO migrate;` as superuser |
 | `slug 'X' is already claimed by canonical_id …` (WARN, repeated at boot) | `page_canonical_ids` rows drifted from frontmatter (handled gracefully) | Delete the stale rows so the rebuild re-inserts correct IDs — see `bin/db/one-shots/reconcile_page_canonical_ids.sh` for the pattern |

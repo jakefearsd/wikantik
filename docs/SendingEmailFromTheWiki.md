@@ -69,7 +69,7 @@ This example uses Brevo, but the process is similar for other providers.
 ### Step 2: Add and Verify Your Sending Domain
 
 1. In Brevo dashboard, go to **Senders & IP** → **Domains**
-2. Add your domain (e.g., `jakefear.com` or `wiki.jakefear.com`)
+2. Add your domain (e.g., `wikantik.com` or `wiki.wikantik.com`)
 3. Brevo will provide DNS records to add
 
 ### Step 3: Configure DNS Records
@@ -196,6 +196,11 @@ mail.smtp.starttls.enable = true
 | `mail.smtp.timeout` | `5000` | Socket I/O timeout (ms) |
 | `mail.smtp.connectiontimeout` | `5000` | Connection timeout (ms) |
 | `wikantik.mail.jndiname` | `mail/Session` | JNDI name for container-managed session |
+
+> **SSO-provisioned accounts and password reset:** Users who signed in via SSO
+> for the first time (auto-provisioned) have no local password set. The
+> password-reset email flow cannot be used by these accounts — they must
+> continue to authenticate through the SSO provider.
 
 ---
 

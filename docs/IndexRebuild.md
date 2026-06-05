@@ -51,14 +51,27 @@ this rebuild plus `/admin/content/reindex-embeddings` plus
 
 ### Local (bare-metal Tomcat) — full reset
 
-When the live path isn't enough (e.g. a corrupt index), do a full reset:
+When the live path isn't enough (e.g. a corrupt index), do a full reset.
+The Lucene index lives under `wikantik.workDir`, which is configured in
+`wikantik-custom.properties` (rendered from the template by
+`bin/deploy-local.sh`) and defaults to:
+
+```
+tomcat/tomcat-11/data/workdir/
+```
+
+The Lucene index directory is therefore:
+
+```
+tomcat/tomcat-11/data/workdir/lucene/
+```
 
 ```bash
 # 1. Stop Tomcat
 tomcat/tomcat-11/bin/shutdown.sh
 
 # 2. Delete the Lucene index directory
-rm -rf tomcat/wikantik-work/lucene/
+rm -rf tomcat/tomcat-11/data/workdir/lucene/
 
 # 3. Start Tomcat — the index rebuilds automatically on startup
 tomcat/tomcat-11/bin/startup.sh
@@ -109,6 +122,50 @@ For ~200 pages, the rebuild takes 1-3 seconds. For 1000+ pages, expect 10-30 sec
 | `cluster` | Frontmatter `cluster` field | Full-text |
 | `summary` | Frontmatter `summary` field | Full-text |
 
+## bin/kg-rebuild.sh — full pipeline rebuild
+
+`bin/kg-rebuild.sh` orchestrates a four-phase rebuild:
+
+1. Chunk + Lucene rebuild (`/admin/content/rebuild-indexes`)
+2. Chunk embedding reindex (`/admin/content/reindex-embeddings`)
+3. Optional KG reset (`--reset-kg`) or full KG purge (`--purge-kg`)
+4. Entity extraction (`bin/kg-extract.sh`)
+
+Each phase polls to completion before the next starts.
+
+### Skip flags
+
+| Flag | Effect |
+|------|--------|
+| `--skip-chunks` | Skip phase 1 (chunk + Lucene rebuild) |
+| `--skip-embeddings` | Skip phase 2 (embedding reindex) |
+| `--skip-extract` | Skip phase 4 (entity extraction) |
+| `--dry-run` | Print the plan and exit without executing |
+| `--reset-kg` | Before phase 4: delete pending proposals + ai-inferred KG nodes |
+| `--purge-kg` | Before phase 4: TRUNCATE all KG-layer tables (destructive, requires confirmation) |
+| `--yes` / `-y` | Skip interactive confirmation for `--purge-kg` |
+
+Arguments after `--` are forwarded to `bin/kg-extract.sh`:
+
+```bash
+bin/kg-rebuild.sh --reset-kg -- \
+    --ollama-model qwen2.5:1.5b-instruct \
+    --concurrency 6 --prefilter --force
+```
+
+### Polling interval env vars
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `POLL_SECONDS` | `10` | How often to poll `/admin/content/index-status` |
+| `PROGRESS_SECONDS` | `30` | Minimum seconds between progress lines while RUNNING |
+
+Example:
+
+```bash
+POLL_SECONDS=5 PROGRESS_SECONDS=15 bin/kg-rebuild.sh --skip-extract
+```
+
 ## Verifying the Rebuild
 
 After the index rebuilds, verify with:
@@ -117,7 +174,7 @@ After the index rebuilds, verify with:
 # Should return results (not 0)
 curl -s 'http://localhost:8080/api/search?q=Main' | python3 -c "import json,sys; print(json.load(sys.stdin)['total'], 'results')"
 
-# Tag search should work (new feature)
+# Tag search should work
 curl -s 'http://localhost:8080/api/search?q=ai' | python3 -c "import json,sys; print(json.load(sys.stdin)['total'], 'results for ai tag')"
 ```
 

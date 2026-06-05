@@ -89,6 +89,10 @@ The full rerank path depends on these migrations being applied (every
 - **V024, V025** — KG staged validation + judge timeout tracking
   (used by the proposal-promotion flow that feeds new nodes into the
   rerank).
+- **V032** — adds the native `vector(1024)` column and HNSW index to
+  `content_chunk_embeddings` (`content_chunk_embeddings_hnsw_idx`),
+  enabling the `pgvector` dense backend. Required when
+  `wikantik.search.dense.backend = pgvector`.
 
 To verify the foundational layer:
 
@@ -178,6 +182,52 @@ ascending (stable). So with `boost=0.2`, a rank-10-of-20 page with proximity
 at `0.5 + 0.2 = 0.7`, above rank-0's `1.0`? No — `1.0 > 0.7`, so the rank-0
 page stays on top unless *it also* gets a proximity hit. The boost is designed
 to break ties and lift mid-list entries, not to overrule top BM25+dense hits.
+
+### Dense-retrieval backend
+
+The hybrid pipeline drives dense retrieval through one of three backends,
+controlled by a single property:
+
+| Property | Default | Options |
+|---|---|---|
+| `wikantik.search.dense.backend` | `inmemory` | `inmemory` \| `pgvector` \| `lucene-hnsw` |
+
+**`inmemory`** — loads all embeddings from the database into a Java float-array
+index at startup. Suitable for small-to-medium corpora. No additional
+prerequisites beyond the BYTEA `vec` column from V009.
+
+**`pgvector`** — delegates ANN search to PostgreSQL's HNSW index
+(`content_chunk_embeddings_hnsw_idx`, added by **V032**). Requires
+`CREATE EXTENSION IF NOT EXISTS vector` (V004 installs it). Best for
+split-DB topologies where the PostgreSQL host has ample RAM.
+
+**`lucene-hnsw`** — in-process HNSW index built in RAM from the stored
+embeddings on startup. Fastest query latency on the wiki host; no extra DB
+load. This is the **docker1 production default** (set via the deployment
+environment, not in the committed template).
+
+The ini default (`wikantik.properties:1248`) is `inmemory`. The template at
+`wikantik-war/src/main/config/tomcat/wikantik-custom-postgresql.properties.template`
+documents all three options and Lucene HNSW graph-tuning knobs; search for
+`wikantik.search.dense.backend` in that file for the full comment block.
+
+### KG judge
+
+The KG judge asynchronously evaluates queued proposals and promotes or rejects
+them. It is configured via `wikantik.kg.judge.*` properties (defaults in
+`wikantik.properties`):
+
+| Property | Default | Notes |
+|---|---|---|
+| `wikantik.kg.judge.enabled` | `true` | Master switch. Set `false` to halt automatic promotion. |
+| `wikantik.kg.judge.endpoint` | (unset) | LLM endpoint used for judge calls; inherits the extractor endpoint when unset. |
+| `wikantik.kg.judge.model` | (unset) | Model identifier for the judge; inherits the extractor model when unset. |
+| `wikantik.kg.judge.cron.enabled` | `true` | Enables the periodic judge sweep cron. |
+| `wikantik.kg.judge.cron.interval_min` | `5` | Minutes between judge sweeps. |
+| `wikantik.kg.judge.batch_size` | `50` | Proposals evaluated per sweep. |
+| `wikantik.kg.judge.concurrency` | `2` | Parallel judge RPCs per sweep. |
+| `wikantik.kg.judge.timeout_seconds` | `120` | Per-call timeout; timed-out proposals are retried up to `max_attempts`. |
+| `wikantik.kg.judge.max_attempts` | `3` | Max retry attempts before a proposal is abandoned. |
 
 ### Phase 2 — entity extractor
 
@@ -745,10 +795,9 @@ adding it is a no-op for systems that don't use it.
 
 ## Further reading
 
-- [docs/superpowers/plans/2026-04-22-kg-rag-uplift.md](superpowers/plans/2026-04-22-kg-rag-uplift.md)
-  — the original three-phase design document, including benefits analysis
-  and the non-goals (community detection, global-query mode) deliberately
-  left out of this release.
+- The original three-phase KG-RAG-uplift design document (now retired from the
+  tree) covered the benefits analysis and the non-goals (community detection,
+  global-query mode) deliberately left out of this release.
 - `bin/db/migrations/V011__chunk_entity_mentions.sql` — authoritative schema.
 - `wikantik-main/src/main/java/com/wikantik/search/hybrid/` — the seven
   Phase 3 classes (`GraphRerankStep`, `GraphProximityScorer`,

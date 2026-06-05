@@ -1,11 +1,21 @@
 # Implementing a Sitemap.xml Servlet for Wikantik
 
 > **Status: IMPLEMENTED.** The sitemap servlet shipped — `SitemapServlet`
-> in `wikantik-main/src/main/java/com/wikantik/ui/SitemapServlet.java`,
-> serving `/sitemap.xml`. The Atom feed counterpart is `AtomFeedServlet`.
+> at `com.wikantik.ui.SitemapServlet` (source:
+> `wikantik-main/src/main/java/com/wikantik/ui/SitemapServlet.java`),
+> serving `/sitemap.xml`. The Atom feed counterpart is `AtomFeedServlet`
+> at `com.wikantik.content.AtomFeedServlet`.
 > This document is preserved as the implementation specification it
 > was written against; treat it as design-of-record rather than a
 > to-do list.
+>
+> **Note on configuration:** The `jspwiki.sitemap.*` properties described
+> in Phase 2 below (enabled, includeAttachments, cacheTimeout, etc.) were
+> never implemented. The **only** real sitemap property is
+> `wikantik.sitemap.baseURL` — set it when the wiki runs behind a reverse
+> proxy or load balancer that would otherwise cause the servlet to derive
+> an incorrect `http://` base URL. Example:
+> `wikantik.sitemap.baseURL = https://wiki.wikantik.com`
 
 ## Overview
 
@@ -45,7 +55,7 @@ Google Search Console expects sitemaps to follow the [Sitemap Protocol](https://
 
 #### Step 1: Create the Sitemap Servlet
 
-**Location:** `wikantik-main/src/main/java/org/apache/wiki/ui/SitemapServlet.java`
+**Location:** `wikantik-main/src/main/java/com/wikantik/ui/SitemapServlet.java`
 
 ```java
 package com.wikantik.ui;
@@ -275,7 +285,7 @@ private String escapeXml( final String input ) {
 
 #### Step 5: Write Unit Tests
 
-**Location:** `wikantik-main/src/test/java/org/apache/wiki/ui/SitemapServletTest.java`
+**Location:** `wikantik-main/src/test/java/com/wikantik/ui/SitemapServletTest.java`
 
 Create tests for:
 - XML validity

@@ -5,13 +5,26 @@ OpenID Connect (OIDC) and/or SAML 2.0 service provider. This is the
 **authoritative operator reference** for configuring SSO. The implementation
 lives in `wikantik-main/src/main/java/com/wikantik/auth/sso/` (`SSOConfig`,
 `SSOLoginModule`, `SSOCallbackServlet`, `SSORedirectServlet`,
-`SSOAutoProvisionService`); the historical design notes in
+`SSOAutoProvisionService`). The historical design notes in
 [OAuthImplementation.md](OAuthImplementation.md) and [FullOAuth.md](FullOAuth.md)
 are superseded and kept only for context.
+
+**`SSORedirectServlet` (`/sso/login`)** is the entry point of the SSO flow. It
+locates the appropriate pac4j client (selected by an optional `client_name`
+query parameter; falls back to the first configured client), requests a
+redirection action from it, and sends the browser to the Identity Provider. If
+SSO is disabled or unconfigured it responds 404; configuration errors respond
+500; any other failure redirects to `/login?error=sso_redirect_failed`.
 
 SSO coexists with traditional username/password login — it is purely additive.
 When enabled, the SPA login page shows a provider button alongside the local
 login form.
+
+> **Related — IdP provisioning:** SSO is the *login* path: it authenticates
+> users and auto-provisions local profiles on first login. If your IdP also
+> manages group membership or needs to create/deactivate accounts out-of-band,
+> see [ScimProvisioning.md](ScimProvisioning.md) — the SCIM 2.0 server at
+> `/scim/v2/*` covers the IdP *provisioning* path and complements SSO.
 
 ## Quick start (Google OIDC)
 

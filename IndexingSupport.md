@@ -4,7 +4,7 @@
 
 ## Problem it solved
 
-`wiki.jakefear.com` is a React SPA backed by Apache Tomcat 11. Without server-side rendering or raw-content endpoints, page URLs returned the SPA shell regardless of crawler intent, which blocked:
+`wiki.wikantik.com` is a React SPA backed by Apache Tomcat 11. Without server-side rendering or raw-content endpoints, page URLs returned the SPA shell regardless of crawler intent, which blocked:
 
 - Search engines (Googlebot, Bingbot) from indexing page content
 - OpenWebUI's web loader from fetching page content for RAG
@@ -40,7 +40,7 @@ Markdown output invariants:
 
 - Page title as H1 at the top
 - Body content only — no navigation, sidebar, footer, "related pages"
-- Internal wiki links preserved as absolute URLs: `[Page Title](https://wiki.jakefear.com/wiki/PageSlug)`
+- Internal wiki links preserved as absolute URLs: `[Page Title](https://wiki.wikantik.com/wiki/PageSlug)`
 - Images resolved to absolute URLs
 - No injected boilerplate text
 
@@ -58,7 +58,7 @@ Implemented by **`com.wikantik.rest.ChangesResource`** (under `/api/`, same auth
     {
       "slug": "LinuxSystemAdministration",
       "modified_at": "2026-04-02T14:05:00Z",
-      "url": "https://wiki.jakefear.com/wiki/LinuxSystemAdministration"
+      "url": "https://wiki.wikantik.com/wiki/LinuxSystemAdministration"
     }
   ]
 }
@@ -77,7 +77,7 @@ Implemented via **`com.wikantik.ui.SemanticHeadRenderer`** and **`com.wikantik.r
   - Full page body as rendered HTML (headings, paragraphs, lists) — crawlers can index the actual content, not just meta tags
 - Browsers sending modern `Accept` headers continue to receive the SPA shell unchanged
 
-This is a deliberate design choice over the User-Agent sniffing originally sketched — see the comment at `SpaRoutingFilter.java:152` ("crawlers which send `Accept: */*` or omit the header") for the rationale.
+This is a deliberate design choice over the User-Agent sniffing originally sketched — see the crawler-detection comment in `SpaRoutingFilter.java` ("crawlers which send `Accept: */*` or omit the header") for the rationale.
 
 ### 4. Sitemap
 
@@ -114,6 +114,6 @@ The sync script itself lives in the OpenWebUI host repo; it calls Wikantik's `/w
 
 ## Related
 
-- **Agent-facing context**: For AI coding agents that consume this wiki as a knowledge base, prefer the `/knowledge-mcp` MCP server (hybrid retrieval + knowledge graph) over `GET /wiki/{slug}?format=*`, which is optimised for bulk ingestion rather than per-query retrieval. See [docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md) for the planned `/api/pages/{id}/for-agent` projection specifically shaped for agent token-efficiency.
-- **Structural discovery**: Bulk ingestion tools that want to understand wiki structure before paging through `/api/changes` should also consume `/api/structure/*` once implemented — see [docs/wikantik-pages/StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md).
-- **Sitemap and Atom feeds**: [docs/Sitemap.md](docs/Sitemap.md)
+- **Agent-facing context**: For AI coding agents that consume this wiki as a knowledge base, prefer the `/knowledge-mcp` MCP server (hybrid retrieval + knowledge graph) over `GET /wiki/{slug}?format=*`, which is optimised for bulk ingestion rather than per-query retrieval. The `/api/pages/for-agent/{canonical_id}` projection (implemented in `com.wikantik.rest.PageForAgentResource`) serves a token-efficient, agent-grade view of a single page — see [docs/wikantik-pages/AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md).
+- **Structural discovery**: Bulk ingestion tools that want to understand wiki structure before paging through `/api/changes` can consume `/api/structure/*` — implemented in `com.wikantik.rest.StructureResource`. See [docs/wikantik-pages/StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md).
+- **Sitemap and Atom feeds**: [docs/Sitemap.md](docs/Sitemap.md). The Atom feed is served by `com.wikantik.content.AtomFeedServlet` and provides a time-ordered entry stream for feed readers and incremental ingestion pipelines.

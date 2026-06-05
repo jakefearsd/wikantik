@@ -456,7 +456,7 @@ PGUSER=migrate                 # privileged role (CREATE + owns partitions); NOT
 PGPASSWORD=…
 AUDIT_RETENTION_MONTHS=84      # 7 years (default). Set < 1 to disable the drop phase.
 AUDIT_PARTITION_LOOKAHEAD=3    # months of partitions to pre-create each run
-AUDIT_ARCHIVE_DIR=/var/backups/wikantik/audit-archive   # MUST be inside a path the NAS pull captures
+AUDIT_ARCHIVE_DIR=/var/backups/wikantik/audit-archive   # must be inside DOCKER1_BACKUP_DIR (or widen the NAS pull) — see note below
 ```
 
 **Inspect / dry-run** (touches nothing):
@@ -474,9 +474,17 @@ sudo systemctl start wikantik-audit-retention.service   # run once now to test
 ```
 
 **Safety:** each over-age partition is `pg_dump`ed to `AUDIT_ARCHIVE_DIR` and verified
-(`pg_restore --list`) **before** it is dropped; a verify failure skips the drop. The archive
-dir is captured by the off-box NAS pull, so dropped history is cold-stored, not lost. The
-audit hash chain re-anchors on the oldest surviving row automatically.
+(`pg_restore --list`) **before** it is dropped; a verify failure skips the drop. The audit
+hash chain re-anchors on the oldest surviving row automatically.
+
+> **AUDIT_ARCHIVE_DIR and the NAS pull.** The off-box NAS pull captures everything under
+> `DOCKER1_BACKUP_DIR` (the rrsync-locked root, default `/home/jakefear/wikantik/backups`).
+> For dropped audit partitions to be cold-stored off-box, `AUDIT_ARCHIVE_DIR` **must be
+> a subdirectory of `DOCKER1_BACKUP_DIR`** — for example
+> `/home/jakefear/wikantik/backups/audit-archive`. The default example value
+> (`/var/backups/wikantik/audit-archive`) is outside that tree and is **not** auto-wired
+> to the NAS pull. Either set `AUDIT_ARCHIVE_DIR` to a path under `DOCKER1_BACKUP_DIR`,
+> or explicitly widen the NAS pull's `rrsync` root to include the archive directory.
 
 **Restore an archived partition** (manual): `pg_restore -d wikantik <archive-dir>/audit_log_YYYY_MM_<stamp>.dump`
 recreates the dropped partition table; re-attach it with `ALTER TABLE audit_log ATTACH PARTITION audit_log_YYYY_MM FOR VALUES FROM ('YYYY-MM-01') TO ('<next>-01')` if you need it back under the parent.

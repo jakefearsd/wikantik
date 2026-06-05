@@ -18,16 +18,17 @@ Configuration for both bare-metal and container environments relies heavily on e
 ### 1.2 Containerized Deployment (Recommended for Production)
 The production Docker environment runs three critical services defined in `docker-compose.yml` and `docker-compose.prod.yml`:
 1. `wikantik`: The primary application running on Tomcat 11/JDK 21.
-2. `db`: PostgreSQL 17 database.
+2. `db`: PostgreSQL 18 database (`pgvector/pgvector:pg18` — the `vector` extension is required).
 3. `backup`: An Alpine-based container that executes cron jobs for scheduled backups.
 
-**Persistent Volumes:**
-- `pgdata`: Holds PostgreSQL user, group, and role data.
-- `wikantik-pages`: Contains the actual wiki content (`.md`, `.properties`, and attachments).
-- `wikantik-work` & `wikantik-logs`: Hold the rebuilt Lucene index and logs (these are not critical for backups as they reconstruct automatically).
+**Persistent Volumes (prod):**
+- `pgdata`: Named volume holding the PostgreSQL cluster.
+- **Pages + attachments**: Host bind-mount from `WIKANTIK_PAGES_DIR` (e.g. `/srv/wikantik/pages`) — not a named volume; `rsync` is the source of truth for content, independent of container lifecycle.
+- `wikantik-work` & `wikantik-logs`: Named volumes holding the Lucene index and logs. Regeneratable, not backed up.
+- `wikantik-profiling`: Named volume (prod overlay) holding JFR profiling recordings at `/var/wikantik/profiling`. Non-critical, not backed up.
 
-**CI/CD & Rollback:**
-Deployments follow a "push-on-green" methodology. Upon failure of a health check (`curl http://localhost:8080/wiki/Main`), the CI pipeline automatically tags and loads the previous commit SHA image to achieve zero-downtime rollback. 
+**Rollback:**
+Deployments are driven from the developer box via `bin/remote.sh deploy`. Before swapping the image, the script tags the running image as `wikantik:rollback`. If the post-deploy `/api/health` poll (`GET http://<host>:8080/api/health`) does not return 200 within the health timeout, `bin/remote.sh deploy` automatically re-promotes the `:rollback` image and force-recreates the service. Manual rollback at any time: `bin/remote.sh rollback`. There is no CI deploy pipeline — the developer box drives all production changes.
 
 ### 1.3 Bare-Metal Deployment
 Deploying to a bare-metal server runs Wikantik as the ROOT context of a local
@@ -172,6 +173,20 @@ Orchestrates the full content and Knowledge Graph rebuild pipeline across multip
 - Phase 3: Optional reset (`--reset-kg`) to prune AI-inferred states or a complete destructive wipe (`--purge-kg`).
 - Phase 4: Forward requests to `bin/kg-extract.sh` to extract mentions and proposals.
 
+**Resume flags** (skip completed phases when resuming mid-pipeline):
+
+| Flag | Skips |
+|------|-------|
+| `--skip-chunks` | Phase 1 (chunk + Lucene rebuild) |
+| `--skip-embeddings` | Phase 2 (embedding reindex) |
+| `--skip-extract` | Phase 4 (entity extraction) |
+| `--dry-run` | Everything — prints the plan without executing |
+
+```bash
+# Resume after a failed embedding phase (chunks already rebuilt):
+bin/kg-rebuild.sh --skip-chunks --reset-kg -- --ollama-model qwen2.5:1.5b-instruct --concurrency 6
+```
+
 ### `bin/kg-extract.sh`
 Fires the standalone entity-extractor CLI against the database to generate Knowledge Graph nodes and proposals.
 - Supports tuning parameters like `--max-pages`, `--ollama-model`, and `--concurrency`.
@@ -186,6 +201,60 @@ Admin CLI for managing the Knowledge Graph cluster inclusion/exclusion policies.
 Triggers ad-hoc Knowledge Graph judge runs against the local deployment.
 - `--proposal-id UUID`: Synchronously judge one proposal.
 - `--status`: Evaluate pending queue depth.
+
+### `bin/remote.sh` — remote admin subcommands
+
+The full table of subcommands (run `bin/remote.sh --help` or `bin/remote.sh <cmd> --help` for details):
+
+| Subcommand | Purpose |
+|------------|---------|
+| `bootstrap` | First-time remote setup: verify Docker, create remote dirs, rsync compose + scripts + `.env`. |
+| `deploy [--skip-build] [--health-timeout=N]` | Build locally, push image over ssh, `up -d` on remote, health-poll `/api/health`, auto-rollback on failure. |
+| `rollback` | Re-promote `wikantik:rollback` → `wikantik:latest`, force-recreate the service. |
+| `up` / `down` / `restart` | Pass-through to `container.sh -e prod` on the remote. |
+| `status` | One-screen summary: `ps`, `/api/health` status, disk free, pages + backup size, last 10 log lines. |
+| `logs [-f] [SERVICE]` | Tail logs (defaults to `wikantik`). |
+| `shell [SERVICE]` | Interactive shell in a remote container (default `wikantik`). |
+| `psql [-- ARGS]` | `psql` pass-through in the `db` container. |
+| `migrate [--status]` | Ad-hoc migration run (or list applied versions). |
+| `pages-push LOCAL_DIR [--mirror]` | rsync local pages → remote. `--mirror` opts in to `--delete` (with confirmation). |
+| `pages-pull LOCAL_DIR` | rsync remote pages → local (read-only, never deletes locally). |
+| `backup-trigger [TIER]` | Invoke the prod backup sidecar (default: `daily`). |
+| `backup-pull [DATE]` | rsync a backup snapshot from the remote to the dev box. |
+| `restore REMOTE_PATH` | Sidecar restore + service restart (acquires deploy lock). |
+
+Global flags: `--dry-run` (print commands instead of running), `-h` / `--help`.
+
+> **Load testing and load characterization:** see **[docs/LoadTesting.md](LoadTesting.md)** and `bin/loadtest.sh`.
+> **Backup & recovery:** see **[docs/BackupAndRecovery.md](BackupAndRecovery.md)** for the full 3-2-1 topology, restore procedure, and quarterly drill.
+
+---
+
+## 4. Maintenance & operator scripts
+
+The `bin/` directory contains a number of operational tools beyond the main deploy/KG scripts. Most are safe to run repeatedly (they either dry-run by default or prompt before destructive steps). None are called from Maven or CI — they are operator-only tools.
+
+| Script | Purpose | Safety |
+|--------|---------|--------|
+| `bin/kg-cleanup-node-types.sh` | One-shot interactive cleanup of legacy `node_type` values that predate the vocabulary gate. Reads credentials from `ROOT.xml`. | Idempotent SQL updates; prompts before running. |
+| `bin/kg-chunker-stats.sh` | Inspect chunk-size distribution for the page corpus without touching the database. Pure in-memory re-chunk + prefilter eval. | Read-only. |
+| `bin/kg-judge-experiment.sh` | Sample pending `kg_proposals` and judge each with both a no-op and a live judge (ollama or claude). Writes a side-by-side JSON report. | Read-only report; does not modify proposals. |
+| `bin/run-embedding-experiment.sh` | End-to-end driver for the retrieval experimentation harness: index with multiple models, score BM25/dense/hybrid, compare. Requires `kg_content_chunks` populated. | Writes to experiment tables only. |
+| `bin/run-experiment-local.sh` | Thin wrapper around `run-embedding-experiment.sh` that sources credentials from `ROOT.xml` and `test.properties`. | Same as above. |
+| `bin/smoke-wiki.sh [BASE_URL]` | Functional smoke test: health UP, a page renders, changes feed populated, search returns a hit. Called by `bin/dr-restore.sh` on DR completion. Exit 0 = all checks passed. | Read-only. |
+| `bin/curl-probe.sh <duration> <prefix>` | External real-user latency probe: samples three endpoints once per second, logs `(timestamp, endpoint, HTTP code, latency)` to `<prefix>.log`. | Read-only. |
+| `bin/trigger-rebuild-indexes.sh [status]` | Kick off the async Lucene + `kg_content_chunks` rebuild via the admin API. Prerequisite for `run-embedding-experiment.sh`. | Triggers a rebuild; idempotent (409 if already running). |
+| `bin/deploy-marketing.sh [--dry-run]` | Publish the static marketing site (`marketing/`) to the nginx docroot on the `cloudflare` host. Prompts for sudo password interactively. | Requires manual confirmation for the privileged copy step. |
+| `bin/db/audit-retention.sh [--status\|--dry-run]` | Enforce `audit_log` retention: pre-create upcoming monthly partitions; archive-then-drop partitions older than `AUDIT_RETENTION_MONTHS` (default 84 = 7 years). | `--dry-run` touches nothing. The drop phase requires `AUDIT_ARCHIVE_DIR` to be set. |
+| `bin/db/audit-retention-install-timer.sh` | Install and enable the `wikantik-audit-retention.timer` systemd timer (monthly). | Idempotent; prompts for sudo. |
+| `bin/db/one-shots/` | Environment-specific one-off data fixups. Each file is a standalone script or SQL file intended to be run once per environment (not migrations). Current scripts: `2026-05-20-backfill-chunk-embeddings.sh` (backfill `content_chunk_embeddings`), `reconcile_page_canonical_ids.sh` (reconcile `page_canonical_ids`), `reset_judge_timeout_abstains.sh`, `reset_node_judge_verdicts.sh`, `backfill-agent-default-owner.sql`. | Review individually before running; most are idempotent but data-modifying. |
+| `bin/tests/test-audit-retention.sh` | Pure-filesystem unit tests for `audit-retention.sh` using stubbed `psql`/`pg_dump`/`pg_restore`. No real PostgreSQL required. | Read-only test harness. |
+| `bin/tests/test-backup.sh` | Tests for `backup.sh` and `nas-pull.sh` manifest + metrics emission. Stubbed `pg_dump`/`psql`/`rsync`/`curl` — no real PG or ssh. | Read-only test harness. |
+| `bin/tests/test-remote.sh` | Smoke tests for `bin/remote.sh` in `--dry-run` mode with a fake `remote.env`. No real ssh or docker. | Read-only test harness. |
+
+**`WIKANTIK_SEED_DEV_USERS` and `-e base`**
+- Setting `WIKANTIK_SEED_DEV_USERS=true` in `.env` causes the entrypoint to insert `admin/admin123` + `testbot` dev accounts via `bin/db/seed-users.sql`. **Never set in production.**
+- Running `bin/container.sh -e base` starts the stack with the base compose only (no overlays) — useful for debugging compose variable substitution or running the stack without the dev or prod overlay.
 
 ---
 

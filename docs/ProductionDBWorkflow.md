@@ -1,37 +1,51 @@
-# Production Database Workflow — Future-State Play
+# Production Database Workflow
 
-**Status:** Design. Not yet implemented.
+**Status (2026-06-05):**
+
+| Piece | Status |
+|-------|--------|
+| `migrate` role + `create-migrate-user.sh` | **SHIPPED** |
+| `migrate.sh` runs as `PGUSER=migrate` | **SHIPPED** |
+| V031 monitoring role (`wikantik_exporter`) | **SHIPPED** |
+| `--baseline` flag for `migrate.sh` | **PENDING** |
+| Checksum column on `schema_migrations` | **PENDING** |
+| Secret-store wrapper (Vault / IAM / `.pgpass`) | **PENDING** |
+
+The `migrate` role split and the V031 monitoring role are in production. The
+`baseline`, `checksum`, and secret-store pieces from the original design remain
+unimplemented.
+
 **Goal:** Make production schema changes routine, auditable, and repeatable
-without granting the application role privileges it should not have.
-**Non-goal:** Replace the current `migrate.sh` with a full-featured migration
-framework (Flyway, Liquibase, Sqitch). Those remain options if this play
-hits its limits.
+without granting the application role (`jspwiki`) privileges it should not have.
+
+---
 
 ## Motivation
 
 The April 2026 release exposed three friction points in the current workflow:
 
-1. **One role does everything.** `jspwiki` is the app role, but it is also
-   the role that ran `CREATE EXTENSION vector`, created tables, and held
-   ownership. The principle of least privilege says the app role should
-   never be able to issue DDL at runtime.
+1. **One role does everything.** `jspwiki` was the app role and previously
+   also the role that created tables and held ownership. Least-privilege says
+   the app role should never issue DDL at runtime. The `migrate` role split
+   resolves this.
 2. **No baseline.** `migrate.sh` has no way to say "this database already
    matches V005 — just record it as applied, don't run it." V002–V005 are
    idempotent by design, so re-running them happens to be safe today, but
-   the moment a future migration includes `INSERT`s of seed data or a
-   `DROP COLUMN`, idempotence stops saving us.
-3. **Files and credentials on disk.** The migration scripts live in the
-   same repo as the app and are applied from whichever host has the git
-   checkout, with the DB password in an environment variable typed by a
-   human. There is no shared "this is how prod gets updated" runbook.
+   a future migration that contains `INSERT`s of seed data or a `DROP COLUMN`
+   would not be.
+3. **Credentials in a shell variable.** There is no shared secret-store
+   integration yet; the `migrate` password lives in `.pgpass` on the deploy
+   host.
 
-None of these is on fire. All three will bite eventually.
+The role split (item 1) is done. Items 2 and 3 are still open.
+
+---
 
 ## End state in one picture
 
 ```
           ┌────────────────────────┐
-          │   Secret store         │   ← Vault / AWS SM / 1Password
+          │   Secret store         │   ← Vault / AWS SM / 1Password (PENDING)
           │   (migrate creds)      │
           └───────────┬────────────┘
                       │ short-lived pw
@@ -43,74 +57,79 @@ None of these is on fire. All three will bite eventually.
                                     │    postgres  (superuser) │
                                     │    migrate   (owns DDL)  │
                                     │    jspwiki   (DML only)  │
+                                    │    wikantik_exporter     │
+                                    │      (pg_monitor, V031)  │
                                     │                          │
                                     │  extensions installed    │
                                     │  once by superuser       │
                                     └──────────────────────────┘
 ```
 
-The human never types a password. `jspwiki` can't alter tables. The
-superuser only gets used during initial provisioning.
+---
 
-## The five pieces of the play
+## Role split — shipped
 
-### 1. Split the database roles
+### Database roles
 
-Add a dedicated `migrate` role between the superuser and the app role.
+| Role | Used when | Privileges |
+|------|-----------|------------|
+| `postgres` | Initial provision | Superuser. Installs extensions only. |
+| `migrate` | Every deploy | `CREATE` on schema, owns all tables. |
+| `jspwiki` | Application runtime | `SELECT/INSERT/UPDATE/DELETE` on tables + `USAGE/SELECT` on sequences. No DDL. |
+| `wikantik_exporter` | Prometheus scrape (V031) | `pg_monitor` membership. No login by default; `migrate.sh` sets a password if `exporter_password` is provided. |
 
-| Role        | Used when          | Privileges                             |
-|-------------|--------------------|----------------------------------------|
-| `postgres`  | Initial provision  | Superuser. Installs extensions only.   |
-| `migrate`   | Every deploy       | `CREATE` on schema, owns all tables.   |
-| `jspwiki`   | Application runtime| `SELECT/INSERT/UPDATE/DELETE` on its tables and `USAGE/SELECT` on sequences. No DDL. |
+### Bootstrapping the migrate role (one time per DB)
 
-Concretely:
+Run as a PostgreSQL superuser after `install-fresh.sh`:
 
-```sql
--- One-time, as superuser
-CREATE ROLE migrate  WITH LOGIN PASSWORD :'migrate_password';
-CREATE ROLE jspwiki  WITH LOGIN PASSWORD :'app_password';
-
-GRANT CONNECT ON DATABASE wikantik TO migrate, jspwiki;
-
--- migrate becomes the owner of new objects
-ALTER DEFAULT PRIVILEGES FOR ROLE migrate IN SCHEMA public
-    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES    TO jspwiki;
-ALTER DEFAULT PRIVILEGES FOR ROLE migrate IN SCHEMA public
-    GRANT USAGE, SELECT                  ON SEQUENCES TO jspwiki;
+```bash
+DB_NAME=wikantik \
+DB_MIGRATE_USER=migrate \
+DB_MIGRATE_PASSWORD='<strong-password>' \
+DB_APP_USER=jspwiki \
+    bin/db/create-migrate-user.sh
 ```
 
-Migrations then stop containing per-object `GRANT … TO :app_user`
-boilerplate — the default-privilege rules do it automatically.
+`create-migrate-user.sh` is fully idempotent — re-running it after a password
+rotation just refreshes the password and re-applies grants. `DB_NAME` defaults
+to `wikantik` (matching `install-fresh.sh` and `migrate.sh`), so the explicit
+`DB_NAME=wikantik` above is only needed when your database has a non-default
+name.
 
-### 2. Pull extensions out of migrations
+### Every deploy
 
-`V004` currently runs `CREATE EXTENSION IF NOT EXISTS vector`. The
-`migrate` role won't have permission to do that, and we don't want it
-to. Move extension installation into a one-time provisioning script:
+`bin/redeploy.sh` and `bin/deploy-local.sh` both invoke `migrate.sh` automatically.
+The redeploy path uses `PGUSER=migrate`; if the migrate role is not yet provisioned,
+it falls back to `PGUSER=postgres`.
 
+Manual run:
+
+```bash
+DB_NAME=wikantik PGUSER=migrate bin/db/migrate.sh
 ```
-bin/db/
-├── provision.sh         # NEW — run once by a superuser
-├── migrate.sh           # run every deploy by the migrate role
-└── migrations/
-```
 
-`provision.sh` creates the database, the two roles, installs `vector`
-and `pgcrypto`, and hands ownership of the public schema to the
-`migrate` role. After that, superuser credentials are not needed again
-for ordinary deploys.
+---
 
-`V004` gets simplified to drop the `CREATE EXTENSION` line. Document
-the extension as a prerequisite in the migration's header comment.
+## V031 monitoring role — shipped
 
-### 3. Add a baseline command to `migrate.sh`
+`V031__monitoring_role.sql` creates the `wikantik_exporter` role with `pg_monitor`
+membership so it can read `pg_stat_*` views without superuser access. The Prometheus
+node exporter / postgres_exporter uses this role.
 
-New flag: `migrate.sh --baseline <version>`. It inserts every migration
-up to and including `<version>` into `schema_migrations` **without
-executing any of them**. This is how an existing production DB catches
-up to the migration system the first time, and how we handle any future
-"this migration describes reality, don't run it again" situation.
+The migration requires that the `migrate` role holds `pg_monitor WITH ADMIN OPTION`
+(set by `create-migrate-user.sh`) so it can in turn grant `pg_monitor` to
+`wikantik_exporter`.
+
+---
+
+## Pending items (original design)
+
+### Baseline flag for migrate.sh (PENDING)
+
+Planned: `migrate.sh --baseline <version>` inserts every migration up to and
+including `<version>` into `schema_migrations` without executing any SQL. This
+is how an existing production DB catches up to the migration ledger the first
+time.
 
 ```
 $ ./migrate.sh --baseline V005
@@ -123,13 +142,9 @@ $ ./migrate.sh --baseline V005
 Continue? [y/N]
 ```
 
-The confirmation prompt is load-bearing — baselining the wrong version
-silently skips real schema work.
+### Checksum column on schema_migrations (PENDING)
 
-### 4. Add a checksum column to `schema_migrations`
-
-Edits to an already-applied migration are a footgun the current
-tracker doesn't catch. Extend `schema_migrations`:
+Planned extension:
 
 ```sql
 ALTER TABLE schema_migrations
@@ -138,134 +153,73 @@ ALTER TABLE schema_migrations
     ADD COLUMN IF NOT EXISTS execution_ms  INTEGER;
 ```
 
-`migrate.sh` computes `sha256sum` of each migration on disk. On every
-run, it compares the stored checksum with the on-disk checksum for
-already-applied versions. Mismatch aborts the run with a clear error
-naming the file. Fix-forward only — the operator must write a new
-migration, not edit history.
+`migrate.sh` would compute `sha256sum` of each migration on disk and abort if an
+already-applied migration's on-disk checksum does not match the stored value.
 
-`applied_by` records the DB role and hostname. `execution_ms` helps
-spot a migration that is slowing down as the table grows.
+### Secret-store wrapper (PENDING)
 
-### 5. Credentials come from a secret, not a shell variable
+Current state: the `migrate` password lives in `.pgpass` (or `PGPASSWORD` env var)
+on the deploy host.
 
-Replace `PGPASSWORD='…' ./migrate.sh` with a pattern where the password
-is fetched at run time from the org secret store and never lands in
-shell history or the process list.
+Planned options in order of preference:
+1. **IAM auth** (RDS IAM token, GCP Cloud SQL IAM) — no stored password at all.
+2. **Short-lived secret from Vault / AWS Secrets Manager / 1Password CLI**.
+3. **`.pgpass` with `chmod 600`** on the deploy host — current low-tech baseline.
 
-Suggested mechanisms in order of preference:
+---
 
-1. **IAM auth** (RDS IAM token, GCP Cloud SQL IAM). No stored password
-   at all; the migrate process mints a 15-minute token.
-2. **Short-lived secret from Vault / AWS Secrets Manager / 1Password
-   CLI**, loaded via `op run --env-file`, `aws-vault exec`, or a
-   Vault agent.
-3. **`.pgpass` with `chmod 600`** on the deploy host, owned by the
-   deploy user. Low-tech baseline if options 1–2 aren't set up yet.
-
-`migrate.sh` itself doesn't need to care which of these is in use — it
-just reads `PGPASSWORD` from the environment or relies on `.pgpass`.
-The wrapper around it is what changes.
-
-## Operator-facing runbook (end state)
+## Current operator runbook
 
 ### Initial provisioning (once per DB)
 
 ```bash
-# On the DB host, as postgres superuser
-sudo -u postgres \
-    DB_NAME=wikantik \
-    MIGRATE_PASSWORD='…' \
-    APP_PASSWORD='…' \
-    bin/db/provision.sh
-```
+# 1. Create DB, app role, extensions, run all migrations
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
+    DB_APP_PASSWORD='<app-password>' \
+    bin/db/install-fresh.sh
 
-Creates database, roles, extensions. Idempotent so it's safe to re-run
-after a password rotation.
+# 2. Create the migrate role and transfer ownership
+DB_NAME=wikantik DB_MIGRATE_USER=migrate \
+    DB_MIGRATE_PASSWORD='<migrate-password>' \
+    DB_APP_USER=jspwiki \
+    bin/db/create-migrate-user.sh
+```
 
 ### Every deploy
 
 ```bash
-# On the deploy host or CI runner
-aws-vault exec wikantik-prod -- \
-    DB_NAME=wikantik \
-    PGUSER=migrate \
-    PGHOST=db.example.com \
-    bin/db/migrate.sh
+# Handled automatically by bin/redeploy.sh or bin/deploy-local.sh.
+# To run manually:
+DB_NAME=wikantik PGUSER=migrate bin/db/migrate.sh
 ```
 
-The wrapper injects a short-lived `PGPASSWORD`. `migrate.sh`:
-
-1. Reads `schema_migrations`.
-2. Verifies checksums of already-applied migrations.
-3. Applies any pending migration under `lock_timeout = 5s`,
-   `statement_timeout = 5min`, in a single transaction.
-4. Records version, checksum, duration, and `applied_by`.
-
-### One-time baseline of an existing DB
+### Check migration status
 
 ```bash
-# First use of the migrate role against a DB that already has the tables
-bin/db/migrate.sh --baseline V005
+DB_NAME=wikantik PGUSER=migrate bin/db/migrate.sh --status
 ```
 
-## Implementation checklist
-
-Rough order. Each step is independently shippable.
-
-- [ ] **Provision.sh** — extract the existing `install-fresh.sh` role
-      creation into a superuser-only script; stop granting DDL to
-      `jspwiki`; install `vector` and `pgcrypto` here.
-- [ ] **Split ownership** — add `migrate` role; transfer table
-      ownership on existing DBs; set default privileges; drop per-table
-      `GRANT … TO :app_user` from V002–V005 once default privileges
-      are in place.
-- [ ] **Baseline flag** — implement `migrate.sh --baseline <version>`
-      with a confirm prompt and an idempotent insert.
-- [ ] **Checksum + metadata** — add the columns, fill them on apply,
-      verify them on every run, ship a migration that backfills
-      checksums for already-applied versions by re-hashing the
-      on-disk files.
-- [ ] **Lock/statement timeouts** — prepend `SET lock_timeout`,
-      `SET statement_timeout` to each migration transaction inside
-      `migrate.sh` (not in every `.sql` file).
-- [ ] **Drop `CREATE EXTENSION` from V004** — add a follow-up
-      migration that comments its removal; update `migrations/README.md`
-      to point at `provision.sh`.
-- [ ] **Secret-store wrapper** — pick one of IAM / Vault / `.pgpass`,
-      document it in this file, wire it into whatever CI/deploy
-      mechanism you adopt.
-- [ ] **Pre-migrate backup hook** — deploy script takes a snapshot or
-      `pg_dump -Fc` before invoking `migrate.sh`, keeps the last N
-      automatically.
+---
 
 ## When to consider Flyway / Liquibase / Sqitch instead
 
 The bash script is fine until one of these becomes true:
 
-- You need **repeatable migrations** (idempotent views/functions that
-  should be reapplied when changed — Flyway `R__` files).
-- You want **dry-run / pending report** that also validates checksums
-  without executing.
-- You add a **second application** sharing the same DB and need
-  coordinated schema history.
-- You want **undo** support for DDL (rarely worth it in practice).
+- You need **repeatable migrations** (idempotent views/functions reapplied on change).
+- You want **dry-run / pending report** that also validates checksums without executing.
+- You add a **second application** sharing the same DB and need coordinated schema history.
 - The team grows past one developer and a human runbook stops scaling.
 
-Until then, keeping `migrate.sh` means zero new dependencies and a
-script a newcomer can read top-to-bottom in five minutes.
+Until then, keeping `migrate.sh` means zero new dependencies and a script a newcomer
+can read top-to-bottom in five minutes.
 
-## Open questions for future-self
+---
 
-- Where do the `migrate` role credentials live today vs. at end state?
-  Need a concrete choice (Vault? AWS Secrets Manager? host `.pgpass`?)
-  before writing the wrapper.
-- Do we need a separate **read-only** role for analytics / backup
-  tooling? Probably yes; add `wikantik_ro` alongside `jspwiki` when
-  split role work happens.
-- pg_dump / pg_restore authorization with the new role split — the
-  backup role should be distinct from `migrate` so a compromised
-  backup credential can't mutate schema.
-- How does `install-fresh.sh` evolve? Either delete it (provision.sh
-  subsumes it) or keep it as a dev-only convenience that wraps
-  provision.sh + a migrate.
+## Open questions
+
+- Where do `migrate` role credentials live in the final state? Need a concrete choice
+  (Vault? AWS Secrets Manager? host `.pgpass`?) before writing the wrapper.
+- Do we need a separate **read-only** role for analytics / backup tooling? Probably
+  yes — add `wikantik_ro` alongside `jspwiki` when a clean role audit happens.
+- pg_dump / pg_restore authorization with the new role split — the backup role should
+  be distinct from `migrate` so a compromised backup credential cannot mutate schema.

@@ -348,39 +348,36 @@ Ensure consistency:
 
 ### 5.1 Current State
 
-The existing `SitemapServlet.java` (wikantik-main/src/main/java/org/apache/wiki/ui/SitemapServlet.java) generates:
+The shipped `SitemapServlet` (`com.wikantik.ui.SitemapServlet`,
+`wikantik-main/src/main/java/com/wikantik/ui/SitemapServlet.java`) generates:
 
 ```xml
 <url>
   <loc>...</loc>
   <lastmod>...</lastmod>
-  <changefreq>...</changefreq>  <!-- Google ignores -->
-  <priority>...</priority>       <!-- Google ignores -->
 </url>
 ```
+
+`<changefreq>` and `<priority>` are **intentionally omitted** — the servlet
+Javadoc notes "changefreq and priority are intentionally omitted as Google
+ignores them" (consistent with Part 1 above). Google image sitemaps are
+included: when a page has image attachments the servlet emits
+`<image:image>` / `<image:loc>` entries using the Google Image namespace.
 
 **What it does well:**
 - Excludes menu/template pages (LeftMenu, TitleBox, etc.)
 - Checks page permissions (only public pages)
 - Uses accurate `lastmod` from page metadata
 - Proper XML escaping
+- Google Image sitemap extension for attached images
 
-**Opportunities for improvement:**
-- Remove `<changefreq>` and `<priority>` (wasted bytes)
-- Add image extension for attachments
+**Remaining opportunities for enhancement:**
 - Add hreflang for multi-language wiki pages
 - Consider sitemap index for large wikis
 
 ### 5.2 Recommended Enhancements
 
-**Priority 1: Remove Ignored Fields**
-```java
-// Remove these lines (Google ignores them)
-// out.println( "    <changefreq>" + determineChangeFreq( page ) + "</changefreq>" );
-// out.println( "    <priority>" + determinePriority( page ) + "</priority>" );
-```
-
-**Priority 2: Add Image Extension**
+**Priority 1: Add Image Extension**
 ```java
 // Add namespace
 out.println( "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"" );
@@ -398,7 +395,7 @@ for ( Attachment att : attachments ) {
 }
 ```
 
-**Priority 3: Add Hreflang for Internationalization**
+**Priority 2: Add Hreflang for Internationalization**
 ```java
 // If wiki has language variants (e.g., /de/, /fr/ prefixes)
 out.println( "    <xhtml:link rel=\"alternate\" hreflang=\"en\" " +

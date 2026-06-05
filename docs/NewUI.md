@@ -9,17 +9,19 @@ it.
 ## Status
 
 Fully implemented. The SPA covers reading, inline editing, search, change
-history, similar-pages discovery, attachment management, blogs, dark mode, the
-admin panel (users, content, security, knowledge), and the knowledge graph
-visualiser.
+history, similar-pages discovery, attachment management, comments/mentions,
+blogs, dark mode, the admin panel (users, content, security, knowledge, API
+keys, KG policy, retrieval quality, page ownership, audit), and the graph
+viewers.
 
 ## Architecture
 
 | Concern | Choice |
 |---------|--------|
 | Framework | React 18 (`react`, `react-dom`) |
-| Routing | React Router v6 (`react-router-dom`) |
+| Routing | React Router v7 (`react-router-dom ^7.16`) |
 | Build | Vite 5 (`@vitejs/plugin-react`) |
+| Editor | CodeMirror 6 (`@uiw/react-codemirror` + `@codemirror/lang-markdown`) |
 | Markdown rendering | `react-markdown` + `remark-gfm`, `remark-math`, `rehype-katex`, `rehype-highlight` |
 | Graph visualisation | `cytoscape` + `cytoscape-cose-bilkent` via `react-cytoscapejs` |
 | Testing | Vitest + Testing Library + `happy-dom` |
@@ -32,27 +34,63 @@ installs Node and npm, runs `npm ci` and `npm run build`, and the resulting
 
 ## Routing
 
-The SPA is served from `/` and uses client-side routing for all interactive
-views. Deep links are handled by `SpaRoutingFilter` (in `wikantik-http`), which
-forwards SPA paths to `/index.html` so the React router can take over.
+The SPA uses client-side routing for all interactive views. Deep links are
+handled by `SpaRoutingFilter` (in `wikantik-rest`), which forwards recognised
+SPA paths to `/index.html` so React Router can take over.
 
-| Route | Purpose |
-|-------|---------|
-| `/` | Home — recent pages, clusters, entry points |
-| `/wiki/{PageName}` | Article reader |
-| `/edit/{PageName}` | Inline editor (markdown source + live preview) |
-| `/search` | Search results (full-text + frontmatter facets) |
-| `/page-graph` | Page Graph viewer — wikilink edges, clusters, backlinks |
-| `/knowledge-graph` | Knowledge Graph viewer — LLM-extracted entity nodes/edges |
-| `/admin/*` | Admin panel (users, content, security, knowledge) |
-| `/blog/*` | Per-author blog routes (discovery, home, entry, editor) |
+`SpaRoutingFilter` matches two categories of path:
 
-The REST API lives under `/api/` (and admin endpoints under `/admin/`), and
-there are two MCP servers: `/wikantik-admin-mcp` (writes + analytics + verification stamping, 25 tools)
-and `/knowledge-mcp` (hybrid retrieval + Knowledge Graph + structural-spine + agent-projection, 16 tools). An OpenAPI tool
-server for non-MCP clients lives at `/tools/*` (`search_wiki`, `get_page`). All are serviced by
-`wikantik-rest`, `wikantik-admin-mcp`, `wikantik-knowledge`, and
-`wikantik-tools` rather than the SPA.
+- **Prefix routes** (anything under): `/wiki/`, `/edit/`, `/diff/`, `/admin/`, `/blog/`
+- **Exact routes**: `/admin`, `/search`, `/page-graph`, `/knowledge-graph`,
+  `/preferences`, `/reset-password`, `/blog`, `/login`, `/me/mentions`
+
+The full route table from `main.jsx`:
+
+| Route | Component | Notes |
+|-------|-----------|-------|
+| `/` | `<Navigate to="/wiki/Main" replace />` | No home page — always redirects |
+| `/wiki/:name` | `PageView` | Article reader (eager-loaded) |
+| `/wiki` | `<Navigate to="/wiki/Main" replace />` | Bare /wiki redirect |
+| `/edit/blog/:username/:pageName` | `BlogEditor` | Blog post editor |
+| `/edit/:name` | `PageEditor` | Wiki page editor |
+| `/diff/:name` | `DiffViewer` | Side-by-side version diff |
+| `/search` | `SearchResultsPage` | Full-text + faceted search |
+| `/page-graph` | `PageGraphView` | Page Graph (wikilink edges) viewer |
+| `/knowledge-graph` | `KnowledgeGraphView` | KG entity/edge viewer |
+| `/preferences` | `UserPreferencesPage` | Personal settings |
+| `/me/mentions` | `MentionsPage` | @-mention inbox |
+| `/reset-password` | `ResetPasswordPage` | Password reset flow |
+| `/login` | `LoginPage` | Login (dual-registered in web.xml + SPA_EXACT) |
+| `/blog` | `BlogDiscovery` | Blog directory |
+| `/blog/create` | `CreateBlog` | Create new blog |
+| `/blog/:username/new` | `NewBlogEntry` | New blog post |
+| `/blog/:username/Blog` | `BlogHome` | Author's blog home |
+| `/blog/:username/:entryName` | `BlogEntry` | Individual blog post |
+| `/admin` (index) | `OverviewDashboard` | Admin overview |
+| `/admin/users` | `AdminUsersPage` | User management |
+| `/admin/content` | `AdminContentPage` | Content & index tools |
+| `/admin/security` | `AdminSecurityPage` | Groups + policy grants |
+| `/admin/knowledge-graph` | `AdminKnowledgePage` | KG curation |
+| `/admin/apikeys` | `AdminApiKeysPage` | API key management |
+| `/admin/retrieval-quality` | `AdminRetrievalQualityPage` | Retrieval experiment harness |
+| `/admin/kg-policy` | `AdminKgPolicyPage` | KG inclusion policy rules |
+| `/admin/kg-policy/explain` | `AdminKgPolicyExplain` | Per-page policy explanation |
+| `/admin/kg-policy/pending` | `AdminKgPolicyPending` | Pages with pending review |
+| `/admin/kg-policy/bootstrap` | `AdminKgPolicyBootstrap` | Bulk bootstrap tooling |
+| `/admin/page-ownership` | `AdminPageOwnershipPage` | Page-owner assignment |
+| `/admin/audit` | `AdminAuditPage` | Tamper-evident audit log |
+
+All `/admin/*` routes are nested under `AdminLayout` (lazy-loaded) and guarded
+server-side by `AdminAuthFilter` (requires `AllPermission`).
+
+Graph viewer routes get a full-bleed `app-content-full` layout; editor and
+admin routes use `app-content-wide`; wiki article routes use the narrow reading
+column.
+
+The REST API lives under `/api/` and admin endpoints under `/admin/`. Two MCP
+servers — `/wikantik-admin-mcp` (25 write/analytics tools) and `/knowledge-mcp`
+(16 read-only retrieval + KG tools) — plus the OpenAPI tool server at `/tools/*`
+are all serviced by separate backend modules and are not part of the SPA.
 
 ## Project Layout
 
@@ -63,37 +101,35 @@ wikantik-frontend/
 ├── index.html
 ├── public/
 └── src/
-    ├── main.jsx                 Entry point
-    ├── App.jsx                  Routes + layout shell
+    ├── main.jsx                 Entry point + route table
+    ├── App.jsx                  Layout shell (Outlet + sidebar context-swap)
     ├── api/
-    │   └── client.js            Fetch wrapper for /api/*
+    │   └── client.js            Fetch wrapper for /api/*; dispatches wikantik:version-mismatch
     ├── components/
     │   ├── PageView.jsx         Article rendering (react-markdown pipeline)
-    │   ├── PageEditor.jsx       Inline editor
-    │   ├── Sidebar.jsx          Cluster-grouped navigation
+    │   ├── PageEditor.jsx       Inline editor (CodeMirror 6)
+    │   ├── Sidebar.jsx          Cluster-grouped navigation (reader)
     │   ├── SearchOverlay.jsx    Cmd+K search
     │   ├── MetadataPanel.jsx    Frontmatter chips
     │   ├── ChangeNotesPanel.jsx History + diffs
     │   ├── SimilarPagesPanel.jsx
     │   ├── AttachmentPanel.jsx
+    │   ├── BacklinksPanel.jsx   "Referenced by" backlinks (GET /api/backlinks/{name})
+    │   ├── CommentsDrawer.jsx   Threaded comments + @-mention composer
     │   ├── DiffViewer.jsx
-    │   ├── BlogHome.jsx / BlogEntry.jsx / BlogEditor.jsx …
-    │   ├── admin/               Admin panel pages + forms
-    │   ├── pagegraph/           Page Graph viewer (lazy-loaded; see below)
-    │   └── kgraph/              Knowledge Graph viewer (lazy-loaded; see below)
-    ├── hooks/
-    │   ├── useApi.js            Fetch + auth header plumbing
-    │   ├── useAuth.jsx          Login state, current user
-    │   ├── useDarkMode.js       Theme toggle + persistence
-    │   ├── useAttachments.js
-    │   └── useEditorDrop.js
-    ├── utils/
-    │   ├── math.js              LaTeX helpers for the markdown pipeline
-    │   ├── frontmatterUtils.js
-    │   ├── pageUrl.js
-    │   ├── slugUtils.js
-    │   ├── attachmentNameValidator.js
-    │   └── remarkAttachments.js Custom remark plugin for attachment links
+    │   ├── MentionsPage.jsx     @-mention inbox (/me/mentions)
+    │   ├── PersonalZone.jsx     Personal zone widget
+    │   ├── BlogDiscovery.jsx / BlogHome.jsx / BlogEntry.jsx /
+    │   │   BlogEditor.jsx / CreateBlog.jsx / NewBlogEntry.jsx
+    │   ├── LoginPage.jsx / LoginForm.jsx / SsoLoginButton.jsx
+    │   ├── UserPreferencesPage.jsx / ResetPasswordPage.jsx
+    │   ├── TableOfContents.jsx / Breadcrumbs.jsx
+    │   ├── admin/               Admin panel pages + forms (see below)
+    │   ├── pagegraph/           Page Graph viewer (lazy-loaded)
+    │   ├── kgraph/              Knowledge Graph viewer (lazy-loaded)
+    │   └── ui/                  Shared primitive components (see below)
+    ├── hooks/                   ~16 custom hooks (see below)
+    ├── utils/                   ~22 utility modules (see below)
     └── styles/
         ├── globals.css          Reset, CSS variables, theme tokens
         ├── article.css
@@ -174,54 +210,213 @@ by `DefaultKnowledgeGraphService` in `wikantik-knowledge`.
 ## Design System
 
 The CSS design system is intentionally minimal and framework-free. Tokens live
-in `src/styles/globals.css` and drive light and dark themes:
+in `src/styles/globals.css` and drive light and dark themes. The full `:root`
+block (light theme):
 
 ```css
 :root {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f9fafb;
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
-  --border: #e5e7eb;
-  --accent: #059669;
-  --font-body: Charter, 'Bitstream Charter', Cambria, serif;
-  --font-heading: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-code: 'SF Mono', Consolas, Menlo, monospace;
+  /* Typography */
+  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-body: 'Source Serif 4', Georgia, serif;
+  --font-ui: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Light theme */
+  --bg: #FEFCF8;
+  --bg-elevated: #FFFFFF;
+  --bg-sidebar: #F7F4EE;
+  --text: #2D2D2D;
+  --text-secondary: #6B6560;
+  --text-muted: #9B9590;
+  --accent: #C45D3E;           /* terracotta */
+  --accent-hover: #A8442A;
+  --sage: #7A8B6F;
+  --sage-light: #E8EDE4;
+  --border: #E8E4DC;
+  --border-strong: #D0C8BC;
+  --code-bg: #F3F0EA;
+
+  /* Semantic state */
+  --success: #2a8d2a;
+  --danger: #b13a3a;
+  --warning: #b8860b;
+
+  /* Layout */
+  --sidebar-width: 280px;
+  --content-max-width: 1470px;
+  --content-max-width-wide: 1600px;
+  --toc-width: 200px;
 }
 
 [data-theme="dark"] {
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #171717;
-  --text-primary: #f9fafb;
-  --text-secondary: #9ca3af;
-  --border: #374151;
-  --accent: #10b981;
+  --bg: #1A1A1E;
+  --bg-elevated: #222226;
+  --bg-sidebar: #18181C;
+  --text: #E8E4DC;
+  --text-secondary: #A8A09A;
+  --accent: #E07050;           /* lighter terracotta for dark bg */
+  --accent-hover: #F08060;
+  /* … */
 }
 ```
 
-Typography follows a major-third scale; body text sits at 1.25rem with a 1.7
-line height to favour long-form reading. A max content width of roughly 680px
-keeps reading lines comfortable, widening to ~1000px for tables and code.
+`body` uses `var(--font-ui)` (DM Sans). Long-form article text uses
+`var(--font-body)` (Source Serif 4) applied in `article.css`. The
+`--content-max-width` of 1470px is for the main reading/article layout; admin
+and wide contexts use `--content-max-width-wide: 1600px`.
+
+## Comments and Mentions
+
+`CommentsDrawer` renders threaded comment threads anchored to page text
+selections. It mounts inside `PageView` alongside `BacklinksPanel`. The
+`@`-mention composer is powered by `useMentionPicker` + `MentionPicker`.
+Unread mention counts are tracked by `useUnreadMentions`. The personal
+mention inbox lives at `/me/mentions` (`MentionsPage`).
+
+For the full feature spec see [docs/CommentsAndMentions.md](CommentsAndMentions.md).
+
+## Blog
+
+Blog routes all live under `/blog/*`. `BlogDiscovery` lists all author blogs;
+`BlogHome` is an author's blog index; `BlogEntry` renders a single post;
+`BlogEditor` is the post editor (also reachable via `/edit/blog/:username/:pageName`);
+`CreateBlog` and `NewBlogEntry` handle blog and post creation. The hook
+`useMyBlog` manages the current user's blog state.
+
+For the full feature spec see [docs/Blog.md](Blog.md).
+
+## Personal Zone
+
+`PersonalZone` (`/components/PersonalZone.jsx`) surfaces the current user's
+recently-edited pages, drafts, and other personal signals. Related hooks:
+`useMyPages`, `useRecentlyViewed`, `useDraft`, `useDrafts`.
+
+For the full feature spec see [docs/PersonalZone.md](PersonalZone.md).
+
+## Update Toast
+
+`App.jsx` listens for the custom DOM event `wikantik:version-mismatch`,
+dispatched by `api/client.js` when the server's `X-Build-Version` response
+header (set by `BuildVersionFilter` in `wikantik-rest`) differs from the
+embedded `__BUILD_VERSION__` constant (stamped at Vite build time via
+`vite.config.js`'s `buildVersionPlugin`). When a mismatch is detected the app
+renders a non-blocking "A new version is available — Reload" toast. The toast
+can be dismissed per session; the session flag is cleared once the new bundle
+loads successfully.
 
 ## Admin Panel
 
-Accessed at `/admin/` and protected by `AdminAuthFilter` (requires
-`AllPermission`). Tabs map to dedicated pages in `components/admin/`:
+Accessed at `/admin` and protected server-side by `AdminAuthFilter` (requires
+`AllPermission`). `AdminSidebar` replaces the reader `Sidebar` via a context
+swap in `App.jsx` whenever `location.pathname.startsWith('/admin')`.
 
-- **Users** — list, create, edit, delete; role assignment
-- **Content** — orphaned pages, broken links, version purging, cache stats
-- **Security** — groups, group membership, policy grants (the
-  database-backed replacement for `wikantik.policy`)
-- **Knowledge** — hub discovery, existing hubs, content embeddings, KG
-  embeddings, proposal review queue
+### AdminSidebar navigation
+
+Links are grouped into four sections:
+
+**People & Access**
+- Users (`/admin/users`)
+- Security (`/admin/security`)
+- API Keys (`/admin/apikeys`) — see [docs/ApiKeys.md](ApiKeys.md)
+
+**Content**
+- Content & Index (`/admin/content`)
+- Page Ownership (`/admin/page-ownership`) — see [docs/PageOwnership.md](PageOwnership.md)
+
+**Knowledge & Search**
+- Knowledge Graph (`/admin/knowledge-graph`)
+- KG Policy (`/admin/kg-policy`) — see [docs/KgInclusionPolicy.md](KgInclusionPolicy.md)
+- Retrieval Quality (`/admin/retrieval-quality`) — see [docs/RetrievalQuality.md](RetrievalQuality.md)
+
+**Observability**
+- Audit (`/admin/audit`) — see [docs/AuditLog.md](AuditLog.md)
+
+Plus an **Overview** index link at `/admin` (exact match).
+
+### AdminContentPage tabs
+
+`AdminContentPage` uses a tab bar defined as:
+
+```
+Dashboard | Orphaned Pages | Broken Links | Versions | Chunk Inspector | Index Status
+```
+
+- **Dashboard** — page count, orphan count, broken link count, cache statistics table, and a "Flush All Caches" action.
+- **Orphaned Pages** — pages with no inbound links; bulk-delete with checkbox selection.
+- **Broken Links** — missing target pages and their referrers.
+- **Versions** — look up a page by name, inspect its version list, purge old versions keeping N latest.
+- **Chunk Inspector** — (`ChunkInspectorTab`) inspect embedding chunks per page.
+- **Index Status** — (`IndexStatusTab`) search index health and rebuild trigger.
+
+### AdminKnowledgePage tabs
+
+`AdminKnowledgePage` uses a tab bar defined as:
+
+```
+Proposals | Extraction | Node Explorer | Edge Explorer |
+Content Embeddings | Hub Proposals | Hub Discovery | LLM Activity
+```
+
+- **Proposals** (`ProposalReviewQueue`) — review pending KG node/edge proposals; approve or reject individually.
+- **Extraction** (`ExtractionTab`) — run or cancel the LLM entity extractor; watch live progress.
+- **Node Explorer** (`GraphExplorer`) — browse/search all KG nodes by type or status; inspect properties; project frontmatter.
+- **Edge Explorer** (`EdgeExplorer`) — browse/search all KG edges by relationship type; inspect provenance.
+- **Content Embeddings** (`ContentEmbeddingsTab`) — inspect the shared Ollama mention-centroid index; bulk-backfill missing frontmatter.
+- **Hub Proposals** (`HubProposalsTab`) — generate/manage hub membership proposals; approve/reject individually, in bulk, or by percentile threshold.
+- **Hub Discovery** (`HubDiscoveryTab`) — cluster-based hub discovery; accept/dismiss proposal cards; manage existing hub memberships.
+- **LLM Activity** (`LlmActivityTab`) — live in-memory view of recent/in-flight LLM calls (extraction, proposal judging, embeddings); last ~1 hour only, cleared on restart.
+
+## Shared UI Components (`components/ui/`)
+
+A set of reusable primitives used across both the reader and admin panel:
+
+| Component | Purpose |
+|-----------|---------|
+| `Badge.jsx` | Inline status/label badge |
+| `Card.jsx` | Content card container |
+| `Chip.jsx` | Removable filter chip |
+| `EmptyState.jsx` | Zero-results placeholder with icon |
+| `Icon.jsx` | Icon wrapper |
+| `Modal.jsx` | Accessible modal dialog |
+| `Skeleton.jsx` | Loading skeleton placeholder |
+| `Spinner.jsx` | Loading spinner |
+| `ToastProvider.jsx` | Toast context + renderer (used by `useToast`) |
+
+## Hooks (`src/hooks/`)
+
+~16 custom hooks (each paired with a `.test` file). Grouped by concern:
+
+- **Auth & session**: `useAuth.jsx` (login state, current user via `AuthProvider` context)
+- **Theme**: `useDarkMode.js` (toggle + localStorage persistence)
+- **API / data fetching**: `useApi.js` (fetch + auth header plumbing), `useAttachments.js`, `useMyPages.js`, `useMyBlog.js`
+- **Editor**: `useEditorDrop.js` (drag-and-drop into editor), `useDraft.js` / `useDrafts.js` (auto-save draft management)
+- **Comments / mentions**: `useMentionPicker.js` (debounced `@`-mention autocomplete with caret tracking), `useUnreadMentions.js`
+- **Navigation / UX**: `useGlobalHotkeys.js` (Cmd+K search trigger), `useScrollSpy.js` (ToC active heading), `useScrollLock.js` (modal body lock), `useFocusTrap.js` (modal focus management), `useDocumentTitle.js`
+- **History**: `useRecentSearches.js`, `useRecentlyViewed.js`
+- **Toast**: `useToast.js` (consumes `ToastProvider` context)
+
+## Utils (`src/utils/`)
+
+~22 utility modules (each paired with a `.test` file). Grouped by concern:
+
+- **Markdown / rendering**: `remarkAttachments.js` (custom remark plugin for attachment links), `math.js` (LaTeX helpers), `rehypeSourceLine.js`, `headingAnchors.js`, `headings.js`, `codeCopy.js`, `highlight.js`, `markdownFormat.js`
+- **Page / URL**: `pageUrl.js`, `slugUtils.js`, `frontmatterUtils.js`, `readingTime.js`
+- **Comments**: `commentAnchor.js`, `commentHighlight.js`, `caretCoords.js`
+- **Search**: `searchFacets.js`
+- **Editor**: `wikiLinkComplete.js`, `scrollSync.js` (editor/preview scroll sync), `draftKeys.js`
+- **Attachments**: `attachmentNameValidator.js`
+- **Time**: `datetime.js`
 
 ## Authentication
 
 The SPA uses session cookies set by the standard Wikantik login flow. All
 `/api/*` calls include the session cookie; ACLs and policy grants are
 enforced server-side by `RestServletBase.checkPagePermission()`. There is no
-token or JWT layer — the SPA is a thin client of the same session the JSP-era
-wiki used to serve.
+token or JWT layer — the SPA is a thin client of the same session the wiki
+uses server-side.
+
+Google SSO is available at the login page via `SsoLoginButton` when the
+server is configured with `wikantik.sso.*` properties.
 
 ## Running the Frontend Standalone (Development)
 
@@ -233,15 +428,28 @@ npm install
 npm run dev         # Vite dev server at http://localhost:5173/
 ```
 
-Point the dev server at a running backend by setting the `VITE_API_BASE`
-environment variable, or keep the default which proxies `/api/*` to
-`http://localhost:8080/`. See `vite.config.js` for the proxy configuration.
+The Vite dev server proxies three path prefixes to `http://localhost:8080`
+(hard-coded in `vite.config.js` — there is no `VITE_API_BASE` environment
+variable):
+
+| Proxy path | Target |
+|-----------|--------|
+| `/api` | `http://localhost:8080` |
+| `/attach` | `http://localhost:8080` |
+| `/admin` | `http://localhost:8080` |
+
+A running backend instance on port 8080 is required for most functionality.
 
 Unit tests:
 
 ```bash
-npm test            # vitest
+npm test            # vitest run (single pass)
+npm run test:watch  # vitest watch mode
 ```
+
+Note: Vitest concurrency can cause false failures in some hook tests — if a
+test file fails in a full run, re-run it in isolation before chasing the
+failure.
 
 ## Production Build
 
@@ -253,6 +461,11 @@ cd wikantik-frontend
 npm run build       # outputs to dist/
 ```
 
-The `wikantik-war` module's `pom.xml` copies `dist/` into
-`wikantik-war/target/Wikantik/` during the packaging phase — no manual copy
-step is required.
+The `vite.config.js` `buildVersionPlugin` stamps a `build-version.txt` asset
+and a `<meta name="build-version">` tag into `index.html` at build time;
+`BuildVersionFilter` (in `wikantik-rest`) reads this file and echoes the
+version in `X-Build-Version` response headers so the update toast can detect
+stale bundles.
+
+The `wikantik-war` module's `pom.xml` copies `dist/` into the WAR during the
+packaging phase — no manual copy step is required.

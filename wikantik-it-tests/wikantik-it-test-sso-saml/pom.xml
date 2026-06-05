@@ -131,9 +131,13 @@
               </run>
             </image>
             <image>
-              <alias>keycloak</alias>
+              <!-- Per-module-unique alias + containerNamePattern=%a so two IT modules
+                   (sso, sso-saml) each running a Keycloak don't collide when run
+                   concurrently (mirrors the pgvector container naming). -->
+              <alias>wikantik-kc-${project.artifactId}</alias>
               <name>${it-wikantik.keycloak.image}</name>
               <run>
+                <containerNamePattern>%a</containerNamePattern>
                 <cmd>start-dev --import-realm --http-port=8080</cmd>
                 <env>
                   <KEYCLOAK_ADMIN>admin</KEYCLOAK_ADMIN>
@@ -198,10 +202,14 @@
             </configuration>
           </execution>
 
-          <!-- Generate the SP signing/encryption keystore for pac4j's SAML2Client.
-               The keystore is placed in target/test-classes so wikantik-custom.properties
-               can reference it via ${project.build.directory}/test-classes/sp-keystore.jks
-               before Cargo boots Tomcat and pac4j reads the configuration. -->
+          <!-- Generate the SP signing/encryption keystore for pac4j's SAML2Client,
+               and DELETE any stale sp-metadata.xml first. The SP metadata embeds the
+               dynamically-reserved Cargo servlet port in its AssertionConsumerService
+               URL; pac4j appends a fresh ACS to the existing file every run, so under
+               run-tests.sh's non-clean `install` reuse the file accumulates stale ACS
+               ports (with dead listeners) and the SAML response POST gets routed to a
+               refused port. Removing it forces pac4j to regenerate it with only the
+               current port. The keystore is port-independent and may be reused. -->
           <execution>
             <id>generate-sp-keystore</id>
             <phase>generate-test-resources</phase>
@@ -210,7 +218,7 @@
               <executable>bash</executable>
               <arguments>
                 <argument>-c</argument>
-                <argument>mkdir -p "${project.build.directory}/test-classes" &amp;&amp; if [ ! -f "${project.build.directory}/test-classes/sp-keystore.jks" ]; then keytool -genkeypair -alias wikantik-sp -keyalg RSA -keysize 2048 -sigalg SHA256withRSA -keystore "${project.build.directory}/test-classes/sp-keystore.jks" -storepass changeit -keypass changeit -dname "CN=wikantik-sp-it,O=Wikantik,L=Test,ST=Test,C=US" -validity 3650 -noprompt &amp;&amp; echo "SP keystore generated" || echo "FAILED to generate SP keystore"; else echo "SP keystore already exists, skipping"; fi</argument>
+                <argument>mkdir -p "${project.build.directory}/test-classes" &amp;&amp; rm -f "${project.build.directory}/test-classes/sp-metadata.xml" &amp;&amp; if [ ! -f "${project.build.directory}/test-classes/sp-keystore.jks" ]; then keytool -genkeypair -alias wikantik-sp -keyalg RSA -keysize 2048 -sigalg SHA256withRSA -keystore "${project.build.directory}/test-classes/sp-keystore.jks" -storepass changeit -keypass changeit -dname "CN=wikantik-sp-it,O=Wikantik,L=Test,ST=Test,C=US" -validity 3650 -noprompt &amp;&amp; echo "SP keystore generated" || echo "FAILED to generate SP keystore"; else echo "SP keystore already exists, skipping"; fi</argument>
               </arguments>
             </configuration>
           </execution>

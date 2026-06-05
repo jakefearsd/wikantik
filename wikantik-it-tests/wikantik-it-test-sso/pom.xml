@@ -131,9 +131,13 @@
               </run>
             </image>
             <image>
-              <alias>keycloak</alias>
+              <!-- Per-module-unique alias + containerNamePattern=%a so two IT modules
+                   (sso, sso-saml) each running a Keycloak don't collide when run
+                   concurrently (mirrors the pgvector container naming). -->
+              <alias>wikantik-kc-${project.artifactId}</alias>
               <name>${it-wikantik.keycloak.image}</name>
               <run>
+                <containerNamePattern>%a</containerNamePattern>
                 <cmd>start-dev --import-realm --http-port=8080</cmd>
                 <env>
                   <KEYCLOAK_ADMIN>admin</KEYCLOAK_ADMIN>

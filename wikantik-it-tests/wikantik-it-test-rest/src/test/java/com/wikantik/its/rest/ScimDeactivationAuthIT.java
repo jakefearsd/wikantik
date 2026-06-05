@@ -146,23 +146,25 @@ public class ScimDeactivationAuthIT {
         assertEquals( 201, create.statusCode(), "create should be 201: " + create.body() );
         final String id = parseString( create.body() ).getAsJsonObject().get( "id" ).getAsString();
 
-        // 2. Baseline: the active user CAN authenticate.
-        assertEquals( 200, loginStatus( USER_NAME, PASSWORD ),
-                "active SCIM user must be able to log in" );
+        try {
+            // 2. Baseline: the active user CAN authenticate.
+            assertEquals( 200, loginStatus( USER_NAME, PASSWORD ),
+                    "active SCIM user must be able to log in" );
 
-        // 3. Deactivate via SCIM.
-        final String patch = "{\"schemas\":[\"urn:ietf:params:scim:api:messages:2.0:PatchOp\"],"
-                + "\"Operations\":[{\"op\":\"replace\",\"path\":\"active\",\"value\":false}]}";
-        assertEquals( 200, scimPatch( "/scim/v2/Users/" + id, patch ).statusCode(),
-                "deactivate PATCH should be 200" );
+            // 3. Deactivate via SCIM.
+            final String patch = "{\"schemas\":[\"urn:ietf:params:scim:api:messages:2.0:PatchOp\"],"
+                    + "\"Operations\":[{\"op\":\"replace\",\"path\":\"active\",\"value\":false}]}";
+            assertEquals( 200, scimPatch( "/scim/v2/Users/" + id, patch ).statusCode(),
+                    "deactivate PATCH should be 200" );
 
-        // 4. The deactivated user must NOT be able to authenticate.
-        final int after = loginStatus( USER_NAME, PASSWORD );
-        assertNotEquals( 200, after, "deactivated user must not be able to log in (got 200)" );
-        assertTrue( after == 401 || after == 403,
-                "deactivated login should be 401/403, got: " + after );
-
-        // Cleanup.
-        scimDelete( "/scim/v2/Users/" + id );
+            // 4. The deactivated user must NOT be able to authenticate.
+            final int after = loginStatus( USER_NAME, PASSWORD );
+            assertNotEquals( 200, after, "deactivated user must not be able to log in (got 200)" );
+            assertTrue( after == 401 || after == 403,
+                    "deactivated login should be 401/403, got: " + after );
+        } finally {
+            // Cleanup.
+            scimDelete( "/scim/v2/Users/" + id );
+        }
     }
 }

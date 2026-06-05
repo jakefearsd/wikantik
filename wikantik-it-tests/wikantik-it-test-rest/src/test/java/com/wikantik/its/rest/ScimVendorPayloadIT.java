@@ -44,7 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class ScimVendorPayloadIT {
 
     private static final String SCIM_TOKEN = "it-scim-token";
-    private static final String CT = "application/scim+json";
+    private static final String SCIM_CONTENT_TYPE = "application/scim+json";
     private static String baseUrl;
     private static HttpClient client;
 
@@ -66,10 +66,10 @@ public class ScimVendorPayloadIT {
             throws IOException, InterruptedException {
         final HttpRequest.Builder b = HttpRequest.newBuilder()
                 .uri( URI.create( baseUrl + path ) )
-                .header( "Accept", CT )
+                .header( "Accept", SCIM_CONTENT_TYPE )
                 .header( "Authorization", "Bearer " + SCIM_TOKEN );
         if ( body != null ) {
-            b.header( "Content-Type", CT );
+            b.header( "Content-Type", SCIM_CONTENT_TYPE );
             b.method( method, HttpRequest.BodyPublishers.ofString( body ) );
         } else {
             b.method( method, HttpRequest.BodyPublishers.noBody() );
@@ -103,13 +103,16 @@ public class ScimVendorPayloadIT {
     @Test
     void okta_create_then_no_path_deactivate_patch() throws Exception {
         final String id = createAndAssert( "okta-create-user.json", "okta.sample@example.com" );
-        // Okta's no-`path` replace shape must deactivate the user.
-        final HttpResponse<String> patch = send( "PATCH", "/scim/v2/Users/" + id,
-                fixture( "okta-deactivate-patch.json" ) );
-        assertEquals( 200, patch.statusCode(), "okta deactivate PATCH should be 200: " + patch.body() );
-        assertFalse( parseString( patch.body() ).getAsJsonObject().get( "active" ).getAsBoolean(),
-                "okta no-path PATCH must set active:false" );
-        send( "DELETE", "/scim/v2/Users/" + id, null );
+        try {
+            // Okta's no-`path` replace shape must deactivate the user.
+            final HttpResponse<String> patch = send( "PATCH", "/scim/v2/Users/" + id,
+                    fixture( "okta-deactivate-patch.json" ) );
+            assertEquals( 200, patch.statusCode(), "okta deactivate PATCH should be 200: " + patch.body() );
+            assertFalse( parseString( patch.body() ).getAsJsonObject().get( "active" ).getAsBoolean(),
+                    "okta no-path PATCH must set active:false" );
+        } finally {
+            send( "DELETE", "/scim/v2/Users/" + id, null );
+        }
     }
 
     @Test

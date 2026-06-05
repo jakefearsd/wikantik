@@ -28,7 +28,7 @@
   <artifactId>wikantik-it-test-sso</artifactId>
   <modelVersion>4.0.0</modelVersion>
   <packaging>war</packaging>
-  <description>SSO (OIDC) end-to-end test — drives wikantik's /sso/login flow against a disposable mock-oauth2-server container</description>
+  <description>SSO (OIDC) end-to-end test — drives wikantik's /sso/login flow against a disposable Keycloak container</description>
 
   <properties>
     <it-wikantik.context>${project.artifactId}</it-wikantik.context>
@@ -37,11 +37,10 @@
     <it-wikantik.userdatabase>com.wikantik.auth.user.JDBCUserDatabase</it-wikantik.userdatabase>
     <it-wikantik.referenceStyle>relative</it-wikantik.referenceStyle>
 
-    <!-- Host port the mock-oauth2-server binds to. NO static default: reserved
-         dynamically by build-helper (reserve-mock-oauth-port) so this module is
-         parallel-safe. A static value would be pre-interpolated into the docker
-         image config in the effective POM and shadow the reservation. -->
-    <it-wikantik.mock-oauth.image>ghcr.io/navikt/mock-oauth2-server:2.1.10</it-wikantik.mock-oauth.image>
+    <!-- Keycloak host port reserved dynamically by build-helper
+         (reserve-keycloak-port); NO static default (would shadow the
+         reservation in the effective POM, breaking parallel runs). -->
+    <it-wikantik.keycloak.image>quay.io/keycloak/keycloak:26.0</it-wikantik.keycloak.image>
   </properties>
 
   <profiles>
@@ -68,15 +67,15 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
         <executions>
-          <!-- Reserve the mock-oauth host port dynamically (distinct id from the
+          <!-- Reserve the Keycloak host port dynamically (distinct id from the
                inherited reserve-it-ports) so this module is parallel-safe. -->
           <execution>
-            <id>reserve-mock-oauth-port</id>
+            <id>reserve-keycloak-port</id>
             <phase>generate-resources</phase>
             <goals><goal>reserve-network-port</goal></goals>
             <configuration>
               <portNames>
-                <portName>it-wikantik.mock-oauth.port</portName>
+                <portName>it-wikantik.keycloak.port</portName>
               </portNames>
             </configuration>
           </execution>
@@ -94,7 +93,7 @@
           </includes>
           <systemPropertyVariables>
             <it-wikantik.base.url>http://localhost:${it.wikantik.servlet.port}/${it-wikantik.context}</it-wikantik.base.url>
-            <it-wikantik.mock-oauth.base-url>http://localhost:${it-wikantik.mock-oauth.port}</it-wikantik.mock-oauth.base-url>
+            <it-wikantik.oidc.issuer>http://localhost:${it-wikantik.keycloak.port}/realms/wikantik-it</it-wikantik.oidc.issuer>
           </systemPropertyVariables>
         </configuration>
       </plugin>
@@ -104,7 +103,7 @@
         <artifactId>properties-maven-plugin</artifactId>
       </plugin>
 
-      <!-- Stand up PG + mock-oauth2-server before Cargo boots Tomcat (so the WAR
+      <!-- Stand up PG + Keycloak before Cargo boots Tomcat (so the WAR
            can fetch the OIDC discovery doc at startup) and tear them down after
            the ITs finish. -->
       <plugin>
@@ -132,19 +131,30 @@
               </run>
             </image>
             <image>
-              <alias>mock-oauth2-server</alias>
-              <name>${it-wikantik.mock-oauth.image}</name>
+              <alias>keycloak</alias>
+              <name>${it-wikantik.keycloak.image}</name>
               <run>
+                <cmd>start-dev --import-realm --http-port=8080</cmd>
+                <env>
+                  <KEYCLOAK_ADMIN>admin</KEYCLOAK_ADMIN>
+                  <KEYCLOAK_ADMIN_PASSWORD>admin</KEYCLOAK_ADMIN_PASSWORD>
+                  <KC_HEALTH_ENABLED>true</KC_HEALTH_ENABLED>
+                </env>
                 <ports>
-                  <port>${it-wikantik.mock-oauth.port}:8080</port>
+                  <port>${it-wikantik.keycloak.port}:8080</port>
                 </ports>
+                <volumes>
+                  <bind>
+                    <volume>${project.basedir}/src/test/resources/keycloak:/opt/keycloak/data/import:ro</volume>
+                  </bind>
+                </volumes>
                 <wait>
                   <http>
-                    <url>http://localhost:${it-wikantik.mock-oauth.port}/default/.well-known/openid-configuration</url>
+                    <url>http://localhost:${it-wikantik.keycloak.port}/realms/wikantik-it/.well-known/openid-configuration</url>
                     <method>GET</method>
                     <status>200</status>
                   </http>
-                  <time>30000</time>
+                  <time>90000</time>
                 </wait>
               </run>
             </image>

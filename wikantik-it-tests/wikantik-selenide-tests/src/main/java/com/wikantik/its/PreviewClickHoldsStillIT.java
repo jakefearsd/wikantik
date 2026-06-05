@@ -193,10 +193,11 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
         // reliable regardless of when the scroll echo fires.
         final String measureScript = """
             const cb = arguments[arguments.length - 1];
+            const dataLine = arguments[0];
             setTimeout(() => {
                 const preview = document.querySelector('.editor-preview');
                 const target  = preview
-                    ? preview.querySelector('.article-prose [data-line="' + arguments[0] + '"]')
+                    ? preview.querySelector('.article-prose [data-line="' + dataLine + '"]')
                     : null;
                 const scrollAfter   = preview ? preview.scrollTop : -1;
                 const blockTopAfter  = target  ? target.getBoundingClientRect().top : -1;
@@ -204,25 +205,39 @@ public class PreviewClickHoldsStillIT extends WithIntegrationTestSetup {
                 const scroller       = document.querySelector('.cm-scroller');
                 const editorScrollAfter  = scroller ? scroller.scrollTop : -1;
                 const scrollerTop    = scroller ? scroller.getBoundingClientRect().top : -1;
-                // Focus editor and wait 1 rAF for cursor to render.
+                // Focus the editor, then POLL (up to a wall-clock deadline) for the
+                // CodeMirror caret to render at a non-zero window-Y. Under heavy
+                // parallel-IT load the cursor can take many frames to position after
+                // focus; a single rAF often reads caretTop=0 (not-yet-rendered),
+                // which the alignment assertion would misread as "caret not visible".
+                // Once the caret has rendered it is already at its final (aligned)
+                // position, so the first caretTop>0 read is the value we want.
                 const cmContent = document.querySelector('.cm-content');
                 if (cmContent) cmContent.focus();
-                requestAnimationFrame(() => {
+                const readCaret = () => {
                     const cursor = document.querySelector('.cm-cursorLayer .cm-cursor')
                                 || document.querySelector('.cm-cursor');
-                    const caretTop = cursor ? cursor.getBoundingClientRect().top : -1;
-                    cb({ scrollAfter, blockTopAfter, caretTop, previewTop, editorScrollAfter, scrollerTop });
-                });
+                    return cursor ? cursor.getBoundingClientRect().top : -1;
+                };
+                const deadline = Date.now() + 3000;
+                const poll = () => {
+                    const caretTop = readCaret();
+                    if (caretTop > 0 || Date.now() >= deadline) {
+                        cb({ scrollAfter, blockTopAfter, caretTop, previewTop, editorScrollAfter, scrollerTop });
+                    } else {
+                        requestAnimationFrame(poll);
+                    }
+                };
+                requestAnimationFrame(poll);
             }, 200);
             """;
 
-        // Under heavy parallel-IT load (IT_PARALLELISM>1 runs four Cargo Tomcats +
+        // Under heavy parallel-IT load (--parallel N runs four Cargo Tomcats +
         // four Postgres + a headless Chrome on one host) the browser's JS event
-        // loop can starve past WebDriver's default 30s async-script timeout, even
-        // though this measurement is instant once it actually runs. Raise the
-        // script timeout so a CPU-starved run measures late instead of erroring
-        // with ScriptTimeoutException — the captured values are valid whenever the
-        // callback lands.
+        // loop can starve, so the measure script above polls for the caret to
+        // render and may take a few seconds to call back. Raise WebDriver's
+        // async-script timeout well above the default 30s so a CPU-starved run
+        // measures late instead of erroring with ScriptTimeoutException.
         com.codeborne.selenide.WebDriverRunner.getWebDriver().manage().timeouts()
             .scriptTimeout( Duration.ofSeconds( 120 ) );
         final Object rawMeasure = Selenide.executeAsyncJavaScript( measureScript, dataLine );

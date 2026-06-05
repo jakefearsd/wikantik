@@ -11,8 +11,8 @@
       "secret": "wikantik-oidc-secret",
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
-      "redirectUris": ["http://localhost:*/wikantik-it-test-sso/*"],
-      "webOrigins": ["+"]
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
     }
   ],
   "users": [

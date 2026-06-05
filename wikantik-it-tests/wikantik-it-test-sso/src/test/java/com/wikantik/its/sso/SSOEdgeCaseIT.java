@@ -49,11 +49,11 @@ import java.time.Duration;
  */
 public class SSOEdgeCaseIT extends WithIntegrationTestSetup {
 
-    private static final String MOCK_IDP_BASE_URL =
-        System.getProperty( "it-wikantik.mock-oauth.base-url", "http://localhost:8088" );
+    private static final String IDP_ISSUER =
+        System.getProperty( "it-wikantik.oidc.issuer", "http://localhost:8088/realms/wikantik-it" );
 
-    /** Subject used for the session-fixation regression test. */
-    private static final String FIXATION_TEST_SUBJECT = "fixation-test-user";
+    /** Keycloak realm user (with password) used for the session-fixation regression test. */
+    private static final String FIXATION_TEST_SUBJECT = "oidc-testuser";
 
     // -----------------------------------------------------------------------
     // Helpers
@@ -148,7 +148,7 @@ public class SSOEdgeCaseIT extends WithIntegrationTestSetup {
 
         // Wait until the browser has landed on the mock IdP.
         new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 10 ) )
-            .until( driver -> driver.getCurrentUrl().startsWith( MOCK_IDP_BASE_URL ) );
+            .until( driver -> driver.getCurrentUrl().startsWith( IDP_ISSUER ) );
 
         // Remember the mock IdP URL so we can return to it after reading the cookie.
         final String idpUrl = WebDriverRunner.getWebDriver().getCurrentUrl();
@@ -175,13 +175,13 @@ public class SSOEdgeCaseIT extends WithIntegrationTestSetup {
         // uses the same state/nonce that is already bound to our pre-auth session.
         Selenide.open( idpUrl );
         new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 10 ) )
-            .until( driver -> driver.getCurrentUrl().startsWith( MOCK_IDP_BASE_URL ) );
+            .until( driver -> driver.getCurrentUrl().startsWith( IDP_ISSUER ) );
 
         // Submit the mock IdP form; this causes mock-oauth2-server to 302 the browser
         // back to /sso/callback with a valid code+state pair. SSOCallbackServlet
         // then calls callbackLogic.perform(..., renewSession=true, ...) which rotates
         // the session.
-        new MockOAuth2LoginPage().submit( FIXATION_TEST_SUBJECT );
+        new KeycloakLoginPage().submit( FIXATION_TEST_SUBJECT, "testpass" );
 
         // Wait for the callback to finish and the browser to settle on a wiki page.
         new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 15 ) )

@@ -1,0 +1,15 @@
+{
+  "schemas": [
+    "urn:ietf:params:scim:schemas:core:2.0:User",
+    "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+  ],
+  "userName": "entra.sample@example.com",
+  "name": { "givenName": "Entra", "familyName": "Sample" },
+  "active": true,
+  "emails": [{ "primary": true, "type": "work", "value": "entra.sample@example.com" }],
+  "externalId": "8f5e2c1a-entra-sample",
+  "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": {
+    "employeeNumber": "701984",
+    "department": "Engineering"
+  }
+}

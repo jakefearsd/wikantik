@@ -1,0 +1,11 @@
+{
+  "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+  "userName": "okta.sample@example.com",
+  "name": { "givenName": "Okta", "familyName": "Sample" },
+  "emails": [{ "primary": true, "value": "okta.sample@example.com", "type": "work" }],
+  "displayName": "Okta Sample",
+  "locale": "en-US",
+  "externalId": "00uOktaSample001",
+  "groups": [],
+  "active": true
+}

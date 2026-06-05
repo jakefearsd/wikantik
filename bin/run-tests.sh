@@ -22,7 +22,7 @@
 #   bin/run-tests.sh                 # full suite: unit phase, then every IT module
 #   bin/run-tests.sh --unit          # unit phase only (Phase 1)
 #   bin/run-tests.sh --it            # IT phase only (assumes a prior --unit installed artifacts)
-#   bin/run-tests.sh --module rest   # IT phase for one module: rest|sso|custom-jdbc|scim-fullloop
+#   bin/run-tests.sh --module rest   # IT phase for one module: rest|sso|sso-saml|custom-jdbc|scim-fullloop
 #   bin/run-tests.sh --it --parallel 4   # opt-in: all IT modules in one -T 4 reactor
 #                                        # (-p 4 short form; or IT_PARALLELISM=4 env — flag wins)
 #   bin/run-tests.sh --help
@@ -42,7 +42,7 @@ Usage: bin/run-tests.sh [MODE] [OPTIONS]
 MODES (default: full suite = unit, then default-gate IT modules)
   --unit                 Unit reactor only (Phase 1)
   --it                   Default-gate IT modules only (assumes --unit ran)
-  --module <name>        One IT module: rest|sso|custom-jdbc|scim-fullloop
+  --module <name>        One IT module: rest|sso|sso-saml|custom-jdbc|scim-fullloop
   --fullloop             Opt-in Authentik SCIM full-loop (-Pscim-fullloop)
   --list                 Show modules and their gate, then exit
 
@@ -70,7 +70,8 @@ EOF
 list_modules() {
   echo "Default gate (run by --it / no args):"
   echo "  rest         wikantik-it-tests/wikantik-it-test-rest        (REST API + SCIM)"
-  echo "  sso          wikantik-it-tests/wikantik-it-test-sso         (Keycloak OIDC + SAML)"
+  echo "  sso          wikantik-it-tests/wikantik-it-test-sso         (Keycloak OIDC)"
+  echo "  sso-saml     wikantik-it-tests/wikantik-it-test-sso-saml    (Keycloak SAML)"
   echo "  custom-jdbc  wikantik-it-tests/wikantik-it-test-custom-jdbc (Selenide browser suite)"
   echo
   echo "Opt-in (run only via --fullloop / --module scim-fullloop):"
@@ -99,6 +100,7 @@ fi
 IT_MODULES=(
   "wikantik-it-tests/wikantik-it-test-rest"
   "wikantik-it-tests/wikantik-it-test-sso"
+  "wikantik-it-tests/wikantik-it-test-sso-saml"
   "wikantik-it-tests/wikantik-it-test-custom-jdbc"
 )
 
@@ -139,7 +141,7 @@ while [ $# -gt 0 ]; do
     --unit)    RUN_IT=0 ;;
     --it)      RUN_UNIT=0 ;;
     --module)  RUN_UNIT=0; RUN_IT=0; ONE_MODULE="${2:-}"; shift
-               [ -n "$ONE_MODULE" ] || { echo "--module needs a name (rest|sso|custom-jdbc|scim-fullloop)" >&2; exit 2; } ;;
+               [ -n "$ONE_MODULE" ] || { echo "--module needs a name (rest|sso|sso-saml|custom-jdbc|scim-fullloop)" >&2; exit 2; } ;;
     --parallel|-p)
                IT_PARALLELISM="${2:-}"; shift
                case "$IT_PARALLELISM" in

@@ -1,0 +1,56 @@
+{
+  "realm": "wikantik-it",
+  "enabled": true,
+  "sslRequired": "none",
+  "clients": [
+    {
+      "clientId": "wikantik-sp-it",
+      "protocol": "saml",
+      "enabled": true,
+      "frontchannelLogout": true,
+      "redirectUris": ["*"],
+      "attributes": {
+        "saml.assertion.signature": "true",
+        "saml.server.signature": "true",
+        "saml.client.signature": "false",
+        "saml.authnstatement": "true",
+        "saml_name_id_format": "username",
+        "saml_force_name_id_format": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "uid-attr",
+          "protocol": "saml",
+          "protocolMapper": "saml-user-attribute-mapper",
+          "config": {
+            "user.attribute": "uid",
+            "attribute.name": "uid",
+            "attribute.nameformat": "Basic"
+          }
+        },
+        {
+          "name": "email-attr",
+          "protocol": "saml",
+          "protocolMapper": "saml-user-property-mapper",
+          "config": {
+            "user.attribute": "email",
+            "attribute.name": "email",
+            "attribute.nameformat": "Basic"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "saml-testuser",
+      "enabled": true,
+      "email": "saml-testuser@example.com",
+      "emailVerified": true,
+      "firstName": "SAML",
+      "lastName": "Tester",
+      "attributes": { "uid": ["1"] },
+      "credentials": [{ "type": "password", "value": "testpass", "temporary": false }]
+    }
+  ]
+}

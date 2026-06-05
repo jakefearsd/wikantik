@@ -177,10 +177,9 @@ public class SSOEdgeCaseIT extends WithIntegrationTestSetup {
         new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 10 ) )
             .until( driver -> driver.getCurrentUrl().startsWith( IDP_ISSUER ) );
 
-        // Submit the mock IdP form; this causes mock-oauth2-server to 302 the browser
-        // back to /sso/callback with a valid code+state pair. SSOCallbackServlet
-        // then calls callbackLogic.perform(..., renewSession=true, ...) which rotates
-        // the session.
+        // Submit the Keycloak login form; Keycloak then 302s the browser back to
+        // /sso/callback with a valid code+state pair. SSOCallbackServlet then calls
+        // callbackLogic.perform(..., renewSession=true, ...) which rotates the session.
         new KeycloakLoginPage().submit( FIXATION_TEST_SUBJECT, "testpass" );
 
         // Wait for the callback to finish and the browser to settle on a wiki page.

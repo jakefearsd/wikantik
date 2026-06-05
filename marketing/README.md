@@ -26,6 +26,16 @@ upload the bundle to the static host serving the `www` domain.
     node test/form.test.mjs
 
 ## Deploy the site
-Upload `index.html`, `styles.css`, `favicon.svg`, and `assets/` to the static
-host for www.wikantik.com. (DNS cutover from the current Squarespace placeholder
-is a separate operator step.)
+Run the deploy script from the repo root:
+
+    bin/deploy-marketing.sh
+
+It rsyncs the web bundle (`index.html`, `styles.css`, `favicon.svg`, `ads.txt`,
+`assets/`) to a staging dir on the marketing host, copies it into the nginx
+docroot under sudo, restores `www-data` ownership, and verifies the key files
+serve 200 on-origin. The host's sudo is **not** passwordless, so it prompts for
+the sudo password — run it yourself (or `! bin/deploy-marketing.sh` inside a
+Claude session). Add new web files to the `WEB_FILES` allowlist in the script.
+
+After deploy, purge the Cloudflare cache for any path Google may have fetched as
+a 404 (notably `/ads.txt`).

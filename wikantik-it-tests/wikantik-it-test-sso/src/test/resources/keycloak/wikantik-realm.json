@@ -1,0 +1,29 @@
+{
+  "realm": "wikantik-it",
+  "enabled": true,
+  "sslRequired": "none",
+  "clients": [
+    {
+      "clientId": "wikantik-oidc",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "wikantik-oidc-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:*/wikantik-it-test-sso/*"],
+      "webOrigins": ["+"]
+    }
+  ],
+  "users": [
+    {
+      "username": "oidc-testuser",
+      "enabled": true,
+      "email": "oidc-testuser@example.com",
+      "emailVerified": true,
+      "firstName": "OIDC",
+      "lastName": "Tester",
+      "credentials": [{ "type": "password", "value": "testpass", "temporary": false }]
+    }
+  ]
+}

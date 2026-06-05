@@ -34,20 +34,19 @@ import static com.codeborne.selenide.Selenide.$;
 
 /**
  * End-to-end test of the OIDC SSO flow against a disposable
- * <a href="https://github.com/navikt/mock-oauth2-server">mock-oauth2-server</a>
+ * <a href="https://www.keycloak.org/">Keycloak</a>
  * container (started by docker-maven-plugin during pre-integration-test).
  *
  * <p>The test drives the full happy path:
  * <ol>
  *   <li>Browser opens {@code /sso/login} on the wiki.</li>
- *   <li>{@code SSORedirectServlet} 302s to the mock IdP's
- *       {@code /default/authorize} endpoint.</li>
- *   <li>Mock IdP shows its debugger form; the test submits a subject.</li>
- *   <li>Mock IdP 302s to {@code /sso/callback?code=…&state=…}.</li>
+ *   <li>{@code SSORedirectServlet} 302s to Keycloak's authorize endpoint.</li>
+ *   <li>Keycloak shows its login form; the test fills in username + password.</li>
+ *   <li>Keycloak 302s to {@code /sso/callback?code=…&state=…}.</li>
  *   <li>{@code SSOCallbackServlet} + pac4j exchange the code for an ID token
  *       (calls {@code /default/token}, {@code /default/jwks}).</li>
  *   <li>Browser lands on the wiki root; {@code SSOLoginModule} provisions the
- *       user via the {@code sub} claim and establishes the wiki session.</li>
+ *       user via the {@code preferred_username} claim and establishes the wiki session.</li>
  * </ol>
  *
  * <p>Runs only under the {@code sso-it} Maven profile (see the module's
@@ -56,18 +55,17 @@ import static com.codeborne.selenide.Selenide.$;
 public class SSOLoginIT extends WithIntegrationTestSetup {
 
     /**
-     * Subject (mapped to the OIDC {@code sub} claim) that becomes the
-     * provisioned wiki login name. Fresh identity per test to keep the XML
-     * user database from carrying forward state between runs.
+     * Keycloak username (mapped to the {@code preferred_username} claim) that
+     * becomes the provisioned wiki login name.
      */
     private static final String SSO_SUBJECT = "oidc-testuser";
 
     /**
-     * Base URL of the mock IdP, injected by failsafe (see pom.xml). Stays in
-     * sync with the port the docker-maven-plugin binds.
+     * Issuer URL of the Keycloak realm, injected by failsafe (see pom.xml). Stays
+     * in sync with the port the docker-maven-plugin binds.
      */
-    private static final String MOCK_IDP_BASE_URL =
-        System.getProperty( "it-wikantik.mock-oauth.base-url", "http://localhost:8088" );
+    private static final String IDP_ISSUER =
+        System.getProperty( "it-wikantik.oidc.issuer", "http://localhost:8088/realms/wikantik-it" );
 
     @Test
     void oidcLoginAutoProvisionsAndAuthenticates() {
@@ -78,14 +76,14 @@ public class SSOLoginIT extends WithIntegrationTestSetup {
             "G\u2019day (anonymous guest)", main.authenticatedText(),
             "Baseline: test starts with an anonymous session." );
 
-        // Kick off the SSO flow. wikantik redirects to the mock IdP.
+        // Kick off the SSO flow. wikantik redirects to Keycloak.
         Selenide.open( baseUrl() + "/sso/login" );
         new WebDriverWait( WebDriverRunner.getWebDriver(), Duration.ofSeconds( 10 ) )
-            .until( driver -> driver.getCurrentUrl().startsWith( MOCK_IDP_BASE_URL ) );
+            .until( driver -> driver.getCurrentUrl().startsWith( IDP_ISSUER ) );
         System.out.println( "[SSO-IT] authorize URL: " + WebDriverRunner.getWebDriver().getCurrentUrl() );
 
-        // Authenticate against the mock IdP.
-        new MockOAuth2LoginPage().submit( SSO_SUBJECT );
+        // Authenticate against Keycloak.
+        new KeycloakLoginPage().submit( SSO_SUBJECT, "testpass" );
 
         // Capture the first URL we see once the browser leaves the IdP,
         // before it follows any further redirects.
@@ -108,7 +106,7 @@ public class SSOLoginIT extends WithIntegrationTestSetup {
         Assertions.assertEquals(
             "G\u2019day, " + SSO_SUBJECT + " (authenticated)",
             authedMain.authenticatedText(),
-            "After SSO, UserBadge should greet the sub-claim value." );
+            "After SSO, UserBadge should greet the preferred_username value." );
 
         // And logout should drop us back to an anonymous session — proving
         // that the SSO-provisioned session uses the same session tear-down

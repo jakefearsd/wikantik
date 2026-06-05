@@ -2,17 +2,21 @@
 
 **Date:** 2026-06-05
 **Status:** Approved — ready for implementation plan
-**Scope:** Integration-test infrastructure only. No production-code behavior change is required; this
-work adds end-to-end coverage and modernizes the SSO IdP container, and may surface (but does not
-plan) production bugs.
+**Scope:** Integration-test infrastructure only. No production-code behavior change is required; this work adds end-to-end coverage and modernizes the SSO IdP container, and may surface (but does not plan) production bugs.
+
+> **Revision 2026-06-05:** Approach A was re-scoped after verification. The wire-level SCIM IT it
+> originally called for **already exists** in `wikantik-it-test-rest` (`ScimUsersIT`, `ScimGroupsIT`),
+> including the admin-never-granted invariant. Approach A is therefore *extending* those existing ITs
+> with the two genuine gaps — not building a new `wikantik-it-test-scim` module. See "Approach A".
 
 ## Goal
 
 Close the integration-test gaps around federated identity:
 
-1. **Approach A — SCIM-direct IT (default gate).** The `wikantik-scim` module today has *unit tests
-   only*; nothing exercises the `/scim/v2/*` provisioning/deprovisioning/group loop over the wire.
-   Add a deterministic REST-driven IT.
+1. **Approach A — extend the existing SCIM ITs (default gate).** `wikantik-it-test-rest` already
+   exercises the `/scim/v2/*` provisioning/deprovisioning/group loop over the wire. Two genuine gaps
+   remain: (a) no assertion that a *deactivated* user can no longer authenticate, and (b) no replay of
+   real Okta/Entra vendor sample payloads. Add both to the existing module.
 2. **Approach 2 — Keycloak SSO (default gate).** Replace both SSO protocol mocks
    (`mock-oauth2-server` for OIDC, SimpleSAMLphp for SAML) with a single Keycloak container serving
    both protocols, without losing any existing coverage.
@@ -21,24 +25,38 @@ Close the integration-test gaps around federated identity:
    group-membership loop. Heavy and async; runs only under an opt-in Maven profile, never on the
    per-commit gate.
 
-All three ship. The user explicitly chose: replace both SSO mocks with Keycloak; put Authentik in a
-separate opt-in profile; and give `bin/run-tests.sh` a cleaner CLI, a real `--help`, and a
-build-output routing parameter.
+All three ship. The user explicitly chose: extend the existing SCIM ITs (no new module); replace both
+SSO mocks with Keycloak; put Authentik in a separate opt-in profile; and give `bin/run-tests.sh` a
+cleaner CLI, a real `--help`, and a build-output routing parameter.
 
 ## Current state (verified 2026-06-05)
 
 IT modules under `wikantik-it-tests/`:
 
-- `wikantik-it-test-rest` — REST API IT.
+- `wikantik-it-test-rest` — REST API IT. **Already contains the SCIM wire-level suite:**
+  - `ScimUsersIT` (495 lines): auth-401 (no/bad token), create→201+`active:true`+`meta.location`,
+    list+filter, deactivate (`PATCH active:false`) + audit event, reactivate, soft-`DELETE`→204 with
+    row retained + `active:false`, discovery, unsupported-filter rejection.
+  - `ScimGroupsIT` (706 lines): auth-401, member provisioning, group create→201, GET, PATCH add
+    member, PATCH remove member (value-path), PUT replace, filter by `displayName`, and the
+    **admin-role invariant** (Step 9): a SCIM group named `Admin` with a member is created, then a
+    direct `SELECT count(*) FROM roles WHERE login_name=? AND role='Admin'` asserts the member got
+    **no** Admin role.
 - `wikantik-it-test-sso` — OIDC end-to-end against `ghcr.io/navikt/mock-oauth2-server`. Covers the
-  happy-path auto-provision + login/logout (`SSOLoginIT`) and fail-closed edge cases
-  (`SSOEdgeCaseIT`): direct callback with no `code`, forged `state`, garbage `code`, and session-ID
-  rotation across login.
+  happy-path auto-provision + login/logout (`SSOLoginIT`) and fail-closed edge cases (`SSOEdgeCaseIT`):
+  direct callback with no `code`, forged `state`, garbage `code`, and session-ID rotation across login.
 - `wikantik-it-test-sso-saml` — SAML end-to-end against `kristophjunge/test-saml-idp:1.15`
   (SimpleSAMLphp). One load-bearing assertion: the `uid=['1']` multi-valued SAML attribute is
   unwrapped to the scalar login name `"1"` via `firstScalar()`.
-- `wikantik-it-test-custom-jdbc` — Selenide browser suite (uses the shared
-  `wikantik-selenide-tests` jar).
+- `wikantik-it-test-custom-jdbc` — Selenide browser suite (uses the shared `wikantik-selenide-tests`
+  jar).
+
+Genuine gaps confirmed by inspection:
+
+- **SCIM:** no test logs in *as* a deactivated user to prove authentication is rejected; no real
+  Okta/Entra sample payloads are replayed. Everything else in the spec's Approach-A matrix already
+  exists.
+- **SSO/SCIM-fullloop:** no Keycloak and no Authentik anywhere in the repo. Those gaps are real.
 
 Key facts that shaped the design:
 
@@ -46,50 +64,53 @@ Key facts that shaped the design:
   identity + claim-mapping (`loginName` / `fullName` / `email`). Groups and roles flow **exclusively
   through SCIM**. Therefore Keycloak's value is *real OIDC + SAML protocol conformance*, not
   "realistic group claims."
-- **`ScimGroupResource` holds an Admin-never-granted invariant:** it only touches `GroupManager` +
-  `UserDatabase`, never the `roles` table. A SCIM group named `Admin` creates a group, not a role
-  grant. This invariant must be asserted end-to-end.
+- **`ScimGroupResource` holds an Admin-never-granted invariant** (already asserted by `ScimGroupsIT`
+  Step 9): it only touches `GroupManager` + `UserDatabase`, never the `roles` table.
 - **IT container pattern in this repo:** `docker-maven-plugin` images + `build-helper`
   reserve-network-port + per-module container names + a stale-container cleanup `exec` step. **Not**
-  Testcontainers. New modules follow this exactly.
+  Testcontainers. New container wiring follows this exactly.
 - `bin/run-tests.sh` already implements the correct phased engine: a parallel unit reactor (Phase 1,
-  installs artifacts incl. the WAR) followed by per-module IT builds with `-pl <module>` and no
-  `-am` (Phase 2), a flock guard, zombie-JVM cleanup, and an aggregated report. This work *extends*
-  it, not rewrites it.
+  installs artifacts incl. the WAR) followed by per-module IT builds with `-pl <module>` and no `-am`
+  (Phase 2), a flock guard, zombie-JVM cleanup, and an aggregated report. This work *extends* it, not
+  rewrites it.
 
 ## Module map (after)
 
 | Module | Before | After | Gate |
 |---|---|---|---|
-| `wikantik-it-test-rest` | REST API IT | unchanged | default |
+| `wikantik-it-test-rest` | REST API IT (incl. SCIM suite) | + deactivated-cannot-auth test + Okta/Entra fixture replay | default |
 | `wikantik-it-test-sso` | OIDC via `mock-oauth2-server` | OIDC + SAML via one Keycloak; edge cases folded in | default |
 | `wikantik-it-test-sso-saml` | SAML via SimpleSAMLphp | **deleted** (folded into `-sso`) | — |
 | `wikantik-it-test-custom-jdbc` | Selenide browser suite | unchanged | default |
-| `wikantik-it-test-scim` | — | **NEW** — Approach A, REST-driven SCIM lifecycle | default |
 | `wikantik-it-test-scim-fullloop` | — | **NEW** — Approach B, Authentik → wiki SCIM push | opt-in profile `scim-fullloop` |
 
-Default gate after: `rest`, `sso`, `scim`, `custom-jdbc`.
+No new `wikantik-it-test-scim` module — SCIM stays inside `wikantik-it-test-rest`.
+Default gate after: `rest`, `sso`, `custom-jdbc`.
 
-## Approach A — `wikantik-it-test-scim` (default gate)
+## Approach A — extend the existing SCIM ITs (default gate)
 
-**No IdP container.** pgvector + Cargo Tomcat with `wikantik.scim.token` set, driven by RestAssured
-(already used by `-rest`). Pure wire-level exercise of the SCIM service-provider.
+All work lands in `wikantik-it-test-rest`. No new module, no migration of the 1,200 existing lines.
 
-Test matrix:
+**Gap 1 — deactivated user cannot authenticate.** Add a test to `ScimUsersIT` that:
+1. provisions a user via `POST /scim/v2/Users` with a known password (or via the existing seed path
+   if SCIM-provisioned users have no password — see open question below);
+2. confirms the user can authenticate (`POST /api/auth/login` → 200), establishing a baseline;
+3. deactivates via `PATCH active:false`;
+4. asserts a fresh `POST /api/auth/login` for that user is now rejected (401/403).
 
-- **Provisioning lifecycle:** `POST /Users` → 201; `GET /Users/{id}` → 200; `PATCH /Users/{id}`
-  `active:false` → assert the user can no longer authenticate (REST login → 401/403); soft
-  `DELETE /Users/{id}`.
-- **Group lifecycle:** `POST /Groups`; membership `PATCH add/remove`; assert membership reflected via
-  `GroupManager` (e.g. through an admin/group read path).
-- **Admin-never-granted invariant:** provision a user into a SCIM group literally named `Admin`, then
-  assert the user receives **no** `AllPermission` and is rejected at `/admin/*`. Highest-value
-  assertion in the design.
-- **Auth:** missing/invalid bearer token → 401.
-- **Fixtures ("samples"):** real **Okta** and **Entra** SCIM request bodies committed as JSON test
-  resources and replayed, so the test exercises their actual PATCH-op shapes and enterprise-extension
-  schema, not an idealized payload. Source the bodies from the vendors' published SCIM provisioning
-  docs.
+   *Open implementation question for the plan:* SCIM-provisioned users may not have a local password
+   set. If so, the baseline-login step is impossible and the test instead provisions through the path
+   that does set a credential, or asserts deactivation via an equivalent authenticated-action probe.
+   The plan resolves this by inspecting `ScimUserResource` / `UserLifecycleService` before writing the
+   test, and picks whichever credential path actually exists.
+
+**Gap 2 — real Okta/Entra sample payloads.** Commit vendor SCIM request bodies as JSON test resources
+under `wikantik-it-test-rest/src/test/resources/scim-samples/` (e.g. `okta-create-user.json`,
+`okta-deactivate-patch.json`, `entra-create-user.json`, `entra-group-patch.json`), sourced from the
+vendors' published SCIM provisioning docs. Add a test (parameterized over the sample files) that
+replays each against the live endpoint and asserts the wiki accepts the real-world shape (Okta's
+`replace`-op PATCH form, Entra's `urn:ietf:params:scim:schemas:extension:enterprise:2.0:User`
+extension), not merely an idealized hand-rolled payload.
 
 ## Approach 2 — Keycloak SSO replacement (default gate)
 
@@ -103,8 +124,8 @@ old mock images are retired.
    garbage code, no-code, session rotation) green against it. **Then** delete `mock-oauth2-server`.
 2. Add the **SAML** client to the same realm. Configure a Keycloak user attribute emitted as a
    **multi-valued** SAML attribute so the `uid=['1']` → `"1"` `firstScalar()` assertion is preserved.
-   Port `SAMLLoginIT`, prove that exact assertion green. **Then** delete `wikantik-it-test-sso-saml`
-   + SimpleSAMLphp.
+   Port `SAMLLoginIT`, prove that exact assertion green. **Then** delete `wikantik-it-test-sso-saml` +
+   SimpleSAMLphp.
 
 **Documented fallback (K-OIDC-only):** if step 2's multi-valued SAML attribute proves intractable in
 Keycloak, Keycloak replaces only `mock-oauth2-server` and SimpleSAMLphp stays in
@@ -136,14 +157,15 @@ lighter SCIM-client alternative — noted here, but we build Authentik as chosen
 
 Keep the phased engine. Surface changes:
 
-- **Default IT list** becomes `rest sso scim custom-jdbc` (drop `sso-saml`, add `scim`).
-- **`--module <name>`** accepts `rest|sso|scim|custom-jdbc|scim-fullloop`.
+- **Default IT list** becomes `rest sso custom-jdbc` (drop `sso-saml`, folded into `sso`). SCIM
+  continues to run inside `rest` — no separate module to register.
+- **`--module <name>`** accepts `rest|sso|custom-jdbc|scim-fullloop`.
 - **`--fullloop`** new mode: runs `wikantik-it-test-scim-fullloop` with
   `-Pintegration-tests,scim-fullloop`. Excluded from `--it` and from `--parallel` (heavy, opt-in).
 - **`--list`** prints modules and the gate each belongs to, then exits.
 - **`--output MODE` / `-o MODE`** (new) controls where Maven build output goes:
-  - `file` (default) — build output to the per-step log file only; console shows the PASS/FAIL
-    summary (current behavior).
+  - `file` (default) — build output to the per-step log file only; console shows the PASS/FAIL summary
+    (current behavior).
   - `console` — stream build output straight to stdout/err; no log file written.
   - `both` — `tee` build output to the log file **and** stdout/err.
   - Implementation subtlety: under `console`/`both` the `mvn` exit status must be read from
@@ -156,7 +178,7 @@ Usage: bin/run-tests.sh [MODE] [OPTIONS]
 MODES (default: full suite = unit, then default-gate IT modules)
   --unit                 Unit reactor only (Phase 1)
   --it                   Default-gate IT modules only (assumes --unit ran)
-  --module <name>        One IT module: rest|sso|scim|custom-jdbc|scim-fullloop
+  --module <name>        One IT module: rest|sso|custom-jdbc|scim-fullloop
   --fullloop             Opt-in Authentik SCIM full-loop (-Pscim-fullloop)
   --list                 Show modules and their gate, then exit
 
@@ -170,9 +192,9 @@ ENVIRONMENT
   IT_PARALLELISM=1       Fallback for --parallel (flag wins)
 
 EXAMPLES
-  bin/run-tests.sh                      # full deterministic gate (unit + rest,sso,scim,custom-jdbc)
+  bin/run-tests.sh                      # full deterministic gate (unit + rest,sso,custom-jdbc)
   bin/run-tests.sh --unit               # fast unit-only pass
-  bin/run-tests.sh --module scim        # just the new SCIM-direct IT
+  bin/run-tests.sh --module rest        # REST + SCIM IT only
   bin/run-tests.sh --it --parallel 4    # default IT modules, 4-way
   bin/run-tests.sh --module sso -o both # Keycloak SSO IT, output to log AND console
   bin/run-tests.sh --fullloop           # opt-in Authentik full-loop (heavy)
@@ -182,12 +204,12 @@ EXIT: 0 only if every phase/module that ran reached BUILD SUCCESS.
 
 ## Build sequence (implementation order)
 
-1. **Approach A** — `wikantik-it-test-scim` (deterministic, no new container tech; immediate gate
-   value).
+1. **Approach A** — extend `ScimUsersIT` (deactivated-cannot-auth) + add Okta/Entra fixture-replay
+   test in `wikantik-it-test-rest`. Deterministic, no new container tech; immediate gate value.
 2. **Keycloak OIDC** — replace `mock-oauth2-server`, green, delete it.
 3. **Keycloak SAML** — multi-valued attribute, green, delete `sso-saml` + SimpleSAMLphp (or fall back
    to K-OIDC-only).
-4. **`run-tests.sh`** — wire `scim` into the default list, add `--output`, `--fullloop`, `--list`,
+4. **`run-tests.sh`** — drop `sso-saml` from the default list, add `--output`, `--fullloop`, `--list`,
    rewrite `--help`.
 5. **Approach B** — `wikantik-it-test-scim-fullloop` + `scim-fullloop` profile (Authentik).
 
@@ -197,10 +219,11 @@ Each step lands green before the next; no mock is deleted until its Keycloak rep
 
 - TDD throughout, per repo convention: each new IT asserts a real behavior and fails before the wiring
   exists.
-- New modules mirror the existing IT pattern (`docker-maven-plugin` + `build-helper` ports + Cargo +
-  pgvector + stale-container cleanup) so they compose with `--parallel` and the dynamic-port scheme.
-- The full gate (`bin/run-tests.sh`, default) must be green before any production-code commit, per
-  the repo's "full IT reactor before committing" rule.
+- New container wiring mirrors the existing IT pattern (`docker-maven-plugin` + `build-helper` ports +
+  Cargo + pgvector + stale-container cleanup) so modules compose with `--parallel` and the
+  dynamic-port scheme.
+- The full gate (`bin/run-tests.sh`, default) must be green before any production-code commit, per the
+  repo's "full IT reactor before committing" rule.
 - Approach B is validated under `bin/run-tests.sh --fullloop` and is **not** part of the green-gate
   requirement.
 
@@ -208,5 +231,6 @@ Each step lands green before the next; no mock is deleted until its Keycloak rep
 
 - Production-code changes to SSO or SCIM behavior (this is test coverage; bugs found are filed/fixed
   separately).
+- A standalone `wikantik-it-test-scim` module (SCIM coverage already lives in `wikantik-it-test-rest`).
 - Microsoft Entra / Okta live-tenant testing (manual staging conformance, not CI).
 - Zitadel / Dex modules (mentioned only as alternatives).

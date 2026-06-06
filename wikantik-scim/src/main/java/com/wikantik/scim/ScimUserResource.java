@@ -18,10 +18,8 @@
  */
 package com.wikantik.scim;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.spi.Wiki;
@@ -38,14 +36,12 @@ import com.wikantik.auth.user.UserDatabase;
 import com.wikantik.auth.user.UserProfile;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.security.Principal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -69,13 +65,12 @@ import java.util.UUID;
  * <p>The engine is resolved once in {@link #init(ServletConfig)} via
  * {@code Wiki.engine().find(config)}; managers are obtained lazily from it.</p>
  */
-public class ScimUserResource extends HttpServlet {
+public class ScimUserResource extends AbstractScimServlet {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( ScimUserResource.class );
-    private static final String CONTENT_TYPE = "application/scim+json";
     private static final String SCIM_ACTOR = "scim";
-    private static final Gson GSON = new Gson();
+    // CONTENT_TYPE, GSON, and the parse/send helpers are inherited from AbstractScimServlet.
 
     private transient Engine engine;
 
@@ -502,28 +497,6 @@ public class ScimUserResource extends HttpServlet {
         return idx >= 0 ? url.substring( 0, idx + "/Users".length() ) : url;
     }
 
-    private static int parseIntParam( final HttpServletRequest req, final String name,
-                                      final int defaultVal ) {
-        final String v = req.getParameter( name );
-        if ( v == null ) return defaultVal;
-        try {
-            final int i = Integer.parseInt( v.trim() );
-            return i > 0 ? i : defaultVal;
-        } catch ( final NumberFormatException e ) {
-            return defaultVal;
-        }
-    }
-
-    private static JsonObject parseBody( final HttpServletRequest req,
-                                         final HttpServletResponse resp ) throws IOException {
-        try ( final Reader r = req.getReader() ) {
-            return JsonParser.parseReader( r ).getAsJsonObject();
-        } catch ( final Exception e ) {
-            sendError( resp, 400, "invalidSyntax", "Could not parse JSON body: " + e.getMessage() );
-            return null;
-        }
-    }
-
     private UserDatabase getUserDatabase() {
         if ( engine == null ) return null;
         try {
@@ -595,16 +568,4 @@ public class ScimUserResource extends HttpServlet {
         return matched;
     }
 
-    private static void sendScim( final HttpServletResponse resp, final JsonObject body )
-            throws IOException {
-        resp.setContentType( CONTENT_TYPE );
-        resp.getWriter().write( GSON.toJson( body ) );
-    }
-
-    private static void sendError( final HttpServletResponse resp, final int status,
-                                   final String scimType, final String detail ) throws IOException {
-        resp.setStatus( status );
-        resp.setContentType( CONTENT_TYPE );
-        resp.getWriter().write( GSON.toJson( ScimError.body( status, scimType, detail ) ) );
-    }
 }

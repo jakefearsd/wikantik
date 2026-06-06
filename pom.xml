@@ -128,7 +128,7 @@
     <plugin.cargo.version>1.10.27</plugin.cargo.version>
     <plugin.docker.version>0.48.1</plugin.docker.version>
     <plugin.pmd.version>3.28.0</plugin.pmd.version>
-    <plugin.site.version>3.21.0</plugin.site.version>
+    <plugin.site.version>3.22.0</plugin.site.version>
     <plugin.spotbugs.version>4.9.8.3</plugin.spotbugs.version>
     <spotbugs-annotations.version>4.9.8</spotbugs-annotations.version>
     <plugin.checkstyle.version>3.6.0</plugin.checkstyle.version>

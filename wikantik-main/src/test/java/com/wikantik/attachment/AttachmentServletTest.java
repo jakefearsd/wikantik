@@ -30,7 +30,9 @@ import com.wikantik.api.exceptions.RedirectException;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.auth.AuthorizationManager;
 import com.wikantik.ui.progress.ProgressManager;
+import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletRequest;
@@ -545,6 +547,188 @@ class AttachmentServletTest {
         verify( session ).addMessage( "Upload rejected" );
         verify( httpSession ).setAttribute( "msg", "Upload rejected" );
         verify( response ).sendRedirect( "http://localhost:8080/error" );
+    }
+
+    // ---- doPost happy path ----
+
+    @Test
+    void testDoPostHappyPathRedirectsAndClearsMessage() throws Exception {
+        final String nextPage = "http://localhost:8080/Wiki.jsp?page=TestPage";
+        doReturn( nextPage ).when( servlet ).upload( any( HttpServletRequest.class ) );
+
+        servlet.doPost( request, response );
+
+        verify( httpSession ).removeAttribute( "msg" );
+        verify( response ).sendRedirect( nextPage );
+    }
+
+    // ---- upload() non-multipart → RedirectException ----
+
+    @Test
+    void testUploadNonMultipartThrowsRedirectException() {
+        // application/x-www-form-urlencoded makes isMultipartContent() return false
+        when( request.getMethod() ).thenReturn( "POST" );
+        when( request.getContentType() ).thenReturn( "application/x-www-form-urlencoded" );
+
+        // Call the real upload() method — do NOT stub it on the spy here
+        final RedirectException ex = assertThrows( RedirectException.class, () -> servlet.upload( request ) );
+        assertNotNull( ex.getRedirect(), "RedirectException must carry a redirect target" );
+    }
+
+    // ---- Multipart helpers ----
+
+    private static final String BOUNDARY = "----WikantikTestBoundary";
+
+    /**
+     * Builds a minimal multipart/form-data body for Commons FileUpload to parse.
+     * Each {@code part} string is the full part content from Content-Disposition onward
+     * (without the leading boundary line, which this method adds).
+     */
+    private byte[] buildMultipartBody( final String... parts ) {
+        final StringBuilder sb = new StringBuilder();
+        for ( final String part : parts ) {
+            sb.append( "--" ).append( BOUNDARY ).append( "\r\n" );
+            sb.append( part );
+            sb.append( "\r\n" );
+        }
+        sb.append( "--" ).append( BOUNDARY ).append( "--" ).append( "\r\n" );
+        return sb.toString().getBytes( StandardCharsets.UTF_8 );
+    }
+
+    /** Wraps a byte array as a {@link ServletInputStream} for mock injection. */
+    private static ServletInputStream servletInputStream( final byte[] data ) {
+        final ByteArrayInputStream bais = new ByteArrayInputStream( data );
+        return new ServletInputStream() {
+            @Override public int read() throws IOException { return bais.read(); }
+            @Override public boolean isFinished() { return bais.available() == 0; }
+            @Override public boolean isReady() { return true; }
+            @Override public void setReadListener( final ReadListener listener ) { }
+        };
+    }
+
+    /** Stubs the mock request so Commons FileUpload sees a valid multipart stream. */
+    private void stubMultipartRequest( final byte[] body ) throws IOException {
+        when( request.getMethod() ).thenReturn( "POST" );
+        when( request.getContentType() ).thenReturn( "multipart/form-data; boundary=" + BOUNDARY );
+        when( request.getCharacterEncoding() ).thenReturn( "UTF-8" );
+        when( request.getContentLength() ).thenReturn( body.length );
+        when( request.getContentLengthLong() ).thenReturn( (long) body.length );
+        when( request.getInputStream() ).thenReturn( servletInputStream( body ) );
+        when( request.getParameter( "progressid" ) ).thenReturn( null );
+    }
+
+    // ---- upload() real multipart, single file — executeUpload stubbed on spy ----
+
+    @Test
+    void testUploadMultipartSingleFileCallsProgressAndReturnsNextPage() throws Exception {
+        final String filePart =
+                "Content-Disposition: form-data; name=\"content\"; filename=\"test.txt\"\r\n" +
+                "Content-Type: text/plain\r\n" +
+                "\r\n" +
+                "hello";
+        final String pagePart =
+                "Content-Disposition: form-data; name=\"page\"\r\n" +
+                "\r\n" +
+                "TestPage";
+        final String nextPagePart =
+                "Content-Disposition: form-data; name=\"nextpage\"\r\n" +
+                "\r\n" +
+                "http://localhost:8080/Wiki.jsp?page=TestPage";
+
+        final byte[] body = buildMultipartBody( pagePart, nextPagePart, filePart );
+        stubMultipartRequest( body );
+
+        // Stub executeUpload on the spy so we don't need full engine wiring
+        doReturn( false ).when( servlet ).executeUpload(
+                any( Context.class ), any( InputStream.class ),
+                anyString(), anyString(), anyString(), any(), anyLong() );
+
+        final String result = servlet.upload( request );
+
+        assertEquals( "http://localhost:8080/Wiki.jsp?page=TestPage", result );
+        verify( progressManager ).startProgress( any(), isNull() );
+        verify( progressManager ).stopProgress( isNull() );
+    }
+
+    // ---- upload() multipart no file part → RedirectException("Broken file upload") ----
+
+    @Test
+    void testUploadMultipartNoFileThrowsBrokenUpload() throws Exception {
+        final String pagePart =
+                "Content-Disposition: form-data; name=\"page\"\r\n" +
+                "\r\n" +
+                "TestPage";
+
+        final byte[] body = buildMultipartBody( pagePart );
+        stubMultipartRequest( body );
+
+        final RedirectException ex = assertThrows( RedirectException.class, () -> servlet.upload( request ) );
+        assertTrue( ex.getMessage().contains( "Broken file upload" ),
+                "Expected 'Broken file upload' but got: " + ex.getMessage() );
+    }
+
+    // ---- validateNextPage phishing rewrite ----
+
+    @Test
+    void testUploadValidateNextPageRejectsOffSiteUrl() throws Exception {
+        final String filePart =
+                "Content-Disposition: form-data; name=\"content\"; filename=\"test.txt\"\r\n" +
+                "Content-Type: text/plain\r\n" +
+                "\r\n" +
+                "hello";
+        final String pagePart =
+                "Content-Disposition: form-data; name=\"page\"\r\n" +
+                "\r\n" +
+                "TestPage";
+        final String evilNextPage =
+                "Content-Disposition: form-data; name=\"nextpage\"\r\n" +
+                "\r\n" +
+                "http://evil.example.com/x";
+
+        final byte[] body = buildMultipartBody( pagePart, evilNextPage, filePart );
+        stubMultipartRequest( body );
+
+        // Stub executeUpload so we don't need full wiring
+        doReturn( false ).when( servlet ).executeUpload(
+                any( Context.class ), any( InputStream.class ),
+                anyString(), anyString(), anyString(), any(), anyLong() );
+
+        // engine.getURL(WIKI_ERROR,...) → "http://localhost:8080/error" (already stubbed in setUp)
+        final String result = servlet.upload( request );
+
+        // The evil URL must have been replaced with the error page
+        assertNotEquals( "http://evil.example.com/x", result,
+                "Off-site nextPage must be rejected" );
+        assertEquals( "http://localhost:8080/error", result,
+                "validateNextPage should rewrite off-site URL to errorPage" );
+    }
+
+    // ---- getMimeType fallback → "application/binary" ----
+
+    @Test
+    void testGetMimeTypeFallbackToApplicationBinary() throws Exception {
+        // Override the servletContext stub to return null for getMimeType
+        final ServletContext servletContext = httpSession.getServletContext();
+        when( servletContext.getMimeType( anyString() ) ).thenReturn( null );
+
+        final byte[] content = "binary content".getBytes( StandardCharsets.UTF_8 );
+        final Date lastModified = new Date();
+
+        final Attachment att = createMockAttachment( "TestPage/test.png", "test.bin", lastModified );
+        when( att.isCacheable() ).thenReturn( true );
+        when( att.getSize() ).thenReturn( (long) content.length );
+
+        when( attachmentManager.getAttachmentInfo( eq( "TestPage/test.png" ), anyInt() ) ).thenReturn( att );
+        when( attachmentManager.getAttachmentStream( any( Context.class ), eq( att ) ) )
+                .thenReturn( new ByteArrayInputStream( content ) );
+        when( attachmentManager.forceDownload( "test.bin" ) ).thenReturn( false );
+        when( authorizationManager.checkPermission( eq( session ), any( Permission.class ) ) ).thenReturn( true );
+        when( request.getDateHeader( "If-Modified-Since" ) ).thenReturn( -1L );
+
+        captureOutput();
+        servlet.doGet( request, response );
+
+        verify( response ).setContentType( "application/binary" );
     }
 
 }

@@ -64,174 +64,134 @@ export default function NewArticleModal({ isOpen, onClose, existingPageNames, ex
   const typeOptions = ['article', 'hub', 'reference'];
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} labelledBy="new-article-modal-title" className="search-dialog" style={{ maxWidth: '480px' }}>
-      <div style={{ padding: 'var(--space-xl)' }}>
-          <h2 id="new-article-modal-title" style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '1.5rem',
-            marginBottom: 'var(--space-lg)',
-            textAlign: 'center',
+    <Modal isOpen={isOpen} onClose={onClose} labelledBy="new-article-modal-title" className="search-dialog">
+      <h2 id="new-article-modal-title" style={{
+        fontFamily: 'var(--font-display)',
+        fontSize: '1.5rem',
+        marginBottom: 'var(--space-lg)',
+        textAlign: 'center',
+      }}>
+        New Article
+      </h2>
+
+      {/* Title */}
+      <div style={{ marginBottom: 'var(--space-md)' }}>
+        <label className="field-label" htmlFor="new-article-title">Title</label>
+        <input
+          id="new-article-title"
+          type="text"
+          className="form-input"
+          value={title}
+          onChange={handleTitleChange}
+          autoFocus
+        />
+      </div>
+
+      {/* Slug / Page Name */}
+      <div style={{ marginBottom: 'var(--space-md)' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-sm)', marginBottom: 'var(--space-xs)' }}>
+          <label
+            htmlFor="new-article-slug"
+            style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-muted)' }}
+          >Page Name</label>
+          <span style={{
+            fontSize: '0.75rem',
+            color: slugIsManual ? 'var(--accent)' : 'var(--text-muted)',
+            fontStyle: 'italic',
           }}>
-            New Article
-          </h2>
-
-          {/* Title */}
-          <div style={{ marginBottom: 'var(--space-md)' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.8rem',
-              fontWeight: 500,
-              color: 'var(--text-muted)',
-              marginBottom: 'var(--space-xs)',
-            }}>Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={handleTitleChange}
-              autoFocus
-              style={{
-                width: '100%',
-                padding: 'var(--space-sm) var(--space-md)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '1rem',
-                background: 'var(--bg)',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          {/* Slug / Page Name */}
-          <div style={{ marginBottom: 'var(--space-md)' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-sm)', marginBottom: 'var(--space-xs)' }}>
-              <label style={{
-                fontSize: '0.8rem',
-                fontWeight: 500,
-                color: 'var(--text-muted)',
-              }}>Page Name</label>
-              <span style={{
-                fontSize: '0.75rem',
-                color: slugIsManual ? 'var(--accent)' : 'var(--text-muted)',
-                fontStyle: 'italic',
-              }}>
-                {slugIsManual ? '✎ custom' : 'auto'}
-              </span>
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 'var(--space-xs)' }}>
-              Permanent URL — cannot be changed after creation
-            </div>
-            <input
-              type="text"
-              value={slug}
-              onChange={handleSlugChange}
-              style={{
-                width: '100%',
-                padding: 'var(--space-sm) var(--space-md)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.9rem',
-                fontFamily: 'var(--font-mono)',
-                background: 'var(--bg-elevated)',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          {/* Duplicate warning */}
-          {isDuplicate && (
-            <div style={{
-              background: '#fff8e1',
-              border: '1px solid #f9a825',
-              color: '#e65100',
-              borderRadius: 'var(--radius-sm)',
-              padding: 'var(--space-xs) var(--space-sm)',
-              fontSize: '0.85rem',
-              marginBottom: 'var(--space-md)',
-            }}>
-              This page already exists — will open editor for existing page
-            </div>
-          )}
-
-          {/* Cluster */}
-          <div style={{ marginBottom: 'var(--space-md)' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.8rem',
-              fontWeight: 500,
-              color: 'var(--text-muted)',
-              marginBottom: 'var(--space-xs)',
-            }}>Cluster <span style={{ fontWeight: 400 }}>(optional)</span></label>
-            <input
-              type="text"
-              list="cluster-options"
-              value={cluster}
-              onChange={e => setCluster(e.target.value)}
-              style={{
-                width: '100%',
-                padding: 'var(--space-sm) var(--space-md)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '1rem',
-                background: 'var(--bg)',
-                boxSizing: 'border-box',
-              }}
-            />
-            <datalist id="cluster-options">
-              {existingClusters && existingClusters.map(c => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </div>
-
-          {/* Article Type */}
-          <div style={{ marginBottom: 'var(--space-lg)' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.8rem',
-              fontWeight: 500,
-              color: 'var(--text-muted)',
-              marginBottom: 'var(--space-xs)',
-            }}>Type</label>
-            <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
-              {typeOptions.map(type => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setArticleType(type)}
-                  style={{
-                    flex: 1,
-                    padding: 'var(--space-xs) var(--space-sm)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    fontWeight: 500,
-                    background: articleType === type ? 'var(--accent)' : 'var(--bg-elevated)',
-                    color: articleType === type ? 'white' : 'var(--text)',
-                    transition: 'background 0.15s, color 0.15s',
-                  }}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Button row */}
-          <div style={{ display: 'flex', gap: 'var(--space-sm)', justifyContent: 'flex-end' }}>
-            <button className="btn btn-ghost" type="button" onClick={onClose}>
-              Cancel
-            </button>
-            <button
-              className="btn btn-primary"
-              type="button"
-              onClick={handleSubmit}
-              disabled={!isValid}
-            >
-              {isDuplicate ? 'Open Editor' : 'Create'}
-            </button>
-          </div>
+            {slugIsManual ? '✎ custom' : 'auto'}
+          </span>
         </div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 'var(--space-xs)' }}>
+          Permanent URL — cannot be changed after creation
+        </div>
+        <input
+          id="new-article-slug"
+          type="text"
+          className="form-input"
+          value={slug}
+          onChange={handleSlugChange}
+          style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem', background: 'var(--bg-elevated)' }}
+        />
+      </div>
+
+      {/* Duplicate warning */}
+      {isDuplicate && (
+        <div style={{
+          background: '#fff8e1',
+          border: '1px solid #f9a825',
+          color: '#e65100',
+          borderRadius: 'var(--radius-sm)',
+          padding: 'var(--space-xs) var(--space-sm)',
+          fontSize: '0.85rem',
+          marginBottom: 'var(--space-md)',
+        }}>
+          This page already exists — will open editor for existing page
+        </div>
+      )}
+
+      {/* Cluster */}
+      <div style={{ marginBottom: 'var(--space-md)' }}>
+        <label className="field-label" htmlFor="new-article-cluster">
+          Cluster <span style={{ fontWeight: 400 }}>(optional)</span>
+        </label>
+        <input
+          id="new-article-cluster"
+          type="text"
+          list="cluster-options"
+          className="form-input"
+          value={cluster}
+          onChange={e => setCluster(e.target.value)}
+        />
+        <datalist id="cluster-options">
+          {existingClusters && existingClusters.map(c => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+      </div>
+
+      {/* Article Type */}
+      <div style={{ marginBottom: 'var(--space-lg)' }}>
+        <label className="field-label">Type</label>
+        <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
+          {typeOptions.map(type => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setArticleType(type)}
+              style={{
+                flex: 1,
+                padding: 'var(--space-xs) var(--space-sm)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                background: articleType === type ? 'var(--accent)' : 'var(--bg-elevated)',
+                color: articleType === type ? 'white' : 'var(--text)',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Button row */}
+      <div className="modal-actions">
+        <button className="btn btn-ghost" type="button" onClick={onClose}>
+          Cancel
+        </button>
+        <button
+          className="btn btn-primary"
+          type="button"
+          onClick={handleSubmit}
+          disabled={!isValid}
+        >
+          {isDuplicate ? 'Open Editor' : 'Create'}
+        </button>
+      </div>
     </Modal>
   );
 }

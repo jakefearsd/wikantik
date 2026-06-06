@@ -27,7 +27,7 @@ export default function LoginForm({ onClose }) {
 
   return (
     <Modal isOpen onClose={onClose} labelledBy="login-modal-title" className="search-dialog" testId="login-modal">
-        <form onSubmit={handleSubmit} data-testid="login-form" style={{ padding: 'var(--space-xl)' }}>
+        <form onSubmit={handleSubmit} data-testid="login-form">
           <h2 id="login-modal-title" style={{
             fontFamily: 'var(--font-display)',
             fontSize: '1.5rem',
@@ -42,55 +42,31 @@ export default function LoginForm({ onClose }) {
           {error && <div className="error-banner" data-testid="login-error" style={{ marginBottom: 'var(--space-md)' }}>{error}</div>}
 
           <div style={{ marginBottom: 'var(--space-md)' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.8rem',
-              fontWeight: 500,
-              color: 'var(--text-muted)',
-              marginBottom: 'var(--space-xs)'
-            }}>Username</label>
+            <label className="field-label" htmlFor="login-username-input">Username</label>
             <input
+              id="login-username-input"
               type="text"
               name="username"
+              className="form-input"
               data-testid="login-username"
               autoComplete="username"
               value={username}
               onChange={e => setUsername(e.target.value)}
               autoFocus
-              style={{
-                width: '100%',
-                padding: 'var(--space-sm) var(--space-md)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '1rem',
-                background: 'var(--bg)',
-              }}
             />
           </div>
 
           <div style={{ marginBottom: 'var(--space-lg)' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.8rem',
-              fontWeight: 500,
-              color: 'var(--text-muted)',
-              marginBottom: 'var(--space-xs)'
-            }}>Password</label>
+            <label className="field-label" htmlFor="login-password-input">Password</label>
             <input
+              id="login-password-input"
               type="password"
               name="password"
+              className="form-input"
               data-testid="login-password"
               autoComplete="current-password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              style={{
-                width: '100%',
-                padding: 'var(--space-sm) var(--space-md)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '1rem',
-                background: 'var(--bg)',
-              }}
             />
           </div>
 

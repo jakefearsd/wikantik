@@ -355,12 +355,8 @@
   cursor: not-allowed;
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-sm);
-  margin-top: var(--space-lg);
-}
+/* .modal-actions now lives in globals.css so it's available to dialogs that
+   render on routes which don't load admin.css (e.g. the New Article modal). */
 
 .admin-loading {
   text-align: center;

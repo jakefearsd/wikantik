@@ -424,14 +424,18 @@ export default function PageView() {
         isOpen={confirmDelete}
         onClose={() => setConfirmDelete(false)}
         labelledBy="delete-page-modal-title"
-        className="admin-modal"
+        className="search-dialog"
       >
-        <h3 id="delete-page-modal-title">Delete Page</h3>
-        <p>Are you sure you want to delete "{name}"? This action cannot be undone.</p>
-        {deleteError && <p className="error-banner" style={{ marginBottom: 'var(--space-sm)' }}>{deleteError}</p>}
+        <h2 id="delete-page-modal-title" style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', marginBottom: 'var(--space-lg)', textAlign: 'center' }}>
+          Delete Page
+        </h2>
+        <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: 'var(--space-lg)' }}>
+          Are you sure you want to delete "{name}"? This action cannot be undone.
+        </p>
+        {deleteError && <div className="error-banner" style={{ marginBottom: 'var(--space-md)' }}>{deleteError}</div>}
         <div className="modal-actions">
-          <button className="btn btn-ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
-          <button className="btn btn-primary btn-danger" onClick={handleDelete}>Delete</button>
+          <button type="button" className="btn btn-ghost" onClick={() => setConfirmDelete(false)}>Cancel</button>
+          <button type="button" className="btn btn-primary btn-danger" onClick={handleDelete}>Delete</button>
         </div>
       </Modal>
 
@@ -439,26 +443,36 @@ export default function PageView() {
         isOpen={showRename}
         onClose={() => setShowRename(false)}
         labelledBy="rename-page-modal-title"
-        className="admin-modal"
+        className="search-dialog"
       >
-        <h3 id="rename-page-modal-title">Rename Page</h3>
-        <p>Enter a new name for "{name}":</p>
-        <input
-          type="text"
-          className="form-input"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !renaming) handleRename(); }}
-          autoFocus
-          style={{ width: '100%', marginBottom: 'var(--space-sm)' }}
-        />
-        {renameError && <p className="error-banner" style={{ marginBottom: 'var(--space-sm)' }}>{renameError}</p>}
-        <div className="modal-actions">
-          <button className="btn btn-ghost" onClick={() => setShowRename(false)} disabled={renaming}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleRename} disabled={renaming}>
-            {renaming ? 'Renaming...' : 'Rename'}
-          </button>
-        </div>
+        <h2 id="rename-page-modal-title" style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', marginBottom: 'var(--space-lg)', textAlign: 'center' }}>
+          Rename Page
+        </h2>
+        {renameError && <div className="error-banner" style={{ marginBottom: 'var(--space-md)' }}>{renameError}</div>}
+        <form onSubmit={(e) => { e.preventDefault(); if (!renaming) handleRename(); }}>
+          <div style={{ marginBottom: 'var(--space-lg)' }}>
+            <label
+              htmlFor="rename-page-input"
+              style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: 'var(--space-xs)' }}
+            >
+              New name for "{name}"
+            </label>
+            <input
+              id="rename-page-input"
+              type="text"
+              className="form-input"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-ghost" onClick={() => setShowRename(false)} disabled={renaming}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={renaming}>
+              {renaming ? 'Renaming…' : 'Rename'}
+            </button>
+          </div>
+        </form>
       </Modal>
       <MetadataPanel metadata={page.metadata} />
       <SimilarPagesPanel pageName={name} />

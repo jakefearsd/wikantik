@@ -392,6 +392,15 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   overflow: hidden;
 }
 
+/* Search-dialog family pads its own content box here (globals is always
+   loaded) instead of relying on the admin.css .modal-content padding, which
+   isn't present on every route. Overriding it also prevents the double
+   padding that occurred when admin.css *was* loaded. Keeps the New Article /
+   Login / rename / delete dialogs single-padded everywhere. */
+.modal-content.search-dialog {
+  padding: var(--space-xl);
+}
+
 .search-input {
   width: 100%;
   padding: var(--space-lg);
@@ -399,6 +408,45 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   border: none;
   border-bottom: 1px solid var(--border);
   background: transparent;
+}
+
+/* Shared dialog/form input — matches the New Article / Login dialog fields.
+   Used by the rename dialog and the Graph/Edge explorer filter controls. */
+.form-input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--duration) var(--ease);
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  border-color: var(--accent);
+}
+
+/* Shared dialog field label — used by the New Article / Login / rename
+   dialog fields so they share one implementation, not just one look. */
+.field-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+/* Right-aligned Cancel/confirm button row for dialogs. Lives in globals (not
+   admin.css) so reader-side dialogs get it regardless of the active route. */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
 }
 
 .search-results {

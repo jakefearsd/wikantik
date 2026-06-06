@@ -100,4 +100,14 @@ describe('Modal', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog.classList.contains('my-modal')).toBe(true);
   });
+
+  it('applies optional style to the content element', () => {
+    render(
+      <Modal isOpen={true} onClose={() => {}} labelledBy="dlg-title" style={{ maxWidth: '480px' }}>
+        <span>Content</span>
+      </Modal>,
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveStyle({ maxWidth: '480px' });
+  });
 });

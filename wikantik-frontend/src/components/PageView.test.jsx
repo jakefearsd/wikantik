@@ -738,7 +738,7 @@ describe('PageView comment integration', () => {
     await act(async () => { fireEvent.click(screen.getByTestId('rename-page-button')); });
     const dialog = screen.getByRole('dialog');
     expect(dialog).toBeInTheDocument();
-    expect(screen.getByText(/Enter a new name for/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/New name for/)).toBeInTheDocument();
 
     // Esc closes.
     await act(async () => { fireEvent.keyDown(document, { key: 'Escape' }); });

@@ -19,11 +19,15 @@
 # aggregated summary makes a full run reliable, scriptable, and CI/remote-friendly.
 #
 # Usage:
-#   bin/run-tests.sh                 # full suite: unit phase, then every IT module
+#   bin/run-tests.sh                 # DEFAULT GATE: unit phase + deterministic IT modules
+#                                    #   (rest, sso, custom-jdbc) — the pre-commit run
+#   bin/run-tests.sh --all           # EVERYTHING: default gate + the opt-in, heavy
+#                                    #   Authentik SCIM full-loop (scim-fullloop)
 #   bin/run-tests.sh --unit          # unit phase only (Phase 1)
-#   bin/run-tests.sh --it            # IT phase only (assumes a prior --unit installed artifacts)
+#   bin/run-tests.sh --it            # default-gate IT phase only (assumes a prior --unit)
 #   bin/run-tests.sh --module rest   # IT phase for one module: rest|sso|custom-jdbc|scim-fullloop
-#   bin/run-tests.sh --it --parallel 4   # opt-in: all IT modules in one -T 4 reactor
+#   bin/run-tests.sh --fullloop      # ONLY the opt-in Authentik full-loop
+#   bin/run-tests.sh --it --parallel 4   # opt-in: default IT modules in one -T 4 reactor
 #                                        # (-p 4 short form; or IT_PARALLELISM=4 env — flag wins)
 #   bin/run-tests.sh --help
 #
@@ -39,11 +43,18 @@ usage() {
   cat <<'EOF'
 Usage: bin/run-tests.sh [MODE] [OPTIONS]
 
-MODES (default: full suite = unit, then default-gate IT modules)
+There are two "everything" levels:
+  * the no-arg run is the DEFAULT GATE  — unit + the deterministic IT modules
+    (rest, sso, custom-jdbc). This is what you run before committing.
+  * --all is EVERYTHING               — the default gate PLUS the opt-in, heavy
+    Authentik SCIM full-loop (scim-fullloop). Use it for a complete run.
+
+MODES (default, no args: the default gate = unit, then default-gate IT modules)
+  --all                  EVERYTHING: unit + default-gate IT modules + scim-fullloop
   --unit                 Unit reactor only (Phase 1)
   --it                   Default-gate IT modules only (assumes --unit ran)
   --module <name>        One IT module: rest|sso|custom-jdbc|scim-fullloop
-  --fullloop             Opt-in Authentik SCIM full-loop (-Pscim-fullloop)
+  --fullloop             ONLY the opt-in Authentik SCIM full-loop (-Pscim-fullloop)
   --list                 Show modules and their gate, then exit
 
 OPTIONS
@@ -56,18 +67,22 @@ ENVIRONMENT
   IT_PARALLELISM=1       Fallback for --parallel (flag wins)
 
 EXAMPLES
-  bin/run-tests.sh                      # full deterministic gate (unit + rest,sso,custom-jdbc)
+  bin/run-tests.sh                      # default gate (unit + rest,sso,custom-jdbc) — pre-commit
+  bin/run-tests.sh --all                # EVERYTHING incl. the heavy Authentik full-loop
+  bin/run-tests.sh --all -o both        # everything, streaming build output to console + log
   bin/run-tests.sh --unit               # fast unit-only pass
   bin/run-tests.sh --module rest        # REST + SCIM IT only
   bin/run-tests.sh --it --parallel 4    # default IT modules, 4-way
   bin/run-tests.sh --module sso -o both # Keycloak SSO IT, output to log AND console
-  bin/run-tests.sh --fullloop           # opt-in Authentik full-loop (heavy)
+  bin/run-tests.sh --fullloop           # ONLY the opt-in Authentik full-loop (heavy)
 
 EXIT: 0 only if every phase/module that ran reached BUILD SUCCESS.
 EOF
 }
 
 list_modules() {
+  echo "Run EVERYTHING with: bin/run-tests.sh --all   (default gate + opt-in below)"
+  echo
   echo "Default gate (run by --it / no args):"
   echo "  rest         wikantik-it-tests/wikantik-it-test-rest        (REST API + SCIM)"
   echo "  sso          wikantik-it-tests/wikantik-it-test-sso         (Keycloak OIDC + SAML, type=both)"
@@ -104,6 +119,7 @@ IT_MODULES=(
 
 RUN_UNIT=1
 RUN_IT=1
+RUN_FULLLOOP=0
 ONE_MODULE=""
 
 # Unit-phase build parallelism. Default 1C (one thread per core). The prior
@@ -135,6 +151,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --help|-h) usage; exit 0 ;;
     --list)    list_modules; exit 0 ;;
+    --all)     RUN_UNIT=1; RUN_IT=1; RUN_FULLLOOP=1 ;;
     --fullloop) RUN_UNIT=0; RUN_IT=0; ONE_MODULE="scim-fullloop" ;;
     --unit)    RUN_IT=0 ;;
     --it)      RUN_UNIT=0 ;;
@@ -245,6 +262,19 @@ elif [ -n "$ONE_MODULE" ]; then
   else
     run_step "IT: ${mod}" "${LOG_DIR}/it-${ONE_MODULE}.log" \
       install -Pintegration-tests -fae -pl "$mod"
+  fi
+fi
+
+# Opt-in Authentik full-loop, additive after the default gate. Set by --all (which
+# also runs unit + default IT). The heavy multi-container stack runs sequentially
+# (never folded into --parallel). --fullloop alone runs ONLY this, via ONE_MODULE above.
+if [ "$RUN_FULLLOOP" = 1 ]; then
+  fl_mod="wikantik-it-tests/wikantik-it-test-scim-fullloop"
+  if [ -d "$fl_mod" ]; then
+    run_step "IT: ${fl_mod} (full-loop)" "${LOG_DIR}/it-scim-fullloop.log" \
+      install -Pintegration-tests,scim-fullloop -fae -pl "$fl_mod"
+  else
+    echo "no such IT module: $fl_mod" >&2; overall_rc=1
   fi
 fi
 

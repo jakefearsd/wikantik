@@ -20,7 +20,10 @@ package com.wikantik.auth.login;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.wikantik.api.core.Engine;
+import com.wikantik.auth.NoSuchPrincipalException;
 import com.wikantik.auth.WikiPrincipal;
+import com.wikantik.auth.subsystem.AuthSubsystemBridge;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.UnsupportedCallbackException;
@@ -73,7 +76,8 @@ public class WebContainerLoginModule extends AbstractLoginModule {
     public boolean login() throws LoginException
     {
         final HttpRequestCallback rcb = new HttpRequestCallback();
-        final Callback[] callbacks = { rcb };
+        final WikiEngineCallback ecb = new WikiEngineCallback();
+        final Callback[] callbacks = { rcb, ecb };
         final String userId;
 
         try
@@ -98,6 +102,32 @@ public class WebContainerLoginModule extends AbstractLoginModule {
                 }
                 principal = new WikiPrincipal( userId, WikiPrincipal.LOGIN_NAME );
             }
+
+            // Reject authentication for a locally-known locked/deactivated account.
+            // A missing local profile (container identity with no users row) is not
+            // rejected — match the best-effort posture of this module.
+            final Engine engine = ecb.getEngine();
+            if( engine != null ) {
+                final com.wikantik.auth.user.UserDatabase userDb =
+                    AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase();
+                if( userDb != null ) {
+                    try {
+                        final com.wikantik.auth.user.UserProfile wikiProfile =
+                            userDb.findByLoginName( principal.getName() );
+                        if( wikiProfile.isLocked() ) {
+                            LOG.warn( "Container login rejected: account is locked for user '{}'",
+                                      principal.getName() );
+                            throw new FailedLoginException( "Account is locked." );
+                        }
+                    } catch( final NoSuchPrincipalException e ) {
+                        LOG.debug( "Container lock check: no local profile for '{}'; proceeding on container assertion",
+                                   principal.getName() );
+                    }
+                }
+            } else {
+                LOG.debug( "Container lock check: engine unavailable; proceeding on container assertion" );
+            }
+
             LOG.debug("Logged in container principal {}.", principal.getName() );
             principals.add( principal );
 

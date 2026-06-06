@@ -19,12 +19,14 @@
 package com.wikantik.auth.login;
 
 import java.security.Principal;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.Set;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.login.FailedLoginException;
 import javax.security.auth.login.LoginException;
 import javax.security.auth.spi.LoginModule;
 
@@ -32,9 +34,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import com.wikantik.HttpMockFactory;
 import com.wikantik.TestEngine;
 import com.wikantik.api.exceptions.NoRequiredPropertyException;
+import com.wikantik.auth.UserManager;
 import com.wikantik.auth.WikiPrincipal;
 import com.wikantik.auth.authorize.Role;
 import com.wikantik.auth.user.UserDatabase;
+import com.wikantik.auth.user.UserProfile;
 import com.wikantik.auth.user.InMemoryUserDatabase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assertions;
@@ -93,6 +97,29 @@ class WebContainerLoginModuleTest {
         } catch( final LoginException e ) {
             Assertions.fail( e.getMessage() );
         }
+    }
+
+    @Test
+    void testLockedContainerUserCannotLogin() throws Exception {
+        // Lock janne's account in the engine's real UserDatabase.
+        final UserDatabase engineDb = m_engine.getManager( UserManager.class ).getUserDatabase();
+        final UserProfile lockedProfile = engineDb.findByLoginName( "janne" );
+        final Calendar farFuture = Calendar.getInstance();
+        farFuture.clear();
+        farFuture.set( 9999, Calendar.DECEMBER, 31, 23, 59, 59 );
+        lockedProfile.setLockExpiry( farFuture.getTime() );
+        engineDb.save( lockedProfile );
+
+        // A container principal for the locked user must be rejected.
+        final Principal principal = new WikiPrincipal( "janne", WikiPrincipal.LOGIN_NAME );
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
+        Mockito.doReturn( principal ).when( request ).getUserPrincipal();
+
+        final CallbackHandler handler = new WebContainerCallbackHandler( m_engine, request );
+        final LoginModule module = new WebContainerLoginModule();
+        module.initialize( m_subject, handler, new HashMap<>(), new HashMap<>() );
+        Assertions.assertThrows( FailedLoginException.class, module::login,
+            "Locked container account must not authenticate." );
     }
 
     @BeforeEach

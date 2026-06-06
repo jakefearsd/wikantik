@@ -54,7 +54,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   collision). New `wikantik-scim` module. See
   [ScimProvisioningDesign](docs/wikantik-pages/ScimProvisioningDesign.md).
 
+### Changed
+
+- **Unified modal dialog styling.** The rename and delete dialogs now match the New
+  Article / Login dialog family: centered display-font heading, muted field labels,
+  bordered inputs, and a right-aligned action row. Extracted shared `.form-input` and
+  `.field-label` classes and promoted `.modal-actions` into `globals.css` so reader-side
+  dialogs pick them up regardless of route; `Modal` now honours a `style` prop, and the
+  `search-dialog` double-padding was removed. The Graph/Edge explorer filter inputs gain
+  real styling (the `.form-input` class was previously undefined).
+
 ### Fixed
+
+- **Integration-test gate restored.** The post-2.0.10 dynamic-ports refactor left
+  `wikantik-selenide-tests` without the `build-helper` re-declaration (so its Cargo
+  servlet port resolved to empty → "Invalid port number"), and the SCIM sample fixtures
+  were committed under `wikantik-it-test-rest` rather than the shared selenide
+  test-resources directory every IT module reads from (so `ScimVendorPayloadIT` failed
+  with "missing fixture"). Both fixed; the full IT reactor is green again.
 
 - **Audit hash chain now verifies for events with a `detail` payload.** `detail` was
   stored as JSONB, which PostgreSQL reformats on read, so the verify-time rehash no

@@ -25,11 +25,9 @@ import java.time.Duration;
 import static com.codeborne.selenide.Selenide.$;
 
 /**
- * Page object for Keycloak's login form as rendered during the SAML browser
- * flow. Keycloak serves the same login theme (`#username` / `#password` /
- * `#kc-login`) for SAML as for OIDC. After submit, Keycloak issues a SAML
- * response (HTTP-POST binding) and redirects the browser back to the SP's
- * Assertion Consumer Service (wikantik's {@code /sso/callback}).
+ * Page object for Keycloak's login form as rendered during the SAML browser flow.
+ * Keycloak serves the same login theme (`#username` / `#password` / `#kc-login`)
+ * for SAML as for OIDC.
  */
 class KeycloakSamlLoginPage {
 

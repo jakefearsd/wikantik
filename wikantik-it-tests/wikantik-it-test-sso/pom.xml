@@ -28,7 +28,7 @@
   <artifactId>wikantik-it-test-sso</artifactId>
   <modelVersion>4.0.0</modelVersion>
   <packaging>war</packaging>
-  <description>SSO (OIDC) end-to-end test — drives wikantik's /sso/login flow against a disposable Keycloak container</description>
+  <description>SSO end-to-end test (OIDC + SAML, type=both) — drives wikantik's /sso/login flow against a single disposable Keycloak container</description>
 
   <properties>
     <it-wikantik.context>${project.artifactId}</it-wikantik.context>
@@ -90,6 +90,7 @@
           <includes>
             <include>**/SSOLoginIT.java</include>
             <include>**/SSOEdgeCaseIT.java</include>
+            <include>**/SAMLLoginIT.java</include>
           </includes>
           <systemPropertyVariables>
             <it-wikantik.base.url>http://localhost:${it.wikantik.servlet.port}/${it-wikantik.context}</it-wikantik.base.url>
@@ -131,9 +132,9 @@
               </run>
             </image>
             <image>
-              <!-- Per-module-unique alias + containerNamePattern=%a so two IT modules
-                   (sso, sso-saml) each running a Keycloak don't collide when run
-                   concurrently (mirrors the pgvector container naming). -->
+              <!-- Per-module-unique alias + containerNamePattern=%a so the Keycloak
+                   container name can't collide with another module's when modules run
+                   concurrently (mirrors the pgvector container naming; future-proof). -->
               <alias>wikantik-kc-${project.artifactId}</alias>
               <name>${it-wikantik.keycloak.image}</name>
               <run>
@@ -181,6 +182,27 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
+        <executions>
+          <!-- Generate the SP signing keystore for pac4j's SAML2Client, and DELETE
+               any stale sp-metadata.xml first. The SP metadata embeds the dynamic
+               Cargo servlet port in its ACS URL; pac4j appends a fresh ACS to the
+               existing file every run, so under run-tests.sh's non-clean `install`
+               reuse the file accumulates stale dead-port ACS entries and the SAML
+               response POST hits a refused port. Removing it forces a fresh ACS with
+               only the current port. Keystore is port-independent and may be reused. -->
+          <execution>
+            <id>generate-sp-keystore</id>
+            <phase>generate-test-resources</phase>
+            <goals><goal>exec</goal></goals>
+            <configuration>
+              <executable>bash</executable>
+              <arguments>
+                <argument>-c</argument>
+                <argument>mkdir -p "${project.build.directory}/test-classes" &amp;&amp; rm -f "${project.build.directory}/test-classes/sp-metadata.xml" &amp;&amp; if [ ! -f "${project.build.directory}/test-classes/sp-keystore.jks" ]; then keytool -genkeypair -alias wikantik-sp -keyalg RSA -keysize 2048 -sigalg SHA256withRSA -keystore "${project.build.directory}/test-classes/sp-keystore.jks" -storepass changeit -keypass changeit -dname "CN=wikantik-sp-it,O=Wikantik,L=Test,ST=Test,C=US" -validity 3650 -noprompt &amp;&amp; echo "SP keystore generated" || echo "FAILED to generate SP keystore"; else echo "SP keystore already exists, skipping"; fi</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
 
       <plugin>
@@ -193,6 +215,15 @@
   </profiles>
 
   <dependencies>
+    <!-- pac4j-saml is declared optional in wikantik-main, so it's not in the main
+         WAR. This module now drives SAML too (type=both against Keycloak), so its
+         WAR overlay must add pac4j-saml at runtime scope. -->
+    <dependency>
+      <groupId>org.pac4j</groupId>
+      <artifactId>pac4j-saml</artifactId>
+      <version>${pac4j.version}</version>
+    </dependency>
+
     <!-- Brings Env, WithIntegrationTestSetup, and the Selenide page objects. -->
     <dependency>
       <groupId>${project.groupId}</groupId>

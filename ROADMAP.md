@@ -8,20 +8,17 @@ specific past decision was made, see the design specs under
 [`ArchitectureCritique.md`](docs/ArchitectureCritique.md) for honest
 strengths-and-weaknesses self-review.
 
-## Now (target: tag `v2.0.0`)
+## Now (2.0.x — live in production)
 
-The current focus is finishing the release-readiness sweep before
-cutting a public 2.0 tag. Active work:
+Wikantik 2.0 has shipped and runs in production (`wiki.wikantik.com`,
+containerised on docker1, images published to
+`ghcr.io/jakefearsd/wikantik` and deployed via `bin/deploy-release.sh`).
+Day-to-day work is an incremental 2.0.x stream — enterprise hardening
+(SSO, SCIM provisioning, the tamper-evident audit log, off-site backups)
+and reader/editor UI fit-and-finish. The canonical record of what
+shipped is [`CHANGELOG.md`](CHANGELOG.md).
 
-- Manual smoke testing pass against the bare-metal deploy.
-- Bump `1.0.0-SNAPSHOT` → `2.0.0`, cut `[2.0.0]` CHANGELOG section,
-  tag `v2.0.0`, let `.github/workflows/release.yml` publish the
-  container image to `ghcr.io/jakefearsd/wikantik:2.0.0` and create
-  the GitHub Release.
-- README screenshots (reader + admin) once the manual testing pass
-  exercises the surfaces.
-
-## Next (target: 1.x minors over the next quarter)
+## Next (target: 2.x minors over the next quarter)
 
 - **Demo deployment.** A public read-only Wikantik instance, ideally
   running the Wikantik project's own documentation, so evaluators can
@@ -40,6 +37,10 @@ cutting a public 2.0 tag. Active work:
 - **Observability dashboards.** Prometheus exporters exist; ship a
   Grafana dashboard JSON in-repo for the most common operator views
   (ingest rate, retrieval latency, KG queue depth).
+- **Audit log egress.** The tamper-evident audit log is DB-only today;
+  add an exporter so records can stream to an external SIEM / log
+  pipeline (syslog/CEF or an outbound webhook) for orgs that centralise
+  security monitoring. The in-DB hash chain stays the source of truth.
 
 ## Later (1-2 years)
 

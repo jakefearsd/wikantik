@@ -74,17 +74,8 @@ public final class ExtractionResponseParser {
             return ExtractionResult.empty( extractorCode, latency );
         }
 
-        final JsonObject root;
-        try {
-            final JsonElement parsed = JsonParser.parseString( stripped );
-            if( !parsed.isJsonObject() ) {
-                LOG.warn( "Extractor {} returned non-object JSON for chunk {}", extractorCode, chunk.id() );
-                return ExtractionResult.empty( extractorCode, latency );
-            }
-            root = parsed.getAsJsonObject();
-        } catch( final RuntimeException e ) {
-            LOG.warn( "Extractor {} returned malformed JSON for chunk {}: {}",
-                      extractorCode, chunk.id(), e.getMessage() );
+        final JsonObject root = parseRoot( stripped, chunk, extractorCode );
+        if( root == null ) {
             return ExtractionResult.empty( extractorCode, latency );
         }
 
@@ -95,75 +86,113 @@ public final class ExtractionResponseParser {
 
         final List< ExtractedMention > mentions = new ArrayList<>();
         final List< ProposedNode > nodes = new ArrayList<>();
-        final Set< String > mentionKeys = new HashSet<>();
         final Set< String > knownEntityNames = new HashSet<>();
-
-        final JsonElement entitiesEl = root.get( "entities" );
-        if( entitiesEl != null && entitiesEl.isJsonArray() ) {
-            for( final JsonElement raw : entitiesEl.getAsJsonArray() ) {
-                if( !raw.isJsonObject() ) {
-                    continue;
-                }
-                final JsonObject e = raw.getAsJsonObject();
-                final String name = stringOrNull( e, "name" );
-                if( name == null || name.isBlank() ) {
-                    continue;
-                }
-                knownEntityNames.add( name.toLowerCase( Locale.ROOT ) );
-
-                final String type = stringOrNull( e, "type" );
-                final double conf = numberOr( e, "confidence", 0.0 );
-                final String reasoning = stringOrNull( e, "reasoning" );
-
-                final String mentionKey = name.toLowerCase( Locale.ROOT );
-                if( mentionKeys.add( mentionKey ) ) {
-                    mentions.add( new ExtractedMention( chunk.id(), name, clamp( conf ) ) );
-                }
-
-                if( !knownNames.contains( mentionKey ) && conf >= confidenceThreshold ) {
-                    nodes.add( new ProposedNode(
-                        name,
-                        type == null ? "Concept" : type,
-                        Map.of(),
-                        clamp( conf ),
-                        reasoning == null ? "" : reasoning ) );
-                }
-            }
-        }
+        parseEntities( root, chunk, knownNames, confidenceThreshold, mentions, nodes, knownEntityNames );
 
         final List< ProposedEdge > edges = new ArrayList<>();
-        final JsonElement relationsEl = root.get( "relations" );
-        if( relationsEl != null && relationsEl.isJsonArray() ) {
-            for( final JsonElement raw : relationsEl.getAsJsonArray() ) {
-                if( !raw.isJsonObject() ) {
-                    continue;
-                }
-                final JsonObject r = raw.getAsJsonObject();
-                final String src = stringOrNull( r, "source" );
-                final String tgt = stringOrNull( r, "target" );
-                final String type = stringOrNull( r, "type" );
-                final double conf = numberOr( r, "confidence", 0.0 );
-                final String reasoning = stringOrNull( r, "reasoning" );
-                if( src == null || tgt == null || type == null
-                    || src.isBlank() || tgt.isBlank() || type.isBlank() ) {
-                    continue;
-                }
-                // Enforce that both ends are grounded in the entities the extractor itself produced.
-                if( !knownEntityNames.contains( src.toLowerCase( Locale.ROOT ) )
-                    || !knownEntityNames.contains( tgt.toLowerCase( Locale.ROOT ) ) ) {
-                    continue;
-                }
-                if( conf < confidenceThreshold ) {
-                    continue;
-                }
-                edges.add( new ProposedEdge(
-                    src, tgt, type, Map.of(),
+        parseRelations( root, knownEntityNames, confidenceThreshold, edges );
+
+        return new ExtractionResult( nodes, edges, mentions, extractorCode, latency );
+    }
+
+    /** Parses the (fence-stripped) raw response into a JSON object, or null if malformed/non-object. */
+    private static JsonObject parseRoot( final String stripped, final ExtractionChunk chunk,
+                                         final String extractorCode ) {
+        try {
+            final JsonElement parsed = JsonParser.parseString( stripped );
+            if( !parsed.isJsonObject() ) {
+                LOG.warn( "Extractor {} returned non-object JSON for chunk {}", extractorCode, chunk.id() );
+                return null;
+            }
+            return parsed.getAsJsonObject();
+        } catch( final RuntimeException e ) {
+            LOG.warn( "Extractor {} returned malformed JSON for chunk {}: {}",
+                      extractorCode, chunk.id(), e.getMessage() );
+            return null;
+        }
+    }
+
+    /**
+     * Reads the {@code entities} array, populating {@code mentions} (deduped by lowercased name),
+     * {@code nodes} (new, above-threshold entities not already known), and {@code knownEntityNames}
+     * (every entity the extractor produced — used to ground relations).
+     */
+    private static void parseEntities( final JsonObject root, final ExtractionChunk chunk,
+                                       final Set< String > knownNames, final double confidenceThreshold,
+                                       final List< ExtractedMention > mentions,
+                                       final List< ProposedNode > nodes,
+                                       final Set< String > knownEntityNames ) {
+        final JsonElement entitiesEl = root.get( "entities" );
+        if( entitiesEl == null || !entitiesEl.isJsonArray() ) {
+            return;
+        }
+        final Set< String > mentionKeys = new HashSet<>();
+        for( final JsonElement raw : entitiesEl.getAsJsonArray() ) {
+            if( !raw.isJsonObject() ) {
+                continue;
+            }
+            final JsonObject e = raw.getAsJsonObject();
+            final String name = stringOrNull( e, "name" );
+            if( name == null || name.isBlank() ) {
+                continue;
+            }
+            final String mentionKey = name.toLowerCase( Locale.ROOT );
+            knownEntityNames.add( mentionKey );
+
+            final double conf = numberOr( e, "confidence", 0.0 );
+            if( mentionKeys.add( mentionKey ) ) {
+                mentions.add( new ExtractedMention( chunk.id(), name, clamp( conf ) ) );
+            }
+            if( !knownNames.contains( mentionKey ) && conf >= confidenceThreshold ) {
+                final String type = stringOrNull( e, "type" );
+                final String reasoning = stringOrNull( e, "reasoning" );
+                nodes.add( new ProposedNode(
+                    name,
+                    type == null ? "Concept" : type,
+                    Map.of(),
                     clamp( conf ),
                     reasoning == null ? "" : reasoning ) );
             }
         }
+    }
 
-        return new ExtractionResult( nodes, edges, mentions, extractorCode, latency );
+    /**
+     * Reads the {@code relations} array into {@code edges}, keeping only well-formed, above-threshold
+     * relations whose endpoints are both grounded in {@code knownEntityNames}.
+     */
+    private static void parseRelations( final JsonObject root, final Set< String > knownEntityNames,
+                                        final double confidenceThreshold, final List< ProposedEdge > edges ) {
+        final JsonElement relationsEl = root.get( "relations" );
+        if( relationsEl == null || !relationsEl.isJsonArray() ) {
+            return;
+        }
+        for( final JsonElement raw : relationsEl.getAsJsonArray() ) {
+            if( !raw.isJsonObject() ) {
+                continue;
+            }
+            final JsonObject r = raw.getAsJsonObject();
+            final String src = stringOrNull( r, "source" );
+            final String tgt = stringOrNull( r, "target" );
+            final String type = stringOrNull( r, "type" );
+            if( src == null || tgt == null || type == null
+                || src.isBlank() || tgt.isBlank() || type.isBlank() ) {
+                continue;
+            }
+            // Enforce that both ends are grounded in the entities the extractor itself produced.
+            if( !knownEntityNames.contains( src.toLowerCase( Locale.ROOT ) )
+                || !knownEntityNames.contains( tgt.toLowerCase( Locale.ROOT ) ) ) {
+                continue;
+            }
+            final double conf = numberOr( r, "confidence", 0.0 );
+            if( conf < confidenceThreshold ) {
+                continue;
+            }
+            final String reasoning = stringOrNull( r, "reasoning" );
+            edges.add( new ProposedEdge(
+                src, tgt, type, Map.of(),
+                clamp( conf ),
+                reasoning == null ? "" : reasoning ) );
+        }
     }
 
     /**

@@ -51,25 +51,48 @@ public final class PageExtractionResponseParser {
 
     public PageExtractionResult parse(String json, String extractorCode, String pageName,
                                        String pageBody, Duration latency) {
-        int rawE = 0, rawR = 0, rejectedUngrounded = 0, rejectedBannedName = 0;
-        List<ExtractedEntity> entities = new ArrayList<>();
-        List<ExtractedRelation> relations = new ArrayList<>();
-
-        JsonObject root;
-        try {
-            JsonElement el = JsonParser.parseString(json);
-            if (!el.isJsonObject()) {
-                return PageExtractionResult.empty(extractorCode, pageName, latency);
-            }
-            root = el.getAsJsonObject();
-        } catch (RuntimeException e) {
-            LOG.warn("PageExtractionResponseParser: malformed JSON for page '{}': {}",
-                     pageName, e.getMessage());
+        final JsonObject root = parseRoot(json, pageName);
+        if (root == null) {
             return PageExtractionResult.empty(extractorCode, pageName, latency);
         }
 
-        JsonArray entityArr = arrayOrEmpty(root, "entities");
-        rawE = entityArr.size();
+        final RejectCounts counts = new RejectCounts();
+
+        final JsonArray entityArr = arrayOrEmpty(root, "entities");
+        final List<ExtractedEntity> entities = parseEntities(entityArr, pageBody, counts);
+
+        final Set<String> entityNames = new HashSet<>();
+        for (ExtractedEntity e : entities) entityNames.add(e.name().toLowerCase(Locale.ROOT));
+
+        final JsonArray relArr = arrayOrEmpty(root, "relations");
+        final List<ExtractedRelation> relations = parseRelations(relArr, pageBody, entityNames, counts);
+
+        return new PageExtractionResult(extractorCode, pageName, entities, relations,
+            new PageExtractionResult.Stats(entityArr.size(), relArr.size(),
+                counts.ungrounded, counts.bannedName, latency));
+    }
+
+    /** Parses the raw response into a JSON object, or null if it is non-object/malformed. */
+    private JsonObject parseRoot(String json, String pageName) {
+        try {
+            JsonElement el = JsonParser.parseString(json);
+            if (!el.isJsonObject()) {
+                return null;
+            }
+            return el.getAsJsonObject();
+        } catch (RuntimeException e) {
+            LOG.warn("PageExtractionResponseParser: malformed JSON for page '{}': {}",
+                     pageName, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Reads the {@code entities} array into grounded, allowed-type, non-banned entities (capped to
+     * {@code maxEntities} by confidence). Rejected-entity reasons accumulate into {@code counts}.
+     */
+    private List<ExtractedEntity> parseEntities(JsonArray entityArr, String pageBody, RejectCounts counts) {
+        List<ExtractedEntity> entities = new ArrayList<>();
         for (JsonElement e : entityArr) {
             if (!e.isJsonObject()) continue;
             JsonObject obj = e.getAsJsonObject();
@@ -80,7 +103,7 @@ public final class PageExtractionResponseParser {
             if (name == null || type == null || span == null) continue;
 
             if (BANNED_NAMES.contains(name.trim().toLowerCase(Locale.ROOT))) {
-                rejectedBannedName++;
+                counts.bannedName++;
                 continue;
             }
             if (!ALLOWED_TYPES.contains(type.trim().toLowerCase(Locale.ROOT))) {
@@ -88,22 +111,26 @@ public final class PageExtractionResponseParser {
             }
             EvidenceGroundingVerifier.Decision d = verifier.evaluate(span, pageBody);
             if (!d.grounded()) {
-                rejectedUngrounded++;
+                counts.ungrounded++;
                 continue;
             }
             entities.add(new ExtractedEntity(name.trim(), titleCaseType(type), span, clampConf(conf)));
         }
-
         if (entities.size() > maxEntities) {
             entities.sort(Comparator.comparingDouble(ExtractedEntity::confidence).reversed());
             entities = new ArrayList<>(entities.subList(0, maxEntities));
         }
+        return entities;
+    }
 
-        Set<String> entityNames = new HashSet<>();
-        for (ExtractedEntity e : entities) entityNames.add(e.name().toLowerCase(Locale.ROOT));
-
-        JsonArray relArr = arrayOrEmpty(root, "relations");
-        rawR = relArr.size();
+    /**
+     * Reads the {@code relations} array into grounded relations whose endpoints are both in
+     * {@code entityNames} (capped to {@code maxRelations} by confidence). Ungrounded rejections
+     * accumulate into {@code counts}.
+     */
+    private List<ExtractedRelation> parseRelations(JsonArray relArr, String pageBody,
+                                                   Set<String> entityNames, RejectCounts counts) {
+        List<ExtractedRelation> relations = new ArrayList<>();
         for (JsonElement r : relArr) {
             if (!r.isJsonObject()) continue;
             JsonObject obj = r.getAsJsonObject();
@@ -120,19 +147,22 @@ public final class PageExtractionResponseParser {
             }
             EvidenceGroundingVerifier.Decision d = verifier.evaluate(span, pageBody);
             if (!d.grounded()) {
-                rejectedUngrounded++;
+                counts.ungrounded++;
                 continue;
             }
             relations.add(new ExtractedRelation(src.trim(), tgt.trim(), pred.trim(), span, clampConf(conf)));
         }
-
         if (relations.size() > maxRelations) {
             relations.sort(Comparator.comparingDouble(ExtractedRelation::confidence).reversed());
             relations = new ArrayList<>(relations.subList(0, maxRelations));
         }
+        return relations;
+    }
 
-        return new PageExtractionResult(extractorCode, pageName, entities, relations,
-            new PageExtractionResult.Stats(rawE, rawR, rejectedUngrounded, rejectedBannedName, latency));
+    /** Mutable accumulator for the per-parse rejection counters threaded through both loops. */
+    private static final class RejectCounts {
+        private int ungrounded;
+        private int bannedName;
     }
 
     private static JsonArray arrayOrEmpty(JsonObject root, String key) {

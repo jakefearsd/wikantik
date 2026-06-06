@@ -44,7 +44,11 @@ public class AuthentikClient {
     /** Authentik API token (bootstrap value {@code it-authentik-api-token}). */
     private final String token;
 
-    private final HttpClient http = HttpClient.newHttpClient();
+    // Force HTTP/1.1: Authentik's Go front proxy (port 9000) rejects Java's default
+    // HTTP/2 cleartext attempt with "400 Invalid HTTP request received".
+    private final HttpClient http = HttpClient.newBuilder()
+            .version( HttpClient.Version.HTTP_1_1 )
+            .build();
 
     public AuthentikClient( final String base, final String token ) {
         this.base = base;

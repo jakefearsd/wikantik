@@ -199,6 +199,10 @@
                       <link>wikantik-authentik-redis-${project.artifactId}</link>
                       <link>wikantik-authentik-db-${project.artifactId}</link>
                     </links>
+                    <!-- Reach the wiki's Cargo Tomcat (on the host) for the SCIM push. -->
+                    <extraHosts>
+                      <extraHost>host.docker.internal:host-gateway</extraHost>
+                    </extraHosts>
                     <wait>
                       <http>
                         <url>http://localhost:${it-wikantik.authentik.port}/-/health/ready/</url>
@@ -232,11 +236,22 @@
                       <link>wikantik-authentik-redis-${project.artifactId}</link>
                       <link>wikantik-authentik-db-${project.artifactId}</link>
                     </links>
+                    <!-- The worker executes the SCIM sync HTTP push to the wiki's Cargo
+                         Tomcat (on the host), so it must resolve host.docker.internal. -->
+                    <extraHosts>
+                      <extraHost>host.docker.internal:host-gateway</extraHost>
+                    </extraHosts>
                     <!-- Worker starts after server (server runs migrations); no HTTP
-                         health endpoint — rely on log message from Celery startup. -->
+                         health endpoint. Wait for the Celery worker to connect to the
+                         broker and begin processing ("Dispatching startup tasks", which
+                         this Authentik version logs once the worker is operational — it
+                         does NOT log the "celery@... ready" banner in its JSON output).
+                         The marker appears before the noisy startup email-failure stack
+                         traces that can break docker's log stream. 180s for a cold boot
+                         (the worker waits on the server's migrations first). -->
                     <wait>
-                      <log>celery@</log>
-                      <time>120000</time>
+                      <log>Dispatching startup tasks</log>
+                      <time>180000</time>
                     </wait>
                     <autoRemove>false</autoRemove>
                   </run>

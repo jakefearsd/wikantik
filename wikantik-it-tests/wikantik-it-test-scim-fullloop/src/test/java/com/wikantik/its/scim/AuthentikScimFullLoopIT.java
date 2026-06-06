@@ -30,42 +30,35 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Predicate;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * End-to-end SCIM full-loop IT: a real Authentik IdP (SCIM client) provisions
- * and then deactivates a user, and the wiki's SCIM service-provider reflects
- * each step.
+ * End-to-end SCIM full-loop IT: a real Authentik IdP (SCIM client) provisions a
+ * user into the wiki, then deactivates it, and the wiki's SCIM service-provider
+ * reflects each transition.
  *
- * <p><strong>This test is opt-in only</strong> — it runs exclusively under
- * {@code -Pscim-fullloop} and is never part of the per-commit default gate.
+ * <p><strong>Opt-in only</strong> — runs exclusively under {@code -Pscim-fullloop}
+ * (see {@code bin/run-tests.sh --fullloop}); never part of the per-commit default gate.
  *
- * <h2>What is complete vs TODO-stubbed</h2>
- * <ul>
- *   <li><strong>Complete:</strong> {@link #setUp()} reading system properties,
- *       {@link #pollWikiUser(String, Predicate, String)} polling the wiki's
- *       {@code /scim/v2/Users} endpoint with a deadline, and the wiki-side
- *       assertions (user appears in wiki, then {@code active} flips to false).</li>
- *   <li><strong>TODO-stubbed:</strong> The four Authentik provisioning helpers
- *       ({@code configureScimProvider}, {@code createUser}, {@code triggerSync},
- *       {@code disableUser}) are not yet authored because their request bodies
- *       must be written against the live {@code /api/v3/} API surface.  Run
- *       {@code bin/run-tests.sh --fullloop} to bring the stack up, inspect the
- *       Authentik API with curl against the reserved port, then fill in the
- *       TODO blocks in this class.</li>
- * </ul>
- *
- * <h2>Expected iteration loop</h2>
+ * <h2>How Authentik drives the wiki</h2>
  * <ol>
- *   <li>Run {@code bin/run-tests.sh --unit && bin/run-tests.sh --fullloop}.</li>
- *   <li>The test compiles and executes; it fails at step 2 ({@code pollWikiUser}
- *       timeout) because no user has been pushed — that is the expected scaffold
- *       state.</li>
- *   <li>Fill in the TODO stubs (configureScimProvider, createUser, triggerSync,
- *       disableUser) against the live API and iterate until the full loop is
- *       green.</li>
+ *   <li>Create a SCIM <em>provider</em> ({@code /api/v3/providers/scim/}) whose
+ *       {@code url} points at the wiki's {@code /scim/v2} (reached via
+ *       {@code host.docker.internal} from the Authentik container) and whose
+ *       {@code token} matches the wiki's {@code wikantik.scim.token}. Attach the
+ *       managed default SCIM property mappings, and bind the provider to an
+ *       Application as a backchannel provider.</li>
+ *   <li>Create a user. Authentik's {@code scim_sync_direct} signal fires on the
+ *       user's save; a provider PATCH additionally forces a full
+ *       {@code scim_sync} reconciliation. The worker POSTs the user to the wiki's
+ *       {@code /scim/v2/Users} (after a {@code GET /ServiceProviderConfig} probe).</li>
+ *   <li>Deactivate the user ({@code is_active:false}); the same sync path pushes
+ *       {@code active:false} to the wiki.</li>
  * </ol>
+ * Each wiki-side transition is observed by polling the wiki's SCIM endpoint
+ * (async propagation is absorbed by {@link #pollWikiUser}).
  */
 public class AuthentikScimFullLoopIT {
 
@@ -83,6 +76,9 @@ public class AuthentikScimFullLoopIT {
     private static AuthentikClient authentik;
     private static final HttpClient http = HttpClient.newHttpClient();
 
+    /** The Authentik SCIM provider pk, set by {@link #configureScimProvider()}. */
+    private int providerPk;
+
     @BeforeAll
     static void setUp() {
         wikiBase = System.getProperty( "it-wikantik.base.url" );
@@ -91,114 +87,103 @@ public class AuthentikScimFullLoopIT {
     }
 
     // -------------------------------------------------------------------------
-    // TODO stubs — author these against the live Authentik /api/v3/ API
+    // Authentik provisioning (live /api/v3/ API)
     // -------------------------------------------------------------------------
 
     /**
-     * TODO: Configure an Authentik SCIM provider pointing at the wiki.
-     *
-     * <p>Use {@code authentik.post("/api/v3/providers/scim/", ...)} to create a
-     * provider with:
-     * <ul>
-     *   <li>{@code url} = {@code wikiBase + "/scim/v2"}</li>
-     *   <li>{@code token} = {@code "it-scim-token"}</li>
-     *   <li>{@code verify_certificates} = {@code false} (HTTP in IT)</li>
-     * </ul>
-     * Then bind it to an Authentik Application via
-     * {@code POST /api/v3/core/applications/} referencing the provider's pk.
-     * Assign the application to the "authentikUsers" group (or all users) so
-     * Authentik syncs created users.  Store the provider pk as an instance
-     * field for use in triggerSync().
-     *
-     * <p>See Authentik REST API docs: https://goauthentik.io/developer-docs/api/
+     * Creates a SCIM provider pointing at the wiki, attaches the managed default
+     * SCIM property mappings, and binds it to an application as a backchannel
+     * provider. Stores the provider pk in {@link #providerPk}.
      */
     private void configureScimProvider() throws Exception {
-        // TODO: implement against live /api/v3/ API — see class-level Javadoc.
-        throw new UnsupportedOperationException(
-            "configureScimProvider() not yet implemented; "
-            + "run --fullloop with the stack up and author against the live API" );
+        // The wiki's Cargo Tomcat runs on the HOST; the Authentik container reaches
+        // it via host.docker.internal (host-gateway extra host wired in the pom).
+        final String wikiScimUrl = wikiBase.replace( "localhost", "host.docker.internal" ) + "/scim/v2";
+
+        // The managed default SCIM mappings (pk is instance-specific; the managed
+        // name is stable across Authentik instances).
+        final String userMapping = firstPk( authentik.get(
+            "/api/v3/propertymappings/provider/scim/?managed=goauthentik.io/providers/scim/user" ) );
+        final String groupMapping = firstPk( authentik.get(
+            "/api/v3/propertymappings/provider/scim/?managed=goauthentik.io/providers/scim/group" ) );
+
+        final String providerBody = "{"
+            + "\"name\":\"wiki-scim\","
+            + "\"url\":\"" + wikiScimUrl + "\","
+            + "\"token\":\"" + SCIM_TOKEN + "\","
+            + "\"exclude_users_service_account\":true,"
+            + "\"property_mappings\":[\"" + userMapping + "\"],"
+            + "\"property_mappings_group\":[\"" + groupMapping + "\"]"
+            + "}";
+        final HttpResponse<String> pr = authentik.post( "/api/v3/providers/scim/", providerBody );
+        System.out.println( "[FULLLOOP] create SCIM provider -> " + pr.statusCode() + " " + pr.body() );
+        assertEquals( 201, pr.statusCode(), "SCIM provider create should be 201: " + pr.body() );
+        providerPk = JsonParser.parseString( pr.body() ).getAsJsonObject().get( "pk" ).getAsInt();
+
+        final String appBody = "{"
+            + "\"name\":\"Wiki\",\"slug\":\"wiki\","
+            + "\"backchannel_providers\":[" + providerPk + "]"
+            + "}";
+        final HttpResponse<String> ar = authentik.post( "/api/v3/core/applications/", appBody );
+        System.out.println( "[FULLLOOP] create application -> " + ar.statusCode() + " " + ar.body() );
+        assertEquals( 201, ar.statusCode(), "application create should be 201: " + ar.body() );
     }
 
-    /**
-     * TODO: Create a user in Authentik.
-     *
-     * <p>Use {@code authentik.post("/api/v3/core/users/", ...)} with JSON body:
-     * <pre>
-     * {
-     *   "username": userName,
-     *   "name": "Authentik Loop User",
-     *   "email": userName + "@example.com",
-     *   "is_active": true
-     * }
-     * </pre>
-     * Assert the response is 201 and store the user pk for disableUser().
-     *
-     * @param userName the login name to create in Authentik
-     * @return the Authentik user pk (int) — needed by disableUser()
-     */
+    /** Creates a user in Authentik; returns its pk. The save fires a direct SCIM sync. */
     private int createUser( final String userName ) throws Exception {
-        // TODO: implement against live /api/v3/ API — see class-level Javadoc.
-        throw new UnsupportedOperationException(
-            "createUser() not yet implemented; "
-            + "run --fullloop with the stack up and author against the live API" );
+        final String body = "{"
+            + "\"username\":\"" + userName + "\","
+            + "\"name\":\"Authentik Loop User\","
+            + "\"email\":\"" + userName + "@example.com\","
+            + "\"is_active\":true,"
+            + "\"path\":\"users\""
+            + "}";
+        final HttpResponse<String> r = authentik.post( "/api/v3/core/users/", body );
+        System.out.println( "[FULLLOOP] create user -> " + r.statusCode() + " " + r.body() );
+        assertEquals( 201, r.statusCode(), "user create should be 201: " + r.body() );
+        return JsonParser.parseString( r.body() ).getAsJsonObject().get( "pk" ).getAsInt();
     }
 
     /**
-     * TODO: Trigger an Authentik SCIM sync for the configured provider.
-     *
-     * <p>Authentik exposes a sync trigger at (version-dependent):
-     * {@code POST /api/v3/providers/scim/{id}/sync/} or via an outpost task.
-     * Confirm the exact endpoint by inspecting the live API's OpenAPI schema:
-     * {@code GET /api/v3/schema/} or the Authentik admin UI.
-     *
-     * <p>The sync is asynchronous; after triggering, the caller must poll the
-     * wiki (via {@link #pollWikiUser}) rather than blocking on the sync result.
-     *
-     * @param providerPk the Authentik SCIM provider primary key
+     * Forces a full SCIM reconciliation. Authentik exposes no REST trigger
+     * ({@code POST /sync/} is 405), but saving the provider re-runs {@code scim_sync},
+     * which deterministically pushes all in-scope users (the per-user
+     * {@code scim_sync_direct} signal also fires on create/patch, but forcing a full
+     * sync removes timing flakiness).
      */
-    private void triggerSync( final int providerPk ) throws Exception {
-        // TODO: implement against live /api/v3/ API — see class-level Javadoc.
-        throw new UnsupportedOperationException(
-            "triggerSync() not yet implemented; "
-            + "run --fullloop with the stack up and author against the live API" );
+    private void triggerSync() throws Exception {
+        final HttpResponse<String> r = authentik.patch( "/api/v3/providers/scim/" + providerPk + "/",
+            "{\"name\":\"wiki-scim-" + System.nanoTime() + "\"}" );
+        System.out.println( "[FULLLOOP] trigger full sync (provider patch) -> " + r.statusCode() );
+        assertEquals( 200, r.statusCode(), "provider patch (sync) should be 200: " + r.body() );
     }
 
-    /**
-     * TODO: Deactivate a user in Authentik.
-     *
-     * <p>Use {@code authentik.patch("/api/v3/core/users/{pk}/", ...)} with body:
-     * <pre>
-     * { "is_active": false }
-     * </pre>
-     * Assert the response is 200.  After patching, call triggerSync() so the
-     * worker picks up the change and pushes {@code active:false} to the wiki.
-     *
-     * @param userPk the Authentik user pk (returned by createUser())
-     */
+    /** Deactivates a user in Authentik (is_active:false); fires a direct SCIM sync. */
     private void disableUser( final int userPk ) throws Exception {
-        // TODO: implement against live /api/v3/ API — see class-level Javadoc.
-        throw new UnsupportedOperationException(
-            "disableUser() not yet implemented; "
-            + "run --fullloop with the stack up and author against the live API" );
+        final HttpResponse<String> r = authentik.patch( "/api/v3/core/users/" + userPk + "/",
+            "{\"is_active\":false}" );
+        System.out.println( "[FULLLOOP] disable user -> " + r.statusCode() + " " + r.body() );
+        assertEquals( 200, r.statusCode(), "user disable should be 200: " + r.body() );
+    }
+
+    /** Extracts the first {@code results[].pk} from a paginated Authentik list response. */
+    private String firstPk( final HttpResponse<String> r ) {
+        final var results = JsonParser.parseString( r.body() ).getAsJsonObject().getAsJsonArray( "results" );
+        if ( results == null || results.size() == 0 ) {
+            fail( "expected at least one result in: " + r.body() );
+        }
+        return results.get( 0 ).getAsJsonObject().get( "pk" ).getAsString();
     }
 
     // -------------------------------------------------------------------------
-    // Complete: wiki-side polling helper
+    // Wiki-side polling helper
     // -------------------------------------------------------------------------
 
     /**
      * Polls the wiki's {@code /scim/v2/Users?filter=userName eq "..."} endpoint
      * (bearer-authed) until {@code bodyOk} returns {@code true} or the deadline
-     * expires.
-     *
-     * <p>This models {@code RestSeedHelper.awaitAdminReady} — absorbing async
-     * propagation latency between Authentik triggering a sync and the wiki
-     * persisting the SCIM push.
-     *
-     * @param userName the SCIM userName to filter on
-     * @param bodyOk   predicate applied to the raw response body; return
-     *                 {@code true} when the expected state is observed
-     * @param what     human-readable description for the failure message
+     * expires — absorbing async propagation latency between Authentik's sync and
+     * the wiki persisting the push.
      */
     private void pollWikiUser( final String userName,
                                final Predicate<String> bodyOk,
@@ -230,19 +215,15 @@ public class AuthentikScimFullLoopIT {
     /**
      * Full SCIM loop: Authentik provisions a user into the wiki, then deactivates
      * it, and the wiki reflects both transitions.
-     *
-     * <p>Steps 1 and 3 (Authentik provisioning) are TODO-stubbed; steps 2 and 4
-     * (wiki-side assertions via polling) are complete.
      */
     @Test
     void authentik_provisions_then_disables_user_in_wiki() throws Exception {
         final String userName = "authentik-loop-user";
 
-        // 1. Configure Authentik SCIM provider + create user + trigger initial sync.
-        //    TODO: uncomment once the stubs above are implemented.
-        // configureScimProvider();
-        // final int userPk = createUser( userName );
-        // triggerSync( /* providerPk — store from configureScimProvider */ 0 );
+        // 1. Configure the SCIM provider + app, create the user, force a sync.
+        configureScimProvider();
+        final int userPk = createUser( userName );
+        triggerSync();
 
         // 2. Wiki reflects provisioning — poll until the user appears.
         pollWikiUser( userName,
@@ -254,10 +235,9 @@ public class AuthentikScimFullLoopIT {
                 },
                 "user '" + userName + "' provisioned into wiki via Authentik SCIM" );
 
-        // 3. Disable the user in Authentik + trigger sync.
-        //    TODO: uncomment once the stubs above are implemented.
-        // disableUser( userPk );
-        // triggerSync( /* providerPk */ 0 );
+        // 3. Disable the user in Authentik, force a sync.
+        disableUser( userPk );
+        triggerSync();
 
         // 4. Wiki reflects deactivation — poll until active:false.
         pollWikiUser( userName,
@@ -268,9 +248,7 @@ public class AuthentikScimFullLoopIT {
                     if ( resources == null || resources.size() == 0 ) {
                         return false;
                     }
-                    final var activeField = resources.get( 0 )
-                            .getAsJsonObject()
-                            .get( "active" );
+                    final var activeField = resources.get( 0 ).getAsJsonObject().get( "active" );
                     return activeField != null && !activeField.getAsBoolean();
                 },
                 "user '" + userName + "' deactivated in wiki via Authentik SCIM" );

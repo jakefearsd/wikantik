@@ -1420,6 +1420,27 @@
       </build>
     </profile>
 
+    <profile> <!-- on-demand cyclomatic/cognitive complexity report (opt-in, kept
+                   out of the default build and the bug-finding pmd-ruleset.xml) -->
+      <id>complexity-report</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-pmd-plugin</artifactId>
+            <version>${plugin.pmd.version}</version>
+            <configuration>
+              <targetJdk>${jdk.version}</targetJdk>
+              <linkXRef>false</linkXRef>
+              <failOnViolation>false</failOnViolation>
+              <rulesets combine.self="override">
+                <ruleset>${maven.multiModuleProjectDirectory}/build-support/pmd-complexity-ruleset.xml</ruleset>
+              </rulesets>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
     <profile> <!-- enable memory profiling -->
       <id>mem-profiling</id>
 

@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements. Licensed under the Apache License,
+    Version 2.0 (the "License"); you may not use this file except in
+    compliance with the License. You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+-->
+<ruleset name="wikantik-complexity"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0
+                             https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>
+        Complexity / size metrics, kept OUT of the main pmd-ruleset.xml (which is
+        tuned for bug-finding). Run on demand to track cyclomatic/cognitive
+        complexity and oversized methods/classes — see the `complexity-report`
+        Maven profile. Thresholds are set above PMD defaults to surface only the
+        genuinely heavy hotspots rather than a yellow-sea report.
+    </description>
+
+    <rule ref="category/java/design.xml/CyclomaticComplexity">
+        <properties>
+            <!-- PMD default classReportLevel=80, methodReportLevel=10.
+                 Raise the method bar to 15 to flag real hotspots only. -->
+            <property name="classReportLevel" value="80"/>
+            <property name="methodReportLevel" value="15"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/CognitiveComplexity">
+        <properties>
+            <!-- PMD default reportLevel=15; 20 to focus on the hardest methods. -->
+            <property name="reportLevel" value="20"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/NPathComplexity">
+        <properties>
+            <property name="reportLevel" value="200"/>
+        </properties>
+    </rule>
+
+    <!-- NcssCount replaces the PMD 6 ExcessiveMethod/ClassLength rules (removed in
+         PMD 7): counts non-commenting source statements per method and per class. -->
+    <rule ref="category/java/design.xml/NcssCount">
+        <properties>
+            <property name="methodReportLevel" value="60"/>
+            <property name="classReportLevel" value="1500"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/ExcessiveParameterList">
+        <properties>
+            <property name="minimum" value="8"/>
+        </properties>
+    </rule>
+
+    <rule ref="category/java/design.xml/GodClass"/>
+
+    <rule ref="category/java/design.xml/TooManyMethods">
+        <properties>
+            <property name="maxmethods" value="40"/>
+        </properties>
+    </rule>
+
+</ruleset>

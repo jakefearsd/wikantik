@@ -14,7 +14,8 @@ All three tools are opt-in (kept out of the default build so it stays fast).
 |---|---|---|
 | **Duplication (CPD)** | `mvn -fae org.apache.maven.plugins:maven-pmd-plugin:3.28.0:cpd` | `*/target/cpd.xml` (+ `reports/cpd.html`) |
 | **Complexity (PMD)** | `mvn -fae -Pcomplexity-report org.apache.maven.plugins:maven-pmd-plugin:3.28.0:pmd` | `*/target/pmd.xml` |
-| **Coverage (JaCoCo)** | `mvn clean install -Pcoverage -DskipITs -T 1C` | `*/target/site/jacoco/jacoco.csv` + HTML |
+| **Coverage — unit only** | `mvn clean install -Pcoverage -DskipITs -T 1C` | `*/target/site/jacoco/jacoco.csv` |
+| **Coverage — unit + IT (combined)** | unit build above, then run the IT modules with `-Pcoverage` (agent rides the Cargo JVM → `jacoco-it.exec`), then `mvn -Pcoverage org.jacoco:jacoco-maven-plugin:report-aggregate` | `wikantik-coverage-report/target/site/jacoco-aggregate/` |
 | Bug-finding (PMD, existing) | `mvn -fae org.apache.maven.plugins:maven-pmd-plugin:3.28.0:pmd` | uses `build-support/pmd-ruleset.xml` |
 
 - The bug-finding ruleset (`build-support/pmd-ruleset.xml`) is deliberately tuned
@@ -65,11 +66,15 @@ Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
 > targeted method extraction, tracked in the backlog below. The single hardest
 > *methods* (cognitive ≥40) are the better first targets.
 
-### Coverage — JaCoCo (unit tests, `-DskipITs`)
-- **Overall line coverage: 76.3%** (34 570 / 45 326). Branch: 65.8%. Goal: 90%.
-- **Important caveat — this understates real coverage.** The run skips ITs, so
-  classes exercised **only by integration tests** show 0% here even though they
-  are well-tested:
+### Coverage — JaCoCo
+- **Unit-only: 76.3%** line (34 570 / 45 326), branch 65.8%.
+- **Combined unit + IT: 81.7%** and rising — now measurable via the Cargo-JVM agent +
+  `report-aggregate` (see commands above). The SCIM/admin REST resources that read 0%
+  unit-only now show their real coverage (e.g. `ScimUserResource` 55%, `ScimGroupResource`
+  65%). 81.7% is from the **rest** IT alone; running sso + custom-jdbc under coverage
+  lifts it further. Goal: 90%.
+- The unit-only number understates reality because classes exercised **only by
+  integration tests** show 0% there even though they are well-tested:
   - `ScimUserResource` (329 lines) + `ScimGroupResource` (305) → covered by
     `ScimUsersIT`/`ScimGroupsIT`.
   - `AdminAuditResource`, `AdminProfilingServlet`, `AdminFrontmatterIssuesResource`,
@@ -87,16 +92,17 @@ Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
 
 ## Prioritised remediation backlog
 
-1. **(coverage, highest impact) Wire JaCoCo into the IT/Cargo runs.** The single
-   biggest lever: capture coverage from the Cargo-launched ITs (jacoco agent on
-   the Tomcat JVM + `merge`/`report-aggregate`). Today ~1 000+ IT-covered lines
-   (SCIM + admin resources) read as 0%. This alone moves the headline number a lot
-   and makes it trustworthy.
-2. **(complexity) Knock down the worst cognitive methods** — `ExtractionResponseParser`,
-   `ExtractionBatchRunner`, `WikiEngine.<method@1418>` — via method extraction,
-   one at a time, each behind its existing tests.
-3. **(coverage) Raise the genuine low packages** — `search.subsystem`,
-   `mcp.resources`, `audit`, `attachment` — with targeted unit tests.
+1. ✅ **DONE — Wired JaCoCo into the IT/Cargo runs.** Agent on the Cargo Tomcat JVM +
+   `wikantik-coverage-report` `report-aggregate`. Combined coverage now 81.7%; the
+   SCIM/admin resources no longer read 0%. (Follow-up: run sso + custom-jdbc under
+   coverage in the same aggregation; optionally add a coverage mode to `run-tests.sh`.)
+2. ✅ **DONE (partial) — Cut the worst cognitive methods.** `ExtractionResponseParser.parse`
+   (52) and `PageExtractionResponseParser.parse` (28) extracted to linear methods, below
+   threshold, behind their tests. `ExtractionBatchRunner` (43) deferred — it has **no test**
+   and is concurrency-orchestration code; write a test first before refactoring.
+3. **(coverage) Raise the genuine low packages** — `search.subsystem` (44%),
+   `mcp.resources` (45%), `audit` (62%), `attachment` (69%) — with targeted unit tests.
+   (Re-confirm against the new combined report first.)
 4. **(duplication) Consolidate the config records** (`GraphRerankConfig`/
    `HybridConfig`) if they keep co-evolving.
 5. **(scope decision) Decide whether to exclude the experiment/CLI research
@@ -105,8 +111,11 @@ Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
 
 ---
 
-## Done in this pass
+## Done
 - Stood up the complexity tooling (`pmd-complexity-ruleset.xml` + `complexity-report`
   profile) — previously only bug-finding PMD existed.
 - Captured the baseline above.
 - Removed the top duplication: `AbstractScimServlet` extraction (SCIM Users/Groups).
+- **Wired JaCoCo into the Cargo IT runs** + `wikantik-coverage-report` aggregate →
+  combined unit + IT coverage (76.3% → 81.7%, SCIM/admin no longer 0%).
+- **Cut the two worst response-parser cognitive methods** (52, 28 → below threshold).

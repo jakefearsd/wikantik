@@ -7,6 +7,13 @@ import { ToastProvider } from './components/ui/ToastProvider';
 import SearchOverlay from './components/SearchOverlay';
 import { useGlobalHotkeys } from './hooks/useGlobalHotkeys';
 
+/* global __APP_VERSION__ */
+// Semantic version baked in at build time (Maven project.version → vite define).
+// Defensive typeof guard for any context where the define isn't applied.
+const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+// Prefix "v" only for real release/snapshot versions (e.g. 2.0.11), not for "dev".
+const APP_VERSION_LABEL = /^\d/.test(APP_VERSION) ? `v${APP_VERSION}` : APP_VERSION;
+
 export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -79,6 +86,8 @@ export default function App() {
             <a href="/privacy-policy.html">Privacy Policy</a>
             <span className="site-footer-sep" aria-hidden="true">·</span>
             <a href="/terms-of-service.html">Terms of Service</a>
+            <span className="site-footer-sep" aria-hidden="true">·</span>
+            <span className="site-footer-version" data-testid="app-version" title="Wikantik version">{APP_VERSION_LABEL}</span>
           </footer>
         )}
       </main>

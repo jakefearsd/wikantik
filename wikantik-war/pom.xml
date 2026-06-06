@@ -153,6 +153,11 @@
                         <configuration>
                             <executable>npx</executable>
                             <workingDirectory>${project.basedir}/../wikantik-frontend</workingDirectory>
+                            <!-- Bake the Maven version into the SPA bundle (vite reads
+                                 process.env.WIKANTIK_VERSION → __APP_VERSION__ → footer). -->
+                            <environmentVariables>
+                                <WIKANTIK_VERSION>${project.version}</WIKANTIK_VERSION>
+                            </environmentVariables>
                             <arguments>
                                 <argument>vite</argument>
                                 <argument>build</argument>

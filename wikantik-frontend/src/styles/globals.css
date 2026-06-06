@@ -1360,6 +1360,10 @@ a[data-attachment-missing] {
 .site-footer-sep {
   color: var(--text-muted);
 }
+.site-footer-version {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
 
 /* -------------------------------------------------------------------- */
 /* Mentions page (/me/mentions)                                          */

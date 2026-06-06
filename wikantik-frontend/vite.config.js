@@ -6,7 +6,14 @@ function buildVersionPlugin() {
   return {
     name: 'build-version',
     config() {
-      return { define: { __BUILD_VERSION__: JSON.stringify(version) } };
+      return {
+        define: {
+          __BUILD_VERSION__: JSON.stringify(version),
+          // Semantic app version, injected by Maven (WIKANTIK_VERSION=${project.version})
+          // during the WAR build. Falls back to 'dev' for a plain `npm run build`.
+          __APP_VERSION__: JSON.stringify(process.env.WIKANTIK_VERSION || 'dev'),
+        },
+      };
     },
     transformIndexHtml( html ) {
       return html.replace(

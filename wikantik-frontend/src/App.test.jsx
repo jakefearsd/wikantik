@@ -67,6 +67,21 @@ describe('App #23 — single shared SearchOverlay', () => {
   });
 });
 
+describe('App — footer version', () => {
+  it('shows the build version in the footer on reader routes', () => {
+    renderApp('/wiki/Main');
+    const version = screen.getByTestId('app-version');
+    expect(version).toBeInTheDocument();
+    // The vite build-version plugin define falls back to 'dev' in tests.
+    expect(version).toHaveTextContent('dev');
+  });
+
+  it('hides the footer version on admin routes', () => {
+    renderApp('/admin/users');
+    expect(screen.queryByTestId('app-version')).not.toBeInTheDocument();
+  });
+});
+
 describe('App #23-finish — Cmd+K search on all routes', () => {
   it('Cmd+K opens search overlay on a regular wiki route', async () => {
     renderApp('/wiki/Main');

@@ -146,7 +146,7 @@ public class SSOConfig {
                 buildOidcClient( props, clients );
             }
             if( "saml".equalsIgnoreCase( ssoType ) || "both".equalsIgnoreCase( ssoType ) ) {
-                buildSamlClient( props, callbackUrl, clients );
+                buildSamlClient( props, callbackUrl, "both".equalsIgnoreCase( ssoType ), clients );
             }
 
             final Clients clientsHolder = new Clients( callbackUrl, clients );
@@ -206,7 +206,8 @@ public class SSOConfig {
         }
     }
 
-    private void buildSamlClient( final Properties props, final String callbackUrl, final List< Client > clients ) {
+    private void buildSamlClient( final Properties props, final String callbackUrl,
+                                  final boolean multiClient, final List< Client > clients ) {
         final String idpMetadata = props.getProperty( PROP_SAML_IDP_METADATA );
         final String spEntityId = props.getProperty( PROP_SAML_SP_ENTITY_ID );
         final String keystorePath = props.getProperty( PROP_SAML_KEYSTORE_PATH );
@@ -236,15 +237,23 @@ public class SSOConfig {
             }
 
             // Explicitly register the ACS URL that the IdP will use as the assertion
-            // Destination. pac4j's QueryParameterCallbackUrlResolver would otherwise
-            // append "?client_name=SAML2Client" to the ACS Location in the SP metadata,
-            // causing a Destination mismatch when the IdP posts the assertion back to
-            // the raw callback path (without the client_name query parameter).
-            // Setting assertionConsumerServiceUrl ensures the SP metadata registers
-            // exactly the URL the IdP will post to.
+            // Destination, so the SP metadata advertises exactly the URL the IdP posts to.
+            //
+            // Single-client (type=saml) mode: use the raw callback path. pac4j's
+            // DefaultCallbackClientFinder resolves the only client without a hint.
+            //
+            // Multi-client (type=both) mode: the OIDC and SAML clients SHARE the
+            // /sso/callback endpoint, so pac4j needs the client_name to disambiguate
+            // (OIDC carries it via QueryParameterCallbackUrlResolver on its redirect_uri).
+            // Append ?client_name=SAML2Client to the ACS so the IdP echoes it as the POST
+            // target; pac4j then resolves the SAML client at the callback. The same URL is
+            // registered here, so assertion Destination validation stays consistent.
             if( callbackUrl != null && !callbackUrl.isBlank() ) {
-                samlConfig.setAssertionConsumerServiceUrl( callbackUrl );
-                LOG.debug( "SAML ACS URL set to: {}", callbackUrl );
+                final String acsUrl = multiClient
+                    ? callbackUrl + ( callbackUrl.contains( "?" ) ? "&" : "?" ) + "client_name=SAML2Client"
+                    : callbackUrl;
+                samlConfig.setAssertionConsumerServiceUrl( acsUrl );
+                LOG.debug( "SAML ACS URL set to: {}", acsUrl );
             }
 
             final var samlClient = new org.pac4j.saml.client.SAML2Client( samlConfig );

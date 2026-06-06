@@ -141,6 +141,26 @@ public class SSOLoginModule extends AbstractLoginModule {
                     "SSO identity '" + loginName + "' collides with an existing non-SSO account." );
             }
 
+            // Reject authentication for a locally-known locked/deactivated account.
+            // A missing local profile (not-yet-provisioned SSO identity) is not
+            // rejected — proceed on the IdP assertion alone.
+            if( engine != null ) {
+                final UserDatabase userDb =
+                    AuthSubsystemBridge.fromLegacyEngine( engine ).users().getUserDatabase();
+                if( userDb != null ) {
+                    try {
+                        final com.wikantik.auth.user.UserProfile wikiProfile =
+                            userDb.findByLoginName( loginName );
+                        if( wikiProfile.isLocked() ) {
+                            LOG.warn( "SSO login rejected: account is locked for user '{}'", loginName );
+                            throw new FailedLoginException( "Account is locked." );
+                        }
+                    } catch( final NoSuchPrincipalException e ) {
+                        LOG.debug( "SSO lock check: no local profile for '{}'; proceeding on IdP assertion", loginName );
+                    }
+                }
+            }
+
             LOG.debug( "SSO login succeeded for user: {}", loginName );
             principals.add( new WikiPrincipal( loginName, WikiPrincipal.LOGIN_NAME ) );
 

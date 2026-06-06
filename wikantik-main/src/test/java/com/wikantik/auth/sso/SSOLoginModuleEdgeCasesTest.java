@@ -133,6 +133,46 @@ class SSOLoginModuleEdgeCasesTest {
     }
 
     @Test
+    void lockedSsoUserCannotLogin() throws Exception {
+        final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
+        final UserDatabase userDb = engine.getManager( com.wikantik.auth.UserManager.class ).getUserDatabase();
+
+        // Provision a local profile for the SSO login name and lock it.
+        final UserProfile local = userDb.newProfile();
+        local.setLoginName( "locked-sso-user" );
+        local.setFullname( "Locked SSO User" );
+        // Link to an SSO subject so the collision check passes.
+        local.getAttributes().put( SSOAutoProvisionService.ATTR_SSO_SUBJECT, "locked-sso-subject" );
+        userDb.save( local );
+
+        final java.util.Calendar farFuture = java.util.Calendar.getInstance();
+        farFuture.clear();
+        farFuture.set( 9999, java.util.Calendar.DECEMBER, 31, 23, 59, 59 );
+        local.setLockExpiry( farFuture.getTime() );
+        userDb.save( local );
+
+        try {
+            final CommonProfile profile = new CommonProfile();
+            profile.setId( "locked-sso-subject" );
+            profile.addAttribute( "sub", "locked-sso-subject" );
+            profile.addAttribute( "preferred_username", "locked-sso-user" );
+
+            final SSOLoginModule module = new SSOLoginModule();
+            final Subject subject = new Subject();
+            module.initialize( subject,
+                    new WebContainerCallbackHandler( engine, requestWithProfile( profile ) ),
+                    new HashMap<>(), new HashMap<>() );
+
+            Assertions.assertThrows( javax.security.auth.login.FailedLoginException.class, module::login,
+                "A SCIM-deactivated SSO user must not authenticate." );
+            Assertions.assertTrue( subject.getPrincipals( WikiPrincipal.class ).isEmpty(),
+                "No principal may be bound for a locked SSO account." );
+        } finally {
+            userDb.deleteByLoginName( "locked-sso-user" );
+        }
+    }
+
+    @Test
     void disabledProvisionStillAuthenticatesWithoutLocalProfile() throws Exception {
         final TestEngine engine = new TestEngine( TestEngine.getTestProperties() );
         // Register an SSOConfig with auto-provision disabled.

@@ -23,6 +23,21 @@
 > `ScimDeactivationAuthIT` and fixed (TDD): locked/deactivated accounts could still log in because
 > `UserDatabaseLoginModule` (and the remember-me `CookieAuthenticationLoginModule`) never checked
 > `UserProfile.isLocked()`. Both now fail closed. See the auth-lock memory note.
+>
+> **Revision 2026-06-06 (d) — follow-ups completed:**
+> 1. **Lock-enforcement gap closed everywhere.** `SSOLoginModule` and `WebContainerLoginModule` also
+>    now check `isLocked()` (fail closed for existing-locked, proceed on missing-profile). All four
+>    authenticated login modules are covered; `CookieAssertionLoginModule` is asserted-only by design.
+> 2. **`type=both` SAML callback fixed and consolidated.** `SSOConfig.buildSamlClient` now appends
+>    `?client_name=SAML2Client` to the SAML ACS in multi-client mode, so pac4j resolves the SAML client
+>    at the shared `/sso/callback`. The two SSO IT modules are **re-merged into one** (`wikantik-it-test-sso`,
+>    `type=both`) running OIDC + SAML against a **single** Keycloak; `wikantik-it-test-sso-saml` is
+>    deleted. (Supersedes revision (b)'s two-module decision.) Default gate: `rest`, `sso`, `custom-jdbc`.
+> 3. **Authentik full-loop implemented (Approach B complete).** The opt-in `scim-fullloop` IT now drives
+>    a real Authentik IdP end-to-end: create SCIM provider + app, create user, force sync, disable user
+>    — the wiki reflects both transitions. Infra notes: Authentik's Go proxy needs HTTP/1.1; the worker
+>    reaches the host wiki via `host.docker.internal:host-gateway`; the worker readiness marker is
+>    "Dispatching startup tasks" (no `celery@` banner in JSON logs).
 
 ## Goal
 

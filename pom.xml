@@ -1409,12 +1409,21 @@
         </property>
       </activation>
 
+      <!-- The aggregate-coverage module is only in the reactor under -Pcoverage. -->
+      <modules>
+        <module>wikantik-coverage-report</module>
+      </modules>
+
       <build>
         <plugins>
           <plugin>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
-            <!-- version + executions inherited from pluginManagement -->
+            <!-- version + executions inherited from pluginManagement.
+                 The Cargo Tomcat JVM is instrumented via the ${jacoco.it.agent}
+                 profile property (set in wikantik-it-tests' coverage profile) appended
+                 to cargo.jvmargs — a build-time property, since runtime prepare-agent
+                 would set it too late for cargo's pre-interpolated config. -->
           </plugin>
         </plugins>
       </build>

@@ -54,6 +54,10 @@
     <it.db.container-alias>wikantik-pg-${project.artifactId}</it.db.container-alias>
     <it.db.migrate-script>${project.basedir}/../../bin/db/migrate.sh</it.db.migrate-script>
     <it.db.seed-script>${project.basedir}/../src/main/resources/sql/it-test-seed.sql</it.db.seed-script>
+    <!-- Empty by default; the `coverage` profile's prepare-agent-it execution sets this
+         to the JaCoCo agent arg so the Cargo Tomcat JVM (which runs the WAR's production
+         classes) is instrumented. Appended to cargo.jvmargs below. -->
+    <jacoco.it.agent></jacoco.it.agent>
   </properties>
 
   <dependencies>
@@ -96,6 +100,21 @@
   </dependencies>
 
   <profiles>
+    <!-- Under -Pcoverage, instrument the Cargo Tomcat JVM (which runs the WAR's
+         production classes) by setting the JaCoCo agent arg as a BUILD-TIME property.
+         It is appended to cargo.jvmargs (above); cargo's config is pre-interpolated
+         from the effective POM, so a runtime prepare-agent would set it too late.
+         Writes per-IT-module target/jacoco-it.exec; aggregated by jacoco-coverage-report. -->
+    <profile>
+      <id>coverage</id>
+      <activation>
+        <property><name>coverage</name><value>true</value></property>
+      </activation>
+      <properties>
+        <jacoco.it.agent>-javaagent:${settings.localRepository}/org/jacoco/org.jacoco.agent/${jacoco-version}/org.jacoco.agent-${jacoco-version}-runtime.jar=destfile=${project.build.directory}/jacoco-it.exec,append=true</jacoco.it.agent>
+      </properties>
+    </profile>
+
     <!-- Opt-in profile: builds wikantik-it-test-scim-fullloop ONLY when
          -Pscim-fullloop is active. Never part of the default gate. -->
     <profile>
@@ -378,7 +397,7 @@
                     <!-- wikantik.profiling.dir redirected into the test target/
                          so the JFR endpoint IT (ProfilingResourceIT) can
                          create the directory without root privileges. -->
-                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading -Dwikantik.test.fixture-seam.enabled=true -Dwikantik.profiling.dir=${project.build.directory}/cargo-profiling --add-modules=jdk.incubator.vector -Dwikantik.scim.token=it-scim-token</cargo.jvmargs>
+                    <cargo.jvmargs>-Djava.awt.headless=true -XX:+EnableDynamicAgentLoading -Dwikantik.test.fixture-seam.enabled=true -Dwikantik.profiling.dir=${project.build.directory}/cargo-profiling --add-modules=jdk.incubator.vector -Dwikantik.scim.token=it-scim-token ${jacoco.it.agent}</cargo.jvmargs>
                     <!-- Reserved per module by build-helper so parallel IT
                          modules don't share Cargo's default RMI port (8205). -->
                     <cargo.rmi.port>${it.wikantik.rmi.port}</cargo.rmi.port>

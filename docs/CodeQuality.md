@@ -68,11 +68,10 @@ Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
 
 ### Coverage — JaCoCo
 - **Unit-only: 76.3%** line (34 570 / 45 326), branch 65.8%.
-- **Combined unit + IT: 81.7%** and rising — now measurable via the Cargo-JVM agent +
-  `report-aggregate` (see commands above). The SCIM/admin REST resources that read 0%
-  unit-only now show their real coverage (e.g. `ScimUserResource` 55%, `ScimGroupResource`
-  65%). 81.7% is from the **rest** IT alone; running sso + custom-jdbc under coverage
-  lifts it further. Goal: 90%.
+- **Combined unit + ALL ITs: 82.6%** (37 362 / 45 229) — measured via the Cargo-JVM agent +
+  `report-aggregate` (rest + sso + custom-jdbc under `-Pcoverage`). **Excluding the
+  research/CLI tooling** (experiment harness + CLI mains, 3 068 lines at ~43%): **85.5%**.
+  Goal: 90%.
 - The unit-only number understates reality because classes exercised **only by
   integration tests** show 0% there even though they are well-tested:
   - `ScimUserResource` (329 lines) + `ScimGroupResource` (305) → covered by
@@ -92,17 +91,20 @@ Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
 
 ## Prioritised remediation backlog
 
-1. ✅ **DONE — Wired JaCoCo into the IT/Cargo runs.** Agent on the Cargo Tomcat JVM +
-   `wikantik-coverage-report` `report-aggregate`. Combined coverage now 81.7%; the
-   SCIM/admin resources no longer read 0%. (Follow-up: run sso + custom-jdbc under
-   coverage in the same aggregation; optionally add a coverage mode to `run-tests.sh`.)
+1. ✅ **DONE — Wired JaCoCo into the IT/Cargo runs + measured all ITs.** Agent on the Cargo
+   Tomcat JVM + `wikantik-coverage-report` `report-aggregate` over rest + sso + custom-jdbc.
+   Combined coverage 82.6% (85.5% ex research/CLI); SCIM/admin resources no longer read 0%.
+   (Follow-up: add a coverage mode to `run-tests.sh` so the combined report is one command.)
 2. ✅ **DONE (partial) — Cut the worst cognitive methods.** `ExtractionResponseParser.parse`
    (52) and `PageExtractionResponseParser.parse` (28) extracted to linear methods, below
    threshold, behind their tests. `ExtractionBatchRunner` (43) deferred — it has **no test**
    and is concurrency-orchestration code; write a test first before refactoring.
-3. **(coverage) Raise the genuine low packages** — `search.subsystem` (44%),
-   `mcp.resources` (45%), `audit` (62%), `attachment` (69%) — with targeted unit tests.
-   (Re-confirm against the new combined report first.)
+3. ✅ **DONE (partial) — Raised the lowest genuine packages.** `mcp.resources` 45% → ~70%
+   (`WikiResources` 39 → 80%) and `mcp.prompts` 41% → ~95% (`WikiPrompts` 41 → 100%), via
+   focused handler tests. **Still genuinely low (more-involved tests — `Context` /
+   `RedirectException` / provider machinery):** `scim` 67.5% (error/edge paths),
+   `render.subsystem.spam` 69% (`DefaultSpamPatternMatcher`/`ExternalSignals`),
+   `attachment` 69% (providers).
 4. **(duplication) Consolidate the config records** (`GraphRerankConfig`/
    `HybridConfig`) if they keep co-evolving.
 5. **(scope decision) Decide whether to exclude the experiment/CLI research
@@ -117,5 +119,8 @@ Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
 - Captured the baseline above.
 - Removed the top duplication: `AbstractScimServlet` extraction (SCIM Users/Groups).
 - **Wired JaCoCo into the Cargo IT runs** + `wikantik-coverage-report` aggregate →
-  combined unit + IT coverage (76.3% → 81.7%, SCIM/admin no longer 0%).
+  combined unit + IT coverage over all three IT modules (76.3% unit-only → 82.6%
+  combined, 85.5% excluding research/CLI; SCIM/admin no longer 0%).
 - **Cut the two worst response-parser cognitive methods** (52, 28 → below threshold).
+- **Raised the two lowest genuine packages**: `WikiResources` 39 → 80%, `WikiPrompts`
+  41 → 100% (focused MCP handler tests).

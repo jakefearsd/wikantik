@@ -67,11 +67,12 @@ Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
 > *methods* (cognitive ≥40) are the better first targets.
 
 ### Coverage — JaCoCo
-- **Unit-only: 76.3%** line (34 570 / 45 326), branch 65.8%.
-- **Combined unit + ALL ITs: 82.6%** (37 362 / 45 229) — measured via the Cargo-JVM agent +
+- **Unit-only: ~76.8%** line (the SCIM/spam/attachment error-branch tests added below are
+  all unit tests, so the unit number rose ~0.5pp with the combined one).
+- **Combined unit + ALL ITs: 83.1%** (37 605 / 45 229) — measured via the Cargo-JVM agent +
   `report-aggregate` (rest + sso + custom-jdbc under `-Pcoverage`). **Excluding the
-  research/CLI tooling** (experiment harness + CLI mains, 3 068 lines at ~43%): **85.5%**.
-  Goal: 90%.
+  research/CLI tooling** (experiment harness + CLI mains, 3 068 lines at ~43%): **86.0%**.
+  Goal: 90%. (+243 lines over the 82.6% baseline from the targeted error-branch tests below.)
 - The unit-only number understates reality because classes exercised **only by
   integration tests** show 0% there even though they are well-tested:
   - `ScimUserResource` (329 lines) + `ScimGroupResource` (305) → covered by
@@ -83,9 +84,11 @@ Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
   the retrieval-experiment harness; `*Cli` / `EmbeddingCli` / `extractcli.*` are
   CLI mains; `WikiBootstrapServletContextListener` is container bootstrap.
 - Genuine production packages worth raising (below 80%, excluding the above):
-  `search.subsystem` (44%), `mcp.resources` (45%), `audit` (62%),
-  `attachment` (69%), `render.subsystem.spam` (69%), `variables` (72%),
+  `search.subsystem` (44%), `audit` (62%), `variables` (72%),
   `knowledge.extraction` (73%), `auth` (80%-).
+  - **Raised:** `scim` 67.5% → **81.4%** (error-branch tests), `render.subsystem.spam`
+    69% → **78.3%** (pattern-matcher + local external-signals), `attachment` 69% → **79.9%**
+    (`AttachmentServlet` multipart upload path), `mcp.resources` 45% → ~70%.
 
 ---
 
@@ -99,12 +102,15 @@ Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
    (52) and `PageExtractionResponseParser.parse` (28) extracted to linear methods, below
    threshold, behind their tests. `ExtractionBatchRunner` (43) deferred — it has **no test**
    and is concurrency-orchestration code; write a test first before refactoring.
-3. ✅ **DONE (partial) — Raised the lowest genuine packages.** `mcp.resources` 45% → ~70%
-   (`WikiResources` 39 → 80%) and `mcp.prompts` 41% → ~95% (`WikiPrompts` 41 → 100%), via
-   focused handler tests. **Still genuinely low (more-involved tests — `Context` /
-   `RedirectException` / provider machinery):** `scim` 67.5% (error/edge paths),
-   `render.subsystem.spam` 69% (`DefaultSpamPatternMatcher`/`ExternalSignals`),
-   `attachment` 69% (providers).
+3. ✅ **DONE — Raised the lowest genuine packages.** `mcp.resources` 45% → ~70%
+   (`WikiResources` 39 → 80%) and `mcp.prompts` 41% → ~95% (`WikiPrompts` 41 → 100%) via
+   focused handler tests; then the more-involved error/edge-path round: `scim` 67.5% →
+   **81.4%** (`ScimUserResource`/`ScimGroupResource` error branches — 56 tests, reflection
+   engine injection), `render.subsystem.spam` 69% → **78.3%** (`DefaultSpamPatternMatcher`
+   refresh/match paths + `DefaultSpamExternalSignals` `checkBotTrap`/`checkUTF8`; `checkAkismet`
+   left uncovered — needs a live API key), `attachment` 69% → **79.9%** (`AttachmentServlet`
+   real-multipart `upload()`, `doPost` success, `validateNextPage` phishing rewrite, mime
+   fallback). Combined coverage 82.6% → **83.1%** (86.0% ex research/CLI).
 4. **(duplication) Consolidate the config records** (`GraphRerankConfig`/
    `HybridConfig`) if they keep co-evolving.
 5. **(scope decision) Decide whether to exclude the experiment/CLI research
@@ -122,5 +128,7 @@ Worst **cognitive** methods: `ExtractionResponseParser:66` (52),
   combined unit + IT coverage over all three IT modules (76.3% unit-only → 82.6%
   combined, 85.5% excluding research/CLI; SCIM/admin no longer 0%).
 - **Cut the two worst response-parser cognitive methods** (52, 28 → below threshold).
-- **Raised the two lowest genuine packages**: `WikiResources` 39 → 80%, `WikiPrompts`
-  41 → 100% (focused MCP handler tests).
+- **Raised the lowest genuine packages** in two rounds: `WikiResources` 39 → 80%,
+  `WikiPrompts` 41 → 100% (MCP handler tests); then `scim` 67.5 → 81.4%, `render.subsystem.spam`
+  69 → 78.3%, `attachment` 69 → 79.9% (101 error-branch / upload-path unit tests). Combined
+  coverage 82.6 → 83.1% (86.0% ex research/CLI), +243 lines.

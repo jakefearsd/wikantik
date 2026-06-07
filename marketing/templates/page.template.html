@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>{{TITLE}}</title>
+  <meta name="description" content="{{DESCRIPTION}}">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="{{CANONICAL}}">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="{{OG_TYPE}}">
+  <meta property="og:url" content="{{CANONICAL}}">
+  <meta property="og:title" content="{{TITLE}}">
+  <meta property="og:description" content="{{DESCRIPTION}}">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{{TITLE}}">
+  <meta name="twitter:description" content="{{DESCRIPTION}}">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <!-- Page-specific structured data (TechArticle + BreadcrumbList [+ FAQPage]) -->
+  {{PAGE_JSONLD}}
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    {{BREADCRUMB}}
+    {{CONTENT}}
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

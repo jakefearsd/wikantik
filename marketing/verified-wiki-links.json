@@ -1,0 +1,16 @@
+{
+  "_comment": "Outbound wiki links allowed on marketing pages. Each URL was confirmed to return 200 on 2026-06-07. Add only after verifying live.",
+  "allowed": [
+    "https://wiki.wikantik.com/",
+    "https://wiki.wikantik.com/login",
+    "https://wiki.wikantik.com/wiki/HybridRetrieval",
+    "https://wiki.wikantik.com/wiki/StructuralSpineDesign",
+    "https://wiki.wikantik.com/wiki/AgentGradeContentDesign",
+    "https://wiki.wikantik.com/wiki/PageGraphVsKnowledgeGraph",
+    "https://wiki.wikantik.com/wiki/KgInclusionPolicy",
+    "https://wiki.wikantik.com/wiki/GoodMcpDesign",
+    "https://wiki.wikantik.com/wiki/KnowledgeGraphRerank",
+    "https://wiki.wikantik.com/wiki/ObservabilityDesign",
+    "https://wiki.wikantik.com/wiki/DockerDeployment"
+  ]
+}

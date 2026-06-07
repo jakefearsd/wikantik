@@ -22,6 +22,7 @@ import com.wikantik.TestEngine;
 import com.wikantik.WikiEngine;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.mcp.tools.McpTool;
+import com.wikantik.mcp.tools.PingSearchEnginesTool;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -171,6 +172,28 @@ class McpToolRegistryTest {
         }
         for ( final McpTool tool : registry.authorConfigurableTools() ) {
             assertNotNull( tool.definition(), "Tool " + tool.name() + " should have a definition" );
+        }
+    }
+
+    @Test
+    void pingSearchEnginesUsesConfiguredBaseUrlNotContextPath() {
+        // Regression: ping_search_engines was wired to engine.getBaseURL(), which
+        // returns the servlet context path ("" for the ROOT context) — not the
+        // configured wikantik.baseURL. That left the tool unable to build absolute
+        // sitemap/IndexNow URLs in prod. It must read wikantik.baseURL instead.
+        final TestEngine e = TestEngine.build(
+                java.util.Map.entry( "wikantik.baseURL", "https://wiki.example.test/" ) );
+        try {
+            final McpToolRegistry reg = new McpToolRegistry( e );
+            final PingSearchEnginesTool ping = (PingSearchEnginesTool) reg.readOnlyTools().stream()
+                    .filter( t -> t.name().equals( "ping_search_engines" ) )
+                    .findFirst()
+                    .orElseThrow( () -> new AssertionError( "ping_search_engines not registered" ) );
+            // baseUrl is stored with the trailing slash stripped.
+            assertEquals( "https://wiki.example.test", ping.baseUrl(),
+                    "ping tool must use configured wikantik.baseURL, not the context path" );
+        } finally {
+            e.stop();
         }
     }
 

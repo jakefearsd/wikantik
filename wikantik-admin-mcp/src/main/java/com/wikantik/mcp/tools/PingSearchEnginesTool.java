@@ -56,6 +56,11 @@ public class PingSearchEnginesTool implements McpTool {
         this.httpClient = httpClient;
     }
 
+    /** The configured base URL (trailing slash stripped). Exposed for wiring tests. */
+    public String baseUrl() {
+        return baseUrl;
+    }
+
     @Override
     public String name() {
         return TOOL_NAME;

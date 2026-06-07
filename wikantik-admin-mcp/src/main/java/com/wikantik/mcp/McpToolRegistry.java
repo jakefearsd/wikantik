@@ -78,11 +78,16 @@ public class McpToolRegistry {
         final GetOrphanedPagesTool getOrphanedPages = new GetOrphanedPagesTool( referenceManager, systemPageRegistry );
         final GetWikiStatsTool getWikiStats = new GetWikiStatsTool( pageManager, referenceManager );
         final VerifyPagesTool verifyPages = new VerifyPagesTool( pageManager, referenceManager );
+        // engine.getBaseURL() returns the servlet context path (empty for the ROOT
+        // context), not the public origin — these tools need the configured
+        // wikantik.baseURL to build absolute sitemap / structured-data / IndexNow URLs.
+        final java.util.Properties mcpProps = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties();
+        final String configuredBaseUrl = mcpProps.getProperty( "wikantik.baseURL", "" );
         final PreviewStructuredDataTool previewStructuredData = new PreviewStructuredDataTool(
-                pageManager, engine.getApplicationName(), engine.getBaseURL() );
-        final String indexNowApiKey = CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties().getProperty( "wikantik.indexnow.apiKey" );
+                pageManager, engine.getApplicationName(), configuredBaseUrl );
+        final String indexNowApiKey = mcpProps.getProperty( "wikantik.indexnow.apiKey" );
         final PingSearchEnginesTool pingSearchEngines = new PingSearchEnginesTool(
-                engine.getBaseURL(), indexNowApiKey, java.net.http.HttpClient.newHttpClient() );
+                configuredBaseUrl, indexNowApiKey, java.net.http.HttpClient.newHttpClient() );
 
         final List< McpTool > readOnlyList = new ArrayList<>( List.of(
                 getBacklinks, getPageHistory, diffPage,

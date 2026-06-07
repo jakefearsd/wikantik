@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>What is an AI-native wiki? A wiki for LLMs &amp; agents | Wikantik</title>
+  <meta name="description" content="An AI-native wiki serves humans and machines from one source: native MCP, hybrid retrieval, a knowledge graph, and agent-grade projections. Here's what that means and why it matters.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/compare/wiki-for-ai-agents.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/compare/wiki-for-ai-agents.html">
+  <meta property="og:title" content="What is an AI-native wiki? A wiki for LLMs &amp; agents | Wikantik">
+  <meta property="og:description" content="An AI-native wiki serves humans and machines from one source: native MCP, hybrid retrieval, a knowledge graph, and agent-grade projections. Here's what that means and why it matters.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="What is an AI-native wiki? A wiki for LLMs &amp; agents | Wikantik">
+  <meta name="twitter:description" content="An AI-native wiki serves humans and machines from one source: native MCP, hybrid retrieval, a knowledge graph, and agent-grade projections. Here's what that means and why it matters.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <!-- Page-specific structured data -->
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "What is an AI-native wiki? A wiki for LLMs and agents",
+    "description": "An AI-native wiki serves humans and machines from one source: native MCP, hybrid retrieval, a knowledge graph, and agent-grade projections. Here's what that means and why it matters.",
+    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/compare/wiki-for-ai-agents.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Compare", "item": "https://www.wikantik.com/compare/" },
+      { "@type": "ListItem", "position": 3, "name": "AI-native wiki", "item": "https://www.wikantik.com/compare/wiki-for-ai-agents.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Does an AI-native wiki replace RAG pipelines?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Not exactly — it makes them better and simpler. An AI-native wiki provides the structured retrieval layer (hybrid search, knowledge graph, MCP tools) that a RAG pipeline needs to function well, so you are not building that infrastructure from scratch. The wiki becomes the authoritative source; the RAG pipeline queries it. A change-feed endpoint lets sync pipelines keep external vector stores up to date incrementally." } },
+      { "@type": "Question", "name": "What is the Model Context Protocol (MCP)?",
+        "acceptedAnswer": { "@type": "Answer", "text": "MCP is an open protocol for connecting AI agents to external tools and data sources over a standardized interface. An MCP-compatible AI client — Claude, a custom LLM assistant, or any agent that speaks MCP — can discover and call tools exposed by an MCP server, including tools that query a knowledge base. An AI-native wiki exposes its retrieval capabilities as native MCP tools so agents can use them directly." } },
+      { "@type": "Question", "name": "Can a classic wiki be retrofitted to be AI-native?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Partially. You can add a vector store and a search API on top of a classic wiki's HTML export, but you cannot easily retrofit a knowledge graph derived from the wiki's actual structure, canonical page identifiers that survive renames, agent-grade projections that summarize content to a token budget, or a native MCP server. These capabilities require the wiki engine itself to be designed with machine consumers in mind from the start." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/compare/">Compare</a> ›
+        <span aria-current="page">AI-native wiki</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Compare</p>
+          <h1>What is an AI-native wiki?</h1>
+          <p class="doc-lede">An AI-native wiki is a knowledge base designed from the ground up to serve two kinds of readers simultaneously — humans and machines — from a single authoritative source of truth. It exposes native query interfaces for AI agents (not scraped HTML), hybrid retrieval that handles natural-language questions, a structured knowledge graph derived from its own content, and agent-grade projections that summarize pages to a token budget. A wiki that does not have these properties is not AI-native; adding a chatbot in front of it does not change that.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>Why classic wikis fail agents</h2>
+          <p>A classic wiki — MediaWiki, Confluence, a static site, even a well-maintained Notion space — is optimized for the human reading experience: clean HTML, navigation, search that returns a list of links. When an AI agent needs to retrieve information from one of these systems, it faces a pile of obstacles.</p>
+          <ul>
+            <li><strong>No structured query interface.</strong> Agents have to scrape rendered HTML, fight pagination, and parse navigation markup. There is no endpoint that returns a page as structured data.</li>
+            <li><strong>Keyword-only search.</strong> Classic wiki search is Lucene BM25 at best. An agent asking "what is our retry policy for the payments service?" will get nothing useful if the relevant page uses different words.</li>
+            <li><strong>No knowledge graph.</strong> A classic wiki has pages and links, but not entities, typed relationships, or embeddings. An agent cannot follow a semantic relationship — it can only follow a hyperlink.</li>
+            <li><strong>No token-budgeted projections.</strong> Every page is rendered at full length. An agent retrieving ten pages to answer a question blows its context window before it can synthesize an answer.</li>
+            <li><strong>No change feed.</strong> External vector stores cannot stay in sync without a change feed. A classic wiki has no incremental export; you batch-crawl or you go stale.</li>
+          </ul>
+          <p>The practical result is that teams either build bespoke infrastructure on top of their wiki (custom connectors, scrapers, ETL pipelines), or their agents simply do not use the team's knowledge base. Both outcomes are worse than they should be.</p>
+
+          <h2>The five things that make a wiki AI-native</h2>
+
+          <h3>1. A native protocol for agent queries (MCP)</h3>
+          <p>The most direct way for an AI agent to query a knowledge base is via a purpose-built protocol — not HTTP scraping, not a search API that returns HTML links. The Model Context Protocol (MCP) is an open standard that lets agents discover and call tools exposed by a server over a standardized interface. An AI-native wiki exposes its retrieval capabilities — page lookup, semantic search, knowledge-graph traversal, structural navigation — as native MCP tools. The agent calls a tool, gets structured data back, cites it, and moves on. No connector to build. No middleware to maintain.</p>
+
+          <h3>2. Hybrid retrieval — keyword + dense + knowledge-graph rerank</h3>
+          <p>Keyword search (BM25) finds pages that contain the right words. Dense embedding search finds pages that are semantically similar to the question. Neither is sufficient alone. An AI-native wiki combines both with weighted Reciprocal Rank Fusion and adds an optional knowledge-graph rerank that boosts pages whose entities are related to the query. The result is retrieval that works when an agent asks in plain language, uses domain-specific terminology, or asks about a concept that is described differently across pages.</p>
+          <p>Reliability matters too: an AI-native wiki's retrieval does not silently degrade when one component fails. If the dense backend is unavailable, the system fails closed to BM25 — agents still get results, not an error.</p>
+
+          <h3>3. A knowledge graph derived from your content</h3>
+          <p>A link graph (who links to whom) is useful but shallow. A knowledge graph extracts the entities mentioned in your pages — technologies, people, concepts, systems — and the relationships between them: co-mentions, typed predicates ("Service X depends on Service Y"), hub memberships. Agents can traverse this graph to find related pages, discover concepts, and understand the semantic structure of your content — not just follow the hyperlinks an author happened to write.</p>
+
+          <h3>4. Agent-grade page projections</h3>
+          <p>Agents work within token budgets. A 10,000-word runbook is not useful to an agent that needs a 500-token summary of the most operationally relevant facts. An AI-native wiki serves a token-budgeted projection of each page — the most retrieval-relevant content, structured for machine consumption — alongside the full human-readable version. Pages can carry metadata that marks them as runbooks, specifies their verification status, and surfaces derived agent hints. The source of truth is one page; the rendering is adapted per consumer.</p>
+
+          <h3>5. A change feed for sync pipelines</h3>
+          <p>External RAG pipelines and vector stores need to know what changed since they last synced. An AI-native wiki exposes an incremental change feed — a time-ordered log of page additions, modifications, and deletions — so sync pipelines can update their indexes without crawling the entire site on every run. This is the difference between a knowledge base that stays current and one that silently drifts stale.</p>
+
+          <h2>How Wikantik implements each of these</h2>
+          <p>Wikantik is built around these five properties. On protocol: it ships two native MCP servers — <code>/knowledge-mcp</code> with 16 read-only tools (hybrid retrieval, knowledge-graph traversal, structural navigation, agent projections, batched page reads) and <code>/wikantik-admin-mcp</code> with 25 write and analytics tools — plus an OpenAPI 3.1 tool server at <code>/tools/*</code> for non-MCP clients. On retrieval: BM25 + dense embeddings (pluggable backend: in-memory, pgvector, or Lucene HNSW) fused with weighted RRF, with knowledge-graph rerank and fail-closed BM25 fallback. On knowledge graph: LLM-extracted entities and typed-relation edges stored in pgvector, with hub discovery and a curated inclusion policy. On projections: <code>/api/pages/for-agent/{id}</code> returns a token-budgeted projection with derived agent hints; pages carry <code>type: runbook</code> and verification metadata. On change feed: <code>/api/changes?since=…</code> exposes an incremental feed for sync pipelines; <code>/wiki/{slug}?format=md|json</code> provides raw content for direct RAG ingestion.</p>
+
+          <div class="callout">
+            <p>The full platform picture — how each of these components works in detail — is on the <a href="/platform/">platform</a> pages: <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>, <a href="/platform/hybrid-retrieval.html">hybrid retrieval</a>, <a href="/platform/knowledge-graph.html">knowledge graph</a>, and <a href="/platform/agent-grade-content.html">agent-grade content</a>.</p>
+          </div>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>Does an AI-native wiki replace RAG pipelines?</summary>
+              <p>Not exactly — it makes them better and simpler. An AI-native wiki provides the structured retrieval layer (hybrid search, knowledge graph, MCP tools) that a RAG pipeline needs to function well, so you are not building that infrastructure from scratch. The wiki becomes the authoritative source; the RAG pipeline queries it. A change-feed endpoint lets sync pipelines keep external vector stores up to date incrementally.</p>
+            </details>
+            <details>
+              <summary>What is the Model Context Protocol (MCP)?</summary>
+              <p>MCP is an open protocol for connecting AI agents to external tools and data sources over a standardized interface. An MCP-compatible AI client — Claude, a custom LLM assistant, or any agent that speaks MCP — can discover and call tools exposed by an MCP server, including tools that query a knowledge base. An AI-native wiki exposes its retrieval capabilities as native MCP tools so agents can use them directly.</p>
+            </details>
+            <details>
+              <summary>Can a classic wiki be retrofitted to be AI-native?</summary>
+              <p>Partially. You can add a vector store and a search API on top of a classic wiki's HTML export, but you cannot easily retrofit a knowledge graph derived from the wiki's actual structure, canonical page identifiers that survive renames, agent-grade projections that summarize content to a token budget, or a native MCP server. These capabilities require the wiki engine itself to be designed with machine consumers in mind from the start.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/platform/">
+              <strong>Platform overview</strong>
+              <span>The full picture: MCP, hybrid retrieval, knowledge graph, structural spine, and more.</span>
+            </a>
+            <a class="related-card" href="/platform/mcp-for-ai-agents.html">
+              <strong>MCP for AI agents</strong>
+              <span>How Wikantik's native MCP servers expose your wiki to any MCP-compatible agent.</span>
+            </a>
+            <a class="related-card" href="/platform/hybrid-retrieval.html">
+              <strong>Hybrid retrieval</strong>
+              <span>BM25 + dense embeddings + knowledge-graph rerank, with a fail-closed fallback.</span>
+            </a>
+            <a class="related-card" href="/platform/knowledge-graph.html">
+              <strong>Knowledge graph</strong>
+              <span>LLM-extracted entities and typed-relation edges from your wiki's own content.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

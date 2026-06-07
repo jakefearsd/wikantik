@@ -172,7 +172,8 @@ public class SemanticWebIT {
         final String html = fetchPage( "SemanticArticle" );
 
         final String card = extractMetaContent( html, "name", "twitter:card" );
-        assertEquals( "summary", card, "twitter:card should be 'summary'" );
+        // SemanticHeadRenderer emits a large-image card (corroborated by SemanticHeadRendererTest).
+        assertEquals( "summary_large_image", card, "twitter:card should be 'summary_large_image'" );
 
         final String twitterDesc = extractMetaContent( html, "name", "twitter:description" );
         assertNotNull( twitterDesc, "Article should have twitter:description" );

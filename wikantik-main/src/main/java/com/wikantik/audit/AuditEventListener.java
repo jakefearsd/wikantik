@@ -26,9 +26,34 @@ import com.wikantik.event.WikiSecurityEvent;
 
 import java.security.Principal;
 import java.time.Instant;
+import java.util.Map;
 
 /** Translates WikiEvents into AuditEntries and records them via AuditService. */
 public final class AuditEventListener implements WikiEventListener {
+
+    /** Immutable mapping of a security-event type to its audit classification. */
+    private record SecurityAudit( AuditCategory category, AuditOutcome outcome, String eventType ) {}
+
+    /**
+     * Declarative dispatch table: which {@link WikiSecurityEvent} types are audited, and how.
+     * A type absent from this map is intentionally not audited (the listener records nothing).
+     */
+    private static final Map< Integer, SecurityAudit > SECURITY_AUDITS = Map.ofEntries(
+        Map.entry( WikiSecurityEvent.LOGIN_AUTHENTICATED, new SecurityAudit( AuditCategory.AUTHN, AuditOutcome.SUCCESS, "login.ok" ) ),
+        Map.entry( WikiSecurityEvent.LOGIN_FAILED,        new SecurityAudit( AuditCategory.AUTHN, AuditOutcome.FAILURE, "login.failed" ) ),
+        Map.entry( WikiSecurityEvent.LOGOUT,              new SecurityAudit( AuditCategory.AUTHN, AuditOutcome.SUCCESS, "logout" ) ),
+        Map.entry( WikiSecurityEvent.SESSION_EXPIRED,     new SecurityAudit( AuditCategory.AUTHN, AuditOutcome.SUCCESS, "session.expired" ) ),
+        Map.entry( WikiSecurityEvent.ACCESS_DENIED,       new SecurityAudit( AuditCategory.AUTHZ, AuditOutcome.DENIED,  "access.denied" ) ),
+        Map.entry( WikiSecurityEvent.GROUP_ADD,           new SecurityAudit( AuditCategory.ADMIN, AuditOutcome.SUCCESS, "group.member.add" ) ),
+        Map.entry( WikiSecurityEvent.GROUP_REMOVE,        new SecurityAudit( AuditCategory.ADMIN, AuditOutcome.SUCCESS, "group.member.remove" ) ),
+        Map.entry( WikiSecurityEvent.PROFILE_SAVE,        new SecurityAudit( AuditCategory.ADMIN, AuditOutcome.SUCCESS, "profile.save" ) )
+    );
+
+    /** Declarative dispatch table: which {@link WikiPageEvent} types are audited, and their event-type label. */
+    private static final Map< Integer, String > PAGE_EVENT_TYPES = Map.of(
+        WikiPageEvent.PAGE_DELETED, "page.delete",
+        WikiPageEvent.POST_SAVE,    "page.save"
+    );
 
     private final AuditService audit;
 
@@ -50,37 +75,19 @@ public final class AuditEventListener implements WikiEventListener {
     }
 
     private AuditEntry mapSecurity( final WikiSecurityEvent se ) {
-        final int t = se.getType();
+        final SecurityAudit mapping = SECURITY_AUDITS.get( se.getType() );
+        if ( mapping == null ) return null;
         final String principal = principalName( se );
-        final AuditCategory category;
-        final AuditOutcome outcome;
-        final String eventType;
-        switch ( t ) {
-            case WikiSecurityEvent.LOGIN_AUTHENTICATED -> { category = AuditCategory.AUTHN; outcome = AuditOutcome.SUCCESS; eventType = "login.ok"; }
-            case WikiSecurityEvent.LOGIN_FAILED        -> { category = AuditCategory.AUTHN; outcome = AuditOutcome.FAILURE; eventType = "login.failed"; }
-            case WikiSecurityEvent.LOGOUT              -> { category = AuditCategory.AUTHN; outcome = AuditOutcome.SUCCESS; eventType = "logout"; }
-            case WikiSecurityEvent.SESSION_EXPIRED     -> { category = AuditCategory.AUTHN; outcome = AuditOutcome.SUCCESS; eventType = "session.expired"; }
-            case WikiSecurityEvent.ACCESS_DENIED       -> { category = AuditCategory.AUTHZ; outcome = AuditOutcome.DENIED;  eventType = "access.denied"; }
-            case WikiSecurityEvent.GROUP_ADD           -> { category = AuditCategory.ADMIN; outcome = AuditOutcome.SUCCESS; eventType = "group.member.add"; }
-            case WikiSecurityEvent.GROUP_REMOVE        -> { category = AuditCategory.ADMIN; outcome = AuditOutcome.SUCCESS; eventType = "group.member.remove"; }
-            case WikiSecurityEvent.PROFILE_SAVE        -> { category = AuditCategory.ADMIN; outcome = AuditOutcome.SUCCESS; eventType = "profile.save"; }
-            default -> { return null; }
-        }
         return AuditEntry.builder()
             .eventTime( Instant.now() )
-            .category( category ).eventType( eventType ).outcome( outcome )
+            .category( mapping.category() ).eventType( mapping.eventType() ).outcome( mapping.outcome() )
             .actorPrincipal( principal )
             .actorType( principal == null ? "anonymous" : "user" )
             .build();
     }
 
     private AuditEntry mapPage( final WikiPageEvent pe ) {
-        final int t = pe.getType();
-        final String eventType = switch ( t ) {
-            case WikiPageEvent.PAGE_DELETED -> "page.delete";
-            case WikiPageEvent.POST_SAVE    -> "page.save";
-            default -> null;
-        };
+        final String eventType = PAGE_EVENT_TYPES.get( pe.getType() );
         if ( eventType == null ) return null;
         final String pageName = pe.getPageName();
         return AuditEntry.builder()

@@ -18,11 +18,19 @@
  */
 package com.wikantik.audit;
 
+import com.wikantik.event.WikiPageEvent;
+import com.wikantik.event.WikiPageRenameEvent;
 import com.wikantik.event.WikiSecurityEvent;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -37,58 +45,138 @@ class AuditEventListenerTest {
         public long droppedCount() { return 0; }
     }
 
+    private final CapturingService svc = new CapturingService();
+    private final AuditEventListener listener = new AuditEventListener( svc );
+
+    private static Principal named( final String name ) {
+        final Principal p = mock( Principal.class );
+        when( p.getName() ).thenReturn( name );
+        return p;
+    }
+
+    private AuditEntry onlyEntry() {
+        assertEquals( 1, svc.recorded.size(), "exactly one audit entry expected" );
+        return svc.recorded.get( 0 );
+    }
+
+    // ---------------------------------------------------------------- security events
+
     // NOTE: WikiSecurityEvent has two constructors:
     //   (src, type, principal, target)  — 4-arg, principal is the dedicated field
-    //   (src, type, target)             — 3-arg, delegates to 4-arg with principal=null
-    //
-    // The plan's test uses the 3-arg form: new WikiSecurityEvent(this, TYPE, principal).
-    // In that form, the Principal is passed as `target` (not the `principal` field).
-    // AuditEventListener.principalName() therefore checks getPrincipal() first,
-    // then falls back to getTarget() — which is how it picks up the name here.
+    //   (src, type, target)             — 3-arg, delegates with principal=null (Principal arrives as target)
+    // AuditEventListener.principalName() checks getPrincipal() first, then falls back to getTarget().
 
-    @Test
-    void loginFailedMapsToAuthnFailure() {
-        CapturingService svc = new CapturingService();
-        AuditEventListener listener = new AuditEventListener( svc );
+    static Stream<Arguments> securityMappings() {
+        return Stream.of(
+            Arguments.of( WikiSecurityEvent.LOGIN_AUTHENTICATED, AuditCategory.AUTHN, AuditOutcome.SUCCESS, "login.ok" ),
+            Arguments.of( WikiSecurityEvent.LOGIN_FAILED,        AuditCategory.AUTHN, AuditOutcome.FAILURE, "login.failed" ),
+            Arguments.of( WikiSecurityEvent.LOGOUT,              AuditCategory.AUTHN, AuditOutcome.SUCCESS, "logout" ),
+            Arguments.of( WikiSecurityEvent.SESSION_EXPIRED,     AuditCategory.AUTHN, AuditOutcome.SUCCESS, "session.expired" ),
+            Arguments.of( WikiSecurityEvent.ACCESS_DENIED,       AuditCategory.AUTHZ, AuditOutcome.DENIED,  "access.denied" ),
+            Arguments.of( WikiSecurityEvent.GROUP_ADD,           AuditCategory.ADMIN, AuditOutcome.SUCCESS, "group.member.add" ),
+            Arguments.of( WikiSecurityEvent.GROUP_REMOVE,        AuditCategory.ADMIN, AuditOutcome.SUCCESS, "group.member.remove" ),
+            Arguments.of( WikiSecurityEvent.PROFILE_SAVE,        AuditCategory.ADMIN, AuditOutcome.SUCCESS, "profile.save" )
+        );
+    }
 
-        Principal alice = mock( Principal.class );
-        when( alice.getName() ).thenReturn( "alice" );
-        // 3-arg: target = alice (principal field stays null)
-        WikiSecurityEvent evt = new WikiSecurityEvent( this, WikiSecurityEvent.LOGIN_FAILED, alice );
+    @ParameterizedTest
+    @MethodSource( "securityMappings" )
+    void securityEventMapsToExpectedAudit( final int type, final AuditCategory category,
+                                           final AuditOutcome outcome, final String eventType ) {
+        listener.actionPerformed( new WikiSecurityEvent( this, type, named( "alice" ) ) );
 
-        listener.actionPerformed( evt );
-
-        assertEquals( 1, svc.recorded.size() );
-        AuditEntry e = svc.recorded.get( 0 );
-        assertEquals( AuditCategory.AUTHN, e.category() );
-        assertEquals( "login.failed", e.eventType() );
-        assertEquals( AuditOutcome.FAILURE, e.outcome() );
+        final AuditEntry e = onlyEntry();
+        assertEquals( category, e.category() );
+        assertEquals( outcome, e.outcome() );
+        assertEquals( eventType, e.eventType() );
         assertEquals( "alice", e.actorPrincipal() );
+        assertEquals( "user", e.actorType() );
     }
 
     @Test
-    void accessDeniedMapsToAuthzDenied() {
-        CapturingService svc = new CapturingService();
-        AuditEventListener listener = new AuditEventListener( svc );
-        Principal bob = mock( Principal.class );
-        when( bob.getName() ).thenReturn( "bob" );
-        WikiSecurityEvent evt = new WikiSecurityEvent( this, WikiSecurityEvent.ACCESS_DENIED, bob );
+    void principalFromDedicatedFieldIsUsed() {
+        // 4-arg form: principal lives in its dedicated field, target is null.
+        listener.actionPerformed(
+            new WikiSecurityEvent( this, WikiSecurityEvent.LOGIN_AUTHENTICATED, named( "carol" ), null ) );
 
-        listener.actionPerformed( evt );
-
-        AuditEntry e = svc.recorded.get( 0 );
-        assertEquals( AuditCategory.AUTHZ, e.category() );
-        assertEquals( AuditOutcome.DENIED, e.outcome() );
+        final AuditEntry e = onlyEntry();
+        assertEquals( "carol", e.actorPrincipal() );
+        assertEquals( "user", e.actorType() );
     }
 
     @Test
-    void unmappedEventTypeIsIgnored() {
-        CapturingService svc = new CapturingService();
-        AuditEventListener listener = new AuditEventListener( svc );
-        // PRINCIPAL_ADD (35) is not an audited transition.
-        Principal p = mock( Principal.class );
-        when( p.getName() ).thenReturn( "x" );
-        listener.actionPerformed( new WikiSecurityEvent( this, WikiSecurityEvent.PRINCIPAL_ADD, p ) );
+    void missingPrincipalRecordsAnonymous() {
+        listener.actionPerformed(
+            new WikiSecurityEvent( this, WikiSecurityEvent.LOGOUT, null, null ) );
+
+        final AuditEntry e = onlyEntry();
+        assertNull( e.actorPrincipal() );
+        assertEquals( "anonymous", e.actorType() );
+    }
+
+    @Test
+    void unmappedSecurityEventIsIgnored() {
+        // PRINCIPAL_ADD is not an audited transition.
+        listener.actionPerformed(
+            new WikiSecurityEvent( this, WikiSecurityEvent.PRINCIPAL_ADD, named( "x" ) ) );
+
         assertTrue( svc.recorded.isEmpty() );
+    }
+
+    // ---------------------------------------------------------------- page events
+
+    @Test
+    void pageSaveMapsToContentSave() {
+        listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE, "MyPage" ) );
+
+        final AuditEntry e = onlyEntry();
+        assertEquals( AuditCategory.CONTENT, e.category() );
+        assertEquals( "page.save", e.eventType() );
+        assertEquals( AuditOutcome.SUCCESS, e.outcome() );
+        assertEquals( "system", e.actorType() );
+        assertEquals( "page", e.targetType() );
+        assertEquals( "MyPage", e.targetId() );
+    }
+
+    @Test
+    void pageDeleteMapsToContentDelete() {
+        listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.PAGE_DELETED, "Gone" ) );
+
+        final AuditEntry e = onlyEntry();
+        assertEquals( AuditCategory.CONTENT, e.category() );
+        assertEquals( "page.delete", e.eventType() );
+        assertEquals( "Gone", e.targetId() );
+    }
+
+    @Test
+    void unmappedPageEventIsIgnored() {
+        // PAGE_LOCK is not an audited page transition.
+        listener.actionPerformed( new WikiPageEvent( this, WikiPageEvent.PAGE_LOCK, "Whatever" ) );
+
+        assertTrue( svc.recorded.isEmpty() );
+    }
+
+    // ---------------------------------------------------------------- rename events
+
+    @Test
+    void pageRenameRecordsFromToDetail() {
+        listener.actionPerformed( new WikiPageRenameEvent( this, "Old", "New" ) );
+
+        final AuditEntry e = onlyEntry();
+        assertEquals( AuditCategory.CONTENT, e.category() );
+        assertEquals( "page.rename", e.eventType() );
+        assertEquals( AuditOutcome.SUCCESS, e.outcome() );
+        assertEquals( "page", e.targetType() );
+        assertEquals( "New", e.targetId() );
+        assertEquals( "{\"from\":\"Old\",\"to\":\"New\"}", e.detail() );
+    }
+
+    @Test
+    void pageRenameEscapesQuotesAndBackslashesInDetail() {
+        // old = a"b  (embedded double-quote)   new = c\d  (embedded backslash)
+        listener.actionPerformed( new WikiPageRenameEvent( this, "a\"b", "c\\d" ) );
+
+        final AuditEntry e = onlyEntry();
+        assertEquals( "{\"from\":\"a\\\"b\",\"to\":\"c\\\\d\"}", e.detail() );
     }
 }

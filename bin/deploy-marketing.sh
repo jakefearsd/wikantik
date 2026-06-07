@@ -46,6 +46,7 @@ WEB_FILES=(
     ads.txt
     robots.txt
     sitemap.xml
+    71ae77e77ccbdd4e052d901722cf22a8.txt
     assets
     platform
     enterprise

@@ -988,6 +988,7 @@
               <exclude>**/.eslintrc</exclude>
               <exclude>marketing/**</exclude>                                  <!-- static marketing site, not part of the Java build -->
               <exclude>**/src/main/webapp/ads.txt</exclude>                    <!-- Google AdSense authorized-sellers file; can't carry an Apache header -->
+              <exclude>**/src/main/webapp/*.txt</exclude>                      <!-- IndexNow key-verification files: content must be exactly the key, no Apache header possible (ads.txt already listed above; robots.txt carries its own # header) -->
 
             </excludes>
           </configuration>

@@ -85,6 +85,11 @@ wikantik.frontPage = Main
 
 wikantik.baseURL = ${WIKANTIK_BASE_URL:-http://localhost:8080/}
 
+# IndexNow verification key for ping_search_engines (Bing/Yandex). The same
+# value must be served publicly at <baseURL>/<key>.txt (a static file shipped
+# in the WAR). Blank disables IndexNow notifications.
+wikantik.indexnow.apiKey = ${WIKANTIK_INDEXNOW_API_KEY:-}
+
 wikantik.fileSystemProvider.pageDir = ${WIKANTIK_PAGE_DIR:-/var/wikantik/pages}
 wikantik.workDir = ${WIKANTIK_WORK_DIR:-/var/wikantik/work}
 wikantik.basicAttachmentProvider.storageDir = ${WIKANTIK_ATTACHMENT_DIR:-/var/wikantik/pages}

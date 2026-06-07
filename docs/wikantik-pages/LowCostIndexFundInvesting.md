@@ -55,35 +55,91 @@ The single largest determinant of fund performance relative to peers is cost. Se
 **Typical expense ratios:**
 | Fund Type | Expense Ratio |
 |-----------|--------------|
-| Vanguard Total Stock Market Index (VTSAX) | 0.04% |
+| Vanguard Total Stock Market ETF (VTI) | 0.03% |
 | Average U.S. equity index fund | 0.06% |
 | Average actively managed U.S. equity fund | 0.66% |
 | Expensive active funds | 1.00%+ |
 
-On a $500,000 portfolio, the difference between 0.04% and 0.66% is $3,100 per year—money that compounds for you in the index fund and against you in the active fund.
+On a $500,000 portfolio, the difference between 0.03% and 0.66% is roughly $3,150 per year—money that compounds for you in the index fund and against you in the active fund.
 
 ## Core Index Fund Options
 
+You can assemble an entire, fully diversified portfolio from funds that charge **0.04% or less** — among the lowest-cost investment products ever offered to individual investors. A sweeping round of Vanguard fee cuts on February 1, 2026 pushed many flagship funds to 0.03%, and the broad-market funds from Fidelity, Schwab, iShares, and State Street (SPDR) sit right alongside them. Fidelity's ZERO mutual funds charge literally nothing.
+
+The tables below list the major funds at or below the 0.04% threshold, grouped by the role they play in a portfolio. Many strategies are available as both an ETF and a mutual fund; the most common ticker is shown. *Expense ratios are as of mid-2026 — always confirm the current figure on the fund provider's site, as these change.*
+
 ### U.S. Total Market
 
-- **Vanguard Total Stock Market (VTSAX/VTI)**: 0.04% ER, ~3,600 stocks
-- **Fidelity Total Market Index (FSKAX)**: 0.015% ER, ~3,400 stocks
-- **Schwab Total Stock Market (SWTSX)**: 0.03% ER, ~3,400 stocks
+| Fund | Ticker | Expense Ratio |
+|------|--------|---------------|
+| Fidelity ZERO Total Market Index (mutual fund) | FZROX | 0.00% |
+| Fidelity Total Market Index (mutual fund) | FSKAX | 0.015% |
+| Vanguard Total Stock Market ETF | VTI | 0.03% |
+| iShares Core S&P Total U.S. Stock Market ETF | ITOT | 0.03% |
+| Schwab U.S. Broad Market ETF | SCHB | 0.03% |
+| Schwab Total Stock Market Index (mutual fund) | SWTSX | 0.03% |
+| SPDR Portfolio S&P 1500 Composite ETF | SPTM | 0.03% |
 
-### International Developed Markets
+### U.S. Large-Cap / S&P 500
 
-- **Vanguard Total International (VTIAX/VXUS)**: 0.12% ER, ~8,000 stocks
-- **Fidelity International Index (FSPSX)**: 0.035% ER, ~1,100 stocks
+| Fund | Ticker | Expense Ratio |
+|------|--------|---------------|
+| Fidelity ZERO Large Cap Index (mutual fund) | FNILX | 0.00% |
+| Fidelity 500 Index (mutual fund) | FXAIX | 0.015% |
+| Schwab S&P 500 Index (mutual fund) | SWPPX | 0.02% |
+| SPDR Portfolio S&P 500 ETF | SPLG | 0.02% |
+| Vanguard S&P 500 ETF | VOO | 0.03% |
+| iShares Core S&P 500 ETF | IVV | 0.03% |
+| Vanguard Large-Cap ETF | VV | 0.03% |
+| Schwab U.S. Large-Cap ETF | SCHX | 0.03% |
+
+### U.S. Style & Size Tilts
+
+For investors who want to tilt toward growth, value, mid caps, or small caps, these factor and size funds stay within the ultra-low-cost band:
+
+| Fund | Ticker | Expense Ratio |
+|------|--------|---------------|
+| Vanguard Growth ETF | VUG | 0.04% |
+| Vanguard Value ETF | VTV | 0.04% |
+| Vanguard Mid-Cap ETF | VO | 0.04% |
+| Schwab U.S. Large-Cap Growth ETF | SCHG | 0.04% |
+| Schwab U.S. Large-Cap Value ETF | SCHV | 0.04% |
+| Schwab U.S. Small-Cap ETF | SCHA | 0.04% |
+| iShares Core S&P U.S. Growth ETF | IUSG | 0.04% |
+| iShares Core S&P U.S. Value ETF | IUSV | 0.04% |
+
+### International (Developed Markets)
+
+| Fund | Ticker | Expense Ratio |
+|------|--------|---------------|
+| Vanguard FTSE Developed Markets ETF | VEA | 0.03% |
+| Schwab International Equity ETF | SCHF | 0.03% |
+| SPDR Portfolio Developed World ex-US ETF | SPDW | 0.03% |
+| iShares Core MSCI International Developed Markets ETF | IDEV | 0.04% |
+| Fidelity International Index (mutual fund) | FSPSX | 0.035% |
+
+At the 0.04% threshold you get *developed-markets* international exposure. Broad funds that also include emerging markets cost slightly more — Vanguard Total International (VXUS) is 0.07% and Vanguard Emerging Markets (VWO) is 0.06% — because emerging-market index funds are inherently more expensive to run. If you want a single fund covering the entire ex-U.S. world, expect to pay a hair above the 0.04% line.
 
 ### U.S. Bonds
 
-- **Vanguard Total Bond Market (VBTLX/BND)**: 0.05% ER
-- **Fidelity U.S. Bond Index (FXNAX)**: 0.025% ER
+| Fund | Ticker | Expense Ratio |
+|------|--------|---------------|
+| Fidelity U.S. Bond Index (mutual fund) | FXNAX | 0.025% |
+| Vanguard Total Bond Market ETF | BND | 0.03% |
+| iShares Core U.S. Aggregate Bond ETF | AGG | 0.03% |
+| Schwab U.S. Aggregate Bond ETF | SCHZ | 0.03% |
+| Vanguard Tax-Exempt Bond ETF (municipal) | VTEB | 0.03% |
 
-### All-in-One Options
+### Just Above the Line
 
-- **Vanguard Target Retirement Funds**: 0.08% ER, automatic rebalancing and glide path
-- **Vanguard LifeStrategy Funds**: Fixed allocation (60/40, 80/20, etc.) at 0.09–0.11% ER
+A few widely held funds fall just outside the 0.04% cutoff. They are still inexpensive and worth knowing — but recognize that you are paying for something beyond plain broad-market indexing:
+
+- **Schwab U.S. Dividend Equity (SCHD)**: 0.06% — a dividend-screened factor fund, not a total-market index
+- **Vanguard Total International Stock (VXUS)**: 0.07% — total ex-U.S. coverage *including* emerging markets
+- **Vanguard Target Retirement Funds**: ~0.08% — a complete, self-rebalancing glide-path portfolio in one fund
+- **Vanguard LifeStrategy Funds**: 0.09–0.11% — a fixed stock/bond allocation (e.g. 60/40, 80/20) in one fund
+
+The all-in-one funds charge a little more because they bundle automatic rebalancing and — for Target Retirement — an allocation that grows more conservative as you age. For many investors that convenience is well worth a few extra basis points.
 
 ## Building a Simple Portfolio
 

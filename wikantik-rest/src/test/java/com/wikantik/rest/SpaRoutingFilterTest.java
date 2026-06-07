@@ -27,6 +27,12 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+
+import com.wikantik.api.core.Engine;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.page.subsystem.PageSubsystem;
+import com.wikantik.page.subsystem.PageSubsystemBridge;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -39,6 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -646,6 +653,52 @@ class SpaRoutingFilterTest {
     }
 
     // ---- helpers ----
+
+    @Test
+    void testMissingWikiPageReturns404() throws Exception {
+        // A /wiki/ route for a page that does not exist must return HTTP 404 (with
+        // the SPA shell as the body) rather than a 200 — otherwise Google treats
+        // the client-rendered "not found" screen as a Soft 404.
+        final Engine eng = mock( Engine.class );
+        final PageManager pm = mock( PageManager.class );
+        when( pm.wikiPageExists( "ZZZNoSuchPage" ) ).thenReturn( false );
+        final PageSubsystem.Services services = mock( PageSubsystem.Services.class );
+        when( services.pages() ).thenReturn( pm );
+        filter.setEngineForTest( eng );
+
+        final HttpServletRequest request = mockRequest( "/wiki/ZZZNoSuchPage" );
+        try ( MockedStatic< PageSubsystemBridge > bridge = mockStatic( PageSubsystemBridge.class ) ) {
+            bridge.when( () -> PageSubsystemBridge.fromLegacyEngine( eng ) ).thenReturn( services );
+            filter.doFilter( request, response, chain );
+        }
+
+        verify( response ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+        // Body is still served (the SPA shell) so React can render its NotFound view.
+        assertTrue( capturedOutput.asString().contains( "<div id=\"root\">" ),
+                "404 response should still carry the SPA shell body" );
+    }
+
+    @Test
+    void testExistingWikiPageIsNot404() throws Exception {
+        // Guard the inverse: an existing page must NOT be marked 404. Rendering
+        // statics are not stubbed, so injectSemantic's render falls back gracefully
+        // and the page is served normally (200, never setStatus(404)).
+        final Engine eng = mock( Engine.class );
+        final PageManager pm = mock( PageManager.class );
+        when( pm.wikiPageExists( "RealPage" ) ).thenReturn( true );
+        when( pm.getPage( "RealPage" ) ).thenReturn( null ); // forces early, safe fallback
+        final PageSubsystem.Services services = mock( PageSubsystem.Services.class );
+        when( services.pages() ).thenReturn( pm );
+        filter.setEngineForTest( eng );
+
+        final HttpServletRequest request = mockRequest( "/wiki/RealPage" );
+        try ( MockedStatic< PageSubsystemBridge > bridge = mockStatic( PageSubsystemBridge.class ) ) {
+            bridge.when( () -> PageSubsystemBridge.fromLegacyEngine( eng ) ).thenReturn( services );
+            filter.doFilter( request, response, chain );
+        }
+
+        verify( response, never() ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+    }
 
     private HttpServletRequest mockRequest( final String uri ) {
         return mockRequest( "", uri );

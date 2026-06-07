@@ -82,4 +82,29 @@ class RobotsTxtTest {
         assertFalse( content.contains( "jakefear" ),
                 "robots.txt must not reference the legacy jakefear.com domain; was: " + content );
     }
+
+    @Test
+    void testGraphAndAuthRoutesBlockedFromCrawling() throws Exception {
+        final Path robots = Paths.get( "src", "main", "webapp", "robots.txt" );
+        final String content = Files.readString( robots );
+
+        // Interactive graph viewers and auth/private routes have no indexable content
+        // and should be blocked from crawling to improve SEO efficiency.
+        assertTrue( content.contains( "Disallow: /page-graph" ),
+                "robots.txt must block /page-graph (interactive graph viewer); was: " + content );
+        assertTrue( content.contains( "Disallow: /knowledge-graph" ),
+                "robots.txt must block /knowledge-graph (interactive graph viewer); was: " + content );
+        assertTrue( content.contains( "Disallow: /login" ),
+                "robots.txt must block /login (authentication page); was: " + content );
+        assertTrue( content.contains( "Disallow: /me/mentions" ),
+                "robots.txt must block /me/mentions (private user route); was: " + content );
+
+        // Regression: ensure public content routes remain crawlable
+        assertTrue( content.contains( "Allow: /api/pages/" ),
+                "robots.txt must keep 'Allow: /api/pages/' for page-content fetching; was: " + content );
+        assertFalse( content.contains( "Disallow: /wiki" ),
+                "robots.txt must not disallow /wiki (public content); was: " + content );
+        assertFalse( content.contains( "Disallow: /blog" ),
+                "robots.txt must not disallow /blog (public content); was: " + content );
+    }
 }

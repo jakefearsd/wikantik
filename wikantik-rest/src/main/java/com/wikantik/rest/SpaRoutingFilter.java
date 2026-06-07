@@ -125,6 +125,12 @@ public class SpaRoutingFilter implements Filter {
         return e;
     }
 
+    /** Test seam: inject a resolved engine so unit tests can exercise the
+     *  semantic-injection / 404 path without a live servlet container. */
+    void setEngineForTest( final Engine e ) {
+        this.engine = e;
+    }
+
     @Override
     public void doFilter( final ServletRequest request, final ServletResponse response,
                            final FilterChain chain ) throws IOException, ServletException {
@@ -262,7 +268,7 @@ public class SpaRoutingFilter implements Filter {
             final String html = new String( in.readAllBytes(), StandardCharsets.UTF_8 );
             String rewritten = rewriteIndexHtml( html, contextPath );
             if ( pageName != null && !pageName.isEmpty() ) {
-                rewritten = injectSemantic( rewritten, req, pageName );
+                rewritten = injectSemantic( rewritten, req, resp, pageName );
             }
             final byte[] bytes = rewritten.getBytes( StandardCharsets.UTF_8 );
             resp.setContentType( "text/html;charset=UTF-8" );
@@ -282,7 +288,7 @@ public class SpaRoutingFilter implements Filter {
      * show a 404 for missing pages.
      */
     private String injectSemantic( final String indexHtml, final HttpServletRequest req,
-                                     final String pageName ) {
+                                     final HttpServletResponse resp, final String pageName ) {
         final Engine eng = resolveEngine();
         if ( eng == null ) {
             return indexHtml;
@@ -295,7 +301,14 @@ public class SpaRoutingFilter implements Filter {
                     pageName, ex.getMessage() );
             return indexHtml;
         }
-        if ( pm == null || !pm.wikiPageExists( pageName ) ) {
+        if ( pm == null ) {
+            return indexHtml;
+        }
+        if ( !pm.wikiPageExists( pageName ) ) {
+            // Missing page: still serve the SPA shell (React renders its NotFound
+            // view) but with a 404 status, so crawlers drop the URL instead of
+            // treating a 200 "page not found" screen as a Soft 404.
+            resp.setStatus( HttpServletResponse.SC_NOT_FOUND );
             return indexHtml;
         }
         final Page page;
@@ -315,7 +328,15 @@ public class SpaRoutingFilter implements Filter {
         final String baseUrl = BaseUrlResolver.resolve( eng, req, null );
         final String appName = eng.getApplicationName();
         final String head = SemanticHeadRenderer.renderHead( pageName, rawText, baseUrl, appName, modified );
-        final String bodyFragment = SemanticHeadRenderer.renderBodyFragment( pageName, rawText );
+        // Full flexmark render of the body, reused for BOTH the no-JS #root body
+        // and the JSON data island (rendered once). Falls back to the lightweight
+        // no-JS fragment if the full render is unavailable. Putting real rendered
+        // HTML in #root means non-JS crawlers get proper content (tables, lists,
+        // headings) instead of raw markdown text.
+        final String contentHtml = renderContentHtml( eng, req, page, pageName, rawText );
+        final String rootBody = ( contentHtml != null && !contentHtml.isBlank() )
+                ? contentHtml
+                : SemanticHeadRenderer.renderBodyFragment( pageName, rawText );
 
         // Drop the static shell <title>; renderHead emits a per-page <title>,
         // so stripping the shell one leaves exactly one (correct) title element.
@@ -332,7 +353,7 @@ public class SpaRoutingFilter implements Filter {
             final int rootInner = rootOpen + "<div id=\"root\">".length();
             final int rootClose = findMatchingDivClose( out, rootInner );
             if ( rootClose > rootInner ) {
-                out = out.substring( 0, rootInner ) + bodyFragment + out.substring( rootClose );
+                out = out.substring( 0, rootInner ) + rootBody + out.substring( rootClose );
             }
         }
         // Inject a JSON data island so the React reader renders immediately from
@@ -341,7 +362,7 @@ public class SpaRoutingFilter implements Filter {
         // "Loading…" DOM that Google classifies as Soft 404. Seeding from the
         // island keeps content on screen for the first paint and for crawlers.
         // See PageView.jsx + useApi.js (initialData).
-        final String island = buildPageIsland( eng, req, page, pageName, rawText );
+        final String island = buildPageIsland( pageName, rawText, contentHtml );
         if ( island != null ) {
             final int bodyClose = out.lastIndexOf( "</body>" );
             if ( bodyClose >= 0 ) {
@@ -356,24 +377,32 @@ public class SpaRoutingFilter implements Filter {
     private static final com.google.gson.Gson ISLAND_GSON = new com.google.gson.Gson();
 
     /**
-     * Build the {@code window.__WIKANTIK_PAGE__} data island: the same shape the
-     * reader gets from {@code GET /api/pages/{name}?render=true} (name, content,
-     * contentHtml, metadata), so the client can seed its initial state without a
-     * render-critical network fetch. Returns {@code null} on any failure (the SPA
-     * then falls back to its normal fetch).
+     * Render the full page body to HTML via the flexmark pipeline (same output as
+     * {@code GET /api/pages/{name}?render=true}). Returns {@code null} on failure,
+     * letting callers fall back to the lightweight no-JS fragment.
      */
-    private static String buildPageIsland( final Engine eng, final HttpServletRequest req,
-                                           final Page page, final String pageName, final String rawText ) {
+    private static String renderContentHtml( final Engine eng, final HttpServletRequest req,
+                                             final Page page, final String pageName, final String rawText ) {
+        try {
+            final RenderingManager rm = RenderingSubsystemBridge.fromLegacyEngine( eng ).renderingManager();
+            final Context ctx = Wiki.context().create( eng, req, page );
+            return rm.textToHTML( ctx, rawText );
+        } catch ( final Exception rex ) {
+            LOG.warn( "SpaRoutingFilter: content render failed for '{}': {}", pageName, rex.getMessage() );
+            return null;
+        }
+    }
+
+    /**
+     * Build the {@code window.__WIKANTIK_PAGE__} data island from the precomputed
+     * {@code contentHtml} (name, content, contentHtml, metadata) so the client can
+     * seed its initial state without a render-critical network fetch. Returns
+     * {@code null} on failure (the SPA then falls back to its normal fetch).
+     */
+    private static String buildPageIsland( final String pageName, final String rawText,
+                                           final String contentHtml ) {
         try {
             final ParsedPage parsed = FrontmatterParser.parse( rawText == null ? "" : rawText );
-            String contentHtml = null;
-            try {
-                final RenderingManager rm = RenderingSubsystemBridge.fromLegacyEngine( eng ).renderingManager();
-                final Context ctx = Wiki.context().create( eng, req, page );
-                contentHtml = rm.textToHTML( ctx, rawText );
-            } catch ( final Exception rex ) {
-                LOG.warn( "SpaRoutingFilter: data-island render failed for '{}': {}", pageName, rex.getMessage() );
-            }
             final java.util.Map< String, Object > island = new java.util.LinkedHashMap<>();
             island.put( "name", pageName );
             island.put( "content", parsed.body() );

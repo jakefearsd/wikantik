@@ -53,6 +53,7 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -120,6 +121,11 @@ class WikiPageFormatFilterTest {
         verify( resp ).setContentType( "text/markdown; charset=UTF-8" );
         verify( resp ).setStatus( HttpServletResponse.SC_OK );
         verify( chain, never() ).doFilter( any(), any() );
+        // Raw format responses must be noindex + point at the canonical /wiki/ page
+        // so they aren't indexed as duplicate content.
+        verify( resp ).setHeader( "X-Robots-Tag", "noindex" );
+        verify( resp ).setHeader( eq( "Link" ), argThat( v ->
+                v != null && v.contains( "/wiki/FormatPage" ) && v.contains( "rel=\"canonical\"" ) ) );
 
         final String md = baos.toString( StandardCharsets.UTF_8 );
         assertTrue( md.startsWith( "# Format Page" ), "Markdown must start with H1 title, got: " + md );
@@ -143,6 +149,9 @@ class WikiPageFormatFilterTest {
         verify( resp ).setContentType( "application/json; charset=UTF-8" );
         verify( resp ).setStatus( HttpServletResponse.SC_OK );
         verify( chain, never() ).doFilter( any(), any() );
+        verify( resp ).setHeader( "X-Robots-Tag", "noindex" );
+        verify( resp ).setHeader( eq( "Link" ), argThat( v ->
+                v != null && v.contains( "/wiki/FormatPage" ) && v.contains( "rel=\"canonical\"" ) ) );
 
         final JsonObject obj = gson.fromJson( sw.toString(), JsonObject.class );
         assertEquals( "FormatPage", obj.get( "slug" ).getAsString() );

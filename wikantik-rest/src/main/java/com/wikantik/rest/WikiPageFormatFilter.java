@@ -163,7 +163,21 @@ public class WikiPageFormatFilter implements Filter {
         if ( "md".equalsIgnoreCase( format ) ) {
             writeMarkdown( resp, page, parsed, baseUrl );
         } else {
-            writeJson( resp, page, parsed );
+            writeJson( resp, page, parsed, baseUrl );
+        }
+    }
+
+    /**
+     * Mark a raw-format (md/json) response as {@code noindex} and point crawlers
+     * at the canonical {@code /wiki/} HTML page via a {@code Link} header, so the
+     * raw representations (intended for RAG/agents) are not indexed as duplicate
+     * content competing with the real page.
+     */
+    private static void setSeoHeaders( final HttpServletResponse resp, final String baseUrl,
+                                       final String pageName ) {
+        resp.setHeader( "X-Robots-Tag", "noindex" );
+        if ( baseUrl != null && !baseUrl.isBlank() ) {
+            resp.setHeader( "Link", "<" + baseUrl + "/wiki/" + pageName + ">; rel=\"canonical\"" );
         }
     }
 
@@ -193,6 +207,7 @@ public class WikiPageFormatFilter implements Filter {
         final String md = "# " + title + "\n\n" + body;
         final byte[] bytes = md.getBytes( StandardCharsets.UTF_8 );
         resp.setStatus( HttpServletResponse.SC_OK );
+        setSeoHeaders( resp, baseUrl, page.getName() );
         resp.setContentType( "text/markdown; charset=UTF-8" );
         resp.setCharacterEncoding( "UTF-8" );
         resp.setContentLength( bytes.length );
@@ -200,7 +215,7 @@ public class WikiPageFormatFilter implements Filter {
     }
 
     private void writeJson( final HttpServletResponse resp, final Page page,
-                             final ParsedPage parsed ) throws IOException {
+                             final ParsedPage parsed, final String baseUrl ) throws IOException {
         final Map< String, Object > out = new LinkedHashMap<>();
         out.put( "slug", page.getName() );
         out.put( "title", extractTitle( page, parsed ) );
@@ -210,6 +225,7 @@ public class WikiPageFormatFilter implements Filter {
         out.put( "created_at", extractCreated( parsed.metadata(), page ) );
         out.put( "modified_at", page.getLastModified() );
         resp.setStatus( HttpServletResponse.SC_OK );
+        setSeoHeaders( resp, baseUrl, page.getName() );
         resp.setContentType( "application/json; charset=UTF-8" );
         resp.setCharacterEncoding( "UTF-8" );
         resp.getWriter().write( GSON.toJson( out ) );

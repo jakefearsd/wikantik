@@ -14,6 +14,10 @@ Disallow: /edit/
 Disallow: /diff/
 Disallow: /preferences
 Disallow: /reset-password
+Disallow: /page-graph
+Disallow: /knowledge-graph
+Disallow: /login
+Disallow: /me/mentions
 
 # Block API and internal endpoints.
 # EXCEPT the read-only page-content API: the React reader fetches

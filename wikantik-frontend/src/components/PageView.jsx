@@ -501,8 +501,6 @@ export default function PageView() {
         </form>
       </Modal>
       <MetadataPanel metadata={page.metadata} />
-      <SimilarPagesPanel pageName={name} />
-      <BacklinksPanel pageName={name} />
       <ChangeNotesPanel pageName={name} />
 
       <div className="page-toc-wrapper">
@@ -515,6 +513,9 @@ export default function PageView() {
         />
         <TableOfContents headings={headings} activeId={activeHeadingId} />
       </div>
+
+      <SimilarPagesPanel pageName={name} />
+      <BacklinksPanel pageName={name} />
 
       <CommentsDrawer
         open={drawerOpen}

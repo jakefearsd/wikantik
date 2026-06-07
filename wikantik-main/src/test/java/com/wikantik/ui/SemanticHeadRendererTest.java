@@ -240,10 +240,150 @@ class SemanticHeadRendererTest {
     void articleTwitterCardTags() {
         final String html = SemanticHeadRenderer.renderHead(
                 "SemanticArticle", ARTICLE_BODY, BASE_URL, APP_NAME );
-        assertEquals( "summary", extractMetaContent( html, "name", "twitter:card" ) );
+        assertEquals( "summary_large_image", extractMetaContent( html, "name", "twitter:card" ) );
         final String twitterDesc = extractMetaContent( html, "name", "twitter:description" );
         assertNotNull( twitterDesc );
         assertTrue( twitterDesc.contains( "test article with full frontmatter" ) );
+    }
+
+    // ---- meta robots ----
+
+    @Test
+    void everyPageEmitsMetaRobotsSnippetCaps() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "PlainPage", PLAIN_BODY, BASE_URL, APP_NAME );
+        final String robots = extractMetaContent( html, "name", "robots" );
+        assertNotNull( robots, "meta robots must be emitted unconditionally" );
+        assertEquals( "max-image-preview:large, max-snippet:-1, max-video-preview:-1", robots );
+    }
+
+    @Test
+    void articlePageAlsoEmitsMetaRobotsSnippetCaps() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "SemanticArticle", ARTICLE_BODY, BASE_URL, APP_NAME );
+        final String robots = extractMetaContent( html, "name", "robots" );
+        assertNotNull( robots, "meta robots must be emitted on article pages too" );
+        assertEquals( "max-image-preview:large, max-snippet:-1, max-video-preview:-1", robots );
+    }
+
+    // ---- og:image / twitter:image ----
+
+    @Test
+    void defaultImageEmittedWhenNoFrontmatterImage() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "PlainPage", PLAIN_BODY, BASE_URL, APP_NAME );
+        final String ogImage = extractMetaContent( html, "property", "og:image" );
+        assertNotNull( ogImage, "og:image must be emitted" );
+        assertEquals( BASE_URL + "/og-default.png", ogImage );
+
+        final String twitterImage = extractMetaContent( html, "name", "twitter:image" );
+        assertNotNull( twitterImage, "twitter:image must be emitted" );
+        assertEquals( BASE_URL + "/og-default.png", twitterImage );
+    }
+
+    @Test
+    void defaultImageEmitsDimensions() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "PlainPage", PLAIN_BODY, BASE_URL, APP_NAME );
+        final String width = extractMetaContent( html, "property", "og:image:width" );
+        final String height = extractMetaContent( html, "property", "og:image:height" );
+        assertEquals( "1200", width, "og:image:width must be 1200 for default image" );
+        assertEquals( "630", height, "og:image:height must be 630 for default image" );
+    }
+
+    @Test
+    void frontmatterAbsoluteImageUsedDirectly() {
+        final String body = "---\nimage: https://cdn.example.com/photo.jpg\n---\n# Page\n\nBody.\n";
+        final String html = SemanticHeadRenderer.renderHead(
+                "TestPage", body, BASE_URL, APP_NAME );
+        final String ogImage = extractMetaContent( html, "property", "og:image" );
+        assertEquals( "https://cdn.example.com/photo.jpg", ogImage );
+        // No dimensions for custom image
+        assertNull( extractMetaContent( html, "property", "og:image:width" ) );
+    }
+
+    @Test
+    void frontmatterRelativeImagePrefixedWithBaseUrl() {
+        final String body = "---\nimage: /uploads/hero.png\n---\n# Page\n\nBody.\n";
+        final String html = SemanticHeadRenderer.renderHead(
+                "TestPage", body, BASE_URL, APP_NAME );
+        final String ogImage = extractMetaContent( html, "property", "og:image" );
+        assertEquals( BASE_URL + "/uploads/hero.png", ogImage );
+        // No dimensions for custom image
+        assertNull( extractMetaContent( html, "property", "og:image:width" ) );
+    }
+
+    // ---- JSON-LD publisher url + logo ----
+
+    @Test
+    void publisherHasUrlAndLogo() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "SemanticArticle", ARTICLE_BODY, BASE_URL, APP_NAME );
+        final JsonObject ld = extractFirstJsonLd( html );
+        assertNotNull( ld );
+        final JsonObject publisher = ld.getAsJsonObject( "publisher" );
+        assertNotNull( publisher, "publisher must be present in JSON-LD" );
+        assertEquals( "Organization", publisher.get( "@type" ).getAsString() );
+        assertEquals( APP_NAME, publisher.get( "name" ).getAsString() );
+        assertEquals( BASE_URL + "/", publisher.get( "url" ).getAsString(),
+                "publisher.url must be baseUrl + '/'" );
+        final JsonObject logo = publisher.getAsJsonObject( "logo" );
+        assertNotNull( logo, "publisher.logo must be present" );
+        assertEquals( "ImageObject", logo.get( "@type" ).getAsString() );
+        assertEquals( BASE_URL + "/og-default.png", logo.get( "url" ).getAsString() );
+    }
+
+    @Test
+    void hubPublisherHasUrlAndLogo() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "SemanticHub", HUB_BODY, BASE_URL, APP_NAME );
+        final JsonObject ld = extractFirstJsonLd( html );
+        assertNotNull( ld );
+        final JsonObject publisher = ld.getAsJsonObject( "publisher" );
+        assertNotNull( publisher );
+        assertNotNull( publisher.get( "url" ) );
+        assertNotNull( publisher.getAsJsonObject( "logo" ) );
+    }
+
+    // ---- WebSite + SearchAction (homepage only) ----
+
+    @Test
+    void mainPageEmitsWebSiteJsonLd() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "Main", PLAIN_BODY, BASE_URL, APP_NAME );
+        final JsonObject website = extractJsonLdByType( html, "WebSite" );
+        assertNotNull( website, "Main page must emit a WebSite JSON-LD block" );
+        assertEquals( "https://schema.org", website.get( "@context" ).getAsString() );
+        assertEquals( BASE_URL + "/", website.get( "url" ).getAsString() );
+
+        final JsonObject action = website.getAsJsonObject( "potentialAction" );
+        assertNotNull( action, "WebSite must have a potentialAction SearchAction" );
+        assertEquals( "SearchAction", action.get( "@type" ).getAsString() );
+
+        final JsonObject target = action.getAsJsonObject( "target" );
+        assertNotNull( target );
+        assertEquals( "EntryPoint", target.get( "@type" ).getAsString() );
+        assertTrue( target.get( "urlTemplate" ).getAsString().contains( "/search?q=" ),
+                "urlTemplate must reference the search route" );
+
+        assertEquals( "required name=search_term_string",
+                action.get( "query-input" ).getAsString() );
+    }
+
+    @Test
+    void nonMainPageDoesNotEmitWebSiteJsonLd() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "PlainPage", PLAIN_BODY, BASE_URL, APP_NAME );
+        assertNull( extractJsonLdByType( html, "WebSite" ),
+                "Non-Main pages must NOT emit a WebSite JSON-LD block" );
+    }
+
+    @Test
+    void articlePageDoesNotEmitWebSiteJsonLd() {
+        final String html = SemanticHeadRenderer.renderHead(
+                "SemanticArticle", ARTICLE_BODY, BASE_URL, APP_NAME );
+        assertNull( extractJsonLdByType( html, "WebSite" ),
+                "Article pages must NOT emit a WebSite JSON-LD block" );
     }
 
     // ---- JSON-LD: Article ----
@@ -525,8 +665,11 @@ class SemanticHeadRendererTest {
         while ( m.find() ) {
             try {
                 final JsonObject obj = GSON.fromJson( m.group( 1 ), JsonObject.class );
-                if ( obj.has( "@type" ) && !"BreadcrumbList".equals( obj.get( "@type" ).getAsString() ) ) {
-                    return obj;
+                if ( obj.has( "@type" ) ) {
+                    final String type = obj.get( "@type" ).getAsString();
+                    if ( !"BreadcrumbList".equals( type ) && !"WebSite".equals( type ) ) {
+                        return obj;
+                    }
                 }
             } catch ( final Exception ignored ) {
             }

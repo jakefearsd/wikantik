@@ -133,6 +133,23 @@ public final class SemanticHeadRenderer {
               .append( escAttr( effectiveKeywords ) ).append( "\" />" ).append( NL );
         }
 
+        // meta robots — lift Google snippet/preview caps (does NOT noindex)
+        sb.append( "<meta name=\"robots\" content=\"max-image-preview:large, max-snippet:-1, max-video-preview:-1\" />" ).append( NL );
+
+        // Determine image URL: frontmatter image field > default
+        final String fmImage = strOrEmpty( meta.get( "image" ) );
+        final boolean hasCustomImage = !fmImage.isBlank();
+        final String imageUrl;
+        if ( hasCustomImage ) {
+            if ( fmImage.startsWith( "http://" ) || fmImage.startsWith( "https://" ) ) {
+                imageUrl = fmImage;
+            } else {
+                imageUrl = safeBaseUrl + "/" + ( fmImage.startsWith( "/" ) ? fmImage.substring( 1 ) : fmImage );
+            }
+        } else {
+            imageUrl = safeBaseUrl + "/og-default.png";
+        }
+
         // Open Graph
         sb.append( "<meta property=\"og:title\" content=\"" )
           .append( escAttr( documentTitle ) ).append( "\" />" ).append( NL );
@@ -142,6 +159,12 @@ public final class SemanticHeadRenderer {
           .append( escAttr( effectiveDescription ) ).append( "\" />" ).append( NL );
         sb.append( "<meta property=\"og:site_name\" content=\"" )
           .append( escAttr( safeAppName ) ).append( "\" />" ).append( NL );
+        sb.append( "<meta property=\"og:image\" content=\"" )
+          .append( escAttr( imageUrl ) ).append( "\" />" ).append( NL );
+        if ( !hasCustomImage ) {
+            sb.append( "<meta property=\"og:image:width\" content=\"1200\" />" ).append( NL );
+            sb.append( "<meta property=\"og:image:height\" content=\"630\" />" ).append( NL );
+        }
 
         // article:tag per tag
         for ( final String tag : tags ) {
@@ -150,11 +173,13 @@ public final class SemanticHeadRenderer {
         }
 
         // Twitter Card
-        sb.append( "<meta name=\"twitter:card\" content=\"summary\" />" ).append( NL );
+        sb.append( "<meta name=\"twitter:card\" content=\"summary_large_image\" />" ).append( NL );
         sb.append( "<meta name=\"twitter:title\" content=\"" )
           .append( escAttr( documentTitle ) ).append( "\" />" ).append( NL );
         sb.append( "<meta name=\"twitter:description\" content=\"" )
           .append( escAttr( effectiveDescription ) ).append( "\" />" ).append( NL );
+        sb.append( "<meta name=\"twitter:image\" content=\"" )
+          .append( escAttr( imageUrl ) ).append( "\" />" ).append( NL );
 
         // Atom feed autodiscovery — global and (optionally) cluster-filtered
         sb.append( "<link rel=\"alternate\" type=\"application/atom+xml\" title=\"" )
@@ -176,6 +201,13 @@ public final class SemanticHeadRenderer {
         if ( !cluster.isBlank() && !isHub ) {
             sb.append( "<script type=\"application/ld+json\">" ).append( NL );
             sb.append( buildBreadcrumbJsonLd( safePageName, safeBaseUrl, canonical, cluster ) );
+            sb.append( NL ).append( "</script>" ).append( NL );
+        }
+
+        // WebSite + SearchAction — homepage only
+        if ( "Main".equals( safePageName ) ) {
+            sb.append( "<script type=\"application/ld+json\">" ).append( NL );
+            sb.append( buildWebSiteJsonLd( safeBaseUrl ) );
             sb.append( NL ).append( "</script>" ).append( NL );
         }
 
@@ -305,7 +337,9 @@ public final class SemanticHeadRenderer {
             sb.append( "\"articleSection\":" ).append( jsonStr( cluster ) ).append(',');
         }
         sb.append( "\"publisher\":{\"@type\":\"Organization\",\"name\":" )
-          .append( jsonStr( appName ) ).append( "}," );
+          .append( jsonStr( appName ) ).append( ",\"url\":" ).append( jsonStr( baseUrl + "/" ) )
+          .append( ",\"logo\":{\"@type\":\"ImageObject\",\"url\":" )
+          .append( jsonStr( baseUrl + "/og-default.png" ) ).append( "}}," );
         sb.append( "\"mainEntityOfPage\":{\"@type\":\"WebPage\",\"@id\":" )
           .append( jsonStr( canonical ) ).append('}');
         if ( !isHub && !cluster.isBlank() ) {
@@ -342,6 +376,21 @@ public final class SemanticHeadRenderer {
           .append( jsonStr( pageName ) ).append( ",\"item\":" )
           .append( jsonStr( canonical ) ).append('}');
         sb.append( "]}" );
+        return sb.toString();
+    }
+
+    private static String buildWebSiteJsonLd( final String baseUrl ) {
+        final StringBuilder sb = new StringBuilder( 256 );
+        sb.append( '{' );
+        sb.append( "\"@context\":\"https://schema.org\"," );
+        sb.append( "\"@type\":\"WebSite\"," );
+        sb.append( "\"url\":" ).append( jsonStr( baseUrl + "/" ) ).append( ',' );
+        sb.append( "\"potentialAction\":{" );
+        sb.append( "\"@type\":\"SearchAction\"," );
+        sb.append( "\"target\":{\"@type\":\"EntryPoint\",\"urlTemplate\":" )
+          .append( jsonStr( baseUrl + "/search?q={search_term_string}" ) ).append( "}," );
+        sb.append( "\"query-input\":\"required name=search_term_string\"" );
+        sb.append( "}}" );
         return sb.toString();
     }
 

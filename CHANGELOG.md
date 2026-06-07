@@ -6,6 +6,54 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+A focused SEO / crawlability / rendering release. The headline fix: Google was
+classifying every `/wiki/` page as a **Soft 404**, so none of them ranked.
+
+### Added
+
+- **SEO: social/sharing images.** Every page emits `og:image` + `twitter:image`
+  (`twitter:card=summary_large_image`) — a per-page frontmatter `image:` when set, else a
+  bundled 1200×630 default (`og-default.png`) — so links unfurl with a card on
+  Slack/X/LinkedIn and qualify for Google Discover.
+- **SEO: sitelinks search box.** The homepage emits `WebSite` + `SearchAction` JSON-LD so
+  Google can show a search box for branded queries.
+- **SEO: fuller SERP snippets.** `<meta name="robots" content="max-image-preview:large,
+  max-snippet:-1, max-video-preview:-1">` on every page (does not affect indexability).
+- **IndexNow.** `ping_search_engines` can now notify Bing/Yandex: `WIKANTIK_INDEXNOW_API_KEY`
+  is wired through the container entrypoint to `wikantik.indexnow.apiKey`, with the key
+  served as a static verification file at the web root.
+- **SSR data island.** `SpaRoutingFilter` injects `window.__WIKANTIK_PAGE__` (the page's
+  rendered HTML + metadata) so the React reader paints content immediately instead of
+  refetching `/api/pages` — and crawlers' JS renderers never see an empty "Loading…" DOM.
+- **Footer build version.** The site footer now shows the running build version.
+
+### Fixed
+
+- **Soft 404 across the wiki.** The reader refetched content from
+  `/api/pages/{name}?render=true`, but `robots.txt` blocked all of `/api/`, so Google's
+  renderer fetched nothing and saw an empty page. `robots.txt` now `Allow: /api/pages/`
+  (ordered before the broad `Disallow: /api/`); the JSON stays `X-Robots-Tag: noindex`.
+- **HTTP 404 for missing pages.** `/wiki/{nonexistent}` now returns HTTP 404 (with the SPA
+  shell body so React still renders its NotFound view) instead of 200, so search engines
+  drop dead URLs instead of soft-404'ing them.
+- **baseURL for request-less tools.** `ping_search_engines` and `preview_structured_data`
+  now read the configured `wikantik.baseURL` instead of the empty ROOT-context servlet
+  context path, so they build absolute sitemap / IndexNow / structured-data URLs.
+
+### Changed
+
+- **Duplicate-content guards.** `/wiki/{slug}?format=md|json` responses are now
+  `X-Robots-Tag: noindex` + `Link: rel="canonical"` to the HTML page.
+- **robots.txt** blocks thin / auth-only routes: `/page-graph`, `/knowledge-graph`,
+  `/login`, `/me/mentions`.
+- **Crawlable no-JS body.** `SpaRoutingFilter` injects the full rendered HTML into `#root`
+  (rendered once, reused by the data island) so non-JS crawlers get real content rather
+  than a raw-text fallback.
+- **Reduced layout shift (CLS).** The Similar-Pages and Backlinks panels render below the
+  article instead of above it, so their async load no longer pushes the LCP element down.
+- **Richer publisher metadata.** Article / CollectionPage JSON-LD `Organization` publisher
+  now includes `url` + `logo`.
+
 ## [2.0.11] - 2026-06-06
 
 ### Added

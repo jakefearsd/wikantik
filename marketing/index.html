@@ -23,7 +23,7 @@
   <meta name="twitter:description" content="A markdown wiki humans love and AI agents can actually use.">
   <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="/styles.css">
 
   <script type="application/ld+json">
   {
@@ -47,10 +47,10 @@
         <span class="brand-name">Wikantik</span>
       </a>
       <nav class="nav-links" aria-label="Primary">
-        <a href="#why">Why Wikantik</a>
-        <a href="#agents">For agents</a>
-        <a href="#compare">Compare</a>
-        <a class="btn btn-primary nav-cta" href="#learn-more">Learn more</a>
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
       </nav>
     </div>
   </header>
@@ -104,6 +104,34 @@
       </div>
     </div>
   </section>
+  <section class="section" id="platform-teaser">
+    <div class="container">
+      <p class="eyebrow center">Platform</p>
+      <h2 class="section-title center">An engine your AI agents can actually use</h2>
+      <p class="hosting-sub center">Native MCP servers, hybrid retrieval, and a knowledge graph of your own content — the machinery that makes Wikantik answer-engine ready.</p>
+      <div class="hub-grid">
+        <a class="hub-card" href="/platform/mcp-for-ai-agents.html"><div class="hub-icon" aria-hidden="true">🔌</div><h3>MCP for AI agents</h3><p>Your agents query, retrieve, and cite your wiki over the Model Context Protocol.</p></a>
+        <a class="hub-card" href="/platform/hybrid-retrieval.html"><div class="hub-icon" aria-hidden="true">🎯</div><h3>Hybrid retrieval</h3><p>BM25 + dense embeddings + a knowledge-graph rerank. Ask in plain language.</p></a>
+        <a class="hub-card" href="/platform/knowledge-graph.html"><div class="hub-icon" aria-hidden="true">🕸️</div><h3>Knowledge graph</h3><p>Entities and relationships extracted from your pages, not a wall of HTML.</p></a>
+      </div>
+      <div class="center" style="margin-top: 22px;"><a class="btn btn-ghost" href="/platform/">Explore the platform →</a></div>
+    </div>
+  </section>
+
+  <section class="section hosting" id="enterprise-teaser">
+    <div class="container">
+      <p class="eyebrow center">Enterprise</p>
+      <h2 class="section-title center">Ready for the security review</h2>
+      <p class="hosting-sub center">SSO, SCIM provisioning, a tamper-evident audit log, role-based access control, and self-hosting with your own backups. Own your data; pass the questionnaire.</p>
+      <div class="hub-grid">
+        <a class="hub-card" href="/enterprise/sso-saml-oidc.html"><div class="hub-icon" aria-hidden="true">🔐</div><h3>SSO (SAML / OIDC)</h3><p>Log in with your IdP — SAML, OIDC, Google. Session-fixation hardened.</p></a>
+        <a class="hub-card" href="/enterprise/scim-provisioning.html"><div class="hub-icon" aria-hidden="true">👤</div><h3>SCIM provisioning</h3><p>Automated onboarding and offboarding driven by your identity provider.</p></a>
+        <a class="hub-card" href="/enterprise/audit-log.html"><div class="hub-icon" aria-hidden="true">🧾</div><h3>Tamper-evident audit</h3><p>A verifiable, exportable trail of every privileged action.</p></a>
+      </div>
+      <div class="center" style="margin-top: 22px;"><a class="btn btn-ghost" href="/enterprise/">See enterprise features →</a></div>
+    </div>
+  </section>
+
   <section class="terminal">
     <div class="container center">
       <h2 class="section-title terminal-title">Ask your wiki. Out loud. Like a person.</h2>
@@ -207,18 +235,47 @@
 
   </main>
 
-  <footer class="footer">
-    <div class="container footer-inner">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true">W</span>
-        <span class="footer-credit">Wikantik · built by Jacob Fear</span>
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
       </div>
-      <nav class="footer-links" aria-label="Footer">
-        <a href="https://wiki.wikantik.com/">Explore the wiki</a>
-        <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
-        <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
-        <a href="mailto:jakefear@gmail.com">Contact</a>
-      </nav>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
     </div>
   </footer>
 

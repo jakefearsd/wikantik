@@ -1,15 +1,54 @@
 # Wikantik marketing site (www.wikantik.com)
 
-Static single-page site. No build step. Edit `index.html` / `styles.css` and
-upload the bundle to the static host serving the `www` domain.
+Static multi-page site. **No build step.** Edit the HTML / `styles.css` directly
+and upload the bundle to the static host serving the `www` domain.
 
-## Files
-- `index.html` — the page (all sections + inline form JS)
-- `styles.css` — styling
-- `favicon.svg`, `assets/wikantik-logo-512.png` — brand
-- `form-backend/Code.gs` — Google Apps Script for the contact form
-- `form-helper.mjs` + `test/form.test.mjs` — unit-tested form serialization
-  (kept in sync with the inline copy in `index.html`)
+## Site structure
+- `index.html` — landing page (the centerpiece; hero, pillars, platform/enterprise
+  teasers, compare table, hosting, lead form + inline JS).
+- `platform/` — hub + deep-dives on the AI engine (MCP, hybrid retrieval, knowledge
+  graph, page graph, agent-grade content, structural spine).
+- `enterprise/` — hub + deep-dives on security/identity/ops (SSO, SCIM, audit log,
+  RBAC, security hardening, self-hosting & backup).
+- `compare/` — hub + comparison pages (vs Confluence, vs Notion, AI-native wiki).
+- `sitemap.xml`, `robots.txt` — crawl surface for the www origin (robots welcomes AI
+  crawlers and points at the sitemap).
+
+## Shared files / brand
+- `styles.css` — the single shared stylesheet for every page (token system at the top,
+  page-type components in the "Multi-page additions" block).
+- `favicon.svg`, `assets/wikantik-logo-512.png` — brand.
+- `form-backend/Code.gs` — Google Apps Script for the contact form.
+- `form-helper.mjs` + `test/form.test.mjs` — unit-tested form serialization (kept in
+  sync with the inline copy in `index.html`).
+
+## Adding a page
+1. Copy `templates/page.template.html` to the target path (e.g. `platform/foo.html`).
+2. Fill the head slots (`{{TITLE}}`, `{{DESCRIPTION}}`, `{{CANONICAL}}`, `{{OG_TYPE}}`,
+   `{{PAGE_JSONLD}}`), the `{{BREADCRUMB}}`, and `{{CONTENT}}`. Leave nav and footer
+   identical to the template.
+3. All internal links and assets are **root-absolute** (`/styles.css`, `/platform/…`).
+4. Outbound links to the live wiki are allowed ONLY if the exact URL is in
+   `verified-wiki-links.json` (each entry was confirmed to return 200). Otherwise link
+   to the product root `https://wiki.wikantik.com/`.
+5. Add the page's `<loc>` to `sitemap.xml` (hub priority 0.8, deep-dive 0.6).
+6. Validate, then commit.
+
+`templates/`, `test/`, `verified-wiki-links.json`, `form-helper.mjs`, `*.md` are
+**dev-only** and excluded from the `WEB_FILES` allowlist in `bin/deploy-marketing.sh`
+(they never reach the public docroot).
+
+## Tests
+The SEO-lint / sitemap / link tests enforce the per-page invariants and a sitemap
+bijection. Run the full suite (use the glob form — Node 24's `--test` does not accept a
+bare directory argument):
+
+    node --test marketing/test/*.test.mjs
+
+While building a cluster (before its sitemap entries exist), validate just that
+directory's pages with the dev validator:
+
+    node marketing/test/pagecheck.mjs platform
 
 ## Form backend setup (Google Sheet)
 1. Create a Google Sheet to hold leads.

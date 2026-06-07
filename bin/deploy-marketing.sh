@@ -44,7 +44,12 @@ WEB_FILES=(
     styles.css
     favicon.svg
     ads.txt
+    robots.txt
+    sitemap.xml
     assets
+    platform
+    enterprise
+    compare
 )
 
 print_help() {
@@ -99,10 +104,10 @@ fi
 # 3. Verify on-origin (bypasses Cloudflare cache) that the key files serve 200.
 echo "==> Verifying on-origin (http://localhost:${MKT_ORIGIN_PORT}, Host: www.wikantik.com)"
 if [[ "${DRY_RUN}" -eq 1 ]]; then
-    echo "[dry-run] ssh ${MKT_HOST} curl ads.txt + index.html"
+    echo "[dry-run] ssh ${MKT_HOST} curl ads.txt + index.html + sitemap.xml + cluster index"
     exit 0
 fi
-for path in /ads.txt /index.html; do
+for path in /ads.txt /index.html /robots.txt /sitemap.xml /platform/index.html /enterprise/index.html /compare/index.html; do
     line="$(ssh "${MKT_HOST}" "curl -s -o /dev/null -w '%{http_code} %{content_type}' \
         -H 'Host: www.wikantik.com' http://localhost:${MKT_ORIGIN_PORT}${path}")"
     echo "    ${path} -> ${line}"

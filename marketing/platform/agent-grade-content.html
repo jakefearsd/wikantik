@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>Agent-grade content: runbooks, projections &amp; verification | Wikantik</title>
+  <meta name="description" content="Wikantik serves every page to two readers — humans and machines: token-budgeted projections, runbook types, verification metadata, and derived agent hints for reliable AI answers.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/platform/agent-grade-content.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/platform/agent-grade-content.html">
+  <meta property="og:title" content="Agent-grade content: runbooks, projections &amp; verification | Wikantik">
+  <meta property="og:description" content="Wikantik serves every page to two readers — humans and machines: token-budgeted projections, runbook types, verification metadata, and derived agent hints for reliable AI answers.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Agent-grade content: runbooks, projections &amp; verification | Wikantik">
+  <meta name="twitter:description" content="Wikantik serves every page to two readers — humans and machines: token-budgeted projections, runbook types, verification metadata, and derived agent hints for reliable AI answers.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "Agent-grade content: runbooks, projections and verification",
+    "description": "Wikantik serves every page to two readers — humans and machines: token-budgeted projections, runbook types, verification metadata, and derived agent hints for reliable AI answers.",
+    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/platform/agent-grade-content.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Platform", "item": "https://www.wikantik.com/platform/" },
+      { "@type": "ListItem", "position": 3, "name": "Agent-grade content", "item": "https://www.wikantik.com/platform/agent-grade-content.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "What is the /api/pages/for-agent/{id} endpoint?",
+        "acceptedAnswer": { "@type": "Answer", "text": "It is a token-budgeted projection of a page tailored for agent consumption. It includes the page content, structured frontmatter metadata, verification status, and derived agent_hints — prefer_tools (which MCP tools are relevant to this page) and prefer_pages (which cluster pages are highest-centrality). Agents get all this in one call rather than assembling it from multiple endpoints." } },
+      { "@type": "Question", "name": "What is the auto-generated flag?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Pages with auto-generated: true in their frontmatter are treated as low-confidence stubs. Setting it to false is a declaration that a human has reviewed and overhauled the content to meet the high-density standards required for authoritative agent citations. The agent-grade audit surfaces pages that are still auto-generated." } },
+      { "@type": "Question", "name": "How does verification metadata work?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Pages carry verified_at (ISO-8601 timestamp), verified_by (the human reviewer's login name), and confidence (authoritative, provisional, or stale). Agents can check these fields to decide how much to trust a citation. The agent-grade audit at /admin/agent-grade-audit flags pages with missing or stale verification so operators know what needs attention." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/platform/">Platform</a> ›
+        <span aria-current="page">Agent-grade content</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Platform</p>
+          <h1>Agent-grade content: one source, two readers</h1>
+          <p class="doc-lede">Wikantik treats every page as having two audiences: the human who reads it in a browser, and the AI agent that retrieves it as a citation. Agent-grade content means the page is structured, verified, and served in a form that makes both audiences work well — without requiring authors to write two versions.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>Two readers, one source</h2>
+          <p>Most wikis are optimised exclusively for human reading: flowing prose, headers for navigation, images and tables for comprehension. That is fine for humans. But AI agents need something different: explicit metadata to assess source confidence, a token-budgeted representation that fits within an LLM context window, structured hints about which tools and related pages are relevant, and verification timestamps to know whether a fact is still current.</p>
+          <p>Wikantik's answer is not "write a separate machine-readable version". It is a set of conventions, metadata fields, and server-side projection logic that transforms a single well-structured page into the right form for each reader automatically.</p>
+          <p>For the full design, see <a href="https://wiki.wikantik.com/wiki/AgentGradeContentDesign">Agent-Grade Content Design</a> in the live wiki.</p>
+
+          <h2>Page projections for agents: /api/pages/for-agent/{id}</h2>
+          <p>The <code>/api/pages/for-agent/{id}</code> endpoint delivers a token-budgeted projection of a page specifically shaped for agent consumption. Rather than the rendered HTML a browser receives, the agent projection includes:</p>
+          <ul>
+            <li>Structured YAML frontmatter fields (type, cluster, status, summary, tags)</li>
+            <li>The canonical ID for rename-stable cross-referencing</li>
+            <li>Verification metadata (see below)</li>
+            <li>Derived <code>agent_hints</code> computed at projection time</li>
+          </ul>
+          <p>The <code>agent_hints</code> field has two sub-fields computed by <code>AgentHintsDeriver</code> at request time with zero author burden:</p>
+          <ul>
+            <li><code>prefer_tools</code> — ranked list of MCP tools relevant to this page and its cluster, from <code>McpToolHintsResolver</code></li>
+            <li><code>prefer_pages</code> — ranked list of cluster pages by intra-cluster wikilink centrality, with a 1.5× bonus for verified-authoritative pages</li>
+          </ul>
+          <p>An agent that calls <code>/for-agent</code> on a page gets not just the content but also a curated reading list and a ranked tool recommendation — without any author having to maintain those lists manually.</p>
+
+          <h2>Runbooks and page types</h2>
+          <p>Wikantik pages are typed. The <code>type:</code> frontmatter field declares what kind of content a page contains:</p>
+          <ul>
+            <li><code>article</code> — explanatory content on a topic</li>
+            <li><code>design</code> — architectural or design documentation</li>
+            <li><code>reference</code> — reference material (config keys, API docs, etc.)</li>
+            <li><code>runbook</code> — a specialised type for procedural content</li>
+          </ul>
+          <p>Runbook pages include a <code>runbook:</code> frontmatter block with structured fields:</p>
+          <ul>
+            <li><code>when_to_use</code> — specific triggers for the procedure</li>
+            <li><code>steps</code> — an ordered list of atomic actions</li>
+            <li><code>pitfalls</code> — common failure modes and mitigations</li>
+          </ul>
+          <p>An agent retrieving a runbook page knows it is procedural, what triggers it, and can walk the steps — without having to parse prose to figure out "is this a how-to or an explanation?"</p>
+
+          <h2>Verification metadata</h2>
+          <p>Agents need to know how much to trust a citation. Is this page current? Has a human reviewed it recently? Wikantik's confidence protocol answers these questions with three frontmatter fields:</p>
+          <ul>
+            <li><code>verified_at</code> — ISO-8601 timestamp of the last manual audit</li>
+            <li><code>verified_by</code> — the login name of the human verifier</li>
+            <li><code>confidence</code> — one of <code>authoritative</code> (verified within 90 days by a trusted expert), <code>provisional</code> (high-quality but awaiting final audit), or <code>stale</code> (over 180 days without re-verification)</li>
+          </ul>
+          <p>The <code>auto-generated</code> frontmatter flag acts as a technical debt marker: pages marked <code>true</code> are treated as low-confidence stubs. Setting it to <code>false</code> is a declaration that the content has been overhauled to meet the high-density, machine-readable standard.</p>
+
+          <h2>Retrieval-quality CI and the agent-grade audit</h2>
+          <p>Wikantik ships an operator-facing audit report at <code>/admin/agent-grade-audit</code> that surfaces pages with weak agent-grade signals: no cluster, no inbound cluster links (for non-hub pages), generic hub summaries, missing or stale verification, or still flagged <code>auto-generated: true</code>. Pages are sorted by flag count so operators can focus their improvement effort where it matters most.</p>
+          <p>This is the compensating control for a content standard that does not impose mandatory frontmatter on every page: the audit tells you where the gaps are, without blocking authors who are still writing drafts.</p>
+
+          <div class="callout">
+            <p>Hub summary synthesis: when a hub page's summary matches a generic pattern like "An index of pages about…", <code>HubSummarySynthesizer</code> overlays a Top-3 highlight built from the derived <code>prefer_pages</code> ranking at serving time. This improves the hub's usefulness to agents without requiring an author to maintain the summary manually.</p>
+          </div>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>What is the /api/pages/for-agent/{id} endpoint?</summary>
+              <p>It is a token-budgeted projection of a page tailored for agent consumption. It includes the page content, structured frontmatter metadata, verification status, and derived <code>agent_hints</code> — <code>prefer_tools</code> (which MCP tools are relevant) and <code>prefer_pages</code> (which cluster pages are highest-centrality). Agents get all of this in one call rather than assembling it from multiple endpoints.</p>
+            </details>
+            <details>
+              <summary>What is the auto-generated flag?</summary>
+              <p>Pages with <code>auto-generated: true</code> in their frontmatter are treated as low-confidence stubs. Setting it to <code>false</code> is a declaration that a human has reviewed and overhauled the content to meet the high-density standards required for authoritative agent citations. The agent-grade audit surfaces pages that are still auto-generated.</p>
+            </details>
+            <details>
+              <summary>How does verification metadata work?</summary>
+              <p>Pages carry <code>verified_at</code> (ISO-8601 timestamp), <code>verified_by</code> (the reviewer's login name), and <code>confidence</code> (<code>authoritative</code>, <code>provisional</code>, or <code>stale</code>). Agents can check these fields to assess how much to trust a citation. The agent-grade audit at <code>/admin/agent-grade-audit</code> flags pages with missing or stale verification.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/platform/mcp-for-ai-agents.html">
+              <strong>MCP for AI agents</strong>
+              <span>The tool surface that agents use to access agent-grade content.</span>
+            </a>
+            <a class="related-card" href="/platform/hybrid-retrieval.html">
+              <strong>Hybrid retrieval</strong>
+              <span>How pages get found before the agent-grade projection is served.</span>
+            </a>
+            <a class="related-card" href="/platform/structural-spine.html">
+              <strong>Structural spine</strong>
+              <span>The cluster and canonical ID machinery that agent hints build on.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

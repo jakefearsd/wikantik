@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>Knowledge graph: entities &amp; relations from your content | Wikantik</title>
+  <meta name="description" content="Wikantik extracts a knowledge graph from your pages — LLM-derived entities with co-mention and typed-relation edges, pgvector embeddings, and hub discovery — so agents reason over meaning.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/platform/knowledge-graph.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/platform/knowledge-graph.html">
+  <meta property="og:title" content="Knowledge graph: entities &amp; relations from your content | Wikantik">
+  <meta property="og:description" content="Wikantik extracts a knowledge graph from your pages — LLM-derived entities with co-mention and typed-relation edges, pgvector embeddings, and hub discovery — so agents reason over meaning.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Knowledge graph: entities &amp; relations from your content | Wikantik">
+  <meta name="twitter:description" content="Wikantik extracts a knowledge graph from your pages — LLM-derived entities with co-mention and typed-relation edges, pgvector embeddings, and hub discovery — so agents reason over meaning.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "Knowledge graph: entities and relations from your content",
+    "description": "Wikantik extracts a knowledge graph from your pages — LLM-derived entities with co-mention and typed-relation edges, pgvector embeddings, and hub discovery — so agents reason over meaning.",
+    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/platform/knowledge-graph.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Platform", "item": "https://www.wikantik.com/platform/" },
+      { "@type": "ListItem", "position": 3, "name": "Knowledge graph", "item": "https://www.wikantik.com/platform/knowledge-graph.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "How does the Knowledge Graph differ from the Page Graph?",
+        "acceptedAnswer": { "@type": "Answer", "text": "The Page Graph's edges are real wikilinks that authors write in page bodies. The Knowledge Graph's nodes are LLM-extracted entities (concepts, people, organisations) and its edges are co-mention or typed-relation predicates extracted by the entity pipeline. They are distinct subsystems. The Page Graph is for navigation; the Knowledge Graph is for semantic retrieval and agent reasoning." } },
+      { "@type": "Question", "name": "How does the inclusion policy work?",
+        "acceptedAnswer": { "@type": "Answer", "text": "By default, pages are excluded from Knowledge Graph extraction unless their cluster has an explicit include policy. You can also override per-page with kg_include: true or kg_include: false in frontmatter. This keeps the graph curated and focused on content that benefits from entity extraction." } },
+      { "@type": "Question", "name": "How do agents access the Knowledge Graph?",
+        "acceptedAnswer": { "@type": "Answer", "text": "The /knowledge-mcp MCP server exposes Knowledge Graph traversal tools — hybrid retrieval (which includes the KG rerank), entity lookup, and hub discovery. Admins can curate the graph via the /wikantik-admin-mcp tools and the /admin/knowledge-graph/* web interface." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/platform/">Platform</a> ›
+        <span aria-current="page">Knowledge graph</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Platform</p>
+          <h1>The Knowledge Graph: entities and relations extracted from your content</h1>
+          <p class="doc-lede">Wikantik's Knowledge Graph is built by running an LLM extraction pipeline over your page content to identify entities — concepts, people, organisations, technologies — and the co-mention and typed-relation edges between them. Agents can traverse this graph to answer questions that no keyword search can reach.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>What a knowledge graph actually is</h2>
+          <p>A knowledge graph is a structured representation of facts as a network: nodes are things (entities), edges are relationships between those things. Unlike a search index — which maps terms to documents — a knowledge graph maps concepts to one another, letting a reasoner follow chains of meaning rather than lists of matches.</p>
+          <p>For a wiki, this means: when an agent asks "which pages are most relevant to understanding distributed consensus?", a knowledge graph can surface pages that mention Raft, Paxos, and leader election — even if none of them explicitly contain the phrase "distributed consensus" — because the entity graph knows those concepts are related.</p>
+
+          <h2>How Wikantik builds the Knowledge Graph</h2>
+          <p>The Knowledge Graph is populated by an entity extraction pipeline that reads page content, identifies entities, and proposes nodes and edges for admin review. No entity enters the graph without human approval — which keeps the graph accurate rather than noisy.</p>
+
+          <h3>Nodes: LLM-extracted entities</h3>
+          <p>Each page is chunked into overlapping passages (<code>kg_content_chunks</code>), and the configured LLM backend (Ollama or Anthropic) extracts entity candidates from each chunk. Candidate nodes are written to <code>kg_proposals</code> with a confidence score; proposals above the confidence threshold and approved by an admin are promoted to <code>kg_nodes</code>.</p>
+          <p>Nodes carry pgvector-backed embeddings (<code>kg_node_embeddings</code>) that enable semantic entity lookup — "find entities similar to 'Raft consensus algorithm'" resolves to the right nodes even with paraphrase variation.</p>
+
+          <h3>Edges: co-mention and typed relations</h3>
+          <p>Edges in <code>kg_edges</code> are of two kinds:</p>
+          <ul>
+            <li><strong>Co-mention edges</strong> — two entities that appear in the same passage are co-mentioned. These are inferred automatically by the extraction pipeline.</li>
+            <li><strong>Typed-relation edges</strong> — explicit predicates declared in frontmatter (<code>links_to</code>, <code>mentions</code>, <code>part_of</code>, etc.) via <code>GraphProjector</code>. These are curated, not inferred.</li>
+          </ul>
+          <p>The graph rerank in hybrid search uses a multi-source BFS over <code>kg_edges</code> with a 2-hop radius by default (<code>wikantik.search.graph.max-hops = 2</code>) to score retrieval candidates by proximity to query entities.</p>
+
+          <h2>Inclusion policy: curation, not noise</h2>
+          <p>Not every page benefits from entity extraction, and running extraction over personal notes, system pages, or hobby content clutters the graph. Wikantik's <strong>cluster-primary inclusion policy</strong> solves this with a default-exclude model: pages are only admitted for extraction if their cluster has an explicit <code>include</code> policy in <code>kg_cluster_policy</code>.</p>
+          <p>Per-page overrides are always available: <code>kg_include: true</code> or <code>kg_include: false</code> in frontmatter wins over the cluster policy. System pages are always excluded regardless. The policy is managed via the admin UI at <code>/admin/kg-policy</code>, the REST API at <code>/admin/kg-policy/*</code>, or the <code>bin/kg-policy.sh</code> CLI.</p>
+          <p>Soft-exclude preserves existing <code>kg_nodes</code> and <code>kg_edges</code> rows when a cluster is moved to exclude — they disappear from retrieval immediately but can be reinstated just by re-including the cluster, with no LLM cost. Hard-delete is available when you want the storage back.</p>
+          <p>For the full policy decision model, see <a href="https://wiki.wikantik.com/wiki/KgInclusionPolicy">KgInclusionPolicy</a> in the live wiki.</p>
+
+          <h2>Knowledge Graph vs. Page Graph</h2>
+          <p>These are two distinct subsystems — do not conflate them. The <a href="/platform/page-graph.html">Page Graph</a> contains edges that are real wikilinks authors wrote in page bodies. The Knowledge Graph contains nodes that are LLM-extracted entities and edges that are extracted or frontmatter-declared predicates. The Page Graph is for human navigation and authoring aids. The Knowledge Graph is for semantic retrieval and agent reasoning. See <a href="https://wiki.wikantik.com/wiki/PageGraphVsKnowledgeGraph">Page Graph vs Knowledge Graph</a> for the full explanation.</p>
+
+          <h2>How agents use the Knowledge Graph</h2>
+          <p>Agents access the Knowledge Graph through the <code>/knowledge-mcp</code> server's 16 read-only tools. Retrieval queries that go through hybrid search automatically get the KG rerank. Dedicated Knowledge Graph traversal tools let agents explore entity relationships, find hub entities, and discover topically related pages through the graph rather than just through text matching.</p>
+          <p>Admin agents use the <code>/wikantik-admin-mcp</code> server's Knowledge Graph curation tools to review proposals, approve or reject nodes and edges, and manage the graph's quality over time.</p>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>How does the Knowledge Graph differ from the Page Graph?</summary>
+              <p>The Page Graph's edges are real wikilinks that authors write in page bodies. The Knowledge Graph's nodes are LLM-extracted entities and its edges are co-mention or typed-relation predicates extracted by the entity pipeline. They are distinct subsystems — the Page Graph is for navigation; the Knowledge Graph is for semantic retrieval and agent reasoning.</p>
+            </details>
+            <details>
+              <summary>How does the inclusion policy work?</summary>
+              <p>By default, pages are excluded from Knowledge Graph extraction unless their cluster has an explicit include policy in <code>kg_cluster_policy</code>. You can also override per-page with <code>kg_include: true</code> or <code>kg_include: false</code> in frontmatter. This keeps the graph curated and focused on content that actually benefits from entity extraction.</p>
+            </details>
+            <details>
+              <summary>How do agents access the Knowledge Graph?</summary>
+              <p>The <code>/knowledge-mcp</code> MCP server exposes Knowledge Graph traversal tools and hybrid retrieval with the KG rerank. Curators manage the graph via the <code>/wikantik-admin-mcp</code> tools and the <code>/admin/knowledge-graph/*</code> web interface.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/platform/page-graph.html">
+              <strong>Page graph</strong>
+              <span>The wikilink graph: distinct from the Knowledge Graph, used for navigation.</span>
+            </a>
+            <a class="related-card" href="/platform/hybrid-retrieval.html">
+              <strong>Hybrid retrieval</strong>
+              <span>How the KG rerank stage uses entity proximity to improve search results.</span>
+            </a>
+            <a class="related-card" href="/platform/mcp-for-ai-agents.html">
+              <strong>MCP for AI agents</strong>
+              <span>The tool surface through which agents query the Knowledge Graph.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

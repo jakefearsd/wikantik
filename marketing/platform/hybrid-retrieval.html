@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>Hybrid retrieval: BM25 + dense + knowledge-graph rerank | Wikantik</title>
+  <meta name="description" content="How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion, then a knowledge-graph rerank — with a fail-closed BM25 fallback.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/platform/hybrid-retrieval.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/platform/hybrid-retrieval.html">
+  <meta property="og:title" content="Hybrid retrieval: BM25 + dense + knowledge-graph rerank | Wikantik">
+  <meta property="og:description" content="How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion, then a knowledge-graph rerank — with a fail-closed BM25 fallback.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Hybrid retrieval: BM25 + dense + knowledge-graph rerank | Wikantik">
+  <meta name="twitter:description" content="How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion, then a knowledge-graph rerank — with a fail-closed BM25 fallback.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "Hybrid retrieval: BM25 + dense + knowledge-graph rerank",
+    "description": "How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion, then a knowledge-graph rerank — with a fail-closed BM25 fallback.",
+    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/platform/hybrid-retrieval.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Platform", "item": "https://www.wikantik.com/platform/" },
+      { "@type": "ListItem", "position": 3, "name": "Hybrid retrieval", "item": "https://www.wikantik.com/platform/hybrid-retrieval.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "What embedding backends are supported?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Three backends are available via the wikantik.search.dense.backend property: inmemory (brute-force cosine scan, default), pgvector (delegates to PostgreSQL HNSW), and lucene-hnsw (in-process Lucene HNSW index, the docker1 production default). All three share the same fail-closed BM25 fallback." } },
+      { "@type": "Question", "name": "What happens if the vector store is down?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Wikantik hybrid retrieval is fail-closed: every failure path in the dense retrieval stack returns the unmodified BM25 result list. The circuit breaker trips OPEN after consecutive failures and automatically re-probes; during the OPEN period, search continues returning BM25 results. Search never goes dark." } },
+      { "@type": "Question", "name": "Does hybrid retrieval work for agents and humans?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. The same /api/search endpoint is used by the web UI, the MCP server tools, and direct API callers. Agents benefit from the same BM25 + dense + KG rerank pipeline that humans use, plus the structured JSON response format that makes results easy to process programmatically." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/platform/">Platform</a> ›
+        <span aria-current="page">Hybrid retrieval</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Platform</p>
+          <h1>Hybrid retrieval: BM25 + dense embeddings + knowledge-graph rerank</h1>
+          <p class="doc-lede">Wikantik's search stack fuses Lucene BM25 with dense embedding cosine similarity using weighted Reciprocal Rank Fusion, then optionally reranks with a knowledge-graph proximity score — and falls back cleanly to BM25 alone if any upstream component is unavailable.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>The problem with keyword-only search</h2>
+          <p>Classic BM25 keyword search is fast and reliable, but it is fundamentally a vocabulary-matching exercise. A query for "index funds for retirement" will miss a page titled "Passive Investing Fundamentals" unless it happens to contain those exact terms. For a wiki used by both humans exploring topics and AI agents answering questions, that gap is not a cosmetic issue — it is a retrieval failure that produces hallucinated or missing citations.</p>
+          <p>Dense embedding search solves the vocabulary problem by mapping both queries and documents into a shared semantic vector space. But dense search on its own can be brittle: it rewards topical similarity over exact relevance, and it fails silently when the embedding backend is unavailable.</p>
+          <p>Hybrid retrieval takes the best of both worlds.</p>
+
+          <h2>How it works: three stages</h2>
+
+          <h3>Stage 1 — BM25 + dense fusion with weighted RRF</h3>
+          <p>At query time, Wikantik runs two retrieval passes in parallel: a Lucene BM25 pass and a dense cosine-similarity pass against chunk embeddings. The two ranked lists are then merged using <strong>weighted Reciprocal Rank Fusion (RRF)</strong> — a rank-based combination method that is robust to score-scale differences between the two signals.</p>
+          <p>The key configuration properties are:</p>
+          <ul>
+            <li><code>wikantik.search.hybrid.rrf.bm25-weight</code> — weight applied to BM25 ranks (default <code>1.0</code>)</li>
+            <li><code>wikantik.search.hybrid.rrf.dense-weight</code> — weight applied to dense ranks (default <code>1.5</code>)</li>
+            <li><code>wikantik.search.hybrid.rrf.k</code> — the RRF smoothing constant (default <code>60</code>)</li>
+          </ul>
+          <p>Dense retrieval operates at the chunk level — each page is broken into overlapping passages, each embedded separately — and the <code>SUM_TOP_3</code> page aggregation strategy collapses chunk scores into a per-page score before fusion.</p>
+
+          <h3>Stage 2 — knowledge-graph rerank</h3>
+          <p>After fusion, an optional third stage reranks the fused list using the Knowledge Graph. The graph rerank resolves entities in the query against <code>kg_nodes</code>, then boosts pages whose mentioned entities are close (in Knowledge Graph hops) to those query entities. With the default <code>wikantik.search.graph.boost = 0.2</code> and <code>max-hops = 2</code>, the boost lifts mid-list pages with strong graph proximity without overriding BM25 + dense top results.</p>
+          <p>Crucially, the graph rerank only reorders — it never adds or removes candidates. If no graph signal exists for a query, the stage returns the fused list unchanged.</p>
+
+          <h3>Fail-closed BM25 fallback</h3>
+          <p>Every abnormal path in the dense and graph stages returns the BM25 result list unchanged rather than failing. If the embedding backend times out, the circuit breaker trips OPEN and the embedder returns empty — and BM25 takes over seamlessly. This is not an afterthought; it is a design invariant enforced in <code>HybridSearchService.rerank()</code>.</p>
+
+          <div class="callout">
+            <p><strong>Production note:</strong> the dense backend on docker1 (the live Wikantik deployment) is <code>lucene-hnsw</code> — an in-process Lucene HNSW approximate nearest-neighbour index held in JVM RAM. It is faster than the brute-force <code>inmemory</code> backend on large corpora and avoids the extra database load of the <code>pgvector</code> backend. Switch backends with a single property: <code>wikantik.search.dense.backend = inmemory | pgvector | lucene-hnsw</code>.</p>
+          </div>
+
+          <h2>Why it matters for RAG and agents</h2>
+          <p>Retrieval-Augmented Generation (RAG) systems are only as good as their retrieval step. An agent that gets the wrong page returns a wrong or hallucinated answer. Hybrid retrieval dramatically reduces the chance of a retrieval miss compared to either BM25 or dense alone — particularly for queries that combine exact terminology with broader semantic intent, which is exactly how humans and agents tend to ask questions about a technical knowledge base.</p>
+          <p>The same <code>/api/search</code> endpoint that powers the search box in the wiki UI is the one the MCP tools call. Agents get first-class search, not a stripped-down API.</p>
+          <p>For deeper reading on the implementation, see the <a href="https://wiki.wikantik.com/wiki/HybridRetrieval">Hybrid Retrieval design doc</a> in the live wiki.</p>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>What embedding backends are supported?</summary>
+              <p>Three backends are available via the <code>wikantik.search.dense.backend</code> property: <code>inmemory</code> (brute-force cosine scan, default), <code>pgvector</code> (delegates to PostgreSQL HNSW index), and <code>lucene-hnsw</code> (in-process Lucene HNSW index, the docker1 production default). All three share the same fail-closed BM25 fallback.</p>
+            </details>
+            <details>
+              <summary>What happens if the vector store is down?</summary>
+              <p>Wikantik hybrid retrieval is fail-closed: every failure path in the dense retrieval stack returns the unmodified BM25 result list. The circuit breaker trips OPEN after consecutive embedding failures and automatically re-probes after a reset interval; during the OPEN period, search continues returning BM25 results. Search never goes dark because of an embedding outage.</p>
+            </details>
+            <details>
+              <summary>Does hybrid retrieval work for both agents and humans?</summary>
+              <p>Yes. The same <code>/api/search</code> endpoint is used by the web UI search box, the <code>/knowledge-mcp</code> MCP tools, and direct API callers. Agents benefit from the same BM25 + dense + KG rerank pipeline that humans get, plus the structured JSON response that makes results easy to process programmatically.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/platform/knowledge-graph.html">
+              <strong>Knowledge graph</strong>
+              <span>The entity graph that powers the optional KG rerank stage.</span>
+            </a>
+            <a class="related-card" href="/platform/mcp-for-ai-agents.html">
+              <strong>MCP for AI agents</strong>
+              <span>How agents call the same search stack over the Model Context Protocol.</span>
+            </a>
+            <a class="related-card" href="/platform/agent-grade-content.html">
+              <strong>Agent-grade content</strong>
+              <span>Structured pages that give retrieval results something useful to cite.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

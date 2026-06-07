@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>Page graph: wikilinks, canonical IDs &amp; clusters | Wikantik</title>
+  <meta name="description" content="Wikantik's page graph is the real wikilink graph of your content — rename-stable canonical IDs and cluster-hub membership — navigable by humans and agents alike.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/platform/page-graph.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/platform/page-graph.html">
+  <meta property="og:title" content="Page graph: wikilinks, canonical IDs &amp; clusters | Wikantik">
+  <meta property="og:description" content="Wikantik's page graph is the real wikilink graph of your content — rename-stable canonical IDs and cluster-hub membership — navigable by humans and agents alike.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Page graph: wikilinks, canonical IDs &amp; clusters | Wikantik">
+  <meta name="twitter:description" content="Wikantik's page graph is the real wikilink graph of your content — rename-stable canonical IDs and cluster-hub membership — navigable by humans and agents alike.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "Page graph: wikilinks, canonical IDs and clusters",
+    "description": "Wikantik's page graph is the real wikilink graph of your content — rename-stable canonical IDs and cluster-hub membership — navigable by humans and agents alike.",
+    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/platform/page-graph.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Platform", "item": "https://www.wikantik.com/platform/" },
+      { "@type": "ListItem", "position": 3, "name": "Page graph", "item": "https://www.wikantik.com/platform/page-graph.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "What makes Page Graph edges different from Knowledge Graph edges?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Page Graph edges are real wikilinks that an author literally typed in a page body. Knowledge Graph edges are LLM-extracted predicates between entity nodes. They serve different purposes and live in separate subsystems — the Page Graph is for navigation and authoring; the Knowledge Graph is for semantic retrieval." } },
+      { "@type": "Question", "name": "What happens to wikilinks when a page is renamed?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Each page has a canonical_id — a 26-character ULID assigned at first save and immutable thereafter. External references can use the canonical_id instead of the slug; GET /api/pages/by-id/{canonical_id} resolves to the current page regardless of renames. The slug history is also tracked in page_slug_history." } },
+      { "@type": "Question", "name": "How do agents navigate the Page Graph?",
+        "acceptedAnswer": { "@type": "Answer", "text": "The /knowledge-mcp server exposes structural spine tools — list_clusters, list_pages_by_filter, get_page_by_id, and sitemap — that let agents navigate by cluster membership, type, and canonical ID. The /api/structure/* REST endpoints serve the same data for non-MCP clients." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/platform/">Platform</a> ›
+        <span aria-current="page">Page graph</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Platform</p>
+          <h1>The Page Graph: wikilinks, canonical IDs, and cluster membership</h1>
+          <p class="doc-lede">Wikantik's Page Graph is the real wikilink graph of your content: every edge is a wikilink an author wrote in a page body, every node is a page, and every page carries a rename-stable canonical ID and a cluster membership — structural facts that both humans and agents can navigate.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>What the Page Graph is</h2>
+          <p>The Page Graph is not a metaphor. It is a concrete data structure: a directed graph where nodes are pages and edges are the <code>[OtherPage]</code> wikilinks that authors write in page bodies. That is the only source of edges — no inference, no LLM extraction, no implicit relationships. If an author did not write the link, the edge does not exist.</p>
+          <p>This strictness is a feature. It means the Page Graph reflects actual editorial intent: which authors judged that one page is relevant enough to another to link it explicitly. That signal is valuable for navigation, authoring aids, and — as it turns out — for computing inbound link centrality to rank pages for agent retrieval.</p>
+          <p>For an authoritative comparison of the Page Graph and the Knowledge Graph, see <a href="https://wiki.wikantik.com/wiki/PageGraphVsKnowledgeGraph">Page Graph vs Knowledge Graph</a> in the live wiki.</p>
+
+          <h2>Wikilinks as first-class edges</h2>
+          <p>Wikilinks in Wikantik are parsed from page bodies at save time by <code>ReferenceManager</code>. The resulting edges are queryable: you can ask "which pages link to this one?" (backlinks) and "which pages does this one link to?" (outbound links). Both are available via the REST API at <code>/api/pages/{slug}/backlinks</code> and via the <code>get_backlinks</code> / <code>get_outbound_links</code> MCP tools on <code>/wikantik-admin-mcp</code>.</p>
+          <p>The backlink graph powers several visible features:</p>
+          <ul>
+            <li><strong>Broken-link triage</strong> — when a page is deleted or renamed without updating links, affected pages surface in <code>/admin/page-graph/*</code></li>
+            <li><strong>Orphan detection</strong> — pages with no inbound links from other pages in the same cluster are flagged by the agent-grade audit</li>
+            <li><strong>Inbound link centrality</strong> — used by <code>AgentHintsDeriver</code> to rank pages in the <code>prefer_pages</code> hint on agent projections</li>
+          </ul>
+
+          <h2>Canonical IDs: rename-stable page identity</h2>
+          <p>Renaming a page — a perfectly normal editorial act — breaks every external reference to the old slug. Wikantik solves this with <code>canonical_id</code>: a 26-character ULID assigned to each page at first save and immutable thereafter, stored in frontmatter and in the <code>page_canonical_ids</code> database table.</p>
+          <p>The endpoint <code>GET /api/pages/by-id/{canonical_id}</code> resolves a canonical ID to the current page regardless of any renames that have occurred since the ID was assigned. Slug rename history is tracked in <code>page_slug_history</code> for audit purposes. External systems — integrations, agent memory stores, citation databases — that reference a page by canonical ID instead of slug are rename-proof.</p>
+          <p>Canonical ID assignment is enforced at save time: if a page lacks a <code>canonical_id</code> in its frontmatter, <code>StructuralSpinePageFilter</code> automatically assigns one and injects it before the page is saved.</p>
+
+          <h2>Clusters and hubs</h2>
+          <p>Every page declares a <code>cluster:</code> in its frontmatter, assigning it to a logical topic area. Within each cluster, one page is designated the hub — the entry point that links to all cluster articles and provides the overview. The rest are articles.</p>
+          <p>Cluster membership is the primary navigation structure for agents: <code>list_clusters</code> on the <code>/knowledge-mcp</code> server returns all clusters with their hub page, article count, and last-updated timestamp. <code>list_pages_by_filter</code> lets agents filter by cluster, type, tag, or update time. This is how an agent asks "what does this wiki contain?" without doing a full-text search.</p>
+
+          <h2>Page Graph vs. Knowledge Graph</h2>
+          <p>These are distinct subsystems and must not be confused. The Page Graph's nodes are pages; its edges are wikilinks authors wrote. The <a href="/platform/knowledge-graph.html">Knowledge Graph</a>'s nodes are LLM-extracted entities (concepts, people, technologies); its edges are co-mention or typed-relation predicates. They live in separate code packages (<code>com.wikantik.pagegraph.*</code> vs <code>com.wikantik.knowledge.*</code>), separate database tables (<code>page_canonical_ids</code> vs <code>kg_*</code>), and serve different purposes: navigation vs. semantic retrieval.</p>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>What makes Page Graph edges different from Knowledge Graph edges?</summary>
+              <p>Page Graph edges are real wikilinks that an author literally typed in a page body. Knowledge Graph edges are LLM-extracted predicates between entity nodes. They serve different purposes and live in separate subsystems — the Page Graph is for navigation and authoring; the Knowledge Graph is for semantic retrieval and agent reasoning.</p>
+            </details>
+            <details>
+              <summary>What happens to wikilinks when a page is renamed?</summary>
+              <p>Each page has a <code>canonical_id</code> — a 26-character ULID assigned at first save and immutable thereafter. External references can use the canonical ID instead of the slug; <code>GET /api/pages/by-id/{canonical_id}</code> resolves to the current page regardless of renames. The slug history is also tracked in <code>page_slug_history</code>.</p>
+            </details>
+            <details>
+              <summary>How do agents navigate the Page Graph?</summary>
+              <p>The <code>/knowledge-mcp</code> server exposes structural spine tools — <code>list_clusters</code>, <code>list_pages_by_filter</code>, <code>get_page_by_id</code>, and a sitemap endpoint — that let agents navigate by cluster membership, type, and canonical ID. The <code>/api/structure/*</code> REST endpoints serve the same data for non-MCP clients.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/platform/knowledge-graph.html">
+              <strong>Knowledge graph</strong>
+              <span>The LLM-extracted entity graph — distinct from the Page Graph.</span>
+            </a>
+            <a class="related-card" href="/platform/structural-spine.html">
+              <strong>Structural spine</strong>
+              <span>The machine-queryable index built on top of the Page Graph.</span>
+            </a>
+            <a class="related-card" href="/platform/hybrid-retrieval.html">
+              <strong>Hybrid retrieval</strong>
+              <span>How inbound link centrality from the Page Graph feeds agent ranking hints.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

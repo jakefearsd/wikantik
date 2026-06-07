@@ -46,6 +46,30 @@ class RobotsTxtTest {
     }
 
     @Test
+    void testRenderCriticalPageApiStaysCrawlable() throws Exception {
+        // Regression (Google "Soft 404"): the React reader (PageView.jsx) fetches
+        // /api/pages/{name}?render=true to render the page body. Google's renderer
+        // (WRS) will NOT fetch robots-disallowed resources, so a blanket
+        // `Disallow: /api/` left rendered pages empty and Google classified them as
+        // Soft 404. The read-only page-content path must remain crawlable, and the
+        // Allow must precede the broad Disallow so first-match crawlers honour it.
+        final Path robots = Paths.get( "src", "main", "webapp", "robots.txt" );
+        final String content = Files.readString( robots );
+
+        final int allowIdx = content.indexOf( "Allow: /api/pages/" );
+        final int disallowApiIdx = content.indexOf( "Disallow: /api/" );
+
+        assertTrue( allowIdx >= 0,
+                "robots.txt must 'Allow: /api/pages/' so Googlebot can fetch page "
+                        + "content during render (avoids Soft 404); was: " + content );
+        assertTrue( disallowApiIdx >= 0,
+                "robots.txt should still 'Disallow: /api/' for the rest of the API; was: " + content );
+        assertTrue( allowIdx < disallowApiIdx,
+                "'Allow: /api/pages/' must appear before 'Disallow: /api/' so first-match "
+                        + "crawlers honour the allow; was: " + content );
+    }
+
+    @Test
     void testSitemapPointsAtCanonicalDomain() throws Exception {
         final Path robots = Paths.get( "src", "main", "webapp", "robots.txt" );
         final String content = Files.readString( robots );

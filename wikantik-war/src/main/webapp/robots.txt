@@ -15,7 +15,13 @@ Disallow: /diff/
 Disallow: /preferences
 Disallow: /reset-password
 
-# Block API and internal endpoints
+# Block API and internal endpoints.
+# EXCEPT the read-only page-content API: the React reader fetches
+# /api/pages/{name}?render=true to render page bodies. Google's renderer (WRS)
+# skips robots-disallowed resources, so blocking this made rendered pages look
+# empty and Google flagged them as "Soft 404". Keep it crawlable; the Allow must
+# precede the Disallow so first-match crawlers honour it.
+Allow: /api/pages/
 Disallow: /api/
 Disallow: /mcp
 Disallow: /metrics

@@ -760,3 +760,35 @@ describe('PageView comment integration', () => {
     await waitFor(() => expect(api.renamePage).toHaveBeenCalledWith('Foo', 'NewName'));
   }, TEST_TIMEOUT);
 });
+
+describe('PageView SSR data-island seeding', () => {
+  afterEach(() => { delete window.__WIKANTIK_PAGE__; });
+
+  it('renders content from window.__WIKANTIK_PAGE__ without waiting for the fetch', async () => {
+    // Crawler / first-paint scenario: the SSR data island supplies content. Even
+    // if the /api/pages fetch never resolves (a crawler's renderer may not reach
+    // it), the reader must show content — not a Loading spinner (the Soft 404
+    // cause). Seeded data + PageView's spinner guard make that hold.
+    window.__WIKANTIK_PAGE__ = {
+      name: 'Foo',
+      contentHtml: '<p>SEEDED island content</p>',
+      content: 'SEEDED island content',
+      permissions: {},
+      metadata: {},
+      exists: true,
+    };
+    let resolveGet;
+    api.getPage.mockImplementation(() => new Promise((res) => { resolveGet = res; }));
+
+    renderPageView('/wiki/Foo');
+
+    await waitFor(() => {
+      expect(screen.getByText('SEEDED island content')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Loading…')).toBeNull();
+
+    // Resolve the dangling fetch so the unhandled promise doesn't leak into the
+    // worker pool.
+    resolveGet?.({ ...PAGE });
+  }, TEST_TIMEOUT);
+});

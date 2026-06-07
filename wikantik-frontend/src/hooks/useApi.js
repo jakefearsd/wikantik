@@ -1,8 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-export function useApi(fetcher, deps = []) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+export function useApi(fetcher, deps = [], options = {}) {
+  // initialData seeds the first render from server-supplied data (e.g. the SSR
+  // data island) so the component can show content on first paint without
+  // waiting for the network. `loading` starts false when seeded; the effect
+  // still refreshes in the background. Callers decide whether to show a spinner
+  // while `loading` (PageView keeps seeded content visible — see its guard — so
+  // crawlers never see an empty/loading DOM, which Google flags as Soft 404).
+  const { initialData = null } = options;
+  const [data, setData] = useState(initialData);
+  const [loading, setLoading] = useState(initialData == null);
   const [error, setError] = useState(null);
   const controllerRef = useRef(null);
 

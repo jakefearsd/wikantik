@@ -125,7 +125,25 @@ export default function PageView() {
   });
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { data: page, loading, error } = useApi((signal) => api.getPage(name, { render: true, signal }), [name, user?.authenticated]);
+  // Seed initial state from the SSR data island (window.__WIKANTIK_PAGE__) when
+  // it matches the page being viewed, so the reader renders content immediately
+  // instead of showing a Loading spinner while it refetches /api/pages. This is
+  // what lets a crawler's JS render see content (avoids Soft 404). Consumed once.
+  const initialPage = (typeof window !== 'undefined'
+    && window.__WIKANTIK_PAGE__
+    && window.__WIKANTIK_PAGE__.name === name)
+    ? window.__WIKANTIK_PAGE__
+    : null;
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      delete window.__WIKANTIK_PAGE__;
+    }
+  }, []);
+  const { data: page, loading, error } = useApi(
+    (signal) => api.getPage(name, { render: true, signal }),
+    [name, user?.authenticated],
+    { initialData: initialPage },
+  );
 
   const articleRef = useRef(null);
 
@@ -386,7 +404,15 @@ export default function PageView() {
     navigate(internalPath);
   }, [navigate]);
 
-  if (loading) return <div className="loading"><Spinner label="Loading…" /></div>;
+  // Show the spinner only when we have nothing to display for THIS page yet.
+  // Once we have data for `name` (seeded from the SSR island or fetched), a
+  // background refresh (e.g. the auth-state-driven refetch) keeps the content
+  // visible instead of flashing the spinner — so crawlers/first paint never see
+  // an empty/loading DOM (the Soft 404 cause). A spinner still shows on initial
+  // load and when navigating to a different page (page.name !== name).
+  if (loading && (!page || page.name !== name)) {
+    return <div className="loading"><Spinner label="Loading…" /></div>;
+  }
   if (error?.status === 404) return <NotFound name={name} />;
   if (error) return <div className="error-banner">Failed to load page: {error.message}</div>;
   if (!page) return null;

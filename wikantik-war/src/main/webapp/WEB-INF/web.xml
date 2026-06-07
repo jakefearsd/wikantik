@@ -271,6 +271,19 @@
      <filter-name>ContentTypeOptionsFilter</filter-name>
      <url-pattern>/*</url-pattern>
    </filter-mapping>
+   <!-- X-Robots-Tag: noindex on the API. /api/pages/ is robots-allowed so Google
+        can fetch page content while rendering the SPA, but the JSON itself must
+        not be indexed as a standalone URL. Scoped to /api/* so /wiki/ HTML pages
+        stay indexable. -->
+   <filter>
+     <filter-name>XRobotsTagFilter</filter-name>
+     <filter-class>com.wikantik.http.filter.XRobotsTagFilter</filter-class>
+     <async-supported>true</async-supported>
+   </filter>
+   <filter-mapping>
+     <filter-name>XRobotsTagFilter</filter-name>
+     <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
    <filter>
      <filter-name>CrossDomainFilter</filter-name>
      <filter-class>com.wikantik.http.filter.CrossDomainFilter</filter-class>

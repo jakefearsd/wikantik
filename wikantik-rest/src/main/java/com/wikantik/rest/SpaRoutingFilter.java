@@ -18,11 +18,16 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.core.Page;
+import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.page.subsystem.PageSubsystemBridge;
 import com.wikantik.api.spi.Wiki;
+import com.wikantik.render.RenderingManager;
+import com.wikantik.render.subsystem.RenderingSubsystemBridge;
 import com.wikantik.ui.SemanticHeadRenderer;
 import com.wikantik.util.BaseUrlResolver;
 import jakarta.servlet.Filter;
@@ -293,10 +298,11 @@ public class SpaRoutingFilter implements Filter {
         if ( pm == null || !pm.wikiPageExists( pageName ) ) {
             return indexHtml;
         }
+        final Page page;
         final String rawText;
         final java.util.Date modified;
         try {
-            final Page page = pm.getPage( pageName );
+            page = pm.getPage( pageName );
             if ( page == null ) {
                 return indexHtml;
             }
@@ -329,7 +335,56 @@ public class SpaRoutingFilter implements Filter {
                 out = out.substring( 0, rootInner ) + bodyFragment + out.substring( rootClose );
             }
         }
+        // Inject a JSON data island so the React reader renders immediately from
+        // the SSR data instead of refetching /api/pages on mount. A crawler's JS
+        // renderer may skip that fetch (or it may be slow), leaving an empty
+        // "Loading…" DOM that Google classifies as Soft 404. Seeding from the
+        // island keeps content on screen for the first paint and for crawlers.
+        // See PageView.jsx + useApi.js (initialData).
+        final String island = buildPageIsland( eng, req, page, pageName, rawText );
+        if ( island != null ) {
+            final int bodyClose = out.lastIndexOf( "</body>" );
+            if ( bodyClose >= 0 ) {
+                out = out.substring( 0, bodyClose ) + island + out.substring( bodyClose );
+            }
+        }
         return out;
+    }
+
+    /** Gson with default HTML-escaping on, so serialized output contains no
+     *  literal {@code </script>} and is safe to embed in an inline script. */
+    private static final com.google.gson.Gson ISLAND_GSON = new com.google.gson.Gson();
+
+    /**
+     * Build the {@code window.__WIKANTIK_PAGE__} data island: the same shape the
+     * reader gets from {@code GET /api/pages/{name}?render=true} (name, content,
+     * contentHtml, metadata), so the client can seed its initial state without a
+     * render-critical network fetch. Returns {@code null} on any failure (the SPA
+     * then falls back to its normal fetch).
+     */
+    private static String buildPageIsland( final Engine eng, final HttpServletRequest req,
+                                           final Page page, final String pageName, final String rawText ) {
+        try {
+            final ParsedPage parsed = FrontmatterParser.parse( rawText == null ? "" : rawText );
+            String contentHtml = null;
+            try {
+                final RenderingManager rm = RenderingSubsystemBridge.fromLegacyEngine( eng ).renderingManager();
+                final Context ctx = Wiki.context().create( eng, req, page );
+                contentHtml = rm.textToHTML( ctx, rawText );
+            } catch ( final Exception rex ) {
+                LOG.warn( "SpaRoutingFilter: data-island render failed for '{}': {}", pageName, rex.getMessage() );
+            }
+            final java.util.Map< String, Object > island = new java.util.LinkedHashMap<>();
+            island.put( "name", pageName );
+            island.put( "content", parsed.body() );
+            island.put( "contentHtml", contentHtml );
+            island.put( "metadata", parsed.metadata() );
+            island.put( "exists", true );
+            return "<script>window.__WIKANTIK_PAGE__=" + ISLAND_GSON.toJson( island ) + ";</script>";
+        } catch ( final RuntimeException ex ) {
+            LOG.warn( "SpaRoutingFilter: data-island build failed for '{}': {}", pageName, ex.getMessage() );
+            return null;
+        }
     }
 
     /**

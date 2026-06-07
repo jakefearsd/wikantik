@@ -1,14 +1,14 @@
 ---
 date: 2026-03-15T01:00:00Z
-summary: Why low-cost index funds consistently outperform actively managed funds,
-  how to select them, and how to build a simple, effective portfolio.
+summary: 'Low-cost index funds explained: why they beat active funds, a 2026 list
+  of every major fund charging 0.04% or less, and how to build a simple portfolio.'
 cluster: index-fund-investing
 related:
 - IndexFundPortfolioConstruction
 - ExpenseRatioDeepDive
 - IntroductionToIndexFundsAndETFs
 canonical_id: 01KQ0P44S4DQQ8WSQWKXG457QA
-title: Low-Cost Index Fund Investing
+title: 'Low-Cost Index Funds: 2026 Guide to the Cheapest Funds'
 type: article
 tags:
 - investing
@@ -141,6 +141,19 @@ A few widely held funds fall just outside the 0.04% cutoff. They are still inexp
 
 The all-in-one funds charge a little more because they bundle automatic rebalancing and — for Target Retirement — an allocation that grows more conservative as you age. For many investors that convenience is well worth a few extra basis points.
 
+## How to Choose a Low-Cost Index Fund
+
+When two funds track the same index, they hold nearly identical stocks — so the decision comes down to a short checklist:
+
+1. **Expense ratio.** The lower the better, and at this level the differences are tiny in absolute terms (0.03% vs. 0.04% is $0.50/year per $10,000). Don't switch brokers to chase a single basis point.
+2. **Index tracked.** Confirm the fund tracks the exposure you actually want — *total market* vs. *S&P 500* vs. a *style/size tilt* are different bets, even at the same price.
+3. **Tracking difference.** How closely the fund follows its index after costs. Large, established funds track tightly; obscure ones can lag.
+4. **Fund size and liquidity.** Bigger funds (high assets under management, tight ETF bid-ask spreads) are cheaper to trade and less likely to close.
+5. **Account fit.** Match the fund to your broker to avoid transaction fees, and prefer the share class (ETF vs. mutual fund) that suits your automation and tax situation — see [Mutual Fund vs. ETF Comparison](MutualFundVsEtfComparison).
+6. **Tax efficiency (taxable accounts only).** In a taxable account, broad ETFs and total-market funds tend to distribute fewer capital gains. See [Tax-Efficient Bond Investing](TaxEfficientBondInvestingCA) and [Tax-Loss Harvesting](TaxLossHarvesting).
+
+For most investors, the "best" low-cost index fund is simply the cheapest total-market or S&P 500 fund offered natively by their existing broker.
+
 ## Building a Simple Portfolio
 
 The classic three-fund portfolio provides broad global diversification:
@@ -191,3 +204,29 @@ For buy-and-hold investors in tax-advantaged accounts, there is no meaningful di
 5. Ignore market noise
 
 For more on building your portfolio, see [Index Fund Portfolio Construction](IndexFundPortfolioConstruction). For understanding how costs impact your returns, see [Expense Ratios and Their Effect on Compounding](ExpenseRatiosAndTheirEffectOnCompounding).
+
+## Frequently Asked Questions
+
+**What are the cheapest low-cost index funds in 2026?**
+Several broad-market funds charge 0.03% or less, and Fidelity's ZERO funds (FZROX, FNILX) charge 0.00%. Among ETFs, SPLG (0.02%), VOO, VTI, IVV, SCHB, and ITOT (all 0.03%) are among the cheapest — see the [tables above](#core-index-fund-options) for the full list.
+
+**What is a good expense ratio for an index fund?**
+Anything at or below 0.10% is excellent, and the broadest core funds now charge 0.00%–0.04%. By comparison, the average actively managed U.S. equity fund charges about 0.66%.
+
+**Are low-cost index funds better than actively managed funds?**
+Over long horizons, yes for most investors: SPIVA data shows roughly 90% of active U.S. large-cap funds underperform the S&P 500 over 15 years, largely because of higher costs.
+
+**How many index funds do I need?**
+A complete, globally diversified portfolio can be built from just three: a U.S. total-market fund, an international fund, and a U.S. bond fund. A single target-date fund can replace all three for hands-off investors.
+
+**ETF or mutual fund — which is the cheaper way to own an index?**
+At the same expense ratio there's little difference for buy-and-hold investors. ETFs trade intraday and are slightly more tax-efficient in taxable accounts; index mutual funds are easier to automate. See [Mutual Fund vs. ETF Comparison](MutualFundVsEtfComparison).
+
+## Related Guides
+
+- [Introduction to Index Funds and ETFs](IntroductionToIndexFundsAndETFs) — start here if you're new
+- [Index Fund Portfolio Construction](IndexFundPortfolioConstruction) — turn these funds into a portfolio
+- [Expense Ratios and Their Effect on Compounding](ExpenseRatiosAndTheirEffectOnCompounding) — why fees matter so much
+- [Asset Allocation](AssetAllocation) and [Rebalancing Strategies](RebalancingStrategies) — managing the mix over time
+- [Dollar-Cost Averaging](DollarCostAveraging) and [The Case Against Market Timing](TheCaseAgainstMarketTiming) — how to keep contributing
+- [Target-Date Funds](TargetDateFunds) — the one-fund, hands-off alternative

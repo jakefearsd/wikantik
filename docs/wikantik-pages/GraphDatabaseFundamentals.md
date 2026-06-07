@@ -1,6 +1,6 @@
 ---
 canonical_id: 01KQEKGDB4WDQQX7D2W6Z994KQ
-title: Graph Database Fundamentals
+title: 'Graph Database Fundamentals: Property Graphs, Cypher & Use Cases'
 type: article
 cluster: databases
 status: active
@@ -11,9 +11,8 @@ tags:
 - cypher
 - janusgraph
 - property-graph
-summary: Graph databases (Neo4j, JanusGraph, TigerGraph) — the property-graph
-  model, Cypher queries, and the cases where graph DBs genuinely beat the
-  Postgres-with-graph-schema alternative.
+summary: 'Graph database fundamentals: the property-graph model, Cypher queries,
+  Neo4j and the alternatives, and when a graph database genuinely beats Postgres.'
 related:
 - KnowledgeGraphVsRelationalDatabase
 - KnowledgeGraphCompletion
@@ -110,7 +109,7 @@ For these, graph DBs are the right tool.
 - **You don't need graph algorithms.** "We have related data" is not the same as "we need a graph database."
 - **Team unfamiliarity.** Cypher / GQL is a real learning curve.
 
-For most teams, Postgres with a `nodes` and `edges` table works. See [KnowledgeGraphVsRelationalDatabase]().
+For most teams, Postgres with a `nodes` and `edges` table works. See [Knowledge Graph vs. Relational Database](KnowledgeGraphVsRelationalDatabase).
 
 ## The major options in 2026
 
@@ -216,9 +215,26 @@ For a new project considering a graph DB:
 
 Most teams should start with Postgres + graph schema. Migrate to a dedicated graph DB if and when specific limits force it.
 
+## Frequently Asked Questions
+
+**What is a graph database?**
+A database that stores data as nodes (entities) and edges (relationships) and is optimized for traversal queries — following relationships across many hops — rather than the row/table joins of a relational database.
+
+**Graph database vs. relational database — what's the difference?**
+Relational databases excel at structured, tabular data and set-based queries; graph databases excel at deeply connected data and multi-hop traversals where SQL joins become slow and verbose. See [Knowledge Graph vs. Relational Database](KnowledgeGraphVsRelationalDatabase).
+
+**When should I use a graph database?**
+When you run frequent deep traversals (5+ hops), need built-in graph algorithms (PageRank, community detection, shortest path), or model richly connected domains like fraud rings, recommendations, and social networks. For shallow 1–2 hop queries, Postgres is usually enough.
+
+**What is the most popular graph database?**
+Neo4j is the dominant property-graph database and the safe default for most projects; TigerGraph, JanusGraph, Memgraph, and ArangoDB serve more specialized needs.
+
+**What query language do graph databases use?**
+Cypher (Neo4j and compatibles) is the de-facto standard; the ISO **GQL** standard (2024) is heavily inspired by it. JanusGraph uses Gremlin; TigerGraph uses GSQL.
+
 ## Further reading
 
-- [KnowledgeGraphVsRelationalDatabase]() — when to reach for graph at all
-- [KnowledgeGraphCompletion]() — building / extending the graph
-- [DatabaseSharding]() — graph DBs and sharding
-- [NoSqlDatabaseTypes]() — broader NoSQL context
+- [Knowledge Graph vs. Relational Database](KnowledgeGraphVsRelationalDatabase) — when to reach for graph at all
+- [Knowledge Graph Completion](KnowledgeGraphCompletion) — building / extending the graph
+- [Database Sharding](DatabaseSharding) — graph DBs and sharding
+- [NoSQL Database Types](NoSqlDatabaseTypes) — broader NoSQL context

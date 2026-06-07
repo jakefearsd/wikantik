@@ -61,7 +61,7 @@
   { "@context": "https://schema.org", "@type": "FAQPage",
     "mainEntity": [
       { "@type": "Question", "name": "What embedding backends are supported?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Three backends are available via the wikantik.search.dense.backend property: inmemory (brute-force cosine scan, default), pgvector (delegates to PostgreSQL HNSW), and lucene-hnsw (in-process Lucene HNSW index, the docker1 production default). All three share the same fail-closed BM25 fallback." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Three backends are available via the wikantik.search.dense.backend property: inmemory (brute-force cosine scan; the config-file default for new installs), pgvector (delegates to PostgreSQL HNSW), and lucene-hnsw (in-process Lucene HNSW index, the docker1 production default). All three share the same fail-closed BM25 fallback." } },
       { "@type": "Question", "name": "What happens if the vector store is down?",
         "acceptedAnswer": { "@type": "Answer", "text": "Wikantik hybrid retrieval is fail-closed: every failure path in the dense retrieval stack returns the unmodified BM25 result list. The circuit breaker trips OPEN after consecutive failures and automatically re-probes; during the OPEN period, search continues returning BM25 results. Search never goes dark." } },
       { "@type": "Question", "name": "Does hybrid retrieval work for agents and humans?",
@@ -140,7 +140,7 @@
             <h2>Frequently asked questions</h2>
             <details>
               <summary>What embedding backends are supported?</summary>
-              <p>Three backends are available via the <code>wikantik.search.dense.backend</code> property: <code>inmemory</code> (brute-force cosine scan, default), <code>pgvector</code> (delegates to PostgreSQL HNSW index), and <code>lucene-hnsw</code> (in-process Lucene HNSW index, the docker1 production default). All three share the same fail-closed BM25 fallback.</p>
+              <p>Three backends are available via the <code>wikantik.search.dense.backend</code> property: <code>inmemory</code> (brute-force cosine scan; the config-file default for new installs), <code>pgvector</code> (delegates to PostgreSQL HNSW index), and <code>lucene-hnsw</code> (in-process Lucene HNSW index, the docker1 production default). All three share the same fail-closed BM25 fallback.</p>
             </details>
             <details>
               <summary>What happens if the vector store is down?</summary>

@@ -127,7 +127,7 @@
 
           <h3>Off-site pull: the ransomware control</h3>
           <p>An off-site NAS pulls the snapshot archive daily via rsync over a read-only SSH key. The key is restricted by a forced <code>rrsync</code> command: the NAS can read the backup directory and nothing else. Your production server holds no credentials that can write to or delete from the NAS. A ransomwared or compromised production host cannot reach the off-site archive.</p>
-          <p>The NAS independently verifies checksums after each pull and writes a Prometheus heartbeat metric. If the off-site pull fails or the checksums don't match, monitoring alerts fire within 26 hours.</p>
+          <p>The NAS independently verifies checksums after each pull and writes a Prometheus heartbeat metric. If the off-site pull fails or the checksums don't match, a missed heartbeat triggers a monitoring alert.</p>
 
           <h2>Disaster recovery</h2>
           <p>A backup system you've never tested is a backup system you don't trust. Wikantik includes a disaster recovery script (<code>bin/dr-restore.sh</code>) that automates a full stand-up on a fresh host from a backup snapshot:</p>

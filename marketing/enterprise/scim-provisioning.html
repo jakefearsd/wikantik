@@ -138,7 +138,7 @@
           <h2>Onboarding and offboarding lifecycle</h2>
           <p>The typical pattern pairs SCIM with SSO: the IdP uses SCIM to create accounts and maintain group membership, while SSO handles the actual login flow. SCIM-provisioned accounts authenticate via SSO by default — a random password is generated at creation time and never revealed, so there is no credential to phish.</p>
           <p>When an employee leaves, the IdP sends a SCIM DELETE or a <code>PATCH active=false</code>. Both routes call <code>UserLifecycleService.deactivate()</code>, which sets a lock expiry and prevents any further login. The account row is retained, so audit history, page ownership records, and any attribution metadata remain intact.</p>
-          <p>All SCIM user and group operations are recorded in the <a href="/enterprise/audit-log.html">tamper-evident audit log</a> under category <code>ADMIN</code> with event types like <code>scim.user.create</code> and <code>scim.group.update</code>. Your security team can query exactly when each account was provisioned or deactivated.</p>
+          <p>All SCIM user and group operations are recorded in the <a href="/enterprise/audit-log.html">tamper-evident audit log</a> under category <code>ADMIN</code> with event types such as <code>scim.user.create</code>, <code>scim.user.update</code>, and <code>scim.group.update</code>. (Deactivations route through the shared lifecycle path and are recorded as <code>user.deactivate</code>, as described above.) Your security team can see exactly when each account was provisioned or deprovisioned.</p>
 
           <h2>Security boundaries</h2>
 

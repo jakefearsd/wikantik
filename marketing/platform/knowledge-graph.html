@@ -118,7 +118,7 @@
           <p>Edges in <code>kg_edges</code> are of two kinds:</p>
           <ul>
             <li><strong>Co-mention edges</strong> — two entities that appear in the same passage are co-mentioned. These are inferred automatically by the extraction pipeline.</li>
-            <li><strong>Typed-relation edges</strong> — explicit predicates declared in frontmatter (<code>links_to</code>, <code>mentions</code>, <code>part_of</code>, etc.) via <code>GraphProjector</code>. These are curated, not inferred.</li>
+            <li><strong>Typed-relation edges</strong> — relationship predicates (e.g. <code>links_to</code>, <code>part_of</code>) between approved entities, promoted from the extraction pipeline's reviewed proposals or written by the admin curation tools. These are curated, not automatically inferred.</li>
           </ul>
           <p>The graph rerank in hybrid search uses a multi-source BFS over <code>kg_edges</code> with a 2-hop radius by default (<code>wikantik.search.graph.max-hops = 2</code>) to score retrieval candidates by proximity to query entities.</p>
 

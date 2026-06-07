@@ -108,12 +108,13 @@
           <p>Wikantik uses a <strong>hash chain</strong>: each row's hash includes the hash of the row before it. Changing any single row changes its hash, which invalidates every subsequent row's <code>prev_hash</code>. Tampering is detectable instantly, even if the attacker has direct database access. The application role is also granted only <code>INSERT</code> and <code>SELECT</code> on <code>audit_log</code> — <code>UPDATE</code> and <code>DELETE</code> are explicitly revoked at the PostgreSQL level.</p>
 
           <h2>What gets logged</h2>
-          <p>Events are grouped into four categories:</p>
+          <p>Events are grouped into five categories:</p>
           <ul>
             <li><strong>AUTHN</strong> — <code>login.ok</code>, <code>login.failed</code>, <code>logout</code>, <code>session.expired</code></li>
             <li><strong>AUTHZ</strong> — <code>access.denied</code></li>
             <li><strong>CONTENT</strong> — page save, page delete</li>
             <li><strong>ADMIN</strong> — group membership changes, profile saves, user lifecycle (lock/unlock), API key issuance, and all SCIM operations (<code>scim.user.create</code>, <code>scim.user.update</code>, <code>scim.group.create</code>, <code>scim.group.update</code>, <code>scim.group.delete</code>)</li>
+            <li><strong>READ</strong> — <code>page.read</code> (conditional and policy-controlled — recorded only on pages where read auditing is enabled)</li>
           </ul>
           <p>Each entry carries: sequence number, timestamps, category, event type, actor identity, actor type, target, outcome (<code>SUCCESS</code>, <code>FAILURE</code>, or <code>DENIED</code>), source IP, user agent, correlation ID, detail text, and the chain hashes.</p>
 

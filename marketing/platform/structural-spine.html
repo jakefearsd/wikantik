@@ -65,7 +65,7 @@
       { "@type": "Question", "name": "What is a canonical ID and why is it immutable?",
         "acceptedAnswer": { "@type": "Answer", "text": "A canonical_id is a 26-character ULID assigned to each page at first save by StructuralSpinePageFilter. It is immutable — renaming the page does not change the canonical_id. External systems that reference a page by canonical_id instead of slug are rename-proof; GET /api/pages/by-id/{canonical_id} always resolves to the current page." } },
       { "@type": "Question", "name": "How is Main.md kept in sync with the actual wiki structure?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Main.md is generated from the structural index rather than hand-maintained. The build pipeline runs the generator during the package phase, so Main.md always reflects the actual cluster taxonomy. A regression test in CI fails the build if a checked-in Main.md diverges from the generated version. Curators can add editorial pins via Main.pins.yaml without hand-editing Main.md directly." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "Main.md is generated from the structural index rather than hand-maintained. The build pipeline runs the generator during the package phase, so Main.md is kept in sync with the actual cluster taxonomy. A regression test in CI fails the build if a checked-in Main.md diverges from the generated version. Curators can add editorial pins via Main.pins.yaml without hand-editing Main.md directly." } }
     ] }
   </script>
 </head>
@@ -129,7 +129,7 @@
           <p>For agents navigating a large wiki, the pattern is: call <code>list_clusters</code> to get a map of the wiki's topic areas; pick the relevant cluster; call <code>get_cluster</code> to get the hub page and article list; then read specific articles via <code>read_pages</code> or <code>get_page_by_id</code>. This is three to four tool calls to fully orient an agent in any topic area, versus unbounded keyword search iterations.</p>
 
           <h2>Generated Main.md: structure that stays accurate</h2>
-          <p>Wikantik's <code>Main.md</code> — the wiki's homepage — is generated from the structural index rather than hand-maintained. The build pipeline runs the generator during the package phase, so <code>Main.md</code> always reflects the actual cluster taxonomy. A CI regression test (<code>MainPageRegressionTest</code>) fails the build if the checked-in <code>Main.md</code> diverges from what the generator would produce.</p>
+          <p>Wikantik's <code>Main.md</code> — the wiki's homepage — is generated from the structural index rather than hand-maintained. The build pipeline runs the generator during the package phase, so <code>Main.md</code> is kept in sync with the actual cluster taxonomy. A CI regression test (<code>MainPageRegressionTest</code>) fails the build if the checked-in <code>Main.md</code> diverges from what the generator would produce.</p>
           <p>Curators can add editorial pins via <code>docs/wikantik-pages/Main.pins.yaml</code> — featured pages and highlighted sections — without hand-editing <code>Main.md</code> directly. The generator reads both the structural output and the pins, merging them into the final page.</p>
 
           <h2>Fail-closed behaviour</h2>
@@ -147,7 +147,7 @@
             </details>
             <details>
               <summary>How is Main.md kept in sync with the actual wiki structure?</summary>
-              <p><code>Main.md</code> is generated from the structural index rather than hand-maintained. The build pipeline runs the generator during the package phase, so <code>Main.md</code> always reflects the actual cluster taxonomy. A CI regression test fails the build if the checked-in <code>Main.md</code> diverges. Curators add editorial pins via <code>Main.pins.yaml</code> without hand-editing <code>Main.md</code> directly.</p>
+              <p><code>Main.md</code> is generated from the structural index rather than hand-maintained. The build pipeline runs the generator during the package phase, so <code>Main.md</code> is kept in sync with the actual cluster taxonomy. A CI regression test fails the build if the checked-in <code>Main.md</code> diverges. Curators add editorial pins via <code>Main.pins.yaml</code> without hand-editing <code>Main.md</code> directly.</p>
             </details>
           </section>
         </div>

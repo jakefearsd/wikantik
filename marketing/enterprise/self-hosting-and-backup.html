@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>Self-hosted wiki on Docker, with backup &amp; disaster recovery | Wikantik</title>
+  <meta name="description" content="Run Wikantik on your own infrastructure with Docker and PostgreSQL — plain-markdown data you own — backed by a 3-2-1 backup strategy and tested disaster recovery.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/enterprise/self-hosting-and-backup.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/enterprise/self-hosting-and-backup.html">
+  <meta property="og:title" content="Self-hosted wiki on Docker, with backup &amp; disaster recovery | Wikantik">
+  <meta property="og:description" content="Run Wikantik on your own infrastructure with Docker and PostgreSQL — plain-markdown data you own — backed by a 3-2-1 backup strategy and tested disaster recovery.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Self-hosted wiki on Docker, with backup &amp; disaster recovery | Wikantik">
+  <meta name="twitter:description" content="Run Wikantik on your own infrastructure with Docker and PostgreSQL — plain-markdown data you own — backed by a 3-2-1 backup strategy and tested disaster recovery.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "Self-hosted wiki on Docker, with backup &amp; disaster recovery",
+    "description": "Run Wikantik on your own infrastructure with Docker and PostgreSQL — plain-markdown data you own — backed by a 3-2-1 backup strategy and tested disaster recovery.",
+    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/enterprise/self-hosting-and-backup.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Enterprise", "item": "https://www.wikantik.com/enterprise/" },
+      { "@type": "ListItem", "position": 3, "name": "Self-hosting &amp; backup", "item": "https://www.wikantik.com/enterprise/self-hosting-and-backup.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "What does the 3-2-1 backup strategy mean in practice?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Three independent copies of your data exist at all times: the live production database and page tree on your server; tiered local snapshots (daily, weekly, monthly) on the same host; and an off-site archive pulled by a NAS on a daily schedule. The NAS always initiates the pull over a read-only SSH key — your production server cannot write to or delete from the off-site archive, which is the primary ransomware control." } },
+      { "@type": "Question", "name": "How do I restore from a backup?",
+        "acceptedAnswer": { "@type": "Answer", "text": "For disaster recovery to a fresh host, bin/dr-restore.sh automates the full stand-up: it stages the compose files, pulls or transfers the Docker image, copies and verifies a backup snapshot, restores the database, and runs a smoke test. For a manual in-place restore, stop the app, pick a snapshot, run the restore.sh script in the backup sidecar (which verifies checksums before proceeding), and start the app. The search index rebuilds automatically on startup." } },
+      { "@type": "Question", "name": "Is there a per-seat pricing difference between self-hosted and fully-managed?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No. Wikantik is not priced per seat. Self-managed is free software — run it yourself at no licensing cost. Fully-managed is priced on compute, not headcount, so your cost scales with usage, not with how many people you onboard." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/enterprise/">Enterprise</a> ›
+        <span aria-current="page">Self-hosting &amp; backup</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Enterprise</p>
+          <h1>Self-hosted wiki on Docker, with backup &amp; disaster recovery</h1>
+          <p class="doc-lede">Wikantik runs on Docker and PostgreSQL on your own infrastructure — no vendor lock-in, no per-seat licensing, no third party holding your knowledge base. Your pages are plain Markdown files in a git-trackable directory. A 3-2-1 backup strategy with off-site pull and automated disaster recovery testing means you can prove you can recover, not just hope you can.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>Own your data</h2>
+          <p>The single most common regret when leaving a SaaS wiki: "I wish I'd owned the data." Export tools break, vendor formats are opaque, and the migration project that was going to be a weekend turns into months.</p>
+          <p>Wikantik stores your pages as plain Markdown files in a directory you control. Your PostgreSQL database holds structured metadata, search indexes, user accounts, and the knowledge graph — but the content itself is readable and portable without any Wikantik tooling. You can check the page directory into git, back it up with <code>rsync</code>, or export it as a tarball at any time. There is no lock-in step.</p>
+
+          <h2>Run it on Docker and PostgreSQL</h2>
+          <p>The production deployment is a Docker Compose stack: the Wikantik application container, a PostgreSQL + pgvector database, and a backup sidecar. The application is released as a Docker image to GitHub Container Registry. Deploying a new version is a pull-and-restart, and rolling back is the same operation in the other direction.</p>
+          <p>The stack requires no special hardware or managed cloud services. A single Linux host with Docker installed is sufficient for a production deployment. Wikantik runs in production at <a href="https://wiki.wikantik.com/wiki/DockerDeployment">wiki.wikantik.com</a> on this exact stack.</p>
+          <p>Configuration is injected via environment variables from a <code>.env.prod</code> file (never checked into git). SSO credentials, database passwords, MCP access keys, and SCIM tokens all live there. The <code>docker/entrypoint.sh</code> script maps them to the properties the application reads at startup.</p>
+
+          <h2>No lock-in: plain Markdown, exportable anytime</h2>
+          <p>Your pages live in a bind-mounted directory on the host. The format is standard CommonMark Markdown with YAML frontmatter — readable in any text editor, importable into any other system that accepts Markdown. If you ever decide to move to a different wiki, your content goes with you in a format that doesn't require a decoder ring.</p>
+          <p>The database contains structured data — user accounts, groups, knowledge graph nodes, embeddings — that is Wikantik-specific. But a standard <code>pg_dump</code> produces a portable SQL file, and the restore script handles the full schema rebuild. There are no proprietary blob columns or binary-only formats.</p>
+
+          <h2>Backup: 3-2-1 with off-site pull</h2>
+          <p>The 3-2-1 backup model is a standard: three copies, two different storage types, one off-site. Wikantik implements this with a backup sidecar container that runs on a three-tier schedule:</p>
+          <ul>
+            <li><strong>Daily snapshots</strong> — retained for 30 days on the production host</li>
+            <li><strong>Weekly snapshots</strong> — retained for 12 weeks</li>
+            <li><strong>Monthly snapshots</strong> — retained for 12 months</li>
+          </ul>
+          <p>Each snapshot is a self-contained timestamped directory with a full PostgreSQL dump (gzip-compressed), a page-tree tarball, a SHA-256 checksum manifest, and a JSON status manifest. The checksum manifest is verified before any restore proceeds — the restore script will abort rather than load a corrupt snapshot.</p>
+
+          <h3>Off-site pull: the ransomware control</h3>
+          <p>An off-site NAS pulls the snapshot archive daily via rsync over a read-only SSH key. The key is restricted by a forced <code>rrsync</code> command: the NAS can read the backup directory and nothing else. Your production server holds no credentials that can write to or delete from the NAS. A ransomwared or compromised production host cannot reach the off-site archive.</p>
+          <p>The NAS independently verifies checksums after each pull and writes a Prometheus heartbeat metric. If the off-site pull fails or the checksums don't match, monitoring alerts fire within 26 hours.</p>
+
+          <h2>Disaster recovery</h2>
+          <p>A backup system you've never tested is a backup system you don't trust. Wikantik includes a disaster recovery script (<code>bin/dr-restore.sh</code>) that automates a full stand-up on a fresh host from a backup snapshot:</p>
+          <ol>
+            <li>Stages the compose files on the target host</li>
+            <li>Pulls or transfers the Docker image (from GHCR or a live source host)</li>
+            <li>Copies a backup snapshot from the NAS and verifies checksums on the target</li>
+            <li>Starts the database and runs the restore</li>
+            <li>Starts the application and runs a smoke test (<code>bin/smoke-wiki.sh</code>): health check, page render, search hit, changes feed</li>
+          </ol>
+          <p>The script refuses to target the production host by accident and supports a <code>--dry-run</code> mode that prints the full plan without changing anything. Run it quarterly to confirm your recovery actually works.</p>
+
+          <div class="callout">
+            <p><strong>Search rebuilds automatically.</strong> The Lucene search index and in-memory caches are not included in the backup — they are derived state. After a restore, the application rebuilds the search index from the restored database on startup. No manual intervention is required.</p>
+          </div>
+
+          <h2>Self-managed vs. fully-managed</h2>
+          <p>If you want to run Wikantik yourself, the software is yours. If you'd rather have someone else handle the ops, fully-managed is available, priced on compute — not per seat. Your team can grow without a per-user licensing conversation.</p>
+          <p>Either way, the data is yours. Fully-managed doesn't mean your content lives in a system you can't export from.</p>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>What does the 3-2-1 backup strategy mean in practice?</summary>
+              <p>Three independent copies of your data exist at all times: the live production database and page tree on your server; tiered local snapshots (daily, weekly, monthly) on the same host; and an off-site archive pulled by a NAS on a daily schedule. The NAS always initiates the pull over a read-only SSH key — your production server cannot write to or delete from the off-site archive, which is the primary ransomware control.</p>
+            </details>
+            <details>
+              <summary>How do I restore from a backup?</summary>
+              <p>For disaster recovery to a fresh host, <code>bin/dr-restore.sh</code> automates the full stand-up: it stages the compose files, pulls or transfers the Docker image, copies and verifies a backup snapshot, restores the database, and runs a smoke test. For a manual in-place restore, stop the app, pick a snapshot, run the restore script in the backup sidecar (which verifies checksums before proceeding), and start the app. The search index rebuilds automatically on startup.</p>
+            </details>
+            <details>
+              <summary>Is there a per-seat pricing difference between self-hosted and fully-managed?</summary>
+              <p>No. Wikantik is not priced per seat. Self-managed is free software — run it yourself at no licensing cost. Fully-managed is priced on compute, not headcount, so your cost scales with usage, not with how many people you onboard.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/enterprise/access-control-rbac.html">
+              <strong>RBAC &amp; access control</strong>
+              <span>Fine-grained permissions for your self-hosted deployment.</span>
+            </a>
+            <a class="related-card" href="/enterprise/security-hardening.html">
+              <strong>Security hardening</strong>
+              <span>NIST passwords, CSRF/CSP, and deserialization filtering out of the box.</span>
+            </a>
+            <a class="related-card" href="/enterprise/audit-log.html">
+              <strong>Tamper-evident audit log</strong>
+              <span>Audit archive dumps are included in the off-site backup pull.</span>
+            </a>
+            <a class="related-card" href="/enterprise/sso-saml-oidc.html">
+              <strong>SSO (SAML / OIDC)</strong>
+              <span>Inject SSO credentials from environment variables — secrets never in git.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/wiki/DockerDeployment">Read the deployment guide →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

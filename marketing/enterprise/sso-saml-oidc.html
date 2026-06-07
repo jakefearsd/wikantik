@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>SSO for your wiki: SAML, OIDC &amp; Google | Wikantik</title>
+  <meta name="description" content="Single sign-on for Wikantik via SAML and OIDC (pac4j), including Google. Configurable identity claim, session-fixation hardening, and fail-closed account binding.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/enterprise/sso-saml-oidc.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/enterprise/sso-saml-oidc.html">
+  <meta property="og:title" content="SSO for your wiki: SAML, OIDC &amp; Google | Wikantik">
+  <meta property="og:description" content="Single sign-on for Wikantik via SAML and OIDC (pac4j), including Google. Configurable identity claim, session-fixation hardening, and fail-closed account binding.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="SSO for your wiki: SAML, OIDC &amp; Google | Wikantik">
+  <meta name="twitter:description" content="Single sign-on for Wikantik via SAML and OIDC (pac4j), including Google. Configurable identity claim, session-fixation hardening, and fail-closed account binding.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "SSO for your wiki: SAML, OIDC &amp; Google",
+    "description": "Single sign-on for Wikantik via SAML and OIDC (pac4j), including Google. Configurable identity claim, session-fixation hardening, and fail-closed account binding.",
+    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/enterprise/sso-saml-oidc.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Enterprise", "item": "https://www.wikantik.com/enterprise/" },
+      { "@type": "ListItem", "position": 3, "name": "SSO (SAML / OIDC)", "item": "https://www.wikantik.com/enterprise/sso-saml-oidc.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Which identity providers are supported for SSO?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Wikantik supports any SAML 2.0 IdP and any OIDC-compliant provider via pac4j. Google OIDC is used in production. LDAP and local database authentication run alongside SSO — all are additive." } },
+      { "@type": "Question", "name": "Can I trust preferred_username instead of sub as the identity claim?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes, by setting wikantik.sso.identityClaim = preferred_username. Be aware that preferred_username is a mutable claim — if the IdP changes it, the account link breaks. The default sub is the immutable IdP subject and is safer for most deployments." } },
+      { "@type": "Question", "name": "What stops an attacker from taking over an existing account via SSO name collision?",
+        "acceptedAnswer": { "@type": "Answer", "text": "SSO never adopts a pre-existing non-SSO-linked local account of the same name. Auto-provisioned profiles carry an sso.subject marker; a name collision without a matching marker fails closed — login is refused rather than silently granting access to the pre-existing account." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/enterprise/">Enterprise</a> ›
+        <span aria-current="page">SSO (SAML / OIDC)</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Enterprise</p>
+          <h1>SSO for your wiki: SAML, OIDC &amp; Google</h1>
+          <p class="doc-lede">Wikantik delegates authentication to your identity provider — SAML 2.0, OpenID Connect, or Google — via the pac4j library. Every SSO login rotates the HTTP session, fails closed on account-name collisions, and coexists seamlessly with local password auth.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>SSO that fits your IdP</h2>
+          <p>Most enterprise wikis treat SSO as an afterthought — a plugin that breaks on every upgrade. Wikantik builds it into the authentication stack from the start. The SSO implementation uses <strong>pac4j</strong>, a mature Java security library, so it speaks whatever your IdP speaks: SAML 2.0 metadata XML, OIDC discovery documents, or the Google-specific quirks that trip up most implementations (Google omits <code>preferred_username</code>, so Wikantik maps the login name from <code>email</code> instead).</p>
+          <p>SSO is purely additive. When enabled, the login page shows a provider button alongside the local form. Your local admin account keeps working during the rollout, and you can run SAML and OIDC simultaneously with <code>wikantik.sso.type = both</code>.</p>
+
+          <h2>SAML 2.0 and OIDC — how they're configured</h2>
+          <p>Both protocols are configured in <code>wikantik-custom.properties</code> (or injected as environment variables in Docker via <code>WIKANTIK_SSO_*</code> — secrets never land in git).</p>
+
+          <h3>OIDC quick start (Google)</h3>
+          <p>Point Wikantik at the provider's discovery URI, supply the client credentials, and register the redirect URI:</p>
+          <pre><code>wikantik.sso.enabled = true
+wikantik.sso.type = oidc
+wikantik.sso.oidc.discoveryUri = https://accounts.google.com/.well-known/openid-configuration
+wikantik.sso.oidc.clientId = &lt;client-id&gt;.apps.googleusercontent.com
+wikantik.sso.oidc.clientSecret = &lt;client-secret&gt;
+wikantik.sso.claimMapping.loginName = email</code></pre>
+          <p>The redirect URI is <code>wikantik.baseURL</code> + <code>/sso/callback</code>. Google enforces an exact match — Wikantik deliberately uses a clean, parameter-free callback URL so strict IdPs don't reject it.</p>
+
+          <h3>SAML 2.0</h3>
+          <p>Provide the IdP metadata XML path and your SP entity ID. Wikantik only supports HTTP-Redirect binding for the authentication request (not HTTP-POST), so set the binding accordingly in your IdP. The Assertion Consumer Service URL is the same <code>/sso/callback</code> path.</p>
+
+          <div class="callout">
+            <p><strong>Google OIDC is live in production</strong> at <a href="https://wiki.wikantik.com/login">wiki.wikantik.com</a> using this exact configuration. It works cleanly behind Cloudflare Tunnel with no extra header gymnastics.</p>
+          </div>
+
+          <h2>Identity binding and the claim config</h2>
+          <p>The trickiest part of any SSO integration is deciding which IdP claim to use as the account-link key. Wikantik makes this explicit with <code>wikantik.sso.identityClaim</code>:</p>
+          <ul>
+            <li><strong>Default: <code>sub</code></strong> — the IdP's immutable subject identifier. Safe even if the user changes their email or username.</li>
+            <li><strong><code>preferred_username</code></strong> — use this if you deliberately want to trust a mutable claim (e.g. to let a renamed user pick up their existing local account). The risk is that a claim change breaks the link.</li>
+          </ul>
+          <p>Claim values are sanitised before use: multi-valued claims are normalised to their first scalar element, and blank or control-character login names are rejected outright. The configured <code>claimMapping.*</code> properties are automatically bridged into the JAAS LoginModule — you set them once under <code>wikantik.sso.*</code> and they take effect.</p>
+
+          <h2>Security: session rotation, fail-closed binding, CSRF</h2>
+          <p>These three properties are non-negotiable for a production SSO deployment, so Wikantik handles them without configuration:</p>
+
+          <h3>Session fixation defense</h3>
+          <p>A successful SSO login always rotates the HTTP session. The old session ID is invalidated and a fresh one is issued before any privileged state is written. This closes the classic fixation attack where an attacker pre-seeds a session token.</p>
+
+          <h3>Fail-closed account binding</h3>
+          <p>Auto-provisioned SSO profiles carry an <code>sso.subject</code> marker attribute. When an SSO login arrives for a name that already exists locally, Wikantik checks for that marker. If it's absent — meaning the account was created by a human admin, not SSO auto-provisioning — the login is <strong>refused</strong>. The attacker cannot claim the admin account by registering a matching Google identity. The user and admin are notified with a clear error code at <code>/login?error=</code>.</p>
+
+          <h3>CSRF handling for SAML</h3>
+          <p>The SAML HTTP-POST callback at <code>/sso/callback</code> is exempt from Wikantik's synchronizer-token CSRF filter. This is correct: the IdP-signed assertion is its own CSRF defense — the signature over the assertion timestamp and audience makes replaying the POST useless. OIDC uses the standard authorization-code flow, which is protected by the <code>state</code> parameter.</p>
+
+          <h2>How SSO pairs with SCIM provisioning</h2>
+          <p>SSO handles the login flow and auto-provisions local profiles on first successful login. If your IdP also manages group membership or needs to create and deactivate accounts out-of-band, <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a> is the complementary path: SCIM-created accounts authenticate via SSO by default (a random password is generated at creation and never revealed).</p>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>Which identity providers are supported for SSO?</summary>
+              <p>Any SAML 2.0 IdP and any OIDC-compliant provider via pac4j. Google OIDC is used in production. LDAP and local database authentication run alongside SSO — all authentication methods are additive. You can run SAML and OIDC simultaneously with <code>wikantik.sso.type = both</code>.</p>
+            </details>
+            <details>
+              <summary>Can I trust <code>preferred_username</code> instead of <code>sub</code> as the identity claim?</summary>
+              <p>Yes, by setting <code>wikantik.sso.identityClaim = preferred_username</code>. Be aware that <code>preferred_username</code> is a mutable claim — if the IdP changes it, the account link breaks. The default <code>sub</code> is the immutable IdP subject and is the safer choice for most deployments.</p>
+            </details>
+            <details>
+              <summary>What stops an attacker from taking over an existing account via SSO name collision?</summary>
+              <p>SSO never adopts a pre-existing non-SSO-linked local account of the same name. Auto-provisioned profiles carry an <code>sso.subject</code> marker; a name collision without a matching marker <strong>fails closed</strong> — login is refused rather than silently granting access to the pre-existing account.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/enterprise/scim-provisioning.html">
+              <strong>SCIM provisioning</strong>
+              <span>IdP-driven user and group lifecycle — the provisioning complement to SSO.</span>
+            </a>
+            <a class="related-card" href="/enterprise/access-control-rbac.html">
+              <strong>RBAC &amp; access control</strong>
+              <span>What SSO users can do — policy grants, page ACLs, and groups.</span>
+            </a>
+            <a class="related-card" href="/enterprise/security-hardening.html">
+              <strong>Security hardening</strong>
+              <span>NIST passwords, CSRF/CSP, deserialization filtering, and more.</span>
+            </a>
+            <a class="related-card" href="/enterprise/audit-log.html">
+              <strong>Tamper-evident audit log</strong>
+              <span>Every login, logout, and access-denied event is recorded and verifiable.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

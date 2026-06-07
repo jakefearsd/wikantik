@@ -8,6 +8,13 @@
   <url><loc>https://www.wikantik.com/platform/page-graph.html</loc><lastmod>2026-06-07</lastmod><priority>0.6</priority></url>
   <url><loc>https://www.wikantik.com/platform/agent-grade-content.html</loc><lastmod>2026-06-07</lastmod><priority>0.6</priority></url>
   <url><loc>https://www.wikantik.com/platform/structural-spine.html</loc><lastmod>2026-06-07</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.wikantik.com/enterprise/</loc><lastmod>2026-06-07</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.wikantik.com/enterprise/sso-saml-oidc.html</loc><lastmod>2026-06-07</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.wikantik.com/enterprise/scim-provisioning.html</loc><lastmod>2026-06-07</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.wikantik.com/enterprise/audit-log.html</loc><lastmod>2026-06-07</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.wikantik.com/enterprise/access-control-rbac.html</loc><lastmod>2026-06-07</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.wikantik.com/enterprise/security-hardening.html</loc><lastmod>2026-06-07</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.wikantik.com/enterprise/self-hosting-and-backup.html</loc><lastmod>2026-06-07</lastmod><priority>0.6</priority></url>
   <url><loc>https://www.wikantik.com/compare/</loc><lastmod>2026-06-07</lastmod><priority>0.8</priority></url>
   <url><loc>https://www.wikantik.com/compare/confluence-alternative.html</loc><lastmod>2026-06-07</lastmod><priority>0.6</priority></url>
   <url><loc>https://www.wikantik.com/compare/notion-alternative.html</loc><lastmod>2026-06-07</lastmod><priority>0.6</priority></url>

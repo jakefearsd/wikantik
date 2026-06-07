@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>Tamper-evident audit log for your wiki | Wikantik</title>
+  <meta name="description" content="Wikantik records privileged actions in a tamper-evident audit log you can query, cryptographically verify, and export — with retention and purge controls for compliance.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/enterprise/audit-log.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/enterprise/audit-log.html">
+  <meta property="og:title" content="Tamper-evident audit log for your wiki | Wikantik">
+  <meta property="og:description" content="Wikantik records privileged actions in a tamper-evident audit log you can query, cryptographically verify, and export — with retention and purge controls for compliance.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Tamper-evident audit log for your wiki | Wikantik">
+  <meta name="twitter:description" content="Wikantik records privileged actions in a tamper-evident audit log you can query, cryptographically verify, and export — with retention and purge controls for compliance.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "Tamper-evident audit log for your wiki",
+    "description": "Wikantik records privileged actions in a tamper-evident audit log you can query, cryptographically verify, and export — with retention and purge controls for compliance.",
+    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/enterprise/audit-log.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Enterprise", "item": "https://www.wikantik.com/enterprise/" },
+      { "@type": "ListItem", "position": 3, "name": "Audit log", "item": "https://www.wikantik.com/enterprise/audit-log.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "What does 'tamper-evident' mean for the Wikantik audit log?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Each audit row stores a SHA-256 hash of its own fields concatenated with the hash of the previous row — forming a linked chain. Modifying any row changes its hash, which invalidates every subsequent row's prev_hash. The verify endpoint walks the full chain and reports the exact sequence number where the chain breaks. Additionally, the database role used by the application is granted only INSERT and SELECT on audit_log — UPDATE and DELETE are explicitly revoked at the database level." } },
+      { "@type": "Question", "name": "Can I export audit records for a SIEM?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. GET /admin/audit/export streams a complete CSV file with columns: seq, created_at, event_time, category, event_type, actor, outcome, target, source_ip. The REST endpoint also supports filtered JSON queries with actor, category, eventType, outcome, date range, and cursor-based pagination for large result sets." } },
+      { "@type": "Question", "name": "How long are audit records kept?",
+        "acceptedAnswer": { "@type": "Answer", "text": "The default retention is 84 months (7 years), configurable via the AUDIT_RETENTION_MONTHS setting. The retention script archives each over-age monthly partition to a dump file and verifies the archive before dropping the partition — purged history is cold-stored, not destroyed. The chain automatically re-anchors on the oldest surviving row after a partition is dropped." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/enterprise/">Enterprise</a> ›
+        <span aria-current="page">Audit log</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Enterprise</p>
+          <h1>Tamper-evident audit log for your wiki</h1>
+          <p class="doc-lede">Wikantik records authentication, content, and administrative events in an append-only, SHA-256 hash-chained audit log. Every privileged action is traceable — who did it, when, from where, and whether it succeeded — and the integrity of that record is cryptographically verifiable.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>Why a tamper-evident trail matters</h2>
+          <p>A log you can modify isn't a log — it's a ledger that favours whoever controls it last. Compliance frameworks like SOC 2 and ISO 27001 require audit records that are demonstrably unaltered. Most wiki platforms write events to a database table with no integrity guarantee: an admin with database access can delete an inconvenient row and nobody will know.</p>
+          <p>Wikantik uses a <strong>hash chain</strong>: each row's hash includes the hash of the row before it. Changing any single row changes its hash, which invalidates every subsequent row's <code>prev_hash</code>. Tampering is detectable instantly, even if the attacker has direct database access. The application role is also granted only <code>INSERT</code> and <code>SELECT</code> on <code>audit_log</code> — <code>UPDATE</code> and <code>DELETE</code> are explicitly revoked at the PostgreSQL level.</p>
+
+          <h2>What gets logged</h2>
+          <p>Events are grouped into four categories:</p>
+          <ul>
+            <li><strong>AUTHN</strong> — <code>login.ok</code>, <code>login.failed</code>, <code>logout</code>, <code>session.expired</code></li>
+            <li><strong>AUTHZ</strong> — <code>access.denied</code></li>
+            <li><strong>CONTENT</strong> — page save, page delete</li>
+            <li><strong>ADMIN</strong> — group membership changes, profile saves, user lifecycle (lock/unlock), API key issuance, and all SCIM operations (<code>scim.user.create</code>, <code>scim.user.update</code>, <code>scim.group.create</code>, <code>scim.group.update</code>, <code>scim.group.delete</code>)</li>
+          </ul>
+          <p>Each entry carries: sequence number, timestamps, category, event type, actor identity, actor type, target, outcome (<code>SUCCESS</code>, <code>FAILURE</code>, or <code>DENIED</code>), source IP, user agent, correlation ID, detail text, and the chain hashes.</p>
+
+          <h2>How the hash chain works</h2>
+          <p>Every row stores two hash fields computed by <code>AuditChainHasher</code>:</p>
+          <ul>
+            <li><code>prev_hash</code> — the <code>row_hash</code> of the immediately preceding row (or a genesis constant for row 1).</li>
+            <li><code>row_hash</code> — SHA-256 of the row's canonical fields concatenated with <code>prev_hash</code>.</li>
+          </ul>
+          <p>Writes are serialized by a PostgreSQL advisory transaction lock (<code>pg_advisory_xact_lock</code>) to prevent concurrent inserts from breaking the chain order. The chain is monotonic: sequence gaps are impossible during normal operation.</p>
+
+          <h2>Verify and export</h2>
+
+          <h3>Integrity verification</h3>
+          <p>From the admin UI at <strong>Admin → Audit Log</strong>, click <strong>Verify integrity</strong> to call <code>GET /admin/audit/verify</code>. The endpoint walks the full chain and returns either:</p>
+          <pre><code>{ "ok": true }</code></pre>
+          <p>or:</p>
+          <pre><code>{ "ok": false, "firstBrokenSeq": 42 }</code></pre>
+          <p>The UI displays a green or red banner accordingly. The REST endpoint requires the <code>Admin</code> role, enforced by <code>AdminAuthFilter</code>.</p>
+
+          <h3>Export for SIEM ingestion</h3>
+          <p><code>GET /admin/audit/export</code> streams a complete CSV file named <code>audit-log.csv</code> with columns: <code>seq</code>, <code>created_at</code>, <code>event_time</code>, <code>category</code>, <code>event_type</code>, <code>actor</code>, <code>outcome</code>, <code>target</code>, <code>source_ip</code>. No filter is applied — you get the full log.</p>
+          <p>For filtered queries, use <code>GET /admin/audit</code> with parameters for actor, category, event type, outcome, date range, and cursor-based pagination (<code>beforeSeq</code>) for large result sets up to 1000 entries per page.</p>
+
+          <h2>Retention and purge</h2>
+          <p>The <code>audit_log</code> table is partitioned by month in PostgreSQL. The retention script (<code>bin/db/audit-retention.sh</code>) runs on a configurable schedule and does two things:</p>
+          <ol>
+            <li><strong>Pre-creates</strong> upcoming monthly partitions so the runtime never needs to create them on the hot path.</li>
+            <li><strong>Archives then drops</strong> partitions older than the retention window (<code>AUDIT_RETENTION_MONTHS</code>, default 84 months / 7 years). Each over-age partition is <code>pg_dump</code>ed to an archive directory and verified with <code>pg_restore --list</code> before the drop. A failed verification skips the drop entirely — no data is lost without a confirmed archive.</li>
+          </ol>
+          <p>After a partition is dropped, the chain automatically re-anchors on the oldest surviving row. Purged history is only verifiable from the archive dump files, but it was archived before dropping, so the data exists — it just isn't in the live database.</p>
+
+          <h2>Compliance posture</h2>
+          <p>The combination of hash-chain integrity, explicit <code>REVOKE UPDATE, DELETE</code> at the database level, append-only writes, and configurable long-term retention is designed to satisfy the audit trail requirements in frameworks such as SOC 2 Type II, ISO 27001, and GDPR record-keeping obligations. Your security team can verify the chain at any time and export the full log for independent review.</p>
+
+          <div class="callout">
+            <p><strong>Separation of privilege.</strong> The application role can only INSERT and SELECT audit rows. Creating and dropping monthly partitions requires the <code>migrate</code> role — a separate, privileged role used only by the retention script and schema migrations, not by the running application.</p>
+          </div>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>What does "tamper-evident" mean for the Wikantik audit log?</summary>
+              <p>Each audit row stores a SHA-256 hash of its own fields concatenated with the hash of the previous row — forming a linked chain. Modifying any row changes its hash, which invalidates every subsequent row's <code>prev_hash</code>. The verify endpoint walks the full chain and reports the exact sequence number where the chain breaks. Additionally, the database role used by the application is granted only <code>INSERT</code> and <code>SELECT</code> on <code>audit_log</code> — <code>UPDATE</code> and <code>DELETE</code> are explicitly revoked at the database level.</p>
+            </details>
+            <details>
+              <summary>Can I export audit records for a SIEM?</summary>
+              <p>Yes. <code>GET /admin/audit/export</code> streams a complete CSV file with columns: seq, created_at, event_time, category, event_type, actor, outcome, target, source_ip. The REST endpoint also supports filtered JSON queries with actor, category, eventType, outcome, date range, and cursor-based pagination for large result sets.</p>
+            </details>
+            <details>
+              <summary>How long are audit records kept?</summary>
+              <p>The default retention is 84 months (7 years), configurable via the <code>AUDIT_RETENTION_MONTHS</code> setting. The retention script archives each over-age monthly partition to a dump file and verifies the archive before dropping the partition — purged history is cold-stored, not destroyed. The chain automatically re-anchors on the oldest surviving row after a partition is dropped.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/enterprise/access-control-rbac.html">
+              <strong>RBAC &amp; access control</strong>
+              <span>Fine-grained permissions — what the audit log records who did.</span>
+            </a>
+            <a class="related-card" href="/enterprise/security-hardening.html">
+              <strong>Security hardening</strong>
+              <span>NIST passwords, CSRF/CSP, and deserialization filtering.</span>
+            </a>
+            <a class="related-card" href="/enterprise/scim-provisioning.html">
+              <strong>SCIM provisioning</strong>
+              <span>SCIM operations are recorded in the audit log as ADMIN events.</span>
+            </a>
+            <a class="related-card" href="/enterprise/self-hosting-and-backup.html">
+              <strong>Self-hosting &amp; backup</strong>
+              <span>Audit archive dumps are included in the off-site backup pull.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

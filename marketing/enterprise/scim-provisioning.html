@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>SCIM 2.0 provisioning for your wiki | Wikantik</title>
+  <meta name="description" content="Automate user lifecycle with SCIM 2.0: bearer-authed Users and Groups CRUD, PATCH active, soft-delete, and discovery — IdP-driven onboarding and offboarding for Wikantik.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/enterprise/scim-provisioning.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/enterprise/scim-provisioning.html">
+  <meta property="og:title" content="SCIM 2.0 provisioning for your wiki | Wikantik">
+  <meta property="og:description" content="Automate user lifecycle with SCIM 2.0: bearer-authed Users and Groups CRUD, PATCH active, soft-delete, and discovery — IdP-driven onboarding and offboarding for Wikantik.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="SCIM 2.0 provisioning for your wiki | Wikantik">
+  <meta name="twitter:description" content="Automate user lifecycle with SCIM 2.0: bearer-authed Users and Groups CRUD, PATCH active, soft-delete, and discovery — IdP-driven onboarding and offboarding for Wikantik.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "SCIM 2.0 provisioning for your wiki",
+    "description": "Automate user lifecycle with SCIM 2.0: bearer-authed Users and Groups CRUD, PATCH active, soft-delete, and discovery — IdP-driven onboarding and offboarding for Wikantik.",
+    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/enterprise/scim-provisioning.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Enterprise", "item": "https://www.wikantik.com/enterprise/" },
+      { "@type": "ListItem", "position": 3, "name": "SCIM provisioning", "item": "https://www.wikantik.com/enterprise/scim-provisioning.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "Which IdPs work with Wikantik's SCIM endpoint?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Any IdP that supports SCIM 2.0 (RFC 7643/7644) with bearer-token authentication. Okta, Azure AD / Entra ID, OneLogin, and JumpCloud all support this standard. Point the IdP at /scim/v2/* with the configured bearer token and it will provision users and groups automatically." } },
+      { "@type": "Question", "name": "Does offboarding via SCIM actually lock access immediately?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. A SCIM DELETE or PATCH active=false routes through UserLifecycleService.deactivate(), which locks the account. Every login module — including the database authenticator and the remember-me token filter — checks isLocked() and refuses access for locked accounts. The account row is preserved for audit history and can be reactivated if needed." } },
+      { "@type": "Question", "name": "Can a SCIM group escalate a user to the Admin role?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No. SCIM groups route exclusively through GroupManager and the groups/group_members tables. The roles table is never touched by SCIM. A SCIM group named 'Admin' creates a wiki group only — it does not grant the Admin role to any of its members. Admin role assignment is a privileged operation done through the admin UI or database only." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/enterprise/">Enterprise</a> ›
+        <span aria-current="page">SCIM provisioning</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Enterprise</p>
+          <h1>SCIM 2.0 provisioning for your wiki</h1>
+          <p class="doc-lede">Wikantik implements a full SCIM 2.0 server (RFC 7643/7644) at <code>/scim/v2/*</code> — bearer-token authenticated, with Users and Groups CRUD, PATCH for active state, soft-delete, and all three discovery endpoints. Point your IdP at it and your user lifecycle runs automatically.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>Provisioning without tickets</h2>
+          <p>The standard enterprise onboarding story is: someone joins, IT opens a ticket, an admin creates accounts in five separate systems, the ticket closes three days later. Offboarding is worse — the ticket to revoke access sits in a queue while the former employee's session token keeps working.</p>
+          <p>SCIM replaces that queue with an API. Your identity provider — Okta, Azure AD / Entra ID, OneLogin, JumpCloud — speaks SCIM 2.0 natively. Tell it where the endpoint lives and give it a bearer token, and it will create accounts when someone joins, update them when roles change, and deactivate them the moment they leave.</p>
+
+          <h2>What SCIM 2.0 covers in Wikantik</h2>
+
+          <h3>Users (<code>/scim/v2/Users</code>)</h3>
+          <p>The full CRUD set plus soft-delete:</p>
+          <ul>
+            <li><strong>Create (<code>POST</code>)</strong> — provision a new account. If <code>externalId</code> is provided it is stored as the <code>sso.subject</code> link, making the account SSO-only (no password is revealed). If <code>active: false</code> is in the create body, the account is immediately deactivated.</li>
+            <li><strong>Retrieve (<code>GET /scim/v2/Users/{uid}</code>)</strong> and <strong>list/filter (<code>GET /scim/v2/Users</code>)</strong> — filter by <code>userName</code> or <code>externalId</code>.</li>
+            <li><strong>Replace (<code>PUT</code>)</strong> — full replacement of mutable attributes. <code>userName</code> is not replaced by PUT.</li>
+            <li><strong>Partial update (<code>PATCH</code>)</strong> — update <code>active</code>, <code>displayName</code>, <code>name.formatted</code>, <code>emails[0].value</code>, or <code>externalId</code>. Active/inactive changes route through <code>UserLifecycleService</code>.</li>
+            <li><strong>Soft-delete (<code>DELETE</code>)</strong> — calls <code>UserLifecycleService.deactivate()</code>. The database row is preserved; the account is locked. Audit history survives intact.</li>
+          </ul>
+
+          <h3>Groups (<code>/scim/v2/Groups</code>)</h3>
+          <p>Groups route through <code>GroupManager</code> and the <code>groups</code> + <code>group_members</code> tables:</p>
+          <ul>
+            <li>Create, retrieve, list, replace membership, membership PATCH (Add/Remove), and hard delete.</li>
+            <li>Members are resolved by uid — an unresolvable uid returns HTTP 400 <code>invalidValue</code>.</li>
+            <li>Nested groups are not supported.</li>
+          </ul>
+
+          <h3>Discovery endpoints</h3>
+          <p>Three RFC 7643 §8 endpoints advertise Wikantik's SCIM capabilities so IdPs can self-configure:</p>
+          <ul>
+            <li><code>GET /scim/v2/ServiceProviderConfig</code> — capabilities: patch true, bulk false, filter true (maxResults 1000), changePassword false.</li>
+            <li><code>GET /scim/v2/Schemas</code> — User and Group schema descriptors.</li>
+            <li><code>GET /scim/v2/ResourceTypes</code> — User and Group resource types.</li>
+          </ul>
+
+          <h2>Onboarding and offboarding lifecycle</h2>
+          <p>The typical pattern pairs SCIM with SSO: the IdP uses SCIM to create accounts and maintain group membership, while SSO handles the actual login flow. SCIM-provisioned accounts authenticate via SSO by default — a random password is generated at creation time and never revealed, so there is no credential to phish.</p>
+          <p>When an employee leaves, the IdP sends a SCIM DELETE or a <code>PATCH active=false</code>. Both routes call <code>UserLifecycleService.deactivate()</code>, which sets a lock expiry and prevents any further login. The account row is retained, so audit history, page ownership records, and any attribution metadata remain intact.</p>
+          <p>All SCIM user and group operations are recorded in the <a href="/enterprise/audit-log.html">tamper-evident audit log</a> under category <code>ADMIN</code> with event types like <code>scim.user.create</code> and <code>scim.group.update</code>. Your security team can query exactly when each account was provisioned or deactivated.</p>
+
+          <h2>Security boundaries</h2>
+
+          <h3>SCIM Groups never grant the Admin role</h3>
+          <p>This is an explicit security boundary, not an accident. SCIM groups route exclusively through <code>GroupManager</code> and the <code>groups</code>/<code>group_members</code> tables. The <code>roles</code> table — which holds the <code>Admin</code> role assignment — is never touched by any SCIM operation. A SCIM group named "Admin" creates a wiki group only; it does not grant the Admin role to any member. Admin role assignment is a privileged operation done through the admin UI or directly in the database.</p>
+
+          <h3>Lock enforcement at every login path</h3>
+          <p>Deactivation only works if every login path checks it. Wikantik's database login module, the SSO login module, and the remember-me token filter all call <code>isLocked()</code> and refuse access for locked accounts. An attacker who obtained a valid remember-me cookie before offboarding cannot use it after the SCIM deactivation lands.</p>
+
+          <h3>Bearer token authentication</h3>
+          <p>Every request to <code>/scim/v2/*</code> must carry <code>Authorization: Bearer &lt;token&gt;</code>. The filter uses constant-time comparison to prevent timing attacks. Set the token in <code>wikantik-custom.properties</code>:</p>
+          <pre><code>wikantik.scim.token = &lt;a-long-random-secret&gt;</code></pre>
+          <p>If the token is absent, <code>ScimAccessFilter</code> logs a warning at startup and denies all SCIM requests with HTTP 401.</p>
+
+          <div class="callout">
+            <p><strong>Fail-closed on existing accounts.</strong> If an IdP tries to provision a username that already exists as a local (non-SSO) account, SCIM returns HTTP 409 <code>uniqueness</code>. SCIM cannot claim or overwrite a pre-existing local account — this closes the identity-collision attack that affects looser SCIM implementations.</p>
+          </div>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>Which IdPs work with Wikantik's SCIM endpoint?</summary>
+              <p>Any IdP that supports SCIM 2.0 (RFC 7643/7644) with bearer-token authentication. Okta, Azure AD / Entra ID, OneLogin, and JumpCloud all support this standard. Point the IdP at <code>/scim/v2/*</code> with the configured bearer token and it will provision users and groups automatically.</p>
+            </details>
+            <details>
+              <summary>Does offboarding via SCIM actually lock access immediately?</summary>
+              <p>Yes. A SCIM DELETE or <code>PATCH active=false</code> routes through <code>UserLifecycleService.deactivate()</code>, which locks the account. Every login module — including the database authenticator and the remember-me token filter — checks <code>isLocked()</code> and refuses access for locked accounts. The account row is preserved for audit history and can be reactivated if needed.</p>
+            </details>
+            <details>
+              <summary>Can a SCIM group escalate a user to the Admin role?</summary>
+              <p>No. SCIM groups route exclusively through <code>GroupManager</code> and the <code>groups</code>/<code>group_members</code> tables. The <code>roles</code> table is never touched by SCIM. A SCIM group named "Admin" creates a wiki group only — it does not grant the Admin role to any of its members. Admin role assignment is a privileged operation done through the admin UI or database only.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/enterprise/sso-saml-oidc.html">
+              <strong>SSO (SAML / OIDC)</strong>
+              <span>The authentication complement to SCIM — log in with your IdP.</span>
+            </a>
+            <a class="related-card" href="/enterprise/access-control-rbac.html">
+              <strong>RBAC &amp; access control</strong>
+              <span>What provisioned users can do — policy grants, ACLs, and groups.</span>
+            </a>
+            <a class="related-card" href="/enterprise/audit-log.html">
+              <strong>Tamper-evident audit log</strong>
+              <span>Every SCIM operation is recorded with event type and outcome.</span>
+            </a>
+            <a class="related-card" href="/enterprise/security-hardening.html">
+              <strong>Security hardening</strong>
+              <span>The broader hardening stack — NIST passwords, CSRF, deserialization filtering.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

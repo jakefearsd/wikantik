@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>RBAC &amp; access control: policy grants, ACLs, groups | Wikantik</title>
+  <meta name="description" content="Fine-grained access control in Wikantik: database-backed role policy grants, page-level ACLs, and managed groups — enforced across the UI, REST API, and admin surfaces.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/enterprise/access-control-rbac.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/enterprise/access-control-rbac.html">
+  <meta property="og:title" content="RBAC &amp; access control: policy grants, ACLs, groups | Wikantik">
+  <meta property="og:description" content="Fine-grained access control in Wikantik: database-backed role policy grants, page-level ACLs, and managed groups — enforced across the UI, REST API, and admin surfaces.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="RBAC &amp; access control: policy grants, ACLs, groups | Wikantik">
+  <meta name="twitter:description" content="Fine-grained access control in Wikantik: database-backed role policy grants, page-level ACLs, and managed groups — enforced across the UI, REST API, and admin surfaces.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "RBAC &amp; access control: policy grants, ACLs, groups",
+    "description": "Fine-grained access control in Wikantik: database-backed role policy grants, page-level ACLs, and managed groups — enforced across the UI, REST API, and admin surfaces.",
+    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/enterprise/access-control-rbac.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Enterprise", "item": "https://www.wikantik.com/enterprise/" },
+      { "@type": "ListItem", "position": 3, "name": "RBAC &amp; access control", "item": "https://www.wikantik.com/enterprise/access-control-rbac.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "How are default role permissions managed?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Default role permissions are stored in the policy_grants table in PostgreSQL and managed through the admin UI at /admin/security. This means changes to role defaults take effect immediately without redeploying the application, and the full grant history is auditable." } },
+      { "@type": "Question", "name": "Can I restrict a single page to a specific group?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Inline ACL syntax in the page body controls per-page access: [{ALLOW view Admin}] restricts view permission to the Admin role. You can combine multiple ACL lines for different permissions. The REST API enforces these ACLs via RestServletBase.checkPagePermission() on every request." } },
+      { "@type": "Question", "name": "How does Wikantik prevent privilege escalation through groups?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Groups (including SCIM-provisioned groups) route exclusively through GroupManager and the groups/group_members tables. The roles table is never modified by group operations. Admin role assignment requires a direct privileged operation through the admin UI or database — it cannot be inferred from group membership alone." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/enterprise/">Enterprise</a> ›
+        <span aria-current="page">RBAC &amp; access control</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Enterprise</p>
+          <h1>RBAC &amp; access control: policy grants, ACLs, groups</h1>
+          <p class="doc-lede">Wikantik enforces access control at three layers — role-level policy grants stored in the database, page-level ACLs written inline in page content, and managed groups — all checked consistently across the UI, REST API, and every admin surface.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>Layers of access control</h2>
+          <p>Most wiki platforms have one or two access knobs: "can edit" and "can admin." Wikantik has a full permission model because the situations that enterprise teams actually face — restricting a sensitive runbook to a single team, granting an external user read-only access, letting a bot write without giving it delete rights — require genuine granularity.</p>
+          <p>The three layers compose cleanly: policy grants set the baseline for each role, page ACLs override the baseline for individual pages, and groups make it practical to assign permissions to teams rather than individuals.</p>
+
+          <h2>The permission model</h2>
+          <p>Wikantik uses JAAS-based authorization with two sets of named permissions:</p>
+
+          <h3>Page permissions</h3>
+          <p>Each page operation requires a specific permission, checked before the operation proceeds:</p>
+          <ul>
+            <li><code>view</code> — read the page content</li>
+            <li><code>comment</code> — add a comment</li>
+            <li><code>edit</code> — modify the page body</li>
+            <li><code>modify</code> — change page metadata</li>
+            <li><code>upload</code> — attach files</li>
+            <li><code>rename</code> — rename or move the page</li>
+            <li><code>delete</code> — delete the page</li>
+          </ul>
+
+          <h3>Wiki permissions</h3>
+          <p>Broader capability permissions govern actions that span pages:</p>
+          <ul>
+            <li><code>createPages</code>, <code>createGroups</code>, <code>editPreferences</code>, <code>editProfile</code>, <code>login</code></li>
+          </ul>
+
+          <h2>Policy grants — database-backed, UI-managed</h2>
+          <p>Default role permissions are stored in the <code>policy_grants</code> table in PostgreSQL. The admin UI at <strong>Admin → Security</strong> (<code>/admin/security</code>) exposes a grid for managing these grants: which roles get which permissions by default.</p>
+          <p>Because the grants live in the database rather than a config file, changes take effect immediately — no redeploy required. An admin can tighten or loosen role defaults at runtime, and every change is visible to any query on the <code>policy_grants</code> table. Database-backed grants are always active when a datasource is configured, which is the default for all production deployments.</p>
+
+          <div class="callout">
+            <p><strong>Bootstrap admin override.</strong> The <code>wikantik.admin.bootstrap</code> property guarantees admin access during initial setup, even if the policy grants table is empty or the admin account hasn't been configured yet. This override is documented and should be disabled once the installation is complete.</p>
+          </div>
+
+          <h2>Page-level ACLs</h2>
+          <p>Individual pages can override the role-level defaults with inline ACL directives. The syntax is embedded directly in the page body:</p>
+          <pre><code>[{ALLOW view Admin}]
+[{ALLOW edit Engineering}]
+[{DENY view Anonymous}]</code></pre>
+          <p>This approach makes page permissions visible to anyone who can read the page source — there are no hidden configuration files to audit. An ACL line restricting view to <code>Admin</code> means exactly what it says: only users with the Admin role can view that page.</p>
+          <p>The REST API enforces these ACLs on every request via <code>RestServletBase.checkPagePermission()</code>. There is no path through the REST layer that bypasses the ACL check.</p>
+
+          <h2>Groups</h2>
+          <p>Database-backed groups (stored in <code>groups</code> + <code>group_members</code> tables) let you assign permissions to teams. You can reference a group name in a page ACL the same way you reference a role. Groups are managed through the admin UI and can be provisioned via <a href="/enterprise/scim-provisioning.html">SCIM</a> from your IdP.</p>
+          <p>One explicit boundary: groups never grant the Admin role. SCIM groups, IdP-synced groups, and manually created groups all route through <code>GroupManager</code> only — the <code>roles</code> table is not modified by any group operation. Admin role assignment requires a direct privileged action.</p>
+
+          <h2>Enforced everywhere</h2>
+          <p>The access control model is applied at every surface:</p>
+          <ul>
+            <li><strong>UI</strong> — the React SPA checks permissions before rendering edit controls; the server also enforces them independently.</li>
+            <li><strong>REST API (<code>/api/*</code>)</strong> — every endpoint calls <code>checkPagePermission()</code> with the authenticated principal before performing any operation.</li>
+            <li><strong>Admin surface (<code>/admin/*</code>)</strong> — protected by <code>AdminAuthFilter</code>, which requires <code>AllPermission</code> (the Admin role). No admin endpoint is reachable without it.</li>
+            <li><strong>MCP servers</strong> — write tools on <code>/wikantik-admin-mcp</code> are bearer-token protected and operate under the same JAAS principal checks.</li>
+          </ul>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>How are default role permissions managed?</summary>
+              <p>Default role permissions are stored in the <code>policy_grants</code> table in PostgreSQL and managed through the admin UI at <code>/admin/security</code>. Changes take effect immediately without redeploying the application, and the full grant configuration is auditable.</p>
+            </details>
+            <details>
+              <summary>Can I restrict a single page to a specific group?</summary>
+              <p>Yes. Inline ACL syntax in the page body controls per-page access: <code>[{ALLOW view Admin}]</code> restricts view permission to the Admin role. You can combine multiple ACL lines for different permissions. The REST API enforces these ACLs via <code>RestServletBase.checkPagePermission()</code> on every request.</p>
+            </details>
+            <details>
+              <summary>How does Wikantik prevent privilege escalation through groups?</summary>
+              <p>Groups (including SCIM-provisioned groups) route exclusively through <code>GroupManager</code> and the <code>groups</code>/<code>group_members</code> tables. The <code>roles</code> table is never modified by group operations. Admin role assignment requires a direct privileged operation through the admin UI or database — it cannot be inferred from group membership alone.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/enterprise/sso-saml-oidc.html">
+              <strong>SSO (SAML / OIDC)</strong>
+              <span>How users authenticate — RBAC applies to every authenticated principal.</span>
+            </a>
+            <a class="related-card" href="/enterprise/security-hardening.html">
+              <strong>Security hardening</strong>
+              <span>The broader security stack — CSRF, CSP, session management, and more.</span>
+            </a>
+            <a class="related-card" href="/enterprise/audit-log.html">
+              <strong>Tamper-evident audit log</strong>
+              <span>Every access-denied event is recorded and verifiable.</span>
+            </a>
+            <a class="related-card" href="/enterprise/scim-provisioning.html">
+              <strong>SCIM provisioning</strong>
+              <span>IdP-driven group membership synced into Wikantik's group model.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

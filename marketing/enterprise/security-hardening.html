@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>Security hardening: NIST passwords, CSP, safe deserialization | Wikantik</title>
+  <meta name="description" content="Wikantik ships hardened by default: NIST 800-63B password validation with a breach blocklist, CSRF/CORS/CSP and security headers, and deserialization filtering on every input stream.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/enterprise/security-hardening.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/enterprise/security-hardening.html">
+  <meta property="og:title" content="Security hardening: NIST passwords, CSP, safe deserialization | Wikantik">
+  <meta property="og:description" content="Wikantik ships hardened by default: NIST 800-63B password validation with a breach blocklist, CSRF/CORS/CSP and security headers, and deserialization filtering on every input stream.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Security hardening: NIST passwords, CSP, safe deserialization | Wikantik">
+  <meta name="twitter:description" content="Wikantik ships hardened by default: NIST 800-63B password validation with a breach blocklist, CSRF/CORS/CSP and security headers, and deserialization filtering on every input stream.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "Security hardening: NIST passwords, CSP, safe deserialization",
+    "description": "Wikantik ships hardened by default: NIST 800-63B password validation with a breach blocklist, CSRF/CORS/CSP and security headers, and deserialization filtering on every input stream.",
+    "datePublished": "2026-06-07", "dateModified": "2026-06-07",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/enterprise/security-hardening.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Enterprise", "item": "https://www.wikantik.com/enterprise/" },
+      { "@type": "ListItem", "position": 3, "name": "Security hardening", "item": "https://www.wikantik.com/enterprise/security-hardening.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "What is NIST 800-63B password validation?",
+        "acceptedAnswer": { "@type": "Answer", "text": "NIST SP 800-63B is the US government's digital identity guideline. Its password rules focus on real-world security: minimum length matters, complexity rules don't. Wikantik enforces a minimum length requirement and checks new passwords against a common-password blocklist (known breached and trivially guessable passwords). Mandatory rotation and special-character rules are not enforced, as NIST 800-63B explicitly recommends against them." } },
+      { "@type": "Question", "name": "How does Wikantik protect against CSRF attacks?",
+        "acceptedAnswer": { "@type": "Answer", "text": "The wikantik-http module includes a CSRF servlet filter that implements the synchronizer-token pattern: every state-changing request must carry a valid session-bound token. The one exception is the SAML /sso/callback endpoint, which is exempt because the IdP-signed SAML assertion is its own CSRF defense." } },
+      { "@type": "Question", "name": "What is deserialization filtering and why does it matter?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Java deserialization vulnerabilities have been the source of critical remote code execution exploits in many Java applications. Wikantik applies ObjectInputFilter whitelists on all ObjectInputStream usage, restricting which classes can be deserialized to an explicit allowlist. This closes the attack surface for gadget-chain exploits against any serialized data Wikantik processes." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/enterprise/">Enterprise</a> ›
+        <span aria-current="page">Security hardening</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Enterprise</p>
+          <h1>Security hardening: NIST passwords, CSP, safe deserialization</h1>
+          <p class="doc-lede">Security that requires constant tuning isn't really secure — it just moves the risk to whoever forgot to tune it. Wikantik ships hardened by default: password validation grounded in NIST 800-63B, HTTP security headers active on every response, and deserialization filtered at the JVM level before any object graph is inflated.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>Secure by default</h2>
+          <p>The <code>wikantik-http</code> module is a dedicated servlet filter chain that sits in front of every request. CSRF protection, CORS, Content Security Policy, and a standard set of security headers are active without any configuration. There is no "enable security mode" switch to forget to flip.</p>
+          <p>This section covers each hardening layer: what it is, how it is implemented in Wikantik, and what threat it addresses.</p>
+
+          <h2>Passwords done right: NIST 800-63B</h2>
+          <p>NIST Special Publication 800-63B is the US government's digital identity guideline. Its key insight is that the password rules that organizations traditionally enforced — mandatory rotation every 90 days, required special characters, maximum length restrictions — actually make passwords weaker, not stronger. Users respond to burdensome rules with predictable patterns: <code>Password1!</code>, <code>Summer2024#</code>.</p>
+          <p>Wikantik's password validation follows the current NIST guidance:</p>
+          <ul>
+            <li><strong>Minimum length</strong> is enforced.</li>
+            <li><strong>Common-password blocklist</strong> — new passwords are checked against a list of known breached and trivially guessable passwords. <code>password</code>, <code>123456</code>, and their obvious variants are rejected.</li>
+            <li>Mandatory rotation and arbitrary complexity rules are <em>not</em> enforced — NIST explicitly recommends against them.</li>
+          </ul>
+          <p>This means your team's passwords are longer and more unique in practice, because they weren't forced into a corner by rules that reward gaming the system.</p>
+
+          <h2>Deserialization filtering</h2>
+          <p>Java deserialization vulnerabilities have enabled remote code execution in countless Java applications over the past decade — not because the applications were poorly written, but because Java's <code>ObjectInputStream</code> will inflate any class on the classpath if you ask it to, and a sufficiently clever chain of objects can trigger arbitrary code execution.</p>
+          <p>Wikantik applies <code>ObjectInputFilter</code> whitelists to every <code>ObjectInputStream</code> usage. Only an explicit allowlist of classes can be deserialized. Any attempt to deserialize a class outside the allowlist is rejected before the object is constructed. This closes the gadget-chain attack surface at the JVM level, independent of what's on the classpath.</p>
+
+          <h2>CSRF, CORS, CSP, and security headers</h2>
+          <p>The <code>wikantik-http</code> servlet filter chain applies the following on every response:</p>
+
+          <h3>CSRF — synchronizer token pattern</h3>
+          <p>State-changing requests (POST, PUT, DELETE) must carry a valid session-bound CSRF token. The token is generated per session and checked before any mutation proceeds. The one explicit exception is the SAML <code>/sso/callback</code> endpoint: the IdP-signed SAML assertion is its own CSRF defense (an attacker cannot forge a valid IdP signature), so a synchronizer token would add friction without adding security.</p>
+
+          <h3>CORS</h3>
+          <p>Cross-Origin Resource Sharing headers are set to restrict which origins can make credentialed requests to the API. The CORS filter is configurable and defaults to denying cross-origin credentialed requests unless explicitly allowed.</p>
+
+          <h3>Content Security Policy</h3>
+          <p>A Content Security Policy header is sent with every HTML response, restricting which origins scripts, styles, and other resources can be loaded from. CSP is the primary defense against XSS attacks that manage to inject content — even if an attacker injects a <code>&lt;script&gt;</code> tag, the browser refuses to execute it if the source doesn't match the policy.</p>
+
+          <h3>Standard security headers</h3>
+          <p>Additional headers applied on every response include:</p>
+          <ul>
+            <li><code>X-Content-Type-Options: nosniff</code> — prevents MIME-type sniffing</li>
+            <li><code>X-Frame-Options: SAMEORIGIN</code> — blocks clickjacking</li>
+            <li><code>Referrer-Policy</code> — controls referrer leakage</li>
+            <li><code>Strict-Transport-Security</code> — enforces HTTPS on compliant browsers</li>
+          </ul>
+
+          <h2>Session management</h2>
+          <p>Wikantik rotates the HTTP session on every authentication event — both local password login and SSO callback. The old session ID is invalidated and a fresh one is issued before any privileged state is written. This closes the session fixation attack, where an attacker tricks a user into using a pre-seeded session token.</p>
+          <p>Authentication is JAAS-based. Pluggable login modules support local database, LDAP, SSO (pac4j), and container-managed authentication. All modules coexist and can be active simultaneously.</p>
+
+          <h2>Defense in depth</h2>
+          <p>The hardening described here is one layer of a broader stack. For a complete picture, see:</p>
+          <ul>
+            <li><a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a> — session rotation, fail-closed account binding, CSRF handling for SAML</li>
+            <li><a href="/enterprise/access-control-rbac.html">RBAC &amp; access control</a> — JAAS permissions, policy grants, page ACLs</li>
+            <li><a href="/enterprise/audit-log.html">Tamper-evident audit log</a> — every authentication event, access denial, and admin action recorded and verifiable</li>
+            <li><a href="/enterprise/scim-provisioning.html">SCIM provisioning</a> — deactivation enforced at every login path; SCIM groups never grant Admin</li>
+          </ul>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>What is NIST 800-63B password validation?</summary>
+              <p>NIST SP 800-63B is the US government's digital identity guideline. Its password rules focus on real-world security: minimum length matters, complexity rules don't. Wikantik enforces a minimum length requirement and checks new passwords against a common-password blocklist. Mandatory rotation and special-character rules are not enforced, as NIST 800-63B explicitly recommends against them.</p>
+            </details>
+            <details>
+              <summary>How does Wikantik protect against CSRF attacks?</summary>
+              <p>The <code>wikantik-http</code> module includes a CSRF servlet filter that implements the synchronizer-token pattern: every state-changing request must carry a valid session-bound token. The one exception is the SAML <code>/sso/callback</code> endpoint, which is exempt because the IdP-signed SAML assertion is its own CSRF defense.</p>
+            </details>
+            <details>
+              <summary>What is deserialization filtering and why does it matter?</summary>
+              <p>Java deserialization vulnerabilities have been the source of critical remote code execution exploits in many Java applications. Wikantik applies <code>ObjectInputFilter</code> whitelists on all <code>ObjectInputStream</code> usage, restricting which classes can be deserialized to an explicit allowlist. This closes the attack surface for gadget-chain exploits against any serialized data Wikantik processes.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/enterprise/access-control-rbac.html">
+              <strong>RBAC &amp; access control</strong>
+              <span>JAAS permissions, policy grants, and page-level ACLs.</span>
+            </a>
+            <a class="related-card" href="/enterprise/sso-saml-oidc.html">
+              <strong>SSO (SAML / OIDC)</strong>
+              <span>Session rotation, fail-closed binding, and CSRF for SAML.</span>
+            </a>
+            <a class="related-card" href="/enterprise/audit-log.html">
+              <strong>Tamper-evident audit log</strong>
+              <span>Every login, access denial, and admin action recorded.</span>
+            </a>
+            <a class="related-card" href="/enterprise/self-hosting-and-backup.html">
+              <strong>Self-hosting &amp; backup</strong>
+              <span>Run on your own infrastructure — your data, your control.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.12] - 2026-06-07
+
 A focused SEO / crawlability / rendering release. The headline fix: Google was
 classifying every `/wiki/` page as a **Soft 404**, so none of them ranked.
 

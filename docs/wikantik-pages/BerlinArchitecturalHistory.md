@@ -52,3 +52,4 @@ The Bauhaus legacy in Berlin is a perpetual negotiation between utopian aspirati
 - [Structural Engineering](StructuralEngineering) — Mechanics of the modern envelope.
 - [Urban Planning](UrbanPlanning) — Managing the city-scale strategy.
 - [Sustainable Architecture](SustainableArchitecture) — post-Bauhaus circular economy principles.
+- [Berlin During the Cold War](BerlinDuringTheColdWar) — how the city's 1945–1990 division reshaped its built environment.

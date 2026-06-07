@@ -71,7 +71,7 @@ Key design considerations:
 
 ### Balanced Binary Search Trees
 
-Red-black trees and AVL trees maintain sorted order with O(log n) lookup, insertion, and deletion. They're used when you need both fast lookup and ordered iteration — database indexes, in-memory ordered maps (Java's TreeMap, C++'s `std::map`), and interval trees.
+Red-black trees and AVL trees maintain sorted order with O(log n) lookup, insertion, and deletion. They're used when you need both fast lookup and ordered iteration — database indexes, in-memory ordered maps (Java's TreeMap, C++'s `std::map`), and [interval trees](IntervalTrees).
 
 B-trees generalize this to disk-based storage, where each node holds multiple keys and has many children, minimizing disk I/O. Nearly every relational database uses B-trees or B+ trees for its indexes.
 

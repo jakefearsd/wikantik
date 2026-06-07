@@ -285,4 +285,5 @@ For learning:
 
 - [HashTableDesign](HashTableDesign) — Alternative for unordered data
 - [HeapAndPriorityQueues](HeapAndPriorityQueues) — Different tree structure
+- [Interval Trees](IntervalTrees) — Augmenting a balanced BST with a `max` field for O(log n) overlap queries
 - [Data Structures Hub](DataStructuresHub) — Cluster index

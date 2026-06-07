@@ -90,3 +90,4 @@ Standard academic benchmarks (FB15k-237) are often leaked into LLM training sets
 * [EntityResolutionTechniques](EntityResolutionTechniques)
 * [GraphRAG](GraphRAG)
 * [KnowledgeGraphVsRelationalDatabase](KnowledgeGraphVsRelationalDatabase)
+* [Graph Database Fundamentals](GraphDatabaseFundamentals) — where to store and query the completed graph

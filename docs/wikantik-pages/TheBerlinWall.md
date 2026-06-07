@@ -46,3 +46,7 @@ The barrier was not a single wall but a complex system including:
 Triggered by a bungled press conference by GDR official **Günter Schabowski**, who incorrectly stated that travel regulations were effective "immediately."
 - **Checkpoint Bornholmer Straße:** At 11:30 PM, Harald Jäger, the officer in charge, opened the gates without orders to prevent a violent crush of the 20,000 people gathered.
 - **Demolition:** The military began formal demolition of the Wall in **June 1990**, finishing by 1992. Today, only three sections remain: the East Side Gallery, the Bernauer Straße memorial, and the Niederkirchnerstraße section.
+
+## See Also
+- [Berlin During the Cold War](BerlinDuringTheColdWar) — the wider 1945–1990 division the Wall came to define
+- [Divided Berlin and the Cold War](DividedBerlinAndTheColdWar) — life on either side of the border

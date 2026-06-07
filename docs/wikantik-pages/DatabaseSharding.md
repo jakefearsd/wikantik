@@ -63,3 +63,4 @@ To prevent uneven data distribution (where one node owns a larger slice of the r
 *   [Distributed Systems Hub](DistributedSystemsHub) — Scaling foundations.
 *   [Majority Quorum](MajorityQuorum) — Managing consistency across shards.
 *   [Leader and Followers](LeaderAndFollowers) — Using replication within a shard.
+*   [Graph Database Fundamentals](GraphDatabaseFundamentals) — Why graphs are notoriously hard to shard.

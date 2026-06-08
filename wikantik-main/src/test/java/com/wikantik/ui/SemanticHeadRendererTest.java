@@ -83,6 +83,26 @@ class SemanticHeadRendererTest {
             Hub content.
             """;
 
+    private static final String RUNBOOK_BODY = """
+            ---
+            type: runbook
+            summary: How to rotate the signing key
+            ---
+            # Key Rotation Runbook
+
+            Steps.
+            """;
+
+    private static final String DESIGN_BODY = """
+            ---
+            type: design
+            summary: Design doc for the ontology layer
+            ---
+            # Ontology Design
+
+            Design content.
+            """;
+
     private static final String PLAIN_BODY = """
             # Plain Page
 
@@ -387,6 +407,41 @@ class SemanticHeadRendererTest {
     }
 
     // ---- JSON-LD: Article ----
+
+    @Test
+    void runbookJsonLdTypeIsHowTo() {
+        // Phase 6: the @type is re-sourced from NodeTypeMapping.schemaOrgType, so a runbook
+        // gets the more-specific schema:HowTo (was the generic Article) — "unchanged-or-better".
+        final JsonObject ld = extractFirstJsonLd( SemanticHeadRenderer.renderHead(
+                "KeyRotationRunbook", RUNBOOK_BODY, BASE_URL, APP_NAME ) );
+        assertEquals( "HowTo", ld.get( "@type" ).getAsString() );
+    }
+
+    @Test
+    void designJsonLdTypeIsTechArticle() {
+        final JsonObject ld = extractFirstJsonLd( SemanticHeadRenderer.renderHead(
+                "OntologyDesign", DESIGN_BODY, BASE_URL, APP_NAME ) );
+        assertEquals( "TechArticle", ld.get( "@type" ).getAsString() );
+    }
+
+    @Test
+    void jsonLdLinksToOntologyResourceWhenCanonicalIdPresent() {
+        // Phase 6: additive sameAs bridges the schema.org entity to its dereferenceable RDF
+        // resource (/id/page/{canonical_id}) — the "one model -> SEO + interop" connection.
+        final String body = "---\ntype: article\ncanonical_id: 01J7KQTCD38PBFSD7TD6ACJFD3\n"
+                + "summary: x\n---\n# A\n\nBody.\n";
+        final JsonObject ld = extractFirstJsonLd( SemanticHeadRenderer.renderHead(
+                "ArchitectureHub", body, BASE_URL, APP_NAME ) );
+        assertEquals( "https://wiki.wikantik.com/id/page/01J7KQTCD38PBFSD7TD6ACJFD3",
+                ld.get( "sameAs" ).getAsString() );
+    }
+
+    @Test
+    void jsonLdOmitsSameAsWhenNoCanonicalId() {
+        final JsonObject ld = extractFirstJsonLd( SemanticHeadRenderer.renderHead(
+                "PlainPage", PLAIN_BODY, BASE_URL, APP_NAME ) );
+        assertFalse( ld.has( "sameAs" ), "no sameAs without a canonical_id" );
+    }
 
     @Test
     void articleJsonLdStructuredData() {

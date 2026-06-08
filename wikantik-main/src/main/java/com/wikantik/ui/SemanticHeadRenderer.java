@@ -20,6 +20,8 @@ package com.wikantik.ui;
 
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.ontology.Iris;
+import com.wikantik.ontology.NodeTypeMapping;
 import java.util.Locale;
 
 import java.text.SimpleDateFormat;
@@ -107,6 +109,10 @@ public final class SemanticHeadRenderer {
         final List< String > tags = stringList( meta.get( "tags" ) );
         final List< String > related = stringList( meta.get( "related" ) );
         final boolean isHub = "hub".equalsIgnoreCase( pageType );
+        // schema.org @type re-sourced from the ontology's page-type mapping (Phase 6): the SEO
+        // classification and the ontology projection share one source. Upgrade-only.
+        final String schemaType = NodeTypeMapping.schemaOrgType( pageType );
+        final String canonicalId = strOrEmpty( meta.get( "canonical_id" ) );
 
         // effective description: summary > description > generic fallback
         final String effectiveDescription;
@@ -194,7 +200,8 @@ public final class SemanticHeadRenderer {
         // Main JSON-LD
         sb.append( "<script type=\"application/ld+json\">" ).append( NL );
         sb.append( buildMainJsonLd( safePageName, safeAppName, canonical, safeBaseUrl,
-                effectiveDescription, effectiveKeywords, pageDate, modified, cluster, isHub, related ) );
+                effectiveDescription, effectiveKeywords, pageDate, modified, cluster, isHub, related,
+                schemaType, canonicalId ) );
         sb.append( NL ).append( "</script>" ).append( NL );
 
         // BreadcrumbList for clustered non-hub pages
@@ -293,12 +300,13 @@ public final class SemanticHeadRenderer {
                                             final String description, final String keywords,
                                             final String datePublished, final Date modified,
                                             final String cluster, final boolean isHub,
-                                            final List< String > related ) {
+                                            final List< String > related,
+                                            final String schemaType, final String canonicalId ) {
         final StringBuilder sb = new StringBuilder( 512 );
         sb.append( '{' );
         sb.append( "\"@context\":\"https://schema.org\"," );
         if ( isHub ) {
-            sb.append( "\"@type\":\"CollectionPage\"," );
+            sb.append( "\"@type\":" ).append( jsonStr( schemaType ) ).append(',');
             sb.append( "\"name\":" ).append( jsonStr( pageName ) ).append(',');
             if ( !related.isEmpty() ) {
                 sb.append( "\"hasPart\":[" );
@@ -316,7 +324,7 @@ public final class SemanticHeadRenderer {
                 sb.append( "]," );
             }
         } else {
-            sb.append( "\"@type\":\"Article\"," );
+            sb.append( "\"@type\":" ).append( jsonStr( schemaType ) ).append(',');
         }
         sb.append( "\"headline\":" ).append( jsonStr( pageName ) ).append(',');
         if ( !description.isBlank() ) {
@@ -355,6 +363,10 @@ public final class SemanticHeadRenderer {
                 sb.append( jsonStr( baseUrl + "/wiki/" + related.get( i ) ) );
             }
             sb.append( ']' );
+        }
+        // Additive: link the schema.org entity to its dereferenceable RDF resource (Phase 6).
+        if ( canonicalId != null && !canonicalId.isBlank() ) {
+            sb.append( ",\"sameAs\":" ).append( jsonStr( Iris.page( canonicalId ) ) );
         }
         sb.append( '}' );
         return sb.toString();

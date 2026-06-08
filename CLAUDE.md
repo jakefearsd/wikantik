@@ -260,6 +260,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 - **wikantik-tools**: OpenAPI 3.1 tool server at `/tools/*` — 2 tools (`search_wiki`, `get_page`) for OpenWebUI-compatible non-MCP clients.
 - **wikantik-scim**: SCIM 2.0 provisioning server at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD + discovery (`ServiceProviderConfig`/`Schemas`/`ResourceTypes`) for IdP-driven onboarding/offboarding. User decommission routes through the unified `UserLifecycleService`; Group membership sync routes through `GroupManager`. SCIM Groups never grant the Admin role.
 - **wikantik-extract-cli**: Standalone entity-extractor CLI (offline/batch extraction against the Knowledge Graph pipeline)
+- **wikantik-ontology**: RDF/OWL ontology layer (Apache Jena) — the `wikantik:` T-Box (`wikantik.ttl`: 9 entity + 5 content classes, the 21 KG predicates with domain/range + public mappings to schema.org/SKOS/Dublin Core/PROV-O, SKOS concept scheme) + SHACL shapes; Postgres→RDF projectors (Entity/Edge/Page/Concept) and a TDB2-backed `OntologyModelManager` with RDFS `subClassOf` inference. Depends only on `wikantik-api` + Jena. Runtime wiring (`OntologyRebuildCoordinator`, `/admin/ontology/rebuild`, startup-if-empty) lives in `wikantik-main` (`com.wikantik.ontology.runtime`). Config: `wikantik.ontology.enabled` (default true), `wikantik.ontology.tdb2.dir` (default `${wikantik.workDir}/ontology-tdb2`). Design: `docs/superpowers/specs/2026-06-08-wiki-ontology-design.md`.
 - **wikantik-observability**: Health checks, Prometheus metrics, request correlation
 - **wikantik-frontend**: React SPA (Vite build) — reader, editor, admin panel, Knowledge Graph viewer, Page Graph viewer
 - **wikantik-war**: WAR packaging — bundles the React build and wires all servlets/filters
@@ -275,7 +276,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 | `/tools/*` | wikantik-tools | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) | API key |
 | `/scim/v2/*` | wikantik-scim | SCIM 2.0 | `Users` (CRUD, PATCH active, soft-delete) + `Groups` (CRUD, membership PATCH, hard delete) + discovery | `ScimAccessFilter` (bearer `wikantik.scim.token`) |
 | `/api/*` | wikantik-rest | REST/JSON | 24 Resource classes | `RestServletBase.checkPagePermission()` (ACL + policy grants) |
-| `/admin/*` | wikantik-rest | REST/JSON | 10 admin resources (incl. `/admin/kg-policy/*` and the tamper-evident `/admin/audit*` log: query/verify/export) | `AdminAuthFilter` (`AllPermission`) |
+| `/admin/*` | wikantik-rest | REST/JSON | 11 admin resources (incl. `/admin/kg-policy/*`, the tamper-evident `/admin/audit*` log, and `/admin/ontology/*`: rebuild + status) | `AdminAuthFilter` (`AllPermission`) |
 | `/wiki/{slug}?format=md\|json` | wikantik-rest | HTTP | Raw content for RAG ingestion / crawlers | Public (same ACL as page view) |
 | `/api/changes?since=…` | wikantik-rest | REST/JSON | Incremental change feed for sync pipelines | Public |
 

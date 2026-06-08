@@ -114,7 +114,8 @@ public final class PageGraphWiringHelper {
      * Registers the save-time filters that depend on the structural index:
      * {@link StructuralSpinePageFilter} (canonical_id assignment),
      * {@link com.wikantik.knowledge.agent.RunbookValidationPageFilter}, and
-     * {@link com.wikantik.knowledge.FrontmatterValidationPageFilter}.
+     * {@link com.wikantik.frontmatter.schema.SchemaValidationPageFilter} (schema-driven
+     * frontmatter validation, which subsumes the old strict-YAML-only filter).
      *
      * <p>Called after all three validation components are instantiated so
      * they see a fully-built structural index.</p>
@@ -141,7 +142,7 @@ public final class PageGraphWiringHelper {
                 structuralIndex, pageManager, props ),
             -1003 );
         filterManager.addPageFilter(
-            new com.wikantik.knowledge.FrontmatterValidationPageFilter( props ),
+            new com.wikantik.frontmatter.schema.SchemaValidationPageFilter( props, pageManager ),
             -1006 );
     }
 }

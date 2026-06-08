@@ -76,6 +76,41 @@ class UpdatePageToolTest {
     }
 
     @Test
+    void execute_newContentHashIsHashOfPersistedTextNotReconstruction() throws Exception {
+        // The save pipeline (StructuralSpinePageFilter injecting canonical_id,
+        // frontmatter/line-ending normalization, etc.) can rewrite the stored text so
+        // it differs from any tool-side reconstruction. The returned newContentHash
+        // must be the hash of the ACTUAL persisted text — identical to what a later
+        // read_page returns — so the agent can chain edits without a read-after-write.
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 2 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        // 1st getPureText: the pre-save optimistic-lock check. 2nd: the post-save
+        // re-read of the persisted text (which the save pipeline rewrote).
+        final String persisted = "---\ncanonical_id: 01ABCDEF\ntitle: P\n---\n\nnew body\n";
+        when( pm.getPureText( eq( "P" ), anyInt() ) )
+            .thenReturn( "current body", persisted );
+
+        final String currentHash = McpToolUtils.computeContentHash( "current body" );
+        final String persistedHash = McpToolUtils.computeContentHash( persisted );
+
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
+        tool.setDefaultAuthor( "bot" );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pageName", "P",
+            "content", "new body",
+            "expectedContentHash", currentHash ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "\"updated\":true" ), text );
+        assertTrue( text.contains( "\"newContentHash\":\"" + persistedHash + "\"" ),
+            "newContentHash must equal the hash of the actual persisted text, not a "
+            + "reconstruction of the submitted body: " + text );
+    }
+
+    @Test
     void execute_failsOnHashMismatch() throws Exception {
         final PageManager pm = mock( PageManager.class );
         final PageSaveHelper helper = mock( PageSaveHelper.class );

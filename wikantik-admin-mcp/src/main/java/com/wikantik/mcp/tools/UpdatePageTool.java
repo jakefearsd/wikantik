@@ -87,9 +87,11 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
         ) );
         properties.put( "expectedContentHash", Map.of(
                 "type", "string",
-                "description", "SHA-256 of the page's current raw text, obtained from " +
-                        "the last get_page or retrieve_context call. Required for optimistic locking.",
-                "examples", List.of( "sha256:9c3f8a1d4b6e7c2a5f8e1d3b7a9c0e2d4f6a8b1c3e5d7f9a0b2c4d6e8f0a2b4d" )
+                "description", "SHA-256 hex of the page's current raw text — the " +
+                        "contentHash returned by read_page (or the newContentHash from a " +
+                        "prior update_page). Bare lowercase hex, no 'sha256:' prefix. " +
+                        "Required for optimistic locking.",
+                "examples", List.of( "9c3f8a1d4b6e7c2a5f8e1d3b7a9c0e2d4f6a8b1c3e5d7f9a0b2c4d6e8f0a2b4d" )
         ) );
 
         final Map< String, Object > outputSchema = new LinkedHashMap<>();
@@ -98,14 +100,14 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
                 Map.of(
                         "pageName", "HybridRetrieval",
                         "updated", true,
-                        "newContentHash", "sha256:1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+                        "newContentHash", "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
                         "newVersion", 8
                 ),
                 Map.of(
                         "pageName", "HybridRetrieval",
                         "updated", false,
                         "error", "hash mismatch",
-                        "currentHash", "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+                        "currentHash", "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
                         "currentVersion", 9,
                         "latestContent", "---\ntitle: Hybrid Retrieval\n---\n\nUpdated body..."
                 )
@@ -238,13 +240,16 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
                     .build() );
             McpAudit.logWrite( TOOL_NAME, "updated", pageName, defaultAuthor );
 
-            // Hash the canonical post-save text so the agent's next update_page can
-            // optimistic-lock against it. Composed deterministically from body +
-            // merged metadata via the same writer the save pipeline uses.
-            final String savedText = hasMetadata
-                ? com.wikantik.api.frontmatter.FrontmatterWriter.write( mergedMetadata, normalized.body() )
-                : normalized.body();
-            final String newHash = McpToolUtils.computeContentHash( savedText );
+            // Hash the ACTUAL persisted text — re-read it rather than reconstructing
+            // it here. Save-time filters (StructuralSpinePageFilter canonical_id
+            // enforcement, frontmatter/line-ending normalization, etc.) can rewrite the
+            // stored bytes after saveText returns, so any tool-side reconstruction would
+            // drift from what read_page later reports. Reading getPureText (the same
+            // source read_page and the mismatch check above use) makes newContentHash
+            // authoritative, so the agent can chain its next update_page against it
+            // without a read-after-write round trip.
+            final String savedText = pageManager.getPureText( pageName, PageProvider.LATEST_VERSION );
+            final String newHash = McpToolUtils.computeContentHash( savedText == null ? "" : savedText );
             final Map< String, Object > ok = new LinkedHashMap<>();
             ok.put( "pageName", pageName );
             ok.put( "updated", true );

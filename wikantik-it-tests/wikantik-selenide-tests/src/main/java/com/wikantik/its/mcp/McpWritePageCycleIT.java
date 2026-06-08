@@ -105,6 +105,54 @@ public class McpWritePageCycleIT extends WithMcpTestSetup {
     }
 
     @Test
+    public void updatePage_returnedHashMatchesReadAndChainsWithoutReread() {
+        // Regression guard: update_page's newContentHash must be the hash of the
+        // ACTUAL persisted text (what read_page returns), not a tool-side
+        // reconstruction. Save-time filters (canonical_id enforcement, frontmatter
+        // normalization) rewrite the stored bytes, so a reconstruction drifts — which
+        // used to make a chained edit fail with a false "hash mismatch".
+        final String name = uniquePageName( "HashRoundTrip" );
+        mcp.importPage( name, "Original body for the hash round-trip check." );
+
+        final Map< String, Object > read0 = mcp.callTool( "read_page",
+                Map.of( "pageName", name ) );
+        final String hash0 = ( String ) read0.get( "contentHash" );
+
+        // Update with frontmatter so the save pipeline exercises canonical_id
+        // enforcement + frontmatter re-serialization on the persisted text.
+        final Map< String, Object > first = mcp.callTool( "update_page",
+                Map.of( "pageName", name,
+                        "content", "---\ntitle: " + name + "\ndate: 2026-05-08\n"
+                                + "tags: [round-trip, hashing]\nsummary: Hash round-trip check.\n---\n\nFirst body.",
+                        "expectedContentHash", hash0 ) );
+        Assertions.assertEquals( Boolean.TRUE, first.get( "updated" ),
+                "first update must succeed: " + first );
+        final String returnedHash = ( String ) first.get( "newContentHash" );
+        Assertions.assertNotNull( returnedHash,
+                "update_page must return newContentHash: " + first );
+
+        // The returned hash must equal the hash a fresh read_page reports.
+        final Map< String, Object > read1 = mcp.callTool( "read_page",
+                Map.of( "pageName", name ) );
+        Assertions.assertEquals( read1.get( "contentHash" ), returnedHash,
+                "update_page newContentHash must equal the subsequent read_page contentHash "
+                + "— it must hash the persisted text, not a reconstruction. returned="
+                + returnedHash + " read=" + read1.get( "contentHash" ) );
+
+        // And the agent must be able to chain a second edit using ONLY the returned
+        // hash, with no intervening read. With the bug this rejected as a false
+        // "hash mismatch".
+        final Map< String, Object > second = mcp.callTool( "update_page",
+                Map.of( "pageName", name,
+                        "content", "---\ntitle: " + name + "\ndate: 2026-05-08\n"
+                                + "tags: [round-trip, hashing]\nsummary: Hash round-trip check.\n---\n\nSecond body.",
+                        "expectedContentHash", returnedHash ) );
+        Assertions.assertEquals( Boolean.TRUE, second.get( "updated" ),
+                "a chained update using the returned newContentHash must succeed without a "
+                + "re-read (no false hash mismatch): " + second );
+    }
+
+    @Test
     public void updatePage_staleHashReturnsLatestContent() {
         final String name = uniquePageName( "UpdateStale" );
         mcp.importPage( name, "Initial body." );

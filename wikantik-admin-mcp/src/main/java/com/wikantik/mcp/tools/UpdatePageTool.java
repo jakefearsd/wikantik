@@ -26,6 +26,8 @@ import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.api.exceptions.FrontmatterValidationException;
+import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
 import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.api.providers.PageProvider;
@@ -230,6 +232,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             final Map< String, Object > mergedMetadata = normalized.metadata();
             final boolean hasMetadata = !mergedMetadata.isEmpty();
 
+            FrontmatterWarningSink.clear();
             saveHelper.saveText( pageName, normalized.body(),
                 SaveOptions.builder()
                     .author( defaultAuthor )
@@ -255,7 +258,23 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             ok.put( "updated", true );
             ok.put( "newContentHash", newHash );
             ok.put( "newVersion", McpToolUtils.normalizeVersion( existing.getVersion() + 1 ) );
+            final var fmWarnings = FrontmatterWarningSink.drain();
+            if ( !fmWarnings.isEmpty() ) {
+                ok.put( "frontmatterWarnings", fmWarnings );
+            }
             return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, ok );
+        } catch ( final FrontmatterValidationException e ) {
+            // Same schema validator the form + REST use refused this write (ERROR-severity).
+            // Cite the structured violations so the agent can self-correct and retry.
+            FrontmatterWarningSink.clear();
+            final String rejectedPage = McpToolUtils.getString( arguments, "pageName" );
+            LOG.debug( "update_page rejected by frontmatter validation for {}: {}", rejectedPage, e.getMessage() );
+            final Map< String, Object > refused = new LinkedHashMap<>();
+            refused.put( "pageName", rejectedPage );
+            refused.put( "updated", false );
+            refused.put( "error", "frontmatter validation failed" );
+            refused.put( "violations", e.violations() );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, refused );
         } catch ( final RuntimeException e ) {
             LOG.error( "update_page failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, e.getMessage() );

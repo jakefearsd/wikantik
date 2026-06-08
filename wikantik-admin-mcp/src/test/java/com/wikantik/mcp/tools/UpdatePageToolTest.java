@@ -19,6 +19,10 @@
 package com.wikantik.mcp.tools;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.FrontmatterValidationException;
+import com.wikantik.api.frontmatter.schema.FieldViolation;
+import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
+import com.wikantik.api.frontmatter.schema.Severity;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -26,6 +30,7 @@ import com.wikantik.api.pages.SaveOptions;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -73,6 +78,58 @@ class UpdatePageToolTest {
         assertTrue( text.contains( "\"newContentHash\"" ) );
         verify( helper, times( 1 ) ).saveText(
             eq( "P" ), eq( "new body" ), any( SaveOptions.class ) );
+    }
+
+    @Test
+    void execute_refusesOnFrontmatterValidationErrorCitingViolations() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 2 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "current body" );
+        final String currentHash = McpToolUtils.computeContentHash( "current body" );
+
+        doThrow( new FrontmatterValidationException( List.of( FieldViolation.of(
+                "audience", Severity.ERROR, "audience.enum.invalid",
+                "`audience: \"robots\"` is not allowed. Allowed values: humans, agents, both." ) ) ) )
+            .when( helper ).saveText( eq( "P" ), any(), any( SaveOptions.class ) );
+
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pageName", "P", "content", "new body", "expectedContentHash", currentHash ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "\"updated\":false" ) );
+        assertTrue( text.contains( "frontmatter validation failed" ) );
+        assertTrue( text.contains( "audience" ) );
+    }
+
+    @Test
+    void execute_surfacesFrontmatterWarningsOnSuccess() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 2 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "current body" );
+        final String currentHash = McpToolUtils.computeContentHash( "current body" );
+
+        // The save filter stashes a non-blocking warning during saveText for the tool to surface.
+        doAnswer( inv -> {
+            FrontmatterWarningSink.put( List.of( FieldViolation.of(
+                "status", Severity.WARNING, "status.noncanonical", "non-canonical status" ) ) );
+            return null;
+        } ).when( helper ).saveText( eq( "P" ), any(), any( SaveOptions.class ) );
+
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pageName", "P", "content", "new body", "expectedContentHash", currentHash ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "\"updated\":true" ) );
+        assertTrue( text.contains( "frontmatterWarnings" ) );
+        assertTrue( text.contains( "status" ) );
     }
 
     @Test

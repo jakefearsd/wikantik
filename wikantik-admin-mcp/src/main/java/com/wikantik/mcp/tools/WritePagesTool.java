@@ -21,7 +21,9 @@ package com.wikantik.mcp.tools;
 import com.wikantik.util.WikiPageNameValidator;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.FrontmatterParseException;
+import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.managers.SystemPageRegistry;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -190,6 +192,7 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
                 continue;
             }
             final Map< String, Object > mergedMetadata = normalized.metadata();
+            FrontmatterWarningSink.clear();
             try {
                 saveHelper.saveText( pageName, normalized.body(),
                     SaveOptions.builder()
@@ -201,8 +204,20 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
                         .build() );
                 McpAudit.logWrite( TOOL_NAME, "created", pageName, defaultAuthor );
                 entry.put( "created", true );
+                final var fmWarnings = FrontmatterWarningSink.drain();
+                if ( !fmWarnings.isEmpty() ) {
+                    entry.put( "frontmatterWarnings", fmWarnings );
+                }
                 results.add( entry );
                 createdCount++;
+            } catch ( final FrontmatterValidationException fve ) {
+                // Same schema validator the form + REST use refused this page (ERROR-severity).
+                FrontmatterWarningSink.clear();
+                entry.put( "created", false );
+                entry.put( "error", "frontmatter validation failed" );
+                entry.put( "violations", fve.violations() );
+                results.add( entry );
+                failedCount++;
             } catch ( final Exception e ) {
                 LOG.error( "write_pages failed for '{}': {}", pageName, e.getMessage(), e );
                 entry.put( "created", false );

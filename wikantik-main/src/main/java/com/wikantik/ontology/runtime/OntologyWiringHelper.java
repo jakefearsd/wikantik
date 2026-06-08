@@ -51,7 +51,8 @@ public final class OntologyWiringHelper {
     public static void wireOntology( final WikiEngine engine,
                                      final Properties props,
                                      final DataSource dataSource,
-                                     final PageManager pageManager ) {
+                                     final PageManager pageManager,
+                                     final com.wikantik.filters.FilterManager filterManager ) {
         final boolean enabled = Boolean.parseBoolean(
                 props.getProperty( "wikantik.ontology.enabled", "true" ) );
         if ( !enabled ) {
@@ -79,6 +80,15 @@ public final class OntologyWiringHelper {
 
         engine.setManager( OntologyRebuildCoordinator.class, coordinator );
         LOG.info( "ontology runtime wired (tdb2 dir={})", dir );
+
+        // Event-incremental sync: re-project a page's graph on save/rename, remove on true delete.
+        final OntologyPageSync pageSync = new OntologyPageSync( mgr, pageDao, pageManager );
+        new OntologyEventListener( pageSync ).register( pageManager, filterManager );
+
+        // Nightly full-rebuild backstop (catches KG drift + missed events).
+        final long intervalHours = Long.parseLong(
+                props.getProperty( "wikantik.ontology.rebuild.interval.hours", "24" ) );
+        new OntologyRebuildScheduler( coordinator, intervalHours ).start();
 
         // Startup-if-empty: non-blocking self-heal on first boot.
         coordinator.rebuildIfEmpty();

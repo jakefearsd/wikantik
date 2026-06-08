@@ -1570,7 +1570,7 @@ public class WikiEngine implements Engine {
             // Wire the RDF ontology runtime (OntologyWiringHelper): builds the TDB2-backed
             // OntologyModelManager + rebuild coordinator, registers the coordinator, and
             // kicks a startup-if-empty rebuild. setManager-only, so ArchUnit-neutral.
-            com.wikantik.ontology.runtime.OntologyWiringHelper.wireOntology( this, props, ds, pageManager );
+            com.wikantik.ontology.runtime.OntologyWiringHelper.wireOntology( this, props, ds, pageManager, filterManager );
 
             // Wire entity extraction (KnowledgeWiringHelper).
             // KgExcludedPagesRepository is registered by wireKgPolicyAndContent above;

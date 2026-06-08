@@ -555,6 +555,18 @@
        <servlet-class>com.wikantik.rest.AdminOntologyResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>OntologySparqlResource</servlet-name>
+       <servlet-class>com.wikantik.rest.OntologySparqlResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>OntologyResourceResource</servlet-name>
+       <servlet-class>com.wikantik.rest.OntologyResourceResource</servlet-class>
+   </servlet>
+   <servlet>
+       <servlet-name>OntologyExportResource</servlet-name>
+       <servlet-class>com.wikantik.rest.OntologyExportResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminGroupResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminGroupResource</servlet-class>
    </servlet>
@@ -801,6 +813,18 @@
    <servlet-mapping>
        <servlet-name>AdminOntologyResource</servlet-name>
        <url-pattern>/admin/ontology/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>OntologySparqlResource</servlet-name>
+       <url-pattern>/sparql</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>OntologyResourceResource</servlet-name>
+       <url-pattern>/id/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>OntologyExportResource</servlet-name>
+       <url-pattern>/export/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminGroupResource</servlet-name>

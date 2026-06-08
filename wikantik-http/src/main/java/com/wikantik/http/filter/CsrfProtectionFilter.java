@@ -223,8 +223,11 @@ public class CsrfProtectionFilter implements Filter {
      */
     static boolean isRestApiEndpoint( final HttpServletRequest request ) {
         final String servletPath = request.getServletPath();
+        // /sparql is public + read-only and carries no ambient credentials, so the CSRF
+        // synchronizer token does not apply (a forged POST can only read public data).
         return servletPath != null
-                && ( servletPath.startsWith( "/api/" ) || servletPath.startsWith( "/admin/" ) );
+                && ( servletPath.startsWith( "/api/" ) || servletPath.startsWith( "/admin/" )
+                     || "/sparql".equals( servletPath ) );
     }
 
     /** {@inheritDoc} */

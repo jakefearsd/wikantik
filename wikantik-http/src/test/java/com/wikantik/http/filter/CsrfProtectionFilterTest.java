@@ -51,6 +51,21 @@ class CsrfProtectionFilterTest {
         assertFalse( CsrfProtectionFilter.isPost( request ) );
     }
 
+    @Test
+    void sparqlEndpointIsCsrfExemptLikeRestApi() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "/sparql" ).when( request ).getServletPath();
+        assertTrue( CsrfProtectionFilter.isRestApiEndpoint( request ),
+                "/sparql is public read-only and must be CSRF-exempt" );
+    }
+
+    @Test
+    void nonApiEndpointIsNotCsrfExempt() {
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.doReturn( "/some/other/path" ).when( request ).getServletPath();
+        assertFalse( CsrfProtectionFilter.isRestApiEndpoint( request ) );
+    }
+
     @ParameterizedTest
     @ValueSource( strings = { "POST", "PUT", "DELETE", "PATCH", "post", "put", "delete", "patch" } )
     void testIsStateChangingRecognizesAllMutatingMethods( final String method ) {

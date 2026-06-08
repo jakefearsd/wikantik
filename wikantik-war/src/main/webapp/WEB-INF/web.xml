@@ -551,6 +551,10 @@
        <servlet-class>com.wikantik.rest.AdminContentResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AdminOntologyResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminOntologyResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminGroupResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminGroupResource</servlet-class>
    </servlet>
@@ -793,6 +797,10 @@
    <servlet-mapping>
        <servlet-name>AdminContentResource</servlet-name>
        <url-pattern>/admin/content/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminOntologyResource</servlet-name>
+       <url-pattern>/admin/ontology/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminGroupResource</servlet-name>

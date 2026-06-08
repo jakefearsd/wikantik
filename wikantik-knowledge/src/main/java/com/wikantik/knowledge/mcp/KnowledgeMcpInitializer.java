@@ -165,6 +165,15 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             if ( forAgent != null ) {
                 tools.add( new GetPageForAgentTool( forAgent ) );
             }
+            // Ontology tools (read-only): present only when the ontology runtime is wired.
+            final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontoCoord =
+                PageGraphSubsystemBridge.fromLegacyEngine( engine ).ontologyRebuildCoordinator();
+            final com.wikantik.ontology.OntologyModelManager ontoMgr =
+                ontoCoord == null ? null : ontoCoord.modelManager();
+            if ( ontoMgr != null ) {
+                tools.add( new GetOntologyTool( ontoMgr ) );
+                tools.add( new SparqlQueryTool( ontoMgr ) );
+            }
         } catch ( final Exception e ) {
             LOG.error( "Knowledge MCP startup failed while assembling tools — transport servlet is registered " +
                     "but the server will have no tools to dispatch: {}", e.getMessage(), e );

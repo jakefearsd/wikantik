@@ -51,4 +51,28 @@ class NodeTypeMappingTest {
         assertEquals( "Concept", NodeTypeMapping.classLocalName( "" ) );
         assertEquals( "Concept", NodeTypeMapping.classLocalName( "intelligence-summary" ) );
     }
+
+    // -------- schemaOrgType (Phase 6: SEO @type re-sourced from the ontology mapping) --------
+
+    @Test
+    void schemaOrgTypeMapsPageTypesToSchemaTypes() {
+        assertEquals( "CollectionPage", NodeTypeMapping.schemaOrgType( "hub" ) );
+        assertEquals( "Article",        NodeTypeMapping.schemaOrgType( "article" ) );
+        assertEquals( "HowTo",          NodeTypeMapping.schemaOrgType( "runbook" ) );
+        assertEquals( "TechArticle",    NodeTypeMapping.schemaOrgType( "design" ) );
+        assertEquals( "TechArticle",    NodeTypeMapping.schemaOrgType( "design_doc" ) );
+    }
+
+    @Test
+    void schemaOrgTypeDefaultsToArticle() {
+        assertEquals( "Article", NodeTypeMapping.schemaOrgType( "reference" ) );
+        assertEquals( "Article", NodeTypeMapping.schemaOrgType( null ) );
+        assertEquals( "Article", NodeTypeMapping.schemaOrgType( "" ) );
+        assertEquals( "Article", NodeTypeMapping.schemaOrgType( "totally-unknown" ) );
+    }
+
+    @Test
+    void schemaOrgTypeIsCaseInsensitive() {
+        assertEquals( "HowTo", NodeTypeMapping.schemaOrgType( "Runbook" ) );
+    }
 }

@@ -58,4 +58,29 @@ public final class NodeTypeMapping {
         final String key = nodeType.trim().toLowerCase( Locale.ROOT );
         return MAP.getOrDefault( key, DEFAULT_CLASS );
     }
+
+    /** Default schema.org type for pages with no more-specific mapping. */
+    public static final String SCHEMA_DEFAULT = "Article";
+
+    private static final Map< String, String > SCHEMA_MAP = Map.of(
+            "hub", "CollectionPage",
+            "article", "Article",
+            "runbook", "HowTo",
+            "design", "TechArticle",
+            "design_doc", "TechArticle" );
+
+    /**
+     * Maps a page {@code type} onto its schema.org type local name, mirroring the
+     * {@code wk:<Class> rdfs:subClassOf schema:<Type>} axioms in {@code wikantik.ttl}.
+     * Upgrade-only: anything without a more-specific mapping defaults to {@link #SCHEMA_DEFAULT}
+     * ({@code Article}) — never the broader {@code CreativeWork}, so the SEO {@code @type} is
+     * never downgraded. Used by the SEO head renderer so the page's schema.org {@code @type}
+     * and its ontology classification share one source.
+     */
+    public static String schemaOrgType( final String pageType ) {
+        if ( pageType == null || pageType.isBlank() ) {
+            return SCHEMA_DEFAULT;
+        }
+        return SCHEMA_MAP.getOrDefault( pageType.trim().toLowerCase( Locale.ROOT ), SCHEMA_DEFAULT );
+    }
 }

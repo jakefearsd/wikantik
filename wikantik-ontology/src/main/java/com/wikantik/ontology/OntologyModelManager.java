@@ -119,6 +119,20 @@ public final class OntologyModelManager {
         }
     }
 
+    /** Number of named (A-Box) graphs currently in the dataset. */
+    public long namedGraphCount() {
+        dataset.begin( ReadWrite.READ );
+        try {
+            long n = 0;
+            for ( final Iterator< String > it = dataset.listNames(); it.hasNext(); it.next() ) {
+                n++;
+            }
+            return n;
+        } finally {
+            dataset.end();
+        }
+    }
+
     /** Removes every named graph (A-Box), leaving the default-graph T-Box intact. */
     public void clearAbox() {
         dataset.begin( ReadWrite.WRITE );

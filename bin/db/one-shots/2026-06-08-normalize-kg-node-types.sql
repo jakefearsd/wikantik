@@ -6,12 +6,16 @@
 -- versioned migration. Idempotent + safe to re-run. Runs in ONE transaction
 -- and ends with COMMIT; swap COMMIT -> ROLLBACK at the bottom for a dry run.
 --
--- Usage (dry run first!):
---   1. Edit the final line:  COMMIT;  ->  ROLLBACK;
---   2. PGPASSWORD=... psql -h localhost -U jspwiki -d wikantik \
---          -v ON_ERROR_STOP=1 -f bin/db/one-shots/2026-06-08-normalize-kg-node-types.sql
---   3. Inspect the BEFORE/AFTER/UNMAPPED diagnostics.
---   4. Restore COMMIT; and re-run to apply.
+-- Database name: LOCAL dev = jspwiki (see tomcat ROOT.xml); PROD (docker1) = wikantik.
+--
+-- Usage (dry run first! — pipe a ROLLBACK variant so the file is never edited):
+--   1. DRY RUN:
+--        sed 's/^COMMIT;/ROLLBACK;/' bin/db/one-shots/2026-06-08-normalize-kg-node-types.sql \
+--          | PGPASSWORD=... psql -h localhost -U jspwiki -d jspwiki -v ON_ERROR_STOP=1 -f -
+--   2. Inspect the BEFORE / UNMAPPED / PAGE-typed / AFTER diagnostics.
+--   3. APPLY (real, commits): run the file directly with -f (no sed):
+--        PGPASSWORD=... psql -h localhost -U jspwiki -d jspwiki -v ON_ERROR_STOP=1 \
+--          -f bin/db/one-shots/2026-06-08-normalize-kg-node-types.sql
 --
 -- Canonical entity node_type values (lowercase):
 --   person organization place event product technology concept project version

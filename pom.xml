@@ -527,6 +527,12 @@
       </dependency>
 
       <dependency>
+        <groupId>org.apache.jena</groupId>
+        <artifactId>jena-tdb2</artifactId>
+        <version>${jena.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.codelibs</groupId>
         <artifactId>nekohtml</artifactId>
         <version>${nekohtml.version}</version>

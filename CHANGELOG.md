@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **MCP `update_page` returned a stale, unusable content hash.** The
+  `newContentHash` was computed from a tool-side *reconstruction* of the submitted
+  text, but the save-time `StructuralSpinePageFilter` rewrites the persisted bytes
+  afterwards (canonical_id injection, frontmatter/date/line-ending normalization).
+  The returned hash therefore drifted from what `read_page` reports, so an agent
+  that chained a second edit using it hit a false `hash mismatch`. `update_page`
+  now hashes the **actual persisted text** (re-read via `getPureText` — the same
+  source `read_page` and the optimistic-lock check use), so the returned hash is
+  authoritative and directly chainable. Tool docs corrected: content hashes are
+  bare lowercase hex (no `sha256:` prefix) and come from `read_page`.
+
+### Changed
+
+- **Audit event listener** refactored to table-driven dispatch (declarative lookup
+  maps replace the security/page-event `switch` blocks); behavior unchanged. Adds
+  unit coverage for the audit mappings and for ten previously untested
+  `wikantik-api` value/exception classes.
+- **IndexNow verification key** rotated (ownership re-verification); the new key is
+  served at the web root.
+
 ## [2.0.12] - 2026-06-07
 
 A focused SEO / crawlability / rendering release. The headline fix: Google was

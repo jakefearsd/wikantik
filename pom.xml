@@ -105,6 +105,7 @@
     <caffeine.version>3.2.4</caffeine.version>
     <ulid-creator.version>5.2.4</ulid-creator.version>
     <jmustache.version>1.16</jmustache.version>
+    <jena.version>5.2.0</jena.version>
 
     <plugin.antrun.version>3.2.0</plugin.antrun.version>
     <plugin.assembly.version>3.8.0</plugin.assembly.version>
@@ -176,6 +177,7 @@
     <module>wikantik-tools</module>
     <module>wikantik-scim</module>
     <module>wikantik-knowledge</module>
+    <module>wikantik-ontology</module>
     <module>wikantik-observability</module>
     <module>wikantik-rest</module>
     <module>wikantik-extract-cli</module>
@@ -510,6 +512,18 @@
         <groupId>org.apache.tika</groupId>
         <artifactId>tika-parsers-standard-package</artifactId>
         <version>${tika.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.jena</groupId>
+        <artifactId>jena-arq</artifactId>
+        <version>${jena.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.jena</groupId>
+        <artifactId>jena-shacl</artifactId>
+        <version>${jena.version}</version>
       </dependency>
 
       <dependency>

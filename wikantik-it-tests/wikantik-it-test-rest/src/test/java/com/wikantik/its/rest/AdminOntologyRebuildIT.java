@@ -178,4 +178,34 @@ public class AdminOntologyRebuildIT {
         assertEquals( 403, resp.statusCode(),
                 "Anonymous POST to /admin/ontology/rebuild must be 403: " + resp.body() );
     }
+
+    @Test
+    void violations_returnsConformanceEnvelopeForAdmin() throws Exception {
+        try {
+            loginAsAdmin();
+            final HttpResponse< String > resp = get( "/admin/ontology/violations" );
+            assertEquals( 200, resp.statusCode(),
+                    "Admin /admin/ontology/violations must return 200: " + resp.body() );
+            final JsonObject body = JsonParser.parseString( resp.body() ).getAsJsonObject();
+            assertTrue( body.has( "violations" ) && body.has( "count" ),
+                    "violations envelope must include violations + count: " + resp.body() );
+            assertTrue( body.get( "violations" ).isJsonArray(), "violations must be an array: " + resp.body() );
+        } finally {
+            logoutAdmin();
+        }
+    }
+
+    @Test
+    void violations_anonymousIs403() throws Exception {
+        final HttpClient anon = HttpClient.newBuilder()
+                .followRedirects( HttpClient.Redirect.NORMAL )
+                .cookieHandler( secureCookieOverHttp() )
+                .build();
+        final HttpResponse< String > resp = anon.send(
+                HttpRequest.newBuilder().uri( URI.create( baseUrl + "/admin/ontology/violations" ) )
+                        .header( "Accept", "application/json" ).GET().build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertEquals( 403, resp.statusCode(),
+                "Anonymous GET to /admin/ontology/violations must be 403: " + resp.body() );
+    }
 }

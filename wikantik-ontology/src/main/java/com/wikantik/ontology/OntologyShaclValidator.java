@@ -52,6 +52,34 @@ public final class OntologyShaclValidator {
         this.shapes = Shapes.parse( shapesModel.getGraph() );
     }
 
+    /**
+     * Validates a single candidate edge against the SHACL shapes by building a typed mini-graph
+     * ({@code src a wk:<srcClass> ; tgt a wk:<tgtClass> ; src wk:<pred> tgt}). Empty when conformant;
+     * predicates with no shape always conform (no false positives).
+     */
+    public List< Violation > validateEdge( final String sourceNodeType, final String relationshipType,
+                                           final String targetNodeType ) {
+        final Model m = ModelFactory.createDefaultModel();
+        final org.apache.jena.rdf.model.Resource src = m.createResource( "urn:edge:src" );
+        final org.apache.jena.rdf.model.Resource tgt = m.createResource( "urn:edge:tgt" );
+        src.addProperty( org.apache.jena.vocabulary.RDF.type,
+                m.createResource( Iris.term( NodeTypeMapping.classLocalName( sourceNodeType ) ) ) );
+        tgt.addProperty( org.apache.jena.vocabulary.RDF.type,
+                m.createResource( Iris.term( NodeTypeMapping.classLocalName( targetNodeType ) ) ) );
+        src.addProperty( m.createProperty( Iris.term( propertyLocalName( relationshipType ) ) ), tgt );
+        return validate( m );
+    }
+
+    /** snake_case relationship_type -> wk: lowerCamel property local name. */
+    private static String propertyLocalName( final String relationshipType ) {
+        final String[] parts = relationshipType.split( "_" );
+        final StringBuilder sb = new StringBuilder( parts[ 0 ] );
+        for ( int i = 1; i < parts.length; i++ ) {
+            sb.append( Character.toUpperCase( parts[ i ].charAt( 0 ) ) ).append( parts[ i ].substring( 1 ) );
+        }
+        return sb.toString();
+    }
+
     /** Returns the SHACL violations in {@code data}; empty when it conforms. */
     public List< Violation > validate( final Model data ) {
         final ValidationReport report = ShaclValidator.get().validate( shapes, data.getGraph() );

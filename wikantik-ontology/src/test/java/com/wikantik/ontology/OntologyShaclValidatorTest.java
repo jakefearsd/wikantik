@@ -58,4 +58,24 @@ class OntologyShaclValidatorTest {
         assertNotNull( v.get( 0 ).message(), "violation carries a message" );
         assertFalse( v.get( 0 ).message().isBlank() );
     }
+
+    @Test
+    void validateEdge_conformantImplementsPasses() {
+        assertTrue( new OntologyShaclValidator()
+                .validateEdge( "technology", "implements", "concept" ).isEmpty() );
+    }
+
+    @Test
+    void validateEdge_personImplementsIsRejected() {
+        assertFalse( new OntologyShaclValidator()
+                .validateEdge( "person", "implements", "concept" ).isEmpty(),
+                "a non-Technology subject of wk:implements must violate the domain shape" );
+    }
+
+    @Test
+    void validateEdge_predicateWithNoShapePasses() {
+        assertTrue( new OntologyShaclValidator()
+                .validateEdge( "person", "uses", "concept" ).isEmpty(),
+                "'uses' has no SHACL shape -> never a false positive" );
+    }
 }

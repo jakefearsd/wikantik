@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.13] - 2026-06-08
+
 ### Fixed
 
 - **MCP `update_page` returned a stale, unusable content hash.** The

@@ -153,6 +153,15 @@ public class WikiPageFormatFilter implements Filter {
             resp.sendError( HttpServletResponse.SC_NOT_FOUND, "Page not found: " + pageName );
             return;
         }
+        // ACL gate: the raw-content endpoint must enforce the same view permission as
+        // a normal page view. Resolve the caller's session (guest if unauthenticated)
+        // and deny by 404 — hiding the existence of ACL-restricted pages from crawlers.
+        final com.wikantik.api.core.Session session = com.wikantik.api.spi.Wiki.session().find( eng, req );
+        if ( !new com.wikantik.auth.permissions.PermissionFilter( eng ).canAccess( session, pageName, "view" ) ) {
+            LOG.info( "WikiPageFormatFilter: denying anonymous/unauthorized raw-content read of '{}'", pageName );
+            resp.sendError( HttpServletResponse.SC_NOT_FOUND, "Page not found: " + pageName );
+            return;
+        }
         // Page-view metric: a raw-content read counts as a page view too.
         firePageRequested( eng, page.getName() );
 

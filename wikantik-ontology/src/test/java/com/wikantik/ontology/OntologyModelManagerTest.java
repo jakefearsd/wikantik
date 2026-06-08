@@ -77,4 +77,30 @@ class OntologyModelManagerTest {
                 RDF.type,
                 ResourceFactory.createResource( "http://www.w3.org/2002/07/owl#Class" ) ) );
     }
+
+    @Test
+    void unionSnapshotIncludesTBoxAndNamedGraphs() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final String iri = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000b9" ) );
+        mgr.replaceNamedGraph( iri, entityGraph( iri, "Technology" ) );
+        final Model union = mgr.unionSnapshot();
+        assertTrue( union.contains(
+                ResourceFactory.createResource( Iris.term( "Technology" ) ), RDF.type,
+                ResourceFactory.createResource( "http://www.w3.org/2002/07/owl#Class" ) ),
+                "T-Box class present in union" );
+        assertTrue( union.contains(
+                ResourceFactory.createResource( iri ), RDF.type,
+                ResourceFactory.createResource( Iris.term( "Technology" ) ) ),
+                "A-Box triple present in union" );
+    }
+
+    @Test
+    void namedGraphSnapshotReturnsJustThatGraph() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final String iri = Iris.entity( java.util.UUID.fromString( "00000000-0000-0000-0000-0000000000ba" ) );
+        mgr.replaceNamedGraph( iri, entityGraph( iri, "Concept" ) );
+        assertTrue( mgr.namedGraphSnapshot( iri ).size() == 1, "only the resource's own triples" );
+    }
 }

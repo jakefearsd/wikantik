@@ -182,6 +182,31 @@ public final class OntologyModelManager {
         }
     }
 
+    /** Detached union of the T-Box (default graph) + all named graphs — NO inference. For dumps/SPARQL base. */
+    public Model unionSnapshot() {
+        dataset.begin( ReadWrite.READ );
+        try {
+            final Model union = ModelFactory.createDefaultModel();
+            union.add( dataset.getDefaultModel() );
+            for ( final Iterator< String > it = dataset.listNames(); it.hasNext(); ) {
+                union.add( dataset.getNamedModel( it.next() ) );
+            }
+            return union;
+        } finally {
+            dataset.end();
+        }
+    }
+
+    /** Detached copy of a single named (resource) graph; empty model if absent. */
+    public Model namedGraphSnapshot( final String graphIri ) {
+        dataset.begin( ReadWrite.READ );
+        try {
+            return ModelFactory.createDefaultModel().add( dataset.getNamedModel( graphIri ) );
+        } finally {
+            dataset.end();
+        }
+    }
+
     /** For Phase 1b shutdown wiring. */
     public void close() {
         dataset.close();

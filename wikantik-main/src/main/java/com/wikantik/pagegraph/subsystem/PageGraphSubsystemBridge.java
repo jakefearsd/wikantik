@@ -55,7 +55,7 @@ public final class PageGraphSubsystemBridge {
     public static PageGraphSubsystem.Services fromLegacyEngine( final Engine engine ) {
         if ( !( engine instanceof com.wikantik.WikiEngine wikiEngine ) ) {
             // Non-WikiEngine callers cannot reach getManager — return a fully-null record.
-            return new PageGraphSubsystem.Services( null, null, null, null );
+            return new PageGraphSubsystem.Services( null, null, null, null, null );
         }
         final PageGraphSubsystem.Services typed = wikiEngine.getPageGraphSubsystem();
         if ( typed != null ) return typed;

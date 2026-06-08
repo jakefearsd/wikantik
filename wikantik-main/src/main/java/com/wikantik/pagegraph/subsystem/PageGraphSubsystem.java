@@ -19,6 +19,7 @@
 package com.wikantik.pagegraph.subsystem;
 
 import com.wikantik.admin.ContentIndexRebuildService;
+import com.wikantik.ontology.runtime.OntologyRebuildCoordinator;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.PageGraphService;
@@ -80,6 +81,7 @@ public final class PageGraphSubsystem {
         StructuralIndexService       structuralIndexService,
         PageGraphService             pageGraphService,
         ReferenceManager             referenceManager,
-        ContentIndexRebuildService   contentIndexRebuildService
+        ContentIndexRebuildService   contentIndexRebuildService,
+        OntologyRebuildCoordinator   ontologyRebuildCoordinator
     ) {}
 }

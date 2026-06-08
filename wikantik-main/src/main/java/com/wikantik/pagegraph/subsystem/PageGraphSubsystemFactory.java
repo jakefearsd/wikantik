@@ -70,11 +70,14 @@ public final class PageGraphSubsystemFactory {
             engine.getManager( ReferenceManager.class );
         final ContentIndexRebuildService contentIndexRebuildService =
             engine.getManager( ContentIndexRebuildService.class );
+        final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontologyRebuildCoordinator =
+            engine.getManager( com.wikantik.ontology.runtime.OntologyRebuildCoordinator.class );
 
         return new PageGraphSubsystem.Services(
             structuralIndexService,
             pageGraphService,
             referenceManager,
-            contentIndexRebuildService );
+            contentIndexRebuildService,
+            ontologyRebuildCoordinator );
     }
 }

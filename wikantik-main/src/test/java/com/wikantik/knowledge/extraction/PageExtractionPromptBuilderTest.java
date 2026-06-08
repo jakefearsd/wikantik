@@ -24,8 +24,17 @@ class PageExtractionPromptBuilderTest {
             assertTrue(PageExtractionPromptBuilder.SYSTEM_PROMPT.contains("\"" + banned + "\""),
                        "system prompt missing banned name: " + banned);
         }
-        assertTrue(PageExtractionPromptBuilder.SYSTEM_PROMPT.contains("Person|Organization|Place|Event|Product|Technology|Concept"));
-        assertFalse(PageExtractionPromptBuilder.SYSTEM_PROMPT.contains("|Project|"));
+        // The type enum must list all 9 canonical entity classes (incl. Project + Version),
+        // generated from EntityTypeVocabulary so the prompt cannot drift from the parser allowlist.
+        final String expectedTypeEnum = com.wikantik.api.knowledge.EntityTypeVocabulary.ENTITY_CLASSES.stream()
+                .map(t -> Character.toUpperCase(t.charAt(0)) + t.substring(1))
+                .collect(java.util.stream.Collectors.joining("|"));
+        assertTrue(PageExtractionPromptBuilder.SYSTEM_PROMPT.contains(expectedTypeEnum),
+                   "type enum must list all 9 entity classes in vocab order: " + expectedTypeEnum);
+        assertTrue(PageExtractionPromptBuilder.SYSTEM_PROMPT.contains("|Project|"),
+                   "Project must now be an allowed entity type");
+        assertTrue(PageExtractionPromptBuilder.SYSTEM_PROMPT.contains("|Version"),
+                   "Version must now be an allowed entity type");
     }
 
     @Test

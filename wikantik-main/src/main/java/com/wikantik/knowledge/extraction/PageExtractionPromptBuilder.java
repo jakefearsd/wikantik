@@ -1,5 +1,6 @@
 package com.wikantik.knowledge.extraction;
 
+import com.wikantik.api.knowledge.EntityTypeVocabulary;
 import com.wikantik.api.knowledge.ExtractionContext;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.Page;
@@ -17,12 +18,22 @@ public final class PageExtractionPromptBuilder {
 
     private PageExtractionPromptBuilder() {}
 
+    /**
+     * Pipe-delimited PascalCase entity-type enum rendered into the prompt, generated from the
+     * canonical {@link EntityTypeVocabulary#ENTITY_CLASSES} so the prompt cannot drift from the
+     * parser allowlist. Declared before {@link #SYSTEM_PROMPT} so it is initialised first.
+     */
+    public static final String ENTITY_TYPE_ENUM =
+            EntityTypeVocabulary.ENTITY_CLASSES.stream()
+                    .map( t -> Character.toUpperCase( t.charAt( 0 ) ) + t.substring( 1 ) )
+                    .collect( Collectors.joining( "|" ) );
+
     public static final String SYSTEM_PROMPT =
           "You extract a small, high-quality set of named entities and relations from a single "
         + "wiki page. Output STRICT JSON only, no prose, no markdown fence:\n\n"
         + "{\n"
         + "  \"entities\": [\n"
-        + "    { \"name\": str, \"type\": Person|Organization|Place|Event|Product|Technology|Concept,\n"
+        + "    { \"name\": str, \"type\": " + ENTITY_TYPE_ENUM + ",\n"
         + "      \"evidence_span\": str, \"confidence\": 0..1 }   // max 12\n"
         + "  ],\n"
         + "  \"relations\": [\n"

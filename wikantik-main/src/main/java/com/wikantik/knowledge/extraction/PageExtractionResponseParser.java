@@ -33,10 +33,9 @@ public final class PageExtractionResponseParser {
         "concept", "agent", "process", "system", "user", "software", "data"
     );
 
-    /** Closed enum of allowed types. Lower-cased on comparison. */
-    private static final Set<String> ALLOWED_TYPES = Set.of(
-        "person", "organization", "place", "event", "product", "technology", "concept"
-    );
+    /** Closed enum of allowed types — the canonical 9-class entity vocabulary. Lower-cased on comparison. */
+    private static final Set<String> ALLOWED_TYPES =
+        com.wikantik.api.knowledge.EntityTypeVocabulary.ENTITY_CLASS_SET;
 
     private final EvidenceGroundingVerifier verifier;
     private final int maxEntities;

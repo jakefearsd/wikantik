@@ -27,7 +27,9 @@ import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
+import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -331,6 +333,11 @@ public class PageResource extends RestServletBase {
 
         if ( metadata != null ) {
             optionsBuilder.metadata( metadata );
+            // The structured editor owns the full metadata object, so it sends replaceMetadata=true
+            // to get replace (not merge) semantics — a field removed in the form is actually removed.
+            if ( body.has( "replaceMetadata" ) && body.get( "replaceMetadata" ).getAsBoolean() ) {
+                optionsBuilder.replaceMetadata( true );
+            }
         }
         if ( markupSyntax != null ) {
             optionsBuilder.markupSyntax( markupSyntax );
@@ -353,6 +360,9 @@ public class PageResource extends RestServletBase {
             optionsBuilder.author( effectiveAuthor );
 
             final PageSaveHelper helper = new PageSaveHelper( engine, getSubsystems().page().pages() );
+            // Clear any stale warnings before the save; the SchemaValidationPageFilter stashes this
+            // request's frontmatter warnings on the sink during saveText for us to return below.
+            FrontmatterWarningSink.clear();
             final Page saved = helper.saveText( pageName, content, optionsBuilder.build() );
 
             // Defence in depth: a save that did not persist (e.g. vetoed by a filter)
@@ -367,9 +377,17 @@ public class PageResource extends RestServletBase {
             result.put( "success", true );
             result.put( "name", pageName );
             result.put( "version", Math.max( saved.getVersion(), 1 ) );
+            result.put( "warnings", FrontmatterWarningSink.drain() );
 
             sendJson( response, result );
 
+        } catch ( final FrontmatterValidationException e ) {
+            // Schema validation produced ERROR-severity violations — the page was not written.
+            // Return the structured, field-addressable violations so the form can map them inline.
+            FrontmatterWarningSink.clear();
+            LOG.debug( "Frontmatter validation rejected save of {}: {}", pageName, e.getMessage() );
+            response.setStatus( 422 );
+            sendJson( response, validationErrorBody( e ) );
         } catch ( final VersionConflictException e ) {
             LOG.debug( "Version conflict saving page {}: {}", pageName, e.getMessage() );
             sendError( response, HttpServletResponse.SC_CONFLICT, e.getMessage() );
@@ -385,6 +403,14 @@ public class PageResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Error saving page: internal server error." );
         }
+    }
+
+    /** Builds the HTTP 422 body for a frontmatter validation failure: {@code { error, violations }}. */
+    static Map< String, Object > validationErrorBody( final FrontmatterValidationException e ) {
+        final Map< String, Object > body = new LinkedHashMap<>();
+        body.put( "error", "frontmatter_validation_failed" );
+        body.put( "violations", e.violations() );
+        return body;
     }
 
     /**

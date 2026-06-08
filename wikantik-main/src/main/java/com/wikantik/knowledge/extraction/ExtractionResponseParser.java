@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.wikantik.api.knowledge.EntityTypeVocabulary;
 import com.wikantik.api.knowledge.ExtractedMention;
 import com.wikantik.api.knowledge.ExtractionChunk;
 import com.wikantik.api.knowledge.ExtractionContext;
@@ -148,7 +149,7 @@ public final class ExtractionResponseParser {
                 final String reasoning = stringOrNull( e, "reasoning" );
                 nodes.add( new ProposedNode(
                     name,
-                    type == null ? "Concept" : type,
+                    normalizeEntityType( type ),
                     Map.of(),
                     clamp( conf ),
                     reasoning == null ? "" : reasoning ) );
@@ -228,6 +229,22 @@ public final class ExtractionResponseParser {
             return null;
         }
         return e.getAsString();
+    }
+
+    /**
+     * Normalises an LLM-emitted entity type onto the canonical 9-class vocabulary:
+     * lowercased and allowlisted against {@link EntityTypeVocabulary#ENTITY_CLASS_SET};
+     * anything outside it (null, blank, or a hallucinated type) falls back to
+     * {@link EntityTypeVocabulary#DEFAULT_ENTITY_CLASS}. Keeps {@code kg_nodes.node_type}
+     * confined to the ontology entity classes.
+     */
+    private static String normalizeEntityType( final String rawType ) {
+        if( rawType == null || rawType.isBlank() ) {
+            return EntityTypeVocabulary.DEFAULT_ENTITY_CLASS;
+        }
+        final String key = rawType.trim().toLowerCase( Locale.ROOT );
+        return EntityTypeVocabulary.ENTITY_CLASS_SET.contains( key )
+                ? key : EntityTypeVocabulary.DEFAULT_ENTITY_CLASS;
     }
 
     private static double numberOr( final JsonObject o, final String key, final double def ) {

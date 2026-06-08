@@ -79,6 +79,27 @@ class ExtractionResponseParserTest {
     }
 
     @Test
+    void normalizesEntityTypesToNineClassVocabulary() {
+        // In-vocab types are kept (lowercased); out-of-vocab hallucinations fall back to concept,
+        // so kg_nodes.node_type only ever holds the 9 canonical entity classes.
+        final String json = "{ \"entities\": ["
+          + " { \"name\": \"Raft\",   \"type\": \"Technology\", \"confidence\": 0.9, \"reasoning\": \"\" },"
+          + " { \"name\": \"Widget\", \"type\": \"Gadget\",     \"confidence\": 0.9, \"reasoning\": \"\" } ],"
+          + "\"relations\": [] }";
+        final ExtractionResult r = ExtractionResponseParser.parse(
+            json, CHUNK, contextWithKnownNodes(), CODE, L, THRESHOLD );
+
+        final java.util.Map< String, String > typeByName = r.nodes().stream()
+            .collect( java.util.stream.Collectors.toMap(
+                com.wikantik.api.knowledge.ProposedNode::name,
+                com.wikantik.api.knowledge.ProposedNode::nodeType ) );
+        assertEquals( "technology", typeByName.get( "Raft" ),
+            "an in-vocabulary type is kept (lowercased)" );
+        assertEquals( "concept", typeByName.get( "Widget" ),
+            "an out-of-vocabulary type falls back to concept" );
+    }
+
+    @Test
     void dropsProposalsBelowConfidenceThresholdButKeepsMentions() {
         final String json = "{ \"entities\": ["
           + " { \"name\": \"Foo\", \"type\": \"Thing\", \"confidence\": 0.30, \"reasoning\": \"weak\" } ],"

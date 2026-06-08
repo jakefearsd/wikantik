@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.extraction;
 
+import com.wikantik.api.knowledge.EntityTypeVocabulary;
 import com.wikantik.api.knowledge.ExtractionChunk;
 import com.wikantik.api.knowledge.ExtractionContext;
 import com.wikantik.api.knowledge.KgNode;
@@ -49,6 +50,16 @@ public final class ExtractionPromptBuilder {
     public static final String[] RELATION_TYPES =
             RelationshipTypeVocabulary.CLOSED_VOCAB.toArray( new String[ 0 ] );
 
+    /**
+     * PascalCase entity-type list rendered into the prompt, generated from the canonical
+     * {@link EntityTypeVocabulary#ENTITY_CLASSES} so the prompt cannot drift from the parser's
+     * allowlist. Declared before {@link #SYSTEM_PROMPT} so it is initialised first.
+     */
+    public static final String ENTITY_TYPES_FOR_PROMPT =
+            EntityTypeVocabulary.ENTITY_CLASSES.stream()
+                    .map( t -> Character.toUpperCase( t.charAt( 0 ) ) + t.substring( 1 ) )
+                    .collect( Collectors.joining( ", " ) );
+
     public static final String SYSTEM_PROMPT =
         "You extract named entities and relationships from wiki content. Output STRICT JSON only — no prose, "
       + "no markdown fence, no commentary. The JSON MUST match this schema exactly:\n"
@@ -58,7 +69,8 @@ public final class ExtractionPromptBuilder {
       + "}\n"
       + "Rules:\n"
       + "- Only include entities that are explicitly named in the chunk. No pronouns, no generic nouns, no dates.\n"
-      + "- Entity `type` is a short capitalized noun (Person, Organization, Place, Event, Product, Concept, Project, Version).\n"
+      + "- Entity `type` is a short capitalized noun, EXACTLY one of: " + ENTITY_TYPES_FOR_PROMPT
+      +   ". If none fits, use Concept.\n"
       + "- Relations are factual, directional, and grounded in the chunk text. `source` and `target` must appear in `entities`.\n"
       + "- Relation `type` MUST be EXACTLY one of the closed vocabulary below. Pick the closest match. "
       +   "Do NOT invent new types, do NOT vary the casing or separators, and do NOT emit free-form phrases. "

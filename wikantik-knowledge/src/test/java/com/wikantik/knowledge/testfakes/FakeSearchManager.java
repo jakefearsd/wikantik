@@ -35,14 +35,37 @@ import java.util.*;
 public class FakeSearchManager implements SearchManager {
 
     private List< SearchResult > nextResults = List.of();
+    private final java.util.Map< String, List< SearchResult > > byToken = new java.util.LinkedHashMap<>();
+    private volatile String lastQuery;
 
     public void setResults( final List< SearchResult > results ) {
         this.nextResults = List.copyOf( results );
     }
 
+    /** Query-sensitive mode: return {@code results} only when the query contains {@code token}. */
+    public void whenQueryContains( final String token, final SearchResult... results ) {
+        byToken.put( token.toLowerCase( java.util.Locale.ROOT ), List.of( results ) );
+    }
+
+    /** The query string most recently passed to {@link #findPages} (e.g. to assert expansion). */
+    public String lastQuery() {
+        return lastQuery;
+    }
+
     @Override
     public Collection< SearchResult > findPages( final String query,
             final com.wikantik.api.core.Context ctx ) {
+        this.lastQuery = query;
+        if ( !byToken.isEmpty() ) {
+            final String q = query == null ? "" : query.toLowerCase( java.util.Locale.ROOT );
+            final List< SearchResult > out = new java.util.ArrayList<>();
+            for ( final var e : byToken.entrySet() ) {
+                if ( q.contains( e.getKey() ) ) {
+                    out.addAll( e.getValue() );
+                }
+            }
+            return out;
+        }
         return nextResults;
     }
 

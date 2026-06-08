@@ -85,6 +85,7 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
     private final PageManager pageManager;
     private final FrontmatterMetadataCache fmCache;
     private final String publicBaseUrl;
+    private final com.wikantik.api.ontology.OntologyQueryService ontologyQuery;
 
     public DefaultContextRetrievalService(
             final Engine engine,
@@ -97,7 +98,8 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             final MentionIndex mentionIndex,
             final PageManager pageManager,
             final FrontmatterMetadataCache fmCache,
-            final String publicBaseUrl ) {
+            final String publicBaseUrl,
+            final com.wikantik.api.ontology.OntologyQueryService ontologyQuery ) {
         if ( engine == null ) throw new IllegalArgumentException( "engine required" );
         if ( searchManager == null ) throw new IllegalArgumentException( "searchManager required" );
         if ( pageManager == null ) throw new IllegalArgumentException( "pageManager required" );
@@ -114,6 +116,9 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         this.pageManager = pageManager;
         this.fmCache = fmCache;
         this.publicBaseUrl = publicBaseUrl == null ? "" : publicBaseUrl;
+        // Optional: when present (and the flag enabled at the wiring site), the query is
+        // expanded with ontology-derived terms before search. Null = no expansion.
+        this.ontologyQuery = ontologyQuery;
     }
 
     /**
@@ -143,7 +148,42 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
             kg.mentionIndex(),
             pm,
             search.frontmatterMetadataCache(),
-            engine.getBaseURL() );
+            engine.getBaseURL(),
+            ontologyQueryFor( engine ) );
+    }
+
+    /**
+     * Builds the ontology query-expansion service, but only when
+     * {@code wikantik.search.ontologyExpansion.enabled=true} and the materialized
+     * ontology is available. Returns {@code null} otherwise (the default — no expansion).
+     */
+    private static com.wikantik.api.ontology.OntologyQueryService ontologyQueryFor( final Engine engine ) {
+        final java.util.Properties props = engine.getWikiProperties();
+        final boolean enabled = props != null && Boolean.parseBoolean(
+            props.getProperty( "wikantik.search.ontologyExpansion.enabled", "false" ) );
+        if ( !enabled ) {
+            return null;
+        }
+        final com.wikantik.ontology.runtime.OntologyRebuildCoordinator coord =
+            com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge
+                .fromLegacyEngine( engine ).ontologyRebuildCoordinator();
+        if ( coord == null || coord.modelManager() == null ) {
+            return null;
+        }
+        return new com.wikantik.ontology.JenaOntologyQueryService( coord.modelManager() );
+    }
+
+    /** Appends ontology-derived expansion terms to the query when the service is present. */
+    private String expandWithOntology( final String q ) {
+        if ( ontologyQuery == null || q == null ) {
+            return q;
+        }
+        final java.util.List< String > extra = ontologyQuery.expandQuery( q );
+        if ( extra.isEmpty() ) {
+            return q;
+        }
+        LOG.debug( "ontology expansion added {} term(s) to the query", extra.size() );
+        return q + " " + String.join( " ", extra );
     }
 
     @Override
@@ -151,9 +191,10 @@ public final class DefaultContextRetrievalService implements ContextRetrievalSer
         if ( query == null ) throw new IllegalArgumentException( "query required" );
 
         final Context ctx = buildContext();
+        final String effectiveQuery = expandWithOntology( query.query() );
         final Collection< SearchResult > bm25;
         try {
-            bm25 = searchManager.findPages( query.query(), ctx );
+            bm25 = searchManager.findPages( effectiveQuery, ctx );
         } catch ( final Exception e ) {
             // ParseException-rooted failures are client-class (malformed query
             // from the caller). Log without a stack trace to keep operator logs

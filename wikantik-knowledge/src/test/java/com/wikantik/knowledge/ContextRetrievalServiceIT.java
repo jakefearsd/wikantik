@@ -101,7 +101,7 @@ class ContextRetrievalServiceIT {
             FakeEngine.create(),
             searchManager, hybrid, null, chunkIndex, chunkRepo, similarity,
             new com.wikantik.knowledge.MentionIndex( dataSource ),
-            pageManager, null, "https://wiki.example" );
+            pageManager, null, "https://wiki.example", null );
 
         final var result = svc.retrieve( new ContextQuery( "alpha body", 5, 3, null ) );
 

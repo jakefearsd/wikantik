@@ -221,7 +221,7 @@ class DefaultContextRetrievalServiceTest {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, null, null, null, null, null, mentionIndex, pm, null, "" );
+            sm, null, null, null, null, null, mentionIndex, pm, null, "", null );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
             "q", 5, 3, null ) );
@@ -262,7 +262,7 @@ class DefaultContextRetrievalServiceTest {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, null, null, null, null, null, mentionIndex, pm, null, "" );
+            sm, null, null, null, null, null, mentionIndex, pm, null, "", null );
         svc.retrieve( new com.wikantik.api.knowledge.ContextQuery( "q", 5, 3, null ) );
 
         org.mockito.Mockito.verify( mentionIndex, org.mockito.Mockito.times( 1 ) )
@@ -306,7 +306,7 @@ class DefaultContextRetrievalServiceTest {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, hybrid, null, chunkIndex, chunkRepo, null, null, pm, null, "https://wiki.example" );
+            sm, hybrid, null, chunkIndex, chunkRepo, null, null, pm, null, "https://wiki.example", null );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
             "alpha query", 5, 2, null ) );
@@ -374,7 +374,7 @@ class DefaultContextRetrievalServiceTest {
 
         final DefaultContextRetrievalService svc = new DefaultContextRetrievalService(
             com.wikantik.knowledge.testfakes.FakeEngine.create(),
-            sm, hybrid, null, chunkIndex, chunkRepo, null, null, pm, null, "" );
+            sm, hybrid, null, chunkIndex, chunkRepo, null, null, pm, null, "", null );
 
         final var result = svc.retrieve( new com.wikantik.api.knowledge.ContextQuery(
             "q", 5, /*chunksPerPage*/ 2, null ) );
@@ -413,5 +413,44 @@ class DefaultContextRetrievalServiceTest {
         when( engine.getBaseURL() ).thenReturn( "https://wiki.example" );
         // optional managers left null — fromEngine tolerates that
         assertNotNull( DefaultContextRetrievalService.fromEngine( engine ) );
+    }
+
+    // ------------------------------------------------------------------
+    // Ontology-aware query expansion (Phase 4) — the demonstrable benefit.
+    // ------------------------------------------------------------------
+
+    @Test
+    void ontologyExpansionRetrievesPageThatPlainQueryMisses() {
+        final FakePageManager pm = new FakePageManager();
+        pm.addPage( "QuickSortPage", "---\nsummary: quicksort\n---\n\nbody", "a", new java.util.Date() );
+
+        // BM25 returns QuickSortPage ONLY when the query mentions "quicksort".
+        final FakeSearchManager sm = new FakeSearchManager();
+        sm.whenQueryContains( "quicksort",
+            com.wikantik.knowledge.testfakes.FakeSearchResult.of( "QuickSortPage", 5 ) );
+
+        // Ontology stub: a query mentioning "algorithm" expands to include "QuickSort".
+        final com.wikantik.api.ontology.OntologyQueryService onto =
+            q -> q.toLowerCase().contains( "algorithm" )
+                ? java.util.List.of( "QuickSort" ) : java.util.List.of();
+
+        // WITHOUT expansion (no ontology service): "algorithm" misses QuickSortPage.
+        final var off = FakeDeps.minimal().search( sm ).pageManager( pm ).build();
+        assertTrue( off.retrieve( new com.wikantik.api.knowledge.ContextQuery( "algorithm", 5, 3, null ) )
+                .pages().isEmpty(), "without ontology expansion, the subclass page is missed" );
+
+        // WITH expansion: the same query now retrieves QuickSortPage. THIS IS THE LIFT.
+        final var on = FakeDeps.minimal().search( sm ).pageManager( pm ).ontologyQuery( onto ).build();
+        final var result = on.retrieve( new com.wikantik.api.knowledge.ContextQuery( "algorithm", 5, 3, null ) );
+        assertTrue( result.pages().stream().anyMatch( p -> "QuickSortPage".equals( p.name() ) ),
+                "ontology expansion retrieves the relevant subclass page the plain query missed" );
+    }
+
+    @Test
+    void nullOntologyServiceLeavesQueryUnchanged() {
+        final FakeSearchManager sm = new FakeSearchManager();
+        FakeDeps.minimal().search( sm ).build()
+                .retrieve( new com.wikantik.api.knowledge.ContextQuery( "algorithm", 5, 3, null ) );
+        assertEquals( "algorithm", sm.lastQuery(), "no ontology service must not alter the query" );
     }
 }

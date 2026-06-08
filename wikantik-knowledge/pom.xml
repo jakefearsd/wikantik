@@ -61,6 +61,13 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>wikantik-ontology</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>wikantik-admin-mcp</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>

@@ -89,6 +89,14 @@ public final class KnowledgeSubsystemFactory {
 
     private static final Logger LOG = LogManager.getLogger( KnowledgeSubsystemFactory.class );
 
+    /**
+     * Shared write-time ontology gate. Parses the bundled SHACL shapes once; {@code validate}/
+     * {@code validateEdge} are read-only over immutable {@code Shapes}, so a single instance is
+     * safe to share across the curation facade and the materialisation service.
+     */
+    private static final com.wikantik.ontology.OntologyShaclValidator ONTOLOGY_VALIDATOR =
+            new com.wikantik.ontology.OntologyShaclValidator();
+
     private KnowledgeSubsystemFactory() {}
 
     /** Builds the Knowledge subsystem from its declared dependencies. */
@@ -117,7 +125,7 @@ public final class KnowledgeSubsystemFactory {
         // KG staged validation: judge service, materialisation, runner.
         final KgJudgeConfig judgeCfg = KgJudgeConfig.fromProperties( props );
         final KgMaterializationService kgMat = new KgMaterializationService(
-            kgNodes, kgEdges, kgProposals, kgRejections );
+            kgNodes, kgEdges, kgProposals, kgRejections, ONTOLOGY_VALIDATOR );
 
         // Timeout-tracking repo always constructed (cheap, no connections held);
         // surfaces chronic-timeout proposals to the admin UI even when the
@@ -238,7 +246,7 @@ public final class KnowledgeSubsystemFactory {
         // page is on the exclusion list.
         final KgExcludedPagesRepository kgExcludedPages = persistence.kgExcludedPages();
         final KgCurationOps curation = new DefaultKgCurationOps(
-            kgService, pageMgr, saveHelper, kgExcludedPages );
+            kgService, pageMgr, saveHelper, kgExcludedPages, ONTOLOGY_VALIDATOR );
 
         // Phase 8 Ckpt 1.5: the six post-construction services (ContextRetrievalService,
         // ForAgentProjectionService, BootstrapEntityExtractionIndexer, KgInclusionPolicy,
@@ -413,7 +421,7 @@ public final class KnowledgeSubsystemFactory {
             // fall back to three-arg ctor (warnings silently disabled) when it is absent.
             final KgExcludedPagesRepository excludedRepo =
                 engine.getManager( KgExcludedPagesRepository.class );
-            return new DefaultKgCurationOps( newKg, newPm, saver, excludedRepo );
+            return new DefaultKgCurationOps( newKg, newPm, saver, excludedRepo, ONTOLOGY_VALIDATOR );
         }
         return null;
     }
@@ -448,7 +456,7 @@ public final class KnowledgeSubsystemFactory {
             // fall back to three-arg ctor (warnings silently disabled) when it is absent.
             final KgExcludedPagesRepository excludedRepo =
                 engine.getManager( KgExcludedPagesRepository.class );
-            kgCurationOps = new DefaultKgCurationOps( kgSvc, pm, saver, excludedRepo );
+            kgCurationOps = new DefaultKgCurationOps( kgSvc, pm, saver, excludedRepo, ONTOLOGY_VALIDATOR );
         } else {
             kgCurationOps = null;
         }

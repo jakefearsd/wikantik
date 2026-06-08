@@ -137,6 +137,46 @@ public class KgCurationIT extends WithMcpTestSetup {
     }
 
     // ------------------------------------------------------------------
+    // curate_edges — write-time SHACL gate refuses an ontology-non-conformant
+    // upsert (concept --implements--> concept) citing the wk: shape, while a
+    // conformant predicate between the same nodes still succeeds. (Phase 5b A4)
+    // ------------------------------------------------------------------
+
+    @Test
+    public void curateEdgesUpsertOntologyNonConformantIsRefusedCitingShape() {
+        final String src = WithMcpTestSetup.seededUpsertSrcNodeId(); // concept
+        final String tgt = WithMcpTestSetup.seededUpsertTgtNodeId(); // concept
+
+        // concept --implements--> concept violates wk:ImplementsShape (the subject of
+        // wk:implements must be a wk:Technology). It passes the closed-vocabulary and
+        // mixed page/entity guards, so only the write-time SHACL gate can reject it —
+        // proving the gate is wired into the admin-mcp curation path end-to-end.
+        final Map< String, Object > refused = mcp.callTool( "curate_edges",
+                Map.of( "operations", List.of(
+                        Map.of( "action", "upsert", "tag", "shacl",
+                                "source_id", src, "target_id", tgt,
+                                "relationship_type", "implements" ) ) ) );
+        final String refusedBody = refused.toString();
+        Assertions.assertTrue( refusedBody.contains( "failed" ),
+                "non-conformant upsert must appear under 'failed': " + refusedBody );
+        final String lower = refusedBody.toLowerCase();
+        Assertions.assertTrue(
+                lower.contains( "ontology" ) || lower.contains( "shacl" ) || lower.contains( "shape" ),
+                "refusal must cite the ontology/SHACL reason: " + refusedBody );
+
+        // Control: a shapeless predicate between the same two concepts succeeds,
+        // proving the gate is narrow (only the shaped predicates are enforced).
+        final Map< String, Object > ok = mcp.callTool( "curate_edges",
+                Map.of( "operations", List.of(
+                        Map.of( "action", "upsert", "tag", "ok",
+                                "source_id", src, "target_id", tgt,
+                                "relationship_type", "related_to" ) ) ) );
+        final String okBody = ok.toString();
+        Assertions.assertTrue( okBody.contains( "succeeded" ),
+                "conformant 'related_to' upsert must succeed: " + okBody );
+    }
+
+    // ------------------------------------------------------------------
     // curate_nodes — merge-self yields a per-op error containing "same"
     // ------------------------------------------------------------------
 

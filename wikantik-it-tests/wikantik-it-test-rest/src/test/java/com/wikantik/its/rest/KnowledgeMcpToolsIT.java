@@ -302,4 +302,34 @@ public class KnowledgeMcpToolsIT {
                         || body.has( "error" ) || body.has( "message" ),
                 "missing canonical_id error must cite the field: " + body );
     }
+
+    // ---- get_ontology / sparql_query (Phase 4) ----
+
+    @Test
+    void getOntology_returnsFormalTBox() {
+        final JsonObject body = callSuccess( "get_ontology", Map.of() );
+        assertTrue( body.has( "classes" ) && body.has( "objectProperties" ),
+                "get_ontology must return classes + objectProperties: " + body );
+        final String s = body.toString();
+        assertTrue( s.contains( "Technology" ) && s.contains( "Article" ),
+                "bundled T-Box classes present" );
+        assertTrue( s.contains( "WikiConcepts" ), "concept scheme present" );
+    }
+
+    @Test
+    void sparqlQuery_selectOverTBoxReturnsBindings() {
+        final JsonObject body = callSuccess( "sparql_query", Map.of( "query",
+                "SELECT ?c WHERE { ?c a <http://www.w3.org/2002/07/owl#Class> } LIMIT 50" ) );
+        // SPARQL-results-JSON: { head: {...}, results: { bindings: [...] } }
+        assertTrue( body.has( "results" ), "SPARQL SELECT must return a results envelope: " + body );
+        assertTrue( body.toString().contains( "Technology" ),
+                "the Technology class IRI is among the results" );
+    }
+
+    @Test
+    void sparqlQuery_rejectsUpdate() {
+        final JsonObject body = callExpectError( "sparql_query", Map.of( "query",
+                "INSERT DATA { <urn:x> <urn:p> <urn:y> }" ) );
+        assertNotNull( body, "UPDATE rejection must carry an error payload" );
+    }
 }

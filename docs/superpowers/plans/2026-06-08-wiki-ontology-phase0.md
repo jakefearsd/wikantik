@@ -140,6 +140,17 @@ Create `wikantik-ontology/pom.xml`:
       <artifactId>junit-jupiter-engine</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!-- REQUIRED on every module: the root POM's inherited surefire config adds
+         -javaagent:${org.mockito:mockito-core:jar}; that path property is only
+         populated when mockito-core is a resolved dependency. Omit it and
+         surefire fails VM init with "Error opening zip file or JAR manifest
+         missing : ${org.mockito:mockito-core:jar}". -->
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>
 ```

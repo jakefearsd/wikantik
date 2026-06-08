@@ -183,6 +183,56 @@ public class DefaultKgCurationOpsTest {
         assertTrue( r.error().get().toLowerCase().contains( "duplicate" ) );
     }
 
+    private static com.wikantik.api.knowledge.KgNode node( final UUID id, final String name, final String type ) {
+        return new com.wikantik.api.knowledge.KgNode( id, name, type, null,
+                com.wikantik.api.knowledge.Provenance.HUMAN_CURATED, java.util.Map.of(),
+                java.time.Instant.EPOCH, java.time.Instant.EPOCH, "human", null );
+    }
+
+    @Test
+    void tryUpsertEdgeRejectsOntologyNonConformantEdgeCitingShacl() {
+        // person --implements--> concept violates the wk:implements domain shape (subject must be a
+        // Technology). The write-time SHACL gate must refuse BEFORE kg.upsertEdge and cite the reason.
+        final UUID source = UUID.randomUUID();
+        final UUID target = UUID.randomUUID();
+        when( kg.getNode( source ) ).thenReturn( node( source, "Alice", "person" ) );
+        when( kg.getNode( target ) ).thenReturn( node( target, "Raft", "concept" ) );
+
+        final DefaultKgCurationOps gated = new DefaultKgCurationOps(
+                kg, pages, saver, null, new com.wikantik.ontology.OntologyShaclValidator() );
+
+        final KgCurationOps.EdgeResult r = gated.tryUpsertEdge( source, target, "implements",
+                java.util.Map.of(), "alice" );
+
+        assertTrue( r.error().isPresent(), "non-conformant edge must be refused" );
+        assertTrue( r.edgeId().isEmpty(), "no id when refused" );
+        final String msg = r.error().get().toLowerCase();
+        assertTrue( msg.contains( "ontology" ) || msg.contains( "shacl" ) || msg.contains( "shape" ),
+                "refusal must cite the ontology/SHACL reason; got: " + r.error().get() );
+        Mockito.verify( kg, Mockito.never() ).upsertEdge( any(), any(), any(), any(), any() );
+    }
+
+    @Test
+    void tryUpsertEdgeAllowsOntologyConformantEdge() {
+        final UUID source = UUID.randomUUID();
+        final UUID target = UUID.randomUUID();
+        final UUID edgeId = UUID.randomUUID();
+        when( kg.getNode( source ) ).thenReturn( node( source, "JSPWiki", "technology" ) );
+        when( kg.getNode( target ) ).thenReturn( node( target, "Raft", "concept" ) );
+        final com.wikantik.api.knowledge.KgEdge edge = Mockito.mock( com.wikantik.api.knowledge.KgEdge.class );
+        when( edge.id() ).thenReturn( edgeId );
+        when( kg.upsertEdge( eq( source ), eq( target ), eq( "implements" ),
+                eq( com.wikantik.api.knowledge.Provenance.HUMAN_CURATED ), any() ) ).thenReturn( edge );
+
+        final DefaultKgCurationOps gated = new DefaultKgCurationOps(
+                kg, pages, saver, null, new com.wikantik.ontology.OntologyShaclValidator() );
+
+        final KgCurationOps.EdgeResult r = gated.tryUpsertEdge( source, target, "implements",
+                java.util.Map.of(), "alice" );
+        assertTrue( r.error().isEmpty(), "conformant edge must pass: " + r.error().orElse( "" ) );
+        assertEquals( edgeId, r.edgeId().orElseThrow() );
+    }
+
     @Test
     void tryConfirmEdgeReturnsNotFoundWhenServiceReturnsNull() {
         final UUID id = UUID.randomUUID();

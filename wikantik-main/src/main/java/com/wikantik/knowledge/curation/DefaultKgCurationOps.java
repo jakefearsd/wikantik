@@ -20,6 +20,7 @@ package com.wikantik.knowledge.curation;
 
 import com.wikantik.api.knowledge.KgCurationOps;
 import com.wikantik.api.knowledge.KgEdge;
+import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KgProposal;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.Provenance;
@@ -53,21 +54,32 @@ public class DefaultKgCurationOps implements KgCurationOps {
     private final PageManager pages;
     private final PageSaveHelper saver;
     private final KgExcludedPagesRepository excluded;
+    /** Write-time ontology gate; null = no SHACL enforcement (degrade gracefully). */
+    private final com.wikantik.ontology.OntologyShaclValidator ontologyValidator;
+
+    public DefaultKgCurationOps( final KnowledgeGraphService kg,
+                                 final PageManager pages,
+                                 final PageSaveHelper saver,
+                                 final KgExcludedPagesRepository excluded,
+                                 final com.wikantik.ontology.OntologyShaclValidator ontologyValidator ) {
+        this.kg = kg;
+        this.pages = pages;
+        this.saver = saver;
+        this.excluded = excluded;
+        this.ontologyValidator = ontologyValidator;
+    }
 
     public DefaultKgCurationOps( final KnowledgeGraphService kg,
                                  final PageManager pages,
                                  final PageSaveHelper saver,
                                  final KgExcludedPagesRepository excluded ) {
-        this.kg = kg;
-        this.pages = pages;
-        this.saver = saver;
-        this.excluded = excluded;
+        this( kg, pages, saver, excluded, null );
     }
 
     public DefaultKgCurationOps( final KnowledgeGraphService kg,
                                  final PageManager pages,
                                  final PageSaveHelper saver ) {
-        this( kg, pages, saver, null );
+        this( kg, pages, saver, null, null );
     }
 
     @Override
@@ -129,6 +141,10 @@ public class DefaultKgCurationOps implements KgCurationOps {
         return wrap( "tryUpsertEdge",
                 "src=" + sourceId + " tgt=" + targetId + " rel=" + relationshipType + " actor=" + actor,
                 () -> {
+                    final Optional< String > shaclRefusal = ontologyRefusal( sourceId, targetId, relationshipType );
+                    if ( shaclRefusal.isPresent() ) {
+                        return EdgeResult.fail( shaclRefusal.get() );
+                    }
                     final KgEdge edge = kg.upsertEdge( sourceId, targetId, relationshipType,
                             Provenance.HUMAN_CURATED,
                             properties == null ? Map.of() : properties );
@@ -143,6 +159,31 @@ public class DefaultKgCurationOps implements KgCurationOps {
                     return EdgeResult.ok( edge.id() );
                 },
                 EdgeResult::fail );
+    }
+
+    /**
+     * Write-time ontology gate: builds a typed mini-graph for the candidate edge and runs it through
+     * the bundled SHACL shapes. Returns an explicit refusal string when a shape is violated, empty
+     * otherwise. Degrades to "no opinion" (empty) when the validator is absent or either endpoint
+     * cannot be resolved — the gate only refuses on a positive, fully-typed violation.
+     */
+    private Optional< String > ontologyRefusal( final UUID sourceId, final UUID targetId,
+                                                final String relationshipType ) {
+        if ( ontologyValidator == null ) return Optional.empty();
+        final KgNode src = kg.getNode( sourceId );
+        final KgNode tgt = kg.getNode( targetId );
+        if ( src == null || tgt == null || src.nodeType() == null || tgt.nodeType() == null ) {
+            return Optional.empty();
+        }
+        final List< com.wikantik.ontology.OntologyShaclValidator.Violation > violations =
+                ontologyValidator.validateEdge( src.nodeType(), relationshipType, tgt.nodeType() );
+        if ( violations.isEmpty() ) return Optional.empty();
+        final String reason = violations.get( 0 ).message();
+        LOG.warn( "Ontology gate refused edge {} --{}--> {} ({} --> {}): {}",
+                sourceId, relationshipType, targetId, src.nodeType(), tgt.nodeType(), reason );
+        return Optional.of( "edge rejected: violates the wk: ontology SHACL shape for '"
+                + relationshipType + "' — a '" + src.nodeType() + "' subject is not permitted. "
+                + "Detail: " + reason );
     }
 
     @Override

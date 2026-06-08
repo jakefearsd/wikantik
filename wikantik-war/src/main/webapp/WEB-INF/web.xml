@@ -455,6 +455,10 @@
        <servlet-class>com.wikantik.rest.FrontmatterSchemaResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>FrontmatterValidateResource</servlet-name>
+       <servlet-class>com.wikantik.rest.FrontmatterValidateResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminAgentGradeAuditServlet</servlet-name>
        <servlet-class>com.wikantik.rest.AdminAgentGradeAuditServlet</servlet-class>
    </servlet>
@@ -709,6 +713,10 @@
    <servlet-mapping>
        <servlet-name>FrontmatterSchemaResource</servlet-name>
        <url-pattern>/api/frontmatter-schema</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>FrontmatterValidateResource</servlet-name>
+       <url-pattern>/api/frontmatter/validate</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminFrontmatterIssuesResource</servlet-name>

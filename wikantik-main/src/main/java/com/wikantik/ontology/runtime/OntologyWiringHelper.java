@@ -69,20 +69,34 @@ public final class OntologyWiringHelper {
         final PageCanonicalIdsDao pageDao = new PageCanonicalIdsDao( dataSource );
         final PageRecordBuilder pageBuilder = new PageRecordBuilder( pageManager, pageDao::findAll );
 
+        // ACL split: a page/node is PUBLIC iff a GUEST (anonymous) session may view it.
+        // Reuse one guest session across the whole rebuild (stateless anonymous principal).
+        final com.wikantik.api.core.Session guest = com.wikantik.WikiSession.guestSession( engine );
+        final com.wikantik.auth.permissions.PermissionFilter permFilter =
+                new com.wikantik.auth.permissions.PermissionFilter( engine );
+        final java.util.function.Predicate< String > isPublic =
+                slug -> permFilter.canAccess( guest, slug, "view" );
+
         // Tier.MACHINE includes BOTH human- and machine-tier rows (full dump);
-        // Tier.HUMAN would exclude machine-tier nodes/edges.
+        // Tier.HUMAN would exclude machine-tier nodes/edges. Each supplier projects only
+        // ACL-public resources (restricted pages/entities/edges are never materialized).
         final OntologyRebuildCoordinator coordinator = new OntologyRebuildCoordinator(
                 mgr,
-                () -> nodeRepo.getAllNodes( Tier.MACHINE ),
-                () -> edgeRepo.getAllEdges( Tier.MACHINE ),
-                pageBuilder::build,
+                () -> com.wikantik.ontology.PublicProjectionFilter.publicNodes(
+                        nodeRepo.getAllNodes( Tier.MACHINE ), isPublic ),
+                () -> com.wikantik.ontology.PublicProjectionFilter.publicEdges(
+                        edgeRepo.getAllEdges( Tier.MACHINE ),
+                        com.wikantik.ontology.PublicProjectionFilter.publicNodeIds(
+                                nodeRepo.getAllNodes( Tier.MACHINE ), isPublic ) ),
+                () -> com.wikantik.ontology.PublicProjectionFilter.publicPages( pageBuilder.build(), isPublic ),
                 true );
 
         engine.setManager( OntologyRebuildCoordinator.class, coordinator );
         LOG.info( "ontology runtime wired (tdb2 dir={})", dir );
 
         // Event-incremental sync: re-project a page's graph on save/rename, remove on true delete.
-        final OntologyPageSync pageSync = new OntologyPageSync( mgr, pageDao, pageManager );
+        // Same ACL gate — a restricted page's save removes it from the public dataset.
+        final OntologyPageSync pageSync = new OntologyPageSync( mgr, pageDao, pageManager, isPublic );
         new OntologyEventListener( pageSync ).register( pageManager, filterManager );
 
         // Nightly full-rebuild backstop (catches KG drift + missed events).

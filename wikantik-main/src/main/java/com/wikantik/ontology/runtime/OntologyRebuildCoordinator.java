@@ -127,4 +127,9 @@ public final class OntologyRebuildCoordinator {
     public OntologyRebuildStatus status() {
         return new OntologyRebuildStatus( state.get().name(), enabled, graphCount, lastError );
     }
+
+    /** The materialized (public) model — read access for the public endpoints. */
+    public OntologyModelManager modelManager() {
+        return manager;
+    }
 }

@@ -47,7 +47,7 @@ class OntologyPageSyncTest {
     }
 
     private OntologyPageSync sync( final OntologyModelManager mgr ) {
-        return new OntologyPageSync( mgr, dao, pageManager );
+        return new OntologyPageSync( mgr, dao, pageManager, slug -> true );
     }
 
     @Test
@@ -103,5 +103,19 @@ class OntologyPageSyncTest {
 
         sync( mgr ).onPageRenamed( "Old", "New" );
         assertTrue( mgr.namedGraphExists( Iris.page( CID ) ), "page graph present after rename re-projection" );
+    }
+
+    @Test
+    void onPageSavedRemovesGraphWhenPageBecomesRestricted() {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        when( dao.findBySlug( "Solo" ) ).thenReturn( Optional.of( row( "Solo" ) ) );
+        when( pageManager.getPureText( "Solo", -1 ) ).thenReturn( "---\ntags: [graphs]\n---\nbody" );
+        // First public:
+        new OntologyPageSync( mgr, dao, pageManager, slug -> true ).onPageSaved( "Solo" );
+        assertTrue( mgr.namedGraphExists( Iris.page( CID ) ) );
+        // Now restricted: a save must remove it from the public dataset.
+        new OntologyPageSync( mgr, dao, pageManager, slug -> false ).onPageSaved( "Solo" );
+        assertFalse( mgr.namedGraphExists( Iris.page( CID ) ), "restricted page graph removed on save" );
     }
 }

@@ -45,17 +45,20 @@ public final class OntologyPageSync {
     private final OntologyModelManager manager;
     private final PageCanonicalIdsDao dao;
     private final PageManager pageManager;
+    /** slug -> public? — only anonymously-viewable pages are projected into the public dataset. */
+    private final java.util.function.Predicate< String > isPublic;
     /** slug -> canonical_id, populated on save so deletes can resolve the page IRI after the row is gone. */
     private final ConcurrentHashMap< String, String > slugToCanonical = new ConcurrentHashMap<>();
 
     public OntologyPageSync( final OntologyModelManager manager, final PageCanonicalIdsDao dao,
-                             final PageManager pageManager ) {
+                             final PageManager pageManager, final java.util.function.Predicate< String > isPublic ) {
         this.manager = manager;
         this.dao = dao;
         this.pageManager = pageManager;
+        this.isPublic = isPublic;
     }
 
-    /** Re-projects the page's named graph + its tag/cluster concept graphs. */
+    /** Re-projects the page's named graph + its tag/cluster concept graphs (public pages only). */
     public void onPageSaved( final String slug ) {
         final Optional< PageCanonicalIdsDao.Row > row = dao.findBySlug( slug );
         if ( row.isEmpty() ) {
@@ -63,11 +66,16 @@ public final class OntologyPageSync {
             return;
         }
         final PageRecord record = PageRecordBuilder.fromRow( row.get(), pageManager );
+        slugToCanonical.put( slug, record.canonicalId() );
+        if ( !isPublic.test( slug ) ) {
+            // Page is (now) ACL-restricted: ensure it is absent from the public dataset.
+            manager.removeNamedGraph( Iris.page( record.canonicalId() ) );
+            return;
+        }
         manager.replaceNamedGraph( Iris.page( record.canonicalId() ), PageProjector.project( record ) );
         for ( final Map.Entry< String, Model > c : ConceptProjector.project( List.of( record ) ).entrySet() ) {
             manager.replaceNamedGraph( c.getKey(), c.getValue() );
         }
-        slugToCanonical.put( slug, record.canonicalId() );
     }
 
     /**

@@ -41,9 +41,28 @@ public class AdminOntologyResource extends RestServletBase {
         final String action = extractPathParam( request );
         if ( "status".equals( action ) ) {
             handleStatus( response );
+        } else if ( "violations".equals( action ) ) {
+            handleViolations( response );
         } else {
             sendNotFound( response, "Unknown ontology endpoint: " + action );
         }
+    }
+
+    /** Loaded once: parses the bundled SHACL shapes. */
+    private static final com.wikantik.ontology.OntologyShaclValidator SHACL_VALIDATOR =
+            new com.wikantik.ontology.OntologyShaclValidator();
+
+    private void handleViolations( final HttpServletResponse response ) throws IOException {
+        final OntologyRebuildCoordinator svc = service();
+        if ( svc == null || svc.modelManager() == null ) {
+            sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "ontology service not available" );
+            return;
+        }
+        final java.util.List< com.wikantik.ontology.OntologyShaclValidator.Violation > violations =
+                SHACL_VALIDATOR.validate( svc.modelManager().inferenceSnapshot() );
+        sendJsonWithStatus( response, 200, java.util.Map.of(
+                "violations", violations,
+                "count", violations.size() ) );
     }
 
     @Override

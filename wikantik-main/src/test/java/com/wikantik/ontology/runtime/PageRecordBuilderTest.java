@@ -78,4 +78,18 @@ class PageRecordBuilderTest {
         assertEquals( List.of(), r.tags() );
         assertEquals( null, r.summary() );
     }
+
+    @Test
+    void fromRowEnrichesASingleRow() {
+        final PageCanonicalIdsDao.Row row = new PageCanonicalIdsDao.Row(
+                "01CANON0000000000000000009", "Solo", "Solo", "article", "ml",
+                java.time.Instant.EPOCH, java.time.Instant.EPOCH );
+        when( pageManager.getPureText( "Solo", -1 ) )
+                .thenReturn( "---\ntags: [x]\nsummary: s\n---\nbody" );
+        final PageRecord r = PageRecordBuilder.fromRow( row, pageManager );
+        assertEquals( "01CANON0000000000000000009", r.canonicalId() );
+        assertEquals( List.of( "x" ), r.tags() );
+        assertEquals( "s", r.summary() );
+        assertEquals( "ml", r.cluster() );
+    }
 }

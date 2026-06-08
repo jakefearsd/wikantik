@@ -50,22 +50,27 @@ public final class PageRecordBuilder {
     public List< PageRecord > build() {
         final List< PageRecord > out = new ArrayList<>();
         for ( final PageCanonicalIdsDao.Row row : rowSource.get() ) {
-            Map< String, Object > md = Map.of();
-            try {
-                final String text = pageManager.getPureText( row.currentSlug(), PageProvider.LATEST_VERSION );
-                if ( text != null ) {
-                    final ParsedPage parsed = FrontmatterParser.parse( text );
-                    md = parsed.metadata();
-                }
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "frontmatter parse failed for {}: {}", row.currentSlug(), e.getMessage() );
-            }
-            out.add( new PageRecord(
-                    row.canonicalId(), row.currentSlug(), row.title(), row.type(), row.cluster(),
-                    tags( md.get( "tags" ) ), str( md.get( "summary" ) ), isoDate( md.get( "date" ) ),
-                    str( md.get( "author" ) ) ) );
+            out.add( fromRow( row, pageManager ) );
         }
         return out;
+    }
+
+    /** Turns one canonical-id row into a PageRecord, enriching tags/summary/date/author from frontmatter. */
+    public static PageRecord fromRow( final PageCanonicalIdsDao.Row row, final PageManager pageManager ) {
+        Map< String, Object > md = Map.of();
+        try {
+            final String text = pageManager.getPureText( row.currentSlug(), PageProvider.LATEST_VERSION );
+            if ( text != null ) {
+                final ParsedPage parsed = FrontmatterParser.parse( text );
+                md = parsed.metadata();
+            }
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "frontmatter parse failed for {}: {}", row.currentSlug(), e.getMessage() );
+        }
+        return new PageRecord(
+                row.canonicalId(), row.currentSlug(), row.title(), row.type(), row.cluster(),
+                tags( md.get( "tags" ) ), str( md.get( "summary" ) ), isoDate( md.get( "date" ) ),
+                str( md.get( "author" ) ) );
     }
 
     private static List< String > tags( final Object raw ) {

@@ -46,15 +46,34 @@ public class KgMaterializationService {
     private final KgEdgeRepository      edges;
     private final KgProposalRepository  proposals;
     private final KgRejectionRepository rejections;
+    /** Write-time ontology gate; null = no SHACL enforcement (degrade gracefully). */
+    private final com.wikantik.ontology.OntologyShaclValidator ontologyValidator;
+    /** Cumulative count of machine edges skipped by the ontology gate (observability). */
+    private final java.util.concurrent.atomic.AtomicLong skippedNonConformant =
+            new java.util.concurrent.atomic.AtomicLong();
+
+    public KgMaterializationService( final KgNodeRepository nodes,
+                                      final KgEdgeRepository edges,
+                                      final KgProposalRepository proposals,
+                                      final KgRejectionRepository rejections,
+                                      final com.wikantik.ontology.OntologyShaclValidator ontologyValidator ) {
+        this.nodes      = Objects.requireNonNull( nodes, "nodes" );
+        this.edges      = Objects.requireNonNull( edges, "edges" );
+        this.proposals  = Objects.requireNonNull( proposals, "proposals" );
+        this.rejections = Objects.requireNonNull( rejections, "rejections" );
+        this.ontologyValidator = ontologyValidator;
+    }
 
     public KgMaterializationService( final KgNodeRepository nodes,
                                       final KgEdgeRepository edges,
                                       final KgProposalRepository proposals,
                                       final KgRejectionRepository rejections ) {
-        this.nodes      = Objects.requireNonNull( nodes, "nodes" );
-        this.edges      = Objects.requireNonNull( edges, "edges" );
-        this.proposals  = Objects.requireNonNull( proposals, "proposals" );
-        this.rejections = Objects.requireNonNull( rejections, "rejections" );
+        this( nodes, edges, proposals, rejections, null );
+    }
+
+    /** Total machine edges skipped by the write-time ontology gate since construction. */
+    public long skippedNonConformantCount() {
+        return skippedNonConformant.get();
     }
 
     /** Materialise the proposal at tier='machine'. Currently handles proposalType='new-edge'. */
@@ -117,6 +136,16 @@ public class KgMaterializationService {
                 + "(source='{}' present={}; target='{}' present={})",
                 proposal.id(), source, src != null, target, tgt != null );
             return;
+        }
+        if ( ontologyValidator != null && src.nodeType() != null && tgt.nodeType() != null ) {
+            final var violations = ontologyValidator.validateEdge( src.nodeType(), rel, tgt.nodeType() );
+            if ( !violations.isEmpty() ) {
+                skippedNonConformant.incrementAndGet();
+                LOG.warn( "materialize: skipping ontology-non-conformant edge for proposal {} "
+                    + "({} --{}--> {}): {}",
+                    proposal.id(), src.nodeType(), rel, tgt.nodeType(), violations.get( 0 ).message() );
+                return;
+            }
         }
         edges.upsertEdgeWithProvenance( src.id(), tgt.id(), rel,
             Provenance.AI_INFERRED, Map.of(), tier, proposal.id() );

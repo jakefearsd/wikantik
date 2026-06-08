@@ -56,7 +56,8 @@ class KgMaterializationServiceMaterializeTest {
         kgEdges      = new KgEdgeRepository( ds );
         kgProposals  = new KgProposalRepository( ds );
         kgRejections = new KgRejectionRepository( ds );
-        svc = new KgMaterializationService( kgNodes, kgEdges, kgProposals, kgRejections );
+        svc = new KgMaterializationService( kgNodes, kgEdges, kgProposals, kgRejections,
+            new com.wikantik.ontology.OntologyShaclValidator() );
         try ( Connection c = ds.getConnection() ) {
             c.createStatement().execute( "DELETE FROM kg_proposal_reviews" );
             c.createStatement().execute( "DELETE FROM kg_edges" );
@@ -117,6 +118,30 @@ class KgMaterializationServiceMaterializeTest {
         svc.materializeMachine( p ); // should NOT throw, just no-op
 
         assertEquals( 0, kgNodes.getAllNodes( Tier.MACHINE ).size() );
+    }
+
+    @Test
+    void materializeMachine_skips_ontology_nonconformant_edge_but_keeps_conformant() {
+        // 'implements' between two freshly-materialized concept nodes violates wk:ImplementsShape
+        // (subject must be a wk:Technology) — the write-time SHACL gate must skip it. 'depends_on'
+        // has no shape and must still materialize. Proves the machine path enforces the ontology.
+        final KgProposal bad = kgProposals.insertProposal( "new-edge", "Page",
+            Map.<String, Object>of( "source", "ConcA", "target", "ConcB", "relationship", "implements" ),
+            0.8, "" );
+        final KgProposal good = kgProposals.insertProposal( "new-edge", "Page",
+            Map.<String, Object>of( "source", "ConcC", "target", "ConcD", "relationship", "depends_on" ),
+            0.8, "" );
+
+        svc.materializeMachine( bad );
+        svc.materializeMachine( good );
+
+        final List< KgEdge > edges = kgEdges.getAllEdges( Tier.MACHINE );
+        assertFalse( edges.stream().anyMatch( e -> "implements".equals( e.relationshipType() ) ),
+            "non-conformant 'implements' edge must be skipped by the SHACL gate" );
+        assertTrue( edges.stream().anyMatch( e -> "depends_on".equals( e.relationshipType() ) ),
+            "conformant 'depends_on' edge must still be materialized" );
+        assertEquals( 1L, svc.skippedNonConformantCount(),
+            "exactly one edge should have been skipped by the ontology gate" );
     }
 
     @Test

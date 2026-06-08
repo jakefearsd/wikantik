@@ -63,6 +63,13 @@ wk:Version       a owl:Class ; rdfs:subClassOf wk:Entity ; rdfs:label "Version" 
 wk:WikiConcepts a skos:ConceptScheme ; rdfs:label "Wikantik Wiki Concepts" .
 
 #####################################################################
+# Provenance agents (referenced by entity projection: prov:wasAttributedTo)
+#####################################################################
+
+wk:HumanAgent   a prov:Agent ; rdfs:label "Human author" .
+wk:MachineAgent a prov:Agent ; rdfs:label "LLM extractor" .
+
+#####################################################################
 # Object properties — the closed 21-term relationship vocabulary.
 # MUST stay in lock-step with RelationshipTypeVocabulary.CLOSED_VOCAB
 # (enforced by ObjectPropertyTest). Direction is always source -> target.

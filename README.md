@@ -50,6 +50,11 @@ Key capabilities:
 - **Frontmatter metadata** — YAML frontmatter for type, tags, summary, cluster, status, and related articles, indexed in Lucene for semantic navigation
 
 
+## Ontology Management
+
+Wikantik layers a queryable `wikantik:` RDF/OWL ontology over the wiki — page concepts, SKOS clusters/tags, and an LLM-extracted Knowledge Graph of typed entities and relations — curated by humans **and** AI agents under one server-authoritative schema and a write-time SHACL gate, and exposed over SPARQL, dereferenceable IRIs, and RDF dumps. For the why and the how (the three layers, the curation surfaces, and evolving the vocabulary), see **[Ontology Management on Wikantik — Why and How](docs/OntologyManagement.md)**.
+
+
 ## Why Wikantik?
 
 Most wiki / knowledge-base projects were designed before retrieval-augmented agents existed. Wikantik was rebuilt from the JSPWiki engine specifically to be **agent-grade** — every capability is exposed both to humans and to LLM agents through documented MCP tools, and the search stack assumes embeddings as a first-class index, not a retrofit.

@@ -103,56 +103,113 @@ public class StructuredFrontmatterEditorIT extends WithIntegrationTestSetup {
     }
 
     /**
-     * Setting the Cluster field to an invalid slug must produce an inline
-     * validation error ({@code .fm-violation-error}) with a suggestion button
-     * (text starting with {@code Use "}). Clicking the suggestion corrects the
-     * field; we then Cancel to leave the fixture unmodified.
+     * Setting an invalid value for the Audience field (not in the closed enum
+     * {humans, agents, both}) via the Raw YAML editor must produce an inline
+     * validation error ({@code .fm-violation-error}) when Save is clicked, and
+     * the editor must stay on the page (not navigate to /wiki/).
+     *
+     * <p>Background: cluster-slug violations were downgraded to WARNING
+     * (save succeeds → navigates away) in the validator commit, so the cluster
+     * path can no longer test the inline-error-stays-on-page flow.  The audience
+     * field is a closed enum ({@code humans | agents | both}); an invalid value
+     * is a hard ERROR that blocks save and keeps the editor on screen.</p>
+     *
+     * <p>The invalid value is injected via the Raw YAML textarea so that the
+     * test does not depend on the React select only offering listed options.
+     * The raw editor accepts free-text input, allowing us to write an invalid
+     * value that the server-side validator rejects as an ERROR.</p>
      */
     @Test
-    void clusterViolationApplySuggestionAndCancel() {
+    void audienceViolationShowsInlineErrorAndCancel() {
         EditWikiPage.open( FIXTURE );
 
-        // Make sure the Form sub-tab is active (it is by default; this click
-        // is a defensive no-op that avoids flakiness if another test left a
-        // different sub-tab active — each test opens a fresh driver so this
-        // is belt-and-suspenders against future test ordering changes).
+        // Switch to the Raw YAML sub-tab so we can directly type an invalid audience value.
+        $$( "[role=tab]" ).findBy( text( "Frontmatter" ) )
+                .shouldBe( visible, ASYNC_WAIT )
+                .click();
+        $$( "[role=tab]" ).findBy( text( "Raw YAML" ) )
+                .shouldBe( visible, ASYNC_WAIT )
+                .click();
+
+        // The raw editor textarea must be visible and contain the fixture's YAML.
+        final SelenideElement rawArea = $( "[aria-label='Raw frontmatter YAML']" )
+                .shouldBe( visible, ASYNC_WAIT )
+                .shouldHave( text( "type" ) );
+
+        // Replace the raw YAML with a version that has audience: robots (invalid).
+        // Use Selenide's sendKeys (fires genuine keyboard events) rather than synthetic
+        // JS events so that React's onChange fires and reliably updates the text state.
+        //   1. Select-all + Delete to clear the textarea content.
+        //   2. Type the invalid YAML character-by-character via sendKeys.
+        //   3. Click away from the textarea (on the editor heading) so the real
+        //      browser blur event fires, causing RawYaml.sync() to call
+        //      api.validateFrontmatter → onChange(parsedMetadata with audience:robots).
+        //   4. Wait for the async validateFrontmatter call to propagate (executeAsync
+        //      fetch as a timing anchor — both reach the same endpoint concurrently).
+        //   5. Click Save.
+        final String invalidYaml = "type: article\n"
+                + "cluster: test-cluster\n"
+                + "audience: robots\n"
+                + "summary: A test article\n";
+
+        // Step 1-2: select-all and replace with the new YAML via keyboard events.
+        // Ctrl+A selects the entire textarea content; then typing replaces it.
+        // sendKeys fires genuine keyboard events that React's onChange picks up,
+        // updating the RawYaml component's local text state correctly.
+        rawArea.click();
+        rawArea.sendKeys(
+                org.openqa.selenium.Keys.chord( org.openqa.selenium.Keys.CONTROL, "a" ),
+                invalidYaml );
+
+        // Step 3: click the editor heading to move focus away, triggering the real blur.
+        $( "[data-testid=editor-heading]" )
+                .shouldBe( visible, ASYNC_WAIT )
+                .click();
+
+        // Step 4: timing anchor — wait for validateFrontmatter to finish (mirrors sync()).
+        final String waitForSync = """
+            const cb = arguments[arguments.length - 1];
+            const base = window.__WIKANTIK_BASE__ || '';
+            fetch(base + '/api/frontmatter/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ frontmatter: arguments[0] }),
+                credentials: 'same-origin'
+            }).then(() => cb(true)).catch(() => cb(true));
+            """;
+        Selenide.executeAsyncJavaScript( waitForSync, invalidYaml );
+
+        // Step 5a: switch back to the Form sub-tab so that the FieldWidget violation
+        // elements are rendered when the 422 comes back (violations are only shown in
+        // the Form tab, not the Raw YAML tab).
         $$( "[role=tab]" ).findBy( text( "Form" ) )
                 .shouldBe( visible, ASYNC_WAIT )
                 .click();
 
-        // Locate the Cluster input and set an invalid slug (spaces + caps
-        // violate the slug pattern the editor validates). ReactInputs is
-        // package-private in pages.spa, so we drive the React synthetic event
-        // via inline JS — the same technique used by LoginPage and other helpers.
-        final SelenideElement clusterField = $( "[aria-label=Cluster]" )
-                .shouldBe( visible, ASYNC_WAIT );
-        setReactInputValue( clusterField, "Bad Slug" );
-
-        // Trigger save — the editor should stay on the page and show the
-        // inline violation rather than navigating to /wiki/.
+        // Step 5b: click Save — the metadata now includes audience:robots so the server
+        // returns 422 with a field-level violation.
         $( "[data-testid=editor-save]" )
                 .shouldBe( visible, ASYNC_WAIT )
                 .click();
 
-        // A .fm-violation-error element must appear under the Cluster field.
+        // A .fm-violation-error element must appear for the Audience field.
         $( ".fm-violation-error" )
                 .shouldBe( visible, ASYNC_WAIT );
 
-        // An apply-suggestion button must be present (text matches "Use \"bad-slug\"").
-        final var suggestion = $$( "button" ).findBy( Condition.matchText( "Use\\s+\"bad-slug\"" ) );
-        suggestion.shouldBe( visible, ASYNC_WAIT );
-        suggestion.click();
+        // The editor must still be visible — the invalid audience blocked the save.
+        $( "[data-testid=editor-save]" )
+                .shouldBe( visible, ASYNC_WAIT );
 
-        // After clicking the suggestion the Cluster field must show the
-        // corrected value.
-        $( "[aria-label=Cluster]" )
-                .shouldHave( Condition.or( "corrected cluster value",
-                        value( "bad-slug" ),
-                        text( "bad-slug" ) ), ASYNC_WAIT );
-
-        // Cancel so the fixture is left unmodified for other ITs.
+        // Cancel so the fixture is left unmodified.  Because we typed content (making
+        // the editor dirty), Cancel shows a "Discard unsaved changes?" confirmation
+        // dialog — click the "Discard" button to confirm and navigate to the view page.
         $( "[data-testid=editor-cancel]" )
                 .shouldBe( visible, ASYNC_WAIT )
+                .click();
+        // The editor is dirty (we typed new content), so a discard-confirm modal appears;
+        // click "Discard" to confirm navigation away from the editor.
+        $$( "button" ).findBy( text( "Discard" ) )
+                .shouldBe( visible, Duration.ofSeconds( 3 ) )
                 .click();
         $( "[data-testid=page-view]" ).shouldBe( visible, ASYNC_WAIT );
     }
@@ -199,21 +256,5 @@ public class StructuredFrontmatterEditorIT extends WithIntegrationTestSetup {
         $( "[data-testid=page-view]" ).shouldBe( visible, ASYNC_WAIT );
     }
 
-    /**
-     * Sets a value on a React-controlled {@code <input>} element by reaching
-     * into the native value setter to invalidate React's internal tracker, then
-     * dispatching a bubbling {@code input} event so React's {@code onChange}
-     * fires. This mirrors the private {@code ReactInputs.setInputValue} helper
-     * in the {@code pages.spa} package (which is package-private and not
-     * accessible from here).
-     */
-    private static void setReactInputValue( final SelenideElement element, final String value ) {
-        Selenide.executeJavaScript(
-            "var el = arguments[0];"
-            + " var desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');"
-            + " desc.set.call(el, arguments[1]);"
-            + " el.dispatchEvent(new Event('input', { bubbles: true }));",
-            element, value );
-    }
 }
 

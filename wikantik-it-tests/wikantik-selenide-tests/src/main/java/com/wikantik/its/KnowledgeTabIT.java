@@ -195,15 +195,11 @@ public class KnowledgeTabIT extends WithIntegrationTestSetup {
     /**
      * Fills in the add-entity row (name input + type select) and clicks Add.
      * Waits for the entity to appear in the panel before returning.
+     * Selects by stable {@code data-testid} attributes set on the panel controls.
      */
     private static void addEntity( final String name, final String type ) {
-        // The add-entity row contains a name <input> (unique among inputs
-        // in the panel — scope to the kg-panel container to be safe) and a
-        // type <select> next to it.
-        final var panelRoot = $( "[class*=kg-panel-]" );
-
         // Set the name input using the native value setter so React's onChange fires.
-        final var nameInput = panelRoot.$( "input[placeholder], input[aria-label*=name i], input[aria-label*=entity i]" )
+        final var nameInput = $( "[data-testid=kg-add-entity-name]" )
                 .shouldBe( visible, Duration.ofSeconds( 5 ) );
         Selenide.executeJavaScript(
             "var el = arguments[0];"
@@ -213,49 +209,30 @@ public class KnowledgeTabIT extends WithIntegrationTestSetup {
             nameInput, name );
 
         // Select the entity type.
-        panelRoot.$( "select" ).selectOptionContainingText( type );
+        $( "[data-testid=kg-add-entity-type]" ).selectOptionContainingText( type );
 
         // Click the Add button.
-        panelRoot.$$( "button" ).findBy( text( "Add" ) )
+        $( "[data-testid=kg-add-entity-btn]" )
                 .shouldBe( visible, Duration.ofSeconds( 5 ) )
                 .click();
 
         // Wait for the entity to appear in the list.
-        panelRoot.shouldHave( text( name ), Duration.ofSeconds( 10 ) );
+        $( "[class*=kg-panel-]" ).shouldHave( text( name ), Duration.ofSeconds( 10 ) );
     }
 
     /**
-     * Fills in the add-relation row (source select + target select + predicate
+     * Fills in the add-relation row (source select + predicate select + target
      * select) and clicks Add. Does NOT wait for success — the caller asserts the
      * outcome (either a new row or an error alert).
+     * Selects by stable {@code data-testid} attributes set on the panel controls.
      */
     private static void addRelation( final String sourceName, final String targetName,
                                       final String predicate ) {
-        // The relation row has two entity <select>s and one predicate <select>.
-        // The first select is the source, the second is the target, and the
-        // third is the predicate — match the rendered order in KnowledgeGraphPanel.
-        final var allSelects = $( "[class*=kg-panel-]" ).$$( "select" );
+        $( "[data-testid=kg-add-source]" ).selectOptionContainingText( sourceName );
+        $( "[data-testid=kg-add-predicate]" ).selectOptionContainingText( predicate );
+        $( "[data-testid=kg-add-target]" ).selectOptionContainingText( targetName );
 
-        // The entity selects are the first two; the predicate select follows.
-        // Use index-based access mirroring the panel's JSX order.
-        if ( allSelects.size() >= 3 ) {
-            allSelects.get( 0 ).selectOptionContainingText( sourceName );
-            allSelects.get( 1 ).selectOptionContainingText( targetName );
-            allSelects.get( 2 ).selectOptionContainingText( predicate );
-        } else {
-            // Fallback: the panel may render the type select first (add-entity row)
-            // and the add-relation row selects after; skip the first select if
-            // it does not contain entity options, and use the next three.
-            allSelects.get( 1 ).selectOptionContainingText( sourceName );
-            allSelects.get( 2 ).selectOptionContainingText( targetName );
-            allSelects.get( 3 ).selectOptionContainingText( predicate );
-        }
-
-        // Click the "Add" button in the relation row. There may be two "Add"
-        // buttons (entity + relation); find the second occurrence or scope to
-        // the relation section if the panel provides a structural separator.
-        $( "[class*=kg-panel-]" ).$$( "button" ).filterBy( text( "Add" ) )
-                .last()
+        $( "[data-testid=kg-add-edge-btn]" )
                 .shouldBe( visible, Duration.ofSeconds( 5 ) )
                 .click();
     }

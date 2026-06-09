@@ -44,6 +44,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.AfterAll;
+
 /**
  * End-to-end smoke for {@code GET /api/page-knowledge/{name}} and the page-scoped
  * entity/edge write endpoints against a Cargo-deployed Tomcat.
@@ -73,12 +75,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class PageKnowledgeIT {
 
     /**
-     * Use {@code Main} as the host page for the curated entities. Main always
-     * exists in the IT wiki corpus and has public view + admin edit permissions.
-     * We do NOT assert on its pre-existing KG content (extraction lag), only on
-     * the entities we inject in this test run.
+     * A fresh page seeded in {@link #setUp} that is guaranteed to be absent from
+     * {@code kg_excluded_pages}: new pages are not added to the exclusion table
+     * until the background reconciliation job runs, so entity insertions succeed
+     * immediately.  {@code Main} is a system page that is already on the
+     * exclusion list, which is why it cannot be used here.
+     *
+     * <p>The page is deleted in {@link #tearDown} so it does not accumulate
+     * across runs.
      */
-    private static final String TEST_PAGE = "Main";
+    private static String TEST_PAGE;
 
     /** Unique suffix per test run so parallel runs don't collide in the KG tables. */
     private static final String IT_SUFFIX = UUID.randomUUID().toString().substring( 0, 8 );
@@ -97,13 +103,60 @@ public class PageKnowledgeIT {
     private static String conceptNodeId;
 
     @BeforeAll
-    static void setUp() {
+    static void setUp() throws Exception {
         baseUrl = System.getProperty( "it-wikantik.base.url",
             "http://localhost:18080/wikantik-it-test-rest" );
         client = HttpClient.newBuilder()
                 .followRedirects( HttpClient.Redirect.NORMAL )
                 .cookieHandler( secureCookieOverHttp() )
                 .build();
+
+        // Seed a fresh test page.  New pages are not yet in kg_excluded_pages
+        // (the reconciliation job runs asynchronously), so entity insertions on
+        // this page are immediately visible in the KG read path.
+        // The unique name prevents cross-run collisions in the KG tables.
+        TEST_PAGE = "ItKgTest-" + IT_SUFFIX;
+        // Need an authenticated session to write pages.
+        final String loginBody = new Gson().toJson( Map.of( "username", "janne", "password", "myP@5sw0rd" ) );
+        final HttpResponse< String > loginResp = client.send(
+                HttpRequest.newBuilder()
+                        .uri( URI.create( baseUrl + "/api/auth/login" ) )
+                        .header( "Content-Type", "application/json" )
+                        .header( "Accept", "application/json" )
+                        .POST( HttpRequest.BodyPublishers.ofString( loginBody ) )
+                        .build(),
+                HttpResponse.BodyHandlers.ofString() );
+        if ( loginResp.statusCode() != 200 ) {
+            throw new IllegalStateException( "setUp login failed: " + loginResp.statusCode() + " " + loginResp.body() );
+        }
+        final String pageBody = "{\"content\":\"# IT KG Curation Test\\n\\nPage seeded by PageKnowledgeIT.\\n\"}";
+        final HttpResponse< String > writeResp = client.send(
+                HttpRequest.newBuilder()
+                        .uri( URI.create( baseUrl + "/api/pages/" + TEST_PAGE ) )
+                        .header( "Content-Type", "application/json" )
+                        .header( "Accept", "application/json" )
+                        .PUT( HttpRequest.BodyPublishers.ofString( pageBody ) )
+                        .build(),
+                HttpResponse.BodyHandlers.ofString() );
+        if ( writeResp.statusCode() >= 300 ) {
+            throw new IllegalStateException( "setUp writePage failed: " + writeResp.statusCode() + " " + writeResp.body() );
+        }
+    }
+
+    @AfterAll
+    static void tearDown() {
+        if ( TEST_PAGE == null ) return;
+        try {
+            client.send(
+                    HttpRequest.newBuilder()
+                            .uri( URI.create( baseUrl + "/api/pages/" + TEST_PAGE ) )
+                            .header( "Accept", "application/json" )
+                            .DELETE()
+                            .build(),
+                    HttpResponse.BodyHandlers.ofString() );
+        } catch ( final Exception e ) {
+            System.err.println( "tearDown: could not delete test page '" + TEST_PAGE + "': " + e );
+        }
     }
 
     /**
@@ -182,7 +235,7 @@ public class PageKnowledgeIT {
         loginAsAdmin();
         final HttpResponse< String > resp = get( "/api/page-knowledge/" + TEST_PAGE );
         assertEquals( 200, resp.statusCode(),
-                "GET /api/page-knowledge/Main must return 200: " + resp.body() );
+                "GET /api/page-knowledge/" + TEST_PAGE + " must return 200: " + resp.body() );
 
         final Map< String, Object > json = parseJson( resp.body() );
         // Contract: camelCase keys for both arrays (not snake_case)

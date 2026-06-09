@@ -9,6 +9,7 @@ cluster: test-cluster
 related:
 - SemanticHub
 status: active
+kg_include: true
 ---
 # Semantic Article
 

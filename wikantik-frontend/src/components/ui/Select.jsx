@@ -8,6 +8,7 @@ export default function Select({
   id,
   ariaLabel,
   placeholder,
+  'data-testid': dataTestId,
 }) {
   return (
     <select
@@ -16,6 +17,7 @@ export default function Select({
       disabled={disabled}
       id={id}
       aria-label={ariaLabel}
+      data-testid={dataTestId}
       onChange={(e) => onChange?.(e.target.value)}
     >
       {placeholder != null && <option value="">{placeholder}</option>}

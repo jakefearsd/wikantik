@@ -116,13 +116,22 @@ public final class KgEdgeRepository extends KgJdbcSupport {
 
     /**
      * Code-level guard against mixed page/entity edges, established 2026-05-11 after
-     * the one-shot deletion of 84 such edges left from earlier extractor flows. The
-     * Knowledge Graph stores both wiki-page nodes (node_type != 'concept') and
-     * LLM-extracted concept nodes (node_type = 'concept'); edges spanning the two
-     * categories had no demonstrated downstream utility and were almost entirely
-     * generic {@code related_to} noise from frontmatter resolvers picking the wrong
-     * node when both kinds shared a name. This guard prevents recurrence at the
-     * write boundary.
+     * the one-shot deletion of 84 such edges left from earlier extractor flows.  The
+     * Knowledge Graph stores both wiki-page nodes (e.g. node_type ∈ article/hub/…
+     * — types NOT in {@link EntityTypeVocabulary#ENTITY_CLASS_SET}) and knowledge-entity
+     * nodes (node_type ∈ the 9-class vocabulary: person/organization/place/event/product/
+     * technology/concept/project/version).  Edges spanning the two categories had no
+     * demonstrated downstream utility and were almost entirely generic {@code related_to}
+     * noise from frontmatter resolvers picking the wrong node when both kinds shared a name.
+     * This guard prevents recurrence at the write boundary.
+     *
+     * <p><b>Evolution note:</b> the original guard used {@code "concept".equals(type)} as
+     * the entity-class test, which was correct when {@code concept} was the sole entity type.
+     * After the vocabulary expanded to 9 types (2026-04 harmonisation) the test became stale:
+     * it incorrectly treated {@code technology}, {@code person}, etc. as page-like, causing
+     * conformant entity→entity edges to be rejected.  The predicate now delegates to
+     * {@link EntityTypeVocabulary#ENTITY_CLASS_SET} so the guard stays aligned with the
+     * canonical vocabulary without a code change each time the vocab evolves.</p>
      *
      * @return {@code true} iff the two endpoints straddle the page/entity boundary
      */
@@ -137,8 +146,12 @@ public final class KgEdgeRepository extends KgJdbcSupport {
                 if ( !rs.next() ) return false; // one node missing — FK will fail downstream
                 final String sType = rs.getString( "s_type" );
                 final String tType = rs.getString( "t_type" );
-                // Mixed iff exactly one side is 'concept'. NULL node_types count as page-like.
-                return ( "concept".equals( sType ) ) != ( "concept".equals( tType ) );
+                // Mixed iff exactly one side is a known entity type.  NULL counts as page-like.
+                final boolean sIsEntity = sType != null
+                        && EntityTypeVocabulary.ENTITY_CLASS_SET.contains( sType );
+                final boolean tIsEntity = tType != null
+                        && EntityTypeVocabulary.ENTITY_CLASS_SET.contains( tType );
+                return sIsEntity != tIsEntity;
             }
         } catch ( final SQLException e ) {
             LOG.warn( "isMixedEdgeEndpoints lookup failed for {}->{}: {}",

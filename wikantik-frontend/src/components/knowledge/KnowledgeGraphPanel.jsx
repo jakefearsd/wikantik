@@ -243,18 +243,21 @@ export default function KnowledgeGraphPanel({ pageName }) {
             value={newEntityName}
             onChange={(e) => setNewEntityName(e.target.value)}
             aria-label="New entity name"
+            data-testid="kg-add-entity-name"
           />
           <Select
             value={newEntityType}
             options={ENTITY_TYPES}
             ariaLabel="New entity type"
             onChange={setNewEntityType}
+            data-testid="kg-add-entity-type"
           />
           <button
             type="button"
             className="btn btn-primary btn-sm"
             onClick={handleAddEntity}
             disabled={!newEntityName.trim()}
+            data-testid="kg-add-entity-btn"
           >
             Add
           </button>
@@ -309,12 +312,14 @@ export default function KnowledgeGraphPanel({ pageName }) {
             placeholder="Source entity"
             ariaLabel="Source entity"
             onChange={setEdgeSourceId}
+            data-testid="kg-add-source"
           />
           <Select
             value={edgePredicate}
             options={PREDICATES}
             ariaLabel="Relationship type"
             onChange={setEdgePredicate}
+            data-testid="kg-add-predicate"
           />
           <Select
             value={edgeTargetId}
@@ -322,12 +327,14 @@ export default function KnowledgeGraphPanel({ pageName }) {
             placeholder="Target entity"
             ariaLabel="Target entity"
             onChange={setEdgeTargetId}
+            data-testid="kg-add-target"
           />
           <button
             type="button"
             className="btn btn-primary btn-sm"
             onClick={handleAddEdge}
             disabled={!edgeSourceId || !edgeTargetId || !edgePredicate}
+            data-testid="kg-add-edge-btn"
           >
             Add
           </button>

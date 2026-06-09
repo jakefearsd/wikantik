@@ -20,6 +20,7 @@ package com.wikantik.knowledge;
 
 import com.wikantik.api.knowledge.*;
 import com.wikantik.api.core.Engine;
+import com.wikantik.kgpolicy.KgInclusionFilter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -291,11 +292,42 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
 
     // --- Page-scoped slice ---
 
+    /**
+     * Collects the node ids that belong to a page's KG slice.  Two sources are
+     * unioned so that both extraction-pipeline entities (chunk mentions) and
+     * manually curated entities (directly inserted via the panel with
+     * {@code source_page = pageName}) appear together:
+     *
+     * <ol>
+     *   <li>Nodes referenced in {@code chunk_entity_mentions} for any chunk of
+     *       this page — the extraction-pipeline path.  Applies the
+     *       {@code kg_excluded_pages} filter via a LEFT JOIN on
+     *       {@code kg_content_chunks.page_name}.</li>
+     *   <li>Nodes in {@code kg_nodes} whose {@code source_page} matches this
+     *       page — the curation path (entities added via the Knowledge tab panel
+     *       or the admin KG endpoint before extraction has run).  Uses
+     *       {@link KgInclusionFilter#NODE_FILTER_JOIN} /
+     *       {@link KgInclusionFilter#NODE_FILTER_WHERE} for the same exclusion
+     *       predicate.</li>
+     * </ol>
+     *
+     * The {@code ?} placeholder is bound to {@code pageName} for both legs
+     * (two {@code setString} calls with indices 1 and 2).
+     */
     private static final String PAGE_SLICE_SQL =
+        // Leg 1: extraction-pipeline entities via chunk_entity_mentions.
+        // c is already in FROM, so only the kg_excluded_pages join is added.
         "SELECT DISTINCT m.node_id "
       + "  FROM kg_content_chunks c "
       + "  JOIN chunk_entity_mentions m ON m.chunk_id = c.id "
-      + " WHERE c.page_name = ?";
+      + "  LEFT JOIN kg_excluded_pages kgxm ON c.page_name = kgxm.page_name "
+      + " WHERE c.page_name = ? AND kgxm.page_name IS NULL "
+      + " UNION "
+      // Leg 2: manually curated entities stored in kg_nodes.source_page.
+      + "SELECT DISTINCT n.id "
+      + "  FROM kg_nodes n "
+      + KgInclusionFilter.NODE_FILTER_JOIN
+      + " WHERE n.source_page = ? AND" + KgInclusionFilter.NODE_FILTER_WHERE;
 
     @Override
     public PageKnowledgeSlice getPageSlice( final String pageName ) {
@@ -303,11 +335,14 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             return new PageKnowledgeSlice( List.of(), List.of() );
         }
 
-        // Step 1 — collect distinct node ids mentioned on this page.
+        // Step 1 — collect distinct node ids for this page.  Two sources are
+        // unioned: chunk_entity_mentions (extraction pipeline) and kg_nodes.source_page
+        // (manually curated entities).  Both ? parameters bind to pageName.
         final Set< UUID > pageEntityIds = new LinkedHashSet<>();
         try ( final Connection c = dataSource.getConnection();
               final PreparedStatement ps = c.prepareStatement( PAGE_SLICE_SQL ) ) {
-            ps.setString( 1, pageName );
+            ps.setString( 1, pageName ); // first leg: chunk_entity_mentions
+            ps.setString( 2, pageName ); // second leg: kg_nodes.source_page
             try ( final ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) {
                     final UUID id = rs.getObject( 1, UUID.class );

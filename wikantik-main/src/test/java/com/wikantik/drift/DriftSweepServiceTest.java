@@ -25,11 +25,13 @@ import com.wikantik.frontmatter.schema.SchemaDrivenFrontmatterValidator;
 import com.wikantik.frontmatter.schema.ValidationCtx;
 import com.wikantik.ontology.OntologyShaclValidator;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -166,6 +168,19 @@ class DriftSweepServiceTest {
     }
 
     @Test
+    void repositoryFailureReleasesTheRunningFlag() throws Exception {
+        final PageManager pm = pm( "Clean", "---\ntype: article\nstatus: active\n---\n\nbody" );
+        final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+                .thenThrow( new IllegalStateException( "db gone" ) );
+
+        final DriftSweepService svc = service( pm, repo, null );
+        assertThrows( IllegalStateException.class, () -> svc.runSweep( "manual" ) );
+        assertFalse( svc.isRunning() );
+    }
+
+    @Test
+    @Timeout( value = 10, unit = TimeUnit.SECONDS )
     void concurrentSweepIsRefused() throws Exception {
         final CountDownLatch entered = new CountDownLatch( 1 );
         final CountDownLatch release = new CountDownLatch( 1 );

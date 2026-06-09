@@ -96,6 +96,7 @@ public final class DriftSweepService {
         }
         try {
             final long startedAt = System.currentTimeMillis();
+            final java.time.Instant sweepStart = Instant.ofEpochMilli( startedAt );
             final Map< CountKey, Integer > counts = new LinkedHashMap<>();
             final int pagesScanned = sweepFrontmatter( counts );
             final boolean shaclChecked = sweepShacl( counts );
@@ -106,7 +107,7 @@ public final class DriftSweepService {
                             e.getKey().severity(), e.getValue() ) )
                     .toList();
             final long sweepId = repository.insertSweep(
-                    Instant.now(), pagesScanned, durationMs, triggeredBy, shaclChecked, rows );
+                    sweepStart, pagesScanned, durationMs, triggeredBy, shaclChecked, rows );
             LOG.info( "drift sweep complete (id={}, trigger={}, pages={}, codes={}, shacl={})",
                     sweepId, triggeredBy, pagesScanned, rows.size(), shaclChecked );
             return new SweepOutcome( sweepId, pagesScanned, durationMs, shaclChecked, rows );
@@ -115,12 +116,20 @@ public final class DriftSweepService {
         }
     }
 
-    /** Starts a sweep on a daemon thread; throws {@link SweepAlreadyRunningException} if busy. */
+    /**
+     * Starts a sweep on a daemon thread. The busy check is best-effort: concurrent callers can
+     * both pass it and start threads, but {@link #runSweep}'s atomic guard ensures at most one
+     * sweep actually runs (the loser is logged and discarded).
+     *
+     * @throws SweepAlreadyRunningException if a sweep is already known to be running
+     */
     public void triggerAsync( final String triggeredBy ) {
         if ( running.get() ) {
             throw new SweepAlreadyRunningException();
         }
         final Thread t = new Thread( () -> {
+            // runSweep's finally releases the running flag on ALL exits (including Error),
+            // so nothing here can strand the guard.
             try {
                 runSweep( triggeredBy );
             } catch ( final SweepAlreadyRunningException e ) {
@@ -141,12 +150,14 @@ public final class DriftSweepService {
             }
             return shaclSource.get().stream()
                     .filter( v -> v.path().equals( code ) )
+                    // For SHACL rows the shape's property path serves as both field and code —
+                    // there is no finer-grained field for an edge-level violation.
                     .map( v -> new PageViolation( v.focusNode(), v.path(), "ERROR", v.path(),
                             v.message(), null ) )
                     .toList();
         }
         final List< PageViolation > out = new ArrayList<>();
-        forEachParsedPage( ( name, parsedOrNull, parseError ) -> {
+        forEachParsedPage( "drift drill-down", ( name, parsedOrNull, parseError ) -> {
             if ( parseError != null ) {
                 if ( "yaml.parse".equals( code ) ) {
                     out.add( new PageViolation( name, "__yaml__", "ERROR", "yaml.parse",
@@ -169,7 +180,7 @@ public final class DriftSweepService {
 
     private int sweepFrontmatter( final Map< CountKey, Integer > counts ) {
         final int[] scanned = { 0 };
-        forEachParsedPage( ( name, parsedOrNull, parseError ) -> {
+        forEachParsedPage( "drift sweep", ( name, parsedOrNull, parseError ) -> {
             scanned[ 0 ]++;
             if ( parseError != null ) {
                 bump( counts, "frontmatter", "yaml.parse", "ERROR" );
@@ -207,13 +218,13 @@ public final class DriftSweepService {
         void visit( String name, ParsedPage parsedOrNull, FrontmatterParseException parseError );
     }
 
-    private void forEachParsedPage( final PageVisitor visitor ) {
+    private void forEachParsedPage( final String context, final PageVisitor visitor ) {
         final Collection< Page > pages;
         try {
             pages = pageManager.getAllPages();
         } catch ( final ProviderException e ) {
-            LOG.warn( "drift sweep: page enumeration failed: {}", e.getMessage(), e );
-            throw new IllegalStateException( "page enumeration failed", e );
+            LOG.warn( "{}: page enumeration failed: {}", context, e.getMessage(), e );
+            throw new IllegalStateException( context + ": page enumeration failed", e );
         }
         for ( final Page page : pages ) {
             final String name = page.getName();
@@ -221,7 +232,7 @@ public final class DriftSweepService {
             try {
                 text = pageManager.getPureText( page );
             } catch ( final RuntimeException e ) {
-                LOG.warn( "drift sweep: failed to read '{}', skipping: {}", name, e.getMessage() );
+                LOG.warn( "{}: failed to read '{}', skipping: {}", context, name, e.getMessage() );
                 continue;
             }
             if ( text == null || text.isEmpty()

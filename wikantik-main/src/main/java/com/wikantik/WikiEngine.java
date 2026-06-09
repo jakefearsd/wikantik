@@ -262,6 +262,7 @@ public class WikiEngine implements Engine {
         w.put( com.wikantik.api.pagegraph.PageGraphService.class,                        ( e, m ) -> e.mgr_PageGraphService             = (com.wikantik.api.pagegraph.PageGraphService) m );
         w.put( com.wikantik.admin.ContentIndexRebuildService.class,                      ( e, m ) -> e.mgr_ContentIndexRebuildService   = (com.wikantik.admin.ContentIndexRebuildService) m );
         w.put( com.wikantik.ontology.runtime.OntologyRebuildCoordinator.class,           ( e, m ) -> e.mgr_OntologyRebuildCoordinator   = (com.wikantik.ontology.runtime.OntologyRebuildCoordinator) m );
+        w.put( com.wikantik.drift.DriftSweepService.class,                               ( e, m ) -> e.mgr_DriftSweepService            = (com.wikantik.drift.DriftSweepService) m );
         w.put( com.wikantik.pagegraph.spine.PageVerificationDao.class,                   ( e, m ) -> e.mgr_PageVerificationDao          = (com.wikantik.pagegraph.spine.PageVerificationDao) m );
         w.put( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class,                     ( e, m ) -> e.mgr_TrustedAuthorsDao            = (com.wikantik.pagegraph.spine.TrustedAuthorsDao) m );
         w.put( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class,          ( e, m ) -> e.mgr_StructuralIndexEventListener = (com.wikantik.pagegraph.spine.StructuralIndexEventListener) m );
@@ -347,6 +348,7 @@ public class WikiEngine implements Engine {
         r.put( com.wikantik.api.pagegraph.PageGraphService.class,                        e -> e.mgr_PageGraphService );
         r.put( com.wikantik.admin.ContentIndexRebuildService.class,                      e -> e.mgr_ContentIndexRebuildService );
         r.put( com.wikantik.ontology.runtime.OntologyRebuildCoordinator.class,           e -> e.mgr_OntologyRebuildCoordinator );
+        r.put( com.wikantik.drift.DriftSweepService.class,                               e -> e.mgr_DriftSweepService );
         r.put( com.wikantik.pagegraph.spine.PageVerificationDao.class,                   e -> e.mgr_PageVerificationDao );
         r.put( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class,                     e -> e.mgr_TrustedAuthorsDao );
         r.put( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class,          e -> e.mgr_StructuralIndexEventListener );
@@ -457,6 +459,7 @@ public class WikiEngine implements Engine {
         s.put( com.wikantik.api.pagegraph.PageGraphService.class,                        rebuildPageGraph );
         s.put( com.wikantik.admin.ContentIndexRebuildService.class,                      rebuildPageGraph );
         s.put( com.wikantik.ontology.runtime.OntologyRebuildCoordinator.class,           rebuildPageGraph );
+        s.put( com.wikantik.drift.DriftSweepService.class,                               rebuildPageGraph );
         s.put( com.wikantik.pagegraph.spine.PageVerificationDao.class,                   e -> {} ); // no subsystem snapshot
         s.put( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class,                     e -> {} ); // no subsystem snapshot
         s.put( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class,          e -> {} ); // no subsystem snapshot
@@ -554,6 +557,7 @@ public class WikiEngine implements Engine {
     private com.wikantik.api.pagegraph.PageGraphService mgr_PageGraphService;
     private com.wikantik.admin.ContentIndexRebuildService mgr_ContentIndexRebuildService;
     private com.wikantik.ontology.runtime.OntologyRebuildCoordinator mgr_OntologyRebuildCoordinator;
+    private com.wikantik.drift.DriftSweepService mgr_DriftSweepService;
     private com.wikantik.pagegraph.spine.PageVerificationDao mgr_PageVerificationDao;
     private com.wikantik.pagegraph.spine.TrustedAuthorsDao mgr_TrustedAuthorsDao;
     private com.wikantik.pagegraph.spine.StructuralIndexEventListener mgr_StructuralIndexEventListener;

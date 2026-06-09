@@ -50,6 +50,22 @@ class SchemaDrivenFrontmatterValidatorTest {
     }
 
     @Test
+    void closedEnumAcceptsMultiValuedAudienceList() {
+        // SnakeYAML parses `audience: [agents, humans]` into a List — each token must be checked,
+        // not the List's toString(). All-valid members → no violation.
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "audience", List.of( "agents", "humans" ) ), ValidationCtx.lenient() );
+        assertTrue( first( vs, "audience" ).isEmpty(), "a list of valid audience members is accepted" );
+    }
+
+    @Test
+    void closedEnumAcceptsPipeStringAudience() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "audience", "humans | agents | both" ), ValidationCtx.lenient() );
+        assertTrue( first( vs, "audience" ).isEmpty(), "a pipe-separated audience string is accepted" );
+    }
+
+    @Test
     void openEnumWarnsAndSuggestsForNonCanonicalStatus() {
         final List< FieldViolation > vs = validator.validate(
                 Map.of( "status", "published" ), ValidationCtx.lenient() );
@@ -75,19 +91,21 @@ class SchemaDrivenFrontmatterValidatorTest {
     }
 
     @Test
-    void malformedClusterSlugErrorsWithSuggestion() {
+    void malformedClusterSlugWarnsWithSuggestion() {
+        // Non-kebab clusters exist in the live corpus, so this is advisory (WARNING), not blocking.
         final List< FieldViolation > vs = validator.validate(
                 Map.of( "cluster", "Interval Trees" ), ValidationCtx.lenient() );
         final FieldViolation v = first( vs, "cluster" ).orElseThrow();
-        assertEquals( Severity.ERROR, v.severity() );
+        assertEquals( Severity.WARNING, v.severity() );
         assertEquals( "interval-trees", v.suggestion() );
     }
 
     @Test
-    void badDateErrors() {
+    void badDateWarns() {
+        // Corpus has non-ISO dates (localized strings, placeholders) — advisory, not blocking.
         final List< FieldViolation > vs = validator.validate(
                 Map.of( "date", "not-a-date" ), ValidationCtx.lenient() );
-        assertEquals( Severity.ERROR, first( vs, "date" ).orElseThrow().severity() );
+        assertEquals( Severity.WARNING, first( vs, "date" ).orElseThrow().severity() );
     }
 
     @Test

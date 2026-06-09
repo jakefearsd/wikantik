@@ -81,12 +81,12 @@ public final class SchemaDrivenFrontmatterValidator {
         if ( raw == null ) {
             return;
         }
-        final String val = raw.toString().trim();
-        if ( val.isEmpty() || spec.canonicalValues().contains( val ) ) {
-            return;
-        }
         final String canon = String.join( ", ", spec.canonicalValues() );
         if ( spec.open() ) {
+            final String val = raw.toString().trim();
+            if ( val.isEmpty() || spec.canonicalValues().contains( val ) ) {
+                return;
+            }
             final String suggestion = spec.suggestionMap().get( val );
             final String msg = "`" + spec.key() + ": \"" + val + "\"` is not a canonical value for '"
                     + spec.key() + "'. Canonical values: " + canon
@@ -94,10 +94,44 @@ public final class SchemaDrivenFrontmatterValidator {
                     + ( suggestion != null ? " Suggested replacement: `" + suggestion + "`." : "" );
             out.add( new FieldViolation( spec.key(), ctx.nonCanonicalEnumSeverity(),
                     spec.key() + ".noncanonical", msg, suggestion ) );
-        } else {
-            out.add( FieldViolation.of( spec.key(), Severity.ERROR, spec.key() + ".enum.invalid",
-                    "`" + spec.key() + ": \"" + val + "\"` is not allowed. Allowed values: " + canon + "." ) );
+            return;
         }
+        // Closed enum (e.g. audience): may be YAML-multi-valued (a list `[agents, humans]`, or a
+        // pipe/comma string). SnakeYAML parses a list into a List, so check each token, not toString().
+        final List< String > invalid = new ArrayList<>();
+        for ( final String token : enumTokens( raw ) ) {
+            if ( !spec.canonicalValues().contains( token ) ) {
+                invalid.add( token );
+            }
+        }
+        if ( !invalid.isEmpty() ) {
+            out.add( FieldViolation.of( spec.key(), Severity.ERROR, spec.key() + ".enum.invalid",
+                    "`" + spec.key() + "` has value(s) not allowed: " + invalid
+                            + ". Allowed values: " + canon + "." ) );
+        }
+    }
+
+    /** Splits a closed-enum value into lowercase tokens: a YAML list, or a pipe/comma-separated string. */
+    private static List< String > enumTokens( final Object raw ) {
+        final List< String > tokens = new ArrayList<>();
+        if ( raw instanceof List< ? > list ) {
+            for ( final Object o : list ) {
+                if ( o != null ) {
+                    final String t = o.toString().trim().toLowerCase( Locale.ROOT );
+                    if ( !t.isEmpty() ) {
+                        tokens.add( t );
+                    }
+                }
+            }
+        } else {
+            for ( final String part : raw.toString().split( "[|,]" ) ) {
+                final String t = part.trim().toLowerCase( Locale.ROOT );
+                if ( !t.isEmpty() ) {
+                    tokens.add( t );
+                }
+            }
+        }
+        return tokens;
     }
 
     private void validateText( final FieldSpec spec, final Object raw, final List< FieldViolation > out ) {
@@ -116,11 +150,14 @@ public final class SchemaDrivenFrontmatterValidator {
             }
         }
         if ( spec.pattern() != null && !val.matches( spec.pattern() ) ) {
+            // Advisory, not blocking: ~15 live clusters are non-kebab (e.g. "Data Structures"), so a
+            // blocking error would 422 every edit to those pages. Warn sternly + suggest the slug.
             final String suggestion = slugify( val );
             final String msg = "'" + spec.key() + "' value \"" + val
                     + "\" is not a valid slug — use lowercase kebab-case"
-                    + ( suggestion.isEmpty() ? "." : ", e.g. '" + suggestion + "'." );
-            out.add( new FieldViolation( spec.key(), Severity.ERROR, spec.key() + ".slug.malformed",
+                    + ( suggestion.isEmpty() ? "." : ", e.g. '" + suggestion + "'." )
+                    + " Tolerated for now, but it will be rejected once the corpus is normalized.";
+            out.add( new FieldViolation( spec.key(), Severity.WARNING, spec.key() + ".slug.malformed",
                     msg, suggestion.isEmpty() ? null : suggestion ) );
         }
     }
@@ -140,7 +177,9 @@ public final class SchemaDrivenFrontmatterValidator {
         if ( val.isEmpty() || parsesAsTemporal( val, allowInstant ) ) {
             return;
         }
-        out.add( FieldViolation.of( spec.key(), Severity.ERROR, spec.key() + ".date.malformed",
+        // Advisory, not blocking: the corpus has non-ISO dates (localized strings, "YYYY-MM-DD"
+        // placeholders); blocking would break editing those pages. Warn rather than 422.
+        out.add( FieldViolation.of( spec.key(), Severity.WARNING, spec.key() + ".date.malformed",
                 "'" + spec.key() + "' is not a valid "
                         + ( allowInstant ? "ISO-8601 timestamp" : "ISO date (YYYY-MM-DD)" )
                         + ": \"" + val + "\"." ) );

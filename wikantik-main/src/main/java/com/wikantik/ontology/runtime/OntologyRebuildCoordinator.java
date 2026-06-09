@@ -60,6 +60,9 @@ public final class OntologyRebuildCoordinator {
     private final com.wikantik.ontology.OntologyRebuildService materializer =
             new com.wikantik.ontology.OntologyRebuildService();
 
+    private final java.util.List< Runnable > rebuildCompleteHooks =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
     private final AtomicReference< State > state = new AtomicReference<>( State.IDLE );
     private volatile long graphCount = -1;
     private volatile String lastError;
@@ -92,6 +95,12 @@ public final class OntologyRebuildCoordinator {
         return snap;
     }
 
+    /** Registers a callback invoked (on the rebuild thread) after each successful full rebuild.
+     *  Hook exceptions are caught and logged — they can never fail the rebuild. */
+    public void onRebuildComplete( final Runnable hook ) {
+        rebuildCompleteHooks.add( hook );
+    }
+
     /** Kicks a rebuild only if the dataset is empty (startup self-heal). Returns true if started. */
     public synchronized boolean rebuildIfEmpty() {
         if ( !enabled ) {
@@ -116,6 +125,13 @@ public final class OntologyRebuildCoordinator {
             graphCount = written;
             lastError = null;
             LOG.info( "ontology rebuild complete: {} named graphs", written );
+            for ( final Runnable hook : rebuildCompleteHooks ) {
+                try {
+                    hook.run();
+                } catch ( final RuntimeException e ) {
+                    LOG.warn( "post-rebuild hook failed: {}", e.getMessage(), e );
+                }
+            }
         } catch ( final RuntimeException e ) {
             lastError = e.getMessage();
             LOG.warn( "ontology rebuild failed: {}", e.getMessage(), e );

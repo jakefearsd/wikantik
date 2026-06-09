@@ -19,12 +19,14 @@
 package com.wikantik.ontology.runtime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import com.wikantik.api.knowledge.KgNode;
@@ -85,5 +87,30 @@ class OntologyRebuildCoordinatorTest {
         final OntologyRebuildCoordinator svc = coordinator( mgr, false );
         assertThrows( OntologyRebuildCoordinator.DisabledException.class, svc::triggerRebuild );
         assertEquals( false, svc.status().enabled() );
+    }
+
+    @Test
+    void postRebuildHookRunsAfterSuccessfulRebuild() throws InterruptedException {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final OntologyRebuildCoordinator svc = coordinator( mgr, true );
+        final CountDownLatch hookRan = new CountDownLatch( 1 );
+        svc.onRebuildComplete( hookRan::countDown );
+        svc.triggerRebuild();
+        assertTrue( hookRan.await( 10, TimeUnit.SECONDS ), "hook should have fired within 10 s" );
+    }
+
+    @Test
+    void throwingHookDoesNotPoisonRebuildOrOtherHooks() throws InterruptedException {
+        final OntologyModelManager mgr = OntologyModelManager.inMemory();
+        mgr.loadTBox();
+        final OntologyRebuildCoordinator svc = coordinator( mgr, true );
+        final CountDownLatch secondHookRan = new CountDownLatch( 1 );
+        svc.onRebuildComplete( () -> { throw new IllegalStateException( "boom" ); } );
+        svc.onRebuildComplete( secondHookRan::countDown );
+        svc.triggerRebuild();
+        assertTrue( secondHookRan.await( 10, TimeUnit.SECONDS ), "second hook should fire despite first hook throwing" );
+        Awaitility.await().atMost( 10, TimeUnit.SECONDS ).until( () -> "IDLE".equals( svc.status().state() ) );
+        assertNull( svc.status().lastError(), "rebuild must not record an error when only a hook throws" );
     }
 }

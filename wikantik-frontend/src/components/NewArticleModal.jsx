@@ -46,18 +46,14 @@ export default function NewArticleModal({ isOpen, onClose, existingPageNames, ex
   const handleSubmit = () => {
     if (!isValid) return;
     const today = new Date().toISOString().slice(0, 10);
-    const frontmatterLines = [
-      '---',
-      `type: ${articleType}`,
-      'status: active',
-      `date: ${today}`,
-    ];
+    // Hand the editor a structured metadata object + a frontmatter-free body; the structured
+    // FrontmatterEditor takes over from here (no more hand-built raw-YAML string).
+    const initialMetadata = { type: articleType, status: 'active', date: today };
     if (cluster.trim()) {
-      frontmatterLines.push(`cluster: ${cluster.trim()}`);
+      initialMetadata.cluster = cluster.trim();
     }
-    frontmatterLines.push('---');
-    const initialContent = frontmatterLines.join('\n') + '\n\n# ' + title + '\n\nWrite your article here.';
-    navigate('/edit/' + slug, { state: { initialContent } });
+    const initialContent = `# ${title}\n\nWrite your article here.`;
+    navigate('/edit/' + slug, { state: { initialMetadata, initialContent } });
     onClose();
   };
 

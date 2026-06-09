@@ -57,6 +57,9 @@ vi.mock('../api/client', () => ({
     savePage: vi.fn(),
     listAttachments: vi.fn(),
     listPages: vi.fn(() => Promise.resolve({ pages: [] })),
+    getFrontmatterSchema: vi.fn(() => Promise.resolve({ fields: [] })),
+    validateFrontmatter: vi.fn(() => Promise.resolve({ metadata: {}, violations: [] })),
+    search: vi.fn(() => Promise.resolve({ results: [] })),
   },
 }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));

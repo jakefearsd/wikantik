@@ -9,6 +9,7 @@ import { reconstructContent, stripFrontmatter, frontmatterOffsetLines } from '..
 import { frontmatterLineCount, caretToPreviewFraction, previewFractionToLine, previewScrollTopFor } from '../utils/scrollSync';
 import rehypeSourceLine from '../utils/rehypeSourceLine';
 import FrontmatterPreview from './FrontmatterPreview';
+import FrontmatterEditor from './frontmatter/FrontmatterEditor';
 import { remarkAttachments } from '../utils/remarkAttachments';
 import { useAttachments } from '../hooks/useAttachments';
 import { useEditorDrop } from '../hooks/useEditorDrop';
@@ -29,7 +30,12 @@ export default function PageEditor() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
-  const [content, setContent] = useState('');
+  // The frontmatter object and the markdown BODY are the two canonical pieces; CodeMirror edits the
+  // body only, the structured FrontmatterEditor edits the object. Full text is derived where needed
+  // (draft autosave, dirty baseline, frontmatter preview, clipboard).
+  const [body, setBody] = useState('');
+  const [metadata, setMetadata] = useState({});
+  const [violations, setViolations] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [originalVersion, setOriginalVersion] = useState(null);
   const [changeNote, setChangeNote] = useState('');
@@ -41,28 +47,17 @@ export default function PageEditor() {
   const [converting, setConverting] = useState(false);
   const [conversionWarnings, setConversionWarnings] = useState([]);
   const [panelOpen, setPanelOpen] = useState(false);
-  // #20 — discard-confirm modal state
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-  // #22 — drag-over visual hint
   const [isDragging, setIsDragging] = useState(false);
-  // #19 — CodeMirror editor: imperative handle for selection + DOM container for drop
   const editorRef = useRef(null);
   const dropContainerRef = useRef(null);
-  // Bidirectional scroll sync: preview scroll container, per-direction rAF
-  // coalescers, and a shared guard so a programmatic scroll in one pane doesn't
-  // echo back and fight the other.
   const previewRef = useRef(null);
   const syncRafRef = useRef(0);
   const editorRafRef = useRef(0);
   const syncingRef = useRef(false);
-  // Separate guard set by handlePreviewClick to prevent syncPreview from running
-  // during the click-to-source operation.  Unlike syncingRef (which is also used
-  // and released by syncPreview/syncEditor themselves), this ref is exclusively
-  // owned by handlePreviewClick and is released only by its own timer.
   const clickSyncGuardRef = useRef(false);
   const [dark] = useDarkMode();
   const attachments = useAttachments(name);
-  // Track saving in a ref so the keyboard handler can read latest state without re-registering
   const savingRef = useRef(false);
 
   const { user } = useAuth();
@@ -75,37 +70,37 @@ export default function PageEditor() {
   const [restorePrompt, setRestorePrompt] = useState(false);
   const loadedContentRef = useRef(null);
 
-  // #20 — isDirty: true only once the page has loaded and content differs from baseline
-  const isDirty = loaded && content !== loadedContentRef.current;
+  // Full reconstructed text (frontmatter + body) — derived, used for the draft, the dirty baseline,
+  // the frontmatter preview card, and clipboard copy on conflict.
+  const fullText = useMemo(() => reconstructContent(metadata, body), [metadata, body]);
 
-  // #19 — keep latest content in a ref so the stable applyFormat / keymap
-  // callbacks read current text without re-registering.
-  const contentRef = useRef(content);
-  contentRef.current = content;
+  // #20 — isDirty: true only once the page has loaded and the reconstructed text differs from baseline.
+  const isDirty = loaded && fullText !== loadedContentRef.current;
 
-  // Editor→preview: driven by the editor's top-visible line so it follows both
-  // manual scrolling and typing; frontmatter-zone-aware (caret in the frontmatter
-  // pins the preview to its top card). Coalesced into one rAF per burst.
+  // Keep the body in a ref so the stable scroll-sync / format callbacks read current text.
+  const bodyRef = useRef(body);
+  bodyRef.current = body;
+
+  // Editor→preview scroll sync. The editor now holds the BODY only, so the frontmatter offset is 0;
+  // the helpers stay (returning 0) for robustness.
   const syncPreview = useCallback(() => {
-    if (syncingRef.current || syncRafRef.current || clickSyncGuardRef.current) return; // skip echo / already queued / click-to-source active
+    if (syncingRef.current || syncRafRef.current || clickSyncGuardRef.current) return;
     syncRafRef.current = requestAnimationFrame(() => {
       syncRafRef.current = 0;
-      if (clickSyncGuardRef.current) return; // re-check inside rAF — guard may have been set after queuing
+      if (clickSyncGuardRef.current) return;
       const editor = editorRef.current;
       const preview = previewRef.current;
       if (!editor?.getViewport || !preview) return;
       const vp = editor.getViewport();
       if (!vp) return;
-      const fm = frontmatterLineCount(contentRef.current);
+      const fm = frontmatterLineCount(bodyRef.current);
       const fraction = caretToPreviewFraction(vp.topLine, vp.totalLines, fm);
       syncingRef.current = true;
       preview.scrollTop = previewScrollTopFor(fraction, preview.scrollHeight, preview.clientHeight);
-      requestAnimationFrame(() => { syncingRef.current = false; }); // release after the echo frame
+      requestAnimationFrame(() => { syncingRef.current = false; });
     });
   }, []);
 
-  // Preview→editor: the inverse. Maps the preview's scroll fraction back to a
-  // source line and scrolls the editor there. Same guard prevents a feedback loop.
   const syncEditor = useCallback(() => {
     if (syncingRef.current || editorRafRef.current) return;
     editorRafRef.current = requestAnimationFrame(() => {
@@ -115,8 +110,8 @@ export default function PageEditor() {
       if (!editor?.scrollToLine || !preview) return;
       const range = preview.scrollHeight - preview.clientHeight;
       const fraction = range > 0 ? preview.scrollTop / range : 0;
-      const total = contentRef.current ? contentRef.current.split('\n').length : 1;
-      const fm = frontmatterLineCount(contentRef.current);
+      const total = bodyRef.current ? bodyRef.current.split('\n').length : 1;
+      const fm = frontmatterLineCount(bodyRef.current);
       syncingRef.current = true;
       editor.scrollToLine(previewFractionToLine(fraction, total, fm));
       requestAnimationFrame(() => { syncingRef.current = false; });
@@ -128,43 +123,23 @@ export default function PageEditor() {
     if (editorRafRef.current) cancelAnimationFrame(editorRafRef.current);
   }, []);
 
-  // Click-to-source: a click in the preview walks up to the nearest block tagged
-  // with its source line (data-line, body-relative), adds the frontmatter offset,
-  // and repositions the editor so the clicked source line lands at the SAME
-  // vertical position as the clicked preview block. The preview is held still.
   const handlePreviewClick = useCallback((e) => {
     const el = e.target.closest?.('[data-line]');
     if (!el) return;
     const bodyLine = parseInt(el.getAttribute('data-line'), 10);
     if (Number.isNaN(bodyLine)) return;
-    const sourceLine = bodyLine + frontmatterOffsetLines(contentRef.current);
-    // Cancel any pending editor→preview sync rAF that was queued before this
-    // click; if it fired it would scroll the preview based on the OLD editor
-    // position, ruining the "preview holds still" guarantee.
+    const sourceLine = bodyLine + frontmatterOffsetLines(bodyRef.current);
     if (syncRafRef.current) {
       cancelAnimationFrame(syncRafRef.current);
       syncRafRef.current = 0;
     }
-    // Vertical offset of the clicked block RELATIVE TO THE EDITOR SCROLLER'S
-    // top. Using the scroller rect (not the preview rect) accounts for any
-    // difference in top position between the two panes (e.g. CM6's own padding).
-    // After jumpToLineAligned the source line's top sits at `offset` px below
-    // the editor scroller top = the same window-Y as the clicked block.
     const scrollerRect = editorRef.current?.getScrollerRect?.();
-    const previewRect  = previewRef.current?.getBoundingClientRect?.() ?? null;
-    const scrollerTop  = scrollerRect ? scrollerRect.top
-                       : previewRect  ? previewRect.top
-                       : 0;
+    const previewRect = previewRef.current?.getBoundingClientRect?.() ?? null;
+    const scrollerTop = scrollerRect ? scrollerRect.top : previewRect ? previewRect.top : 0;
     const offset = el.getBoundingClientRect().top - scrollerTop;
-    // Use a dedicated click-guard (not syncingRef) so the guard is NOT released
-    // by syncPreview/syncEditor's own rAF cleanup cycles during the operation.
     clickSyncGuardRef.current = true;
     syncingRef.current = true;
     editorRef.current?.jumpToLineAligned?.(sourceLine, offset);
-    // Hold both guards long enough for CM6's internal measure/scroll cycles to
-    // complete. CM6 may schedule rAF-based DOM updates after scrollDOM is set
-    // directly; 300 ms outlasts the typical 1-2 frame delay so the echo into
-    // the preview is suppressed.
     setTimeout(() => {
       clickSyncGuardRef.current = false;
       syncingRef.current = false;
@@ -172,8 +147,6 @@ export default function PageEditor() {
   }, []);
 
   // Page names for `[[`-triggered internal-link autocomplete in the editor.
-  // Held in a ref so CodeEditor's completion source (built once) always reads
-  // the freshly-loaded list without rebuilding the editor.
   const pageNamesRef = useRef([]);
   useEffect(() => {
     let cancelled = false;
@@ -184,23 +157,28 @@ export default function PageEditor() {
   }, []);
   const getPageNames = useCallback(() => pageNamesRef.current, []);
 
+  // Search-backed option source for the `related` field's page picker.
+  const pageSearch = useCallback((q) =>
+    Promise.resolve()
+      .then(() => (api.search ? api.search(q) : { results: [] }))
+      .then((r) => (r.results || []).map((x) => x.name)), []);
+
   const handleInsert = useCallback((text, pos) => {
-    setContent(prev => prev.slice(0, pos) + text + prev.slice(pos));
+    setBody(prev => prev.slice(0, pos) + text + prev.slice(pos));
   }, []);
 
-  // #19 — current caret offset for drop insertion (CodeMirror has no selectionStart)
   const getDropOffset = useCallback(() => {
     return editorRef.current ? editorRef.current.getSelection().selStart : 0;
   }, []);
 
   useEditorDrop(dropContainerRef, handleInsert, getDropOffset);
 
-  // Strip frontmatter from preview — show only the body portion
-  const previewContent = useMemo(() => stripFrontmatter(content), [content]);
+  // The editor holds the body only, so the preview renders it directly (no frontmatter to strip).
+  const previewContent = useMemo(() => stripFrontmatter(body), [body]);
 
   const handleRename = useCallback(async (oldName, newName) => {
     const result = await attachments.renameAttachment(oldName, newName);
-    setContent(prev => {
+    setBody(prev => {
       const escaped = oldName.replace(/\./g, '\\.');
       return prev
         .replace(new RegExp(`(!\\[[^\\]]*\\])\\(${escaped}\\)`, 'g'), `$1(${newName})`)
@@ -211,10 +189,13 @@ export default function PageEditor() {
 
   useEffect(() => {
     api.getPage(name).then(page => {
-      const loaded = reconstructContent(page.metadata, page.content);
-      setContent(loaded);
-      loadedContentRef.current = loaded;
-      if (draft && draft.content && draft.content !== loaded) {
+      const meta = page.metadata || {};
+      const pageBody = page.content || '';
+      setMetadata(meta);
+      setBody(pageBody);
+      const full = reconstructContent(meta, pageBody);
+      loadedContentRef.current = full;
+      if (draft && draft.content && draft.content !== full) {
         setRestorePrompt(true);
       }
       setOriginalVersion(page.version);
@@ -222,10 +203,13 @@ export default function PageEditor() {
       setIsNew(false);
     }).catch(err => {
       if (err.status === 404) {
-        const loaded = location.state?.initialContent || `# ${name}\n\nWrite your content here.`;
-        setContent(loaded);
-        loadedContentRef.current = loaded;
-        if (draft && draft.content && draft.content !== loaded) {
+        const initialBody = location.state?.initialContent || `# ${name}\n\nWrite your content here.`;
+        const initialMeta = location.state?.initialMetadata || {};
+        setBody(initialBody);
+        setMetadata(initialMeta);
+        const full = reconstructContent(initialMeta, initialBody);
+        loadedContentRef.current = full;
+        if (draft && draft.content && draft.content !== full) {
           setRestorePrompt(true);
         }
         setIsNew(true);
@@ -238,27 +222,23 @@ export default function PageEditor() {
   }, [name]);
 
   // Debounced autosave — fires 800 ms after the user stops typing.
-  // Guards on loadedContentRef so no draft is written during the initial load.
-  // Clears the draft when the editor content returns to the loaded baseline.
   useEffect(() => {
     if (!login) return;
     if (loadedContentRef.current === null) return;
     const id = setTimeout(() => {
-      if (content === loadedContentRef.current) {
+      if (fullText === loadedContentRef.current) {
         clearDraft();
       } else {
-        saveDraft({ content, title: name });
+        saveDraft({ content: fullText, title: name });
       }
     }, 800);
     return () => clearTimeout(id);
-  }, [content, name, login, saveDraft, clearDraft]);
+  }, [fullText, name, login, saveDraft, clearDraft]);
 
-  // Sync document.title so selenide tests can assert editor context.
   useEffect(() => {
     document.title = `Wikantik: ${isNew ? 'Create' : 'Edit'} ${name}`;
   }, [name, isNew]);
 
-  // #20 — beforeunload handler: warn if navigating away with unsaved changes
   useEffect(() => {
     const handler = (e) => {
       e.preventDefault();
@@ -270,14 +250,13 @@ export default function PageEditor() {
     }
   }, [isDirty]);
 
-  // #18/#19 — Apply a formatting command to the CodeMirror editor
   const applyFormat = useCallback((command) => {
     const editor = editorRef.current;
     if (!editor) return;
 
     const { selStart, selEnd } = editor.getSelection();
     const state = {
-      text: contentRef.current,
+      text: bodyRef.current,
       selStart,
       selEnd,
     };
@@ -295,37 +274,29 @@ export default function PageEditor() {
       default: return;
     }
 
-    setContent(next.text);
+    setBody(next.text);
 
-    // Restore selection after React re-renders the controlled CodeMirror value
     requestAnimationFrame(() => {
       editorRef.current?.setSelection(next.selStart, next.selEnd);
     });
   }, []);
 
-  // #4 — Cmd/Ctrl+S global keyboard shortcut. Registered on window so it works
-  // regardless of focus (change-note input, editor, etc.). CodeMirror does not
-  // bind Mod-s, so this keydown still fires when the editor has focus.
-  // #18/#19 — Cmd/Ctrl+B/I/K formatting shortcuts are handled by the CodeMirror
-  // keymap (CodeEditor) and delegate to handleBold/Italic/Link below.
+  // #4 — Cmd/Ctrl+S save. The handler is registered once but calls the LATEST save via a ref, so it
+  // always saves the current body/metadata (not a stale first-render closure).
+  const latestSaveRef = useRef(null);
   useEffect(() => {
     const handler = (e) => {
       const hotkey = (e.metaKey || e.ctrlKey);
       if (!hotkey) return;
-
       if (e.key === 's') {
         e.preventDefault();
-        if (!savingRef.current) {
-          saveContent();
-        }
+        if (!savingRef.current) latestSaveRef.current?.();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // #19 — stable handlers passed into the CodeMirror keymap
   const handleBold = useCallback(() => applyFormat('bold'), [applyFormat]);
   const handleItalic = useCallback(() => applyFormat('italic'), [applyFormat]);
   const handleLink = useCallback(() => applyFormat('link'), [applyFormat]);
@@ -334,8 +305,8 @@ export default function PageEditor() {
     setConverting(true);
     setError(null);
     try {
-      const result = await api.convertWikiToMarkdown(content);
-      setContent(result.markdown);
+      const result = await api.convertWikiToMarkdown(body);
+      setBody(result.markdown);
       setMarkupSyntax('markdown');
       setConversionWarnings(result.warnings || []);
     } catch (err) {
@@ -345,30 +316,46 @@ export default function PageEditor() {
     }
   };
 
-  // #4 — extracted save function used by button and keyboard shortcut
+  // #4 — extracted save function used by button and keyboard shortcut. Sends body + metadata object
+  // (replaceMetadata=true for full-object replace); maps a 422 to inline field violations, surfaces
+  // 200 warnings as an advisory toast.
   const saveContent = async () => {
     setSaving(true);
     savingRef.current = true;
     setError(null);
     try {
-      await api.savePage(name, {
-        content,
+      const res = await api.savePage(name, {
+        content: body,
+        metadata,
+        replaceMetadata: true,
         changeNote: changeNote || (isNew ? 'Created page' : 'Updated page'),
         expectedVersion: isNew ? undefined : originalVersion,
         markupSyntax: markupSyntax === 'markdown' ? 'markdown' : undefined,
       });
+      setViolations([]);
       clearDraft();
-      toast.success('Saved');
+      const warns = (res && res.warnings) || [];
+      if (warns.length) {
+        toast.info(`Saved with ${warns.length} advisory warning${warns.length > 1 ? 's' : ''}`);
+      } else {
+        toast.success('Saved');
+      }
       navigate(`/wiki/${name}`);
     } catch (err) {
       if (err.status === 409) {
         try {
           const serverPage = await api.getPage(name);
-          const serverContent = reconstructContent(serverPage.metadata, serverPage.content);
-          setConflict({ serverContent, serverVersion: serverPage.version });
+          setConflict({
+            serverMetadata: serverPage.metadata || {},
+            serverBody: serverPage.content || '',
+            serverVersion: serverPage.version,
+          });
         } catch (fetchErr) {
           setError('Version conflict, and failed to fetch the current server version.');
         }
+      } else if (err.status === 422) {
+        setViolations((err.body && err.body.violations) || []);
+        toast.error('Fix the highlighted frontmatter fields');
       } else {
         setError(err.message || 'Save failed');
       }
@@ -378,9 +365,26 @@ export default function PageEditor() {
     }
   };
 
+  latestSaveRef.current = saveContent;
   const save = saveContent;
 
-  // #22 — drag counter to handle enter/leave across child elements
+  const restoreDraft = useCallback(async () => {
+    const full = draft?.content || '';
+    setBody(stripFrontmatter(full));
+    const m = full.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    if (m) {
+      try {
+        const result = await api.validateFrontmatter({ frontmatter: m[1] });
+        setMetadata(result?.metadata || {});
+      } catch {
+        setMetadata({});
+      }
+    } else {
+      setMetadata({});
+    }
+    setRestorePrompt(false);
+  }, [draft]);
+
   const dragCounterRef = useRef(0);
 
   const handleDragEnter = useCallback(() => {
@@ -397,17 +401,14 @@ export default function PageEditor() {
   }, []);
 
   const handleDragOver = useCallback((e) => {
-    // Allow drop — needed for onDrop to fire on some browsers
     e.preventDefault();
   }, []);
 
   const handleDrop = useCallback(() => {
     dragCounterRef.current = 0;
     setIsDragging(false);
-    // Actual file handling is delegated to useEditorDrop on the textarea
   }, []);
 
-  // #20 — Cancel handler: confirm if dirty
   const handleCancel = () => {
     if (isDirty) {
       setShowDiscardConfirm(true);
@@ -422,7 +423,9 @@ export default function PageEditor() {
     setError(null);
     try {
       await api.savePage(name, {
-        content,
+        content: body,
+        metadata,
+        replaceMetadata: true,
         changeNote: changeNote || 'Updated page (overwrite)',
       });
       clearDraft();
@@ -435,18 +438,20 @@ export default function PageEditor() {
   };
 
   const handleDiscard = () => {
-    setContent(conflict.serverContent);
+    setMetadata(conflict.serverMetadata);
+    setBody(conflict.serverBody);
     setOriginalVersion(conflict.serverVersion);
     setConflict(null);
   };
 
   const handleCopyAndLoad = async () => {
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(fullText);
     } catch {
-      // Fallback: select-and-copy not available in all contexts; proceed anyway
+      // Fallback: clipboard not available in all contexts; proceed anyway
     }
-    setContent(conflict.serverContent);
+    setMetadata(conflict.serverMetadata);
+    setBody(conflict.serverBody);
     setOriginalVersion(conflict.serverVersion);
     setConflict(null);
   };
@@ -523,15 +528,13 @@ export default function PageEditor() {
 
       {error && <div className="error-banner" data-testid="editor-error">{error}</div>}
 
-      {/* #21 — Draft restore banner with relative time and dismiss button */}
       {restorePrompt && (
         <div className="draft-restore-banner" role="status">
           <span title={new Date(draft.savedAt).toLocaleString()}>
             You have unsaved changes from{' '}
             {formatRelative(draft.savedAt)}.
           </span>
-          <button type="button" className="btn-link"
-            onClick={() => { setContent(draft.content); setRestorePrompt(false); }}>
+          <button type="button" className="btn-link" onClick={restoreDraft}>
             Restore
           </button>
           <button type="button" className="btn-link"
@@ -546,11 +549,19 @@ export default function PageEditor() {
         </div>
       )}
 
-      {/* #18 — Formatting toolbar above the editor container */}
+      {/* Structured frontmatter surface — shares the edit pane; CodeMirror below is body-only. */}
+      <section className="editor-frontmatter">
+        <FrontmatterEditor
+          metadata={metadata}
+          onChange={setMetadata}
+          violations={violations}
+          pageSearch={pageSearch}
+        />
+      </section>
+
       <EditorToolbar onCommand={applyFormat} />
 
       <div className="editor-container">
-        {/* #22 — drag-over visual hint on the editor pane */}
         <div
           ref={dropContainerRef}
           className="editor-pane"
@@ -569,8 +580,8 @@ export default function PageEditor() {
             ref={editorRef}
             data-testid="editor-textarea"
             className="editor-textarea"
-            value={content}
-            onChange={setContent}
+            value={body}
+            onChange={setBody}
             dark={dark}
             onBold={handleBold}
             onItalic={handleItalic}
@@ -580,7 +591,7 @@ export default function PageEditor() {
           />
         </div>
         <div className="editor-pane editor-preview" ref={previewRef} onScroll={syncEditor}>
-          <FrontmatterPreview content={content} />
+          <FrontmatterPreview content={fullText} />
           <article className="article-prose" onClick={handlePreviewClick}>
             <ReactMarkdown remarkPlugins={[
               remarkGfm,
@@ -628,7 +639,6 @@ export default function PageEditor() {
         </div>
       )}
 
-      {/* #20 — Discard-confirm modal for in-app Cancel */}
       {showDiscardConfirm && (
         <div className="modal-overlay" onClick={() => setShowDiscardConfirm(false)}>
           <div className="modal-content admin-modal" onClick={e => e.stopPropagation()}>
@@ -672,7 +682,7 @@ export default function PageEditor() {
         onUpload={attachments.uploadAttachment}
         onRename={handleRename}
         onDelete={attachments.deleteAttachment}
-        editorContent={content}
+        editorContent={body}
       />
     </div>
   );

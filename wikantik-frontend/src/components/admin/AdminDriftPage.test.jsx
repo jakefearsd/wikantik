@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import AdminDriftPage from './AdminDriftPage';
 
@@ -66,20 +66,62 @@ describe('AdminDriftPage', () => {
     render(<AdminDriftPage />);
     await waitFor(() => expect(screen.getByText('status.noncanonical')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByTestId('expand-status.noncanonical'));
+    fireEvent.click(screen.getByTestId('expand-frontmatter|status.noncanonical'));
     await waitFor(() => expect(screen.getByText('Drifty')).toBeInTheDocument());
     expect(api.admin.getDriftPages).toHaveBeenCalledWith('frontmatter', 'status.noncanonical');
     expect(screen.getByText(/active/)).toBeInTheDocument();
   });
 
-  it('run-now triggers a sweep and reloads after completion', async () => {
-    api.admin.runDriftSweep.mockResolvedValue({ state: 'RUNNING' });
+  it('run-now polls until a new sweep lands and re-enables the button', async () => {
+    vi.useFakeTimers();
+    try {
+      // Initial load and the first (immediate) poll see the old sweep;
+      // the poll after the 2s interval sees a NEW sweptAt.
+      api.admin.getDriftSummary
+        .mockResolvedValueOnce(SUMMARY)
+        .mockResolvedValueOnce(SUMMARY)
+        .mockResolvedValue({ ...SUMMARY, sweptAt: '2026-06-09T06:00:00Z' });
+      api.admin.runDriftSweep.mockResolvedValue({ state: 'RUNNING' });
+
+      render(<AdminDriftPage />);
+      await act(async () => {}); // flush the initial load
+      expect(screen.getByTestId('drift-run-now')).toBeEnabled();
+
+      fireEvent.click(screen.getByTestId('drift-run-now'));
+      expect(api.admin.runDriftSweep).toHaveBeenCalled();
+      expect(screen.getByTestId('drift-run-now')).toBeDisabled();
+
+      // First poll returns the OLD sweptAt — button must stay disabled.
+      await act(async () => {});
+      expect(screen.getByTestId('drift-run-now')).toBeDisabled();
+
+      // Advance past the poll interval: next poll sees the NEW sweptAt and completes.
+      await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+      expect(screen.getByTestId('drift-run-now')).toBeEnabled();
+      expect(api.admin.getDriftTrend.mock.calls.length).toBeGreaterThan(1); // trend refreshed
+      expect(vi.getTimerCount()).toBe(0); // no dangling poll timer
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows the page-level error when the initial load fails', async () => {
+    api.admin.getDriftSummary.mockRejectedValue(new Error('boom'));
+    render(<AdminDriftPage />);
+    await waitFor(() => expect(screen.getByText('boom')).toBeInTheDocument());
+  });
+
+  it('run-now surfaces a 409 as "already running" and re-enables the button', async () => {
+    const err = new Error('conflict');
+    err.status = 409;
+    api.admin.runDriftSweep.mockRejectedValue(err);
     render(<AdminDriftPage />);
     await waitFor(() => expect(screen.getByTestId('drift-run-now')).toBeEnabled());
 
     fireEvent.click(screen.getByTestId('drift-run-now'));
-    expect(api.admin.runDriftSweep).toHaveBeenCalled();
-    await waitFor(() => expect(api.admin.getDriftSummary.mock.calls.length).toBeGreaterThan(1));
+    await waitFor(() =>
+      expect(screen.getByText('A sweep is already running.')).toBeInTheDocument());
+    expect(screen.getByTestId('drift-run-now')).toBeEnabled();
   });
 
   it('shows a badge when SHACL was not checked', async () => {

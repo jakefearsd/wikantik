@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { api } from '../../api/client';
 import AdminPage from './AdminPage';
 import PageHeader from './PageHeader';
@@ -121,12 +121,20 @@ export default function AdminDriftPage() {
   };
 
   // Per-(family,code) series across trend sweeps, oldest→newest (API order).
-  const sparkValues = (family, code) =>
-    (trend?.sweeps || []).map(sw =>
-      (sw.counts || [])
-        .filter(c => c.family === family && c.code === code)
-        .reduce((sum, c) => sum + (c.count || 0), 0),
-    );
+  // Precomputed once per trend payload so render is allocation-free
+  // (mirrors AdminRetrievalQualityPage's seriesByMetric pattern).
+  const sparkMap = useMemo(() => {
+    const sweeps = trend?.sweeps || [];
+    const map = {};
+    sweeps.forEach((sw, i) => {
+      for (const c of sw.counts || []) {
+        const key = rowKey(c.family, c.code);
+        if (!map[key]) map[key] = new Array(sweeps.length).fill(0);
+        map[key][i] += c.count || 0;
+      }
+    });
+    return map;
+  }, [trend]);
 
   const hasSweep = !!summary?.sweptAt;
   const counts = summary?.counts || [];
@@ -137,7 +145,7 @@ export default function AdminDriftPage() {
         title="Metadata Drift"
         description="Frontmatter and SHACL drift burn-down across sweeps."
         actions={
-          <button data-testid="drift-run-now" disabled={sweeping} onClick={runNow}>
+          <button type="button" data-testid="drift-run-now" disabled={sweeping} onClick={runNow}>
             {sweeping ? 'Sweeping…' : 'Run sweep now'}
           </button>
         }
@@ -197,7 +205,7 @@ export default function AdminDriftPage() {
                     expanded={expanded}
                     pages={pages}
                     pagesLoading={pagesLoadingKey === key}
-                    sparkValues={sparkValues(c.family, c.code)}
+                    sparkValues={sparkMap[key] ?? []}
                     onToggle={() => toggleExpand(c.family, c.code)}
                   />
                 );
@@ -223,7 +231,12 @@ function DriftRowGroup({ count: c, expanded, pages, pagesLoading, sparkValues, o
         </td>
         <td><Sparkline values={sparkValues} /></td>
         <td>
-          <button data-testid={`expand-${c.code}`} onClick={onToggle}>
+          <button
+            type="button"
+            data-testid={`expand-${rowKey(c.family, c.code)}`}
+            aria-expanded={expanded}
+            onClick={onToggle}
+          >
             {expanded ? 'Hide' : 'Show'}
           </button>
         </td>
@@ -237,8 +250,8 @@ function DriftRowGroup({ count: c, expanded, pages, pagesLoading, sparkValues, o
             )}
             {!pagesLoading && pages && pages.length > 0 && (
               <ul>
-                {pages.map((p, i) => (
-                  <li key={`${p.pageName}|${p.field}|${i}`}>
+                {pages.map(p => (
+                  <li key={`${p.pageName}|${p.field}`}>
                     <PageEditLink name={p.pageName} />
                     {' — '}
                     <code>{p.field}</code>: {p.message}

@@ -63,7 +63,7 @@ class AdminDriftResourceTest {
             when( subs.pageGraph() ).thenReturn( pg );
             return subs;
         }
-        @Override DriftSnapshotRepository repository() { return repo; }
+        @Override DriftSnapshotRepository repository( final DriftSweepService service ) { return repo; }
     }
 
     @BeforeEach

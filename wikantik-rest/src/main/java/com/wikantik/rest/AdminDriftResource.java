@@ -50,6 +50,12 @@ public class AdminDriftResource extends RestServletBase {
     private static final com.google.gson.Gson NULL_SAFE_GSON =
             new com.google.gson.GsonBuilder().serializeNulls().create();
 
+    /** Admin-only surface — no cross-origin access. */
+    @Override
+    protected boolean isCrossOriginAllowed() {
+        return false;
+    }
+
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws IOException {
@@ -60,9 +66,9 @@ public class AdminDriftResource extends RestServletBase {
         }
         final String action = extractPathParam( request );
         if ( "summary".equals( action ) ) {
-            handleSummary( response );
+            handleSummary( service, response );
         } else if ( "trend".equals( action ) ) {
-            handleTrend( request, response );
+            handleTrend( service, request, response );
         } else if ( "pages".equals( action ) ) {
             handlePages( request, response, service );
         } else {
@@ -87,13 +93,15 @@ public class AdminDriftResource extends RestServletBase {
             LOG.info( "manual drift sweep triggered" );
             sendJsonWithStatus( response, 202, Map.of( "state", "RUNNING" ) );
         } catch ( final DriftSweepService.SweepAlreadyRunningException e ) {
+            LOG.warn( "manual drift sweep rejected — already running" );
             sendJsonWithStatus( response, HttpServletResponse.SC_CONFLICT,
                     Map.of( "state", "RUNNING", "error", "a drift sweep is already running" ) );
         }
     }
 
-    private void handleSummary( final HttpServletResponse response ) throws IOException {
-        final Optional< DriftSweepRecord > latest = repository().latest();
+    private void handleSummary( final DriftSweepService service, final HttpServletResponse response ) throws IOException {
+        final DriftSnapshotRepository repo = repository( service );
+        final Optional< DriftSweepRecord > latest = repo.latest();
         final Map< String, Object > out = new LinkedHashMap<>();
         if ( latest.isEmpty() ) {
             out.put( "sweptAt", null );
@@ -103,7 +111,7 @@ public class AdminDriftResource extends RestServletBase {
         }
         final DriftSweepRecord sweep = latest.get();
         final Map< String, Integer > previous = new LinkedHashMap<>();
-        repository().previousBefore( sweep.id() ).ifPresent( prev ->
+        repo.previousBefore( sweep.id() ).ifPresent( prev ->
                 prev.counts().forEach( c -> previous.put( countKey( c ), c.count() ) ) );
 
         final List< Map< String, Object > > counts = new ArrayList<>();
@@ -126,20 +134,21 @@ public class AdminDriftResource extends RestServletBase {
         sendJsonWithStatus( response, 200, out );
     }
 
-    private void handleTrend( final HttpServletRequest request, final HttpServletResponse response )
+    private void handleTrend( final DriftSweepService service, final HttpServletRequest request, final HttpServletResponse response )
             throws IOException {
         int days = 30;
         final String daysParam = request.getParameter( "days" );
         if ( daysParam != null ) {
             try {
-                days = Math.max( 1, Integer.parseInt( daysParam ) );
+                days = Math.min( 365, Math.max( 1, Integer.parseInt( daysParam ) ) );
             } catch ( final NumberFormatException e ) {
-                sendError( response, HttpServletResponse.SC_BAD_REQUEST, "days must be an integer" );
+                sendError( response, HttpServletResponse.SC_BAD_REQUEST, "days must be an integer (1-365)" );
                 return;
             }
         }
+        final DriftSnapshotRepository repo = repository( service );
         final List< Map< String, Object > > sweeps = new ArrayList<>();
-        for ( final DriftSweepRecord s : repository().trend( days ) ) {
+        for ( final DriftSweepRecord s : repo.trend( days ) ) {
             final Map< String, Object > row = new LinkedHashMap<>();
             row.put( "sweptAt", DateTimeFormatter.ISO_INSTANT.format( s.sweptAt() ) );
             row.put( "shaclChecked", s.shaclChecked() );
@@ -160,6 +169,8 @@ public class AdminDriftResource extends RestServletBase {
             return;
         }
         final List< Map< String, Object > > pages = new ArrayList<>();
+        // Corpus-wide synchronous re-validation per call: fine for one expanded row at a time,
+        // but do NOT poll this endpoint per summary row (O(rows × pages)).
         for ( final PageViolation v : service.currentPageList( family, code ) ) {
             final Map< String, Object > row = new LinkedHashMap<>();
             row.put( "pageName", v.pageName() );
@@ -182,8 +193,8 @@ public class AdminDriftResource extends RestServletBase {
     }
 
     /** Package-visible seam so the unit test can inject a mock repository. */
-    DriftSnapshotRepository repository() {
-        return service().repository();
+    DriftSnapshotRepository repository( final DriftSweepService service ) {
+        return service.repository();
     }
 
     private void sendJsonWithStatus( final HttpServletResponse response, final int status,

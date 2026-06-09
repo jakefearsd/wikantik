@@ -824,4 +824,47 @@ export const api = {
   // Public page similarity
   getSimilarPages: (name, limit = 5) =>
     request(`/api/pages/${encodeURIComponent(name)}/similar?limit=${limit}`),
+
+  // Page-scoped Knowledge Graph curation (/api/page-knowledge/{name}).
+  // Paths mirror the backend PageKnowledgeResource servlet mapping exactly.
+  getPageKnowledge: (name) =>
+    request(`/api/page-knowledge/${encodeURIComponent(name)}`),
+
+  upsertEntity: (name, { name: entityName, nodeType, properties }) =>
+    request(`/api/page-knowledge/${encodeURIComponent(name)}/entities`, {
+      method: 'POST',
+      body: JSON.stringify({ name: entityName, nodeType, properties }),
+    }),
+
+  confirmEntity: (name, id) =>
+    request(`/api/page-knowledge/${encodeURIComponent(name)}/entities/${encodeURIComponent(id)}/confirm`, {
+      method: 'POST',
+    }),
+
+  deleteEntity: (name, id) =>
+    request(`/api/page-knowledge/${encodeURIComponent(name)}/entities/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+
+  upsertEdge: (name, { sourceId, targetId, relationshipType, properties }) =>
+    request(`/api/page-knowledge/${encodeURIComponent(name)}/edges`, {
+      method: 'POST',
+      body: JSON.stringify({ sourceId, targetId, relationshipType, properties }),
+    }),
+
+  confirmEdge: (name, id) =>
+    request(`/api/page-knowledge/${encodeURIComponent(name)}/edges/${encodeURIComponent(id)}/confirm`, {
+      method: 'POST',
+    }),
+
+  deleteEdge: (name, id) =>
+    request(`/api/page-knowledge/${encodeURIComponent(name)}/edges/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+
+  rejectEdge: (name, id, reason) =>
+    request(`/api/page-knowledge/${encodeURIComponent(name)}/edges/${encodeURIComponent(id)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
 };

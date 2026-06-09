@@ -10,6 +10,8 @@ import { frontmatterLineCount, caretToPreviewFraction, previewFractionToLine, pr
 import rehypeSourceLine from '../utils/rehypeSourceLine';
 import FrontmatterPreview from './FrontmatterPreview';
 import FrontmatterEditor from './frontmatter/FrontmatterEditor';
+import KnowledgeGraphPanel from './knowledge/KnowledgeGraphPanel';
+import Tabs from './ui/Tabs';
 import { remarkAttachments } from '../utils/remarkAttachments';
 import { useAttachments } from '../hooks/useAttachments';
 import { useEditorDrop } from '../hooks/useEditorDrop';
@@ -48,6 +50,7 @@ export default function PageEditor() {
   const [conversionWarnings, setConversionWarnings] = useState([]);
   const [panelOpen, setPanelOpen] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [activeMetaTab, setActiveMetaTab] = useState('frontmatter');
   const [isDragging, setIsDragging] = useState(false);
   const editorRef = useRef(null);
   const dropContainerRef = useRef(null);
@@ -549,14 +552,28 @@ export default function PageEditor() {
         </div>
       )}
 
-      {/* Structured frontmatter surface — shares the edit pane; CodeMirror below is body-only. */}
+      {/* Structured frontmatter / Knowledge Graph tabs — shares the edit pane; CodeMirror below is body-only. */}
       <section className="editor-frontmatter">
-        <FrontmatterEditor
-          metadata={metadata}
-          onChange={setMetadata}
-          violations={violations}
-          pageSearch={pageSearch}
-        />
+        <Tabs
+          tabs={[
+            { id: 'frontmatter', label: 'Frontmatter' },
+            { id: 'knowledge', label: 'Knowledge' },
+          ]}
+          active={activeMetaTab}
+          onChange={setActiveMetaTab}
+        >
+          {activeMetaTab === 'frontmatter' && (
+            <FrontmatterEditor
+              metadata={metadata}
+              onChange={setMetadata}
+              violations={violations}
+              pageSearch={pageSearch}
+            />
+          )}
+          {activeMetaTab === 'knowledge' && (
+            <KnowledgeGraphPanel pageName={name} />
+          )}
+        </Tabs>
       </section>
 
       <EditorToolbar onCommand={applyFormat} />

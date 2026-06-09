@@ -60,6 +60,15 @@ vi.mock('../api/client', () => ({
     getFrontmatterSchema: vi.fn(() => Promise.resolve({ fields: [] })),
     validateFrontmatter: vi.fn(() => Promise.resolve({ metadata: {}, violations: [] })),
     search: vi.fn(() => Promise.resolve({ results: [] })),
+    // Page-scoped Knowledge Graph curation (Task 13)
+    getPageKnowledge: vi.fn(() => Promise.resolve({ entities: [], edges: [] })),
+    upsertEntity: vi.fn(() => Promise.resolve({ ok: true, nodeId: 'x' })),
+    confirmEntity: vi.fn(() => Promise.resolve(null)),
+    deleteEntity: vi.fn(() => Promise.resolve(null)),
+    upsertEdge: vi.fn(() => Promise.resolve({ ok: true, edgeId: 'x' })),
+    confirmEdge: vi.fn(() => Promise.resolve(null)),
+    deleteEdge: vi.fn(() => Promise.resolve(null)),
+    rejectEdge: vi.fn(() => Promise.resolve(null)),
   },
 }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: vi.fn() }));
@@ -401,6 +410,56 @@ describe('#18 formatting toolbar', () => {
     fireEvent.mouseDown(screen.getByTitle(/link/i));
 
     await waitFor(() => expect(getEditable().value).toBe('see [docs](url)'));
+  });
+});
+
+// ── Task 13: Frontmatter / Knowledge tabs ────────────────────────────────────
+describe('Task 13: Frontmatter / Knowledge tabs', () => {
+  it('renders the Frontmatter tab by default', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    // The Tabs component renders tab buttons
+    expect(screen.getByRole('tab', { name: /frontmatter/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /knowledge/i })).toBeInTheDocument();
+    // Frontmatter tab is active (selected)
+    expect(screen.getByRole('tab', { name: /frontmatter/i })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('clicking the Knowledge tab renders the panel', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    fireEvent.click(screen.getByRole('tab', { name: /knowledge/i }));
+
+    // KnowledgeGraphPanel renders (panel div or empty-state messages)
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /knowledge/i })).toHaveAttribute('aria-selected', 'true');
+    });
+    // The panel section headings should appear
+    await screen.findByText('Entities');
+    // Use getByRole to find the heading specifically (avoids matching empty-state text)
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /relations/i })).toBeInTheDocument(),
+    );
+  });
+
+  it('switching back to Frontmatter tab shows the frontmatter form', async () => {
+    renderEditor();
+    await waitForEditor();
+
+    // Go to Knowledge
+    fireEvent.click(screen.getByRole('tab', { name: /knowledge/i }));
+    await screen.findByText('Entities');
+
+    // Go back to Frontmatter
+    fireEvent.click(screen.getByRole('tab', { name: /frontmatter/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /frontmatter/i })).toHaveAttribute('aria-selected', 'true');
+    });
+    // KnowledgeGraphPanel is lazily mounted — its headings should no longer be present
+    expect(screen.queryByText('Entities')).toBeNull();
   });
 });
 

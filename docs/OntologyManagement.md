@@ -232,6 +232,28 @@ the page vocabulary gradually under shared human/AI control.
 
 ---
 
+## Measuring drift (the burn-down dashboard)
+
+Advisory warnings only matter if someone can see them in aggregate. The **drift
+dashboard** (`/admin/drift`) makes vocabulary drift measurable:
+
+- A **corpus-wide sweep** runs the same schema validator over every page (plus the
+  SHACL conformance check over the materialized ontology) and persists one count per
+  `(family, code, severity)` — family `frontmatter` for field warnings, `shacl` for
+  non-conformant edges. Sweeps run automatically after each nightly ontology rebuild,
+  or on demand via the dashboard's *Run sweep now* (`POST /admin/drift/sweep`).
+- The dashboard shows the latest counts with **deltas vs. the previous sweep**, a
+  per-code **trend sparkline**, and a live **per-code page list** — each offender
+  linked to the editor with the validator's suggested fix.
+- This is the evidence for the escalation lever: when a code's count reaches zero
+  and stays there, it is safe to ratchet that check from warning to error
+  (`wikantik.frontmatter.enum.nonCanonical.severity`).
+
+Endpoints: `GET /admin/drift/summary`, `GET /admin/drift/trend?days=N`,
+`GET /admin/drift/pages?family=F&code=C`, `POST /admin/drift/sweep`.
+
+---
+
 ## Quick reference
 
 **Surfaces**
@@ -243,6 +265,7 @@ the page vocabulary gradually under shared human/AI control.
 | Page-scoped KG read + curation | `/api/page-knowledge/{name}` (view read, edit-gated writes) |
 | KG admin (nodes/edges/proposals) | `/admin/knowledge-graph/*` |
 | Ontology rebuild + status | `/admin/ontology/*` |
+| Drift burn-down (sweep + counts) | `/admin/drift/*` |
 | Public SPARQL | `GET /sparql` |
 | Resource dereferencing | `GET /id/{type}/{id}` (JSON-LD / Turtle) |
 | RDF dumps | `GET /export/ontology.ttl`, `/export/graph.nt` |

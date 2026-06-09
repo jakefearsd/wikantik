@@ -276,7 +276,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 | `/tools/*` | wikantik-tools | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) | API key |
 | `/scim/v2/*` | wikantik-scim | SCIM 2.0 | `Users` (CRUD, PATCH active, soft-delete) + `Groups` (CRUD, membership PATCH, hard delete) + discovery | `ScimAccessFilter` (bearer `wikantik.scim.token`) |
 | `/api/*` | wikantik-rest | REST/JSON | 24 Resource classes | `RestServletBase.checkPagePermission()` (ACL + policy grants) |
-| `/admin/*` | wikantik-rest | REST/JSON | 11 admin resources (incl. `/admin/kg-policy/*`, the tamper-evident `/admin/audit*` log, and `/admin/ontology/*`: rebuild + status + SHACL-conformance violations) | `AdminAuthFilter` (`AllPermission`) |
+| `/admin/*` | wikantik-rest | REST/JSON | 12 admin resources (incl. `/admin/kg-policy/*`, the tamper-evident `/admin/audit*` log, `/admin/ontology/*`: rebuild + status + SHACL-conformance violations, and `/admin/drift/*`: the drift burn-down dashboard) | `AdminAuthFilter` (`AllPermission`) |
 | `/wiki/{slug}?format=md\|json` | wikantik-rest | HTTP | Raw content for RAG ingestion / crawlers | Public — view ACL **enforced** (WikiPageFormatFilter gates on the caller's session; 404 hides restricted pages) |
 | `/api/changes?since=…` | wikantik-rest | REST/JSON | Incremental change feed for sync pipelines | Public |
 | `/sparql`, `/id/{type}/{id}`, `/export/*.ttl\|.nt` | wikantik-rest | RDF (SPARQL/JSON-LD/Turtle/N-Triples) | Public read-only ontology: SPARQL query, per-resource dereferencing, full dumps | Public, read-only, permissive CORS — **public/restricted ACL split** (only anonymously-viewable pages/entities are materialized, so restricted content cannot be queried) |

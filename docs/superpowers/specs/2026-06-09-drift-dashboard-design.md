@@ -52,7 +52,7 @@ One public entry point, `runSweep(trigger)`:
    with the same `ValidationCtx` the save path uses (real `pageResolves`, real
    trusted-author predicate, configured non-canonical-enum severity). Aggregate the
    returned `FieldViolation`s by `(code, severity)`. A page whose YAML fails to
-   parse is counted under code `yaml.malformed` / ERROR and the sweep continues.
+   parse is counted under code `yaml.parse` / ERROR and the sweep continues.
 3. **SHACL pass.** Ask the existing SHACL conformance check (same call
    `AdminOntologyResource.handleViolations` uses) for the violation list; count by
    shape identifier → family `shacl`, code = shape IRI/local name, severity ERROR.
@@ -134,7 +134,7 @@ JSON is camelCase (house wire convention). Registered in `web.xml`.
 ## Error handling
 
 - Per-page failures (YAML parse, provider read) never abort the sweep — counted
-  (`yaml.malformed`) or warn-logged and skipped (`pages_scanned` reflects pages
+  (`yaml.parse`) or warn-logged and skipped (`pages_scanned` reflects pages
   actually validated).
 - Sweep persistence is all-or-nothing; on failure the dashboard keeps the last good
   sweep. All failures logged with context (no empty catch blocks).
@@ -144,7 +144,7 @@ JSON is camelCase (house wire convention). Registered in `web.xml`.
 ## Testing
 
 - **Unit (wikantik-main):** aggregation correctness (seeded pages with known
-  violations → expected `(family, code, severity, count)` rows), `yaml.malformed`
+  violations → expected `(family, code, severity, count)` rows), `yaml.parse`
   counting, single-flight guard, post-rebuild hook fires + hook exception isolation,
   SHACL-absent path (`shacl_checked=false`), repository round-trip on H2,
   `currentPageList` filtering.

@@ -48,7 +48,7 @@ public final class OntologyWiringHelper {
      * Builds the TDB2-backed manager + rebuild coordinator and registers the coordinator on the
      * engine. Called from {@link WikiEngine#initKnowledgeGraph} with already-resolved collaborators.
      */
-    public static void wireOntology( final WikiEngine engine,
+    public static OntologyRebuildCoordinator wireOntology( final WikiEngine engine,
                                      final Properties props,
                                      final DataSource dataSource,
                                      final PageManager pageManager,
@@ -57,7 +57,7 @@ public final class OntologyWiringHelper {
                 props.getProperty( "wikantik.ontology.enabled", "true" ) );
         if ( !enabled ) {
             LOG.info( "ontology layer disabled (wikantik.ontology.enabled=false)" );
-            return;
+            return null;
         }
 
         final String dir = resolveDir( engine, props );
@@ -106,6 +106,7 @@ public final class OntologyWiringHelper {
 
         // Startup-if-empty: non-blocking self-heal on first boot.
         coordinator.rebuildIfEmpty();
+        return coordinator;
     }
 
     private static String resolveDir( final WikiEngine engine, final Properties props ) {

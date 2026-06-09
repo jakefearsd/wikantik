@@ -75,13 +75,16 @@ public final class PageGraphSubsystem {
      * when the engine boots without a configured datasource (some unit-test
      * paths). {@code referenceManager} is null until the asynchronous
      * page-scan that initialises it completes. {@code contentIndexRebuildService}
-     * is null when the content-index rebuild pipeline is unavailable.</p>
+     * is null when the content-index rebuild pipeline is unavailable.
+     * {@code driftSweepService} is null when the engine boots without a
+     * datasource.</p>
      */
     public record Services(
         StructuralIndexService       structuralIndexService,
         PageGraphService             pageGraphService,
         ReferenceManager             referenceManager,
         ContentIndexRebuildService   contentIndexRebuildService,
-        OntologyRebuildCoordinator   ontologyRebuildCoordinator
+        OntologyRebuildCoordinator   ontologyRebuildCoordinator,
+        com.wikantik.drift.DriftSweepService driftSweepService
     ) {}
 }

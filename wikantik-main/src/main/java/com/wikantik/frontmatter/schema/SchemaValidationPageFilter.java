@@ -78,11 +78,12 @@ public class SchemaValidationPageFilter implements PageFilter {
     /** Production constructor: builds the default schema + an engine-backed validation context. */
     public SchemaValidationPageFilter( final Properties props, final PageManager pageManager ) {
         this( new SchemaDrivenFrontmatterValidator( FrontmatterSchema.defaultSchema() ),
-              buildCtx( props, pageManager ),
+              engineBackedCtx( props, pageManager ),
               Boolean.parseBoolean( props.getProperty( PROP_ENFORCEMENT_ENABLED, "true" ) ) );
     }
 
-    private static ValidationCtx buildCtx( final Properties props, final PageManager pageManager ) {
+    /** Engine-backed context shared by the save filter and the drift sweep. */
+    public static ValidationCtx engineBackedCtx( final Properties props, final PageManager pageManager ) {
         final Severity nonCanonical = "error".equalsIgnoreCase(
                 props.getProperty( PROP_NONCANONICAL_SEVERITY, "warning" ) )
                 ? Severity.ERROR : Severity.WARNING;

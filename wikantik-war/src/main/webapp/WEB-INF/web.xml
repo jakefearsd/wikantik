@@ -435,6 +435,10 @@
        <servlet-class>com.wikantik.rest.PageByIdResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>PageKnowledgeResource</servlet-name>
+       <servlet-class>com.wikantik.rest.PageKnowledgeResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>StructuralIndexHealthResource</servlet-name>
        <servlet-class>com.wikantik.rest.StructuralIndexHealthResource</servlet-class>
    </servlet>
@@ -697,6 +701,10 @@
    <servlet-mapping>
        <servlet-name>PageByIdResource</servlet-name>
        <url-pattern>/api/pages/by-id/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>PageKnowledgeResource</servlet-name>
+       <url-pattern>/api/page-knowledge/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>StructuralIndexHealthResource</servlet-name>

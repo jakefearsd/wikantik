@@ -19,6 +19,7 @@
 package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import com.wikantik.api.frontmatter.schema.FieldViolation;
 import com.wikantik.api.frontmatter.schema.Severity;
@@ -72,11 +73,6 @@ public class PageKnowledgeResource extends RestServletBase {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LogManager.getLogger( PageKnowledgeResource.class );
     private static final Type MAP_TYPE = new TypeToken< Map< String, Object > >() {}.getType();
-
-    @Override
-    protected boolean isCrossOriginAllowed() {
-        return true;
-    }
 
     // -------------------------------------------------------------------------
     // GET
@@ -167,7 +163,7 @@ public class PageKnowledgeResource extends RestServletBase {
         final String[] parts = parseParts( request, response );
         if ( parts == null ) return;
 
-        if ( parts.length < 3 ) {
+        if ( parts.length != 3 ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "Expected /{name}/entities/{id} or /{name}/edges/{id}" );
             return;
         }
@@ -359,9 +355,13 @@ public class PageKnowledgeResource extends RestServletBase {
         if ( edgeId == null ) return;
 
         String reason = null;
-        final JsonObject body = parseJsonBody( request, response );
-        if ( body == null ) return;
-        reason = getJsonString( body, "reason" );
+        try ( java.io.BufferedReader reader = request.getReader() ) {
+            final JsonObject body = JsonParser.parseReader( reader ).getAsJsonObject();
+            reason = getJsonString( body, "reason" );
+        } catch ( final Exception e ) {
+            // Body is optional for reject — proceed with null reason when absent or unparseable.
+            LOG.warn( "handleRejectEdge: could not parse body (edge={}): {}", idStr, e.getMessage() );
+        }
 
         final Optional< String > err = ops.tryDeleteAndRejectEdge( edgeId, actor, reason );
         if ( err.isPresent() ) {
@@ -378,8 +378,10 @@ public class PageKnowledgeResource extends RestServletBase {
     // -------------------------------------------------------------------------
 
     /**
-     * Parses the {@code pathInfo} into non-empty, URL-decoded segments.
-     * Returns {@code null} and sends a 400 error when the pathInfo is absent or empty.
+     * Parses the {@code pathInfo} into non-empty segments by splitting on {@code /}.
+     * Segments are NOT percent-decoded — {@code String.split} operates on the raw pathInfo
+     * as returned by the container. Returns {@code null} and sends a 400 error when the
+     * pathInfo is absent or empty.
      */
     private String[] parseParts( final HttpServletRequest request,
                                   final HttpServletResponse response ) throws IOException {

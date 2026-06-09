@@ -242,6 +242,141 @@ class PageKnowledgeResourceTest {
         assertEquals( msg, fv.message() );
     }
 
+    // -------------------------------------------------------------------------
+    // POST /{name}/entities — edit permission denied → 403, ops never called
+    // -------------------------------------------------------------------------
+
+    @Test
+    void postEntityRequiresEditPermission_deniedReturns403AndOpsNotCalled() throws Exception {
+        final KgCurationOps ops = Mockito.mock( KgCurationOps.class );
+        final PageKnowledgeResource servlet = new DenyPermissionServlet( engine, "edit" );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "name", "SomeEntity" );
+
+        final HttpServletRequest req = requestWithBody( "/TestPage/entities", body );
+        final StringWriter sw = new StringWriter();
+        final HttpServletResponse resp = mockResponse( sw );
+
+        servlet.doPost( req, resp );
+
+        verify( resp ).setStatus( 403 );
+        Mockito.verify( ops, Mockito.never() ).tryUpsertNode( anyString(), any(), any(), any(), anyString() );
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /{name}/entities — happy path, tryUpsertNode succeeds → 200/ok
+    // -------------------------------------------------------------------------
+
+    @Test
+    void postEntityHappyPath_upsertSucceeds_returnsOk() throws Exception {
+        final KgCurationOps ops = Mockito.mock( KgCurationOps.class );
+        final UUID nodeId = UUID.randomUUID();
+        Mockito.when( ops.tryUpsertNode( anyString(), any(), anyString(), any(), anyString() ) )
+               .thenReturn( KgCurationOps.NodeResult.ok( nodeId ) );
+        Mockito.when( kgService.getNode( nodeId, true ) ).thenReturn( node( nodeId, "Alpha" ) );
+
+        final PageKnowledgeResource servlet = new GrantEditServlet( engine, kgService, ops );
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "name", "Alpha" );
+        body.addProperty( "node_type", "Concept" );
+
+        final HttpServletRequest req = requestWithBody( "/TestPage/entities", body );
+        final StringWriter sw = new StringWriter();
+        final HttpServletResponse resp = mockResponse( sw );
+
+        servlet.doPost( req, resp );
+
+        Mockito.verify( resp, Mockito.never() ).setStatus( intThat( s -> s >= 400 ) );
+        final JsonObject json = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( json.get( "ok" ).getAsBoolean(), "response must have ok=true" );
+        assertEquals( nodeId.toString(), json.get( "id" ).getAsString() );
+        Mockito.verify( ops ).tryUpsertNode( eq( "Alpha" ), eq( "Concept" ), eq( "TestPage" ),
+                any(), anyString() );
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /{name}/edges/{id}/confirm — happy path → 200/ok
+    // -------------------------------------------------------------------------
+
+    @Test
+    void confirmEdgeHappyPath_returnsOk() throws Exception {
+        final KgCurationOps ops = Mockito.mock( KgCurationOps.class );
+        final UUID edgeId = UUID.randomUUID();
+        Mockito.when( ops.tryConfirmEdge( eq( edgeId ), anyString() ) )
+               .thenReturn( Optional.empty() );
+
+        final PageKnowledgeResource servlet = new GrantEditServlet( engine, kgService, ops );
+
+        final HttpServletRequest req = request( "/TestPage/edges/" + edgeId + "/confirm" );
+        final StringWriter sw = new StringWriter();
+        final HttpServletResponse resp = mockResponse( sw );
+
+        servlet.doPost( req, resp );
+
+        Mockito.verify( resp, Mockito.never() ).setStatus( intThat( s -> s >= 400 ) );
+        final JsonObject json = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( json.get( "ok" ).getAsBoolean() );
+        assertTrue( json.get( "confirmed" ).getAsBoolean() );
+        Mockito.verify( ops ).tryConfirmEdge( eq( edgeId ), anyString() );
+    }
+
+    // -------------------------------------------------------------------------
+    // DELETE /{name}/edges/{id} — happy path → 200/ok
+    // -------------------------------------------------------------------------
+
+    @Test
+    void deleteEdgeHappyPath_returnsOk() throws Exception {
+        final KgCurationOps ops = Mockito.mock( KgCurationOps.class );
+        final UUID edgeId = UUID.randomUUID();
+        Mockito.when( ops.tryDeleteEdge( eq( edgeId ), anyString() ) )
+               .thenReturn( Optional.empty() );
+
+        final PageKnowledgeResource servlet = new GrantEditServlet( engine, kgService, ops );
+
+        final HttpServletRequest req = request( "/TestPage/edges/" + edgeId );
+        final StringWriter sw = new StringWriter();
+        final HttpServletResponse resp = mockResponse( sw );
+
+        servlet.doDelete( req, resp );
+
+        Mockito.verify( resp, Mockito.never() ).setStatus( intThat( s -> s >= 400 ) );
+        final JsonObject json = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( json.get( "ok" ).getAsBoolean() );
+        assertTrue( json.get( "deleted" ).getAsBoolean() );
+        Mockito.verify( ops ).tryDeleteEdge( eq( edgeId ), anyString() );
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /{name}/edges/{id}/reject — no body → succeeds (not 400)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void rejectEdgeWithoutBody_succeedsWithNullReason() throws Exception {
+        final KgCurationOps ops = Mockito.mock( KgCurationOps.class );
+        final UUID edgeId = UUID.randomUUID();
+        Mockito.when( ops.tryDeleteAndRejectEdge( eq( edgeId ), anyString(), isNull() ) )
+               .thenReturn( Optional.empty() );
+
+        final PageKnowledgeResource servlet = new GrantEditServlet( engine, kgService, ops );
+
+        // Request with no body (empty reader)
+        final HttpServletRequest req = request( "/TestPage/edges/" + edgeId + "/reject" );
+        Mockito.doReturn( new BufferedReader( new StringReader( "" ) ) ).when( req ).getReader();
+        final StringWriter sw = new StringWriter();
+        final HttpServletResponse resp = mockResponse( sw );
+
+        servlet.doPost( req, resp );
+
+        // Must NOT 400 — must succeed and call ops with reason=null
+        Mockito.verify( resp, Mockito.never() ).setStatus( intThat( s -> s >= 400 ) );
+        Mockito.verify( ops ).tryDeleteAndRejectEdge( eq( edgeId ), anyString(), isNull() );
+        final JsonObject json = gson.fromJson( sw.toString(), JsonObject.class );
+        assertTrue( json.get( "ok" ).getAsBoolean() );
+        assertTrue( json.get( "rejected" ).getAsBoolean() );
+    }
+
     // =========================================================================
     // Test infrastructure
     // =========================================================================

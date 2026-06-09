@@ -21,6 +21,8 @@ package com.wikantik.knowledge;
 import com.wikantik.api.knowledge.*;
 import com.wikantik.api.core.Engine;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import com.wikantik.api.core.Session;
 import org.apache.logging.log4j.LogManager;
@@ -296,36 +298,36 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
       + " WHERE c.page_name = ?";
 
     @Override
-    public com.wikantik.api.knowledge.PageKnowledgeSlice getPageSlice( final String pageName ) {
+    public PageKnowledgeSlice getPageSlice( final String pageName ) {
         if ( pageName == null || pageName.isBlank() ) {
-            return new com.wikantik.api.knowledge.PageKnowledgeSlice( List.of(), List.of() );
+            return new PageKnowledgeSlice( List.of(), List.of() );
         }
 
         // Step 1 — collect distinct node ids mentioned on this page.
-        final Set< UUID > pageEntityIds = new java.util.LinkedHashSet<>();
-        try ( final java.sql.Connection c = dataSource.getConnection();
-              final java.sql.PreparedStatement ps = c.prepareStatement( PAGE_SLICE_SQL ) ) {
+        final Set< UUID > pageEntityIds = new LinkedHashSet<>();
+        try ( final Connection c = dataSource.getConnection();
+              final PreparedStatement ps = c.prepareStatement( PAGE_SLICE_SQL ) ) {
             ps.setString( 1, pageName );
-            try ( final java.sql.ResultSet rs = ps.executeQuery() ) {
+            try ( final ResultSet rs = ps.executeQuery() ) {
                 while ( rs.next() ) {
                     final UUID id = rs.getObject( 1, UUID.class );
                     if ( id != null ) pageEntityIds.add( id );
                 }
             }
-        } catch ( final java.sql.SQLException e ) {
+        } catch ( final SQLException e ) {
             LOG.warn( "getPageSlice: failed to load entity ids for page '{}': {}",
                 pageName, e.getMessage(), e );
-            return new com.wikantik.api.knowledge.PageKnowledgeSlice( List.of(), List.of() );
+            return new PageKnowledgeSlice( List.of(), List.of() );
         }
 
         if ( pageEntityIds.isEmpty() ) {
-            return new com.wikantik.api.knowledge.PageKnowledgeSlice( List.of(), List.of() );
+            return new PageKnowledgeSlice( List.of(), List.of() );
         }
 
         // Step 2 — load each KgNode; skip any that no longer resolve.
-        final List< com.wikantik.api.knowledge.KgNode > entities = new ArrayList<>( pageEntityIds.size() );
+        final List< KgNode > entities = new ArrayList<>( pageEntityIds.size() );
         for ( final UUID id : pageEntityIds ) {
-            final com.wikantik.api.knowledge.KgNode node = nodes.getNode( id );
+            final KgNode node = nodes.getNode( id );
             if ( node == null ) {
                 LOG.warn( "getPageSlice: node id {} mentioned on page '{}' not found in kg_nodes — skipping",
                     id, pageName );
@@ -334,43 +336,51 @@ public class DefaultKnowledgeGraphService implements KnowledgeGraphService {
             }
         }
 
-        // Step 3 — collect intra-page edges (both endpoints must be in pageEntityIds).
-        final Map< UUID, com.wikantik.api.knowledge.KgEdge > seenEdges = new java.util.LinkedHashMap<>();
-        for ( final UUID entityId : pageEntityIds ) {
-            for ( final com.wikantik.api.knowledge.KgEdge edge : edges.getEdgesForNode( entityId, "both" ) ) {
-                if ( pageEntityIds.contains( edge.sourceId() )
-                     && pageEntityIds.contains( edge.targetId() )
-                     && !seenEdges.containsKey( edge.id() ) ) {
-                    seenEdges.put( edge.id(), edge );
+        // Steps 3–4 — edge collection + name resolution; degrade gracefully on repository failure.
+        try {
+            // Step 3 — collect intra-page edges (both endpoints must be in pageEntityIds).
+            // Issues one query per entity — acceptable at page scale; batch with = ANY(?) (as
+            // PageMentionsLoader does) if this becomes a hotspot.
+            final Map< UUID, KgEdge > seenEdges = new LinkedHashMap<>();
+            for ( final UUID entityId : pageEntityIds ) {
+                for ( final KgEdge edge : edges.getEdgesForNode( entityId, "both" ) ) {
+                    if ( pageEntityIds.contains( edge.sourceId() )
+                         && pageEntityIds.contains( edge.targetId() )
+                         && !seenEdges.containsKey( edge.id() ) ) {
+                        seenEdges.put( edge.id(), edge );
+                    }
                 }
             }
-        }
 
-        // Step 4 — resolve endpoint names and build KgEdgeView list.
-        final Set< UUID > endpointIds = new java.util.HashSet<>();
-        for ( final com.wikantik.api.knowledge.KgEdge edge : seenEdges.values() ) {
-            endpointIds.add( edge.sourceId() );
-            endpointIds.add( edge.targetId() );
-        }
-        final Map< UUID, String > nameMap = endpointIds.isEmpty()
-            ? Map.of()
-            : nodes.getNodeNames( endpointIds );
+            // Step 4 — resolve endpoint names and build KgEdgeView list.
+            final Set< UUID > endpointIds = new HashSet<>();
+            for ( final KgEdge edge : seenEdges.values() ) {
+                endpointIds.add( edge.sourceId() );
+                endpointIds.add( edge.targetId() );
+            }
+            final Map< UUID, String > nameMap = endpointIds.isEmpty()
+                ? Map.of()
+                : nodes.getNodeNames( endpointIds );
 
-        final List< com.wikantik.api.knowledge.KgEdgeView > edgeViews = new ArrayList<>( seenEdges.size() );
-        for ( final com.wikantik.api.knowledge.KgEdge edge : seenEdges.values() ) {
-            edgeViews.add( new com.wikantik.api.knowledge.KgEdgeView(
-                edge.id(),
-                edge.sourceId(),
-                edge.targetId(),
-                nameMap.getOrDefault( edge.sourceId(), "" ),
-                nameMap.getOrDefault( edge.targetId(), "" ),
-                edge.relationshipType(),
-                edge.provenance()
-            ) );
-        }
+            final List< KgEdgeView > edgeViews = new ArrayList<>( seenEdges.size() );
+            for ( final KgEdge edge : seenEdges.values() ) {
+                edgeViews.add( new KgEdgeView(
+                    edge.id(),
+                    edge.sourceId(),
+                    edge.targetId(),
+                    nameMap.getOrDefault( edge.sourceId(), "" ),
+                    nameMap.getOrDefault( edge.targetId(), "" ),
+                    edge.relationshipType(),
+                    edge.provenance()
+                ) );
+            }
 
-        // Step 5 — return the slice (compact constructor copies to immutable lists).
-        return new com.wikantik.api.knowledge.PageKnowledgeSlice( entities, edgeViews );
+            // Step 5 — return the slice (compact constructor copies to immutable lists).
+            return new PageKnowledgeSlice( entities, edgeViews );
+        } catch ( final RuntimeException e ) {
+            LOG.warn( "getPageSlice: edge resolution failed for page '{}': {}", pageName, e.getMessage() );
+            return new PageKnowledgeSlice( entities, List.of() );
+        }
     }
 
     // --- Edge operations ---

@@ -70,7 +70,9 @@ public final class DriftWiringHelper {
         if ( coordinator != null ) {
             coordinator.onRebuildComplete( () -> {
                 try {
-                    service.runSweep( "scheduled" );
+                    // Async: the sweep walks the whole corpus — don't pin the rebuild thread
+                    // (the coordinator stays RUNNING until its hooks return).
+                    service.triggerAsync( "scheduled" );
                 } catch ( final DriftSweepService.SweepAlreadyRunningException e ) {
                     LOG.info( "post-rebuild drift sweep skipped — already running" );
                 }

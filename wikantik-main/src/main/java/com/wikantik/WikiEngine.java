@@ -1572,6 +1572,9 @@ public class WikiEngine implements Engine {
             // kicks a startup-if-empty rebuild. setManager-only, so ArchUnit-neutral.
             final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontologyCoordinator =
                     com.wikantik.ontology.runtime.OntologyWiringHelper.wireOntology( this, props, ds, pageManager, filterManager );
+            // Note: wireOntology's startup rebuildIfEmpty() has already run, so a first-boot
+            // rebuild does NOT trigger a drift sweep — the first sweep comes from the nightly
+            // scheduler or the admin dashboard. Intentional: keeps first deploy fast.
             com.wikantik.drift.DriftWiringHelper.wireDrift( this, props, ds, pageManager, ontologyCoordinator );
 
             // Wire entity extraction (KnowledgeWiringHelper).

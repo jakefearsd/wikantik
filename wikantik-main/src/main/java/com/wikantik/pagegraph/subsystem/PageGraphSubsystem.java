@@ -25,6 +25,7 @@ import com.wikantik.api.managers.ReferenceManager;
 import com.wikantik.api.pagegraph.PageGraphService;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.core.subsystem.CoreSubsystem;
+import com.wikantik.drift.DriftSweepService;
 import com.wikantik.page.subsystem.PageSubsystem;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 
@@ -85,6 +86,6 @@ public final class PageGraphSubsystem {
         ReferenceManager             referenceManager,
         ContentIndexRebuildService   contentIndexRebuildService,
         OntologyRebuildCoordinator   ontologyRebuildCoordinator,
-        com.wikantik.drift.DriftSweepService driftSweepService
+        DriftSweepService            driftSweepService
     ) {}
 }

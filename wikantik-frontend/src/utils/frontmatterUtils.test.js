@@ -23,6 +23,23 @@ describe('metadataToYaml', () => {
     expect(metadataToYaml({ tags: [] })).toBe('tags: []');
   });
 
+  it('serializes an array of objects (nested relations) as a YAML block — no data loss', () => {
+    expect(
+      metadataToYaml({
+        relations: [
+          { type: 'extension_of', target_id: '01A' },
+          { type: 'component_of', target_id: '01B' },
+        ],
+      }),
+    ).toBe('relations:\n- type: extension_of\n  target_id: 01A\n- type: component_of\n  target_id: 01B');
+  });
+
+  it('serializes a nested object value as an indented block', () => {
+    expect(metadataToYaml({ runbook: { steps: ['a', 'b'] } })).toBe(
+      'runbook:\n  steps:\n  - a\n  - b',
+    );
+  });
+
   it('omits null values', () => {
     expect(metadataToYaml({ type: 'article', cluster: null })).toBe('type: article');
   });

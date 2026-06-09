@@ -15,30 +15,70 @@ const NEEDS_QUOTE_RE = /^['"#>|`*&!?{}[\],]|: /;
  */
 export function metadataToYaml(metadata) {
   if (!metadata || typeof metadata !== 'object') return '';
-  const lines = [];
-  for (const [key, value] of Object.entries(metadata)) {
-    if (value === null || value === undefined) continue;
-    if (Array.isArray(value)) {
-      if (value.length === 0) {
-        lines.push(`${key}: []`);
-      } else {
-        lines.push(`${key}:`);
-        for (const item of value) {
-          lines.push(`- ${item}`);
-        }
-      }
-    } else {
-      const str = String(value);
-      let serialized;
-      if (ISO_DATE_RE.test(str) || NEEDS_QUOTE_RE.test(str)) {
-        serialized = `'${str.replace(/'/g, "''")}'`;
-      } else {
-        serialized = str;
-      }
-      lines.push(`${key}: ${serialized}`);
-    }
+  return emitMapEntries(metadata, 0).join('\n');
+}
+
+function isPlainObject(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
+
+function scalarToYaml(value) {
+  const str = String(value);
+  if (ISO_DATE_RE.test(str) || NEEDS_QUOTE_RE.test(str)) {
+    return `'${str.replace(/'/g, "''")}'`;
   }
-  return lines.join('\n');
+  return str;
+}
+
+// Block-style YAML for a map's entries at `indent` spaces. Scalars and string arrays match the
+// original (flat) output exactly; nested objects and arrays-of-objects (e.g. `relations:`) are
+// serialized recursively so the Raw-YAML break-glass view round-trips without dropping them.
+function emitMapEntries(obj, indent) {
+  const lines = [];
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === null || value === undefined) continue;
+    lines.push(...emitKeyValue(key, value, indent));
+  }
+  return lines;
+}
+
+function emitKeyValue(key, value, indent) {
+  const pad = ' '.repeat(indent);
+  if (Array.isArray(value)) {
+    if (value.length === 0) return [`${pad}${key}: []`];
+    const lines = [`${pad}${key}:`];
+    for (const item of value) lines.push(...emitSeqItem(item, indent));
+    return lines;
+  }
+  if (isPlainObject(value)) {
+    const inner = emitMapEntries(value, indent + 2);
+    return inner.length ? [`${pad}${key}:`, ...inner] : [`${pad}${key}: {}`];
+  }
+  return [`${pad}${key}: ${scalarToYaml(value)}`];
+}
+
+function emitSeqItem(item, indent) {
+  const pad = ' '.repeat(indent);
+  if (isPlainObject(item)) {
+    const entries = Object.entries(item).filter(([, v]) => v !== null && v !== undefined);
+    if (!entries.length) return [`${pad}- {}`];
+    const lines = [];
+    entries.forEach(([k, v], i) => {
+      const kvLines = emitKeyValue(k, v, indent + 2);
+      if (i === 0) {
+        // Hoist the first field onto the "- " marker (standard block-sequence style).
+        kvLines[0] = `${pad}- ${kvLines[0].slice(indent + 2)}`;
+      }
+      lines.push(...kvLines);
+    });
+    return lines;
+  }
+  if (Array.isArray(item)) {
+    const lines = [`${pad}-`];
+    for (const sub of item) lines.push(...emitSeqItem(sub, indent + 2));
+    return lines;
+  }
+  return [`${pad}- ${scalarToYaml(item)}`];
 }
 
 /**

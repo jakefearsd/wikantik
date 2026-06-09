@@ -27,6 +27,7 @@ const GROUPS = [
       { to: '/admin/knowledge-graph', label: 'Knowledge Graph' },
       { to: '/admin/kg-policy', label: 'KG Policy' },
       { to: '/admin/retrieval-quality', label: 'Retrieval Quality' },
+      { to: '/admin/drift', label: 'Drift' },
     ],
   },
   {

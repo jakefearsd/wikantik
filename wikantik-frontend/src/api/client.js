@@ -487,6 +487,16 @@ export const api = {
         body: JSON.stringify({ query_set_id: querySetId, mode }),
       }),
 
+    // Drift dashboard
+    getDriftSummary: () => request('/admin/drift/summary'),
+
+    getDriftTrend: (days = 30) => request(`/admin/drift/trend?days=${days}`),
+
+    getDriftPages: (family, code) =>
+      request(`/admin/drift/pages?family=${encodeURIComponent(family)}&code=${encodeURIComponent(code)}`),
+
+    runDriftSweep: () => request('/admin/drift/sweep', { method: 'POST', body: '{}' }),
+
     // KG inclusion / exclusion policy
     kgPolicy: {
       listClusters: () => request('/admin/kg-policy/clusters'),

@@ -130,6 +130,12 @@ public final class SchemaDrivenFrontmatterValidator {
         if ( raw == null ) {
             return;
         }
+        // SnakeYAML parses YAML date/timestamp scalars (e.g. `date: 2026-03-20`) into a
+        // java.util.Date, not a String. Such a value is already a valid temporal — accept it
+        // (its toString() is "Fri Mar 20 ..." which would otherwise fail ISO parsing below).
+        if ( raw instanceof java.util.Date || raw instanceof java.util.Calendar ) {
+            return;
+        }
         final String val = raw.toString().trim();
         if ( val.isEmpty() || parsesAsTemporal( val, allowInstant ) ) {
             return;

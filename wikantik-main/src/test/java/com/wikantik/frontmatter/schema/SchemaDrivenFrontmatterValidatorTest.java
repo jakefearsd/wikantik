@@ -98,6 +98,22 @@ class SchemaDrivenFrontmatterValidatorTest {
     }
 
     @Test
+    void dateParsedToJavaUtilDateByYamlIsAccepted() {
+        // SnakeYAML parses `date: 2026-03-20` into a java.util.Date, not a String — the validator
+        // must accept that (its toString() is "Fri Mar 20 ..." which is NOT ISO).
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "date", new java.util.Date() ), ValidationCtx.lenient() );
+        assertTrue( first( vs, "date" ).isEmpty(), "a parsed java.util.Date must be accepted" );
+    }
+
+    @Test
+    void verifiedAtParsedToJavaUtilDateByYamlIsAccepted() {
+        final List< FieldViolation > vs = validator.validate(
+                Map.of( "verified_at", new java.util.Date() ), ValidationCtx.lenient() );
+        assertTrue( first( vs, "verified_at" ).isEmpty(), "a parsed java.util.Date must be accepted" );
+    }
+
+    @Test
     void unresolvedRelatedWarns() {
         final ValidationCtx noPages = new ValidationCtx( p -> false, a -> true, Severity.WARNING );
         final List< FieldViolation > vs = validator.validate(

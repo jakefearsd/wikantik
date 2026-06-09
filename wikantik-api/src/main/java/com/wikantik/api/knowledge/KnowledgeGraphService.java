@@ -267,6 +267,22 @@ public interface KnowledgeGraphService {
     /** Deletes all knowledge graph data: nodes, edges, proposals, rejections, and embeddings. */
     void clearAll();
 
+    // --- Page-scoped slice ---
+
+    /**
+     * Returns the Knowledge-Graph slice for a single wiki page: all entities
+     * mentioned on the page (via {@code chunk_entity_mentions}) plus the intra-page
+     * edges among them (edges where both endpoints are on the page). Edges where
+     * one endpoint is on a different page are excluded.
+     *
+     * <p>An unknown page, or a page with no entity mentions, yields a
+     * {@link PageKnowledgeSlice} with empty lists — never {@code null}.</p>
+     *
+     * @param pageName the wiki page name (exact match on {@code kg_content_chunks.page_name})
+     * @return the page slice; never {@code null}
+     */
+    PageKnowledgeSlice getPageSlice( String pageName );
+
     // --- Graph visualization ---
 
     /**

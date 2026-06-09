@@ -89,7 +89,12 @@ public final class DriftSnapshotRepository {
                 conn.commit();
                 return sweepId;
             } catch ( final SQLException e ) {
-                conn.rollback();
+                try {
+                    conn.rollback();
+                } catch ( final SQLException rollbackEx ) {
+                    LOG.warn( "rollback failed after drift sweep insert error: {}",
+                            rollbackEx.getMessage(), rollbackEx );
+                }
                 throw e;
             } finally {
                 conn.setAutoCommit( prevAutoCommit );
@@ -102,13 +107,13 @@ public final class DriftSnapshotRepository {
 
     /** The most recent sweep, with counts. */
     public Optional< DriftSweepRecord > latest() {
-        return querySingle( "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked "
+        return querySingle( "latest", "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked "
                           + "FROM drift_sweeps ORDER BY id DESC LIMIT 1", ps -> {} );
     }
 
     /** The sweep immediately before {@code sweepId} (for deltas). */
     public Optional< DriftSweepRecord > previousBefore( final long sweepId ) {
-        return querySingle( "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked "
+        return querySingle( "previousBefore sweepId=" + sweepId, "SELECT id, swept_at, pages_scanned, duration_ms, triggered_by, shacl_checked "
                           + "FROM drift_sweeps WHERE id < ? ORDER BY id DESC LIMIT 1",
                 ps -> ps.setLong( 1, sweepId ) );
     }
@@ -137,7 +142,7 @@ public final class DriftSnapshotRepository {
     @FunctionalInterface
     private interface Binder { void bind( PreparedStatement ps ) throws SQLException; }
 
-    private Optional< DriftSweepRecord > querySingle( final String sql, final Binder binder ) {
+    private Optional< DriftSweepRecord > querySingle( final String description, final String sql, final Binder binder ) {
         try ( Connection conn = dataSource.getConnection();
               PreparedStatement ps = conn.prepareStatement( sql ) ) {
             binder.bind( ps );
@@ -148,7 +153,7 @@ public final class DriftSnapshotRepository {
                 return Optional.of( rowToRecord( conn, rs ) );
             }
         } catch ( final SQLException e ) {
-            LOG.warn( "Failed to read drift sweep: {}", e.getMessage(), e );
+            LOG.warn( "Failed to read drift sweep ({}): {}", description, e.getMessage(), e );
             throw new IllegalStateException( "drift sweep query failed", e );
         }
     }

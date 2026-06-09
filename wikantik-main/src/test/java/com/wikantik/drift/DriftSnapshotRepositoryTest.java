@@ -121,4 +121,17 @@ class DriftSnapshotRepositoryTest {
         assertEquals( id, repo.latest().orElseThrow().id() );
         assertTrue( repo.latest().orElseThrow().counts().isEmpty() );
     }
+
+    @Test
+    void countsAreOrderedByFamilyCodeSeverity() {
+        repo.insertSweep( Instant.now(), 1, 1L, "manual", true, List.of(
+                new DriftCount( "shacl", "wk:implements", "ERROR", 1 ),
+                new DriftCount( "frontmatter", "status.noncanonical", "WARNING", 2 ),
+                new DriftCount( "frontmatter", "date.format", "WARNING", 3 ) ) );
+
+        final List< DriftCount > counts = repo.latest().orElseThrow().counts();
+        assertEquals( "date.format", counts.get( 0 ).code() );
+        assertEquals( "status.noncanonical", counts.get( 1 ).code() );
+        assertEquals( "wk:implements", counts.get( 2 ).code() );
+    }
 }

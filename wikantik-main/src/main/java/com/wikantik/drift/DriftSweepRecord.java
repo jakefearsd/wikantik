@@ -30,4 +30,8 @@ public record DriftSweepRecord(
         String triggeredBy,
         boolean shaclChecked,
         List< DriftCount > counts
-) {}
+) {
+    public DriftSweepRecord {
+        counts = List.copyOf( counts );
+    }
+}

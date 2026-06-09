@@ -89,6 +89,11 @@ public final class DriftSweepService {
         return running.get();
     }
 
+    /** Read access for the REST layer — same repository the sweep persists into. */
+    public DriftSnapshotRepository repository() {
+        return repository;
+    }
+
     /** Runs one sweep synchronously and persists it. */
     public SweepOutcome runSweep( final String triggeredBy ) {
         if ( !running.compareAndSet( false, true ) ) {

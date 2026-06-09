@@ -19,7 +19,7 @@ import KnowledgeGraphPanel from './KnowledgeGraphPanel';
 import { api } from '../../api/client';
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
-const ENTITY_A = { id: 'id-a', name: 'React', nodeType: 'technology', provenance: 'machine' };
+const ENTITY_A = { id: 'id-a', name: 'React', nodeType: 'technology', provenance: 'ai-inferred' };
 const ENTITY_B = { id: 'id-b', name: 'TypeScript', nodeType: 'technology', provenance: 'human-curated' };
 const EDGE_1 = {
   id: 'edge-1',
@@ -28,7 +28,7 @@ const EDGE_1 = {
   sourceName: 'React',
   targetName: 'TypeScript',
   relationshipType: 'uses',
-  provenance: 'machine',
+  provenance: 'ai-inferred',
 };
 
 const EMPTY_SLICE = { entities: [], edges: [] };
@@ -73,11 +73,11 @@ describe('rendering', () => {
     expect(screen.getByText('No relations on this page yet.')).toBeInTheDocument();
   });
 
-  it('shows provenance badge', async () => {
+  it('shows provenance badge with real Provenance.value() strings', async () => {
     render(<KnowledgeGraphPanel pageName="TestPage" />);
-    // Badges are inside the entities list
+    // Badges are inside the entities list; provenance values must be lowercase value() strings
     const list = await screen.findByRole('list', { name: /entities/i });
-    expect(list.textContent).toContain('machine');
+    expect(list.textContent).toContain('ai-inferred');
     expect(list.textContent).toContain('human-curated');
   });
 });

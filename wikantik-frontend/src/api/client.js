@@ -862,6 +862,7 @@ export const api = {
       method: 'DELETE',
     }),
 
+  // Reserved for a future reject-with-reason control in the panel UI (not yet wired up).
   rejectEdge: (name, id, reason) =>
     request(`/api/page-knowledge/${encodeURIComponent(name)}/edges/${encodeURIComponent(id)}/reject`, {
       method: 'POST',

@@ -24,6 +24,7 @@ import com.google.gson.reflect.TypeToken;
 import com.wikantik.api.frontmatter.schema.FieldViolation;
 import com.wikantik.api.frontmatter.schema.Severity;
 import com.wikantik.api.knowledge.KgCurationOps;
+import com.wikantik.api.knowledge.KgEdgeView;
 import com.wikantik.api.knowledge.KgNode;
 import com.wikantik.api.knowledge.KnowledgeGraphService;
 import com.wikantik.api.knowledge.PageKnowledgeSlice;
@@ -93,7 +94,7 @@ public class PageKnowledgeResource extends RestServletBase {
             if ( service == null ) return;
 
             final PageKnowledgeSlice slice = service.getPageSlice( pageName );
-            sendJson( response, slice );
+            sendJson( response, sliceToMap( slice ) );
             return;
         }
 
@@ -226,7 +227,7 @@ public class PageKnowledgeResource extends RestServletBase {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "name is required" );
             return;
         }
-        final String nodeType = getJsonString( body, "node_type" );
+        final String nodeType = getJsonString( body, "nodeType" );
         final Map< String, Object > properties = body.has( "properties" )
                 ? GSON.fromJson( body.get( "properties" ), MAP_TYPE ) : Map.of();
 
@@ -299,12 +300,12 @@ public class PageKnowledgeResource extends RestServletBase {
         final JsonObject body = parseJsonBody( request, response );
         if ( body == null ) return;
 
-        final String sourceIdStr = getJsonString( body, "source_id" );
-        final String targetIdStr = getJsonString( body, "target_id" );
-        final String relType = getJsonString( body, "relationship_type" );
+        final String sourceIdStr = getJsonString( body, "sourceId" );
+        final String targetIdStr = getJsonString( body, "targetId" );
+        final String relType = getJsonString( body, "relationshipType" );
         if ( sourceIdStr == null || targetIdStr == null || relType == null || relType.isBlank() ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST,
-                    "source_id, target_id and relationship_type are required" );
+                    "sourceId, targetId and relationshipType are required" );
             return;
         }
         final UUID sourceId = parseUuid( sourceIdStr, response );
@@ -439,12 +440,50 @@ public class PageKnowledgeResource extends RestServletBase {
         return body;
     }
 
+    /**
+     * Projects a {@link PageKnowledgeSlice} to a clean camelCase map for the
+     * {@code GET /{name}} response.  Only the keys the panel reads are included
+     * ({@code id}, {@code name}, {@code nodeType}, {@code provenance} for
+     * entities; {@code id}, {@code sourceId}, {@code targetId},
+     * {@code sourceName}, {@code targetName}, {@code relationshipType},
+     * {@code provenance} for edges). Provenance is serialised via
+     * {@link Provenance#value()} so the frontend receives lowercase strings
+     * (e.g. {@code "ai-inferred"}) rather than enum names.
+     */
+    private Map< String, Object > sliceToMap( final PageKnowledgeSlice slice ) {
+        final List< Map< String, Object > > entityMaps = new java.util.ArrayList<>();
+        for ( final KgNode n : slice.entities() ) {
+            final Map< String, Object > m = new LinkedHashMap<>();
+            m.put( "id", n.id().toString() );
+            m.put( "name", n.name() );
+            m.put( "nodeType", n.nodeType() );
+            m.put( "provenance", n.provenance().value() );
+            entityMaps.add( m );
+        }
+        final List< Map< String, Object > > edgeMaps = new java.util.ArrayList<>();
+        for ( final KgEdgeView e : slice.edges() ) {
+            final Map< String, Object > m = new LinkedHashMap<>();
+            m.put( "id", e.id().toString() );
+            m.put( "sourceId", e.sourceId().toString() );
+            m.put( "targetId", e.targetId().toString() );
+            m.put( "sourceName", e.sourceName() );
+            m.put( "targetName", e.targetName() );
+            m.put( "relationshipType", e.relationshipType() );
+            m.put( "provenance", e.provenance().value() );
+            edgeMaps.add( m );
+        }
+        final Map< String, Object > result = new LinkedHashMap<>();
+        result.put( "entities", entityMaps );
+        result.put( "edges", edgeMaps );
+        return result;
+    }
+
     private Map< String, Object > nodeToMap( final KgNode node ) {
         final Map< String, Object > map = new LinkedHashMap<>();
         map.put( "id", node.id().toString() );
         map.put( "name", node.name() );
-        map.put( "node_type", node.nodeType() );
-        map.put( "source_page", node.sourcePage() );
+        map.put( "nodeType", node.nodeType() );
+        map.put( "sourcePage", node.sourcePage() );
         map.put( "provenance", node.provenance().value() );
         map.put( "properties", node.properties() );
         return map;

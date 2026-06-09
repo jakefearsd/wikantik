@@ -4,7 +4,7 @@ import Select from '../ui/Select';
 import Badge from '../ui/Badge';
 import EmptyState from '../ui/EmptyState';
 
-// Vocab mirrors com.wikantik.api.kg.EntityTypeVocabulary and the 21 KG predicates.
+// Vocab mirrors com.wikantik.api.knowledge.EntityTypeVocabulary and the 21 KG predicates.
 // A server enum endpoint is a fast-follow; hardcoded here for now.
 const ENTITY_TYPES = [
   'person',
@@ -44,8 +44,10 @@ const PREDICATES = [
 
 function provenanceVariant(provenance) {
   if (!provenance) return 'default';
-  if (provenance === 'human-curated') return 'success';
-  if (provenance === 'machine') return 'info';
+  // Trusted human provenance → success variant
+  if (provenance === 'human-authored' || provenance === 'human-curated') return 'success';
+  // Machine-generated provenance → muted/info variant
+  if (provenance === 'ai-inferred' || provenance === 'ai-reviewed') return 'info';
   return 'default';
 }
 
@@ -67,6 +69,11 @@ export default function KnowledgeGraphPanel({ pageName }) {
   const [addEdgeError, setAddEdgeError] = useState(null);
 
   const fetchSlice = useCallback(async () => {
+    // Guard: don't fetch if pageName is falsy — avoids /api/page-knowledge/undefined requests.
+    if (!pageName) {
+      setLoading(false);
+      return;
+    }
     setFetchError(null);
     try {
       const data = await api.getPageKnowledge(pageName);
@@ -144,6 +151,10 @@ export default function KnowledgeGraphPanel({ pageName }) {
 
   const handleAddEdge = useCallback(async () => {
     if (!edgeSourceId || !edgeTargetId || !edgePredicate) return;
+    if (edgeSourceId === edgeTargetId) {
+      setAddEdgeError('Source and target must be different entities (no self-loops).');
+      return;
+    }
     setAddEdgeError(null);
     try {
       await api.upsertEdge(pageName, {
@@ -163,6 +174,11 @@ export default function KnowledgeGraphPanel({ pageName }) {
       }
     }
   }, [pageName, edgeSourceId, edgeTargetId, edgePredicate, fetchSlice]);
+
+  // Guard: page must be saved (have a real name) before we can manage its KG slice.
+  if (!pageName) {
+    return <div className="kg-panel-notice">Save the page first to manage its knowledge graph.</div>;
+  }
 
   if (loading) {
     return <div className="kg-panel-loading">Loading knowledge graph…</div>;
@@ -311,7 +327,7 @@ export default function KnowledgeGraphPanel({ pageName }) {
             type="button"
             className="btn btn-primary btn-sm"
             onClick={handleAddEdge}
-            disabled={!edgeSourceId || !edgeTargetId}
+            disabled={!edgeSourceId || !edgeTargetId || !edgePredicate}
           >
             Add
           </button>

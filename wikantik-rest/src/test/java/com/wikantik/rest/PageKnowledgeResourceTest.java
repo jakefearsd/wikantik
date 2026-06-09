@@ -121,9 +121,9 @@ class PageKnowledgeResourceTest {
         final PageKnowledgeResource servlet = new DenyPermissionServlet( engine, "edit" );
 
         final JsonObject body = new JsonObject();
-        body.addProperty( "source_id", UUID.randomUUID().toString() );
-        body.addProperty( "target_id", UUID.randomUUID().toString() );
-        body.addProperty( "relationship_type", "related" );
+        body.addProperty( "sourceId", UUID.randomUUID().toString() );
+        body.addProperty( "targetId", UUID.randomUUID().toString() );
+        body.addProperty( "relationshipType", "related" );
 
         final HttpServletRequest req = requestWithBody( "/TestPage/edges", body );
         final StringWriter sw = new StringWriter();
@@ -151,9 +151,9 @@ class PageKnowledgeResourceTest {
         final UUID src = UUID.randomUUID();
         final UUID tgt = UUID.randomUUID();
         final JsonObject body = new JsonObject();
-        body.addProperty( "source_id", src.toString() );
-        body.addProperty( "target_id", tgt.toString() );
-        body.addProperty( "relationship_type", "implements" );
+        body.addProperty( "sourceId", src.toString() );
+        body.addProperty( "targetId", tgt.toString() );
+        body.addProperty( "relationshipType", "implements" );
 
         final HttpServletRequest req = requestWithBody( "/TestPage/edges", body );
         final StringWriter sw = new StringWriter();
@@ -185,9 +185,14 @@ class PageKnowledgeResourceTest {
     @Test
     void getSliceReturnsPageKnowledgeSlice() throws Exception {
         final UUID nodeId = UUID.randomUUID();
+        final UUID edgeId = UUID.randomUUID();
+        final UUID node2Id = UUID.randomUUID();
         final KgNode node = node( nodeId, "Alpha" );
+        final KgNode node2 = node( node2Id, "Beta" );
+        final KgEdgeView edge = new KgEdgeView( edgeId, nodeId, node2Id,
+                "Alpha", "Beta", "related_to", Provenance.AI_INFERRED );
         final PageKnowledgeSlice slice = new PageKnowledgeSlice(
-                List.of( node ), List.of() );
+                List.of( node, node2 ), List.of( edge ) );
         Mockito.when( kgService.getPageSlice( "TestPage" ) ).thenReturn( slice );
 
         final PageKnowledgeResource servlet = new GrantViewServlet( engine, kgService );
@@ -203,6 +208,27 @@ class PageKnowledgeResourceTest {
         final JsonObject json = gson.fromJson( sw.toString(), JsonObject.class );
         assertTrue( json.has( "entities" ), "response must include entities" );
         assertTrue( json.has( "edges" ), "response must include edges" );
+
+        // Assert projected entity shape: camelCase keys, provenance as value()
+        final JsonObject entity = json.getAsJsonArray( "entities" ).get( 0 ).getAsJsonObject();
+        assertEquals( nodeId.toString(), entity.get( "id" ).getAsString() );
+        assertEquals( "Alpha", entity.get( "name" ).getAsString() );
+        assertEquals( "Concept", entity.get( "nodeType" ).getAsString() );
+        assertEquals( Provenance.HUMAN_AUTHORED.value(), entity.get( "provenance" ).getAsString(),
+                "provenance must be the lowercase value() string, not the enum name" );
+        assertFalse( entity.has( "sourcePage" ), "sourcePage must not be leaked in the GET slice" );
+        assertFalse( entity.has( "properties" ), "properties must not be leaked in the GET slice" );
+
+        // Assert projected edge shape: camelCase keys, provenance as value()
+        final JsonObject edgeJson = json.getAsJsonArray( "edges" ).get( 0 ).getAsJsonObject();
+        assertEquals( edgeId.toString(), edgeJson.get( "id" ).getAsString() );
+        assertEquals( nodeId.toString(), edgeJson.get( "sourceId" ).getAsString() );
+        assertEquals( node2Id.toString(), edgeJson.get( "targetId" ).getAsString() );
+        assertEquals( "Alpha", edgeJson.get( "sourceName" ).getAsString() );
+        assertEquals( "Beta", edgeJson.get( "targetName" ).getAsString() );
+        assertEquals( "related_to", edgeJson.get( "relationshipType" ).getAsString() );
+        assertEquals( Provenance.AI_INFERRED.value(), edgeJson.get( "provenance" ).getAsString(),
+                "edge provenance must be lowercase value() — e.g. 'ai-inferred'" );
     }
 
     // -------------------------------------------------------------------------
@@ -280,7 +306,7 @@ class PageKnowledgeResourceTest {
 
         final JsonObject body = new JsonObject();
         body.addProperty( "name", "Alpha" );
-        body.addProperty( "node_type", "Concept" );
+        body.addProperty( "nodeType", "Concept" );
 
         final HttpServletRequest req = requestWithBody( "/TestPage/entities", body );
         final StringWriter sw = new StringWriter();

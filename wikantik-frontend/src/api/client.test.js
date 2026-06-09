@@ -351,3 +351,51 @@ describe('api.knowledge.listProposalsFiltered', () => {
     expect(url).toContain('offset=25');
   });
 });
+
+// ── page-knowledge client contract — prevents camelCase/snake_case drift ──────
+// This is the regression guard that would have caught C1: the backend was
+// reading snake_case keys while the client sent camelCase. If either side
+// drifts, one of these tests will fail with a shape mismatch.
+describe('page-knowledge client contract', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn().mockResolvedValue(
+      mockFetchResponse({ status: 200, body: { ok: true, id: 'node-uuid', node: {} } }),
+    );
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function lastCall() {
+    return global.fetch.mock.calls[global.fetch.mock.calls.length - 1];
+  }
+
+  it('upsertEntity sends camelCase nodeType key to /api/page-knowledge/{name}/entities', async () => {
+    await api.upsertEntity('MyPage', { name: 'X', nodeType: 'concept' });
+    const [url, opts] = lastCall();
+    expect(url).toContain('/api/page-knowledge/MyPage/entities');
+    expect(opts.method).toBe('POST');
+    const body = JSON.parse(opts.body);
+    expect(body).toHaveProperty('nodeType', 'concept');
+    // Must NOT contain the legacy snake_case key
+    expect(body).not.toHaveProperty('node_type');
+  });
+
+  it('upsertEdge sends camelCase sourceId/targetId/relationshipType to /api/page-knowledge/{name}/edges', async () => {
+    global.fetch.mockResolvedValue(
+      mockFetchResponse({ status: 200, body: { ok: true, id: 'edge-uuid' } }),
+    );
+    await api.upsertEdge('MyPage', { sourceId: 'a-uuid', targetId: 'b-uuid', relationshipType: 'related_to' });
+    const [url, opts] = lastCall();
+    expect(url).toContain('/api/page-knowledge/MyPage/edges');
+    expect(opts.method).toBe('POST');
+    const body = JSON.parse(opts.body);
+    expect(body).toHaveProperty('sourceId', 'a-uuid');
+    expect(body).toHaveProperty('targetId', 'b-uuid');
+    expect(body).toHaveProperty('relationshipType', 'related_to');
+    // Must NOT contain the legacy snake_case keys
+    expect(body).not.toHaveProperty('source_id');
+    expect(body).not.toHaveProperty('target_id');
+    expect(body).not.toHaveProperty('relationship_type');
+  });
+});

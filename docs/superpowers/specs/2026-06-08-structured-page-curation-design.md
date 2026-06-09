@@ -1,6 +1,6 @@
 # Structured Page Curation Editor — Design
 
-**Status:** Approved for planning (2026-06-08)
+**Status:** Shipped 2026-06-09 — Parts A + B implemented; Phase 6 ITs green (full unit reactor + the affected REST/custom-jdbc IT modules pass). Note: field-value validations (cluster-slug, date, non-canonical type/status, audience) ship as **advisory WARNINGS**, not blocking errors — the corpus has non-kebab clusters, non-ISO dates, and list/pipe audiences, so only malformed YAML blocks a save. The KG curation endpoints are mounted at `/api/page-knowledge/*` (not `/api/pages/{name}/knowledge`).
 **Author:** Jake Fear + Claude Code (brainstorming session)
 
 **Goal:** Turn page curation from a source of silent breakage into a guided experience. Two surfaces in one editor: (A) a structured, constraint‑guided **frontmatter** form replacing raw‑YAML authoring, and (B) a page‑scoped **Knowledge‑Graph** panel for confirming/curating the entities and relations mentioned on the page — both with a raw/break‑glass escape hatch where relevant, and both keeping the Markdown body editing untouched.

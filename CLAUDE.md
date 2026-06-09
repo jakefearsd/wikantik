@@ -254,7 +254,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 - **wikantik-cache**: EhCache-based caching layer (1-hour TTL for render caches, 10K entry capacity)
 - **wikantik-cache-memcached**: Distributed cache adapter for Memcached
 - **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, `/wiki/{slug}?format=md|json` content filter
-- **wikantik-rest**: REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`)
+- **wikantik-rest**: REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`). Includes the structured-curation surfaces: `/api/frontmatter-schema`, `/api/frontmatter/validate`, and page-scoped KG curation at `/api/page-knowledge/*` (view-gated read, edit-gated writes through `KgCurationOps`).
 - **wikantik-admin-mcp**: Admin MCP server at `/wikantik-admin-mcp` — 25 tools — adds admin-bypass mirrors of query_nodes + search_knowledge so curators see freshly-created entities, plus `list_orphaned_kg_nodes` for finding degree-0 entities at scale. Reconciled 2026-05-14. See `com.wikantik.mcp.McpServerInitializer`.
 - **wikantik-knowledge**: Knowledge MCP server at `/knowledge-mcp` — 18 read-only tools (hybrid retrieval, Knowledge Graph traversal, schema discovery, structural-spine navigation, agent-grade page projection, batched markdown reads via `read_pages`, plus **`get_ontology`** (formal T-Box) and **`sparql_query`** (read-only SPARQL over the ontology)) plus the Knowledge Graph service (pgvector-backed embeddings, co-mention graph, hub discovery) and the ontology-aware query expansion in the hybrid retriever (flag `wikantik.search.ontologyExpansion.enabled`, default off). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 - **wikantik-tools**: OpenAPI 3.1 tool server at `/tools/*` — 2 tools (`search_wiki`, `get_page`) for OpenWebUI-compatible non-MCP clients.
@@ -352,6 +352,7 @@ each is recorded in [docs/ProjectReference.md](docs/ProjectReference.md#active-d
 - **[KgInclusionPolicy.md](docs/wikantik-pages/KgInclusionPolicy.md)** — cluster-primary KG inclusion policy (`bin/kg-policy.sh`, default-exclude, `kg_include:` frontmatter override).
 - **[RetrievalExperimentHarness.md](docs/wikantik-pages/RetrievalExperimentHarness.md)** — implemented, not yet scheduled.
 - **[IndexingSupport.md](IndexingSupport.md)** — raw content + change feed + sitemap for RAG/SEO.
+- **[2026-06-08-structured-page-curation-design.md](docs/superpowers/specs/2026-06-08-structured-page-curation-design.md)** — structured frontmatter editor + page-scoped KG curation panel (shipped 2026-06-09). Server-authoritative `FrontmatterSchema` drives `SchemaDrivenFrontmatterValidator` on every save path (`GET /api/frontmatter-schema`, `POST /api/frontmatter/validate`; `PUT /api/pages` → 422 errors / 200 warnings; MCP parity). **Gotcha:** field-value checks are advisory WARNINGS (only malformed YAML 422s) so corpus pages with non-kebab clusters / non-ISO dates / list-audiences still save; SnakeYAML pre-parses `date`→`Date` and `audience`→`List`, which the validator handles. Page-scoped KG curation is `/api/page-knowledge/*` (NOT `/api/pages/{name}/knowledge` — a servlet can't match a mid-path var); `getPageSlice` UNIONs chunk-mentions + curated `source_page` nodes; curation only surfaces on KG-included pages.
 
 ### Testing Approach
 

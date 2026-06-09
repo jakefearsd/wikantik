@@ -115,6 +115,15 @@ export const api = {
     return request(`/api/pages?${params}`);
   },
 
+  // Structured frontmatter editor: server-authoritative schema + dry-run validation.
+  getFrontmatterSchema: () => request('/api/frontmatter-schema'),
+
+  validateFrontmatter: ({ frontmatter, metadata } = {}) =>
+    request('/api/frontmatter/validate', {
+      method: 'POST',
+      body: JSON.stringify({ frontmatter, metadata }),
+    }),
+
   // Anchored comment threads
   listCommentThreads: (page, status = 'all') =>
     request(`/api/comment-threads?page=${encodeURIComponent(page)}&status=${encodeURIComponent(status)}`),

@@ -14,6 +14,7 @@ export default function Combobox({
   options,
   allowFreeEntry = true,
   placeholder,
+  ariaLabel,
   id,
 }) {
   const [query, setQuery] = useState(value ?? '');
@@ -76,6 +77,7 @@ export default function Combobox({
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
+        aria-label={ariaLabel}
         value={query}
         placeholder={placeholder}
         id={id}

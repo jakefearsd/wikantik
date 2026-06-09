@@ -2174,3 +2174,35 @@ h3:focus-within .heading-anchor {
 }
 .ui-tab-active { border-bottom-color: var(--accent, #36c); font-weight: 600; }
 .ui-tabs-panel { padding-top: 0.75rem; }
+
+/* --- Structured frontmatter editor --- */
+.fm-editor-loading { padding: 1rem; color: var(--muted, #777); }
+.fm-form { display: flex; flex-direction: column; gap: 0.85rem; }
+.fm-field { display: flex; flex-direction: column; gap: 0.25rem; }
+.fm-label { font-size: 0.8rem; font-weight: 600; color: var(--muted, #555); }
+.fm-input { width: 100%; }
+.fm-textarea {
+  font: inherit; width: 100%; min-height: 4rem; padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border, #ccc); border-radius: 4px; background: var(--surface, #fff); color: inherit;
+}
+.fm-text { display: flex; align-items: center; gap: 0.5rem; }
+.fm-counter { font-size: 0.75rem; color: var(--muted, #888); white-space: nowrap; }
+.fm-counter-warn { color: var(--warn, #b8860b); font-weight: 600; }
+.fm-readonly { font-family: var(--mono, monospace); color: var(--muted, #666); font-size: 0.85rem; }
+.fm-violations { list-style: none; margin: 0.15rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.fm-violation { font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
+.fm-violation-error { color: var(--error, #c0392b); }
+.fm-violation-warning { color: var(--warn, #b8860b); }
+.fm-apply-suggestion {
+  font: inherit; font-size: 0.75rem; padding: 0.1rem 0.4rem; cursor: pointer;
+  border: 1px solid currentColor; border-radius: 3px; background: none; color: inherit;
+}
+.fm-pagerefs { display: flex; flex-direction: column; gap: 0.35rem; }
+.fm-pagerefs-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.fm-runbook { display: flex; flex-direction: column; gap: 0.6rem; padding-left: 0.5rem; border-left: 2px solid var(--border, #ddd); }
+.fm-runbook-field { display: flex; flex-direction: column; gap: 0.2rem; }
+.fm-advanced { margin-top: 0.5rem; font-size: 0.85rem; }
+.fm-advanced-list { list-style: none; margin: 0.35rem 0; padding: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.fm-advanced-note { font-size: 0.75rem; color: var(--muted, #888); }
+.fm-raw-textarea { font: inherit; font-family: var(--mono, monospace); width: 100%; min-height: 12rem; padding: 0.5rem; border: 1px solid var(--border, #ccc); border-radius: 4px; }
+.fm-raw-error { color: var(--error, #c0392b); font-size: 0.8rem; }

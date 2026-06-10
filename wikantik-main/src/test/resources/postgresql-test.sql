@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS users (
     created        TIMESTAMP,
     modified       TIMESTAMP,
     lock_expiry    TIMESTAMP,
+    password_must_change BOOLEAN NOT NULL DEFAULT FALSE,
     bio            VARCHAR(1000),
     attributes     TEXT
 );

@@ -199,8 +199,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     private static final String FIND_BY_LOGIN_NAME = "SELECT * FROM users WHERE login_name=?";
     private static final String FIND_BY_UID = "SELECT * FROM users WHERE uid=?";
     private static final String FIND_BY_WIKI_NAME = "SELECT * FROM users WHERE wiki_name=?";
-    private static final String INSERT_PROFILE = "INSERT INTO users (uid,email,full_name,password,wiki_name,modified,login_name,attributes,bio,created) VALUES (?,?,?,?,?,?,?,?,?,?)";
-    private static final String UPDATE_PROFILE = "UPDATE users SET uid=?,email=?,full_name=?,password=?,wiki_name=?,modified=?,login_name=?,attributes=?,bio=?,lock_expiry=? WHERE login_name=?";
+    private static final String INSERT_PROFILE = "INSERT INTO users (uid,email,full_name,password,wiki_name,modified,login_name,attributes,bio,created,password_must_change) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+    private static final String UPDATE_PROFILE = "UPDATE users SET uid=?,email=?,full_name=?,password=?,wiki_name=?,modified=?,login_name=?,attributes=?,bio=?,lock_expiry=?,password_must_change=? WHERE login_name=?";
     private static final String COUNT_LOCKED_USERS = "SELECT COUNT(*) FROM users WHERE lock_expiry IS NOT NULL AND lock_expiry > CURRENT_TIMESTAMP";
     private static final String INSERT_ROLE = "INSERT INTO roles (login_name,role) VALUES (?,?)";
     private static final String FIND_ROLES = "SELECT * FROM roles WHERE login_name=?";
@@ -512,6 +512,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 // User is new: insert new user record
                 setProfileParameters( ps1, profile, password, ts );
                 ps1.setTimestamp( 10, ts );
+                ps1.setBoolean( 11, profile.isPasswordMustChange() );
                 ps1.execute();
 
                 // Insert new role record
@@ -535,7 +536,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 // User exists: modify existing record
                 setProfileParameters( ps4, profile, password, ts );
                 ps4.setDate( 10, lockExpiry );
-                ps4.setString( 11, profile.getLoginName() );
+                ps4.setBoolean( 11, profile.isPasswordMustChange() );
+                ps4.setString( 12, profile.getLoginName() );
                 ps4.execute();
             }
             // Set the profile mod time
@@ -627,6 +629,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                     profile.setLoginName( rs.getString( "login_name" ) );
                     profile.setPassword( rs.getString( "password" ) );
                     profile.setBio( rs.getString( "bio" ) );
+                    profile.setPasswordMustChange( rs.getBoolean( "password_must_change" ) );
 
                     // Fetch the user attributes
                     final String rawAttributes = rs.getString( "attributes" );

@@ -114,6 +114,7 @@ public class InMemoryUserDatabase extends AbstractUserDatabase {
         p.setCreated( s.getCreated() );
         p.setLastModified( s.getLastModified() );
         p.setLockExpiry( s.getLockExpiry() );
+        p.setPasswordMustChange( s.isPasswordMustChange() );
         p.getAttributes().putAll( s.getAttributes() );
         return p;
     }

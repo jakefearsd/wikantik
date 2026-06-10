@@ -126,6 +126,22 @@ public interface UserProfile extends Serializable
     void setWikiName( String wikiName );
 
     /**
+     * Returns {@code true} if the user must change their password at next login —
+     * set when an account is freshly seeded with a default password, when an
+     * administrator sets the password, or when a reset email issues a temporary one.
+     *
+     * @return {@code true} if a password change is required before normal use
+     */
+    boolean isPasswordMustChange();
+
+    /**
+     * Sets the must-change-password flag.
+     *
+     * @param mustChange {@code true} to require a password change at next login
+     */
+    void setPasswordMustChange( boolean mustChange );
+
+    /**
      * Returns
      * <code>true</code> if the profile is currently locked (disabled); <code>false</code> otherwise.
      * By default, profiles are created unlocked. Strictly speaking, calling this method is equivalent to calling {@link #getLockExpiry()}

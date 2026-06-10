@@ -44,6 +44,7 @@ public final class DefaultUserProfile implements UserProfile {
     private String bio;
     private String fullname;
     private Date lockExpiry;
+    private boolean passwordMustChange;
     private String loginName;
     private Date modified;
     private String password;
@@ -73,6 +74,7 @@ public final class DefaultUserProfile implements UserProfile {
         c.setCreated( src.getCreated() == null ? null : new java.util.Date( src.getCreated().getTime() ) );
         c.setLastModified( src.getLastModified() == null ? null : new java.util.Date( src.getLastModified().getTime() ) );
         c.setLockExpiry( src.getLockExpiry() == null ? null : new java.util.Date( src.getLockExpiry().getTime() ) );
+        c.setPasswordMustChange( src.isPasswordMustChange() );
         final java.util.Map< String, java.io.Serializable > attrs = src.getAttributes();
         if ( attrs != null ) {
             c.getAttributes().putAll( attrs );
@@ -361,6 +363,24 @@ public final class DefaultUserProfile implements UserProfile {
     public String getUid()
     {
         return uid;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isPasswordMustChange()
+    {
+        return passwordMustChange;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void setPasswordMustChange( final boolean mustChange )
+    {
+        this.passwordMustChange = mustChange;
     }
 
     /**

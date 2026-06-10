@@ -498,6 +498,7 @@ public class AdminUserResource extends RestServletBase {
                 profile.setBio( bio );
             }
             profile.setPassword( password );
+            profile.setPasswordMustChange( true );
             db.save( profile );
 
             LOG.info( "Created user: {}", loginName );
@@ -544,6 +545,7 @@ public class AdminUserResource extends RestServletBase {
                     return;
                 }
                 profile.setPassword( password );
+                profile.setPasswordMustChange( true );
             }
 
             db.save( profile );
@@ -657,6 +659,7 @@ public class AdminUserResource extends RestServletBase {
         if ( locked ) {
             map.put( "lockExpiry", formatDate( lockExpiry ) );
         }
+        map.put( "passwordMustChange", profile.isPasswordMustChange() );
         return map;
     }
 

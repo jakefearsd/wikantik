@@ -934,6 +934,107 @@ class AdminUserResourceTest {
         assertEquals( 1, obj.getAsJsonArray( "failed" ).size() );
     }
 
+    @Test
+    void adminCreatedUserIsFlaggedForPasswordChange() throws Exception {
+        final JsonObject body = new JsonObject();
+        body.addProperty( "loginName", "newbie" );
+        body.addProperty( "password", "Xk3-Valid-Pass-77!" );
+        body.addProperty( "fullName", "New Bee" );
+
+        final String json = doPost( null, body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "User creation should succeed, got: " + json );
+
+        // Check that the database profile has the flag set
+        final com.wikantik.auth.UserManager um = engine.getManager( com.wikantik.auth.UserManager.class );
+        final com.wikantik.auth.user.UserDatabase db = um.getUserDatabase();
+        final com.wikantik.auth.user.UserProfile profile = db.findByLoginName( "newbie" );
+        assertTrue( profile.isPasswordMustChange(),
+                "Newly created user should be flagged for password change" );
+    }
+
+    @Test
+    void adminSettingPasswordFlagsTheUser() throws Exception {
+        // Seed an unflagged profile
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", "existing" );
+        createBody.addProperty( "password", "StrongPassword123!" );
+        createBody.addProperty( "fullName", "Existing User" );
+        doPost( null, createBody );
+
+        // Explicitly clear the flag (it should be true from creation, but we want to test the update)
+        final com.wikantik.auth.UserManager um = engine.getManager( com.wikantik.auth.UserManager.class );
+        final com.wikantik.auth.user.UserDatabase db = um.getUserDatabase();
+        final com.wikantik.auth.user.UserProfile profile = db.findByLoginName( "existing" );
+        profile.setPasswordMustChange( false );
+        db.save( profile );
+
+        // Now update with a new password
+        final JsonObject updateBody = new JsonObject();
+        updateBody.addProperty( "password", "Nw9-Fresh-Pass-31!" );
+
+        final String json = doPut( "existing", updateBody );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Password update should succeed, got: " + json );
+
+        // Verify the flag is now true
+        final com.wikantik.auth.user.UserProfile updatedProfile = db.findByLoginName( "existing" );
+        assertTrue( updatedProfile.isPasswordMustChange(),
+                "User should be flagged for password change after admin password update" );
+    }
+
+    @Test
+    void adminUpdateWithoutPasswordDoesNotFlag() throws Exception {
+        // Seed unflagged profile
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", "plain" );
+        createBody.addProperty( "password", "StrongPassword123!" );
+        doPost( null, createBody );
+
+        // Clear the flag from creation
+        final com.wikantik.auth.UserManager um = engine.getManager( com.wikantik.auth.UserManager.class );
+        final com.wikantik.auth.user.UserDatabase db = um.getUserDatabase();
+        final com.wikantik.auth.user.UserProfile profile = db.findByLoginName( "plain" );
+        profile.setPasswordMustChange( false );
+        db.save( profile );
+
+        // Update without password (only fullName)
+        final JsonObject updateBody = new JsonObject();
+        updateBody.addProperty( "fullName", "Renamed" );
+
+        final String json = doPut( "plain", updateBody );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "Non-password update should succeed, got: " + json );
+
+        // Verify flag is still false
+        final com.wikantik.auth.user.UserProfile updatedProfile = db.findByLoginName( "plain" );
+        assertFalse( updatedProfile.isPasswordMustChange(),
+                "Flag should remain false when password is not updated" );
+    }
+
+    @Test
+    void profileToMapExposesPasswordMustChange() throws Exception {
+        // Create a user with password flagged for change
+        final JsonObject createBody = new JsonObject();
+        createBody.addProperty( "loginName", "flaggedUser" );
+        createBody.addProperty( "password", "StrongPass456!" );
+        createBody.addProperty( "fullName", "Flagged User" );
+        doPost( null, createBody );
+
+        // GET the user and verify passwordMustChange is in the JSON response
+        final String json = doGet( "flaggedUser" );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertFalse( obj.has( "error" ), "GET user should succeed, got: " + json );
+        assertTrue( obj.has( "passwordMustChange" ),
+                "Response should contain passwordMustChange field" );
+        assertTrue( obj.get( "passwordMustChange" ).getAsBoolean(),
+                "passwordMustChange should be true for newly created user" );
+    }
+
     // ----- Helper methods -----
 
     private String doBulkAction( final JsonObject body ) throws Exception {

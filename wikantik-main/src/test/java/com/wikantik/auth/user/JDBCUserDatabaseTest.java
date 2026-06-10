@@ -724,7 +724,7 @@ public class JDBCUserDatabaseTest {
     }
 
     @Test
-    void testPasswordMustChangeRoundTrip() throws Exception {
+    public void testPasswordMustChangeRoundTrip() throws Exception {
         final UserProfile profile = m_db.newProfile();
         profile.setLoginName( "mustchange-user" );
         profile.setFullname( "Must Change" );
@@ -740,6 +740,9 @@ public class JDBCUserDatabaseTest {
         m_db.save( loaded );
         Assertions.assertFalse( m_db.findByLoginName( "mustchange-user" ).isPasswordMustChange(),
                 "flag must survive UPDATE + load" );
+
+        // Clean up
+        m_db.deleteByLoginName( "mustchange-user" );
     }
 
     // ========== Caching Tests ==========

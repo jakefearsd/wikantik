@@ -6,6 +6,35 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Live validation in the structured frontmatter editor.** Debounced, race-safe,
+  fail-open validation against `/api/frontmatter/validate` surfaces errors and
+  warnings inline as you edit. Save is disabled while blocking (ERROR-severity)
+  issues exist; advisory warnings never block. Runbook sub-field violations now
+  render against the matching control, with a validation-summary strip
+  (counts + jump-to-field). The editor CSS was rebased onto the app's design
+  tokens with a denser two-column grid.
+- **Synonym-aware entity-type classification.** Both extractors resolve common
+  LLM type synonyms (`database`/`framework`/`library`/`tool`/`service`/… →
+  `technology`, plus organization/person/place/event/… synonyms) via a shared
+  `EntityTypeVocabulary.TYPE_ALIASES`, instead of collapsing them to `concept`
+  (chunk extractor) or dropping them (page extractor) — the source of mis-typed
+  technologies under the `wk:implements` SHACL shape.
+
+### Fixed
+
+- **Audit writer dropped every batch under a least-privilege DB role.**
+  `JdbcAuditRepository.ensurePartition` ran `CREATE TABLE … PARTITION OF` on every
+  append; that DDL fails with `permission denied for schema public` for an app role
+  with `USAGE` but not `CREATE` on schema `public` (the correct posture, and the
+  PostgreSQL 15+ default), even when the partition already exists. It now checks
+  existence first via a privilege-free `to_regclass` lookup.
+- **Runbook frontmatter validator rejected legitimate `related_tools` entries.**
+  `/admin/*` REST surfaces and kebab-case CLI tool names (`kg-policy`, `kg-extract`)
+  are now accepted; a runbook validation failure returns a structured HTTP 422
+  (field-addressable violations) instead of an opaque error, for all clients.
+
 ## [2.0.13] - 2026-06-08
 
 ### Fixed

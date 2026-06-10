@@ -364,6 +364,109 @@ class AuthResourceTest {
         assertTrue( obj.get( "message" ).getAsString().contains( "If an account exists" ) );
     }
 
+    // ----- Task 3: mustChangePassword flag tests -----
+
+    @Test
+    void loginResponseCarriesMustChangePasswordFlag() throws Exception {
+        // Arrange: create a real user with passwordMustChange=true in the engine's DB.
+        final com.wikantik.auth.UserManager um =
+                engine.getManager( com.wikantik.auth.UserManager.class );
+        final UserDatabase db = um.getUserDatabase();
+        final UserProfile profile = db.newProfile();
+        profile.setLoginName( "mustchangeuser" );
+        profile.setFullname( "Must Change User" );
+        profile.setEmail( "mustchange@example.com" );
+        profile.setPassword( "Xk3-Valid-Pass-77!" );
+        profile.setPasswordMustChange( true );
+        db.save( profile );
+
+        // Act: POST /api/auth/login with those credentials.
+        final JsonObject body = new JsonObject();
+        body.addProperty( "username", "mustchangeuser" );
+        body.addProperty( "password", "Xk3-Valid-Pass-77!" );
+
+        final String json = doPost( "login", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        // Assert: success=true and mustChangePassword=true
+        assertTrue( obj.has( "success" ) && obj.get( "success" ).getAsBoolean(),
+                "login should succeed, got: " + json );
+        assertTrue( obj.has( "mustChangePassword" ),
+                "response must carry mustChangePassword key, got: " + json );
+        assertTrue( obj.get( "mustChangePassword" ).getAsBoolean(),
+                "mustChangePassword should be true, got: " + json );
+    }
+
+    @Test
+    void selfServicePasswordChangeClearsTheFlag() throws Exception {
+        // Arrange: create a real user with passwordMustChange=true.
+        final com.wikantik.auth.UserManager um =
+                engine.getManager( com.wikantik.auth.UserManager.class );
+        final UserDatabase db = um.getUserDatabase();
+        final UserProfile profile = db.newProfile();
+        profile.setLoginName( "changeflaguser" );
+        profile.setFullname( "Change Flag User" );
+        profile.setEmail( "changeflag@example.com" );
+        profile.setPassword( "Xk3-Valid-Pass-77!" );
+        profile.setPasswordMustChange( true );
+        db.save( profile );
+
+        // Stub the UserManager so the servlet uses our DB instance.
+        Mockito.when( um.getUserDatabase() ).thenReturn( db );
+        ( (com.wikantik.WikiEngine) engine ).setManager( com.wikantik.auth.UserManager.class, um );
+
+        // Act: PUT /api/auth/profile as that user with a new password.
+        final JsonObject body = new JsonObject();
+        body.addProperty( "currentPassword", "Xk3-Valid-Pass-77!" );
+        body.addProperty( "newPassword", "Nw9-Fresh-Pass-31!" );
+
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "changeflaguser" ) ) ) {
+            // We need validatePassword to return true for the current password.
+            // The real InMemoryUserDatabase handles this correctly via AbstractUserDatabase.
+            doPut( "profile", body );
+        }
+
+        // Assert: flag is now false in the database.
+        assertFalse( db.findByLoginName( "changeflaguser" ).isPasswordMustChange(),
+                "passwordMustChange should be false after self-service password change" );
+    }
+
+    @Test
+    void resetPasswordSetsTheFlag() throws Exception {
+        // Arrange: create a real user with a known email.
+        final com.wikantik.auth.UserManager um =
+                engine.getManager( com.wikantik.auth.UserManager.class );
+        final UserDatabase db = um.getUserDatabase();
+        final UserProfile profile = db.newProfile();
+        profile.setLoginName( "resetflaguser" );
+        profile.setFullname( "Reset Flag User" );
+        profile.setEmail( "resetflag@example.com" );
+        profile.setPassword( "Xk3-Valid-Pass-77!" );
+        profile.setPasswordMustChange( false );
+        db.save( profile );
+
+        // Act: POST /api/auth/reset-password for that email, mocking out MailUtil.
+        final JsonObject body = new JsonObject();
+        body.addProperty( "email", "resetflag@example.com" );
+
+        try ( MockedStatic< com.wikantik.util.MailUtil > mail =
+                      Mockito.mockStatic( com.wikantik.util.MailUtil.class ) ) {
+            // MailUtil.sendMessage is a void static — default mock is a no-op, which is what we want.
+            mail.when( () -> com.wikantik.util.MailUtil.sendMessage(
+                    Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any() ) )
+                    .then( invocation -> null );
+
+            final String json = doPost( "reset-password", body );
+            final JsonObject obj = gson.fromJson( json, JsonObject.class );
+            assertTrue( obj.get( "success" ).getAsBoolean(),
+                    "reset-password should return success, got: " + json );
+        }
+
+        // Assert: flag is now true in the database.
+        assertTrue( db.findByEmail( "resetflag@example.com" ).isPasswordMustChange(),
+                "passwordMustChange should be true after email-based password reset" );
+    }
+
     // ----- Helper methods -----
 
     private String doGet( final String action ) throws Exception {

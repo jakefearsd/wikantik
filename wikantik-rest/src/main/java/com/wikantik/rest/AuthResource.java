@@ -119,6 +119,9 @@ public class AuthResource extends RestServletBase {
         if ( session.isAuthenticated() ) {
             result.put( "login", session.getLoginPrincipal().getName() );
             result.put( "fullName", session.getUserPrincipal().getName() );
+            result.put( "mustChangePassword",
+                    PasswordChangeGate.mustChangePassword( engine, request,
+                            session.getLoginPrincipal().getName() ) );
         } else {
             result.put( "login", null );
             result.put( "fullName", null );
@@ -406,9 +409,13 @@ public class AuthResource extends RestServletBase {
                 }
 
                 profile.setPassword( newPassword );
+                profile.setPasswordMustChange( false );
             }
 
             db.save( profile );
+            if ( newPassword != null && !newPassword.isBlank() ) {
+                PasswordChangeGate.cache( request, false );
+            }
             LOG.info( "User {} updated their own profile", loginName );
 
             // Return updated profile
@@ -470,9 +477,25 @@ public class AuthResource extends RestServletBase {
                     com.wikantik.auth.login.CookieAuthenticationLoginModule
                             .setLoginCookie( engine, response, username, request.isSecure() );
                 }
+                // Use the login principal name from the authenticated session in case the
+                // auth system normalized the username (e.g. canonicalized case). If the
+                // session principal is available, prefer it; fall back to the raw username.
+                final String resolvedLogin = wikiSession.isAuthenticated()
+                        ? wikiSession.getLoginPrincipal().getName()
+                        : username;
+                boolean mustChange = false;
+                try {
+                    final UserDatabase udb = getSubsystems().auth().users().getUserDatabase();
+                    mustChange = udb.findByLoginName( resolvedLogin ).isPasswordMustChange();
+                } catch ( final NoSuchPrincipalException e ) {
+                    LOG.warn( "No profile found for '{}' after successful login: {}", resolvedLogin, e.getMessage() );
+                }
+                PasswordChangeGate.cache( request, mustChange );
+
                 final Map< String, Object > result = new LinkedHashMap<>();
                 result.put( "success", true );
                 result.put( "username", username );
+                result.put( "mustChangePassword", mustChange );
                 sendJson( response, result );
             } else {
                 sendError( response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid credentials" );
@@ -551,8 +574,10 @@ public class AuthResource extends RestServletBase {
 
             MailUtil.sendMessage( com.wikantik.core.subsystem.CoreSubsystemBridge.fromLegacyEngine( engine ).properties().asProperties(), profile.getEmail(), subject, mailBody );
 
-            // Email succeeded, now save the new password
+            // Email succeeded, now save the new password and require the user to
+            // change it on first login after the reset.
             profile.setPassword( randomPassword );
+            profile.setPasswordMustChange( true );
             db.save( profile );
 
             LOG.info( "Password reset for user '{}' (email: {})", profile.getLoginName(), email );

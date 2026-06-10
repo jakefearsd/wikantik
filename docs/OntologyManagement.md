@@ -250,7 +250,8 @@ dashboard** (`/admin/drift`) makes vocabulary drift measurable:
   (`wikantik.frontmatter.enum.nonCanonical.severity`).
 
 Endpoints: `GET /admin/drift/summary`, `GET /admin/drift/trend?days=N`,
-`GET /admin/drift/pages?family=F&code=C`, `POST /admin/drift/sweep`.
+`GET /admin/drift/pages?family=F&code=C`, `GET /admin/drift/status` (live sweep
+progress for the dashboard's progress bar), `POST /admin/drift/sweep`.
 
 ---
 

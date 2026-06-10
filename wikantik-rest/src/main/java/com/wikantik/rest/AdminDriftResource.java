@@ -41,6 +41,7 @@ import java.util.Optional;
  * GET  /admin/drift/summary — latest sweep counts + deltas vs the previous sweep
  * GET  /admin/drift/trend?days=N — sweeps in the window, oldest first
  * GET  /admin/drift/pages?family=F&amp;code=C — live offender list (never persisted)
+ * GET  /admin/drift/status — live sweep progress
  * POST /admin/drift/sweep — manual async trigger (202 / 409)
  */
 public class AdminDriftResource extends RestServletBase {
@@ -71,6 +72,8 @@ public class AdminDriftResource extends RestServletBase {
             handleTrend( service, request, response );
         } else if ( "pages".equals( action ) ) {
             handlePages( request, response, service );
+        } else if ( "status".equals( action ) ) {
+            handleStatus( service, response );
         } else {
             sendNotFound( response, "Unknown drift endpoint: " + action );
         }
@@ -182,6 +185,17 @@ public class AdminDriftResource extends RestServletBase {
             pages.add( row );
         }
         sendJsonWithStatus( response, 200, Map.of( "pages", pages ) );
+    }
+
+    private void handleStatus( final DriftSweepService service, final HttpServletResponse response )
+            throws IOException {
+        final DriftSweepService.SweepProgress p = service.progress();
+        final Map< String, Object > out = new LinkedHashMap<>();
+        out.put( "running", p.running() );
+        out.put( "phase", p.phase() );
+        out.put( "pagesScanned", p.pagesScanned() );
+        out.put( "totalPages", p.totalPages() );
+        sendJsonWithStatus( response, 200, out );
     }
 
     private static String countKey( final DriftCount c ) {

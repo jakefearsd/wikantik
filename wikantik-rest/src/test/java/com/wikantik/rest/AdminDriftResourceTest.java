@@ -189,4 +189,35 @@ class AdminDriftResourceTest {
         // sendError uses setStatus(int), never sendError(int, String)
         verify( resp ).setStatus( 503 );
     }
+
+    @Test
+    void statusReportsRunningProgress() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/status" );
+        when( service.progress() ).thenReturn(
+                new DriftSweepService.SweepProgress( true, "frontmatter", 84, 312 ) );
+
+        servlet.doGet( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        final JsonObject out = json();
+        assertTrue( out.get( "running" ).getAsBoolean() );
+        assertEquals( "frontmatter", out.get( "phase" ).getAsString() );
+        assertEquals( 84, out.get( "pagesScanned" ).getAsInt() );
+        assertEquals( 312, out.get( "totalPages" ).getAsInt() );
+    }
+
+    @Test
+    void statusReportsIdleWithNullPhase() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/status" );
+        when( service.progress() ).thenReturn(
+                new DriftSweepService.SweepProgress( false, null, 0, 0 ) );
+
+        servlet.doGet( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        final JsonObject out = json();
+        assertFalse( out.get( "running" ).getAsBoolean() );
+        assertTrue( out.get( "phase" ).isJsonNull() );
+        assertEquals( 0, out.get( "totalPages" ).getAsInt() );
+    }
 }

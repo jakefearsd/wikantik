@@ -299,10 +299,10 @@ if [ -x /opt/wikantik/db/migrate.sh ]; then
 fi
 
 # --- Optional dev-user seeding ---
-# seed-users.sql installs admin/admin123 and a basic user account with
-# known dev-only passwords. Off by default (production deploys must NOT
-# inherit known credentials); the bare-metal deploy script + the test
-# stack opt in via WIKANTIK_SEED_DEV_USERS=true.
+# seed-users.sql ensures the default admin account exists (admin/admin123,
+# flagged must-change-on-first-login; insert-if-absent only). Off by default
+# (production deploys must NOT inherit known credentials); the bare-metal
+# deploy script + the test stack opt in via WIKANTIK_SEED_DEV_USERS=true.
 if [ "${WIKANTIK_SEED_DEV_USERS:-false}" = "true" ] && [ -f /opt/wikantik/db/seed-users.sql ]; then
   echo "Ensuring default admin account (admin/admin123, first login forces a change)..."
   PGHOST="${POSTGRES_HOST}" PGPORT="${POSTGRES_PORT}" \

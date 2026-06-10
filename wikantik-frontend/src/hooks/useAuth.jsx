@@ -67,8 +67,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (username, password) => {
-    await api.login(username, password);
+    const result = await api.login(username, password);
     await refresh();
+    return result;
   };
 
   const logout = async () => {

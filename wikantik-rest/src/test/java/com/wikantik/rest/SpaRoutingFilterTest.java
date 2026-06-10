@@ -270,6 +270,17 @@ class SpaRoutingFilterTest {
     }
 
     @Test
+    void testChangePasswordServesIndexHtml() throws Exception {
+        final HttpServletRequest request = mockRequest( "/change-password" );
+
+        filter.doFilter( request, response, chain );
+
+        verify( chain, never() ).doFilter( any(), any() );
+        assertTrue( capturedOutput.asString().contains( "<div id=\"root\">" ),
+                    "/change-password should forward to the SPA shell for the forced password-change flow" );
+    }
+
+    @Test
     void testAdminServesIndexHtml() throws Exception {
         final HttpServletRequest request = mockRequest( "/admin/security" );
 

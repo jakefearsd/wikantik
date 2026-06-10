@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import AdminSidebar from './components/admin/AdminSidebar';
 import { useAuth } from './hooks/useAuth';
@@ -25,6 +25,7 @@ export default function App() {
   const openSearch = useCallback(() => setSearchOpen(true), []);
   useGlobalHotkeys({ onSearch: openSearch });
   const location = useLocation();
+  const navigate = useNavigate();
   const isEditorRoute = location.pathname.startsWith('/edit/');
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isGraphRoute = location.pathname === '/page-graph' || location.pathname === '/knowledge-graph';
@@ -33,6 +34,16 @@ export default function App() {
   useEffect(() => {
     if (user?.authenticated) setMobileOpen(false);
   }, [user?.authenticated]);
+
+  // Mid-session flag: if the server marks the account must-change-password
+  // (e.g. after a 403 PASSWORD_CHANGE_REQUIRED fires wikantik:auth-required →
+  // refresh()), redirect to the change-password form from any route.
+  useEffect(() => {
+    if (user?.authenticated && user.mustChangePassword
+        && location.pathname !== '/change-password') {
+      navigate('/change-password', { replace: true });
+    }
+  }, [user, location.pathname, navigate]);
 
   // Listen for server version mismatch
   useEffect(() => {

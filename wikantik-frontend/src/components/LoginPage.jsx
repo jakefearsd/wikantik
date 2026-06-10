@@ -32,8 +32,8 @@ export default function LoginPage() {
     setLoading(true);
     setCredError(null);
     try {
-      await login(username, password);
-      navigate('/wiki/Main');
+      const result = await login(username, password);
+      navigate(result?.mustChangePassword ? '/change-password' : '/wiki/Main');
     } catch {
       setCredError('Invalid credentials');
     } finally {

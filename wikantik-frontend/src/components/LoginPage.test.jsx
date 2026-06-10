@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '../hooks/useAuth';
 import LoginPage from './LoginPage';
@@ -12,6 +12,7 @@ vi.mock('../api/client', () => ({
     getUser: vi.fn().mockResolvedValue({ authenticated: false, username: 'anonymous', roles: [] }),
     login: vi.fn(),
     logout: vi.fn(),
+    updateProfile: vi.fn(),
   },
 }));
 
@@ -22,6 +23,7 @@ beforeEach(() => {
 /**
  * Render LoginPage inside a MemoryRouter with the given initial URL.
  * AuthProvider wraps it so useAuth() does not throw.
+ * A /wiki/Main and /change-password stub route are included to capture navigation.
  */
 function renderLoginPage(initialEntry = '/login') {
   return render(
@@ -29,6 +31,8 @@ function renderLoginPage(initialEntry = '/login') {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/wiki/Main" element={<div data-testid="wiki-main">Wiki Main</div>} />
+          <Route path="/change-password" element={<div data-testid="change-password-page">Change Password</div>} />
         </Routes>
       </AuthProvider>
     </MemoryRouter>,
@@ -85,5 +89,23 @@ describe('LoginPage', () => {
     expect(screen.getByTestId('login-username')).toBeInTheDocument();
     expect(screen.getByTestId('login-password')).toBeInTheDocument();
     expect(screen.getByTestId('login-submit')).toBeInTheDocument();
+  });
+
+  it('navigates to /change-password when login resolves with mustChangePassword: true', async () => {
+    const { api } = await import('../api/client');
+    // login returns a token + mustChangePassword flag; getUser reflects the
+    // new authenticated state on the subsequent refresh() probe.
+    api.login.mockResolvedValue({ success: true, mustChangePassword: true });
+    api.getUser.mockResolvedValue({ authenticated: true, username: 'bob', roles: ['Authenticated'], mustChangePassword: true });
+
+    renderLoginPage('/login');
+
+    fireEvent.change(screen.getByTestId('login-username'), { target: { value: 'bob' } });
+    fireEvent.change(screen.getByTestId('login-password'), { target: { value: 'temppass' } });
+    fireEvent.click(screen.getByTestId('login-submit'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('change-password-page')).toBeInTheDocument();
+    });
   });
 });

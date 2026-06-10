@@ -58,10 +58,13 @@ public final class JdbcAuditRepository implements AuditRepository {
     @Override
     public void append( final List<AuditEntry> entries ) {
         if ( entries.isEmpty() ) return;
+        // `detail` is JSONB: cast the bound parameter (?::jsonb) so it works without relying on the
+        // connection's stringtype=unspecified — pgjdbc otherwise sends it as varchar and Postgres
+        // refuses the varchar→jsonb coercion. (Mirrors KgEdgeAuditRepository's JSONB binds.)
         final String insert = "INSERT INTO audit_log ( seq, created_at, event_time, category, "
             + "event_type, actor_id, actor_principal, actor_type, target_type, target_id, "
             + "target_label, outcome, source_ip, user_agent, correlation_id, detail, prev_hash, "
-            + "row_hash ) VALUES ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? )";
+            + "row_hash ) VALUES ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?::jsonb,?,? )";
         try ( Connection c = dataSource.getConnection() ) {
             c.setAutoCommit( false );
             try {
@@ -132,16 +135,39 @@ public final class JdbcAuditRepository implements AuditRepository {
         }
     }
 
-    /** Defensively creates the monthly partition for the given instant. */
+    /** Defensively creates the monthly partition for the given instant.
+     *
+     *  <p>The partition almost always already exists — migrations pre-create the current and next
+     *  months. We therefore check existence first with a privilege-free {@code to_regclass} lookup and
+     *  run no DDL in that (common) case. This matters because {@code CREATE TABLE IF NOT EXISTS}
+     *  checks the schema {@code CREATE} privilege <em>before</em> the existence short-circuit: a
+     *  least-privilege app role (USAGE but not CREATE on schema {@code public} — the correct posture,
+     *  and the PostgreSQL 15+ default) would otherwise fail <em>every</em> append with "permission
+     *  denied for schema public", rolling back the batch and silently losing the audit trail.</p>
+     */
     private void ensurePartition( final Connection c, final Instant when ) throws java.sql.SQLException {
         final ZonedDateTime z = when.atZone( ZoneOffset.UTC );
         final ZonedDateTime start = z.withDayOfMonth( 1 ).toLocalDate().atStartOfDay( ZoneOffset.UTC );
         final ZonedDateTime end = start.plusMonths( 1 );
         final String name = String.format( "audit_log_%04d_%02d", start.getYear(), start.getMonthValue() );
+        if ( partitionExists( c, name ) ) {
+            return;
+        }
         final String ddl = "CREATE TABLE IF NOT EXISTS " + name + " PARTITION OF audit_log "
             + "FOR VALUES FROM ('" + start.toLocalDate() + "') TO ('" + end.toLocalDate() + "')";
         try ( PreparedStatement ps = c.prepareStatement( ddl ) ) {
             ps.execute();
+        }
+    }
+
+    /** Privilege-free existence check ({@code to_regclass} returns null for an absent/invisible
+     *  relation and requires no table or DDL privilege). */
+    private boolean partitionExists( final Connection c, final String name ) throws java.sql.SQLException {
+        try ( PreparedStatement ps = c.prepareStatement( "SELECT to_regclass( ? ) IS NOT NULL" ) ) {
+            ps.setString( 1, name );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() && rs.getBoolean( 1 );
+            }
         }
     }
 

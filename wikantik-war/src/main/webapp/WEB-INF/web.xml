@@ -140,6 +140,21 @@
      <url-pattern>/admin/*</url-pattern>
    </filter-mapping>
 
+   <!-- Must-change-password gate: blocks authenticated users flagged for a
+        forced password reset from all /api/* and /admin/* endpoints except the
+        auth surface (/api/auth/*) they need to complete the change. Browser HTML
+        navigations (SPA shell loads) pass through. Runs after RememberMeAuthFilter
+        so re-authenticated sessions are visible, and before AdminAuthFilter. -->
+   <filter>
+     <filter-name>MustChangePasswordFilter</filter-name>
+     <filter-class>com.wikantik.rest.MustChangePasswordFilter</filter-class>
+   </filter>
+   <filter-mapping>
+     <filter-name>MustChangePasswordFilter</filter-name>
+     <url-pattern>/api/*</url-pattern>
+     <url-pattern>/admin/*</url-pattern>
+   </filter-mapping>
+
    <!-- Admin authorization: enforces AllPermission on /admin/* endpoints -->
    <filter>
      <filter-name>AdminAuthFilter</filter-name>

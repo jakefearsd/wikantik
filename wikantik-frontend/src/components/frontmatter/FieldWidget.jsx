@@ -8,34 +8,13 @@ import Combobox from '../ui/Combobox';
 import TagInput from '../ui/TagInput';
 import Chip from '../ui/Chip';
 import RunbookBlockEditor from './RunbookBlockEditor';
+import ViolationList from './ViolationList';
 
 function fmtScalar(value) {
   if (value == null) return '—';
   if (Array.isArray(value)) return value.join(', ');
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
-}
-
-function ViolationList({ violations, onApplySuggestion }) {
-  if (!violations || violations.length === 0) return null;
-  return (
-    <ul className="fm-violations">
-      {violations.map((v, i) => (
-        <li key={i} className={`fm-violation fm-violation-${(v.severity || '').toLowerCase()}`}>
-          <span className="fm-violation-msg">{v.message}</span>
-          {v.suggestion && (
-            <button
-              type="button"
-              className="fm-apply-suggestion"
-              onClick={() => onApplySuggestion(v.suggestion)}
-            >
-              Use “{v.suggestion}”
-            </button>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 function TextField({ spec, value, onChange }) {

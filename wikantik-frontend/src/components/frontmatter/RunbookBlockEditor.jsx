@@ -1,8 +1,9 @@
 // RunbookBlockEditor.jsx
 // Nested editor for the `runbook:` block. Each sub-field is a list of strings, edited as a textarea
-// with one entry per line (steps/pitfalls are full sentences, so chips would be awkward). The
-// server-side FrontmatterRunbookValidator remains the authority for the ≥1/≥2 rules; the labels just
-// hint them.
+// with one entry per line. The server-side FrontmatterRunbookValidator remains the authority; this
+// renders the per-sub-field violations it returns (field path `runbook.<key>`) inline.
+import ViolationList from './ViolationList';
+
 const RUNBOOK_FIELDS = [
   { k: 'when_to_use', label: 'When to use (≥1)' },
   { k: 'inputs', label: 'Inputs' },
@@ -12,7 +13,7 @@ const RUNBOOK_FIELDS = [
   { k: 'references', label: 'References' },
 ];
 
-export default function RunbookBlockEditor({ value, onChange }) {
+export default function RunbookBlockEditor({ value, onChange, violations = [] }) {
   const block = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 
   const setList = (k, text) => {
@@ -22,6 +23,8 @@ export default function RunbookBlockEditor({ value, onChange }) {
     else next[k] = list;
     onChange(Object.keys(next).length ? next : undefined);
   };
+
+  const violationsFor = (k) => violations.filter((v) => v.field === `runbook.${k}`);
 
   return (
     <div className="fm-runbook">
@@ -35,6 +38,7 @@ export default function RunbookBlockEditor({ value, onChange }) {
             value={(Array.isArray(block[k]) ? block[k] : []).join('\n')}
             onChange={(e) => setList(k, e.target.value)}
           />
+          <ViolationList violations={violationsFor(k)} />
         </div>
       ))}
     </div>

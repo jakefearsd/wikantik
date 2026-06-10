@@ -37,7 +37,7 @@ Key capabilities:
 - **OpenAPI tool server** at `/tools/*` — OpenWebUI-compatible OpenAPI 3.1 endpoint exposing `search_wiki` and `get_page` for non-MCP LLM clients
 - **Raw content and change feed** — `GET /wiki/{slug}?format=md|json` and `GET /api/changes?since=…` for search-engine crawlers and RAG ingestion pipelines (see [IndexingSupport.md](IndexingSupport.md))
 - **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60), with Knowledge Graph-aware rerank; fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
-- **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, chunk inspector, index status), security management (groups and policy grants), API keys, page ownership, Knowledge-Graph curation, KG inclusion policy, retrieval-quality dashboard, and a tamper-evident audit log
+- **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, chunk inspector, index status), security management (groups and policy grants), API keys, page ownership, Knowledge-Graph curation, KG inclusion policy, ontology rebuild, a metadata-drift burn-down dashboard, retrieval-quality dashboard, and a tamper-evident audit log
 - **Database-backed authorisation** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
 - **SCIM 2.0 provisioning** at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD and discovery for IdP-driven onboarding/offboarding (see [ScimProvisioning.md](docs/ScimProvisioning.md))
 - **Programmatic API keys** — issue and revoke bearer tokens for the MCP / OpenAPI / REST surfaces from the admin panel (see [ApiKeys.md](docs/ApiKeys.md))
@@ -47,7 +47,7 @@ Key capabilities:
 - **Observability** — health checks, Prometheus metrics at `/metrics` (IP-restricted to internal networks), structured logging with request correlation; monitoring is handled by the external jakemon stack
 - **Content clusters** — thematic article groupings with hub pages, sub-clusters, cross-references, and automated structural auditing
 - **NIST 800-63B password validation** — blocklist-checked password strength enforcement for account creation
-- **Frontmatter metadata** — YAML frontmatter for type, tags, summary, cluster, status, and related articles, indexed in Lucene for semantic navigation
+- **Structured frontmatter metadata** — YAML frontmatter (type, tags, summary, cluster, status, runbook blocks, verification, …) edited through a schema-driven form with **live validation and Save-gating**; one block feeds full-text & faceted search, the topical hierarchy, the RDF ontology, SEO structured data, and agent-grade retrieval (see [Frontmatter.md](docs/Frontmatter.md))
 
 
 ## Ontology Management
@@ -516,6 +516,8 @@ Migrating from a previous Wikantik install? See
 
 ### Features
 
+- [Frontmatter.md](docs/Frontmatter.md) — **structured article metadata**: the full field reference, the schema-driven editor with live validation & Save-gating, the runbook block, validation rules, and how one frontmatter block feeds search / ontology / SEO / agents
+- [OntologyManagement.md](docs/OntologyManagement.md) — **the `wikantik:` RDF/OWL ontology**: the three layers, creating & curating page concepts and the Knowledge Graph, the SHACL write-time gate, the drift burn-down dashboard, the public SPARQL/JSON-LD/dump surface, and evolving the vocabulary
 - [MarkdownLinks.md](docs/MarkdownLinks.md) — Markdown internal and external link syntax
 - [MathematicalNotation.md](docs/MathematicalNotation.md) — LaTeX math rendering (`$…$`, `$$…$$`, ```` ```math ````) via Flexmark + KaTeX
 - [NewUI.md](docs/NewUI.md) — React SPA design and architecture (reader, editor, admin, Knowledge Graph viewer)

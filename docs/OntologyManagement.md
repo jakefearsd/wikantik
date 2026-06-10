@@ -76,6 +76,10 @@ create *instances that conform to it*. Changing the vocabulary is a code change
 This is what most curation looks like, and it happens in the **structured
 frontmatter editor** — the form beside the Markdown body when you edit a page.
 
+> **Full field reference:** see **[Frontmatter.md](Frontmatter.md)** for every
+> supported frontmatter key, the editor's live-validation / Save-gating model, and
+> the runbook block. This section covers only the *ontology-relevant* fields.
+
 - **Set the page's type.** `type` (article / hub / reference / runbook / design)
   maps to the page's `wk:` content class and its schema.org `@type`.
 - **Cluster & tags become SKOS concepts.** `cluster` and each `tag` are
@@ -255,6 +259,50 @@ progress for the dashboard's progress bar), `POST /admin/drift/sweep`.
 
 ---
 
+## Curation in practice: burning down a SHACL violation
+
+The drift dashboard surfaces non-conformant edges under family `shacl`. Here is the
+end-to-end loop to clear them — the same one used to take the corpus to zero.
+
+1. **See them.** `/admin/drift` shows the `shacl node-scoped` count. Expand it (or
+   `GET /admin/drift/pages?family=shacl&code=node-scoped`) for the per-edge list;
+   each row names the focus node and the violated shape, e.g.
+   *"wk:implements domain must be a wk:Technology."*
+
+2. **Triage each one.** A violation has two honest fixes — the call is per-entity:
+   - **Retype the node** — if the subject genuinely *is* the required class (a real
+     technology mis-typed as `concept`), change its `node_type` to match; the edge
+     then conforms.
+   - **Fix or remove the edge** — if the edge is wrong or backwards (a concept that
+     doesn't "implement" anything, or an `implements` pointing the wrong way),
+     delete it or re-predicate it.
+
+   The question to ask is: *is the subject really a `technology`, or is the
+   `implements` edge bogus?*
+
+3. **Apply it** through a curation surface — the admin panel
+   (`/admin/knowledge-graph/*`), the admin-MCP `curate_nodes` / `curate_edges`
+   tools, or, for a one-shot legacy cleanup of many rows, a direct SQL fixup (data
+   correction, **not** a versioned migration). Each surface keeps the SHACL gate,
+   provenance, and audit log in force for *future* writes.
+
+4. **Re-project.** KG entity/edge edits emit **no incremental ontology events**, so
+   the materialized model stays stale until you rebuild it:
+   `POST /admin/ontology/rebuild` (or wait for the nightly reconcile). A
+   drift sweep fires automatically once the rebuild completes.
+
+5. **Re-sweep & confirm.** If you didn't trigger a rebuild, run
+   `POST /admin/drift/sweep` and confirm the `shacl` count dropped to zero.
+
+**Preventing recurrence.** The common cause was the entity extractor labelling a
+real technology with an off-vocabulary type (`database`, `framework`, `library`,
+`tool`, `service`, …) that fell back to `concept` — landing it under the
+`implements` shape. The chunk and page extractors now resolve those synonyms to the
+right class via `EntityTypeVocabulary.TYPE_ALIASES`, so freshly-extracted
+technologies are typed correctly at the source.
+
+---
+
 ## Quick reference
 
 **Surfaces**
@@ -284,6 +332,7 @@ progress for the dashboard's progress bar), `POST /admin/drift/sweep`.
 
 **Related docs**
 
+- [Frontmatter.md](Frontmatter.md) — the full frontmatter field reference + the structured editor
 - [PageGraphVsKnowledgeGraph.md](wikantik-pages/PageGraphVsKnowledgeGraph.md) — Page Graph vs Knowledge Graph
 - [KgInclusionPolicy.md](KgInclusionPolicy.md) — which pages' entities are in the KG
 - [KnowledgeGraphRerank.md](KnowledgeGraphRerank.md) — KG-aware retrieval rerank

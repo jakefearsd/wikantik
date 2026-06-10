@@ -60,8 +60,16 @@ public class SelfDeleteAccountIT {
 
     private static final Gson GSON = new Gson();
 
-    /** Password used for all throwaway test users. */
+    /** Password used for all throwaway test users at creation time. */
     private static final String TEST_PASSWORD = "ItSelfDel1!";
+
+    /**
+     * Replacement password used during the forced-change step.
+     * Admin-created users are flagged {@code password_must_change=TRUE}; the
+     * {@code MustChangePasswordFilter} blocks gated endpoints (including
+     * {@code DELETE /api/auth/profile}) until the password has been changed.
+     */
+    private static final String CHANGED_PASSWORD = "ItSelfDel2!";
 
     /** Admin credentials shared across tests (account never deleted). */
     private static final String ADMIN_USER = "janne";
@@ -138,6 +146,18 @@ public class SelfDeleteAccountIT {
                         .uri( URI.create( baseUrl + path ) )
                         .header( "Accept", "application/json" )
                         .GET()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString() );
+    }
+
+    private HttpResponse< String > put( final HttpClient client, final String path,
+            final String jsonBody ) throws IOException, InterruptedException {
+        return client.send(
+                HttpRequest.newBuilder()
+                        .uri( URI.create( baseUrl + path ) )
+                        .header( "Content-Type", "application/json" )
+                        .header( "Accept", "application/json" )
+                        .PUT( HttpRequest.BodyPublishers.ofString( jsonBody ) )
                         .build(),
                 HttpResponse.BodyHandlers.ofString() );
     }
@@ -261,7 +281,17 @@ public class SelfDeleteAccountIT {
         final HttpClient userClient = newClient();
         login( userClient, loginName, TEST_PASSWORD );
 
-        // Self-delete.
+        // Admin-created users are flagged password_must_change; MustChangePasswordFilter
+        // blocks DELETE /api/auth/profile until the password has been changed.
+        final String changeBody = GSON.toJson( Map.of(
+                "currentPassword", TEST_PASSWORD,
+                "newPassword", CHANGED_PASSWORD ) );
+        final HttpResponse< String > changeResp =
+                put( userClient, "/api/auth/profile", changeBody );
+        assertEquals( 200, changeResp.statusCode(),
+                "Forced password change should return 200: " + changeResp.body() );
+
+        // Self-delete (using the new password — the session cookie is still valid).
         final String deleteBody = GSON.toJson( Map.of( "confirmLoginName", loginName ) );
         final HttpResponse< String > deleteResp =
                 delete( userClient, "/api/auth/profile", deleteBody );
@@ -304,6 +334,16 @@ public class SelfDeleteAccountIT {
 
         final HttpClient userClient = newClient();
         login( userClient, loginName, TEST_PASSWORD );
+
+        // Admin-created users are flagged password_must_change; complete the forced
+        // change so the session is no longer blocked before testing the 400 path.
+        final String changeBody = GSON.toJson( Map.of(
+                "currentPassword", TEST_PASSWORD,
+                "newPassword", CHANGED_PASSWORD ) );
+        final HttpResponse< String > changeResp =
+                put( userClient, "/api/auth/profile", changeBody );
+        assertEquals( 200, changeResp.statusCode(),
+                "Forced password change should return 200: " + changeResp.body() );
 
         try {
             // Send a wrong confirmLoginName.

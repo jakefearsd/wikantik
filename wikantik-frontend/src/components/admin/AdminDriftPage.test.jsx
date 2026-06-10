@@ -9,6 +9,7 @@ vi.mock('../../api/client', () => ({
       getDriftTrend: vi.fn(),
       getDriftPages: vi.fn(),
       runDriftSweep: vi.fn(),
+      getDriftStatus: vi.fn(),
     },
   },
 }));
@@ -40,6 +41,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   api.admin.getDriftSummary.mockResolvedValue(SUMMARY);
   api.admin.getDriftTrend.mockResolvedValue(TREND);
+  api.admin.getDriftStatus.mockResolvedValue({ running: false, phase: null, pagesScanned: 0, totalPages: 0 });
 });
 
 describe('AdminDriftPage', () => {
@@ -72,37 +74,52 @@ describe('AdminDriftPage', () => {
     expect(screen.getByText(/active/)).toBeInTheDocument();
   });
 
-  it('run-now polls until a new sweep lands and re-enables the button', async () => {
+  it('shows a determinate progress bar with phase label while sweeping', async () => {
     vi.useFakeTimers();
     try {
-      // Initial load and the first (immediate) poll see the old sweep;
-      // the poll after the 2s interval sees a NEW sweptAt.
-      api.admin.getDriftSummary
-        .mockResolvedValueOnce(SUMMARY)
-        .mockResolvedValueOnce(SUMMARY)
-        .mockResolvedValue({ ...SUMMARY, sweptAt: '2026-06-09T06:00:00Z' });
+      api.admin.getDriftStatus
+        .mockResolvedValueOnce({ running: false, phase: null, pagesScanned: 0, totalPages: 0 }) // mount
+        .mockResolvedValueOnce({ running: true, phase: 'frontmatter', pagesScanned: 84, totalPages: 312 }) // 1st poll
+        .mockResolvedValue({ running: false, phase: null, pagesScanned: 0, totalPages: 0 }); // then idle
       api.admin.runDriftSweep.mockResolvedValue({ state: 'RUNNING' });
+      api.admin.getDriftSummary
+        .mockResolvedValueOnce(SUMMARY)                                    // mount
+        .mockResolvedValue({ ...SUMMARY, sweptAt: '2026-06-10T06:00:00Z' }); // completion check
 
       render(<AdminDriftPage />);
-      await act(async () => {}); // flush the initial load
-      expect(screen.getByTestId('drift-run-now')).toBeEnabled();
-
-      fireEvent.click(screen.getByTestId('drift-run-now'));
-      expect(api.admin.runDriftSweep).toHaveBeenCalled();
-      expect(screen.getByTestId('drift-run-now')).toBeDisabled();
-
-      // First poll returns the OLD sweptAt — button must stay disabled.
       await act(async () => {});
-      expect(screen.getByTestId('drift-run-now')).toBeDisabled();
+      fireEvent.click(screen.getByTestId('drift-run-now'));
+      await act(async () => {});
 
-      // Advance past the poll interval: next poll sees the NEW sweptAt and completes.
-      await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+      expect(screen.getByTestId('drift-progress')).toBeInTheDocument();
+      expect(screen.getByTestId('drift-progress-label'))
+        .toHaveTextContent('84 / 312 pages — validating frontmatter');
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+      await act(async () => {});
+      expect(screen.queryByTestId('drift-progress')).not.toBeInTheDocument();
       expect(screen.getByTestId('drift-run-now')).toBeEnabled();
-      expect(api.admin.getDriftTrend.mock.calls.length).toBeGreaterThan(1); // trend refreshed
-      expect(vi.getTimerCount()).toBe(0); // no dangling poll timer
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('detects an in-flight sweep on mount and shows the bar', async () => {
+    api.admin.getDriftStatus.mockResolvedValue(
+      { running: true, phase: 'frontmatter', pagesScanned: 10, totalPages: 50 });
+    render(<AdminDriftPage />);
+    await waitFor(() => expect(screen.getByTestId('drift-progress')).toBeInTheDocument());
+    expect(screen.getByTestId('drift-run-now')).toBeDisabled();
+    expect(screen.getByTestId('drift-progress-label'))
+      .toHaveTextContent('10 / 50 pages — validating frontmatter');
+  });
+
+  it('renders a full bar with a phase label for the shacl phase', async () => {
+    api.admin.getDriftStatus.mockResolvedValue(
+      { running: true, phase: 'shacl', pagesScanned: 50, totalPages: 50 });
+    render(<AdminDriftPage />);
+    await waitFor(() => expect(screen.getByTestId('drift-progress-label'))
+      .toHaveTextContent('checking SHACL conformance'));
   });
 
   it('shows the page-level error when the initial load fails', async () => {

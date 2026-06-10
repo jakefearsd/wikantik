@@ -497,6 +497,8 @@ export const api = {
 
     runDriftSweep: () => request('/admin/drift/sweep', { method: 'POST', body: '{}' }),
 
+    getDriftStatus: () => request('/admin/drift/status'),
+
     // KG inclusion / exclusion policy
     kgPolicy: {
       listClusters: () => request('/admin/kg-policy/clusters'),

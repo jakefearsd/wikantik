@@ -6,8 +6,8 @@ import Sparkline from './Sparkline';
 import PageEditLink from './PageEditLink';
 import '../../styles/admin.css';
 
-const POLL_INTERVAL_MS = 2000;
-const MAX_POLLS = 60;
+const STATUS_POLL_INTERVAL_MS = 1000;
+const MAX_POLLS = 120; // 1s × 120 ≈ 2 minutes
 const COLUMNS = 7; // family | code | severity | count | delta | trend | expand
 
 const rowKey = (family, code) => `${family}|${code}`;
@@ -18,6 +18,7 @@ export default function AdminDriftPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sweeping, setSweeping] = useState(false);
+  const [progress, setProgress] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [expandedKey, setExpandedKey] = useState(null);
   const [pagesByKey, setPagesByKey] = useState({});
@@ -34,70 +35,84 @@ export default function AdminDriftPage() {
     };
   }, []);
 
-  const loadAll = useCallback(
-    () => Promise.all([api.admin.getDriftSummary(), api.admin.getDriftTrend(30)]),
-    [],
-  );
+  // Poll /status every second while a sweep runs; when it stops, confirm a NEW
+  // sweep landed (sweptAt advanced) before declaring done — triggerAsync returns
+  // 202 before the worker flips `running`, and a fast sweep can finish before the
+  // first poll, so `running=false` alone is not a completion signal.
+  const startStatusPolling = useCallback((before) => {
+    let tries = 0;
+    const poll = async () => {
+      tries += 1;
+      try {
+        const st = await api.admin.getDriftStatus();
+        if (!mounted.current) return;
+        if (st?.running) {
+          setProgress(st);
+        } else {
+          const s = await api.admin.getDriftSummary();
+          if (!mounted.current) return;
+          if (s?.sweptAt && s.sweptAt !== before) {
+            const t = await api.admin.getDriftTrend(30);
+            if (!mounted.current) return;
+            setSummary(s);
+            setTrend(t);
+            setPagesByKey({});
+            setExpandedKey(null);
+            setProgress(null);
+            setSweeping(false);
+            return;
+          }
+          // running=false but no new sweep yet → startup window; keep polling.
+        }
+      } catch {
+        if (!mounted.current) return;
+        // transient poll error — ignore and retry next tick
+      }
+      if (tries >= MAX_POLLS) {
+        setActionError('Sweep did not complete within 2 minutes — reload to check its status.');
+        setProgress(null);
+        setSweeping(false);
+        return;
+      }
+      pollTimer.current = setTimeout(poll, STATUS_POLL_INTERVAL_MS);
+    };
+    poll();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    loadAll()
-      .then(([s, t]) => {
-        if (!cancelled) {
-          setSummary(s);
-          setTrend(t);
+    Promise.all([api.admin.getDriftSummary(), api.admin.getDriftTrend(30), api.admin.getDriftStatus()])
+      .then(([s, t, st]) => {
+        if (cancelled) return;
+        setSummary(s);
+        setTrend(t);
+        if (st?.running) {
+          setSweeping(true);
+          setProgress(st);
+          startStatusPolling(s?.sweptAt ?? null);
         }
       })
       .catch(err => { if (!cancelled) setError(err.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [loadAll]);
+  }, [startStatusPolling]);
 
-  // Run a sweep, then poll the summary until sweptAt moves past the pre-trigger
-  // value (first poll immediate, then every POLL_INTERVAL_MS, capped at MAX_POLLS).
   const runNow = async () => {
     setSweeping(true);
     setActionError(null);
+    setProgress({ running: true, phase: 'frontmatter', pagesScanned: 0, totalPages: 0 });
     const before = summary?.sweptAt ?? null;
     try {
       await api.admin.runDriftSweep();
     } catch (err) {
       if (mounted.current) {
         setActionError(err.status === 409 ? 'A sweep is already running.' : err.message);
+        setProgress(null);
         setSweeping(false);
       }
       return;
     }
-    let tries = 0;
-    const poll = async () => {
-      tries += 1;
-      try {
-        const s = await api.admin.getDriftSummary();
-        if (!mounted.current) return;
-        if (s?.sweptAt && s.sweptAt !== before) {
-          const t = await api.admin.getDriftTrend(30);
-          if (!mounted.current) return;
-          setSummary(s);
-          setTrend(t);
-          setPagesByKey({}); // live drill-downs may be stale after a fresh sweep
-          setExpandedKey(null);
-          setSweeping(false);
-          return;
-        }
-      } catch (err) {
-        if (!mounted.current) return;
-        setActionError(err.message);
-        setSweeping(false);
-        return;
-      }
-      if (tries >= MAX_POLLS) {
-        setActionError('Sweep did not complete within 2 minutes — reload to check its status.');
-        setSweeping(false);
-        return;
-      }
-      pollTimer.current = setTimeout(poll, POLL_INTERVAL_MS);
-    };
-    poll();
+    startStatusPolling(before);
   };
 
   const toggleExpand = async (family, code) => {
@@ -152,6 +167,8 @@ export default function AdminDriftPage() {
       />
 
       {actionError && <div className="error-banner">{actionError}</div>}
+
+      {sweeping && progress && <DriftProgressBar progress={progress} />}
 
       {!hasSweep ? (
         <div className="admin-empty-state" data-testid="drift-empty-state">
@@ -215,6 +232,37 @@ export default function AdminDriftPage() {
         </>
       )}
     </AdminPage>
+  );
+}
+
+const PHASE_LABELS = {
+  frontmatter: 'validating frontmatter',
+  shacl: 'checking SHACL conformance',
+  persisting: 'saving snapshot',
+};
+
+function DriftProgressBar({ progress }) {
+  const phase = progress?.phase;
+  const label = PHASE_LABELS[phase] || 'starting…';
+  const total = progress?.totalPages || 0;
+  const scanned = progress?.pagesScanned || 0;
+  const perPage = phase === 'frontmatter' && total > 0;
+  const pct = perPage ? Math.min(100, Math.round((scanned / total) * 100)) : phase ? 100 : 8;
+  const text = perPage ? `${scanned} / ${total} pages — ${label}` : label;
+  return (
+    <div className="drift-progress" data-testid="drift-progress">
+      <div
+        className="drift-progress-track"
+        role="progressbar"
+        aria-label={text}
+        aria-valuemin={0}
+        aria-valuemax={perPage ? total : undefined}
+        aria-valuenow={perPage ? scanned : undefined}
+      >
+        <div className="drift-progress-fill" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="drift-progress-label" data-testid="drift-progress-label">{text}</div>
+    </div>
   );
 }
 

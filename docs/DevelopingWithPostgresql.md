@@ -265,7 +265,7 @@ INSERT INTO group_members (name, member) VALUES ('Admin', 'Administrator');
 ```
 
 > In practice, `bin/deploy-local.sh` runs `bin/db/seed-users.sql` automatically to
-> create the `admin` and `jakefear@gmail.com` accounts.
+> create the `admin` account.
 
 ### Verify schema
 

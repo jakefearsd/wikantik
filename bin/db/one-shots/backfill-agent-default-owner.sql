@@ -25,7 +25,7 @@
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM users WHERE login_name = 'agents') THEN
-    RAISE EXCEPTION 'agents service account is missing — run V035 (or seed-users.sql) first';
+    RAISE EXCEPTION 'agents service account is missing — run migration V035 first';
   END IF;
 
   -- Canonical pages with no page_owners row at all → insert owned by agents.

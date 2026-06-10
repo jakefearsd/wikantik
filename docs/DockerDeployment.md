@@ -88,7 +88,7 @@ flip in `.env`, then `bin/remote.sh deploy --skip-build` for a ~30 s restart.
 | `MCP_RATE_LIMIT_PER_CLIENT` | `10` | `mcp.ratelimit.perClient` | Per-client request-per-minute cap. |
 | `DB_HOST_BIND` | `172.17.0.1` | `docker-compose.prod.yml` port binding | Host interface PostgreSQL is published on (prod overlay only) — the docker0 bridge gateway by default, keeping the DB off the LAN. Set to `0.0.0.0` only to expose LAN-wide. |
 | `DB_EXPORTER_PASSWORD` | *(none)* | passed to V031 via `migrate.sh` as `:exporter_password` | Password for the `wikantik_exporter` monitoring role created by migration V031. Required in prod to let the jakemon postgres-exporter authenticate. |
-| `WIKANTIK_SEED_DEV_USERS` | `false` | entrypoint only | Set `true` to insert `admin/admin123` + `testbot` dev accounts on start (via `bin/db/seed-users.sql`). **Never set in production.** |
+| `WIKANTIK_SEED_DEV_USERS` | `false` | entrypoint only | Set `true` to ensure the default admin (admin/admin123, must-change-on-first-login) exists on start (via `bin/db/seed-users.sql`). Fresh databases get the same flagged admin from migrations V002+V039 regardless. **Never set in production.** |
 
 #### Fail-fast backpressure
 

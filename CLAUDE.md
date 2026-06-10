@@ -146,12 +146,13 @@ mvn clean install -DskipTests -T 1C
 #    so any pending migrations get applied on every redeploy.
 bin/deploy-local.sh
 
-# 4. Set your PostgreSQL password in the context file (path shown by script output):
-#    tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml
+# 4. deploy-local.sh renders ROOT.xml and wikantik-custom.properties from .env —
+#    on the very first run it copies .env.example to .env and exits; edit
+#    POSTGRES_PASSWORD in .env and re-run bin/deploy-local.sh
 
 # 5. Start Tomcat
 tomcat/tomcat-11/bin/startup.sh
-# Access at http://localhost:8080/ — default login: admin / admin
+# Access at http://localhost:8080/ — first login: admin / admin123 (a new password is required on first login)
 # React SPA at http://localhost:8080/
 ```
 

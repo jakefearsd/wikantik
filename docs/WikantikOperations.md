@@ -253,7 +253,7 @@ The `bin/` directory contains a number of operational tools beyond the main depl
 | `bin/tests/test-remote.sh` | Smoke tests for `bin/remote.sh` in `--dry-run` mode with a fake `remote.env`. No real ssh or docker. | Read-only test harness. |
 
 **`WIKANTIK_SEED_DEV_USERS` and `-e base`**
-- Setting `WIKANTIK_SEED_DEV_USERS=true` in `.env` causes the entrypoint to insert `admin/admin123` + `testbot` dev accounts via `bin/db/seed-users.sql`. **Never set in production.**
+- Setting `WIKANTIK_SEED_DEV_USERS=true` in `.env` causes the entrypoint to ensure the default admin (admin/admin123, must-change-on-first-login) exists via `bin/db/seed-users.sql`. Fresh databases get the same flagged admin from migrations V002+V039 regardless. **Never set in production.**
 - Running `bin/container.sh -e base` starts the stack with the base compose only (no overlays) — useful for debugging compose variable substitution or running the stack without the dev or prod overlay.
 
 ---

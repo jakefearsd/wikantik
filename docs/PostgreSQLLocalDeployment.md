@@ -95,7 +95,7 @@ mvn clean install -Dmaven.test.skip -T 1C
 bin/redeploy.sh
 
 # 3. Browse to the wiki at http://localhost:8080/.
-#    Default login: admin / admin123.
+#    First login: admin / admin123 — you will be required to choose a new password.
 ```
 
 ---

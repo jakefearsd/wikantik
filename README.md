@@ -299,7 +299,7 @@ bin/deploy-local.sh
 
 # 5. Start Tomcat
 tomcat/tomcat-11/bin/startup.sh
-# Access at http://localhost:8080/ — default login: admin / admin123
+# Access at http://localhost:8080/ — first login: admin / admin123 (a new password is required on first login)
 # React SPA at http://localhost:8080/
 # Page Graph viewer at http://localhost:8080/page-graph
 # Knowledge Graph viewer at http://localhost:8080/knowledge-graph

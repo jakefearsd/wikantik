@@ -486,7 +486,7 @@ if PGPASSWORD="${POSTGRES_PASSWORD}" psql \
        -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" \
        -U "${POSTGRES_USER}" -d "${WIKI_DB}" \
        -f "${SEED_SQL}" -q 2>/dev/null; then
-    print_status "User accounts seeded in ${WIKI_DB} (admin/admin123, jakefear@gmail.com/passw0rd)"
+    print_status "Admin account ensured in ${WIKI_DB} (admin/admin123 — first login requires choosing a new password)"
 elif psql -d "${WIKI_DB}" -f "${SEED_SQL}" -q 2>/dev/null; then
     print_status "User accounts seeded via peer-auth in ${WIKI_DB}"
 elif psql -U postgres -d "${WIKI_DB}" -f "${SEED_SQL}" -q 2>/dev/null; then
@@ -495,6 +495,22 @@ else
     print_warning "Could not seed user accounts automatically."
     echo "         Run manually: PGPASSWORD=\"\${POSTGRES_PASSWORD}\" \\"
     echo "             psql -h \${POSTGRES_HOST} -U \${POSTGRES_USER} -d ${WIKI_DB} -f ${SEED_SQL}"
+fi
+
+# Optional local-only accounts (personal logins, testbot). Gitignored; absent
+# on fresh clones — that's fine.
+LOCAL_SEED_SQL="${SCRIPT_DIR}/db/seed-users.local.sql"
+if [[ -f "${LOCAL_SEED_SQL}" ]]; then
+    if PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+           -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" \
+           -U "${POSTGRES_USER}" -d "${WIKI_DB}" \
+           -f "${LOCAL_SEED_SQL}" -q 2>/dev/null \
+       || psql -d "${WIKI_DB}" -f "${LOCAL_SEED_SQL}" -q 2>/dev/null \
+       || psql -U postgres -d "${WIKI_DB}" -f "${LOCAL_SEED_SQL}" -q 2>/dev/null; then
+        print_status "Local user accounts seeded from seed-users.local.sql"
+    else
+        print_warning "seed-users.local.sql present but could not be applied — run it manually."
+    fi
 fi
 
 # Wiki pages now live in docs/wikantik-pages/ (version-controlled)
@@ -510,3 +526,22 @@ echo "Starting Tomcat..."
 "${TOMCAT_DIR}/bin/startup.sh"
 print_status "Tomcat started — open http://localhost:8080/"
 echo ""
+
+# First-login guidance: tell the operator exactly what to expect. The flag
+# query degrades gracefully (empty = unknown, e.g. password auth refused).
+ADMIN_MUST_CHANGE="$(PGPASSWORD="${POSTGRES_PASSWORD}" psql \
+    -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" \
+    -U "${POSTGRES_USER}" -d "${WIKI_DB}" -tAc \
+    "SELECT password_must_change FROM users WHERE login_name='admin'" 2>/dev/null || true)"
+echo ""
+echo "==========================================="
+echo " Wikantik is starting at http://localhost:8080/"
+if [[ "${ADMIN_MUST_CHANGE// /}" == "t" ]]; then
+    echo ""
+    echo "   First login:  admin / admin123"
+    echo "   You will be required to choose a new password on first login."
+elif [[ "${ADMIN_MUST_CHANGE// /}" == "f" ]]; then
+    echo ""
+    echo "   Admin password already set — log in with your chosen password."
+fi
+echo "==========================================="

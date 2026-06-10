@@ -7,21 +7,21 @@
 # skip if their target already exists).
 #
 # Usage:
-#   ./install-fresh.sh
+#   ./install-fresh.sh                    # Standard: requires DB_MIGRATE_PASSWORD
+#   ./install-fresh.sh --no-migrate-role  # Skip migrate role setup; run migrations as PGUSER
+#   ./install-fresh.sh --help             # Show this help
 #
 # Environment variables (with defaults):
 #   DB_NAME              wikantik        target database
 #   DB_APP_USER          jspwiki         application role (created if absent)
-#   DB_APP_PASSWORD      ChangeMe123!    password set on the application role
+#   DB_APP_PASSWORD      (required)      password set on the application role
+#                                        (no default — must be specified before creating the role)
 #   DB_MIGRATE_USER      migrate         migration role (created if absent)
-#   DB_MIGRATE_PASSWORD                  password for the migration role.
+#   DB_MIGRATE_PASSWORD  (required)      password for the migration role.
 #                                        Required when bootstrapping the
 #                                        migrate role here; if unset, this
-#                                        script skips create-migrate-user
-#                                        and runs migrate.sh as PGUSER,
-#                                        leaving tables owned by PGUSER —
-#                                        the operator must run
-#                                        create-migrate-user.sh afterwards.
+#                                        script fails unless --no-migrate-role
+#                                        is passed (expert-only path)
 #   PGHOST               localhost
 #   PGPORT               5432
 #   PGUSER               postgres        superuser that runs the bootstrap
@@ -32,18 +32,24 @@
 # extension.
 set -euo pipefail
 
-case "${1:-}" in
-    -h|--help)
-        awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
-        exit 0
-        ;;
-esac
+NO_MIGRATE_ROLE=0
+for arg in "$@"; do
+    case "${arg}" in
+        -h|--help)
+            awk '/^#!/{next} !/^#/{exit} {sub(/^# ?/,""); print}' "$0"
+            exit 0
+            ;;
+        --no-migrate-role)
+            NO_MIGRATE_ROLE=1
+            ;;
+    esac
+done
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 DB_NAME="${DB_NAME:-wikantik}"
 DB_APP_USER="${DB_APP_USER:-jspwiki}"
-DB_APP_PASSWORD="${DB_APP_PASSWORD:-ChangeMe123!}"
+DB_APP_PASSWORD="${DB_APP_PASSWORD:-}"
 export PGHOST="${PGHOST:-localhost}"
 export PGPORT="${PGPORT:-5432}"
 export PGUSER="${PGUSER:-postgres}"
@@ -60,6 +66,23 @@ print_err()  { echo -e "${RED}✗${NC} $*" >&2; }
 super_psql() {
     psql --no-psqlrc --quiet --tuples-only --no-align -v ON_ERROR_STOP=1 "$@"
 }
+
+# Fail fast on missing secrets — better here than a default credential in
+# production or an ALTER-migration ownership failure weeks from now.
+role_preexists=$(super_psql -d postgres -c \
+    "SELECT 1 FROM pg_roles WHERE rolname = '${DB_APP_USER}';" 2>/dev/null || true)
+if [[ "${role_preexists// /}" != "1" && -z "${DB_APP_PASSWORD}" ]]; then
+    print_err "DB_APP_PASSWORD is required to create the ${DB_APP_USER} role (no default is provided)."
+    echo "  Re-run with: DB_APP_PASSWORD='<a real password>' $0"
+    exit 1
+fi
+if [[ -z "${DB_MIGRATE_PASSWORD:-}" && "${NO_MIGRATE_ROLE}" -ne 1 ]]; then
+    print_err "DB_MIGRATE_PASSWORD is not set. Without the migrate role, future ALTER-based"
+    print_err "migrations will fail with 'must be owner of table'."
+    echo "  Either re-run with DB_MIGRATE_PASSWORD set (recommended), or pass --no-migrate-role"
+    echo "  to explicitly accept running future migrations as ${PGUSER}."
+    exit 1
+fi
 
 # 1. Create the database if it does not already exist.
 db_exists=$(super_psql -d postgres -c \
@@ -80,7 +103,6 @@ else
     super_psql -d postgres -c \
         "CREATE USER \"${DB_APP_USER}\" WITH ENCRYPTED PASSWORD '${DB_APP_PASSWORD}' NOCREATEDB NOCREATEROLE;"
     print_ok "Created role ${DB_APP_USER}"
-    print_warn "Set DB_APP_PASSWORD env var before running in production — a default was used."
 fi
 
 # 3. Grant schema-level CONNECT and USAGE so per-table grants (applied by
@@ -106,8 +128,7 @@ if [[ -n "${DB_MIGRATE_PASSWORD:-}" ]]; then
     DB_NAME="${DB_NAME}" DB_APP_USER="${DB_APP_USER}" \
         "${SCRIPT_DIR}/create-migrate-user.sh"
 else
-    print_warn "DB_MIGRATE_PASSWORD not set — skipping create-migrate-user."
-    print_warn "Run create-migrate-user.sh manually, or future ALTER-based migrations will fail."
+    print_warn "--no-migrate-role: skipping create-migrate-user. Future migrations must run as ${PGUSER}."
 fi
 
 echo

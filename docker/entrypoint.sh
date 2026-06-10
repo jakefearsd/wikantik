@@ -25,7 +25,8 @@
 #   WIKANTIK_PAGE_DIR            page tree mount (default /var/wikantik/pages)
 #   WIKANTIK_WORK_DIR            scratch dir (default /var/wikantik/work)
 #   WIKANTIK_ATTACHMENT_DIR      attachments dir (default /var/wikantik/pages)
-#   WIKANTIK_SEED_DEV_USERS      "true" to insert admin/admin123 + testbot
+#   WIKANTIK_SEED_DEV_USERS      "true" to ensure the default admin exists
+#                                (admin/admin123, must-change-on-first-login)
 #                                via bin/db/seed-users.sql (dev only)
 #   WIKANTIK_DENSE_BACKEND       dense retrieval backend override:
 #                                  inmemory | pgvector | lucene-hnsw (default: ini bundle default = inmemory)
@@ -303,11 +304,28 @@ fi
 # inherit known credentials); the bare-metal deploy script + the test
 # stack opt in via WIKANTIK_SEED_DEV_USERS=true.
 if [ "${WIKANTIK_SEED_DEV_USERS:-false}" = "true" ] && [ -f /opt/wikantik/db/seed-users.sql ]; then
-  echo "Seeding dev user accounts (admin/admin123)..."
+  echo "Ensuring default admin account (admin/admin123, first login forces a change)..."
   PGHOST="${POSTGRES_HOST}" PGPORT="${POSTGRES_PORT}" \
   PGUSER="${POSTGRES_USER}" PGPASSWORD="${POSTGRES_PASSWORD}" \
     psql -d "${POSTGRES_DB}" -f /opt/wikantik/db/seed-users.sql -q || \
     echo "WARN: seed-users.sql failed; check /opt/wikantik/db/seed-users.sql"
+fi
+
+# --- First-login guidance ---
+# On a fresh database the migrations just seeded admin/admin123 with
+# password_must_change=TRUE; tell the operator. Query failure (e.g. exotic
+# auth setups) just suppresses the banner — never blocks startup.
+ADMIN_MUST_CHANGE="$(PGHOST="${POSTGRES_HOST}" PGPORT="${POSTGRES_PORT}" \
+    PGUSER="${POSTGRES_USER}" PGPASSWORD="${POSTGRES_PASSWORD}" \
+    psql -d "${POSTGRES_DB}" -tAc \
+    "SELECT password_must_change FROM users WHERE login_name='admin'" 2>/dev/null || true)"
+if [ "${ADMIN_MUST_CHANGE}" = "t" ]; then
+  echo "============================================================"
+  echo " Wikantik first start: log in at ${WIKANTIK_BASE_URL:-http://localhost:8080/}"
+  echo "   Username: admin"
+  echo "   Password: admin123"
+  echo " You will be required to choose a new password on first login."
+  echo "============================================================"
 fi
 
 exec "$@"

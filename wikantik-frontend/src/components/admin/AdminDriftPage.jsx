@@ -62,7 +62,14 @@ export default function AdminDriftPage() {
             setSweeping(false);
             return;
           }
-          // running=false but no new sweep yet → startup window; keep polling.
+          if (st?.lastError) {
+            // The sweep failed (sweptAt never advanced) — surface it instead of polling forever.
+            setActionError(`Sweep failed: ${st.lastError}`);
+            setProgress(null);
+            setSweeping(false);
+            return;
+          }
+          // running=false, no new sweep, no error yet → brief startup window; keep polling.
         }
       } catch {
         if (!mounted.current) return;

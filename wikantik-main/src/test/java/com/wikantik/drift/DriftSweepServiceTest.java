@@ -304,4 +304,54 @@ class DriftSweepServiceTest {
         assertNull( p.phase() );
         assertEquals( 0, p.totalPages() );
     }
+
+    @Test
+    void shaclNodeScopedViolationGetsNonNullCode() throws Exception {
+        // Node-scoped SHACL violations have a null resultPath; the persisted code column is NOT NULL,
+        // so a null here used to abort the entire sweep transaction (losing the frontmatter counts too).
+        final PageManager pm = pm( "Clean", "---\ntype: article\nstatus: active\n---\n\nbody" );
+        final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+                .thenReturn( 1L );
+
+        final DriftSweepService.SweepOutcome outcome = service( pm, repo,
+                () -> List.of( new OntologyShaclValidator.Violation( "wk:e1", null, "node-level constraint" ) ) )
+                .runSweep( "manual" );
+
+        final DriftCount shacl = outcome.counts().stream()
+                .filter( c -> "shacl".equals( c.family() ) ).findFirst().orElseThrow();
+        assertNotNull( shacl.code(), "shacl code must never be null (DB code column is NOT NULL)" );
+        assertEquals( "node-scoped", shacl.code() );
+        assertEquals( 1, shacl.count() );
+    }
+
+    @Test
+    void currentPageListForShaclMatchesNodeScopedCode() throws Exception {
+        final PageManager pm = pm();
+        final DriftSweepService svc = service( pm, mock( DriftSnapshotRepository.class ),
+                () -> List.of(
+                        new OntologyShaclValidator.Violation( "wk:e1", null, "node-level" ),
+                        new OntologyShaclValidator.Violation( "wk:e2", "wk:implements", "bad subject" ) ) );
+
+        final List< PageViolation > offenders = svc.currentPageList( "shacl", "node-scoped" );
+        assertEquals( 1, offenders.size() );
+        assertEquals( "wk:e1", offenders.get( 0 ).pageName() );
+        assertEquals( "node-scoped", offenders.get( 0 ).code() );
+    }
+
+    @Test
+    void lastErrorSetOnFailureClearedOnSuccess() throws Exception {
+        final PageManager pm = pm( "Clean", "---\ntype: article\nstatus: active\n---\n\nbody" );
+        final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+                .thenThrow( new IllegalStateException( "db gone" ) )
+                .thenReturn( 5L );
+        final DriftSweepService svc = service( pm, repo, null );
+
+        assertThrows( IllegalStateException.class, () -> svc.runSweep( "manual" ) );
+        assertNotNull( svc.lastError(), "a failed sweep must record lastError so the UI can surface it" );
+
+        svc.runSweep( "manual" ); // second call succeeds
+        assertNull( svc.lastError(), "a successful sweep must clear lastError" );
+    }
 }

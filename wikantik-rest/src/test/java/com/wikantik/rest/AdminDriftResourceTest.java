@@ -220,4 +220,17 @@ class AdminDriftResourceTest {
         assertTrue( out.get( "phase" ).isJsonNull() );
         assertEquals( 0, out.get( "totalPages" ).getAsInt() );
     }
+
+    @Test
+    void statusSurfacesLastError() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/status" );
+        when( service.progress() ).thenReturn(
+                new DriftSweepService.SweepProgress( false, null, 0, 0 ) );
+        when( service.lastError() ).thenReturn( "drift sweep persistence failed" );
+
+        servlet.doGet( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        assertEquals( "drift sweep persistence failed", json().get( "lastError" ).getAsString() );
+    }
 }

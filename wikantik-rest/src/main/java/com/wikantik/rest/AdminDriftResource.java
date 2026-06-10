@@ -195,6 +195,7 @@ public class AdminDriftResource extends RestServletBase {
         out.put( "phase", p.phase() );
         out.put( "pagesScanned", p.pagesScanned() );
         out.put( "totalPages", p.totalPages() );
+        out.put( "lastError", service.lastError() );
         sendJsonWithStatus( response, 200, out );
     }
 

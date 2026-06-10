@@ -146,4 +146,23 @@ describe('AdminDriftPage', () => {
     render(<AdminDriftPage />);
     await waitFor(() => expect(screen.getByTestId('drift-shacl-unchecked')).toBeInTheDocument());
   });
+
+  it('surfaces a failed sweep instead of hanging the progress bar', async () => {
+    // Sweep fails server-side: status returns running:false with a lastError, and sweptAt never advances.
+    api.admin.getDriftStatus
+      .mockResolvedValueOnce({ running: false, phase: null, pagesScanned: 0, totalPages: 0, lastError: null }) // mount
+      .mockResolvedValue({ running: false, phase: null, pagesScanned: 0, totalPages: 0,
+        lastError: 'drift sweep persistence failed' });
+    api.admin.runDriftSweep.mockResolvedValue({ state: 'RUNNING' });
+    api.admin.getDriftSummary.mockResolvedValue(SUMMARY); // sweptAt stays put
+
+    render(<AdminDriftPage />);
+    await waitFor(() => expect(screen.getByTestId('drift-run-now')).toBeEnabled());
+
+    fireEvent.click(screen.getByTestId('drift-run-now'));
+    await waitFor(() =>
+      expect(screen.getByText(/Sweep failed: drift sweep persistence failed/)).toBeInTheDocument());
+    expect(screen.getByTestId('drift-run-now')).toBeEnabled();
+    expect(screen.queryByTestId('drift-progress')).not.toBeInTheDocument();
+  });
 });

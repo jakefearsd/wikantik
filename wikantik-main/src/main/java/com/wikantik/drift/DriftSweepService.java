@@ -78,6 +78,8 @@ public final class DriftSweepService {
     private volatile String progressPhase;
     private volatile int progressScanned;
     private volatile int progressTotal;
+    /** Last sweep failure message; null when the last sweep succeeded or none failed since the latest trigger. */
+    private volatile String lastError;
 
     public DriftSweepService( final PageManager pageManager,
                               final SchemaDrivenFrontmatterValidator validator,
@@ -98,6 +100,16 @@ public final class DriftSweepService {
     /** Snapshot of the current sweep's progress; idle values when no sweep is running. */
     public SweepProgress progress() {
         return new SweepProgress( running.get(), progressPhase, progressScanned, progressTotal );
+    }
+
+    /**
+     * Message of the most recent sweep failure, or {@code null} if the last sweep succeeded or none has
+     * failed since the latest trigger. Lets the dashboard surface a failed sweep instead of polling
+     * forever — a failed sweep never advances {@code sweptAt}, so it is otherwise indistinguishable
+     * from one still in flight.
+     */
+    public String lastError() {
+        return lastError;
     }
 
     /** Read access for the REST layer — same repository the sweep persists into. */
@@ -131,7 +143,13 @@ public final class DriftSweepService {
                     sweepStart, pagesScanned, durationMs, triggeredBy, shaclChecked, rows );
             LOG.info( "drift sweep complete (id={}, trigger={}, pages={}, codes={}, shacl={})",
                     sweepId, triggeredBy, pagesScanned, rows.size(), shaclChecked );
+            this.lastError = null;
             return new SweepOutcome( sweepId, pagesScanned, durationMs, shaclChecked, rows );
+        } catch ( final RuntimeException e ) {
+            // Record the failure so /status can surface it — a failed sweep never advances
+            // sweptAt, so the dashboard would otherwise poll forever. Rethrow unchanged.
+            this.lastError = e.getMessage();
+            throw e;
         } finally {
             this.progressPhase = null;
             this.progressScanned = 0;
@@ -148,6 +166,9 @@ public final class DriftSweepService {
      * @throws SweepAlreadyRunningException if a sweep is already known to be running
      */
     public void triggerAsync( final String triggeredBy ) {
+        // Clear any prior failure the instant a new sweep is accepted, so a client polling /status
+        // during the brief pre-running window never mistakes a stale error for this sweep's outcome.
+        this.lastError = null;
         if ( running.get() ) {
             throw new SweepAlreadyRunningException();
         }
@@ -173,10 +194,11 @@ public final class DriftSweepService {
                 return List.of();
             }
             return shaclSource.get().stream()
-                    .filter( v -> v.path().equals( code ) )
+                    .filter( v -> shaclCode( v ).equals( code ) )
                     // For SHACL rows the shape's property path serves as both field and code —
-                    // there is no finer-grained field for an edge-level violation.
-                    .map( v -> new PageViolation( v.focusNode(), v.path(), "ERROR", v.path(),
+                    // there is no finer-grained field for an edge-level violation. Node-scoped
+                    // violations have no path; they bucket under the {@link #shaclCode} sentinel.
+                    .map( v -> new PageViolation( v.focusNode(), shaclCode( v ), "ERROR", shaclCode( v ),
                             v.message(), null ) )
                     .toList();
         }
@@ -228,7 +250,7 @@ public final class DriftSweepService {
         }
         try {
             for ( final OntologyShaclValidator.Violation v : shaclSource.get() ) {
-                bump( counts, "shacl", v.path(), "ERROR" );
+                bump( counts, "shacl", shaclCode( v ), "ERROR" );
             }
             return true;
         } catch ( final RuntimeException e ) {
@@ -280,5 +302,15 @@ public final class DriftSweepService {
     private static void bump( final Map< CountKey, Integer > counts, final String family,
                               final String code, final String severity ) {
         counts.merge( new CountKey( family, code, severity ), 1, Integer::sum );
+    }
+
+    /**
+     * The grouping code for a SHACL violation. Property-shape violations carry the property path;
+     * node-scoped violations (e.g. class/node constraints) have a {@code null} path. The persisted
+     * {@code code} column is NOT NULL — a null here aborts the whole sweep transaction — so
+     * path-less violations bucket under a stable non-null sentinel.
+     */
+    private static String shaclCode( final OntologyShaclValidator.Violation v ) {
+        return v.path() != null ? v.path() : "node-scoped";
     }
 }

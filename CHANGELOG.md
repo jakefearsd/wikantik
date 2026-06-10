@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.14] - 2026-06-10
+
 ### Added
 
 - **Live validation in the structured frontmatter editor.** Debounced, race-safe,

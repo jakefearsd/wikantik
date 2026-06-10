@@ -165,6 +165,9 @@ beforeEach(() => {
   });
   api.savePage.mockResolvedValue({ success: true });
   api.listAttachments.mockResolvedValue({ attachments: [] });
+  // Live validation fires on mount; default to "clean" so unrelated tests keep Save enabled.
+  // (Per-test overrides below are re-reset here each run, so they can't leak across tests.)
+  api.validateFrontmatter.mockResolvedValue({ metadata: {}, violations: [] });
 });
 
 // #19 — Unmount the tree and flush any pending async state (the page's load
@@ -505,5 +508,27 @@ describe('#22 drag-and-drop drop-zone hint', () => {
     fireEvent.drop(pane, { dataTransfer: { types: ['Files'] } });
 
     await waitFor(() => expect(container.querySelector('.editor-dropzone-hint')).toBeNull());
+  });
+});
+
+// ── Live validation + Save gating ───────────────────────────────────────────
+describe('live frontmatter validation', () => {
+  it('disables Save when live validation reports an ERROR', async () => {
+    api.validateFrontmatter.mockResolvedValue({
+      violations: [{ field: 'type', severity: 'ERROR', code: 'x', message: 'bad type' }],
+    });
+    renderEditor('Sample');
+    const save = await screen.findByTestId('editor-save');
+    await waitFor(() => expect(save.disabled).toBe(true));
+  });
+
+  it('keeps Save enabled when only warnings are present', async () => {
+    api.validateFrontmatter.mockResolvedValue({
+      violations: [{ field: 'summary', severity: 'WARNING', code: 'y', message: 'long summary' }],
+    });
+    renderEditor('Sample');
+    const save = await screen.findByTestId('editor-save');
+    await waitFor(() => expect(screen.getByText('1 warning')).toBeTruthy());
+    expect(save.disabled).toBe(false);
   });
 });

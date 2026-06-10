@@ -10,6 +10,8 @@ import { frontmatterLineCount, caretToPreviewFraction, previewFractionToLine, pr
 import rehypeSourceLine from '../utils/rehypeSourceLine';
 import FrontmatterPreview from './FrontmatterPreview';
 import FrontmatterEditor from './frontmatter/FrontmatterEditor';
+import ValidationSummary from './frontmatter/ValidationSummary';
+import { useFrontmatterValidation } from '../hooks/useFrontmatterValidation';
 import KnowledgeGraphPanel from './knowledge/KnowledgeGraphPanel';
 import Tabs from './ui/Tabs';
 import { remarkAttachments } from '../utils/remarkAttachments';
@@ -62,6 +64,21 @@ export default function PageEditor() {
   const [dark] = useDarkMode();
   const attachments = useAttachments(name);
   const savingRef = useRef(false);
+
+  // Live, debounced frontmatter validation. Authoritative source of inline violations and the
+  // Save gate; merges any save-response violations not already represented live.
+  const { violations: liveViolations, validating } = useFrontmatterValidation(metadata, {
+    enabled: metadata != null,
+  });
+  const displayViolations = useMemo(() => {
+    const seen = new Set(liveViolations.map((v) => `${v.field}|${v.code}`));
+    return [...liveViolations, ...violations.filter((v) => !seen.has(`${v.field}|${v.code}`))];
+  }, [liveViolations, violations]);
+  const hasBlockingErrors = displayViolations.some((v) => v.severity === 'ERROR');
+  const jumpToField = (field) => {
+    const top = String(field || '').split('.')[0];
+    document.querySelector(`[data-field="${top}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   const { user } = useAuth();
   const login = user?.authenticated ? user.loginPrincipal : null;
@@ -505,7 +522,13 @@ export default function PageEditor() {
           <button className="btn btn-ghost" data-testid="editor-cancel" onClick={handleCancel}>
             Cancel
           </button>
-          <button className="btn btn-primary" data-testid="editor-save" onClick={save} disabled={saving}>
+          <button
+            className="btn btn-primary"
+            data-testid="editor-save"
+            onClick={save}
+            disabled={saving || hasBlockingErrors}
+            title={hasBlockingErrors ? 'Fix the highlighted frontmatter errors before saving' : undefined}
+          >
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -563,12 +586,15 @@ export default function PageEditor() {
           onChange={setActiveMetaTab}
         >
           {activeMetaTab === 'frontmatter' && (
-            <FrontmatterEditor
-              metadata={metadata}
-              onChange={setMetadata}
-              violations={violations}
-              pageSearch={pageSearch}
-            />
+            <>
+              <ValidationSummary violations={displayViolations} validating={validating} onJump={jumpToField} />
+              <FrontmatterEditor
+                metadata={metadata}
+                onChange={setMetadata}
+                violations={displayViolations}
+                pageSearch={pageSearch}
+              />
+            </>
           )}
           {activeMetaTab === 'knowledge' && (
             <KnowledgeGraphPanel pageName={name} />

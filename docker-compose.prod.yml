@@ -73,8 +73,15 @@ services:
       - ${BACKUP_TEXTFILE_DIR:-/var/lib/jakemon/textfile}:/textfile
       - ./docker/backup/backup.sh:/usr/local/bin/backup.sh:ro
       - ./docker/backup/restore.sh:/usr/local/bin/restore.sh:ro
-      - ./docker/backup/crontab:/etc/crontabs/root:ro
-    entrypoint: ["crond", "-f", "-d", "8"]
+      # Staged, NOT mounted directly at /etc/crontabs/root: BusyBox crond
+      # silently ignores a crontab that is group/world-writable or not owned
+      # by root, and a bind-mounted git checkout file is uid-1000/0664 — that
+      # combination meant cron NEVER fired and backups only ran when manually
+      # triggered. The entrypoint below copies the staged file into place with
+      # root:root 0600 before exec'ing crond, so the fix is self-applying and
+      # immune to host checkout permissions.
+      - ./docker/backup/crontab:/opt/wikantik/crontab:ro
+    entrypoint: ["sh", "-c", "cp /opt/wikantik/crontab /etc/crontabs/root && chown root:root /etc/crontabs/root && chmod 600 /etc/crontabs/root && exec crond -f -d 8"]
 
 # Prod-only named volumes. (wikantik-pages is bound from the host so the
 # operator can rsync into it; wikantik-work / wikantik-logs are declared in

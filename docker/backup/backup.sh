@@ -38,6 +38,22 @@ case "${1:-}" in
         ;;
 esac
 
+# Cron starts jobs with a stripped environment: none of the compose
+# `environment:` vars (POSTGRES_*/PGPASSWORD/METRICS_DIR) and only a bare PATH,
+# so a scheduled run dies on `set -u` or cannot find pg_dump. Set a sane PATH,
+# then import the container's real env (preserved in PID 1's environ) so cron
+# runs behave like a manual `docker exec`.
+PATH="/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+if [ -r /proc/1/environ ]; then
+    while IFS='=' read -r _k _v; do
+        case "${_k}" in
+            [A-Za-z_]*) export "${_k}=${_v}" ;;
+        esac
+    done <<ENVEOF
+$(tr '\0' '\n' < /proc/1/environ)
+ENVEOF
+fi
+
 TIER="${1:-daily}"
 DATE="$(date +%Y-%m-%d)"
 BACKUP_ROOT="${BACKUP_ROOT:-/backups}"

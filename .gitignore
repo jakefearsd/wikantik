@@ -35,6 +35,7 @@ wiki.zip
 .mcp.json.bak
 /test.properties
 wikantik-it-tests/it-db.properties
+bin/db/seed-users.local.sql
 __pycache__/
 *.pyc
 .claude/

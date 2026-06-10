@@ -9,6 +9,7 @@ import TagInput from '../ui/TagInput';
 import Chip from '../ui/Chip';
 import RunbookBlockEditor from './RunbookBlockEditor';
 import ViolationList from './ViolationList';
+import { isWideField } from './fieldLayout';
 
 function fmtScalar(value) {
   if (value == null) return '—';
@@ -69,7 +70,7 @@ function PageRefs({ value, onChange, pageSearch }) {
   );
 }
 
-export default function FieldWidget({ spec, value, onChange, violations, onApplySuggestion, pageSearch }) {
+export default function FieldWidget({ spec, value, onChange, violations = [], onApplySuggestion, pageSearch }) {
   const { key, label, widget, canonicalValues, open } = spec;
 
   let control;
@@ -117,7 +118,7 @@ export default function FieldWidget({ spec, value, onChange, violations, onApply
       );
       break;
     case 'RUNBOOK_BLOCK':
-      control = <RunbookBlockEditor value={value} onChange={onChange} />;
+      control = <RunbookBlockEditor value={value} onChange={onChange} violations={violations} />;
       break;
     case 'TEXTAREA':
       control = (
@@ -131,11 +132,16 @@ export default function FieldWidget({ spec, value, onChange, violations, onApply
       break;
   }
 
+  // For the runbook block, sub-field violations (runbook.<key>) render inside the block;
+  // only block-level issues (field === 'runbook') show in this field's own list.
+  const isRunbook = widget === 'RUNBOOK_BLOCK';
+  const ownViolations = isRunbook ? violations.filter((v) => v.field === 'runbook') : violations;
+
   return (
-    <div className={`fm-field fm-field-${key}`}>
+    <div className={`fm-field fm-field-${key}${isWideField(spec) ? ' fm-field--wide' : ''}`} data-field={key}>
       <label className="fm-label">{label}</label>
       {control}
-      <ViolationList violations={violations} onApplySuggestion={onApplySuggestion} />
+      <ViolationList violations={ownViolations} onApplySuggestion={onApplySuggestion} />
     </div>
   );
 }

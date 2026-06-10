@@ -82,4 +82,35 @@ describe('FrontmatterEditor', () => {
     fireEvent.blur(textarea);
     await waitFor(() => expect(onChange).toHaveBeenCalledWith({ type: 'hub' }));
   });
+
+  it('tags each field wrapper with data-field and marks wide fields', () => {
+    const schema = {
+      fields: [
+        { key: 'type', label: 'Type', widget: 'ENUM', canonicalValues: ['article'], open: true },
+        { key: 'summary', label: 'Summary', widget: 'TEXT', minLen: 50, maxLen: 160 },
+      ],
+    };
+    const { container } = render(
+      <FrontmatterEditor schema={schema} metadata={{ type: 'article' }} onChange={() => {}} />,
+    );
+    expect(container.querySelector('[data-field="type"]')).toBeTruthy();
+    const summary = container.querySelector('[data-field="summary"]');
+    expect(summary.className).toContain('fm-field--wide');
+    const type = container.querySelector('[data-field="type"]');
+    expect(type.className).not.toContain('fm-field--wide');
+  });
+
+  it('routes runbook.* violations into the runbook block editor', () => {
+    const schema = { fields: [{ key: 'runbook', label: 'Runbook', widget: 'RUNBOOK_BLOCK' }] };
+    render(
+      <FrontmatterEditor
+        schema={schema}
+        metadata={{ runbook: { related_tools: ['/admin/x'] } }}
+        onChange={() => {}}
+        violations={[{ field: 'runbook.related_tools', severity: 'ERROR', code: 'x', message: 'bad tool' }]}
+      />,
+    );
+    const field = screen.getByLabelText('runbook related_tools').closest('.fm-runbook-field');
+    expect(field.textContent).toContain('bad tool');
+  });
 });

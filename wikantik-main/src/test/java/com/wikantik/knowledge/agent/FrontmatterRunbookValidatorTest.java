@@ -140,6 +140,42 @@ class FrontmatterRunbookValidatorTest {
     }
 
     @Test
+    void related_tools_accepts_admin_surfaces() {
+        // /admin/* is a first-class agent-facing surface (12 admin REST resources);
+        // runbooks legitimately cite endpoints like /admin/page-graph/conflicts.
+        final Map< String, Object > fm = Map.of(
+                "type", "runbook",
+                "runbook", Map.of(
+                        "when_to_use", List.of( "x" ),
+                        "steps",       List.of( "a", "b" ),
+                        "pitfalls",    List.of( "(none known)" ),
+                        "related_tools", List.of(
+                                "/admin/page-graph/conflicts",
+                                "/admin/verification"
+                        ) ) );
+        final var r = FrontmatterRunbookValidator.validate( fm, NO_CANONICAL_IDS, NO_TITLES );
+        assertTrue( r.valid().isPresent(), () -> "issues: " + r.issues() );
+        assertEquals( 2, r.valid().get().related_tools().size() );
+    }
+
+    @Test
+    void related_tools_accepts_kebab_case_cli_tool_names() {
+        // Bare tool names cover CLI scripts like bin/kg-policy.sh, referenced as `kg-policy`.
+        // Kebab-case is a legitimate tool-name shape (snake_case OR kebab-case).
+        final Map< String, Object > fm = Map.of(
+                "type", "runbook",
+                "runbook", Map.of(
+                        "when_to_use", List.of( "x" ),
+                        "steps",       List.of( "a", "b" ),
+                        "pitfalls",    List.of( "(none known)" ),
+                        "related_tools", List.of( "kg-policy", "kg-extract" )
+                ) );
+        final var r = FrontmatterRunbookValidator.validate( fm, NO_CANONICAL_IDS, NO_TITLES );
+        assertTrue( r.valid().isPresent(), () -> "issues: " + r.issues() );
+        assertEquals( 2, r.valid().get().related_tools().size() );
+    }
+
+    @Test
     void related_tools_rejects_unknown_prefixes_and_garbage() {
         final Map< String, Object > fm = Map.of(
                 "type", "runbook",

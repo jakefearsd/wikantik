@@ -66,8 +66,10 @@ public final class FrontmatterRunbookValidator {
     }
 
     private static final Pattern PREFIXED_TOOL = Pattern.compile(
-            "^/(api|knowledge-mcp|wikantik-admin-mcp|tools)/.+$" );
-    private static final Pattern BARE_TOOL_NAME = Pattern.compile( "^[a-z][a-z0-9_]*$" );
+            "^/(api|admin|knowledge-mcp|wikantik-admin-mcp|tools)/.+$" );
+    // Bare tool name: snake_case or kebab-case (CLI scripts like bin/kg-policy.sh → "kg-policy").
+    // Each separator must be followed by alphanumerics, so a trailing/double separator is rejected.
+    private static final Pattern BARE_TOOL_NAME = Pattern.compile( "^[a-z][a-z0-9]*([_-][a-z0-9]+)*$" );
 
     private FrontmatterRunbookValidator() {}
 
@@ -123,8 +125,8 @@ public final class FrontmatterRunbookValidator {
             if ( !PREFIXED_TOOL.matcher( t ).matches()
               && !BARE_TOOL_NAME.matcher( t ).matches() ) {
                 issues.add( new Issue( IssueKind.RELATED_TOOL_INVALID,
-                        "related_tools entry doesn't match /api|knowledge-mcp|wikantik-admin-mcp|tools/* "
-                          + "or a bare snake_case tool name: " + t ) );
+                        "related_tools entry doesn't match /api|admin|knowledge-mcp|wikantik-admin-mcp|tools/* "
+                          + "or a bare snake_case/kebab-case tool name: " + t ) );
             }
         }
 

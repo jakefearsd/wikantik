@@ -20,9 +20,10 @@ related:
 hubs:
 - WikantikDevelopmentHub
 runbook:
-  when_to_use: When deciding whether a cluster of pages should contribute to
-    the knowledge graph; when triaging "this content showed up in retrieval
-    and shouldn't have"; when bootstrapping the policy on a fresh deployment.
+  when_to_use:
+    - When deciding whether a cluster of pages should contribute to the knowledge graph
+    - When triaging "this content showed up in retrieval and shouldn't have"
+    - When bootstrapping the policy on a fresh deployment
   inputs:
     - admin role on the wiki
     - access to bin/kg-policy.sh OR the /admin/kg-policy dashboard

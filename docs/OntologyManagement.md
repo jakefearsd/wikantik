@@ -43,6 +43,44 @@ A plain wiki stores prose. Wikantik additionally maintains a formal model of
 
 ---
 
+## Use cases
+
+Two concrete things the ontology makes possible that prose alone does not:
+
+- **Ask the graph, don't grep the text.** A keyword index maps terms to pages; the
+  ontology maps concepts to one another, so you can ask *structured* questions — for
+  example:
+
+  ```sparql
+  # Every technology that implements a given concept, with the page it's described on
+  PREFIX wk:  <https://wiki.wikantik.com/ns/wikantik#>
+  PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  SELECT ?tech ?label WHERE {
+    ?tech a wk:Technology ; wk:implements ?concept ; rdfs:label ?label .
+    ?concept rdfs:label "Distributed Consensus" .
+  }
+  ```
+
+  Hit the public `GET /sparql` endpoint, dereference any resource at
+  `/id/{type}/{id}` as JSON-LD or Turtle, or let an agent traverse the same model
+  through `knowledge-mcp` (`sparql_query`, `get_ontology`) — none of which a
+  text index can answer.
+
+- **Govern shared human + AI curation.** Humans and agents both build the model
+  through surfaces that read the *same* schema and pass the *same* write-time SHACL
+  gate, provenance stamping, and audit log — so it converges under shared control
+  instead of drifting between a human convention and an agent's guesses. The
+  [drift dashboard](#measuring-drift-the-burn-down-dashboard) makes any remaining
+  inconsistency measurable, and the [burn-down workflow](#curation-in-practice-burning-down-a-shacl-violation)
+  takes it to zero.
+
+(Two more payoffs fall out of the same model: the wiki is **interoperable linked
+data** — schema.org/SKOS/DC/PROV mappings + Turtle/N-Triples dumps consumable by
+any RDF tool — and its **SEO can't drift**, because a page's public schema.org
+`@type` is re-sourced from the ontology.)
+
+---
+
 ## The model: three layers
 
 It helps to see the ontology as three layers, because each is *managed

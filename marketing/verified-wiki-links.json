@@ -11,6 +11,7 @@
     "https://wiki.wikantik.com/wiki/GoodMcpDesign",
     "https://wiki.wikantik.com/wiki/KnowledgeGraphRerank",
     "https://wiki.wikantik.com/wiki/ObservabilityDesign",
-    "https://wiki.wikantik.com/wiki/DockerDeployment"
+    "https://wiki.wikantik.com/wiki/DockerDeployment",
+    "https://wiki.wikantik.com/export/ontology.ttl"
   ]
 }

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5083997587716933">
+  <title>Ontology &amp; SPARQL: your wiki as queryable linked data | Wikantik</title>
+  <meta name="description" content="Wikantik projects every page, cluster, tag, and extracted entity into a queryable RDF/OWL ontology — SPARQL, dereferenceable IRIs, and Turtle dumps — governed by a SHACL gate and shared human + AI curation.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://www.wikantik.com/platform/ontology.html">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.wikantik.com/platform/ontology.html">
+  <meta property="og:title" content="Ontology &amp; SPARQL: your wiki as queryable linked data | Wikantik">
+  <meta property="og:description" content="Wikantik projects every page, cluster, tag, and extracted entity into a queryable RDF/OWL ontology — SPARQL, dereferenceable IRIs, and Turtle dumps — governed by a SHACL gate and shared human + AI curation.">
+  <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Ontology &amp; SPARQL: your wiki as queryable linked data | Wikantik">
+  <meta name="twitter:description" content="Wikantik projects every page, cluster, tag, and extracted entity into a queryable RDF/OWL ontology — SPARQL, dereferenceable IRIs, and Turtle dumps — governed by a SHACL gate and shared human + AI curation.">
+  <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
+
+  <link rel="stylesheet" href="/styles.css">
+
+  <!-- Sitewide identity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", "@id": "https://www.wikantik.com/#org",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "logo": "https://www.wikantik.com/assets/wikantik-logo-512.png" },
+      { "@type": "WebSite", "@id": "https://www.wikantik.com/#site",
+        "name": "Wikantik", "url": "https://www.wikantik.com/",
+        "publisher": { "@id": "https://www.wikantik.com/#org" } }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "TechArticle",
+    "headline": "The ontology: your wiki as queryable, governed linked data",
+    "description": "Wikantik projects every page, cluster, tag, and extracted entity into a queryable RDF/OWL ontology — SPARQL, dereferenceable IRIs, and Turtle dumps — governed by a SHACL gate and shared human + AI curation.",
+    "datePublished": "2026-06-10", "dateModified": "2026-06-10",
+    "author": { "@type": "Person", "name": "Jacob Fear" },
+    "publisher": { "@id": "https://www.wikantik.com/#org" },
+    "mainEntityOfPage": "https://www.wikantik.com/platform/ontology.html" }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wikantik.com/" },
+      { "@type": "ListItem", "position": 2, "name": "Platform", "item": "https://www.wikantik.com/platform/" },
+      { "@type": "ListItem", "position": 3, "name": "Ontology", "item": "https://www.wikantik.com/platform/ontology.html" }
+    ] }
+  </script>
+  <script type="application/ld+json">
+  { "@context": "https://schema.org", "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "What is the difference between the Knowledge Graph and the ontology?",
+        "acceptedAnswer": { "@type": "Answer", "text": "The Knowledge Graph is the set of LLM-extracted entities and the edges between them, stored in the database. The ontology is the formal RDF/OWL model layered over the whole wiki — it includes those entities and relations, plus each page as a typed concept and each cluster and tag as a SKOS concept, all conforming to one vocabulary and queryable over SPARQL. The ontology is how the Knowledge Graph (and the rest of the wiki) becomes standards-based linked data." } },
+      { "@type": "Question", "name": "Can I query the wiki with SPARQL?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. A public, read-only SPARQL endpoint at /sparql accepts SELECT, ASK, and CONSTRUCT queries (updates are rejected, with a result cap and timeout). Individual resources dereference at /id/{type}/{id} as JSON-LD or Turtle, and full dumps are available at /export/ontology.ttl and /export/graph.nt. A public/restricted ACL split guarantees that pages and entities which aren't anonymously viewable never materialise in the public dataset." } },
+      { "@type": "Question", "name": "How is the ontology kept correct as humans and AI agents both edit it?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Every curation surface — the structured editor, the page Knowledge tab, the admin panel, and the MCP tools used by AI agents — reads the same server-authoritative schema and passes through the same write-time SHACL gate, provenance stamping, and tamper-evident audit log. A structurally invalid relation is refused at write time. A corpus-wide drift dashboard tracks remaining inconsistencies so they can be burned down to zero." } }
+    ] }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="Wikantik home">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-name">Wikantik</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/platform/">Platform</a>
+        <a href="/enterprise/">Enterprise</a>
+        <a href="/compare/">Compare</a>
+        <a class="btn btn-primary nav-cta" href="https://wiki.wikantik.com/">Explore the wiki →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <div class="container">
+        <a href="/">Home</a> ›
+        <a href="/platform/">Platform</a> ›
+        <span aria-current="page">Ontology</span>
+      </div>
+    </nav>
+
+    <div class="container">
+      <article class="doc">
+        <header class="doc-head">
+          <p class="eyebrow">Platform</p>
+          <h1>The ontology: your wiki as queryable, governed linked data</h1>
+          <p class="doc-lede">Wikantik doesn't just store prose — it maintains a formal model of <em>what every page is about</em>. Pages, clusters, tags, and LLM-extracted entities are projected into a <code>wikantik:</code> RDF/OWL ontology with stable, dereferenceable IRIs and public mappings to schema.org, SKOS, Dublin Core, and PROV-O. The wiki becomes standards-based linked data you can query with SPARQL — and it's curated by humans and AI agents under one schema, one validation gate, and one audit trail.</p>
+        </header>
+        <div class="doc-body">
+
+          <h2>What the ontology is</h2>
+          <p>The ontology is one model with three layers, projected from PostgreSQL into a Jena TDB2 triple store with RDFS inference:</p>
+          <ul>
+            <li><strong>The vocabulary (T-Box).</strong> The closed definitions everything conforms to — 9 entity classes, 5 content classes, and 21 typed relation predicates with domain/range, plus a SKOS concept scheme. Each maps out to public vocabularies (schema.org, SKOS, Dublin Core, PROV-O), so the model speaks the web's language, not a private one.</li>
+            <li><strong>Page concepts.</strong> Every page is a typed concept — its content class, IRI, title and summary — and its cluster and tags become SKOS concepts it links to. This is the topical hierarchy, authored entirely from page frontmatter.</li>
+            <li><strong>The Knowledge Graph.</strong> The entities mentioned across the wiki and the typed relations among them, projected as instances of the vocabulary's classes and predicates.</li>
+          </ul>
+          <p>The model stays in sync automatically: a page's graph is re-projected when it's saved or renamed, and a nightly job reconciles the entity graphs — so the RDF is never stale for long.</p>
+
+          <h2>Use case: ask the graph, don't grep the text</h2>
+          <p>Keyword search maps terms to documents. An ontology maps concepts to one another — so you can ask <em>structured</em> questions a text index can't answer. A public, read-only <strong>SPARQL</strong> endpoint at <code>/sparql</code> takes <code>SELECT</code> / <code>ASK</code> / <code>CONSTRUCT</code> queries:</p>
+          <ul>
+            <li>"Which technologies <em>implement</em> a given concept?" — follow the typed <code>wk:implements</code> edges.</li>
+            <li>"What's in this cluster, and what does it relate to?" — traverse <code>skos:broader</code> and the relation predicates.</li>
+            <li>"Give me every runbook verified in the last quarter, as JSON-LD." — filter on the projected metadata.</li>
+          </ul>
+          <p>Every resource dereferences at <code>/id/{type}/{id}</code> as JSON-LD or Turtle (e.g. a page's <code>/id/page/{canonical_id}</code>), and the whole model is downloadable as <a href="https://wiki.wikantik.com/export/ontology.ttl">a live Turtle dump</a> or N-Triples. A public/restricted ACL split means content that isn't anonymously viewable never materialises in the public dataset — so the linked-data surface is safe to expose. Any RDF tool — a triple store, a SPARQL dashboard, a reasoner — can consume the wiki directly.</p>
+
+          <h2>Use case: governed shared human + AI curation</h2>
+          <p>Most "AI wiki" tools bolt a chatbot onto a document store. Wikantik makes the model itself a <em>shared, governed</em> artifact that humans and agents build together without it drifting between a human convention and an agent's guesses:</p>
+          <ul>
+            <li><strong>One schema.</strong> The structured frontmatter editor, the page Knowledge tab, the admin panel, and the MCP tools an agent calls all read the <em>same</em> server-authoritative schema and return the same suggestion-bearing validation messages — so an agent self-corrects exactly like a person does.</li>
+            <li><strong>A write-time SHACL gate.</strong> Structurally invalid relations are refused at write time, citing the violated shape — there is no path, human or machine, that bypasses it.</li>
+            <li><strong>Provenance &amp; audit.</strong> Every entity and edge carries provenance (human-authored, human-curated, AI-inferred, AI-reviewed), and administrative changes land in a tamper-evident, hash-chained audit log.</li>
+            <li><strong>A drift burn-down dashboard.</strong> A corpus-wide sweep counts every remaining metadata warning and SHACL non-conformance, with trends and per-item drill-downs — so inconsistency is <em>measurable</em> and can be driven to zero.</li>
+          </ul>
+
+          <h2>SEO that can't drift</h2>
+          <p>A page's public structured data and its internal model are two faces of one truth: the schema.org <code>@type</code> and <code>sameAs</code> emitted for search engines are re-sourced from the ontology (a hub becomes a <code>CollectionPage</code>, a runbook a <code>HowTo</code>, a design doc a <code>TechArticle</code>). You can't have rich, correct structured data that silently disagrees with what the wiki actually models — because they come from the same place.</p>
+
+          <h2>The Knowledge Graph and the ontology</h2>
+          <p>The <a href="/platform/knowledge-graph.html">Knowledge Graph</a> is the extracted entities and edges in the database; the ontology is the formal RDF/OWL model layered over the <em>whole</em> wiki — those entities <em>plus</em> page concepts and SKOS clusters/tags — that makes all of it queryable, standards-based linked data. They're complementary: the Knowledge Graph supplies much of the substance, the ontology supplies the schema, the IRIs, and the query surface. (Neither is the <a href="https://wiki.wikantik.com/wiki/PageGraphVsKnowledgeGraph">Page Graph</a>, which is the separate graph of real wikilinks used for navigation.)</p>
+
+          <section class="faq">
+            <h2>Frequently asked questions</h2>
+            <details>
+              <summary>What is the difference between the Knowledge Graph and the ontology?</summary>
+              <p>The Knowledge Graph is the LLM-extracted entities and edges stored in the database. The ontology is the formal RDF/OWL model layered over the whole wiki — those entities, plus each page as a typed concept and each cluster and tag as a SKOS concept — all conforming to one vocabulary and queryable over SPARQL.</p>
+            </details>
+            <details>
+              <summary>Can I query the wiki with SPARQL?</summary>
+              <p>Yes — a public, read-only endpoint at <code>/sparql</code> accepts <code>SELECT</code>, <code>ASK</code>, and <code>CONSTRUCT</code> (with a result cap and timeout). Resources dereference at <code>/id/{type}/{id}</code> as JSON-LD or Turtle, and full dumps live at <code>/export/ontology.ttl</code> and <code>/export/graph.nt</code>. A public/restricted ACL split keeps non-public content out of the dataset.</p>
+            </details>
+            <details>
+              <summary>How is the ontology kept correct as humans and AI agents both edit it?</summary>
+              <p>Every curation surface reads the same schema and passes through the same write-time SHACL gate, provenance stamping, and audit log; invalid relations are refused at write time. A corpus-wide drift dashboard tracks any remaining inconsistencies so they can be burned down to zero.</p>
+            </details>
+          </section>
+        </div>
+
+        <aside class="related">
+          <h2>Related</h2>
+          <div class="related-cards">
+            <a class="related-card" href="/platform/knowledge-graph.html">
+              <strong>Knowledge graph</strong>
+              <span>The extracted entities and relations the ontology projects into standards-based RDF.</span>
+            </a>
+            <a class="related-card" href="/platform/agent-grade-content.html">
+              <strong>Agent-grade content</strong>
+              <span>Runbooks, verification metadata, and the token-budgeted projection the model powers.</span>
+            </a>
+            <a class="related-card" href="/platform/mcp-for-ai-agents.html">
+              <strong>MCP for AI agents</strong>
+              <span>The tool surface through which agents query and curate the model.</span>
+            </a>
+          </div>
+        </aside>
+
+        <div class="doc-cta">
+          <a class="btn btn-primary" href="https://wiki.wikantik.com/">Explore the live wiki →</a>
+          <a class="btn btn-ghost" href="/#learn-more">Talk to us</a>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="footer footer--site">
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-col footer-col--brand">
+          <a class="brand" href="/" aria-label="Wikantik home">
+            <span class="brand-mark" aria-hidden="true">W</span>
+            <span class="brand-name">Wikantik</span>
+          </a>
+          <p class="footer-tag">The knowledge base for the AI era.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <a href="/platform/mcp-for-ai-agents.html">MCP for AI agents</a>
+          <a href="/platform/hybrid-retrieval.html">Hybrid retrieval</a>
+          <a href="/platform/knowledge-graph.html">Knowledge graph</a>
+          <a href="/platform/ontology.html">Ontology &amp; SPARQL</a>
+          <a href="/platform/page-graph.html">Page graph</a>
+          <a href="/platform/agent-grade-content.html">Agent-grade content</a>
+          <a href="/platform/structural-spine.html">Structural spine</a>
+        </div>
+        <div class="footer-col">
+          <h4>Enterprise</h4>
+          <a href="/enterprise/sso-saml-oidc.html">SSO (SAML / OIDC)</a>
+          <a href="/enterprise/scim-provisioning.html">SCIM provisioning</a>
+          <a href="/enterprise/audit-log.html">Audit log</a>
+          <a href="/enterprise/access-control-rbac.html">Access control</a>
+          <a href="/enterprise/security-hardening.html">Security hardening</a>
+          <a href="/enterprise/self-hosting-and-backup.html">Self-hosting &amp; backup</a>
+        </div>
+        <div class="footer-col">
+          <h4>Compare</h4>
+          <a href="/compare/confluence-alternative.html">vs Confluence</a>
+          <a href="/compare/notion-alternative.html">vs Notion</a>
+          <a href="/compare/wiki-for-ai-agents.html">AI-native wiki</a>
+          <h4>Company</h4>
+          <a href="https://wiki.wikantik.com/">Live wiki</a>
+          <a href="https://wiki.wikantik.com/privacy-policy.html">Privacy</a>
+          <a href="https://wiki.wikantik.com/terms-of-service.html">Terms</a>
+          <a href="mailto:jakefear@gmail.com">Contact</a>
+        </div>
+      </div>
+      <p class="footer-credit">Wikantik · built by Jacob Fear</p>
+    </div>
+  </footer>
+</body>
+</html>

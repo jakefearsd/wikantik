@@ -100,7 +100,7 @@ export default function AdminDriftPage() {
   const runNow = async () => {
     setSweeping(true);
     setActionError(null);
-    setProgress({ running: true, phase: 'frontmatter', pagesScanned: 0, totalPages: 0 });
+    setProgress({ running: true, phase: null, pagesScanned: 0, totalPages: 0 });
     const before = summary?.sweptAt ?? null;
     try {
       await api.admin.runDriftSweep();
@@ -255,7 +255,7 @@ function DriftProgressBar({ progress }) {
         className="drift-progress-track"
         role="progressbar"
         aria-label={text}
-        aria-valuemin={0}
+        aria-valuemin={perPage ? 0 : undefined}
         aria-valuemax={perPage ? total : undefined}
         aria-valuenow={perPage ? scanned : undefined}
       >

@@ -21,7 +21,9 @@ package com.wikantik.knowledge.agent;
 import com.wikantik.api.core.Context;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.FilterException;
+import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.exceptions.ProviderException;
+import com.wikantik.api.frontmatter.schema.Severity;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.PageDescriptor;
 import com.wikantik.api.pagegraph.PageType;
@@ -107,6 +109,33 @@ class RunbookValidationPageFilterTest {
         assertTrue( ex.getMessage().contains( "STEPS_TOO_FEW" )
                  || ex.getMessage().toLowerCase().contains( "steps" ),
                 () -> "expected message to name the issue, was: " + ex.getMessage() );
+    }
+
+    @Test
+    void invalid_runbook_throws_structured_validation_exception() {
+        // A runbook with a bad related_tools entry must raise FrontmatterValidationException
+        // carrying a field-addressable ERROR violation, so PageResource maps it to a 422
+        // (not the opaque bare-FilterException banner).
+        final String content = "---\n" +
+                "type: runbook\n" +
+                "runbook:\n" +
+                "  when_to_use:\n" +
+                "    - Agent needs X\n" +
+                "  steps:\n" +
+                "    - a\n" +
+                "    - b\n" +
+                "  pitfalls:\n" +
+                "    - (none known)\n" +
+                "  related_tools:\n" +
+                "    - Bad-Tool-Name\n" +
+                "---\nbody\n";
+        final FrontmatterValidationException ex = assertThrows( FrontmatterValidationException.class,
+                () -> filter( true ).preSave( contextFor( "Foo" ), content ) );
+        assertTrue( ex.violations().stream().anyMatch( v ->
+                        "runbook.related_tools".equals( v.field() )
+                                && v.severity() == Severity.ERROR
+                                && "runbook.related_tool_invalid".equals( v.code() ) ),
+                () -> "expected a structured runbook.related_tools violation, was: " + ex.violations() );
     }
 
     @Test

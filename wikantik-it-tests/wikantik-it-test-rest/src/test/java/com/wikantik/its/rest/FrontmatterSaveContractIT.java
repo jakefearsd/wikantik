@@ -72,6 +72,8 @@ public class FrontmatterSaveContractIT {
     private static final String PAGE_NONCANONICAL_STATUS = "FmSaveNoncanonicalStatus-" + IT_SUFFIX;
     /** Page name for the all-valid test (should be written successfully). */
     private static final String PAGE_VALID = "FmSaveValid-" + IT_SUFFIX;
+    /** Page name for the invalid-runbook test; must not exist before the test runs. */
+    private static final String PAGE_INVALID_RUNBOOK = "FmSaveInvalidRunbook-" + IT_SUFFIX;
 
     private static final Gson GSON = new Gson();
     private static final Type MAP_TYPE = new TypeToken< Map< String, Object > >() {}.getType();
@@ -245,5 +247,44 @@ public class FrontmatterSaveContractIT {
         assertNotNull( warnings, "200 body must contain a 'warnings' key: " + resp.body() );
         assertTrue( warnings.isEmpty(),
                 "warnings must be empty for all-valid metadata: " + warnings );
+    }
+
+    @Test
+    @Order( 4 )
+    @SuppressWarnings( "unchecked" )
+    void putRunbookWithInvalidRelatedToolReturns422AndPageNotWritten() throws Exception {
+        // The original failing scenario: a runbook with an invalid related_tools entry. Previously the
+        // RunbookValidationPageFilter threw a bare FilterException → opaque error banner. It now throws a
+        // structured FrontmatterValidationException → HTTP 422 with a runbook.related_tools violation.
+        loginAsAdmin();
+        final String requestBody = GSON.toJson( Map.of(
+                "content", "Body of the invalid runbook test page.",
+                "metadata", Map.of(
+                        "type", "runbook",
+                        "runbook", Map.of(
+                                "when_to_use", List.of( "Agent needs X" ),
+                                "steps", List.of( "a", "b" ),
+                                "pitfalls", List.of( "(none known)" ),
+                                "related_tools", List.of( "Bad-Tool-Name" ) ) ),
+                "replaceMetadata", true ) );
+
+        final HttpResponse< String > resp = put( "/api/pages/" + PAGE_INVALID_RUNBOOK, requestBody );
+        assertEquals( 422, resp.statusCode(),
+                "PUT of a runbook with an invalid related_tools entry must be rejected with 422: " + resp.body() );
+
+        final Map< String, Object > json = parseJson( resp.body() );
+        assertEquals( "frontmatter_validation_failed", json.get( "error" ),
+                "422 body must carry error='frontmatter_validation_failed': " + resp.body() );
+
+        final List< Map< String, Object > > violations =
+                ( List< Map< String, Object > > ) json.get( "violations" );
+        assertNotNull( violations, "422 body must contain violations: " + resp.body() );
+        assertTrue( violations.stream().anyMatch( v -> "runbook.related_tools".equals( v.get( "field" ) ) ),
+                "violations must include a 'runbook.related_tools' violation: " + violations );
+
+        // Page must NOT have been written
+        final HttpResponse< String > getResp = get( "/api/pages/" + PAGE_INVALID_RUNBOOK );
+        assertEquals( 404, getResp.statusCode(),
+                "Page must NOT exist after a 422-rejected save: " + getResp.body() );
     }
 }

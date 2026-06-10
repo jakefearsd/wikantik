@@ -20,15 +20,21 @@ package com.wikantik.knowledge.agent;
 
 import com.wikantik.api.core.Context;
 import com.wikantik.api.exceptions.FilterException;
+import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.exceptions.ProviderException;
 import com.wikantik.api.filters.PageFilter;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
+import com.wikantik.api.frontmatter.schema.FieldViolation;
+import com.wikantik.api.frontmatter.schema.Severity;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.function.Predicate;
 
@@ -92,16 +98,31 @@ public class RunbookValidationPageFilter implements PageFilter {
         final FrontmatterRunbookValidator.Result result = FrontmatterRunbookValidator.validate(
                 parsed.metadata(), canonicalIdResolves, pageTitleResolves );
         if ( result.hasIssues() ) {
-            final String pageName = context != null && context.getPage() != null
-                    ? context.getPage().getName() : "<unknown>";
-            final StringBuilder msg = new StringBuilder();
-            msg.append( "Runbook page '" ).append( pageName ).append( "' has invalid frontmatter:" );
+            // Emit field-addressable violations (same shape/codes as SchemaDrivenFrontmatterValidator)
+            // so PageResource maps this to a structured HTTP 422 — not an opaque error banner.
+            final List< FieldViolation > violations = new ArrayList<>( result.issues().size() );
             for ( final var issue : result.issues() ) {
-                msg.append( ' ' ).append( '[' ).append( issue.kind() )
-                   .append( ' ' ).append( issue.detail() ).append( ']' );
+                violations.add( FieldViolation.of(
+                        runbookFieldFor( issue.kind() ),
+                        Severity.ERROR,
+                        "runbook." + issue.kind().name().toLowerCase( Locale.ROOT ),
+                        issue.detail() ) );
             }
-            throw new FilterException( msg.toString() );
+            throw new FrontmatterValidationException( violations );
         }
         return content;
+    }
+
+    /** Maps a runbook issue kind to its frontmatter field path (mirrors
+     *  {@code SchemaDrivenFrontmatterValidator.runbookField} so both surfaces address the same field). */
+    private static String runbookFieldFor( final FrontmatterRunbookValidator.IssueKind kind ) {
+        return switch ( kind ) {
+            case WHEN_TO_USE_EMPTY -> "runbook.when_to_use";
+            case STEPS_TOO_FEW -> "runbook.steps";
+            case PITFALLS_EMPTY -> "runbook.pitfalls";
+            case RELATED_TOOL_INVALID -> "runbook.related_tools";
+            case REFERENCE_UNRESOLVABLE -> "runbook.references";
+            case MISSING_BLOCK, MALFORMED_BLOCK -> "runbook";
+        };
     }
 }

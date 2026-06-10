@@ -239,4 +239,69 @@ class DriftSweepServiceTest {
         assertEquals( 1, offenders.size() );
         assertEquals( "wk:e1", offenders.get( 0 ).pageName() );
     }
+
+    @Test
+    void progressIsIdleBeforeAnySweep() {
+        final DriftSweepService svc = service( mock( PageManager.class ),
+                mock( DriftSnapshotRepository.class ), null );
+        final DriftSweepService.SweepProgress p = svc.progress();
+        assertFalse( p.running() );
+        assertNull( p.phase() );
+        assertEquals( 0, p.pagesScanned() );
+        assertEquals( 0, p.totalPages() );
+    }
+
+    @Test
+    void progressReportsTotalAndPhaseMidSweep() throws Exception {
+        final CountDownLatch entered = new CountDownLatch( 1 );
+        final CountDownLatch release = new CountDownLatch( 1 );
+        final PageManager pm = Mockito.mock( PageManager.class );
+        final Page p1 = page( "P1" );
+        final Page p2 = page( "P2" );
+        when( pm.getPureText( p1 ) ).thenAnswer( inv -> {
+            entered.countDown();
+            release.await();
+            return "---\ntype: article\nstatus: active\n---\n\nbody";
+        } );
+        when( pm.getPureText( p2 ) ).thenReturn( "---\ntype: article\nstatus: active\n---\n\nbody" );
+        Mockito.doReturn( List.of( p1, p2 ) ).when( pm ).getAllPages();
+        final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+                .thenReturn( 1L );
+
+        final DriftSweepService svc = service( pm, repo, null );
+        final Thread t = new Thread( () -> svc.runSweep( "manual" ) );
+        t.start();
+        assertTrue( entered.await( 5, TimeUnit.SECONDS ) );
+
+        final DriftSweepService.SweepProgress mid = svc.progress();
+        assertTrue( mid.running() );
+        assertEquals( "frontmatter", mid.phase() );
+        assertEquals( 2, mid.totalPages() );
+
+        release.countDown();
+        t.join();
+
+        final DriftSweepService.SweepProgress after = svc.progress();
+        assertFalse( after.running() );
+        assertNull( after.phase() );
+        assertEquals( 0, after.totalPages() );
+        assertEquals( 0, after.pagesScanned() );
+    }
+
+    @Test
+    void progressResetsAfterRepositoryFailure() throws Exception {
+        final PageManager pm = pm( "Clean", "---\ntype: article\nstatus: active\n---\n\nbody" );
+        final DriftSnapshotRepository repo = mock( DriftSnapshotRepository.class );
+        when( repo.insertSweep( any(), anyInt(), anyLong(), anyString(), anyBoolean(), anyList() ) )
+                .thenThrow( new IllegalStateException( "db gone" ) );
+
+        final DriftSweepService svc = service( pm, repo, null );
+        assertThrows( IllegalStateException.class, () -> svc.runSweep( "manual" ) );
+
+        final DriftSweepService.SweepProgress p = svc.progress();
+        assertFalse( p.running() );
+        assertNull( p.phase() );
+        assertEquals( 0, p.totalPages() );
+    }
 }

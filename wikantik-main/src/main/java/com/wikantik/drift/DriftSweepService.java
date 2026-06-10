@@ -63,6 +63,9 @@ public final class DriftSweepService {
     public record SweepOutcome( long sweepId, int pagesScanned, long durationMs,
                                 boolean shaclChecked, List< DriftCount > counts ) {}
 
+    /** Live, ephemeral progress of an in-flight sweep. Idle: (false, null, 0, 0). */
+    public record SweepProgress( boolean running, String phase, int pagesScanned, int totalPages ) {}
+
     private record CountKey( String family, String code, String severity ) {}
 
     private final PageManager pageManager;
@@ -72,6 +75,9 @@ public final class DriftSweepService {
     private final Supplier< List< OntologyShaclValidator.Violation > > shaclSource;
     private final DriftSnapshotRepository repository;
     private final AtomicBoolean running = new AtomicBoolean( false );
+    private volatile String progressPhase;
+    private volatile int progressScanned;
+    private volatile int progressTotal;
 
     public DriftSweepService( final PageManager pageManager,
                               final SchemaDrivenFrontmatterValidator validator,
@@ -89,6 +95,11 @@ public final class DriftSweepService {
         return running.get();
     }
 
+    /** Snapshot of the current sweep's progress; idle values when no sweep is running. */
+    public SweepProgress progress() {
+        return new SweepProgress( running.get(), progressPhase, progressScanned, progressTotal );
+    }
+
     /** Read access for the REST layer — same repository the sweep persists into. */
     public DriftSnapshotRepository repository() {
         return repository;
@@ -102,9 +113,14 @@ public final class DriftSweepService {
         try {
             final long startedAt = System.currentTimeMillis();
             final java.time.Instant sweepStart = Instant.ofEpochMilli( startedAt );
+            this.progressPhase = "frontmatter";
+            this.progressScanned = 0;
+            this.progressTotal = 0;
             final Map< CountKey, Integer > counts = new LinkedHashMap<>();
             final int pagesScanned = sweepFrontmatter( counts );
+            this.progressPhase = "shacl";
             final boolean shaclChecked = sweepShacl( counts );
+            this.progressPhase = "persisting";
 
             final long durationMs = System.currentTimeMillis() - startedAt;
             final List< DriftCount > rows = counts.entrySet().stream()
@@ -117,6 +133,9 @@ public final class DriftSweepService {
                     sweepId, triggeredBy, pagesScanned, rows.size(), shaclChecked );
             return new SweepOutcome( sweepId, pagesScanned, durationMs, shaclChecked, rows );
         } finally {
+            this.progressPhase = null;
+            this.progressScanned = 0;
+            this.progressTotal = 0;
             running.set( false );
         }
     }
@@ -162,7 +181,7 @@ public final class DriftSweepService {
                     .toList();
         }
         final List< PageViolation > out = new ArrayList<>();
-        forEachParsedPage( "drift drill-down", ( name, parsedOrNull, parseError ) -> {
+        forEachParsedPage( "drift drill-down", total -> { }, ( name, parsedOrNull, parseError ) -> {
             if ( parseError != null ) {
                 if ( "yaml.parse".equals( code ) ) {
                     out.add( new PageViolation( name, "__yaml__", "ERROR", "yaml.parse",
@@ -185,8 +204,10 @@ public final class DriftSweepService {
 
     private int sweepFrontmatter( final Map< CountKey, Integer > counts ) {
         final int[] scanned = { 0 };
-        forEachParsedPage( "drift sweep", ( name, parsedOrNull, parseError ) -> {
+        forEachParsedPage( "drift sweep", total -> this.progressTotal = total,
+                ( name, parsedOrNull, parseError ) -> {
             scanned[ 0 ]++;
+            this.progressScanned = scanned[ 0 ];
             if ( parseError != null ) {
                 bump( counts, "frontmatter", "yaml.parse", "ERROR" );
                 return;
@@ -223,7 +244,9 @@ public final class DriftSweepService {
         void visit( String name, ParsedPage parsedOrNull, FrontmatterParseException parseError );
     }
 
-    private void forEachParsedPage( final String context, final PageVisitor visitor ) {
+    private void forEachParsedPage( final String context,
+                                    final java.util.function.IntConsumer onEnumerated,
+                                    final PageVisitor visitor ) {
         final Collection< Page > pages;
         try {
             pages = pageManager.getAllPages();
@@ -231,6 +254,7 @@ public final class DriftSweepService {
             LOG.warn( "{}: page enumeration failed: {}", context, e.getMessage(), e );
             throw new IllegalStateException( context + ": page enumeration failed", e );
         }
+        onEnumerated.accept( pages.size() );
         for ( final Page page : pages ) {
             final String name = page.getName();
             final String text;

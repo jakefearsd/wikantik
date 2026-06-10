@@ -80,8 +80,9 @@ public final class PasswordChangeGate {
         return flag;
     }
 
-    /** Caches the flag on the HttpSession when one exists. */
-    public static void cache( final HttpServletRequest request, final boolean flag ) {
+    /** Caches the flag on the HttpSession when one exists. Package-private: only
+     *  the auth wiring in this package may write the cache. */
+    static void cache( final HttpServletRequest request, final boolean flag ) {
         final HttpSession httpSession = request.getSession( false );
         if ( httpSession != null ) {
             httpSession.setAttribute( SESSION_ATTRIBUTE, flag );

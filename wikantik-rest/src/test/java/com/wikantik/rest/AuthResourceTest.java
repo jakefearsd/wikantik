@@ -411,10 +411,6 @@ class AuthResourceTest {
         profile.setPasswordMustChange( true );
         db.save( profile );
 
-        // Stub the UserManager so the servlet uses our DB instance.
-        Mockito.when( um.getUserDatabase() ).thenReturn( db );
-        ( (com.wikantik.WikiEngine) engine ).setManager( com.wikantik.auth.UserManager.class, um );
-
         // Act: PUT /api/auth/profile as that user with a new password.
         final JsonObject body = new JsonObject();
         body.addProperty( "currentPassword", "Xk3-Valid-Pass-77!" );

@@ -483,6 +483,9 @@ public class AuthResource extends RestServletBase {
                 final String resolvedLogin = wikiSession.isAuthenticated()
                         ? wikiSession.getLoginPrincipal().getName()
                         : username;
+                // Bypass PasswordChangeGate's session-cache path on purpose: login must
+                // read the fresh DB state, not a potentially stale cache written earlier
+                // on this session.
                 boolean mustChange = false;
                 try {
                     final UserDatabase udb = getSubsystems().auth().users().getUserDatabase();

@@ -5,6 +5,15 @@ import { AuthProvider } from '../hooks/useAuth';
 import ChangePasswordPage from './ChangePasswordPage';
 
 // ---------------------------------------------------------------------------
+// Mock navigate so we can assert call arguments (including replace: true).
+// ---------------------------------------------------------------------------
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, useNavigate: () => mockNavigate };
+});
+
+// ---------------------------------------------------------------------------
 // Mock api/client so AuthProvider.useEffect does not fire real HTTP calls.
 // ---------------------------------------------------------------------------
 vi.mock('../api/client', () => ({
@@ -23,15 +32,21 @@ beforeEach(() => {
 /**
  * Render ChangePasswordPage inside a MemoryRouter with the given initial URL.
  * AuthProvider wraps it so useAuth() does not throw.
- * A /wiki/Main stub route is included to capture successful-navigation assertions.
+ * A /wiki/Main and /login stub routes are included to capture navigation assertions.
  */
-function renderChangePasswordPage(initialEntry = '/change-password') {
+function renderChangePasswordPage(initialEntry = '/change-password', getUserResult) {
+  if (getUserResult) {
+    // Override getUser for this render
+    const { api } = require('../api/client');
+    api.getUser.mockResolvedValue(getUserResult);
+  }
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <AuthProvider>
         <Routes>
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/wiki/Main" element={<div data-testid="wiki-main">Wiki Main</div>} />
+          <Route path="/login" element={<div data-testid="login-page">Login</div>} />
         </Routes>
       </AuthProvider>
     </MemoryRouter>,
@@ -62,7 +77,7 @@ describe('ChangePasswordPage', () => {
     expect(api.updateProfile).not.toHaveBeenCalled();
   });
 
-  it('submits { currentPassword, newPassword } to api.updateProfile and navigates to /wiki/Main on success', async () => {
+  it('submits { currentPassword, newPassword } to api.updateProfile and navigates to /wiki/Main with replace on success', async () => {
     const { api } = await import('../api/client');
     api.updateProfile.mockResolvedValue({});
     renderChangePasswordPage();
@@ -76,7 +91,7 @@ describe('ChangePasswordPage', () => {
       expect(api.updateProfile).toHaveBeenCalledWith({ currentPassword: 'oldpass', newPassword: 'newpass' });
     });
     await waitFor(() => {
-      expect(screen.getByTestId('wiki-main')).toBeInTheDocument();
+      expect(mockNavigate).toHaveBeenCalledWith('/wiki/Main', { replace: true });
     });
   });
 
@@ -94,6 +109,16 @@ describe('ChangePasswordPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Current password is incorrect')).toBeInTheDocument();
+    });
+  });
+
+  it('redirects to /login when not loading and user is unauthenticated', async () => {
+    const { api } = await import('../api/client');
+    api.getUser.mockResolvedValue({ authenticated: false, username: 'anonymous', roles: [] });
+    renderChangePasswordPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('login-page')).toBeInTheDocument();
     });
   });
 });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 
@@ -9,8 +9,12 @@ export default function ChangePasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
-  const { refresh } = useAuth();
+  const { refresh, user, loading } = useAuth();
   const navigate = useNavigate();
+
+  if (!loading && user && !user.authenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,7 +27,7 @@ export default function ChangePasswordPage() {
     try {
       await api.updateProfile({ currentPassword, newPassword });
       await refresh();
-      navigate('/wiki/Main');
+      navigate('/wiki/Main', { replace: true });
     } catch (err) {
       setError(err.body?.message || err.message || 'Failed to change password');
     } finally {

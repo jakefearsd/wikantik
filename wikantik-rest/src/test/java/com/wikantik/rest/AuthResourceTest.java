@@ -324,6 +324,34 @@ class AuthResourceTest {
         assertEquals( 404, obj.get( "status" ).getAsInt() );
     }
 
+    // ----- Task 6 (Fix 1): GET /api/auth/user must carry mustChangePassword -----
+
+    @Test
+    void getUserCarriesMustChangePasswordFlag() throws Exception {
+        // Arrange: create a user with passwordMustChange=true in the engine's DB.
+        final com.wikantik.auth.UserManager um =
+                engine.getManager( com.wikantik.auth.UserManager.class );
+        final UserDatabase db = um.getUserDatabase();
+        final UserProfile profile = db.newProfile();
+        profile.setLoginName( "mustchangegetuser" );
+        profile.setFullname( "Must Change Get User" );
+        profile.setEmail( "mustchangeget@example.com" );
+        profile.setPassword( "Xk3-Valid-Pass-77!" );
+        profile.setPasswordMustChange( true );
+        db.save( profile );
+
+        // Act: GET /api/auth/user with an authenticated session for that user.
+        try ( MockedStatic< Wiki > w = stubWikiSession( authedSession( "mustchangegetuser" ) ) ) {
+            final JsonObject obj = gson.fromJson( doGetUser(), JsonObject.class );
+
+            // Assert: response includes mustChangePassword=true.
+            assertTrue( obj.has( "mustChangePassword" ),
+                    "GET /api/auth/user must carry mustChangePassword key" );
+            assertTrue( obj.get( "mustChangePassword" ).getAsBoolean(),
+                    "mustChangePassword should be true for a flagged user" );
+        }
+    }
+
     // ----- Task 7: Lost Password Recovery tests -----
 
     @Test

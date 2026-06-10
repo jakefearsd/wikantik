@@ -255,6 +255,8 @@ public class AuthResource extends RestServletBase {
         if ( session.isAuthenticated() ) {
             result.put( "username", session.getUserPrincipal().getName() );
             result.put( "loginPrincipal", session.getLoginPrincipal().getName() );
+            result.put( "mustChangePassword",
+                    PasswordChangeGate.mustChangePassword( engine, request, session.getLoginPrincipal().getName() ) );
         } else {
             result.put( "username", "anonymous" );
             result.put( "loginPrincipal", session.getLoginPrincipal().getName() );

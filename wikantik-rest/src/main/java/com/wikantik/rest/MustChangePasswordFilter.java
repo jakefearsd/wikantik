@@ -41,9 +41,10 @@ import java.io.IOException;
  * authenticated session whose user is flagged (users.password_must_change)
  * gets 403 + {"code":"PASSWORD_CHANGE_REQUIRED"} for everything except the
  * auth surface it needs to fix the situation (/api/auth/* — login, logout,
- * status, the password-changing profile PUT, reset-password). Browser HTML
- * navigations pass through so the SPA shell can load and route the user to
- * the change-password screen; the data calls behind it stay gated.
+ * status, the password-changing profile PUT, reset-password). DELETE on the
+ * auth surface (account self-deletion) stays gated. Browser HTML navigations
+ * pass through so the SPA shell can load and route the user to the
+ * change-password screen; the data calls behind it stay gated.
  *
  * Registered in web.xml after RememberMeAuthFilter (so re-authenticated
  * sessions are visible) and before AdminAuthFilter.
@@ -100,6 +101,12 @@ public class MustChangePasswordFilter implements Filter {
         final String path = req.getRequestURI().substring( req.getContextPath().length() );
         for ( final String prefix : EXEMPT_PREFIXES ) {
             if ( path.startsWith( prefix ) ) {
+                // DELETE /api/auth/* (account self-deletion) is NOT exempt — a flagged
+                // user (or a hijacked flagged session) must change the password before
+                // it can delete the account.
+                if ( "DELETE".equalsIgnoreCase( req.getMethod() ) && path.startsWith( "/api/auth/" ) ) {
+                    return false;
+                }
                 return true;
             }
         }

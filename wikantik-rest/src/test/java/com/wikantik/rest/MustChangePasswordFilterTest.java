@@ -194,6 +194,8 @@ class MustChangePasswordFilterTest {
                 "body must contain structured code, got: " + body );
         assertTrue( body.contains( "\"error\":true" ),
                 "body must contain error:true, got: " + body );
+        assertTrue( body.contains( "\"message\":\"You must change your password before continuing\"" ),
+                "body must contain message text, got: " + body );
     }
 
     /**
@@ -227,5 +229,65 @@ class MustChangePasswordFilterTest {
 
         verify( chain ).doFilter( req, resp );
         verify( resp, never() ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+    }
+
+    /**
+     * 6. OPTIONS request to any gated path → chain called without ever consulting
+     *    the session SPI (pre-flight short-circuit).
+     */
+    @Test
+    void optionsRequestPassesThroughWithoutSessionLookup() throws Exception {
+        final HttpServletRequest req = buildRequest( "/api/pages", "application/json", null );
+        Mockito.doReturn( "OPTIONS" ).when( req ).getMethod();
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        // No Wiki.session() stub — if the filter ever calls it the mock will throw
+        filter.doFilter( req, resp, chain );
+
+        verify( chain ).doFilter( req, resp );
+        verify( resp, never() ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+    }
+
+    /**
+     * 7. Flagged user, GET /api/health → exempt prefix → chain called, no 403.
+     */
+    @Test
+    void healthEndpointIsExemptForFlaggedUser() throws Exception {
+        final HttpServletRequest req = buildRequest( "/api/health", "application/json", Boolean.TRUE );
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        // isExempt() short-circuits before Wiki.session() is consulted
+        filter.doFilter( req, resp, chain );
+
+        verify( chain ).doFilter( req, resp );
+        verify( resp, never() ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+    }
+
+    /**
+     * 8. Flagged user, DELETE /api/auth/profile (account self-deletion) →
+     *    NOT exempt — chain not called, status 403,
+     *    body contains "code":"PASSWORD_CHANGE_REQUIRED".
+     */
+    @Test
+    void flaggedUserCannotSelfDeleteViaAuthSurface() throws Exception {
+        final HttpServletRequest req = buildRequest( "/api/auth/profile", "application/json", Boolean.TRUE );
+        Mockito.doReturn( "DELETE" ).when( req ).getMethod();
+        final HttpServletResponse resp = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( resp ).getWriter();
+        final FilterChain chain = Mockito.mock( FilterChain.class );
+
+        try ( MockedStatic<Wiki> w = stubWikiSession( authedSession( "flaggeduser" ) ) ) {
+            filter.doFilter( req, resp, chain );
+        }
+
+        verify( chain, never() ).doFilter( any(), any() );
+        verify( resp ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+
+        final String body = sw.toString();
+        assertTrue( body.contains( "\"code\":\"PASSWORD_CHANGE_REQUIRED\"" ),
+                "body must contain structured code, got: " + body );
     }
 }

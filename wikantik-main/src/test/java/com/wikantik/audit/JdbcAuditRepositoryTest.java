@@ -69,7 +69,7 @@ class JdbcAuditRepositoryTest {
                     + "seq BIGINT NOT NULL, created_at TIMESTAMPTZ NOT NULL, event_time TIMESTAMPTZ NOT NULL,"
                     + "category TEXT NOT NULL, event_type TEXT NOT NULL, actor_id TEXT, actor_principal TEXT,"
                     + "actor_type TEXT NOT NULL, target_type TEXT, target_id TEXT, target_label TEXT,"
-                    + "outcome TEXT NOT NULL, source_ip TEXT, user_agent TEXT, correlation_id TEXT, detail JSONB,"
+                    + "outcome TEXT NOT NULL, source_ip TEXT, user_agent TEXT, correlation_id TEXT, detail TEXT,"
                     + "prev_hash CHAR(64) NOT NULL, row_hash CHAR(64) NOT NULL,"
                     + "PRIMARY KEY ( seq, created_at ) ) PARTITION BY RANGE ( created_at )" );
             // Pre-create the current-month partition (mirrors the migration). The bug is that the
@@ -105,7 +105,9 @@ class JdbcAuditRepositoryTest {
                 .actorType( "TEST" )
                 .actorPrincipal( "tester" )
                 .outcome( AuditOutcome.SUCCESS )
-                .detail( "{\"k\":\"v\"}" )   // JSONB column: must be cast (?::jsonb), not bound as varchar
+                // Compact JSON in a TEXT column: must round-trip byte-for-byte for the hash chain. A
+                // stray ?::jsonb cast would reformat this to {"src": "smoke", "n": 1} and fail below.
+                .detail( "{\"src\":\"smoke\",\"n\":1}" )
                 .build();
 
         // Before the fix this throws IllegalStateException("audit append failed") because
@@ -117,9 +119,10 @@ class JdbcAuditRepositoryTest {
         try ( Connection c = superuserDs.getConnection();
               Statement st = c.createStatement();
               ResultSet rs = st.executeQuery(
-                      "SELECT detail->>'k' FROM audit_log WHERE event_type = 'smoke.test'" ) ) {
+                      "SELECT detail FROM audit_log WHERE event_type = 'smoke.test'" ) ) {
             assertEquals( true, rs.next(), "the audit entry must have been persisted" );
-            assertEquals( "v", rs.getString( 1 ), "the JSONB detail must round-trip" );
+            assertEquals( "{\"src\":\"smoke\",\"n\":1}", rs.getString( 1 ),
+                    "detail must round-trip byte-for-byte (TEXT, no JSONB reformatting)" );
         }
     }
 }

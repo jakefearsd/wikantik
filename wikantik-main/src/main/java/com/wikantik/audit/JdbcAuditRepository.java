@@ -58,13 +58,14 @@ public final class JdbcAuditRepository implements AuditRepository {
     @Override
     public void append( final List<AuditEntry> entries ) {
         if ( entries.isEmpty() ) return;
-        // `detail` is JSONB: cast the bound parameter (?::jsonb) so it works without relying on the
-        // connection's stringtype=unspecified — pgjdbc otherwise sends it as varchar and Postgres
-        // refuses the varchar→jsonb coercion. (Mirrors KgEdgeAuditRepository's JSONB binds.)
+        // `detail` is TEXT (V037 changed it from JSONB specifically so the raw string round-trips
+        // byte-for-byte: JSONB reformats JSON on storage, which would break the tamper-evident hash
+        // chain — the row_hash is computed over the raw string at write time and re-checked against the
+        // stored value in verifyChain). Bind it as a plain text parameter; do NOT cast to ::jsonb.
         final String insert = "INSERT INTO audit_log ( seq, created_at, event_time, category, "
             + "event_type, actor_id, actor_principal, actor_type, target_type, target_id, "
             + "target_label, outcome, source_ip, user_agent, correlation_id, detail, prev_hash, "
-            + "row_hash ) VALUES ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?::jsonb,?,? )";
+            + "row_hash ) VALUES ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? )";
         try ( Connection c = dataSource.getConnection() ) {
             c.setAutoCommit( false );
             try {

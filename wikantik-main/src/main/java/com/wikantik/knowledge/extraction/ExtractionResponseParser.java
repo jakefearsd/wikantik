@@ -239,12 +239,10 @@ public final class ExtractionResponseParser {
      * confined to the ontology entity classes.
      */
     private static String normalizeEntityType( final String rawType ) {
-        if( rawType == null || rawType.isBlank() ) {
-            return EntityTypeVocabulary.DEFAULT_ENTITY_CLASS;
-        }
-        final String key = rawType.trim().toLowerCase( Locale.ROOT );
-        return EntityTypeVocabulary.ENTITY_CLASS_SET.contains( key )
-                ? key : EntityTypeVocabulary.DEFAULT_ENTITY_CLASS;
+        // Resolve direct members AND known synonyms (e.g. "database"/"framework" → technology);
+        // only a truly unrecognised type falls back to concept.
+        return EntityTypeVocabulary.canonicalOrAlias( rawType )
+                .orElse( EntityTypeVocabulary.DEFAULT_ENTITY_CLASS );
     }
 
     private static double numberOr( final JsonObject o, final String key, final double def ) {

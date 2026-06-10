@@ -100,6 +100,26 @@ class ExtractionResponseParserTest {
     }
 
     @Test
+    void resolvesTechnologySynonymsInsteadOfDefaultingToConcept() {
+        // The model frequently labels technologies with a synonym ("Database", "library"); these must
+        // resolve to technology, not collapse to concept — the bug that put 16 technologies under the
+        // wk:implements SHACL shape.
+        final String json = "{ \"entities\": ["
+          + " { \"name\": \"CockroachDB\", \"type\": \"Database\", \"confidence\": 0.9, \"reasoning\": \"\" },"
+          + " { \"name\": \"Flexmark\",    \"type\": \"library\",  \"confidence\": 0.9, \"reasoning\": \"\" } ],"
+          + "\"relations\": [] }";
+        final ExtractionResult r = ExtractionResponseParser.parse(
+            json, CHUNK, contextWithKnownNodes(), CODE, L, THRESHOLD );
+
+        final java.util.Map< String, String > typeByName = r.nodes().stream()
+            .collect( java.util.stream.Collectors.toMap(
+                com.wikantik.api.knowledge.ProposedNode::name,
+                com.wikantik.api.knowledge.ProposedNode::nodeType ) );
+        assertEquals( "technology", typeByName.get( "CockroachDB" ) );
+        assertEquals( "technology", typeByName.get( "Flexmark" ) );
+    }
+
+    @Test
     void dropsProposalsBelowConfidenceThresholdButKeepsMentions() {
         final String json = "{ \"entities\": ["
           + " { \"name\": \"Foo\", \"type\": \"Thing\", \"confidence\": 0.30, \"reasoning\": \"weak\" } ],"

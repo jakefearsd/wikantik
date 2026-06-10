@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.wikantik.api.knowledge.EntityTypeVocabulary;
 import com.wikantik.api.knowledge.ExtractedEntity;
 import com.wikantik.api.knowledge.ExtractedRelation;
 import com.wikantik.api.knowledge.PageExtractionResult;
@@ -16,6 +17,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -33,9 +35,6 @@ public final class PageExtractionResponseParser {
         "concept", "agent", "process", "system", "user", "software", "data"
     );
 
-    /** Closed enum of allowed types — the canonical 9-class entity vocabulary. Lower-cased on comparison. */
-    private static final Set<String> ALLOWED_TYPES =
-        com.wikantik.api.knowledge.EntityTypeVocabulary.ENTITY_CLASS_SET;
 
     private final EvidenceGroundingVerifier verifier;
     private final int maxEntities;
@@ -105,7 +104,11 @@ public final class PageExtractionResponseParser {
                 counts.bannedName++;
                 continue;
             }
-            if (!ALLOWED_TYPES.contains(type.trim().toLowerCase(Locale.ROOT))) {
+            // Resolve direct members AND known synonyms (e.g. "database" → technology); a truly
+            // unrecognised type is dropped (the page extractor's fail-open posture), rather than
+            // silently mislabelling it.
+            final Optional<String> resolvedType = EntityTypeVocabulary.canonicalOrAlias(type);
+            if (resolvedType.isEmpty()) {
                 continue;
             }
             EvidenceGroundingVerifier.Decision d = verifier.evaluate(span, pageBody);
@@ -113,7 +116,7 @@ public final class PageExtractionResponseParser {
                 counts.ungrounded++;
                 continue;
             }
-            entities.add(new ExtractedEntity(name.trim(), titleCaseType(type), span, clampConf(conf)));
+            entities.add(new ExtractedEntity(name.trim(), titleCaseType(resolvedType.get()), span, clampConf(conf)));
         }
         if (entities.size() > maxEntities) {
             entities.sort(Comparator.comparingDouble(ExtractedEntity::confidence).reversed());

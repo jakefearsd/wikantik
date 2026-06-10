@@ -27,6 +27,21 @@ class PageExtractionResponseParserTest {
     }
 
     @Test
+    void resolvesTypeSynonymsInsteadOfDroppingThem() {
+        // The model labels a technology "database"; before the alias map the page extractor dropped it
+        // outright (off-vocabulary type). It must now be kept and typed Technology.
+        String body = "CockroachDB is a distributed SQL database.";
+        String json = "{\"entities\":["
+                + "{\"name\":\"CockroachDB\",\"type\":\"database\",\"evidence_span\":\"CockroachDB is a distributed SQL database\",\"confidence\":0.9}"
+                + "],\"relations\":[]}";
+        PageExtractionResult r = parser.parse(json, "x", "P", body, Duration.ZERO);
+        assertEquals(1, r.entities().size(), "a 'database'-typed entity must be kept, not dropped");
+        assertEquals("CockroachDB", r.entities().get(0).name());
+        assertEquals("Technology", r.entities().get(0).type(),
+                "the synonym must resolve to the canonical Technology type");
+    }
+
+    @Test
     void dropsBannedNameEntities() {
         String body = "Concept is everywhere. The system is humming.";
         String json = "{\"entities\":["

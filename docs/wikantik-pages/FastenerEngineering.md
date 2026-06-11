@@ -25,10 +25,22 @@ This treatise explores the foundational physics of fastening, the material scien
 The performance of a bolted joint is dominated by **Preload ($\text{F}_p$)**—the axial clamping force applied during assembly.
 
 ### 1.1 The Torque-Tension Relationship
-The conversion of applied torque ($\text{T}$) to preload is governed by the **Motosh Equation**, which accounts for thread geometry and friction:$$\text{T} = \text{F}_p \left( \frac{\text{P}}{2\pi} + \frac{\mu_t \cdot r_t}{\cos \beta} + \mu_h \cdot r_h \right)$$Where$\text{P}$is the thread pitch,$\mu_t$and$\mu_h$are the coefficients of friction for threads and head, and$r_t, r_h$are the effective radii. Experts must treat$\mu$as a stochastic variable, as it is highly sensitive to temperature and surface condition.
+The conversion of applied torque ( $\text{T}$ ) to preload is governed by the **Motosh Equation**, which accounts for thread geometry and friction:
+
+$$
+\text{T} = \text{F}_p \left( \frac{\text{P}}{2\pi} + \frac{\mu_t \cdot r_t}{\cos \beta} + \mu_h \cdot r_h \right)
+$$
+
+Where $\text{P}$ is the thread pitch, $\mu_t$ and $\mu_h$ are the coefficients of friction for threads and head, and $r_t, r_h$ are the effective radii. Experts must treat $\mu$ as a stochastic variable, as it is highly sensitive to temperature and surface condition.
 
 ### 1.2 Joint Stiffness and the Diagram of Force
-A joint acts as a system of two springs: the bolt (in tension) and the clamped members (in compression). The **Joint Stiffness Factor ($\Phi$)** determines how much of the external load ($\text{F}_{ext}$) is seen by the bolt:$$\text{F}_{bolt} = \text{F}_p + \Phi \cdot \text{F}_{ext}$$High-reliability design aims to maximize$\text{F}_p$while ensuring that$\text{F}_{bolt}$never exceeds the material's yield strength.
+A joint acts as a system of two springs: the bolt (in tension) and the clamped members (in compression). The **Joint Stiffness Factor ( $\Phi$ )** determines how much of the external load ( $\text{F}_{ext}$ ) is seen by the bolt:
+
+$$
+\text{F}_{bolt} = \text{F}_p + \Phi \cdot \text{F}_{ext}
+$$
+
+High-reliability design aims to maximize $\text{F}_p$ while ensuring that $\text{F}_{bolt}$ never exceeds the material's yield strength.
 
 ---
 

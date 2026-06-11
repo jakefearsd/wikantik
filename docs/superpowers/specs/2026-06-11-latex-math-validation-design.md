@@ -78,6 +78,12 @@ body: display `$$…$$`, inline `$…$`, and ` ```math ` fences. Returns each sp
 with its kind and line/column position. Both validators consume its output;
 neither re-parses delimiters itself.
 
+**Code regions are excluded.** `$$…$$` and `` `$…$` `` that appear inside fenced
+code blocks (```` ``` ````, `~~~`) or inline `` `code` `` spans are **not** math
+— they are literal examples (a page documenting math syntax, like this very
+spec). The extractor must skip those regions. This is the single most important
+false-positive defense and is a tested requirement.
+
 ### `MathStructureValidator` (Java) — ERROR, blocking
 Catches the FastenerEngineering class:
 - display `$$…$$` glued inline against text (not on its own line);
@@ -112,16 +118,78 @@ fire only on high-confidence patterns:**
 Ambiguous bare-`$` balance produces a **warning, not a block**. The corpus
 includes currency/prose cases as *valid* to lock this in.
 
-## Data flow (target, Phase 2 — not built in Phase 1)
+## Phase 2 — save-path wiring: blocking + pinpointing
 
-`MathValidationPageFilter` mirrors `SchemaValidationPageFilter`:
-`preSave` runs `MathStructureValidator` (ERROR → throw → 422, page not written),
-then `LatexSyntaxLinter` (WARNING → stash on `FrontmatterWarningSink` → returned
-on the 200). Reuses `FieldViolation` / `Severity` / `FrontmatterWarningSink`
-with a synthetic locus (`__math__` + line numbers) so the UI's existing
-422/warning rendering works unchanged. Gated by
-`wikantik.math.enforcement.enabled` (default `true`). Covers UI PUT and MCP
-because filters run on every save path.
+Designed 2026-06-11. Two priorities, both from the maintainer: **false positives
+are worse than a few escapes** (prefer letting questionable content through over
+blocking legitimate refinement), and **when we do block, pinpoint the exact
+offending text** so the author can see and debug it.
+
+### Blocking bar — exactly two patterns
+
+Only two high-confidence "renders as garbage" patterns hard-block (422, page not
+written). Everything else is a savable warning.
+
+| Pattern | Code | Why it blocks |
+|---|---|---|
+| Display `$$…$$` **not line-isolated** AND content contains a `\command` | `math.display.notIsolated` | The FastenerEngineering bug — renders as literal `$$…$$` text |
+| **Unterminated `$$`** opener (no matching close) | `math.display.unterminated` | Swallows the rest of the document into one math block |
+
+Everything else **warns, never blocks**: empty spans, inline `$…$` glued to
+words, bare-`$` imbalance, and *all* `LatexSyntaxLinter` findings. A
+cramped-but-rendering formula must never stand in the way of editing. Both
+blocking rules are void inside code regions (see `MathSpanExtractor`).
+
+> Residual false-positive: `$$\frac{a}{b}$$` written in *plain prose* (no
+> backticks) as an example still trips `math.display.notIsolated`. Accepted —
+> rare on a wiki, and wrapping the example in backticks is the correct fix
+> anyway.
+
+### Location-rich violation, computed once
+
+`MathValidationPageFilter` mirrors `SchemaValidationPageFilter`: `preSave` runs
+`MathStructureValidator` (ERROR → throw → 422) then `LatexSyntaxLinter`
+(WARNING → stash on `FrontmatterWarningSink` → returned on the 200). It stays in
+the existing `{ error, violations[] }` envelope (locus `__math__`) so the UI's
+422/warning plumbing works unchanged — but each math violation carries a
+`location` block the server fills in:
+
+```jsonc
+{
+  "field": "__math__",
+  "code": "math.display.notIsolated",
+  "severity": "error",
+  "message": "Display math ($$…$$) is glued to surrounding text and will render as literal text. Put the $$ delimiters on their own lines.",
+  "location": {
+    "line": 14, "column": 18,           // body-relative (matches what CodeMirror shows)
+    "endLine": 14, "endColumn": 119,
+    "startOffset": 612, "endOffset": 713,
+    "excerpt": "…friction:$$\\text{T} = \\text{F}_p \\left( … \\right)$$Where…",
+    "caret":   "          ^^                                      ^^"
+  }
+}
+```
+
+The server computes `excerpt` + `caret` **once**, so agents/MCP and raw clients
+get the same compiler-style pointer the editor does, from one code path.
+
+**Location is body-relative.** The CodeMirror editor shows the body, not the
+frontmatter. The filter receives full content (frontmatter + body), so it
+subtracts the frontmatter span to report body-relative line/column/offsets.
+
+### Two consumers of `location`
+
+- **UI (Phase 2, full pinpoint):** on a 422, `startOffset/endOffset` →
+  CodeMirror selection + `scrollIntoView` + a transient highlight decoration;
+  the `ValidationSummary` row shows `message` + `excerpt` and a **Jump** button
+  (new `jumpToRange`, parallel to the frontmatter `jumpToField`, which targets a
+  form field and is wrong for body math).
+- **Agents/MCP & raw clients:** render `message` + `excerpt` + `caret` as text —
+  a self-contained pointer, no editor required. Cargo IT asserts the refusal
+  payload cites the offending span (per the MCP write-surface convention).
+
+Gated by `wikantik.math.enforcement.enabled` (default `true`). Covers UI PUT and
+MCP because filters run on every save path.
 
 ## Phasing
 
@@ -130,11 +198,14 @@ because filters run on every save path.
   ~50/50 corpus. `FastenerEngineering` line 28 is a named regression fixture.
   **Deliverable: the spec of what we render is decided, expressed as passing
   tests.** No save-path wiring.
-- **Phase 2 (deferred):** wire `MathValidationPageFilter` into the save pipeline
-  (UI PUT + MCP). Unit test + Cargo IT; the refusal payload cites the offending
-  span and reason (per the MCP write-surface convention).
-- **Phase 3 (deferred):** editor live KaTeX feedback + the JS vitest corpus
-  mirror.
+- **Phase 2 (designed; build deferred until Phase 1 surfaces the awkward
+  edges):** wire `MathValidationPageFilter` into the save pipeline (UI PUT +
+  MCP) with the two-pattern blocking bar and the location-rich violation.
+  Editor pinpoint: CodeMirror highlight + scroll + a **Jump** button on 422.
+  Unit test + Cargo IT; the refusal payload cites the offending span + `caret`.
+  See "Phase 2 — save-path wiring" above.
+- **Phase 3 (deferred):** editor *live* (as-you-type) KaTeX feedback + the JS
+  vitest corpus mirror. Distinct from the Phase-2 on-save pinpoint.
 
 ## Testing
 

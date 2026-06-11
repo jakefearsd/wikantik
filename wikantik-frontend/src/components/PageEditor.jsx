@@ -11,6 +11,7 @@ import rehypeSourceLine from '../utils/rehypeSourceLine';
 import FrontmatterPreview from './FrontmatterPreview';
 import FrontmatterEditor from './frontmatter/FrontmatterEditor';
 import ValidationSummary from './frontmatter/ValidationSummary';
+import MathValidationSummary from './MathValidationSummary';
 import { useFrontmatterValidation } from '../hooks/useFrontmatterValidation';
 import KnowledgeGraphPanel from './knowledge/KnowledgeGraphPanel';
 import Tabs from './ui/Tabs';
@@ -40,6 +41,7 @@ export default function PageEditor() {
   const [body, setBody] = useState('');
   const [metadata, setMetadata] = useState({});
   const [violations, setViolations] = useState([]);
+  const [mathViolations, setMathViolations] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [originalVersion, setOriginalVersion] = useState(null);
   const [changeNote, setChangeNote] = useState('');
@@ -74,10 +76,18 @@ export default function PageEditor() {
     const seen = new Set(liveViolations.map((v) => `${v.field}|${v.code}`));
     return [...liveViolations, ...violations.filter((v) => !seen.has(`${v.field}|${v.code}`))];
   }, [liveViolations, violations]);
-  const hasBlockingErrors = displayViolations.some((v) => v.severity === 'ERROR');
+  const hasBlockingErrors = displayViolations.some((v) => v.severity === 'ERROR')
+    || mathViolations.some((v) => v.severity === 'ERROR');
   const jumpToField = (field) => {
     const top = String(field || '').split('.')[0];
     document.querySelector(`[data-field="${top}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const jumpToMath = (loc) => {
+    if (!loc || !editorRef.current) return;
+    editorRef.current.setSelection(loc.startOffset, loc.endOffset);
+    editorRef.current.scrollToLine(loc.line);
+    editorRef.current.focus();
   };
 
   const { user } = useAuth();
@@ -100,6 +110,12 @@ export default function PageEditor() {
   // Keep the body in a ref so the stable scroll-sync / format callbacks read current text.
   const bodyRef = useRef(body);
   bodyRef.current = body;
+
+  // Wraps setBody to also clear stale math violations so they don't persist after the user edits.
+  const handleBodyChange = useCallback((newBody) => {
+    setBody(newBody);
+    if (mathViolations.length > 0) setMathViolations([]);
+  }, [mathViolations.length]);
 
   // Editor→preview scroll sync. The editor now holds the BODY only, so the frontmatter offset is 0;
   // the helpers stay (returning 0) for robustness.
@@ -353,9 +369,14 @@ export default function PageEditor() {
         markupSyntax: markupSyntax === 'markdown' ? 'markdown' : undefined,
       });
       setViolations([]);
+      setMathViolations([]);
       clearDraft();
       const warns = (res && res.warnings) || [];
-      if (warns.length) {
+      const mathWarns = (res && res.mathWarnings) || [];
+      if (mathWarns.length) {
+        setMathViolations(mathWarns);
+        toast.info(`Saved with ${mathWarns.length} math warning${mathWarns.length > 1 ? 's' : ''}`);
+      } else if (warns.length) {
         toast.info(`Saved with ${warns.length} advisory warning${warns.length > 1 ? 's' : ''}`);
       } else {
         toast.success('Saved');
@@ -374,8 +395,13 @@ export default function PageEditor() {
           setError('Version conflict, and failed to fetch the current server version.');
         }
       } else if (err.status === 422) {
-        setViolations((err.body && err.body.violations) || []);
-        toast.error('Fix the highlighted frontmatter fields');
+        if (err.body?.error === 'math_validation_failed') {
+          setMathViolations((err.body && err.body.violations) || []);
+          toast.error('Fix the highlighted math errors');
+        } else {
+          setViolations((err.body && err.body.violations) || []);
+          toast.error('Fix the highlighted frontmatter fields');
+        }
       } else {
         setError(err.message || 'Save failed');
       }
@@ -527,7 +553,7 @@ export default function PageEditor() {
             data-testid="editor-save"
             onClick={save}
             disabled={saving || hasBlockingErrors}
-            title={hasBlockingErrors ? 'Fix the highlighted frontmatter errors before saving' : undefined}
+            title={hasBlockingErrors ? 'Fix the highlighted errors before saving' : undefined}
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -602,6 +628,8 @@ export default function PageEditor() {
         </Tabs>
       </section>
 
+      <MathValidationSummary violations={mathViolations} onJump={jumpToMath} />
+
       <EditorToolbar onCommand={applyFormat} />
 
       <div className="editor-container">
@@ -624,7 +652,7 @@ export default function PageEditor() {
             data-testid="editor-textarea"
             className="editor-textarea"
             value={body}
-            onChange={setBody}
+            onChange={handleBodyChange}
             dark={dark}
             onBold={handleBold}
             onItalic={handleItalic}

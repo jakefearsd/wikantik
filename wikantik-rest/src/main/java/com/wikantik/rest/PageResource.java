@@ -27,6 +27,8 @@ import com.wikantik.event.WikiPageEvent;
 import com.wikantik.api.core.Session;
 import com.wikantik.api.exceptions.WikiException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
+import com.wikantik.api.content.ContentValidationException;
+import com.wikantik.api.content.ContentWarningSink;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
@@ -362,7 +364,9 @@ public class PageResource extends RestServletBase {
             final PageSaveHelper helper = new PageSaveHelper( engine, getSubsystems().page().pages() );
             // Clear any stale warnings before the save; the SchemaValidationPageFilter stashes this
             // request's frontmatter warnings on the sink during saveText for us to return below.
+            // Also clear the math-content warning sink.
             FrontmatterWarningSink.clear();
+            ContentWarningSink.clear();
             final Page saved = helper.saveText( pageName, content, optionsBuilder.build() );
 
             // Defence in depth: a save that did not persist (e.g. vetoed by a filter)
@@ -378,9 +382,16 @@ public class PageResource extends RestServletBase {
             result.put( "name", pageName );
             result.put( "version", Math.max( saved.getVersion(), 1 ) );
             result.put( "warnings", FrontmatterWarningSink.drain() );
+            result.put( "mathWarnings", ContentWarningSink.drain() );
 
             sendJson( response, result );
 
+        } catch ( final ContentValidationException e ) {
+            // Math validation produced ERROR-severity violations — the page was not written.
+            ContentWarningSink.clear();
+            LOG.debug( "Math validation rejected save of {}: {}", pageName, e.getMessage() );
+            response.setStatus( 422 );
+            sendJson( response, mathValidationErrorBody( e ) );
         } catch ( final FrontmatterValidationException e ) {
             // Schema validation produced ERROR-severity violations — the page was not written.
             // Return the structured, field-addressable violations so the form can map them inline.
@@ -409,6 +420,14 @@ public class PageResource extends RestServletBase {
     static Map< String, Object > validationErrorBody( final FrontmatterValidationException e ) {
         final Map< String, Object > body = new LinkedHashMap<>();
         body.put( "error", "frontmatter_validation_failed" );
+        body.put( "violations", e.violations() );
+        return body;
+    }
+
+    /** Builds the HTTP 422 body for a math-content validation failure: {@code { error, violations }}. */
+    static Map< String, Object > mathValidationErrorBody( final ContentValidationException e ) {
+        final Map< String, Object > body = new LinkedHashMap<>();
+        body.put( "error", "math_validation_failed" );
         body.put( "violations", e.violations() );
         return body;
     }

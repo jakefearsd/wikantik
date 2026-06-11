@@ -93,6 +93,21 @@ class MathValidationPageFilterTest {
                 "Caret must contain ^ but was: " + v.location().caret() );
     }
 
+    @Test
+    void crlfLineEndingsDoNotDefeatRulesOrLeakCarriageReturn() {
+        // Regression: the MCP/REST save pipeline persists CRLF. A trailing '\r' on "x^" otherwise
+        // looked like the superscript's argument, so emptyScript silently missed it (found via a
+        // live MCP agent probe), and the excerpt leaked a trailing '\r'.
+        final String body = "---\r\ntitle: t\r\n---\r\n\r\n$$\r\nx^\r\n$$\r\n";
+        final ContentValidationException ex = assertThrows(
+                ContentValidationException.class,
+                () -> filter.preSave( null, body ) );
+        final ContentViolation v = ex.violations().get( 0 );
+        assertEquals( "math.syntax.emptyScript", v.code(), "CRLF body must still trip emptyScript" );
+        assertFalse( v.location().excerpt().contains( "\r" ),
+                "Excerpt must not leak a carriage return: " + v.location().excerpt() );
+    }
+
     // -------------------------------------------------------------------------
     // Error via frontmatter: strip FM first, location relative to body
     // -------------------------------------------------------------------------

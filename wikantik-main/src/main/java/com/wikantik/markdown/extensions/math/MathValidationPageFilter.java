@@ -95,17 +95,25 @@ public class MathValidationPageFilter implements PageFilter {
             return content;
         }
 
+        // Normalize line endings before validating. The save pipeline may persist CRLF, but the
+        // editor (CodeMirror) and every validator reason in LF. A stray '\r' before a delimiter or
+        // after a script (e.g. "x^\r") otherwise defeats rules like emptyScript and leaks a CR into
+        // excerpts. Offsets stay LF-based, matching the editor's body coordinates.
+        final String mathBody = body.indexOf( '\r' ) >= 0
+                ? body.replace( "\r\n", "\n" ).replace( '\r', '\n' )
+                : body;
+
         final List< ContentViolation > all = new ArrayList<>();
 
         // Structure violations — ranges are already body-relative.
-        for ( final MathViolation v : structureValidator.validate( body ) ) {
-            all.add( toContentViolation( body, v ) );
+        for ( final MathViolation v : structureValidator.validate( mathBody ) ) {
+            all.add( toContentViolation( mathBody, v ) );
         }
 
         // Syntax violations — linter ranges are span-local; anchor them at the span range.
-        for ( final MathSpan span : extractor.extract( body ) ) {
+        for ( final MathSpan span : extractor.extract( mathBody ) ) {
             for ( final MathViolation v : linter.lint( span.content() ) ) {
-                all.add( toContentViolationAnchored( body, v, span.range() ) );
+                all.add( toContentViolationAnchored( mathBody, v, span.range() ) );
             }
         }
 

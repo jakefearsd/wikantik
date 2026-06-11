@@ -69,10 +69,17 @@ class MathValidationCorpusTest {
         return STRUCTURE.validate(body).stream().anyMatch(v -> v.severity() == Severity.ERROR);
     }
 
-    private static boolean linterWarns(final String body) {
-        return EXTRACTOR.extract(body).stream()
+    /**
+     * Computes the maximum linter severity across all math spans in the body.
+     * Returns "error" if any ERROR, "warn" if any WARNING (but no ERROR), "ok" if none.
+     */
+    private static String maxLinterSeverity(final String body) {
+        final List<MathViolation> all = EXTRACTOR.extract(body).stream()
                 .flatMap(s -> LINTER.lint(s.content()).stream())
-                .anyMatch(v -> v.severity() == Severity.WARNING);
+                .toList();
+        if (all.stream().anyMatch(v -> v.severity() == Severity.ERROR))   { return "error"; }
+        if (all.stream().anyMatch(v -> v.severity() == Severity.WARNING)) { return "warn"; }
+        return "ok";
     }
 
     @ParameterizedTest(name = "{0}")
@@ -86,27 +93,31 @@ class MathValidationCorpusTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("rows")
     void linterMatchesCorpus(final Row row) {
-        final boolean expectWarn = "warn".equals(row.linterExpect());
-        assertEquals(expectWarn, linterWarns(row.source()),
-                "linterExpect mismatch for '" + row.id() + "' (" + row.note() + ")");
+        final String actual = maxLinterSeverity(row.source());
+        assertEquals(row.linterExpect(), actual,
+                "linterExpect mismatch for '" + row.id() + "': expected '" + row.linterExpect()
+                        + "' but got '" + actual + "' (" + row.note() + ")");
     }
 
     @Test
     void corpusHasFiftyOfEach() throws Exception {
         final List<Row> rows = corpus();
         final long valid = rows.stream().filter(r ->
-                "ok".equals(r.structureExpect()) && !"warn".equals(r.linterExpect())
+                "ok".equals(r.structureExpect()) && "ok".equals(r.linterExpect())
                 && !"error".equals(r.katexExpect())).count();
         final long invalid = rows.size() - valid;
         assertTrue(valid >= 45, "expected ~50 fully-valid rows, got " + valid);
         assertTrue(invalid >= 45, "expected ~50 invalid rows, got " + invalid);
     }
 
-    /** Inventory (does not fail): rows real-KaTeX rejects but the pragmatic linter misses — the TODO list. */
+    /**
+     * Inventory (does not fail): rows real-KaTeX rejects but the linter emits nothing — the TODO
+     * list. A blind spot is: katexExpect==error AND linterExpect==ok (linter emits nothing at all).
+     */
     @Test
     void reportsLinterBlindSpots() throws Exception {
         final List<String> blind = corpus().stream()
-                .filter(r -> "error".equals(r.katexExpect()) && !"warn".equals(r.linterExpect()))
+                .filter(r -> "error".equals(r.katexExpect()) && "ok".equals(r.linterExpect()))
                 .map(r -> r.id() + " — " + r.note())
                 .toList();
         System.out.println("[math-linter blind spots / TODO] " + blind.size() + " rows:");

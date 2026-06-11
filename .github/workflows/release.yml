@@ -111,13 +111,6 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # The repo's default Actions token is read-only, which caps the
-          # built-in GITHUB_TOKEN below this step's contents:write request and
-          # makes release creation fail with "Requires authentication". Use a
-          # fine-grained PAT (repo secret RELEASE_PAT, Contents:write on this
-          # repo only) scoped exactly to this step instead of widening the
-          # repo-wide default token.
-          token: ${{ secrets.RELEASE_PAT }}
           name: Wikantik ${{ steps.version.outputs.version }}
           body_path: release-notes.md
           files: |

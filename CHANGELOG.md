@@ -6,6 +6,59 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **First-login forced password change.** A fresh install seeds exactly one
+  account — `admin` / `admin123` — flagged so the first login *requires* choosing
+  a new password before anything else works. The general-purpose
+  `users.password_must_change` flag (migration V039) is also raised when an
+  administrator sets or resets a user's password and when the password-reset email
+  issues a temporary one; it is cleared when the user changes their own password
+  (NIST-validated, so the seeded default cannot be re-chosen). A
+  `MustChangePasswordFilter` gates `/api/*` and `/admin/*` with
+  `403 PASSWORD_CHANGE_REQUIRED` for flagged sessions — exempting only the auth
+  surface needed to fix the situation — and the SPA routes flagged users to a
+  forced `/change-password` screen (at login and mid-session).
+- **Getting Started guide** (`docs/GettingStartedGuide.md`) walking first-time
+  deployers through both the Docker Compose and bare-metal Tomcat paths, with a
+  first-build pitfalls table.
+- **First-start banners** in `deploy-local.sh` and the container entrypoint that
+  print the initial credentials and the forced-change notice on a fresh database.
+
+### Changed
+
+- **Single canonical admin seed across both install paths.** The container init
+  SQL (`docker/db/001-init.sql`) is reduced to enabling `pgvector`; schema and the
+  admin seed now come exclusively from the numbered migrations via `migrate.sh`.
+  This removes the long-standing split where a fresh container seeded a *different*
+  admin password (`admin`) than the migrations (`admin123`). `seed-users.sql` is
+  now admin-only and insert-if-absent, so a changed password survives every
+  redeploy; personal/dev accounts move to a gitignored `seed-users.local.sql`.
+- **`install-fresh.sh` fails fast on missing secrets.** It no longer defaults
+  `DB_APP_PASSWORD`, and requires either `DB_MIGRATE_PASSWORD` or an explicit
+  `--no-migrate-role` opt-out — surfacing the schema-ownership decision up front
+  instead of as a failing ALTER migration later. Docs (`CLAUDE.md`, README, Docker
+  and PostgreSQL deployment guides) were aligned to the single `admin / admin123`
+  forced-change credential story and a consistent `wikantik` local DB user.
+
+### Security
+
+- No Wikantik install runs with a known default credential past first login: the
+  seeded admin must set a password before any gated API call succeeds, and
+  `DELETE /api/auth/*` (account self-deletion) stays gated for flagged sessions so
+  a hijacked first-login session cannot delete the account in lieu of changing the
+  password.
+
+### Fixed
+
+- **Scheduled off-box backups never ran (day-1 bug).** BusyBox `crond` in the
+  backup sidecar silently ignored the bind-mounted crontab because the
+  git-checkout file is group-writable and not root-owned; every snapshot since the
+  feature shipped was a manual trigger. The compose entrypoint now stages the
+  crontab to `/etc/crontabs/root` as `root:root 0600` before starting `crond`, and
+  the proven `/proc/1/environ` env-import in `backup.sh` (cron strips the compose
+  environment) is now committed.
+
 ## [2.0.14] - 2026-06-10
 
 ### Added

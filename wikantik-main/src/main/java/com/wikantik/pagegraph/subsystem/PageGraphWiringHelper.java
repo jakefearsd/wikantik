@@ -144,5 +144,8 @@ public final class PageGraphWiringHelper {
         filterManager.addPageFilter(
             new com.wikantik.frontmatter.schema.SchemaValidationPageFilter( props, pageManager ),
             -1006 );
+        filterManager.addPageFilter(
+            new com.wikantik.markdown.extensions.math.MathValidationPageFilter( props, pageManager ),
+            -1007 );
     }
 }

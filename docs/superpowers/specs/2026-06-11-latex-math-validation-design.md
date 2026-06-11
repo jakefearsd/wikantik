@@ -64,8 +64,11 @@ There is no save-time math validation today.
 
 One corpus, two consumers. This guarantees the editor's KaTeX and the server
 linter are graded against the *same* spec, and documents exactly where the
-pragmatic Java linter intentionally diverges from real KaTeX (a `katexExpect:
-error` / `linterExpect: ok` row is a known, accepted false-negative).
+pragmatic Java linter diverges from real KaTeX. A `katexExpect: error` /
+`linterExpect: ok` row is a Java-linter blind spot — **tracked as a TODO to
+close**, not an accepted permanent divergence. The corpus is the running
+inventory of these gaps; closing them (tightening the linter) is follow-up work
+informed by reading the KaTeX support surface.
 
 ## Components
 
@@ -148,3 +151,11 @@ because filters run on every save path.
 - Running real KaTeX server-side (GraalJS) — explicitly rejected in favor of the
   pragmatic Java linter.
 - Changing the renderer's `throwOnError: false` behavior.
+
+## Open TODOs
+
+- **Close Java-linter blind spots.** Each corpus row with `katexExpect: error`
+  and `linterExpect: ok` is a syntax error the pragmatic linter currently misses.
+  Inventory them in the corpus now; tighten the linter to close them as a
+  follow-up, after reading the KaTeX support surface to decide which are worth
+  catching server-side vs leaving to the editor's real-KaTeX check.

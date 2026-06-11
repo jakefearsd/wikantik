@@ -23,12 +23,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,6 +36,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Rule-discovery probe: measures precision, recall, support, and false-positive count for candidate
  * LaTeX-error detector predicates against the KaTeX ground truth in probe-dataset.json.
+ *
+ * <p>The high-confidence rules delegate directly to {@link LatexRules} — this is the regression
+ * guard ensuring the shipped linter == the measured rules. The {@code leftRightMismatch_naive}
+ * variant is kept locally to document the known false-positive contrast.
  *
  * <p>This is a <em>measurement</em> test — it does not assert correctness thresholds. The only
  * hard assertion is that the dataset loaded ≥400 rows (so the metrics are meaningful). Results are
@@ -72,25 +73,13 @@ class MathRuleProbeTest {
     }
 
     // -----------------------------------------------------------------------
-    // Candidate rules — each Predicate<String> returns true when it predicts
-    // the expression is INVALID (i.e. KaTeX would fail).
+    // Candidate rules — all high-confidence rules now delegate to LatexRules
     // -----------------------------------------------------------------------
-
-    /** Unbalanced curly braces, skipping escaped \{ and \}. */
-    static boolean unbalancedBraces(final String s) {
-        int depth = 0;
-        for (int i = 0; i < s.length(); i++) {
-            final char c = s.charAt(i);
-            if (c == '\\') { i++; continue; }
-            if (c == '{') { depth++; }
-            else if (c == '}') { if (--depth < 0) { return true; } }
-        }
-        return depth != 0;
-    }
 
     /**
      * Naive leftRight: counts plain substrings {@code \left} and {@code \right}.
      * Known false-positive risk: {@code \rightarrow} contains {@code \right}.
+     * Kept here for documented contrast against the token form in {@link LatexRules#leftRightMismatch}.
      */
     static boolean leftRightMismatch_naive(final String s) {
         int lefts  = 0, rights = 0, i = 0;
@@ -100,150 +89,12 @@ class MathRuleProbeTest {
         return lefts != rights;
     }
 
-    /**
-     * Token leftRight: only counts {@code \left} / {@code \right} when <em>not</em> followed by a
-     * letter (so {@code \rightarrow} does <strong>not</strong> bump the right counter).
-     * Regex: {@code \\left(?![a-zA-Z])} and {@code \\right(?![a-zA-Z])}.
-     */
-    private static final Pattern LEFT_TOKEN  = Pattern.compile("\\\\left(?![a-zA-Z])");
-    private static final Pattern RIGHT_TOKEN = Pattern.compile("\\\\right(?![a-zA-Z])");
-
-    static boolean leftRightMismatch_token(final String s) {
-        final int lefts  = countMatches(LEFT_TOKEN,  s);
-        final int rights = countMatches(RIGHT_TOKEN, s);
-        return lefts != rights;
-    }
-
-    private static int countMatches(final Pattern p, final String s) {
-        int n = 0;
-        final Matcher m = p.matcher(s);
-        while (m.find()) { n++; }
-        return n;
-    }
-
-    /** begin/end mismatch using an environment-name stack. */
-    static boolean beginEndMismatch(final String s) {
-        final Pattern env = Pattern.compile("\\\\(begin|end)\\{([^}]*)\\}");
-        final Matcher m = env.matcher(s);
-        final Deque<String> stack = new ArrayDeque<>();
-        while (m.find()) {
-            if ("begin".equals(m.group(1))) {
-                stack.push(m.group(2));
-            } else {
-                if (stack.isEmpty() || !stack.pop().equals(m.group(2))) { return true; }
-            }
-        }
-        return !stack.isEmpty();
-    }
-
-    /**
-     * fracArity: a {@code \frac} not immediately followed by two {@code {…}} groups
-     * (allowing arbitrary whitespace between them).
-     */
-    private static final Pattern FRAC_FULL = Pattern.compile(
-            "\\\\frac\\s*\\{[^{}]*(?:\\{[^{}]*\\}[^{}]*)*\\}\\s*\\{[^{}]*(?:\\{[^{}]*\\}[^{}]*)*\\}");
-    private static final Pattern FRAC_ANY  = Pattern.compile("\\\\frac");
-
-    static boolean fracArity(final String s) {
-        // Count total \frac occurrences vs those followed by two balanced {…}
-        int total   = countMatches(FRAC_ANY,  s);
-        int matched = countMatches(FRAC_FULL, s);
-        return matched < total;
-    }
-
-    /**
-     * emptyScript: a {@code ^} or {@code _} not followed by a non-space argument
-     * (end-of-string, another {@code ^}/{@code _}, a closing brace/paren, or
-     * only whitespace follows).
-     */
-    static boolean emptyScript(final String s) {
-        // Tokenise: look for ^ or _ not inside a \command name
-        for (int i = 0; i < s.length(); i++) {
-            final char c = s.charAt(i);
-            if (c == '\\') { i++; continue; }  // skip escaped char
-            if (c == '^' || c == '_') {
-                // skip whitespace
-                int j = i + 1;
-                while (j < s.length() && s.charAt(j) == ' ') { j++; }
-                if (j >= s.length()) { return true; }                     // end of string
-                final char next = s.charAt(j);
-                if (next == '^' || next == '_' || next == '}' || next == ')' || next == ']') {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * doubleScript: detects {@code x^a^b} or {@code x_a_b} — a base with two consecutive
-     * same-kind scripts where the first script argument is a single token (not braced).
-     * Pattern: {@code [a-zA-Z0-9]}^[a-zA-Z0-9]^  or  _x_ variant.
-     */
-    private static final Pattern DOUBLE_SUP = Pattern.compile("[^{]\\^[^{\\s]\\^");
-    private static final Pattern DOUBLE_SUB = Pattern.compile("[^{]_[^{\\s]_");
-
-    static boolean doubleScript(final String s) {
-        return DOUBLE_SUP.matcher(s).find() || DOUBLE_SUB.matcher(s).find();
-    }
-
-    /**
-     * sqrtBadOptional: a {@code \sqrt[} not followed by a {@code ]} before
-     * the radicand group starts.
-     */
-    static boolean sqrtBadOptional(final String s) {
-        int i = 0;
-        while ((i = s.indexOf("\\sqrt[", i)) >= 0) {
-            // Look for ] before the next { or end
-            int j = i + 6;
-            boolean foundClose = false;
-            while (j < s.length() && s.charAt(j) != '{') {
-                if (s.charAt(j) == ']') { foundClose = true; break; }
-                j++;
-            }
-            if (!foundClose) { return true; }
-            i += 6;
-        }
-        return false;
-    }
-
-    /**
-     * ampOutsideEnv: a bare {@code &} when not inside any {@code \begin…\end} block.
-     */
-    static boolean ampOutsideEnv(final String s) {
-        // Track environment depth
-        final Pattern envPat = Pattern.compile("\\\\(begin|end)\\{[^}]*\\}|&");
-        final Matcher m = envPat.matcher(s);
-        int depth = 0;
-        while (m.find()) {
-            final String hit = m.group();
-            if (hit.startsWith("\\begin")) { depth++; }
-            else if (hit.startsWith("\\end")) { depth = Math.max(0, depth - 1); }
-            else if ("&".equals(hit) && depth == 0) { return true; }
-        }
-        return false;
-    }
-
-    /**
-     * unknownCommand: backslash-command not in the linter's allowlist.
-     * Mirrors {@link LatexSyntaxLinter#KNOWN}.
-     */
-    private static final Set<String> KNOWN_COMMANDS = Set.of(
-            "frac", "sqrt", "sum", "int", "prod", "lim", "infty", "partial", "nabla",
-            "left", "right", "begin", "end", "text", "mathrm", "mathbf", "mathbb", "mathcal",
-            "alpha", "beta", "gamma", "delta", "epsilon", "theta", "lambda", "mu", "nu", "pi",
-            "rho", "sigma", "tau", "phi", "psi", "omega", "Delta", "Gamma", "Phi", "Omega",
-            "cdot", "times", "div", "pm", "mp", "leq", "geq", "neq", "approx", "equiv",
-            "rightarrow", "leftarrow", "Rightarrow", "cos", "sin", "tan", "log", "ln", "exp",
-            "hat", "bar", "vec", "dot", "ddot", "overline", "underline", "binom", "cases", "matrix",
-            "pmatrix", "bmatrix", "vmatrix", "quad", "qquad", "space", "displaystyle");
-
-    private static final Pattern COMMAND_PATTERN = Pattern.compile("\\\\([a-zA-Z]+)");
-
+    /** Mirror of {@link LatexRules#unknownCommand} using the same allowlist. */
     static boolean unknownCommand(final String s) {
-        final Matcher m = COMMAND_PATTERN.matcher(s);
+        final Pattern cmdPattern = Pattern.compile("\\\\([a-zA-Z]+)");
+        final Matcher m = cmdPattern.matcher(s);
         while (m.find()) {
-            if (!KNOWN_COMMANDS.contains(m.group(1))) { return true; }
+            if (!LatexRules.KNOWN_COMMANDS.contains(m.group(1))) { return true; }
         }
         return false;
     }
@@ -294,16 +145,16 @@ class MathRuleProbeTest {
                         + " — run: node scripts/math-probe/probe.mjs");
 
         final List<RuleResult> results = new ArrayList<>();
-        results.add(measure("unbalancedBraces",        MathRuleProbeTest::unbalancedBraces,         rows));
-        results.add(measure("leftRightMismatch_naive",  MathRuleProbeTest::leftRightMismatch_naive,  rows));
-        results.add(measure("leftRightMismatch_token",  MathRuleProbeTest::leftRightMismatch_token,  rows));
-        results.add(measure("beginEndMismatch",         MathRuleProbeTest::beginEndMismatch,         rows));
-        results.add(measure("fracArity",                MathRuleProbeTest::fracArity,                rows));
-        results.add(measure("emptyScript",              MathRuleProbeTest::emptyScript,              rows));
-        results.add(measure("doubleScript",             MathRuleProbeTest::doubleScript,             rows));
-        results.add(measure("sqrtBadOptional",          MathRuleProbeTest::sqrtBadOptional,          rows));
-        results.add(measure("ampOutsideEnv",            MathRuleProbeTest::ampOutsideEnv,            rows));
-        results.add(measure("unknownCommand",           MathRuleProbeTest::unknownCommand,           rows));
+        results.add(measure("unbalancedBraces",        LatexRules::unbalancedBraces,        rows));
+        results.add(measure("leftRightMismatch_naive",  MathRuleProbeTest::leftRightMismatch_naive, rows));
+        results.add(measure("leftRightMismatch_token",  LatexRules::leftRightMismatch,       rows));
+        results.add(measure("beginEndMismatch",         LatexRules::beginEndMismatch,        rows));
+        results.add(measure("fracArity",                LatexRules::fracArity,               rows));
+        results.add(measure("emptyScript",              LatexRules::emptyScript,             rows));
+        results.add(measure("doubleScript",             LatexRules::doubleScript,            rows));
+        results.add(measure("sqrtBadOptional",          LatexRules::sqrtBadOptional,         rows));
+        results.add(measure("ampOutsideEnv",            LatexRules::ampOutsideEnv,           rows));
+        results.add(measure("unknownCommand",           MathRuleProbeTest::unknownCommand,   rows));
 
         // Sort: precision desc, then support desc
         results.sort(Comparator

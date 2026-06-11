@@ -89,7 +89,7 @@ To recreate it after a database reset, run:
 PASSWORD=$(grep test.user.password test.properties | cut -d= -f2)
 HASH=$(java -cp wikantik-util/target/wikantik-util-*.jar \
        com.wikantik.util.CryptoUtil --hash "$PASSWORD")
-PGPASSWORD="<db-password>" psql -h localhost -U jspwiki -d jspwiki <<SQL
+PGPASSWORD="<db-password>" psql -h localhost -U wikantik -d wikantik <<SQL
 INSERT INTO users (uid, email, full_name, login_name, password, wiki_name, created, modified)
 VALUES ('testbot','testbot@localhost','Test Automation Bot','testbot','$HASH','TestBot',NOW(),NOW());
 INSERT INTO roles (login_name, role) VALUES ('testbot', 'Admin');
@@ -133,10 +133,14 @@ Configuration files (gitignored; templates in `wikantik-war/src/main/config/tomc
 
 ```bash
 # 1. Create the database, application role, and full schema in one step
-#    (idempotent — safe to re-run).
-sudo -u postgres DB_NAME=wikantik DB_APP_USER=jspwiki \
-    DB_APP_PASSWORD='ChangeMe123!' \
-    bin/db/install-fresh.sh
+#    (idempotent — safe to re-run). DB_APP_USER/DB_APP_PASSWORD must match
+#    POSTGRES_USER/POSTGRES_PASSWORD in .env (step 4) or the app can't connect.
+#    --no-migrate-role runs migrations as the superuser (simplest for local dev);
+#    omit it and pass DB_MIGRATE_PASSWORD='…' for a least-privilege migrate role.
+#    The script fails fast if you provide neither.
+sudo -u postgres DB_NAME=wikantik DB_APP_USER=wikantik \
+    DB_APP_PASSWORD='choose-a-real-password' \
+    bin/db/install-fresh.sh --no-migrate-role
 
 # 2. Build the WAR (also builds the React frontend via npm automatically)
 mvn clean install -DskipTests -T 1C
@@ -162,7 +166,7 @@ tomcat/tomcat-11/bin/startup.sh
 migrations by hand (e.g. against production):
 
 ```bash
-DB_NAME=wikantik DB_APP_USER=jspwiki PGHOST=db.example.com PGUSER=postgres \
+DB_NAME=wikantik DB_APP_USER=wikantik PGHOST=db.example.com PGUSER=postgres \
     PGPASSWORD='…' bin/db/migrate.sh
 
 # Check what has been applied

@@ -41,8 +41,13 @@ The core difference between Riemann and Lebesgue integration is how they "slice"
 ## II. The Machinery of Measure
 
 ### 2.1 Carathéodory Construction: Building from the Outside
-How do we define the measure of a weird set? We use an **Outer Measure**$\mu^*$.$$\mu^*(E) = \inf \left\{ \sum \text{length}(I_i) : E \subseteq \bigcup I_i \right\}$$We cover the set$E$with simpler intervals and take the smallest possible total length. The **Carathéodory Extension Theorem** then allows us to "extract" a consistent measure for all measurable sets.
+How do we define the measure of a weird set? We use an **Outer Measure**$\mu^*$.
 
+$$
+\mu^*(E) = \inf \left\{ \sum \text{length}(I_i) : E \subseteq \bigcup I_i \right\}
+$$
+
+We cover the set$E$with simpler intervals and take the smallest possible total length. The **Carathéodory Extension Theorem** then allows us to "extract" a consistent measure for all measurable sets.
 ### 2.2 Null Sets and "Almost Everywhere"
 A set has **measure zero** if it can be covered by intervals of arbitrarily small total length. In measure theory, we often ignore what happens on these sets. We say a property holds **almost everywhere (a.e.)** if the set where it fails has measure zero. This is vital for [Probability Theory](ProbabilityTheory), where "events of probability zero" are ignored in expectations.
 

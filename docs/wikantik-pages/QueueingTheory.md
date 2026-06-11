@@ -39,8 +39,13 @@ We define a system $A/B/c$using Kendall's notation:
 
 ## II. Beyond Markov: The M/G/1 Zenith
 
-When service times deviate from the exponential assumption, we utilize the **Pollaczek-Khinchine (P-K) Formula** for an M/G/1 system:$$L_q = \frac{\lambda^2 E[S^2]}{2(1 - \rho)}$$This formula demonstrates that for a fixed mean service time, increasing the **Variance ($\sigma^2$)** of service duration increases the expected queue length quadratically. This is the mathematical quantification of "burstiness" in service demand.
+When service times deviate from the exponential assumption, we utilize the **Pollaczek-Khinchine (P-K) Formula** for an M/G/1 system:
 
+$$
+L_q = \frac{\lambda^2 E[S^2]}{2(1 - \rho)}
+$$
+
+This formula demonstrates that for a fixed mean service time, increasing the **Variance ($\sigma^2$)** of service duration increases the expected queue length quadratically. This is the mathematical quantification of "burstiness" in service demand.
 ---
 
 ## III. Network Modeling: Jacksonian Decomposition

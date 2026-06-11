@@ -23,8 +23,13 @@ Symmetry is not merely an aesthetic property; it is a rigorous mathematical inva
 The most fundamental constraint on finite groups is **Lagrange's Theorem**, providing the first bridge between the size of a group and the structure of its internal symmetries.
 
 ### 1.1 The Theorem
-For any finite group $G$and any subgroup$H \le G$, the order (size) of$H$must divide the order of$G$:$$|G| = [G : H] \cdot |H|$$Where$[G : H]$is the **index** of$H$in$G$, representing the number of distinct cosets.
+For any finite group $G$and any subgroup$H \le G$, the order (size) of$H$must divide the order of$G$:
 
+$$
+|G| = [G : H] \cdot |H|
+$$
+
+Where$[G : H]$is the **index** of$H$in$G$, representing the number of distinct cosets.
 ### 1.2 Coset Partitions
 A coset is formed by "shifting" the subgroup$H$by an element$g \in G$. Cosets form a strict partition of$G$. Because every coset has exactly$|H|$elements, the total size of$G$must be a multiple of$|H|$. This invariant proves that groups of prime order can only have trivial subgroups, making them strictly **cyclic**.
 
@@ -66,8 +71,13 @@ Software like VESTA or Pymatgen applies these symmetry operations to the **Wycko
 The Rubik's Cube is a concrete realization of a **Permutation Group**. It is a subgroup of the larger group of all possible rearrangements of 54 stickers.
 
 ### 4.1 State Space Decomposition
-The Rubik's Cube group$G_{rubik}$has an order of:$$|G_{rubik}| = \frac{8! \cdot 3^7 \cdot 12! \cdot 2^{10}}{2} \approx 4.33 \times 10^{19}$$This structure reveals why certain states are impossible. The state is bounded by parity laws:
-1. **Corner Permutations ($8!$):** Arrangements of the 8 corners.
+The Rubik's Cube group$G_{rubik}$has an order of:
+
+$$
+|G_{rubik}| = \frac{8! \cdot 3^7 \cdot 12! \cdot 2^{10}}{2} \approx 4.33 \times 10^{19}
+$$
+
+This structure reveals why certain states are impossible. The state is bounded by parity laws:1. **Corner Permutations ($8!$):** Arrangements of the 8 corners.
 2. **Corner Orientations ($3^7$):** Total twist must sum to$0 \pmod 3$.
 3. **Edge Permutations ($12!$):** Arrangements of the 12 edges.
 4. **Edge Orientations ($2^{11}$):** Total flipped edges must be even.
@@ -77,4 +87,10 @@ The division by 2 in the formula represents the **Orbit Constraint**. You cannot
 
 ## 5. Normal Subgroups and Quotients
 
-A subgroup$N \le G$is **normal** ($N \triangleleft G$) if it is invariant under conjugation:$$gNg^{-1} = N \quad \forall g \in G$$Normality is the "gold standard" because it allows the creation of the **Quotient Group**$G/N$. Normal subgroups act as the "kernels" of group homomorphisms, serving as the fundamental filters of algebraic structure, allowing complex systems (like particle physics gauge groups) to be collapsed into simpler macro-structures.
+A subgroup$N \le G$is **normal** ($N \triangleleft G$) if it is invariant under conjugation:
+
+$$
+gNg^{-1} = N \quad \forall g \in G
+$$
+
+Normality is the "gold standard" because it allows the creation of the **Quotient Group**$G/N$. Normal subgroups act as the "kernels" of group homomorphisms, serving as the fundamental filters of algebraic structure, allowing complex systems (like particle physics gauge groups) to be collapsed into simpler macro-structures.

@@ -32,8 +32,13 @@ This treatise explores the theoretical framework of value decay, the mechanics o
 ## I. Foundations: The Value Decay Function ($\mathcal{V}_D$)
 
 The primary metric in RL is the **Opportunity Cost of Delay (OCD)**.
-*   **The Decay Equation:** Drawing from [Mathematics Hub](MathematicsHub), we model the Expected Recoverable Value ($\text{ERV}$) as a function of initial value ($V_0$), elapsed time ($\Delta t$), and processing efficiency ($\eta$):$$\text{ERV}_i = V_0 \cdot e^{-\lambda \cdot \Delta t} \cdot (1 - \text{Loss}_{\text{Process}})$$The objective is minimizing the decay constant$\lambda$through high-fidelity, automated triage.
+*   **The Decay Equation:** Drawing from [Mathematics Hub](MathematicsHub), we model the Expected Recoverable Value ($\text{ERV}$) as a function of initial value ($V_0$), elapsed time ($\Delta t$), and processing efficiency ($\eta$):
 
+$$
+\text{ERV}_i = V_0 \cdot e^{-\lambda \cdot \Delta t} \cdot (1 - \text{Loss}_{\text{Process}})
+$$
+
+The objective is minimizing the decay constant$\lambda$through high-fidelity, automated triage.
 ---
 
 ## II. Methodology: Multi-Modal Automated Triage

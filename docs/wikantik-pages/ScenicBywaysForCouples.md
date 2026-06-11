@@ -31,8 +31,13 @@ This treatise explores the **Experiential Density Index (EDI)**, the mechanics o
 ## I. Foundations: The Experiential Density Index (EDI)
 
 We move beyond throughput metrics to quantify the depth of interaction.
-*   **The EDI Metric:** EDI is the integral of geological, ecological, and cultural stimuli over the duration of the journey $T$:$$\text{EDI} = \frac{1}{T} \int_{0}^{T} \left( w_G \cdot \mathcal{G}(t) + w_E \cdot \mathcal{E}(t) + w_C \cdot \mathcal{C}(t) \right) dt$$*   **Heterogeneity Index ($\mathcal{H}$):** Drawing from [Mathematics Hub](MathematicsHub) topography, we measure the rate of change in elevation and biome diversity. A high$\mathcal{H}$signals a corridor capable of sustaining high attention allocation.
+*   **The EDI Metric:** EDI is the integral of geological, ecological, and cultural stimuli over the duration of the journey $T$:
 
+$$
+\text{EDI} = \frac{1}{T} \int_{0}^{T} \left( w_G \cdot \mathcal{G}(t) + w_E \cdot \mathcal{E}(t) + w_C \cdot \mathcal{C}(t) \right) dt
+$$
+
+*   **Heterogeneity Index ($\mathcal{H}$):** Drawing from [Mathematics Hub](MathematicsHub) topography, we measure the rate of change in elevation and biome diversity. A high$\mathcal{H}$signals a corridor capable of sustaining high attention allocation.
 ---
 
 ## II. Cognitive Load and the Pacing Algorithm
@@ -46,7 +51,11 @@ The greatest pitfall of scenic travel is **Novelty Fatigue**.
 ## III. Advanced Modeling: Spatio-Temporal Weighting
 
 The value of a scenic point is not static; it decays relative to the time of peak engagement (e.g., sunrise or peak bloom).
-*   **Temporal Weighting Function ($\Omega_t$):** We model the decay of experiential yield using an exponential function:$$\Omega(t) = e^{-\lambda (t - t_{peak})} \cdot (1 + \text{Activity\_Boost})$$
+*   **Temporal Weighting Function ($\Omega_t$):** We model the decay of experiential yield using an exponential function:
+
+$$
+\Omega(t) = e^{-\lambda (t - t_{peak})} \cdot (1 + \text{Activity\_Boost})
+$$
 *   **Activity Boosting:** Value is maintained through deliberate, high-engagement activities (e.g., field sketching or geological mapping), which act as "gain" in the sensory signal, counteracting the natural decay of passive observation.
 
 ## Conclusion

@@ -25,8 +25,13 @@ Once a nucleus exceeds a **Critical Radius ($r^*$)**, it begins to grow as atoms
 *   **Surface-Controlled**: Growth rate is limited by the incorporation of molecules into the lattice structure.
 
 ## 2. Growth Kinetics: The Avrami Equation
-The overall kinetics of crystallization (transformation fraction$\alpha$over time$t$) is modeled by the **Johnson-Mehl-Avrami-Kolmogorov (JMAK)** equation:$$\alpha(t) = 1 - \exp(-kt^n)$$Where:
-*$k$: The rate constant (temperature-dependent).
+The overall kinetics of crystallization (transformation fraction$\alpha$over time$t$) is modeled by the **Johnson-Mehl-Avrami-Kolmogorov (JMAK)** equation:
+
+$$
+\alpha(t) = 1 - \exp(-kt^n)
+$$
+
+Where:*$k$: The rate constant (temperature-dependent).
 *$n$: The **Avrami Exponent**, which describes the dimensionality and mechanism of growth (e.g.,$n=3$for spherical growth from a point).
 
 ## 3. Polymorphism and Stability

@@ -29,8 +29,13 @@ Many providers now offer **Robotics-as-a-Service (RaaS)**, which shifts the enti
 
 ## 2. The ROI Calculation
 
-The standard ROI for automation is calculated as:$$\text{ROI} = \frac{(\text{Annual Labor Savings} + \text{Error Reduction Savings}) - \text{Annual OpEx}}{\text{Initial CapEx}}$$### Concrete Example: AS/RS Implementation
-Consider a warehouse currently using manual forklifts for a high-density storage area.
+The standard ROI for automation is calculated as:
+
+$$
+\text{ROI} = \frac{(\text{Annual Labor Savings} + \text{Error Reduction Savings}) - \text{Annual OpEx}}{\text{Initial CapEx}}
+$$
+
+### Concrete Example: AS/RS ImplementationConsider a warehouse currently using manual forklifts for a high-density storage area.
 - **Manual Setup:** 5 Forklifts ($250k) + 10 operators ($600k/year) + 2% error rate ($50k/year).
 - **AS/RS Setup:**$2.5M CapEx. Annual maintenance/electricity$100k/year. Operator count reduced to 1 ($60k/year). Error rate 0.1% ($2k/year).
 

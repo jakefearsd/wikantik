@@ -56,8 +56,13 @@ An operator$T: X \to Y$is a mapping between function spaces. Unlike finite-dimen
 *   **Unbounded (The Derivative Explosion):** Consider the derivative operator$D(f) = f'$. If you take a high-frequency wave$\sin(nx)$, its amplitude is 1, but its derivative$n\cos(nx)$has amplitude$n$. As frequency$n \to \infty$, the output size goes to infinity. This is why differentiation is "harder" than integration in numerical stability.
 
 ### 3.2 Spectral Theory: Decomposing Reality
-The **Spectral Theorem** is the ultimate generalization of matrix diagonalization. It allows us to decompose an operator into its constituent "eigen-components":$$T = \int_{\sigma(T)} \lambda \, dE(\lambda)$$In a Hilbert space, this tells us that every self-adjoint operator can be viewed as a "sum" of projections onto orthogonal axes, even if there are infinitely many of them.
+The **Spectral Theorem** is the ultimate generalization of matrix diagonalization. It allows us to decompose an operator into its constituent "eigen-components":
 
+$$
+T = \int_{\sigma(T)} \lambda \, dE(\lambda)
+$$
+
+In a Hilbert space, this tells us that every self-adjoint operator can be viewed as a "sum" of projections onto orthogonal axes, even if there are infinitely many of them.
 ---
 
 ## IV. Real-World Applications

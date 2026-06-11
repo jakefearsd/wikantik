@@ -23,8 +23,11 @@ This treatise explores the theoretical pillars of BSC, the modeling techniques r
 ## I. Foundations: The Strategy Map as Causal Hypothesis
 
 The BSC is a formalized, testable hypothesis about value creation:
-$$\text{Financial} \leftarrow f(\text{Customer}) \leftarrow g(\text{Process}) \leftarrow h(\text{Learning})$$Each link must be validated against empirical data rather than executive intuition.
+$$
+\text{Financial} \leftarrow f(\text{Customer}) \leftarrow g(\text{Process}) \leftarrow h(\text{Learning})
+$$
 
+Each link must be validated against empirical data rather than executive intuition.
 ### 1.1 The Internal Process Engine
 This dimension identifies the **Critical Success Factors (CSFs)**. Experts utilize process mining to identify the mechanisms of competitive advantage, often integrating [Agile Methodology](AgileMethodologyDeepDive) metrics to measure the speed of safe value delivery.
 
@@ -35,7 +38,11 @@ This dimension identifies the **Critical Success Factors (CSFs)**. Experts utili
 The primary failure of BSC implementation is over-reliance on lagging indicators.
 
 ### 2.1 Developing Leading Indicators
-We move beyond "what happened" to predictive modeling. For example, service reliability is modeled as:$$\text{Leading Indicator} = \text{MTBF} \times \text{Knowledge Base Coverage}$$
+We move beyond "what happened" to predictive modeling. For example, service reliability is modeled as:
+
+$$
+\text{Leading Indicator} = \text{MTBF} \times \text{Knowledge Base Coverage}
+$$
 This forces the organization to treat knowledge management as a primary strategic lever.
 
 ### 2.2 Feedback Loops

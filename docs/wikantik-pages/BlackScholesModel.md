@@ -27,8 +27,13 @@ For software engineers building trading systems or risk engines, understanding t
 The model assumes that the underlying asset price follows a [Geometric Brownian Motion](GeometricBrownianMotion) with constant drift and volatility. 
 
 ### The Black-Scholes PDE
-Using Itô's Lemma and the concept of constructing a riskless hedged portfolio (delta hedging), Black and Scholes derived the following Partial Differential Equation (PDE) that the price of the option $V(S, t)$must satisfy:$$\frac{\partial V}{\partial t} + \frac{1}{2}\sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} + rS \frac{\partial V}{\partial S} - rV = 0$$Where:
-*$V$: The price of the option as a function of asset price$S$and time$t$.
+Using Itô's Lemma and the concept of constructing a riskless hedged portfolio (delta hedging), Black and Scholes derived the following Partial Differential Equation (PDE) that the price of the option $V(S, t)$must satisfy:
+
+$$
+\frac{\partial V}{\partial t} + \frac{1}{2}\sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} + rS \frac{\partial V}{\partial S} - rV = 0
+$$
+
+Where:*$V$: The price of the option as a function of asset price$S$and time$t$.
 *$S$: The current price of the underlying asset.
 *$\sigma$: The volatility of the asset's returns.
 *$r$: The annualized risk-free interest rate.
@@ -37,9 +42,16 @@ This equation states that the time decay of the option ($\frac{\partial V}{\part
 
 ## 2. The Analytical Solution
 
-By applying boundary conditions (e.g., at expiration$T$, a call option pays$\max(S_T - K, 0)$where$K$is the strike price), the PDE can be solved to yield the classic Black-Scholes formula for a European Call option ($C$):$$C = N(d_1)S_t - N(d_2) K e^{-r(T - t)}$$Where:$$d_1 = \frac{\ln(S_t/K) + (r + \frac{\sigma^2}{2})(T - t)}{\sigma \sqrt{T - t}}$$
-$$d_2 = d_1 - \sigma \sqrt{T - t}$$And$N(x)$is the cumulative distribution function (CDF) of the standard normal distribution.
+By applying boundary conditions (e.g., at expiration$T$, a call option pays$\max(S_T - K, 0)$where$K$is the strike price), the PDE can be solved to yield the classic Black-Scholes formula for a European Call option ($C$):$$C = N(d_1)S_t - N(d_2) K e^{-r(T - t)}$$Where:
 
+$$
+d_1 = \frac{\ln(S_t/K) + (r + \frac{\sigma^2}{2})(T - t)}{\sigma \sqrt{T - t}}
+$$
+$$
+d_2 = d_1 - \sigma \sqrt{T - t}
+$$
+
+And$N(x)$is the cumulative distribution function (CDF) of the standard normal distribution.
 ### Intuition for the Formula
 *   **$N(d_1)$:** The delta of the option. The probability-weighted ratio of how much the option price moves given a$1 change in the underlying asset.
 *   **$N(d_2)$:** The risk-neutral probability that the option will expire in the money ($S_T > K$).

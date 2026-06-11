@@ -52,13 +52,21 @@ In an ideal system, tension ($T$) is constant throughout the rope.
 *   The effort force required is equal to the tension:$F_e = T$.
 
 ### 3.1 Non-Parallel Ropes
-If the rope segments are not parallel to the direction of the load, the MA is reduced by the cosine of the angle:$$MA_{effective} = \sum \cos(\theta_i)$$Where$\theta_i$is the angle of each segment relative to the load's path.
+If the rope segments are not parallel to the direction of the load, the MA is reduced by the cosine of the angle:
 
+$$
+MA_{effective} = \sum \cos(\theta_i)
+$$
+
+Where$\theta_i$is the angle of each segment relative to the load's path.
 ## 4. Power and Work
 
 The Law of Conservation of Energy dictates that:$$Work_{in} = Work_{out} + Losses$$
-$$F_e \cdot d_e = (F_L \cdot d_L) / \eta$$Where$\eta$is the efficiency. To lift a load$1$meter with an MA of$4$, you must pull$4$ meters of rope.
+$$
+F_e \cdot d_e = (F_L \cdot d_L) / \eta
+$$
 
+Where$\eta$is the efficiency. To lift a load$1$meter with an MA of$4$, you must pull$4$ meters of rope.
 ## 5. Summary Table
 
 | System | IMA | Effort Required | Rope Pulled |

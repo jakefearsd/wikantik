@@ -18,14 +18,26 @@ Regression analysis is the primary statistical tool for modeling the relationshi
 The goal of OLS is to find the vector of coefficients$\boldsymbol{\beta}$that minimizes the sum of squared residuals.
 
 ### 1.1 The Matrix Formulation
-Given$n$observations and$k$predictors, we define the model in matrix form:$$\mathbf{y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\epsilon}$$-$\mathbf{y} \in \mathbb{R}^n$: The vector of observations.
--$\mathbf{X} \in \mathbb{R}^{n \times k}$: The design matrix of predictors.
+Given$n$observations and$k$predictors, we define the model in matrix form:
+
+$$
+\mathbf{y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\epsilon}
+$$
+
+-$\mathbf{y} \in \mathbb{R}^n$: The vector of observations.-$\mathbf{X} \in \mathbb{R}^{n \times k}$: The design matrix of predictors.
 -$\boldsymbol{\beta} \in \mathbb{R}^k$: The vector of unknown coefficients.
 -$\boldsymbol{\epsilon} \in \mathbb{R}^n$: The vector of errors.
 
-The OLS solution that minimizes$\parallel \mathbf{y} - \mathbf{X}\boldsymbol{\beta} \parallel^2$is found by solving the **Normal Equations**:$$\mathbf{X}^T \mathbf{X} \hat{\boldsymbol{\beta}} = \mathbf{X}^T \mathbf{y}$$
-$$\hat{\boldsymbol{\beta}} = (\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T \mathbf{y}$$## 2. Geometric Intuition: Orthogonal Projection
+The OLS solution that minimizes$\parallel \mathbf{y} - \mathbf{X}\boldsymbol{\beta} \parallel^2$is found by solving the **Normal Equations**:
 
+$$
+\mathbf{X}^T \mathbf{X} \hat{\boldsymbol{\beta}} = \mathbf{X}^T \mathbf{y}
+$$
+$$
+\hat{\boldsymbol{\beta}} = (\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T \mathbf{y}
+$$
+
+## 2. Geometric Intuition: Orthogonal Projection
 The most powerful way to understand regression is through the geometry of linear algebra.
 
 ### 2.1 The Column Space of X
@@ -34,9 +46,16 @@ Because the observed vector$\mathbf{y}$likely contains noise, it does not lie ex
 
 ### 2.2 The Projection (Hat) Matrix
 The "best fit"$\hat{\mathbf{y}}$is the point in$\text{Col}(\mathbf{X})$that is **closest** to$\mathbf{y}$in terms of Euclidean distance. Geometrically, this is the **orthogonal projection** of$\mathbf{y}$onto the column space.
-The transformation that performs this projection is the **Hat Matrix**$\mathbf{H}$:$$\hat{\mathbf{y}} = \mathbf{H}\mathbf{y}$$
-$$\mathbf{H} = \mathbf{X}(\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T$$- **Properties of H:** It is symmetric ($\mathbf{H}^T = \mathbf{H}$) and idempotent ($\mathbf{H}^2 = \mathbf{H}$).
-- **The Residual Vector:**$\mathbf{e} = \mathbf{y} - \hat{\mathbf{y}} = (\mathbf{I} - \mathbf{H})\mathbf{y}$. Geometrically, the residuals are the vector component of$\mathbf{y}$that is orthogonal to the column space of$\mathbf{X}$.
+The transformation that performs this projection is the **Hat Matrix**$\mathbf{H}$:
+
+$$
+\hat{\mathbf{y}} = \mathbf{H}\mathbf{y}
+$$
+$$
+\mathbf{H} = \mathbf{X}(\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T
+$$
+
+- **Properties of H:** It is symmetric ($\mathbf{H}^T = \mathbf{H}$) and idempotent ($\mathbf{H}^2 = \mathbf{H}$).- **The Residual Vector:**$\mathbf{e} = \mathbf{y} - \hat{\mathbf{y}} = (\mathbf{I} - \mathbf{H})\mathbf{y}$. Geometrically, the residuals are the vector component of$\mathbf{y}$that is orthogonal to the column space of$\mathbf{X}$.
 
 ## 3. Quantitative Foundations: The Gauss-Markov Theorem
 

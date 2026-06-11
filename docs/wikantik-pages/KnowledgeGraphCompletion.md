@@ -40,8 +40,13 @@ In **TransE**, the relation is a translation vector:$\mathbf{s} + \mathbf{r} \ap
 *   **Production Fix (RotatE):** Maps entities to complex vectors$\mathbb{C}^d$and relations to rotations:$\mathbf{o} = \mathbf{s} \circ \mathbf{r}$, where$|\mathbf{r}_i| = 1$. This handles symmetry, antisymmetry, and inversion.
 
 ### Bilinear Models (ComplEx)
-**ComplEx** uses the Hermitian dot product in complex space:$$f_r(s, o) = \text{Re}(\langle \mathbf{w}_r, \mathbf{e}_s, \bar{\mathbf{e}}_o \rangle)$$This is the state-of-the-art baseline for large-scale KGs because it scales linearly with entity count and captures asymmetric relations (e.g., `parent_of`) effectively.
+**ComplEx** uses the Hermitian dot product in complex space:
 
+$$
+f_r(s, o) = \text{Re}(\langle \mathbf{w}_r, \mathbf{e}_s, \bar{\mathbf{e}}_o \rangle)
+$$
+
+This is the state-of-the-art baseline for large-scale KGs because it scales linearly with entity count and captures asymmetric relations (e.g., `parent_of`) effectively.
 ## 2. LLM-Augmented Extraction (The Production Path)
 
 While embedding models predict links from *existing* structure, LLMs extract links from *unstructured evidence*. In Wikantik, we use a verification loop:

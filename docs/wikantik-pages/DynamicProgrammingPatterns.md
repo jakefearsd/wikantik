@@ -23,8 +23,13 @@ This treatise is designed for experts who need to move beyond introductory examp
 
 The core of DP is **Bellman's Principle of Optimality**, which asserts that if a sequence of decisions leads to an optimal solution, then the decisions made must also constitute optimal solutions for the subproblems they define.
 
-Mathematically, we transition from a global optimization problem $\text{OPT}(N)$to a recurrence relation based on smaller, already-optimized components:$$\text{OPT}(N) = \text{Combine} \left( \text{OPT}(N-k), \text{Parameters} \right)$$This principle is the bedrock of [Computer Science Foundations](ComputerScienceFoundationsHub). It allows us to restrict our search space from exponential lattices to polynomial ones.
+Mathematically, we transition from a global optimization problem $\text{OPT}(N)$to a recurrence relation based on smaller, already-optimized components:
 
+$$
+\text{OPT}(N) = \text{Combine} \left( \text{OPT}(N-k), \text{Parameters} \right)
+$$
+
+This principle is the bedrock of [Computer Science Foundations](ComputerScienceFoundationsHub). It allows us to restrict our search space from exponential lattices to polynomial ones.
 ---
 
 ## II. The Proof of Optimal Substructure
@@ -46,11 +51,24 @@ Bitmask DP is used when the state involves a set of visited items or fulfilled c
 *   **State:**$DP[mask][i]$where$mask$is a bitset representing the visited nodes and$i$is the current node.
 *   **Transition:**$DP[mask | (1 \ll j)][j] = \min(DP[mask | (1 \ll j)][j], DP[mask][i] + \text{dist}(i, j))$### 3.2 Interval DP
 Optimizing over a range$[i, j]$by finding the optimal split point$k$.
-*   **Example:** Matrix Chain Multiplication.$$DP[i][j] = \min_{i \le k < j} \{ DP[i][k] + DP[k+1][j] + \text{cost}(i, k, j) \}$$### 3.3 DP on Trees
-Computing results from leaves up to the root.
-*   **Example:** Maximum Independent Set on a Tree.$$DP[u][0] = \sum_{v \in children(u)} \max(DP[v][0], DP[v][1])$$ $$DP[u][1] = \text{weight}(u) + \sum_{v \in children(u)} DP[v][0]$$---
+*   **Example:** Matrix Chain Multiplication.
 
-## IV. Optimization Techniques: Shaving Complexity
+$$
+DP[i][j] = \min_{i \le k < j} \{ DP[i][k] + DP[k+1][j] + \text{cost}(i, k, j) \}
+$$
+
+### 3.3 DP on TreesComputing results from leaves up to the root.
+*   **Example:** Maximum Independent Set on a Tree.
+
+$$
+DP[u][0] = \sum_{v \in children(u)} \max(DP[v][0], DP[v][1])
+$$
+
+$$
+DP[u][1] = \text{weight}(u) + \sum_{v \in children(u)} DP[v][0]
+$$
+
+---## IV. Optimization Techniques: Shaving Complexity
 
 For expert implementation, the raw recurrence is often not enough. We must employ optimization techniques to reduce complexity:
 

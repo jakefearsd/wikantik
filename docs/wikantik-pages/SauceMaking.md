@@ -39,8 +39,13 @@ Emulsions are inherently metastable systems. The system naturally seeks to minim
 ## II. The Physics of Stability: DLVO Theory
 
 We utilize [Mathematics Hub](MathematicsHub) logic to quantify the forces between dispersed droplets.
-*   **DLVO Equation:** The total potential energy$V_T$is the sum of the attractive van der Waals force and the repulsive electrostatic force:$$V_T = V_{\text{Attract}} + V_{\text{Repulse}}$$*   **Zeta Potential ($\zeta$):** Measuring the net surface charge of particles. To maximize stability, researchers must operate in a regime where the repulsive barrier exceeds the thermal energy of the system, preventing **Flocculation**.
+*   **DLVO Equation:** The total potential energy$V_T$is the sum of the attractive van der Waals force and the repulsive electrostatic force:
 
+$$
+V_T = V_{\text{Attract}} + V_{\text{Repulse}}
+$$
+
+*   **Zeta Potential ($\zeta$):** Measuring the net surface charge of particles. To maximize stability, researchers must operate in a regime where the repulsive barrier exceeds the thermal energy of the system, preventing **Flocculation**.
 ---
 
 ## III. Rheology: Yield Stress and Shear-Thinning

@@ -31,8 +31,13 @@ This article explores the rigorous mathematical foundations of FP, quantifies th
 The power of FP is rooted in the **Curry-Howard-Lambek Correspondence**, which establishes a structural isomorphism between three seemingly disparate fields.
 
 ### The Logic of Computation
-Every functional program is built on **Lambda Calculus** ($\lambda$), developed by Alonzo Church in the 1930s.$$(\lambda x. M) N \implies M[x := N]$$The fundamental operation is$\beta$-reduction: the substitution of an argument into a function body. In FP, execution is not a series of state transitions but a series of **term reductions** toward a normal form.
+Every functional program is built on **Lambda Calculus** ($\lambda$), developed by Alonzo Church in the 1930s.
 
+$$
+(\lambda x. M) N \implies M[x := N]
+$$
+
+The fundamental operation is$\beta$-reduction: the substitution of an argument into a function body. In FP, execution is not a series of state transitions but a series of **term reductions** toward a normal form.
 ### The Structural Framework
 **Category Theory** provides the framework for composition and types. In this context, types are **Objects** and functions are **Morphisms** ($f: A \to B$).
 

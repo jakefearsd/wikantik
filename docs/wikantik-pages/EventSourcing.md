@@ -21,8 +21,13 @@ Event Sourcing (ES) is a persistence pattern that treats the history of an entit
 
 ## The State Reconstruction Equation
 
-Current state $S$at time$t$is the deterministic result of folding an initial state$S_0$over a chronologically ordered sequence of events$E$:$$S_t = S_0 \oplus e_1 \oplus e_2 \oplus \dots \oplus e_n$$In implementation terms, this means the state is a projection of history. This approach provides a perfect audit trail, the ability to time-travel (reconstruct state at any point in history), and simplified concurrency through append-only semantics.
+Current state $S$at time$t$is the deterministic result of folding an initial state$S_0$over a chronologically ordered sequence of events$E$:
 
+$$
+S_t = S_0 \oplus e_1 \oplus e_2 \oplus \dots \oplus e_n
+$$
+
+In implementation terms, this means the state is a projection of history. This approach provides a perfect audit trail, the ability to time-travel (reconstruct state at any point in history), and simplified concurrency through append-only semantics.
 ## Aggregate Snapshotting
 
 As the event stream grows, replaying$N$events becomes a performance bottleneck ($O(N)$ reconstruction). Snapshotting introduces a performance shortcut.

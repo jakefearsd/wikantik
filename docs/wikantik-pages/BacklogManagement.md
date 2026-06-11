@@ -72,8 +72,13 @@ Mature refinement yields three distinct metrics for every story:
 
 ### Weighted Shortest Job First (WSJF)
 
-WSJF treats development as an economic investment decision:$$\text{WSJF} = \frac{\text{Cost of Delay (CoD)}}{\text{Job Size (Effort)}}$$A higher WSJF score indicates an item delivers high value relative to the effort required—it is the most economically efficient choice.
+WSJF treats development as an economic investment decision:
 
+$$
+\text{WSJF} = \frac{\text{Cost of Delay (CoD)}}{\text{Job Size (Effort)}}
+$$
+
+A higher WSJF score indicates an item delivers high value relative to the effort required—it is the most economically efficient choice.
 #### Cost of Delay (CoD)
 CoD is decomposed into:
 1.  **User-Value:** Direct benefit to the user.
@@ -93,8 +98,13 @@ A backlog is a network, and prioritization must respect the **Critical Path**.
 ## IV. Technical Debt and NFRs
 
 ### Technical Debt as a First-Class Citizen
-Technical Debt (TD) must be modeled as a quantifiable risk with its own CoD:$$\text{CoD}_{TD} = \text{Probability of Failure} \times \text{Impact of Failure}$$High-risk TD items (e.g., hardcoded credentials, lack of logging) should be prioritized as mandatory enablers for future features.
+Technical Debt (TD) must be modeled as a quantifiable risk with its own CoD:
 
+$$
+\text{CoD}_{TD} = \text{Probability of Failure} \times \text{Impact of Failure}
+$$
+
+High-risk TD items (e.g., hardcoded credentials, lack of logging) should be prioritized as mandatory enablers for future features.
 ### Quality Gates (NFR Integration)
 Non-Functional Requirements (Security, Scalability, Performance) are modeled as **Quality Gates**. A feature is not "Done" until it passes these gates (e.g., load testing at$X$ TPS). This forces necessary security and performance stories into the critical path.
 

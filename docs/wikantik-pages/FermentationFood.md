@@ -41,8 +41,13 @@ Salt acts as a selective agent, suppressing unwanted proteolytic and pectolytic 
 ### Brine Calculation Methods
 For precise results, salt should be calculated as a percentage of the **total weight** (vegetables + water).
 
-**Formula:**$$Salt\_Weight = (Veg\_Weight + Water\_Weight) \times \text{Target\_Percentage}$$**Example: 3.5% Brine for Pickles**
-1.  Vegetable Weight: 500g
+**Formula:**
+
+$$
+Salt\_Weight = (Veg\_Weight + Water\_Weight) \times \text{Target\_Percentage}
+$$
+
+**Example: 3.5% Brine for Pickles**1.  Vegetable Weight: 500g
 2.  Water Weight: 500g
 3.  Total Weight: 1000g
 4.  Salt Needed:$1000g \times 0.035 = 35g$

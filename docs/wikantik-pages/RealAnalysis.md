@@ -55,16 +55,26 @@ To catch a "lion" (a limit point) in a bounded "desert" (a set):
 5.  The fence eventually shrinks to a single point—the **accumulation point** where the sequence "clumps."
 
 ### 2.2 Cauchy Sequences and Completeness
-A sequence$\{x_n\}$is **Cauchy** if the terms get arbitrarily close to *each other* as$n \to \infty$:$$\forall \epsilon > 0, \exists N \in \mathbb{N} \text{ s.t. } m, n > N \implies |x_m - x_n| < \epsilon$$In$\mathbb{R}$, every Cauchy sequence converges. This property is essential for the stability of iterative algorithms like **Gradient Descent**.
+A sequence$\{x_n\}$is **Cauchy** if the terms get arbitrarily close to *each other* as$n \to \infty$:
 
+$$
+\forall \epsilon > 0, \exists N \in \mathbb{N} \text{ s.t. } m, n > N \implies |x_m - x_n| < \epsilon
+$$
+
+In$\mathbb{R}$, every Cauchy sequence converges. This property is essential for the stability of iterative algorithms like **Gradient Descent**.
 ---
 
 ## III. Pathologies: Where Intuition Fails
 
 Real Analysis is famous for "pathological" objects that defy physical intuition but are mathematically essential.
 
-### 3.1 The Dirichlet Function$$f(x) = \begin{cases} 1 & \text{if } x \in \mathbb{Q} \\ 0 & \text{if } x \notin \mathbb{Q} \end{cases}$$This function is discontinuous **everywhere**. It is Riemann-integrable on no interval, yet it is perfectly Lebesgue-integrable (with integral 0, because the rationals have "measure zero").
+### 3.1 The Dirichlet Function
 
+$$
+f(x) = \begin{cases} 1 & \text{if } x \in \mathbb{Q} \\ 0 & \text{if } x \notin \mathbb{Q} \end{cases}
+$$
+
+This function is discontinuous **everywhere**. It is Riemann-integrable on no interval, yet it is perfectly Lebesgue-integrable (with integral 0, because the rationals have "measure zero").
 ### 3.2 The Weierstrass Function
 A function that is **continuous everywhere but differentiable nowhere**. It is essentially a fractal curve that wiggles so violently at every scale that it never possesses a tangent line. This serves as a model for **Brownian Motion** in physics.
 
@@ -81,8 +91,13 @@ The Lebesgue integral generalizes the Riemann integral by partitioning the **ran
 
 **The Dominated Convergence Theorem (DCT):**
 The "gold standard" for interchanging limits and integrals:
-If$f_n \to f$almost everywhere and$|f_n| \le g$for an integrable$g$, then:$$\lim_{n\to\infty} \int f_n = \int f$$---
+If$f_n \to f$almost everywhere and$|f_n| \le g$for an integrable$g$, then:
 
+$$
+\lim_{n\to\infty} \int f_n = \int f
+$$
+
+---
 ## V. Real-World Applications
 
 ### 5.1 Signal Processing and$L^p$Spaces
@@ -98,9 +113,18 @@ The existence of a **Ground State** (the state of lowest energy) is guaranteed b
 
 ## VI. Quantitative Foundation: Taylor's Theorem with Remainder
 
-In numerical analysis, we approximate functions using Taylor polynomials. Real Analysis provides the **Lagrange Error Bound**:$$R_n(x) = \frac{f^{(n+1)}(c)}{(n+1)!}(x-a)^{n+1} \text{ for some } c \in (a, x)$$**Worked Example: Approximating$e^x$**
-For$f(x) = e^x$at$a=0$, the 2nd degree polynomial is$1 + x + \frac{x^2}{2}$.
-If$|x| \le 0.1$, the error$|R_2(x)|$is bounded by:$$\frac{e^{0.1}}{3!}(0.1)^3 \approx \frac{1.105}{6}(0.001) \approx 0.000184$$
+In numerical analysis, we approximate functions using Taylor polynomials. Real Analysis provides the **Lagrange Error Bound**:
+
+$$
+R_n(x) = \frac{f^{(n+1)}(c)}{(n+1)!}(x-a)^{n+1} \text{ for some } c \in (a, x)
+$$
+
+**Worked Example: Approximating$e^x$**For$f(x) = e^x$at$a=0$, the 2nd degree polynomial is$1 + x + \frac{x^2}{2}$.
+If$|x| \le 0.1$, the error$|R_2(x)|$is bounded by:
+
+$$
+\frac{e^{0.1}}{3!}(0.1)^3 \approx \frac{1.105}{6}(0.001) \approx 0.000184
+$$
 
 ---
 **See Also:**

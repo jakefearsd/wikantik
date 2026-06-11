@@ -29,8 +29,13 @@ This treatise explores advanced forecasting methodologies, the application of [S
 
 ## I. Foundations: The Capacity Ecosystem
 
-We model the relationship between **Demand** ($D_t$) and **Supply** ($S_t$), subject to systemic constraints. Demand is decomposed into volume, complexity, and variability. Supply is treated as a dynamic function of assets, capital, and efficiency.$$\text{Required Capacity}(T) = D_T \times C_T \leq S_T$$---
+We model the relationship between **Demand** ($D_t$) and **Supply** ($S_t$), subject to systemic constraints. Demand is decomposed into volume, complexity, and variability. Supply is treated as a dynamic function of assets, capital, and efficiency.
 
+$$
+\text{Required Capacity}(T) = D_T \times C_T \leq S_T
+$$
+
+---
 ## II. Advanced Forecasting Methodologies
 
 Experts utilize multiple complementary techniques to manage different time horizons:

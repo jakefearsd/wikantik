@@ -36,8 +36,11 @@ Guardrails intercept inputs and outputs to prevent policy violations.
 ### Logit Bias Modulation
 Advanced guardrails operate at the token generation layer, not just as a text filter. By applying a negative bias to "harmful" tokens during sampling, we can prevent their emission entirely.
 
-$$P(x_i) = \frac{\exp(z_i + b_i)}{\sum_j \exp(z_j + b_j)}$$where$b_i$is the logit bias applied by the safety layer.
+$$
+P(x_i) = \frac{\exp(z_i + b_i)}{\sum_j \exp(z_j + b_j)}
+$$
 
+where$b_i$is the logit bias applied by the safety layer.
 ### Pattern: The Dual-LLM Guardrail
 Use a smaller, faster model (e.g., Llama-3-8B) as a "Safety Judge" for the primary model (e.g., GPT-4).
 
@@ -149,13 +152,23 @@ This is where the research focus must sharpen. The primary trade-off in safety i
 
 The **Disentangled Safety Adapters (DSA)** framework [1, 4] represents a significant architectural leap by addressing this trade-off head-on.
 
-**Core Principle:** DSA posits that the latent space of a large language model ($\mathcal{L}$) can be mathematically decomposed into orthogonal subspaces:$$\mathcal{L} = \mathcal{L}_{\text{Task}} \oplus \mathcal{L}_{\text{Safety}} \oplus \mathcal{L}_{\text{Style}}$$Instead of forcing the entire model to learn safety constraints implicitly (which dilutes task performance), DSA explicitly *decouples* the safety computation.
+**Core Principle:** DSA posits that the latent space of a large language model ($\mathcal{L}$) can be mathematically decomposed into orthogonal subspaces:
 
+$$
+\mathcal{L} = \mathcal{L}_{\text{Task}} \oplus \mathcal{L}_{\text{Safety}} \oplus \mathcal{L}_{\text{Style}}
+$$
+
+Instead of forcing the entire model to learn safety constraints implicitly (which dilutes task performance), DSA explicitly *decouples* the safety computation.
 **Mechanism Deep Dive:**
 1.  **Base Model ($\text{LLM}_{\text{Base}}$):** This model is optimized purely for task performance ($\mathcal{L}_{\text{Task}}$). It is fast and highly capable in its domain.
 2.  **Safety Adapter ($\text{Adapter}_{\text{Safety}}$):** This is a lightweight, specialized module (often implemented as LoRA or a small, dedicated feed-forward network) trained *only* on safety violation datasets. It learns the manifold of "unsafe" computations.
-3.  **Inference Flow:** When a prompt$P$is given, the input passes through the base model, but the safety constraint is enforced by modulating the output logits ($\mathbf{z}$) using the adapter:$$\mathbf{z}' = \mathbf{z} - \lambda \cdot \text{Sigmoid}(\text{Adapter}_{\text{Safety}}(P, \text{Context}))$$Where$\lambda$is a tunable penalty weight, and the adapter outputs a penalty score that pushes the logits away from unsafe tokens.
+3.  **Inference Flow:** When a prompt$P$is given, the input passes through the base model, but the safety constraint is enforced by modulating the output logits ($\mathbf{z}$) using the adapter:
 
+$$
+\mathbf{z}' = \mathbf{z} - \lambda \cdot \text{Sigmoid}(\text{Adapter}_{\text{Safety}}(P, \text{Context}))
+$$
+
+Where$\lambda$is a tunable penalty weight, and the adapter outputs a penalty score that pushes the logits away from unsafe tokens.
 **Expert Analysis of DSA:**
 The genius here is that the safety penalty is *additive* or *multiplicative* in the logit space, rather than requiring the entire model to re-run through a safety filter. This dramatically reduces the computational overhead compared to running a full secondary LLM classifier on every token. Furthermore, by keeping the safety knowledge in a small, modular adapter, the safety component can be updated, audited, or swapped out (e.g., updating for EU AI Act compliance) without retraining the massive, expensive base model.
 
@@ -167,8 +180,13 @@ For experts, the discussion must move beyond "what works" to "what can be mathem
 
 ### A. Formal Verification of Safety Properties
 
-The ultimate goal of safety engineering is provability. Can we prove that for any input$P$within a defined domain$\mathcal{D}$, the output$O$will satisfy a set of safety invariants$\mathcal{I}$?$$\forall P \in \mathcal{D}, \text{Output}(P) \models \mathcal{I}$$This is exceptionally difficult for modern LLMs because they are non-deterministic, high-dimensional, and operate in continuous latent spaces.
+The ultimate goal of safety engineering is provability. Can we prove that for any input$P$within a defined domain$\mathcal{D}$, the output$O$will satisfy a set of safety invariants$\mathcal{I}$?
 
+$$
+\forall P \in \mathcal{D}, \text{Output}(P) \models \mathcal{I}
+$$
+
+This is exceptionally difficult for modern LLMs because they are non-deterministic, high-dimensional, and operate in continuous latent spaces.
 1.  **Satisfiability Modulo Theories (SMT) Solvers:**
     *   In theory, one could attempt to translate the safety constraints ($\mathcal{I}$) into a formal logic system (like first-order logic).
     *   The system then attempts to prove that the model's output distribution$P(O|P)$has zero probability mass over the set of violating states$\neg \mathcal{I}$.
@@ -256,7 +274,11 @@ The most advanced safety systems will move away from correlation detection (what
 
 A mathematical framework is needed to quantify the "distance" between a safe output and an unsafe output within the model's latent space.
 
-Let$\mathbf{z}_{\text{safe}}$be the latent representation of a known safe response, and$\mathbf{z}_{\text{unsafe}}$be the representation of a violation. The goal is to train the model such that the minimum required perturbation$\delta$to move from$\mathbf{z}_{\text{safe}}$to$\mathbf{z}_{\text{unsafe}}$is maximized.$$\text{Safety Margin} = \min_{\mathbf{z}_{\text{unsafe}}} || \mathbf{z}_{\text{unsafe}} - \mathbf{z}_{\text{safe}} ||$$
+Let$\mathbf{z}_{\text{safe}}$be the latent representation of a known safe response, and$\mathbf{z}_{\text{unsafe}}$be the representation of a violation. The goal is to train the model such that the minimum required perturbation$\delta$to move from$\mathbf{z}_{\text{safe}}$to$\mathbf{z}_{\text{unsafe}}$is maximized.
+
+$$
+\text{Safety Margin} = \min_{\mathbf{z}_{\text{unsafe}}} || \mathbf{z}_{\text{unsafe}} - \mathbf{z}_{\text{safe}} ||
+$$
 Maximizing this margin ensures that the model's internal representation of "safety" is maximally distant from the representation of "danger," providing a quantifiable metric for safety improvement.
 
 ---

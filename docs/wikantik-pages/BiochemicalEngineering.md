@@ -12,8 +12,13 @@ summary: The application of engineering principles to biological systems. Covers
 **Biochemical Engineering** is the branch of engineering that deals with the design, development, and optimization of processes involving biological organisms or molecules (such as enzymes). In 2026, the field has reached a "Precision Era," where AI-driven simulations and synthetic consortia are replacing traditional "black box" fermentation methods.
 
 ## 1. Fermentation Kinetics: The Michaelis-Menten Framework
-At the heart of biochemical engineering is the modeling of enzymatic and microbial growth rates. The **Michaelis-Menten** equation remains the bedrock for describing the rate of enzymatic reactions ($v$):$$v = \frac{V_{\max} [S]}{K_m + [S]}$$Where:
-*$V_{\max}$: The maximum reaction rate at saturating substrate concentration.
+At the heart of biochemical engineering is the modeling of enzymatic and microbial growth rates. The **Michaelis-Menten** equation remains the bedrock for describing the rate of enzymatic reactions ($v$):
+
+$$
+v = \frac{V_{\max} [S]}{K_m + [S]}
+$$
+
+Where:*$V_{\max}$: The maximum reaction rate at saturating substrate concentration.
 *$K_m$: The Michaelis constant (substrate concentration at half-maximal velocity).
 
 ### 1.1 Apparent Kinetics in Solid Matrices

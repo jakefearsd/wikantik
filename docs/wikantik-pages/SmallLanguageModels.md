@@ -37,8 +37,13 @@ The primary trade-off in SLM design is **Reasoning Density** vs. **Generalizatio
 Most high-performance SLMs are trained via **Knowledge Distillation (KD)**, where a "Teacher" model (LLM) guides a "Student" model (SLM).
 
 ### The Distillation Objective
-The goal is to minimize a loss function $L$that combines standard Cross-Entropy (CE) with Kullback-Leibler (KL) divergence between the teacher's and student's probability distributions.$$L = (1-\alpha) L_{CE}(y, \sigma(z_s)) + \alpha T^2 L_{KL}(\sigma(z_t/T), \sigma(z_s/T))$$Where:
-*$z_s, z_t$: Logits from the Student and Teacher models.
+The goal is to minimize a loss function $L$that combines standard Cross-Entropy (CE) with Kullback-Leibler (KL) divergence between the teacher's and student's probability distributions.
+
+$$
+L = (1-\alpha) L_{CE}(y, \sigma(z_s)) + \alpha T^2 L_{KL}(\sigma(z_t/T), \sigma(z_s/T))
+$$
+
+Where:*$z_s, z_t$: Logits from the Student and Teacher models.
 *$\sigma$: Softmax function.
 *$T$: **Temperature**, a hyperparameter that "softens" the probability distribution to reveal more about the teacher's internal logic.
 *$\alpha$: Weighting factor between ground truth and teacher guidance.

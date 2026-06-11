@@ -33,8 +33,13 @@ This treatise explores the foundational duality of the optimization problem, the
 ## I. Foundations: Margin Maximization and Duality
 
 SVM seeks the optimal hyperplane that maximizes the "gutter" between classes.
-*   **The Dual Formulation:** Drawing from [Mathematics Hub](MathematicsHub) convex optimization, we transform the primal problem into a dual Lagrangian $\mathcal{L}(\alpha)$, where the objective function depends entirely on the **Inner Product** of the input vectors:$$\max_{\alpha} \sum \alpha_i - \frac{1}{2} \sum \alpha_i \alpha_j y_i y_j \langle \mathbf{x}_i, \mathbf{x}_j \rangle$$*   **Support Vectors:** The sparse subset of data points that lie exactly on the margin boundary. The model's complexity is dictated by the density of these vectors, not the total dimensionality of the input.
+*   **The Dual Formulation:** Drawing from [Mathematics Hub](MathematicsHub) convex optimization, we transform the primal problem into a dual Lagrangian $\mathcal{L}(\alpha)$, where the objective function depends entirely on the **Inner Product** of the input vectors:
 
+$$
+\max_{\alpha} \sum \alpha_i - \frac{1}{2} \sum \alpha_i \alpha_j y_i y_j \langle \mathbf{x}_i, \mathbf{x}_j \rangle
+$$
+
+*   **Support Vectors:** The sparse subset of data points that lie exactly on the margin boundary. The model's complexity is dictated by the density of these vectors, not the total dimensionality of the input.
 ---
 
 ## II. The Kernel Trick and RKHS

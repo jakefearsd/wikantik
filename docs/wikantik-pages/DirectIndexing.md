@@ -32,8 +32,13 @@ Consider an investor tracking the S&P 500 in 2023-2024.
 
 ## 2. Calculating Tax Alpha
 
-Tax Alpha is the additional return generated through tax savings.$$\text{Tax Alpha} = (\text{Harvested Loss} \times \text{Marginal Tax Rate}) / \text{Total Portfolio Value}$$If an investor harvests$50,000 in losses in a$1M portfolio and faces a 30% combined tax rate, they have generated **1.5% in Tax Alpha ($15,000)** for that year.
+Tax Alpha is the additional return generated through tax savings.
 
+$$
+\text{Tax Alpha} = (\text{Harvested Loss} \times \text{Marginal Tax Rate}) / \text{Total Portfolio Value}
+$$
+
+If an investor harvests$50,000 in losses in a$1M portfolio and faces a 30% combined tax rate, they have generated **1.5% in Tax Alpha ($15,000)** for that year.
 ## 3. Custom Factor Optimization
 
 Direct Indexing also allows for "Tilt" and "Exclusion" strategies that are impossible in pooled funds:

@@ -85,8 +85,13 @@ The multi-billion dollar database industry (SQL) is built directly on set theory
 
 ## 5. Formal Definitions and Logic Bridge
 
-The connection between set theory and logic is established by the **Membership Relation** ($\in$). In First-Order Logic, we define:$$A \subseteq B \iff \forall x (x \in A \implies x \in B)$$### 5.1 The Empty Set and Construction
-We can build all of mathematics starting from nothing:
+The connection between set theory and logic is established by the **Membership Relation** ($\in$). In First-Order Logic, we define:
+
+$$
+A \subseteq B \iff \forall x (x \in A \implies x \in B)
+$$
+
+### 5.1 The Empty Set and ConstructionWe can build all of mathematics starting from nothing:
 -$0 = \emptyset$-$1 = \{0\} = \{\emptyset\}$-$2 = \{0, 1\} = \{\emptyset, \{\emptyset\}\}$This construction (von Neumann ordinals) shows that numbers themselves are merely specific types of sets.
 
 ## 6. Common Misconceptions

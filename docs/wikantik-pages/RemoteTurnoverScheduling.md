@@ -31,8 +31,13 @@ This treatise explores the state-vector modeling of resources, the construction 
 
 ## I. Foundations: The Operational State Vector ($\mathbf{S}_t$)
 
-We model the site as a dynamic system defined by its instantaneous capacity across five orthogonal dimensions:$$\mathbf{S}(t) = \langle \text{Energy}, \text{Water}, \text{Consumables}, \text{Personnel}, \text{Infrastructure\_Health} \rangle$$Unlike urban management, where resources are effectively infinite, off-grid scheduling must execute a **Task De-scoping Protocol (TDP)** when the energy state$E(t)$falls below the threshold required for high-energy turnovers (e.g., industrial laundry).
+We model the site as a dynamic system defined by its instantaneous capacity across five orthogonal dimensions:
 
+$$
+\mathbf{S}(t) = \langle \text{Energy}, \text{Water}, \text{Consumables}, \text{Personnel}, \text{Infrastructure\_Health} \rangle
+$$
+
+Unlike urban management, where resources are effectively infinite, off-grid scheduling must execute a **Task De-scoping Protocol (TDP)** when the energy state$E(t)$falls below the threshold required for high-energy turnovers (e.g., industrial laundry).
 ---
 
 ## II. The Task Dependency Graph (TDG) and Scarcity

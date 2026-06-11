@@ -30,8 +30,13 @@ This treatise explores the **Marginal Tax Rate Differential Model (MTRDM)**, the
 
 ## I. Foundations: The Marginal Tax Rate Differential Model (MTRDM)
 
-The decision to convert Traditional assets to Roth is governed by the$MTRDM$:$$\text{Benefit} = \text{Amount} \times \left( R_{future} - R_{today} \right) - \text{Opportunity\_Cost}(\text{Tax\_Paid})$$*   **Bracket Mapping:** Drawing from [Mathematics Hub](MathematicsHub) logic, we treat the tax code as a non-linear piecewise function. Sophisticated planners aim to "fill" the 12% or 22% brackets early in retirement to preemptively mitigate the "Tax Cliff" created by [Required Minimum Distributions](InheritedIraRules).
-*   **The Low-Income Fallacy:** A low current rate is only an opportunity if it is significantly lower than the *weighted average expected future rate* over the entire withdrawal phase.
+The decision to convert Traditional assets to Roth is governed by the$MTRDM$:
+
+$$
+\text{Benefit} = \text{Amount} \times \left( R_{future} - R_{today} \right) - \text{Opportunity\_Cost}(\text{Tax\_Paid})
+$$
+
+*   **Bracket Mapping:** Drawing from [Mathematics Hub](MathematicsHub) logic, we treat the tax code as a non-linear piecewise function. Sophisticated planners aim to "fill" the 12% or 22% brackets early in retirement to preemptively mitigate the "Tax Cliff" created by [Required Minimum Distributions](InheritedIraRules).*   **The Low-Income Fallacy:** A low current rate is only an opportunity if it is significantly lower than the *weighted average expected future rate* over the entire withdrawal phase.
 
 ---
 

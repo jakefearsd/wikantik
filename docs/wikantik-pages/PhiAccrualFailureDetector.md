@@ -33,8 +33,13 @@ The detector uses a sliding window of the last$N$heartbeat intervals (inter-arri
 
 1.  **Profiling:** It calculates the mean ($\mu$) and standard deviation ($\sigma$) of the intervals in the window, assuming a **Normal Distribution**.
 2.  **Estimation:** When$t_{elapsed}$time has passed since the last heartbeat, it calculates$P_{later}$: the probability that a heartbeat would arrive *even later* than the current time.
-3.  **The Phi Value:** The suspicion level$\phi$is defined as the negative base-10 logarithm of that probability:$$\phi(t) = -\log_{10}(P_{later})$$### Understanding the Phi Scale
-The$\phi$value represents the order of magnitude of the "risk" of a false positive:
+3.  **The Phi Value:** The suspicion level$\phi$is defined as the negative base-10 logarithm of that probability:
+
+$$
+\phi(t) = -\log_{10}(P_{later})
+$$
+
+### Understanding the Phi ScaleThe$\phi$value represents the order of magnitude of the "risk" of a false positive:
 *   **$\phi = 1$**: 10% chance the node is actually alive (high risk of false positive).
 *   **$\phi = 2$**: 1% chance the node is alive.
 *   **$\phi = 8$**:$10^{-8}$chance (extremely low risk; default for many databases).

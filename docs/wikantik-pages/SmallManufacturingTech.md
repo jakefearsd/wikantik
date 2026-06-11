@@ -44,7 +44,11 @@ Unlike molding, 3D printing costs are independent of geometry complexity. A high
 
 ## 3. The Cross-Over Point
 
-The decision to move from 3D printing (prototyping/low-volume) to injection molding (mass production) is determined by the **Cross-Over Volume ($V_c$)**:$$V_c = \frac{CapEx_{molding}}{OpEx_{printing} - OpEx_{molding}}$$
+The decision to move from 3D printing (prototyping/low-volume) to injection molding (mass production) is determined by the **Cross-Over Volume ($V_c$)**:
+
+$$
+V_c = \frac{CapEx_{molding}}{OpEx_{printing} - OpEx_{molding}}
+$$
 *   **Low Volume (< 500 units):** 3D printing is typically more economical.
 *   **High Volume (> 5,000 units):** Injection molding is mandatory for profitability.
 *   **The "Valley of Death" (500 - 5,000 units):** This is where Bridge Tooling (aluminum molds or 3D-printed molds) is utilized.

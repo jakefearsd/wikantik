@@ -37,7 +37,11 @@ Route Density is the primary metric for last-mile profitability.
 - **Stem Time:** Time spent driving from the depot to the first stop and from the last stop back to the depot.
 - **On-Route Time:** Time spent driving between stops and performing the "door-to-door" action.
 
-### The Optimization Formula$$\text{Cost Per Drop} = \frac{(\text{Driver Wage} \times \text{Route Time}) + (\text{Distance} \times \text{Fuel Cost})}{\text{Total Drops}}$$
+### The Optimization Formula
+
+$$
+\text{Cost Per Drop} = \frac{(\text{Driver Wage} \times \text{Route Time}) + (\text{Distance} \times \text{Fuel Cost})}{\text{Total Drops}}
+$$
 ## 3. Concrete Example: Urban vs. Suburban Routing
 1.  **Urban Route:** 50 stops within 2 miles. **Drop Density:** 25 stops/sq mile. **Result:** Low fuel cost, high "Last 100 Meter" labor cost (lobby/elevator wait).
 2.  **Suburban Route:** 50 stops across 40 miles. **Drop Density:** 1.25 stops/sq mile. **Result:** High fuel and vehicle wear, low "Last 100 Meter" cost (front porch drops).

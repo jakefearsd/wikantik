@@ -26,12 +26,17 @@ Simulated Annealing maps the physical process of cooling a metal to the search f
 ### 1.1 The Metropolis Criterion
 The heart of SA is the **Acceptance Probability**, which allows the algorithm to escape local traps by occasionally accepting "uphill" moves (moves that increase the cost). 
 
-Given a current state$x$and a candidate neighbor$x'$, let$\Delta E = f(x') - f(x)$. The probability of accepting$x'$is:$$P(\text{accept}) = 
+Given a current state$x$and a candidate neighbor$x'$, let$\Delta E = f(x') - f(x)$. The probability of accepting$x'$is:
+
+$$
+P(\text{accept}) = 
 \begin{cases} 
 1 & \text{if } \Delta E \le 0 \\
 \exp\left(-\frac{\Delta E}{T}\right) & \text{if } \Delta E > 0 
-\end{cases}$$Where$T$is the "temperature" parameter. 
+\end{cases}
+$$
 
+Where$T$is the "temperature" parameter. 
 **The Math of Exploration:** At high temperatures ($T \to \infty$),$P \to 1$for all$\Delta E$, making the search essentially a random walk. As$T \to 0$,$P \to 0$for all$\Delta E > 0$, and the algorithm behaves like a greedy Hill Climber.
 
 ### 1.2 Cooling Schedules: Logarithmic vs. Geometric
@@ -52,8 +57,13 @@ Selection is the mechanism that enforces "survival of the fittest."
 
 ### 2.2 The Schemata Theorem
 The mathematical justification for GAs is John Holland’s **Schemata Theorem**. It states that "building blocks" (short, high-fitness strings called schemata) increase their presence in the population exponentially over generations.
-Let$m(H, t)$be the number of strings matching schema$H$at generation$t$.$$m(H, t+1) \ge m(H, t) \frac{f(H)}{\bar{f}} [1 - \text{Loss}_{crossover} - \text{Loss}_{mutation}]$$Where$f(H)$is the average fitness of schema$H$and$\bar{f}$is the average fitness of the whole population. This confirms that GA is not a random search but a structured information-processing engine.
+Let$m(H, t)$be the number of strings matching schema$H$at generation$t$.
 
+$$
+m(H, t+1) \ge m(H, t) \frac{f(H)}{\bar{f}} [1 - \text{Loss}_{crossover} - \text{Loss}_{mutation}]
+$$
+
+Where$f(H)$is the average fitness of schema$H$and$\bar{f}$is the average fitness of the whole population. This confirms that GA is not a random search but a structured information-processing engine.
 ---
 
 ## 3. Comparison and Convergence

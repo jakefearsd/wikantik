@@ -44,8 +44,13 @@ The accounting method is fundamentally an economic model applied to computationa
 
 ### 2.1 Core Invariants
 
-Let$c_i$be the actual cost of operation$i$, and$\hat{c}_i$be the assigned amortized cost. For the analysis to be valid, we must prove:$$\sum_{i=1}^{n} \hat{c}_i \ge \sum_{i=1}^{n} c_i$$The difference$\sum \hat{c}_i - \sum c_i$is the **credit** stored in the data structure. A valid accounting must ensure that the credit balance$B_n \ge 0$for all$n$.
+Let$c_i$be the actual cost of operation$i$, and$\hat{c}_i$be the assigned amortized cost. For the analysis to be valid, we must prove:
 
+$$
+\sum_{i=1}^{n} \hat{c}_i \ge \sum_{i=1}^{n} c_i
+$$
+
+The difference$\sum \hat{c}_i - \sum c_i$is the **credit** stored in the data structure. A valid accounting must ensure that the credit balance$B_n \ge 0$for all$n$.
 ### 2.2 Case Study: The Binary Counter
 
 Consider an$k$-bit binary counter starting at 0. The only operation is `INCREMENT`. 
@@ -93,8 +98,13 @@ In DSU with path compression, the accounting method helps visualize why the comp
 
 ## V. Theoretical Unification: Accounting vs. Potential
 
-The Potential Method is the formal generalization of Accounting. If we define the potential function$\Phi(S)$as the **total credit stored in state$S$**, then:$$\hat{c}_i = c_i + \Phi(S_i) - \Phi(S_{i-1})$$The requirement that$\Phi(S_n) \ge \Phi(S_0)$ensures that we have not "overspent" our assigned costs. In research papers, the Potential Method is preferred for its mathematical density, while the Accounting Method is often used in the "Intuition" section to explain the credit flow.
+The Potential Method is the formal generalization of Accounting. If we define the potential function$\Phi(S)$as the **total credit stored in state$S$**, then:
 
+$$
+\hat{c}_i = c_i + \Phi(S_i) - \Phi(S_{i-1})
+$$
+
+The requirement that$\Phi(S_n) \ge \Phi(S_0)$ensures that we have not "overspent" our assigned costs. In research papers, the Potential Method is preferred for its mathematical density, while the Accounting Method is often used in the "Intuition" section to explain the credit flow.
 ---
 
 ## VI. Strategic Considerations for the Expert

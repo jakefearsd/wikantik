@@ -35,8 +35,13 @@ This treatise explores the parametric penalties of L1 and L2, the Bayesian inter
 Regularization is the mathematical management of the **Bias-Variance Tradeoff**.
 *   **Variance:** Sensitivity to training set noise. High variance leads to overfitting.
 *   **Bias:** Inherent error from over-simplification. High bias leads to underfitting.
-*   **The Penalty Function:** We modify the loss $\mathcal{L}$by adding a regularization term$\Omega(\mathbf{W})$:$$\mathcal{L}_{reg} = \mathcal{L}(\mathcal{D}) + \lambda \cdot \Omega(\mathbf{W})$$The hyperparameter$\lambda$dictates the strength of the constraint, effectively shrinking the feasible parameter space.
+*   **The Penalty Function:** We modify the loss $\mathcal{L}$by adding a regularization term$\Omega(\mathbf{W})$:
 
+$$
+\mathcal{L}_{reg} = \mathcal{L}(\mathcal{D}) + \lambda \cdot \Omega(\mathbf{W})
+$$
+
+The hyperparameter$\lambda$dictates the strength of the constraint, effectively shrinking the feasible parameter space.
 ---
 
 ## II. Weight Regularization: L1, L2, and Elastic Net

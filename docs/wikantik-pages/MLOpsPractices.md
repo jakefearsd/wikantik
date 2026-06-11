@@ -44,8 +44,13 @@ CI for ML must verify the entire computational graph:
 *   **Model Registry:** A state machine that enforces promotion workflows (Staging $\rightarrow$Canary$\rightarrow$Production) and tracks lineage (code, data, and feature versions).
 
 ### C. Evaluation Gates
-Models must pass a weighted scorecard evaluation:$$\text{Score} = w_1 \cdot \text{F1} + w_2 \cdot \text{Latency} + w_3 \cdot \text{Fairness}$$This includes statistical significance testing against the current production model and adversarial robustness checks.
+Models must pass a weighted scorecard evaluation:
 
+$$
+\text{Score} = w_1 \cdot \text{F1} + w_2 \cdot \text{Latency} + w_3 \cdot \text{Fairness}
+$$
+
+This includes statistical significance testing against the current production model and adversarial robustness checks.
 ---
 
 ## III. Production Monitoring and Retraining

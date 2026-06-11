@@ -21,8 +21,11 @@ Variable Percentage Withdrawal (VPW) is a retirement spending strategy that adap
 ## 1. The VPW Mechanism: The Math of the Table
 
 VPW uses a table of percentages based on the retiree's current age and the asset allocation of their portfolio. The withdrawal amount is calculated annually:
-$$Withdrawal = Portfolio\ Balance \times VPW\%\text{(Age, Allocation)}$$### 1.1 The Mathematical Basis
-The percentages are derived from an internal rate of return (IRR) calculation that assumes the portfolio will be exhausted to zero at a specific age (typically 100). 
+$$
+Withdrawal = Portfolio\ Balance \times VPW\%\text{(Age, Allocation)}
+$$
+
+### 1.1 The Mathematical BasisThe percentages are derived from an internal rate of return (IRR) calculation that assumes the portfolio will be exhausted to zero at a specific age (typically 100). 
 *   **Equity Tilt:** Higher equity allocations allow for higher withdrawal percentages in the early years but increase volatility.
 *   **Bond Tilt:** Provides stability but lower overall withdrawal capacity.
 

@@ -38,8 +38,13 @@ PgBouncer sits between the application and PostgreSQL, multiplexing many client 
 
 When combining HikariCP and PgBouncer, synchronization of timeouts is mandatory to prevent "phantom connections"—where HikariCP thinks it has a valid connection but PgBouncer has already terminated the backend link.
 
-### Timeout Synchronization Rule$$T_{\text{PgBouncer Client Idle}} > T_{\text{HikariCP Max Lifetime}}$$This ensures HikariCP proactively retires connections before PgBouncer forcibly kills them.
+### Timeout Synchronization Rule
 
+$$
+T_{\text{PgBouncer Client Idle}} > T_{\text{HikariCP Max Lifetime}}
+$$
+
+This ensures HikariCP proactively retires connections before PgBouncer forcibly kills them.
 ## Sizing the Stack
 
 The total connection capacity is a function of the bottleneck—usually the PostgreSQL `max_connections`.

@@ -32,8 +32,13 @@ This treatise explores the kinematics of material removal, the application of **
 ## I. Foundations: Kinematics and Force Vectors
 
 The table saw is a mechanism for controlled material failure (shearing).
-*   **The Cutting Force ($F_c$):** Drawing from [Mathematics Hub](MathematicsHub), we model$F_c$as a function of blade speed ($S$), feed rate ($F$), and material shear strength ($\sigma$):$$F_c = f(S, F, \sigma, \text{Blade Geometry})$$*   **The Principle of Constraint:** Safety is achieved by minimizing the system's degrees of freedom. Jigs are treated as **Force Vectors** that constrain the workpiece to a deterministic path, preventing the rotational "pivoting" that triggers kickback.
+*   **The Cutting Force ($F_c$):** Drawing from [Mathematics Hub](MathematicsHub), we model$F_c$as a function of blade speed ($S$), feed rate ($F$), and material shear strength ($\sigma$):
 
+$$
+F_c = f(S, F, \sigma, \text{Blade Geometry})
+$$
+
+*   **The Principle of Constraint:** Safety is achieved by minimizing the system's degrees of freedom. Jigs are treated as **Force Vectors** that constrain the workpiece to a deterministic path, preventing the rotational "pivoting" that triggers kickback.
 ---
 
 ## II. Failure Mode and Effects Analysis (FMEA)

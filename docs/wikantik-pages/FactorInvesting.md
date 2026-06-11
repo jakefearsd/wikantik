@@ -20,12 +20,27 @@ Factor investing moves beyond the Capital Asset Pricing Model (CAPM) by identify
 
 ## 1. Beyond CAPM: The Multi-Factor Framework
 
-The classic CAPM assumes returns are driven solely by market beta ($\beta$):$$E[R_i] = R_f + \beta_i(E[R_m] - R_f)$$Factor investing utilizes the **Arbitrage Pricing Theory (APT)** framework, positing that returns are a linear function of multiple factors:$$E[R_i] = R_f + \sum \beta_{i,j} \lambda_j$$Where$\beta_{i,j}$is the exposure (loading) to factor$j$, and$\lambda_j$is the risk premium for that factor.
+The classic CAPM assumes returns are driven solely by market beta ($\beta$):
 
-## 2. The Fama-French 5-Factor Model
+$$
+E[R_i] = R_f + \beta_i(E[R_m] - R_f)
+$$
 
-The foundational model for factor analysis is the Fama-French 5-Factor Model, which expands the original 3-factor model to include profitability and investment:$$R_{it} - R_{ft} = \alpha_i + \beta_{i1}(R_{mt} - R_{ft}) + \beta_{i2}SMB_t + \beta_{i3}HML_t + \beta_{i4}RMW_t + \beta_{i5}CMA_t + \epsilon_{it}$$*   **Market ($R_m - R_f$):** Equity risk premium.
-*   **SMB (Small Minus Big):** The Size premium. Small-cap stocks tend to outperform large-cap stocks over long horizons.
+Factor investing utilizes the **Arbitrage Pricing Theory (APT)** framework, positing that returns are a linear function of multiple factors:
+
+$$
+E[R_i] = R_f + \sum \beta_{i,j} \lambda_j
+$$
+
+Where$\beta_{i,j}$is the exposure (loading) to factor$j$, and$\lambda_j$is the risk premium for that factor.## 2. The Fama-French 5-Factor Model
+
+The foundational model for factor analysis is the Fama-French 5-Factor Model, which expands the original 3-factor model to include profitability and investment:
+
+$$
+R_{it} - R_{ft} = \alpha_i + \beta_{i1}(R_{mt} - R_{ft}) + \beta_{i2}SMB_t + \beta_{i3}HML_t + \beta_{i4}RMW_t + \beta_{i5}CMA_t + \epsilon_{it}
+$$
+
+*   **Market ($R_m - R_f$):** Equity risk premium.*   **SMB (Small Minus Big):** The Size premium. Small-cap stocks tend to outperform large-cap stocks over long horizons.
 *   **HML (High Minus Low):** The Value premium. Stocks with high book-to-market ratios (Value) outperform those with low ratios (Growth).
 *   **RMW (Robust Minus Weak):** Profitability factor. Firms with high operating profitability perform better.
 *   **CMA (Conservative Minus Aggressive):** Investment factor. Firms that invest conservatively outperform those with aggressive investment growth.
@@ -53,7 +68,11 @@ Experts don't just "buy value"; they optimize for **Factor Interaction**.
 *   **Bottom-Up (Preferred):** Scoring each security across multiple factors simultaneously to find stocks that provide "Value + Quality" exposure, reducing the risk of "Value Traps."
 
 ### 4.1 Rebalancing and Turnover
-Factor premiums are not static. High-turnover factors like Momentum require careful transaction cost modeling.$$Net\ Return = \sum (w_i \cdot r_i) - \text{Trading Costs} - \text{Market Impact}$$
+Factor premiums are not static. High-turnover factors like Momentum require careful transaction cost modeling.
+
+$$
+Net\ Return = \sum (w_i \cdot r_i) - \text{Trading Costs} - \text{Market Impact}
+$$
 ## 5. Summary of Factor Premiums
 
 | Factor | Description | Theoretical Driver |

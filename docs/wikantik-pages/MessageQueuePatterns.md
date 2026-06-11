@@ -47,8 +47,13 @@ A **Poison Pill** is a message that causes a consumer to crash or fail repeatedl
 Messages that fail more than $N$times are moved to a DLQ for manual inspection. This prevents a single malformed message from blocking the entire pipeline.
 
 ### Exponential Backoff
-When a processing error occurs (e.g., DB is down), the consumer should delay the next retry to avoid a self-inflicted DoS.$$\text{Delay}_i = \text{base} \times 2^i + \text{jitter}$$*Jitter* is essential to prevent "thundering herd" synchronization across multiple workers.
+When a processing error occurs (e.g., DB is down), the consumer should delay the next retry to avoid a self-inflicted DoS.
 
+$$
+\text{Delay}_i = \text{base} \times 2^i + \text{jitter}
+$$
+
+*Jitter* is essential to prevent "thundering herd" synchronization across multiple workers.
 ## Common Patterns
 
 ### 1. Work Queues (Competing Consumers)

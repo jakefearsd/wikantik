@@ -24,8 +24,13 @@ A **Topological Space** $(X, \tau)$is a set$X$together with a collection of subs
 3.  The **finite intersection** of open sets is open.
 
 ### 1.1 Continuity: The Preimage Rule
-In calculus, continuity is defined using limits ($\epsilon-\delta$). In topology, it is generalized: a function$f: X \to Y$is **continuous** if the preimage of every open set in$Y$is an open set in$X$.$$U \in \tau_Y \implies f^{-1}(U) \in \tau_X$$---
+In calculus, continuity is defined using limits ($\epsilon-\delta$). In topology, it is generalized: a function$f: X \to Y$is **continuous** if the preimage of every open set in$Y$is an open set in$X$.
 
+$$
+U \in \tau_Y \implies f^{-1}(U) \in \tau_X
+$$
+
+---
 ## 2. Algebraic Topology: Computing Invariants
 
 Algebraic topology converts topological problems (which are hard) into algebraic ones (which are easier to solve) by assigning groups to spaces.
@@ -39,8 +44,13 @@ Every loop on a circle is defined by its **Winding Number** ($n$)—how many tim
 *   **Intuition**: You cannot turn a loop that goes around the circle once into a loop that doesn't go around at all without "cutting" it.
 
 #### The Torus ($T^2$)
-Since a torus is a product of two circles ($S^1 \times S^1$), its fundamental group is:$$\pi_1(T^2) \cong \mathbb{Z} \times \mathbb{Z}$$This represents the two distinct ways to wrap a loop: around the "tube" and around the "center."
+Since a torus is a product of two circles ($S^1 \times S^1$), its fundamental group is:
 
+$$
+\pi_1(T^2) \cong \mathbb{Z} \times \mathbb{Z}
+$$
+
+This represents the two distinct ways to wrap a loop: around the "tube" and around the "center."
 ---
 
 ## 3. Homology and Persistent Homology (TDA)

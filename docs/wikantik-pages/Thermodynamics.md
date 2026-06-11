@@ -33,8 +33,13 @@ The tempering of chocolate is a sophisticated thermodynamic "kinetic bypass" des
 In [Home Emergency Preparedness](HomeEmergencyPreparedness) and [Food Storage](LongTermFoodStorage), the **Thermal Flywheel Effect** is used to dampen diurnal temperature swings.
 
 ### 2.1 The Energy Storage Equation
-The efficiency of a thermal mass system is governed by its Heat Capacity ($C$):$$Q = m \cdot c_p \cdot \Delta T$$Where$c_p$is the Specific Heat Capacity.
+The efficiency of a thermal mass system is governed by its Heat Capacity ($C$):
 
+$$
+Q = m \cdot c_p \cdot \Delta T
+$$
+
+Where$c_p$is the Specific Heat Capacity.
 | Material |$c_p$(J/g·K) | Relative Efficiency |
 | :--- | :--- | :--- |
 | **Water** | **4.18** | **100% (High Thermal Inertia)** |

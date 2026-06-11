@@ -25,8 +25,13 @@ This treatise explores the foundational paradigms of expedition architecture, th
 A successful expedition must satisfy three conflicting vectors: **Operational** (feasibility), **Human** (physiological capacity), and **Environmental** (ecological/geopolitical impact). The goal is to minimize systemic entropy while achieving mission objectives.
 
 ### 1.1 Energy Expenditure Profile (EEP)
-We model metabolic cost ($\text{kcal/km}$) across varied terrain, factoring in altitude and load:$$\text{EEP} = \sum \left( C_{base} + k_1 \cdot \text{Grade} + k_2 \cdot \text{Load} \right) \cdot \Delta t$$This quantitative approach allows for precise [Supply Chain and Logistics Optimization](SupplyChainAndLogisticsOptimization) of caloric reserves.
+We model metabolic cost ($\text{kcal/km}$) across varied terrain, factoring in altitude and load:
 
+$$
+\text{EEP} = \sum \left( C_{base} + k_1 \cdot \text{Grade} + k_2 \cdot \text{Load} \right) \cdot \Delta t
+$$
+
+This quantitative approach allows for precise [Supply Chain and Logistics Optimization](SupplyChainAndLogisticsOptimization) of caloric reserves.
 ---
 
 ## II. Risk Quantification and Mitigation
@@ -46,7 +51,11 @@ Resilience requires an executable **Triage Decision Tree** and the integration o
 The movement of materiel across hostile terrain is a variant of the [Vehicle Routing Problem](VehicleRoutingProblem).
 
 ### 3.1 Constrained Shortest Path Problem (CSPP)
-Optimal resupply routes are determined by minimizing a weighted cost function$W$:$$\text{Minimize } W = \alpha \cdot \text{Time} + \beta \cdot \text{Fuel} + \gamma \cdot \text{Risk}$$
+Optimal resupply routes are determined by minimizing a weighted cost function$W$:
+
+$$
+\text{Minimize } W = \alpha \cdot \text{Time} + \beta \cdot \text{Fuel} + \gamma \cdot \text{Risk}
+$$
 This ensures that the supply chain remains resilient even if primary transport vectors fail.
 
 ## Conclusion

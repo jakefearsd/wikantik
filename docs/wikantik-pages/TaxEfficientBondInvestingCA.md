@@ -36,8 +36,11 @@ California's tax system is highly progressive. For high earners, the federal and
 The TEY allows an investor to compare a tax-free bond to a taxable one (like a CD or Corporate Bond).
 
 **The Formula:**
-$$\text{TEY} = \frac{\text{Tax-Free Yield}}{1 - (\text{Marginal Fed Rate} + \text{Marginal State Rate})}$$---
+$$
+\text{TEY} = \frac{\text{Tax-Free Yield}}{1 - (\text{Marginal Fed Rate} + \text{Marginal State Rate})}
+$$
 
+---
 ## II. Strategy A: California Municipal Bonds (Double Tax-Free)
 
 California Municipal Bonds (Munis) are exempt from **both** Federal and California state income taxes. This "Double Tax-Free" status makes them the premier choice for high-bracket residents.

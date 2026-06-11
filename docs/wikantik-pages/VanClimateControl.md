@@ -22,8 +22,13 @@ Managing the thermal envelope of a steel-chassis vehicle requires addressing ext
 
 ## 1. Heating: BTU Load Calculation
 
-A standard 144" WB Sprinter has approximately 350 sq ft of interior surface area. To maintain a 40°F temperature differential ($\Delta T$) with an average R-value of 5:$$Q = \frac{A \times \Delta T}{R} = \frac{350 \times 40}{5} = 2800 \text{ BTU/hr}$$### Heating Hardware Comparison
-| Unit Type | Output (kW) | Output (BTU) | Fuel Consumption | Notes |
+A standard 144" WB Sprinter has approximately 350 sq ft of interior surface area. To maintain a 40°F temperature differential ($\Delta T$) with an average R-value of 5:
+
+$$
+Q = \frac{A \times \Delta T}{R} = \frac{350 \times 40}{5} = 2800 \text{ BTU/hr}
+$$
+
+### Heating Hardware Comparison| Unit Type | Output (kW) | Output (BTU) | Fuel Consumption | Notes |
 | :--- | :--- | :--- | :--- | :--- |
 | **2kW Diesel** | 2.0 | ~6,824 | 0.12 - 0.24 L/hr | Sufficient for most vans down to 0°F. |
 | **5kW Diesel** | 5.0 | ~17,060 | 0.15 - 0.50 L/hr | Overkill; causes "sooting" if run on low. |

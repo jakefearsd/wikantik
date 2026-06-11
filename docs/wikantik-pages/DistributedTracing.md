@@ -62,8 +62,11 @@ try (Scope scope = span.makeCurrent()) {
 ## Sampling Mathematics: The Cost Lever
 
 Tracing generates massive data volumes. At 1,000 requests per second (RPS), with 20 spans per request and 500 bytes per span, the daily uncompressed volume is:
-$$1000 \text{ req/s} \times 20 \text{ spans/req} \times 500 \text{ bytes/span} \times 86400 \text{ s/day} \approx 864 \text{ GB/day}$$### Head-based vs. Tail-based Sampling
-1. **Head-based:** Sampling decision is made at the start of the request (e.g., sample 1%).
+$$
+1000 \text{ req/s} \times 20 \text{ spans/req} \times 500 \text{ bytes/span} \times 86400 \text{ s/day} \approx 864 \text{ GB/day}
+$$
+
+### Head-based vs. Tail-based Sampling1. **Head-based:** Sampling decision is made at the start of the request (e.g., sample 1%).
    - **Pros:** Low overhead, predictable cost.
    - **Cons:** Misses outliers and rare errors.
 2. **Tail-based:** All spans are buffered; the decision is made after the request finishes.

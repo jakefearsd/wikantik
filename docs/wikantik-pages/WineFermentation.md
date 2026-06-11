@@ -32,8 +32,13 @@ This treatise explores the deconstruction of yeast metabolic pathways, the mecha
 ## I. Foundations: Glycolysis and Product Inhibition
 
 We move beyond stoichiometry to model the **Specific Rate of Production ($\mu$)**.
-*   **The Monod Framework:** Drawing from [Mathematics Hub](MathematicsHub), we model the rate-limiting uptake of sugars ($\text{S}$):$$\frac{d[\text{EtOH}]}{dt} = k_{max} \cdot \frac{[\text{S}]}{K_s + [\text{S}]} \cdot \frac{1}{1 + \frac{[\text{EtOH}]}{K_i}}$$The **Inhibition Constant ($K_i$)** is the primary bottleneck. As ethanol concentration rises, it disrupts the integrity of the yeast cell membrane, leading to **Sudden Stalling** if the must's thermal history and nitrogen profile are not precisely managed.
+*   **The Monod Framework:** Drawing from [Mathematics Hub](MathematicsHub), we model the rate-limiting uptake of sugars ($\text{S}$):
 
+$$
+\frac{d[\text{EtOH}]}{dt} = k_{max} \cdot \frac{[\text{S}]}{K_s + [\text{S}]} \cdot \frac{1}{1 + \frac{[\text{EtOH}]}{K_i}}
+$$
+
+The **Inhibition Constant ($K_i$)** is the primary bottleneck. As ethanol concentration rises, it disrupts the integrity of the yeast cell membrane, leading to **Sudden Stalling** if the must's thermal history and nitrogen profile are not precisely managed.
 ---
 
 ## II. Secondary Metabolism: The Ehrlich Manifold

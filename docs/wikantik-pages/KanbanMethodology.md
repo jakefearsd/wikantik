@@ -18,8 +18,13 @@ Kanban is more than a board; it is a **pull-based system** for managing the flow
 ## I. The Theoretical Foundation
 
 ### A. Little's Law
-The fundamental law of flow states that in a stable system, the average number of items ($L$) is equal to the average arrival rate ($\lambda$) multiplied by the average time an item spends in the system ($W$).$$L = \lambda W \implies \text{WIP} = \text{Throughput} \times \text{Cycle Time}$$**The Practitioner's Insight:** To reduce Cycle Time ($W$) without changing your team's throughput capacity ($\lambda$), you **must** reduce the WIP ($L$). Adding more work to the board mathematically guarantees longer wait times.
+The fundamental law of flow states that in a stable system, the average number of items ($L$) is equal to the average arrival rate ($\lambda$) multiplied by the average time an item spends in the system ($W$).
 
+$$
+L = \lambda W \implies \text{WIP} = \text{Throughput} \times \text{Cycle Time}
+$$
+
+**The Practitioner's Insight:** To reduce Cycle Time ($W$) without changing your team's throughput capacity ($\lambda$), you **must** reduce the WIP ($L$). Adding more work to the board mathematically guarantees longer wait times.
 ---
 
 ## II. WIP Limits: The System Governor
@@ -63,7 +68,11 @@ Don't guess. Use the **Bottleneck Capacity** method.
 3.  Set the WIP limit for the bottleneck stage to$C$.
 4.  Set upstream stages to$C + 1$(to ensure the bottleneck is never starved).
 
-**Formula for Multi-team Flow:**$$\text{WIP}_{\text{max}} = \frac{\text{Target Cycle Time}}{\text{Historical Mean Processing Time}}$$
+**Formula for Multi-team Flow:**
+
+$$
+\text{WIP}_{\text{max}} = \frac{\text{Target Cycle Time}}{\text{Historical Mean Processing Time}}
+$$
 ---
 
 ## V. Flow Metrics Practitioner Template (YAML)

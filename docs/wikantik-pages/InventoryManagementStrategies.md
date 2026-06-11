@@ -28,8 +28,13 @@ Not all SKUs are created equal. ABC analysis categorizes inventory based on its 
 
 ## 2. Economic Order Quantity (EOQ) Math
 
-The EOQ formula determines the optimal order size that minimizes the sum of **Ordering Costs** (S) and **Holding Costs** (H).$$\text{EOQ} = \sqrt{\frac{2DS}{H}}$$Where:
--$D$= Annual Demand (units).
+The EOQ formula determines the optimal order size that minimizes the sum of **Ordering Costs** (S) and **Holding Costs** (H).
+
+$$
+\text{EOQ} = \sqrt{\frac{2DS}{H}}
+$$
+
+Where:-$D$= Annual Demand (units).
 -$S$= Setup or Ordering Cost per order ($).
 -$H$= Holding or Carrying Cost per unit per year ($).
 
@@ -39,12 +44,22 @@ Consider a high-value sensor (Class A):
 - **Order Cost (S):**$50 (Admin + Shipping).
 - **Holding Cost (H):** $4/unit/year (Capital cost + insurance).
 
-**Calculation:**$$\text{EOQ} = \sqrt{\frac{2 \times 10,000 \times 50}{4}} = \sqrt{\frac{1,000,000}{4}} = 500 \text{ units.}$$**Insight:** Ordering 500 units at a time ensures the warehouse isn't overstocked with expensive sensors while minimizing the number of purchase orders issued (20 orders/year).
+**Calculation:**
 
+$$
+\text{EOQ} = \sqrt{\frac{2 \times 10,000 \times 50}{4}} = \sqrt{\frac{1,000,000}{4}} = 500 \text{ units.}
+$$
+
+**Insight:** Ordering 500 units at a time ensures the warehouse isn't overstocked with expensive sensors while minimizing the number of purchase orders issued (20 orders/year).
 ## 3. Safety Stock and Service Levels
 
-Safety Stock ($SS$) is the buffer against demand variability during lead time:$$SS = Z \times \sigma_d \times \sqrt{L}$$-$Z$= Service level factor (e.g., 1.645 for 95% service).
--$\sigma_d$= Std Dev of demand.
+Safety Stock ($SS$) is the buffer against demand variability during lead time:
+
+$$
+SS = Z \times \sigma_d \times \sqrt{L}
+$$
+
+-$Z$= Service level factor (e.g., 1.645 for 95% service).-$\sigma_d$= Std Dev of demand.
 -$L$ = Lead time.
 
 ## 4. Inventory Performance Metrics

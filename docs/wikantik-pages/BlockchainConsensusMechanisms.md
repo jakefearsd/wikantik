@@ -36,8 +36,13 @@ Why not$2f+1$?
 
 1.  **Scenario**: Suppose we have$n$nodes, and$f$of them are malicious.
 2.  **Observation**: To reach consensus, we must wait for$n-f$responses (because$f$honest nodes might be slow/down, and we can't distinguish them from$f$malicious nodes who are silent).
-3.  **Conflict**: Of those$n-f$responses,$f$could be from malicious nodes. For the honest nodes to outvote the malicious ones, they need to be in the majority:$$(n-f) - f > f \implies n > 3f$$Therefore, the minimum number of nodes to ensure a valid majority of honest responses is **$3f+1$**.
+3.  **Conflict**: Of those$n-f$responses,$f$could be from malicious nodes. For the honest nodes to outvote the malicious ones, they need to be in the majority:
 
+$$
+(n-f) - f > f \implies n > 3f
+$$
+
+Therefore, the minimum number of nodes to ensure a valid majority of honest responses is **$3f+1$**.
 ### Concrete Example: A 4-Node Network (f=1)
 *   Total Nodes ($n$): 4
 *   Malicious Nodes ($f$): 1

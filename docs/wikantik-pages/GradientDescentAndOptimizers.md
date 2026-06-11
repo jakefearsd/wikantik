@@ -32,8 +32,11 @@ Update Rule:
 $$
 v_{t} = \gamma v_{t-1} + \eta \nabla L(\theta)
 $$
-$$\theta = \theta - v_{t}$$Where$\gamma \approx 0.9$and$\eta$is the learning rate.
+$$
+\theta = \theta - v_{t}
+$$
 
+Where$\gamma \approx 0.9$and$\eta$is the learning rate.
 ## 2. Adaptive Optimizers: Adam and AdamW
 **Adam** (Adaptive Moment Estimation) computes individual learning rates for each parameter by tracking the first moment (mean) and second moment (uncentered variance) of the gradients.
 

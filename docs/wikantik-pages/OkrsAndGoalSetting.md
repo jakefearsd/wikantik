@@ -24,8 +24,13 @@ The Objective is a qualitative, aspirational statement of a desired future state
 *   **Practitioner Pattern:** "Establish the platform as the industry benchmark for API reliability and developer self-service."
 
 ### B. The Key Result ($\text{KR}$)
-The KR is the empirical proof point. It follows the formula:$$\text{KR} = \text{Measure} \rightarrow \text{Baseline} \rightarrow \text{Target} \times \text{Deadline}$$#### Leading vs. Lagging Indicators
-*   **Lagging (Outcome):** "Increase revenue by 20%." (Too late to influence).
+The KR is the empirical proof point. It follows the formula:
+
+$$
+\text{KR} = \text{Measure} \rightarrow \text{Baseline} \rightarrow \text{Target} \times \text{Deadline}
+$$
+
+#### Leading vs. Lagging Indicators*   **Lagging (Outcome):** "Increase revenue by 20%." (Too late to influence).
 *   **Leading (Predictor):** "Reduce P99 latency for checkout flow from 500ms to 200ms." (Predicts improved conversion).
 
 ---
@@ -42,8 +47,13 @@ Using a normal distribution$X \sim \mathcal{N}(\mu, \sigma^2)$where$\mu$is the r
 *   **Stretch Target:**$T_s \approx \mu + 1.5\sigma$(Only ~7% probability of hitting 100%, but pushes the boundary of$\mu$).
 
 ### B. Scoring Mechanics
-The typical OKR score$S$is normalized between 0.0 and 1.0:$$S = \min\left(1, \frac{\text{Actual} - \text{Baseline}}{\text{Target} - \text{Baseline}}\right)$$*   **Sweet Spot:**$0.7$. A team consistently hitting$1.0$is sandbagging; a team hitting$0.3$is disconnected from reality or under-resourced.
+The typical OKR score$S$is normalized between 0.0 and 1.0:
 
+$$
+S = \min\left(1, \frac{\text{Actual} - \text{Baseline}}{\text{Target} - \text{Baseline}}\right)
+$$
+
+*   **Sweet Spot:**$0.7$. A team consistently hitting$1.0$is sandbagging; a team hitting$0.3$is disconnected from reality or under-resourced.
 ---
 
 ## III. OKR Template Library (Practitioner Assets)

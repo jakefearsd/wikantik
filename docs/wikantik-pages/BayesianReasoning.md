@@ -33,8 +33,13 @@ At the philosophical level, Bayesian reasoning diverges sharply from classical F
 - **Bayesian Interpretation:** Probability represents a **degree of belief** or state of knowledge. A parameter's true value may be fixed, but an observer's uncertainty about it is quantified using a probability distribution.
 
 ### 1.1 The Anatomy of the Update
-The operational heart of Bayesian reasoning is Bayes' Rule applied to hypotheses ($H$) and evidence ($E$):$$P(H | E) = \frac{P(E | H) P(H)}{P(E)}$$This forces the analyst to explicitly declare their assumptions via the prior$P(H)$and mathematically guards against the Base Rate Fallacy.
+The operational heart of Bayesian reasoning is Bayes' Rule applied to hypotheses ($H$) and evidence ($E$):
 
+$$
+P(H | E) = \frac{P(E | H) P(H)}{P(E)}
+$$
+
+This forces the analyst to explicitly declare their assumptions via the prior$P(H)$and mathematically guards against the Base Rate Fallacy.
 ## 2. Geometric Intuition: Shrinkage and Regularization
 
 In practical machine learning and statistics, Bayesian reasoning often manifests geographically as **shrinkage**.
@@ -47,8 +52,13 @@ Imagine a 2D scatter plot where we are attempting to fit a linear model$y = w_1 
 The **Maximum A Posteriori (MAP)** estimate is the geometric compromise. It is the point where the elliptical contours of the data likelihood perfectly touch the circular contours of the prior. The posterior estimate is "shrunk" toward the prior mean.
 
 ### 2.2 MAP as Penalized Least Squares
-This geometric shrinkage is mathematically identical to L2 regularization (Ridge Regression).$$\text{MAP Objective} = \min_{\mathbf{w}} \left( \sum_{i=1}^n (y_i - \mathbf{w}^T \mathbf{x}_i)^2 + \lambda \parallel \mathbf{w} \parallel_2^2 \right)$$Here,$\lambda$is inversely proportional to the variance of the Gaussian prior. A tighter prior (smaller variance) forces a stronger geometric pull toward zero.
+This geometric shrinkage is mathematically identical to L2 regularization (Ridge Regression).
 
+$$
+\text{MAP Objective} = \min_{\mathbf{w}} \left( \sum_{i=1}^n (y_i - \mathbf{w}^T \mathbf{x}_i)^2 + \lambda \parallel \mathbf{w} \parallel_2^2 \right)
+$$
+
+Here,$\lambda$is inversely proportional to the variance of the Gaussian prior. A tighter prior (smaller variance) forces a stronger geometric pull toward zero.
 ## 3. Quantitative Foundations: The Base Rate Fallacy
 
 The most critical failure of human intuition is ignoring the prior$P(H)$, known as the Base Rate Fallacy.
@@ -57,9 +67,18 @@ The most critical failure of human intuition is ignoring the prior$P(H)$, known 
 Suppose a disease affects 1 in 1,000 people ($P(D) = 0.001$). A diagnostic test has:
 - **True Positive Rate (Sensitivity):**$P(+ | D) = 0.99$- **False Positive Rate:**$P(+ | \neg D) = 0.05$If a patient tests positive, what is the probability they actually have the disease$P(D | +)$?
 
-**Calculation via Total Probability:**$$P(+) = P(+ | D)P(D) + P(+ | \neg D)P(\neg D)$$
-$$P(+) = (0.99)(0.001) + (0.05)(0.999) = 0.00099 + 0.04995 = 0.05094$$**Bayesian Update:**$$P(D | +) = \frac{0.99 \times 0.001}{0.05094} \approx 0.0194$$Despite a 99% sensitive test, the posterior probability of disease is only **1.94%**. The geometric mass of the healthy population overwhelming the false positive rate dominates the likelihood.
+**Calculation via Total Probability:**
 
+$$
+P(+) = P(+ | D)P(D) + P(+ | \neg D)P(\neg D)
+$$
+$$P(+) = (0.99)(0.001) + (0.05)(0.999) = 0.00099 + 0.04995 = 0.05094$$**Bayesian Update:**
+
+$$
+P(D | +) = \frac{0.99 \times 0.001}{0.05094} \approx 0.0194
+$$
+
+Despite a 99% sensitive test, the posterior probability of disease is only **1.94%**. The geometric mass of the healthy population overwhelming the false positive rate dominates the likelihood.
 #### Table 1: The Impact of Base Rates
 | Base Rate$P(D)$| Sensitivity$P(+\|D)$| False Positive$P(+\|\neg D)$| Posterior$P(D\|+)$|
 | :--- | :--- | :--- | :--- |

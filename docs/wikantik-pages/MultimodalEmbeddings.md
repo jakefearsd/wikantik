@@ -33,8 +33,13 @@ Multimodal embeddings map inputs from distinct sensors (cameras, microphones, te
 Modern multimodal models (CLIP, SigLIP, ImageBind) consist of independent encoders for each modality, followed by a **projection layer** that aligns their outputs.
 
 ### CLIP (Contrastive Language-Image Pretraining)
-CLIP uses a dual-encoder architecture. The training objective is to maximize the cosine similarity of$N$correct pairs in a batch while minimizing the similarity of the$N^2 - N$incorrect pairs.$$\mathcal{L} = \frac{1}{2N} \sum_{i=1}^N \left( \log \frac{\exp(\cos(\mathbf{t}_i, \mathbf{v}_i)/\tau)}{\sum_{j=1}^N \exp(\cos(\mathbf{t}_i, \mathbf{v}_j)/\tau)} + \log \frac{\exp(\cos(\mathbf{t}_i, \mathbf{v}_i)/\tau)}{\sum_{j=1}^N \exp(\cos(\mathbf{t}_j, \mathbf{v}_i)/\tau)} \right)$$where$\mathbf{t}$is text,$\mathbf{v}$is vision, and$\tau$is a learnable temperature parameter.
+CLIP uses a dual-encoder architecture. The training objective is to maximize the cosine similarity of$N$correct pairs in a batch while minimizing the similarity of the$N^2 - N$incorrect pairs.
 
+$$
+\mathcal{L} = \frac{1}{2N} \sum_{i=1}^N \left( \log \frac{\exp(\cos(\mathbf{t}_i, \mathbf{v}_i)/\tau)}{\sum_{j=1}^N \exp(\cos(\mathbf{t}_i, \mathbf{v}_j)/\tau)} + \log \frac{\exp(\cos(\mathbf{t}_i, \mathbf{v}_i)/\tau)}{\sum_{j=1}^N \exp(\cos(\mathbf{t}_j, \mathbf{v}_i)/\tau)} \right)
+$$
+
+where$\mathbf{t}$is text,$\mathbf{v}$is vision, and$\tau$is a learnable temperature parameter.
 ### SigLIP (Sigmoid Loss)
 SigLIP (Google, 2023) replaces the softmax over the whole batch with a simple pairwise sigmoid loss. This allows for much larger batch sizes and better stability on small GPUs.
 

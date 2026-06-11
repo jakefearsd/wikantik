@@ -97,7 +97,11 @@ Models human-like reasoning.
 - **$\land$-Elimination:** From$\phi \land \psi$, derive$\phi$.
 
 ### 5.2 Sequent Calculus
-A more symmetric formalism used in proof theory to study the properties of the logic itself (e.g., **Cut-Elimination**).$$\frac{\Gamma \vdash \Delta, A \quad A, \Sigma \vdash \Pi}{\Gamma, \Sigma \vdash \Delta, \Pi} \text{ (Cut Rule)}$$
+A more symmetric formalism used in proof theory to study the properties of the logic itself (e.g., **Cut-Elimination**).
+
+$$
+\frac{\Gamma \vdash \Delta, A \quad A, \Sigma \vdash \Pi}{\Gamma, \Sigma \vdash \Delta, \Pi} \text{ (Cut Rule)}
+$$
 ## 6. Limits of Symbolism: Gödel’s Shadow
 
 No discussion of symbolic logic is complete without **Gödel’s Incompleteness Theorems**:

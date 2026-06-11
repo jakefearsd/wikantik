@@ -31,8 +31,13 @@ Retrieval-Augmented Generation (RAG) was conceived as a necessary patch for the 
 
 However, the efficacy of the entire system hinges on a single, often underestimated component: **the Retriever**.
 
-The quality of the final answer ($\text{Answer}$) is a direct, non-linear function of the quality of the retrieved context ($\text{Context}$), which itself is a function of the initial query ($\text{Query}$) and the underlying search mechanism ($\text{Search}$).$$\text{Answer} = f(\text{LLM}, \text{Context}) \quad \text{where} \quad \text{Context} = g(\text{Query}, \text{Search})$$If$g$is weak—if the search terms fail to pinpoint the exact, necessary documents—the most sophisticated LLM in the world will merely generate a beautifully articulated hallucination based on insufficient context.
+The quality of the final answer ($\text{Answer}$) is a direct, non-linear function of the quality of the retrieved context ($\text{Context}$), which itself is a function of the initial query ($\text{Query}$) and the underlying search mechanism ($\text{Search}$).
 
+$$
+\text{Answer} = f(\text{LLM}, \text{Context}) \quad \text{where} \quad \text{Context} = g(\text{Query}, \text{Search})
+$$
+
+If$g$is weak—if the search terms fail to pinpoint the exact, necessary documents—the most sophisticated LLM in the world will merely generate a beautifully articulated hallucination based on insufficient context.
 Therefore, the focus shifts from "How do I prompt the LLM?" to **"How do I engineer the search term(s) such that the retrieved context is maximally relevant, comprehensive, and minimally noisy?"**
 
 This tutorial dissects the advanced techniques required to move from basic semantic search to expert-grade, multi-faceted retrieval.
@@ -85,8 +90,13 @@ Vector search excels at *semantics* but is notoriously poor at *precision* regar
 #### A. Hybrid Search: The Necessary Combination
 This is perhaps the most critical concept for any expert practitioner. Relying solely on vector similarity (cosine distance) ignores the explicit, deterministic relationships encoded in metadata or structured fields. Relying solely on keyword search (like BM25) ignores the nuanced semantic relationships.
 
-**The Solution:** Hybrid Search combines the strengths of both.$$\text{Score}_{\text{Hybrid}} = \alpha \cdot \text{Score}_{\text{Vector}} + (1-\alpha) \cdot \text{Score}_{\text{Keyword}}$$Where$\alpha$is a tunable weight parameter.
+**The Solution:** Hybrid Search combines the strengths of both.
 
+$$
+\text{Score}_{\text{Hybrid}} = \alpha \cdot \text{Score}_{\text{Vector}} + (1-\alpha) \cdot \text{Score}_{\text{Keyword}}
+$$
+
+Where$\alpha$is a tunable weight parameter.
 **Practical Implementation (The "How"):**
 1.  **Vector Search:** Embed$Q_{user}$and retrieve top-$K_v$results based on semantic proximity.
 2.  **Keyword Search:** Use the raw$Q_{user}$(and its key terms) against an inverted index (e.g., Elasticsearch's BM25) to retrieve top-$K_k$results based on term frequency and inverse document frequency (TF-IDF).
@@ -95,8 +105,13 @@ This is perhaps the most critical concept for any expert practitioner. Relying s
 #### B. Reciprocal Rank Fusion (RRF)
 RRF is a mathematically elegant method for merging ranked lists from multiple sources (e.g., BM25 and Vector Search) without needing to normalize the raw scores, which often have different scales.
 
-The RRF score for a document$d$is calculated as:$$\text{Score}_{\text{RRF}}(d) = \sum_{i=1}^{N} \frac{1}{k + \text{rank}_i(d)}$$Where:
-*$N$is the number of search components (e.g.,$N=2$for Vector + Keyword).
+The RRF score for a document$d$is calculated as:
+
+$$
+\text{Score}_{\text{RRF}}(d) = \sum_{i=1}^{N} \frac{1}{k + \text{rank}_i(d)}
+$$
+
+Where:*$N$is the number of search components (e.g.,$N=2$for Vector + Keyword).
 *$k$is a constant (often set to 60) to prevent division by zero and dampen the effect of the first few ranks.
 *$\text{rank}_i(d)$is the rank of document$d$in the$i$-th search component's results list.
 
@@ -114,8 +129,13 @@ If your knowledge base is indexed in a system capable of structured querying (li
     2.  **Metadata Filter 1:** `Region = 'EU'`$\rightarrow$(Filter)
     3.  **Metadata Filter 2:** `Timeframe = 'Last Quarter'`$\rightarrow$(Filter)
 
-The final retrieval call is not just a vector search; it's a **Filtered Vector Search**:$$\text{Search}(\text{Embedding}(Q_{user}), \text{Filter} = \{ \text{Region} = \text{'EU'} \} \text{ AND } \{ \text{Timeframe} = \text{'Last Quarter'} \})$$This moves the search term engineering from pure NLP to **Query Language Engineering**.
+The final retrieval call is not just a vector search; it's a **Filtered Vector Search**:
 
+$$
+\text{Search}(\text{Embedding}(Q_{user}), \text{Filter} = \{ \text{Region} = \text{'EU'} \} \text{ AND } \{ \text{Timeframe} = \text{'Last Quarter'} \})
+$$
+
+This moves the search term engineering from pure NLP to **Query Language Engineering**.
 ***
 
 ## ⚙️ Part II: Advanced Search Term Strategies (The Iterative Process)
@@ -190,8 +210,13 @@ To achieve the strategies above, you must master the underlying search mechanism
 The foundation of modern RAG is the embedding model and the resulting vector space.
 
 #### A. Cosine Similarity vs. Dot Product
-While Cosine Similarity ($\text{CosSim}$) is the industry standard for text embeddings, understanding its mathematical basis is crucial for debugging poor retrieval.$$\text{CosSim}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}$$*   **When to use Cosine:** When the *direction* of the vectors matters more than their magnitude. This is generally true for semantic similarity (e.g., "car" vs. "automobile").
-*   **When to consider Dot Product:** If your embeddings are normalized (unit length), the dot product *is* the cosine similarity. However, if you are dealing with sparse features or need to incorporate magnitude (e.g., document length weighting), the raw dot product might be more informative, provided you normalize the resulting scores correctly.
+While Cosine Similarity ($\text{CosSim}$) is the industry standard for text embeddings, understanding its mathematical basis is crucial for debugging poor retrieval.
+
+$$
+\text{CosSim}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}
+$$
+
+*   **When to use Cosine:** When the *direction* of the vectors matters more than their magnitude. This is generally true for semantic similarity (e.g., "car" vs. "automobile").*   **When to consider Dot Product:** If your embeddings are normalized (unit length), the dot product *is* the cosine similarity. However, if you are dealing with sparse features or need to incorporate magnitude (e.g., document length weighting), the raw dot product might be more informative, provided you normalize the resulting scores correctly.
 
 **Expert Tip:** Never assume the embedding model is perfectly normalized. Always verify the output vector norms if you plan to mix similarity metrics.
 
@@ -270,8 +295,13 @@ Search engines are notoriously bad at negation. A query like, "What did the comp
 If the corpus is updated frequently, the search term must account for temporal decay. A document from 2018 might be semantically relevant but factually obsolete.
 
 **Solution:** Time-Weighted Scoring.
-When calculating the final RRF score, modify the weighting:$$\text{Score}_{\text{Final}} = \text{Score}_{\text{RRF}} \times e^{-\lambda \cdot \text{Time\_Since\_Document}}$$Where$\lambda$is a decay constant. This mathematically penalizes older documents unless their content is exceptionally robust or foundational.
+When calculating the final RRF score, modify the weighting:
 
+$$
+\text{Score}_{\text{Final}} = \text{Score}_{\text{RRF}} \times e^{-\lambda \cdot \text{Time\_Since\_Document}}
+$$
+
+Where$\lambda$is a decay constant. This mathematically penalizes older documents unless their content is exceptionally robust or foundational.
 ### 4. The "Needle in a Haystack" Problem (Low Signal Density)
 When the answer is contained in a single, short sentence within a massive, dense document, standard chunking often dilutes the signal.
 

@@ -57,8 +57,13 @@ Statistical tests are subject to two types of errors, which exist in a geometric
 - **Power ($1-\beta$):** The probability of a True Positive. Geometrically, this is the area of the rejection region under the$H_1$curve.
 
 #### 3.1.2 The Power Formula (Simple Case)
-For a test of a mean$\mu$with known$\sigma$:$$\text{Power} = \Phi\left( \frac{|\mu_a - \mu_0|\sqrt{n}}{\sigma} - z_{1-\alpha/2} \right)$$Where$\Phi$is the standard normal CDF. This shows that power increases with sample size ($n$) and the "Effect Size"$|\mu_a - \mu_0|$.
+For a test of a mean$\mu$with known$\sigma$:
 
+$$
+\text{Power} = \Phi\left( \frac{|\mu_a - \mu_0|\sqrt{n}}{\sigma} - z_{1-\alpha/2} \right)
+$$
+
+Where$\Phi$is the standard normal CDF. This shows that power increases with sample size ($n$) and the "Effect Size"$|\mu_a - \mu_0|$.
 ## 4. Real-World Applications
 
 ### 4.1 A/B Testing in Software Engineering

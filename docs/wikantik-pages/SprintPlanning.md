@@ -20,8 +20,11 @@ Sprint Planning is the process of aligning a team's **Capacity** (available hour
 Capacity is the total amount of time the team can spend on sprint work, accounting for "Focus Factor."
 
 ### A. The Capacity Formula
-$$\text{Available Capacity} = (\text{Total Dev Hours}) \times \text{Focus Factor}$$1.  **Total Dev Hours:** (Number of Devs$\times$Days in Sprint$\times$Hours per Day).
-2.  **Focus Factor ($F$):** A value between$0.6$and$0.8$representing the time spent on actual coding/testing after subtracting meetings, email, and context switching.
+$$
+\text{Available Capacity} = (\text{Total Dev Hours}) \times \text{Focus Factor}
+$$
+
+1.  **Total Dev Hours:** (Number of Devs$\times$Days in Sprint$\times$Hours per Day).2.  **Focus Factor ($F$):** A value between$0.6$and$0.8$representing the time spent on actual coding/testing after subtracting meetings, email, and context switching.
     *   **Low F (0.4-0.5):** Heavy on-call rotation or fragmented meetings.
     *   **High F (0.8-0.9):** Deep-work environment, minimal overhead.
 
@@ -36,13 +39,23 @@ $$\text{Available Capacity} = (\text{Total Dev Hours}) \times \text{Focus Factor
 
 Velocity is a measure of throughput, but its **volatility** measures the reliability of the team's planning.
 
-### A. The Say/Do Ratio$$\text{Say/Do Ratio} = \frac{\text{Points Completed}}{\text{Points Committed}}$$*   **Target:**$0.9 - 1.1$.
-*   **Under 0.8:** Indicates over-commitment or "Discovery Debt" (stories were too vague).
+### A. The Say/Do Ratio
+
+$$
+\text{Say/Do Ratio} = \frac{\text{Points Completed}}{\text{Points Committed}}
+$$
+
+*   **Target:**$0.9 - 1.1$.*   **Under 0.8:** Indicates over-commitment or "Discovery Debt" (stories were too vague).
 *   **Over 1.2:** Indicates sandbagging or under-estimation.
 
 ### B. Coefficient of Variation ($CV$)
-To measure predictability, calculate the volatility of velocity over the last 5 sprints:$$CV = \frac{\sigma(V)}{\bar{V}}$$*   **Stable ($CV < 15\%$):** Use "Yesterday's Weather" (last sprint's velocity) for planning.
-*   **Volatile ($CV > 20\%$):** Use a 3-sprint moving average and apply a 20% "uncertainty buffer."
+To measure predictability, calculate the volatility of velocity over the last 5 sprints:
+
+$$
+CV = \frac{\sigma(V)}{\bar{V}}
+$$
+
+*   **Stable ($CV < 15\%$):** Use "Yesterday's Weather" (last sprint's velocity) for planning.*   **Volatile ($CV > 20\%$):** Use a 3-sprint moving average and apply a 20% "uncertainty buffer."
 
 ---
 

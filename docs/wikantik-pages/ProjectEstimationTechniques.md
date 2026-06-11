@@ -32,9 +32,19 @@ For every task, gather three values:
 2.  **$M$(Most Likely):** The consensus estimate.
 3.  **$P$(Pessimistic):** Worst case (everything goes wrong).
 
-**Expected Value ($E$):**$$E = \frac{O + 4M + P}{6}$$**Standard Deviation ($\sigma$):**$$\sigma = \frac{P - O}{6}$$**Why it works:** Unlike a simple average, PERT weights the "Most Likely" case and recognizes that the risk ($P$) is often much further from$M$than the opportunity ($O$).
+**Expected Value ($E$):**
 
----
+$$
+E = \frac{O + 4M + P}{6}
+$$
+
+**Standard Deviation ($\sigma$):**
+
+$$
+\sigma = \frac{P - O}{6}
+$$
+
+**Why it works:** Unlike a simple average, PERT weights the "Most Likely" case and recognizes that the risk ($P$) is often much further from$M$than the opportunity ($O$).---
 
 ## III. Monte Carlo Simulations for Forecasting
 Monte Carlo simulations replace deterministic "deadlines" with a **probability distribution of completion dates**.

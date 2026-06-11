@@ -51,8 +51,13 @@ A hash function$H$is collision-resistant if it is computationally infeasible to 
 The **Elliptic Curve Digital Signature Algorithm (ECDSA)** enables users to prove ownership of an address (identity) without a central certificate authority.
 
 ### The Mechanism
-Blockchain systems (like Bitcoin and Ethereum) use the **secp256k1** curve, defined by the equation:$$y^2 = x^3 + 7 \pmod{p}$$1.  **Private Key ($k$):** A randomly generated 256-bit integer.
-2.  **Public Key ($K$)**: A point on the curve calculated as$K = k \cdot G$, where$G$is a fixed base point.
+Blockchain systems (like Bitcoin and Ethereum) use the **secp256k1** curve, defined by the equation:
+
+$$
+y^2 = x^3 + 7 \pmod{p}
+$$
+
+1.  **Private Key ($k$):** A randomly generated 256-bit integer.2.  **Public Key ($K$)**: A point on the curve calculated as$K = k \cdot G$, where$G$is a fixed base point.
 3.  **Identity Binding**: The public key is hashed to create the "Address".
 4.  **Signing**: To authorize a state change, the user generates a signature$(r, s)$using their private key and the hash of the message$m$.
 

@@ -21,8 +21,13 @@ Gossip protocols (epidemic algorithms) propagate information through a cluster v
 
 ## Mathematical Model: Infection Rate
 
-Information spread in a gossip network follows the logic of a viral infection. In a cluster of $N$nodes, if each node gossips with$k$random neighbors every$T$seconds, the time to achieve full convergence ($t_{conv}$) is:$$t_{conv} \propto \frac{\log(N)}{\log(k)}$$Gossip is highly resilient: even if$50\%$of nodes fail, the rumor still reaches all surviving nodes with$O(\log N)$latency.
+Information spread in a gossip network follows the logic of a viral infection. In a cluster of $N$nodes, if each node gossips with$k$random neighbors every$T$seconds, the time to achieve full convergence ($t_{conv}$) is:
 
+$$
+t_{conv} \propto \frac{\log(N)}{\log(k)}
+$$
+
+Gossip is highly resilient: even if$50\%$of nodes fail, the rumor still reaches all surviving nodes with$O(\log N)$latency.
 ## Protocol Variants
 
 1.  **Push:** Node A sends its state to Node B. (Fastest for new data).

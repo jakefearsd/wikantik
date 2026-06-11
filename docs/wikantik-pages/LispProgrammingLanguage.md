@@ -93,8 +93,13 @@ As of 2025, LISP is experiencing a resurgence as the "logic layer" in **Neuro-Sy
 
 ## 5. Mathematical Integrity: The Universal Function
 
-The power of LISP is most elegantly expressed in its **Universal Function** ($eval$), which defines the language's semantics in terms of itself.$$eval(e, a) = \begin{cases} lookup(e, a) & \text{if } e \text{ is an atom} \\ f(args) & \text{if } e \text{ is a list } (f, args) \end{cases}$$Where$e$is an expression and$a$ is an association list of variable bindings. This recursive definition allows LISP to be implemented in a handful of lines of code, a feat that served as the foundation for the first **meta-circular evaluators**.
+The power of LISP is most elegantly expressed in its **Universal Function** ($eval$), which defines the language's semantics in terms of itself.
 
+$$
+eval(e, a) = \begin{cases} lookup(e, a) & \text{if } e \text{ is an atom} \\ f(args) & \text{if } e \text{ is a list } (f, args) \end{cases}
+$$
+
+Where$e$is an expression and$a$ is an association list of variable bindings. This recursive definition allows LISP to be implemented in a handful of lines of code, a feat that served as the foundation for the first **meta-circular evaluators**.
 ## See Also
 *   [Distributed Systems Hub](DistributedSystemsHub) — Evolution of computing architectures.
 *   [Computer Science Foundations Hub](ComputerScienceFoundationsHub) — The theoretical origins of computation.

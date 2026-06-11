@@ -22,8 +22,11 @@ Cost-Benefit Analysis (CBA) provides a quantitative framework for evaluating the
 NPV calculates the difference between the present value of cash inflows and the present value of cash outflows over a specific period. It accounts for the fact that a dollar today is worth more than a dollar tomorrow due to its potential earning capacity (the "Discount Rate").
 
 ### The NPV Formula
-$$NPV = \sum_{t=0}^{n} \frac{R_t}{(1+i)^t}$$Where:
-*$R_t$: Net cash flow (inflow - outflow) during a single period$t$.
+$$
+NPV = \sum_{t=0}^{n} \frac{R_t}{(1+i)^t}
+$$
+
+Where:*$R_t$: Net cash flow (inflow - outflow) during a single period$t$.
 *$i$: The **Discount Rate** or Hurdle Rate (usually the company's Weighted Average Cost of Capital, WACC).
 *$t$: The time period (usually years).
 *$n$: The total number of periods (project lifespan).
@@ -38,8 +41,13 @@ $$NPV = \sum_{t=0}^{n} \frac{R_t}{(1+i)^t}$$Where:
 The IRR is the discount rate that makes the NPV of all cash flows from a particular project equal to zero. In essence, it is the expected compound annual rate of return that will be earned on a project or investment.
 
 ### The IRR Calculation
-The IRR is the value of$i$that satisfies:$$0 = \sum_{t=0}^{n} \frac{R_t}{(1+IRR)^t}$$Unlike NPV, IRR is expressed as a percentage. It is usually calculated via iterative numerical methods (like the Newton-Raphson method) as there is no analytical solution for$n > 2$.
+The IRR is the value of$i$that satisfies:
 
+$$
+0 = \sum_{t=0}^{n} \frac{R_t}{(1+IRR)^t}
+$$
+
+Unlike NPV, IRR is expressed as a percentage. It is usually calculated via iterative numerical methods (like the Newton-Raphson method) as there is no analytical solution for$n > 2$.
 ### Decision Rule
 *   **IRR > Hurdle Rate:** Accept the project.
 *   **IRR < Hurdle Rate:** Reject the project.

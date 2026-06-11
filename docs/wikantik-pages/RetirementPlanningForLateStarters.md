@@ -25,8 +25,13 @@ This treatise explores the foundational models for accelerated wealth accumulati
 The initial stage of a late-start plan is the construction of a dynamic, multi-stage financial model.
 
 ### 1.1 The Target Liability ($\text{L}_{\text{Target}}$)
-The goal is to determine the NPV of all future retirement expenses, accounting for inflation and the "lifestyle decay curve."$$\text{L}_{\text{Target}} = \sum_{t=0}^{Y_{\text{Life}}-1} \frac{\text{S}_{\text{Base}} (1 + i)^t}{(1 + r)^t}$$Where$\text{S}_{\text{Base}}$is today's spending,$i$is inflation, and$r$is the discount rate. For experts, this must be modeled using **Monte Carlo Simulation** to account for the stochastic nature of market returns and healthcare costs.
+The goal is to determine the NPV of all future retirement expenses, accounting for inflation and the "lifestyle decay curve."
 
+$$
+\text{L}_{\text{Target}} = \sum_{t=0}^{Y_{\text{Life}}-1} \frac{\text{S}_{\text{Base}} (1 + i)^t}{(1 + r)^t}
+$$
+
+Where$\text{S}_{\text{Base}}$is today's spending,$i$is inflation, and$r$is the discount rate. For experts, this must be modeled using **Monte Carlo Simulation** to account for the stochastic nature of market returns and healthcare costs.
 ### 1.2 The Compressed Savings Rate
 Because the time variable ($T$) is small, the contribution stream must be maximized. This requires moving beyond "budgeting" to high-leverage income augmentation and aggressive tax arbitrage (e.g., utilizing Catch-Up contributions in 401(k) and IRA vehicles).
 

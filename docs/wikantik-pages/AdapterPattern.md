@@ -46,8 +46,13 @@ In microservices, the Adapter pattern is the conceptual backbone of the **API Ga
 The primary benefit of the Adapter is **Decoupling**. It shields the client from the volatile details of the adaptee.
 
 ### 3.1 The Indirection Tax
-Every adapter introduces a layer of indirection. In low-latency systems (e.g., HFT), the cost of serialization and translation must be meticulously modeled.$$O(\text{Total}) = O(T_{\text{Client}}) + O(A_{\text{Translation}}) + O(D_{\text{Adaptee}})$$If$A_{\text{Translation}}$ involves heavy computation, mitigation strategies like **Asynchronous Adaptation** or **Memoization** are required.
+Every adapter introduces a layer of indirection. In low-latency systems (e.g., HFT), the cost of serialization and translation must be meticulously modeled.
 
+$$
+O(\text{Total}) = O(T_{\text{Client}}) + O(A_{\text{Translation}}) + O(D_{\text{Adaptee}})
+$$
+
+If$A_{\text{Translation}}$ involves heavy computation, mitigation strategies like **Asynchronous Adaptation** or **Memoization** are required.
 ## Conclusion
 
 The Adapter Pattern is a fundamental principle of architectural resilience. By masterfully managing the boundary between incompatible components, engineers can build systems that are robust, adaptable, and capable of integrating the diverse technologies that define modern computing.

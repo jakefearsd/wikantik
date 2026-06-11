@@ -24,9 +24,19 @@ The Network Time Protocol (NTP) estimates the offset between a client ($C$) and 
 -$T_4$: Client receives response.
 
 ### The Math
-**Round-trip delay ($\delta$):**$$\delta = (T_4 - T_1) - (T_3 - T_2)$$**Clock Offset ($\theta$):**$$\theta = \frac{(T_2 - T_1) + (T_3 - T_4)}{2}$$This calculation assumes network symmetry ($\text{delay}_{C \to S} \approx \text{delay}_{S \to C}$). Asymmetry is the primary source of error in NTP.
+**Round-trip delay ($\delta$):**
 
-## NTP Stratum Hierarchy
+$$
+\delta = (T_4 - T_1) - (T_3 - T_2)
+$$
+
+**Clock Offset ($\theta$):**
+
+$$
+\theta = \frac{(T_2 - T_1) + (T_3 - T_4)}{2}
+$$
+
+This calculation assumes network symmetry ($\text{delay}_{C \to S} \approx \text{delay}_{S \to C}$). Asymmetry is the primary source of error in NTP.## NTP Stratum Hierarchy
 
 Trust is organized into strata:
 - **Stratum 0:** Reference clocks (GPS, Atomic clocks).

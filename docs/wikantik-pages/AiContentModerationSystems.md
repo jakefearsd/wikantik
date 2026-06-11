@@ -59,8 +59,13 @@ Text analysis remains the backbone, but the techniques employed have evolved dra
 #### 2.1.1 Semantic Similarity and Embedding Space Analysis
 Instead of classifying text based on discrete tokens, advanced systems map content into high-dimensional vector spaces (embeddings). Safety is then assessed by measuring the distance between the input embedding ($\mathbf{E}_{input}$) and the embedding space of known harmful concepts ($\mathbf{S}_{harm}$).
 
-The core mechanism involves cosine similarity:$$\text{Similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}$$If$\text{Similarity}(\mathbf{E}_{input}, \mathbf{E}_{harm}) > \tau$(where$\tau$is the threshold), the content is flagged.
+The core mechanism involves cosine similarity:
 
+$$
+\text{Similarity}(\mathbf{A}, \mathbf{B}) = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}
+$$
+
+If$\text{Similarity}(\mathbf{E}_{input}, \mathbf{E}_{harm}) > \tau$(where$\tau$is the threshold), the content is flagged.
 **Advanced Consideration: Concept Drift and Concept Vectors:**
 The challenge here is that harmful concepts drift (e.g., new slang, evolving conspiracy theories). Researchers must employ techniques like **Concept Bottleneck Models (CBMs)** or **Knowledge Graph integration** to ground the embeddings in structured, verifiable knowledge, rather than relying purely on the statistical correlations learned during pre-training.
 
@@ -135,8 +140,13 @@ The most critical area of research is hardening the system against deliberate ci
 #### 3.1.1 Adversarial Attacks on Embeddings
 Adversaries can introduce imperceptible perturbations ($\delta$) to an input ($\mathbf{x}$) such that the resulting perturbed input ($\mathbf{x}' = \mathbf{x} + \delta$) is classified incorrectly, while$\delta$remains below the human perception threshold.
 
-Mathematically, the goal is to find$\delta$such that:$$\text{Classifier}(\mathbf{x}') = \text{Safe} \quad \text{AND} \quad \text{Classifier}(\mathbf{x}) = \text{Harmful}$$Defenses include **Adversarial Training**, where the model is explicitly trained on these perturbed examples, forcing the decision boundary to become smoother and more robust in the vicinity of known attack vectors.
+Mathematically, the goal is to find$\delta$such that:
 
+$$
+\text{Classifier}(\mathbf{x}') = \text{Safe} \quad \text{AND} \quad \text{Classifier}(\mathbf{x}) = \text{Harmful}
+$$
+
+Defenses include **Adversarial Training**, where the model is explicitly trained on these perturbed examples, forcing the decision boundary to become smoother and more robust in the vicinity of known attack vectors.
 #### 3.1.2 Prompt Injection and Jailbreaking (For LLM-Based Filters)
 When using powerful LLMs for moderation (e.g., asking the model to "Review this text for hate speech according to Policy X"), the system is susceptible to prompt injection. An attacker crafts input that overrides the system prompt's instructions.
 

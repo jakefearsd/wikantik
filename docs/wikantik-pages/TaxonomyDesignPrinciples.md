@@ -32,8 +32,13 @@ This treatise explores the deconstruction of specificity ranks, the set-theoreti
 
 We move beyond the linear "tree" to model the multi-dimensional complexity of knowledge.
 *   **Tree vs. DAG:** A strict tree (single inheritance) is often insufficient for complex domains. We utilize **Directed Acyclic Graphs (DAGs)** to allow a single child to inherit from multiple parents (Poly-Hierarchy), essential for modeling entities like "Autonomous Electric Vehicle" (Type of Vehicle AND Type of Robot).
-*   **Rank and Specificity:** Drawing from [Mathematics Hub](MathematicsHub), we model the specificity ($\text{Spec}$) of a node as the cumulative set of axiomatic constraints imposed by its ancestry:$$\text{Spec}(N) = \text{Axioms}(P_1) \cap \text{Axioms}(P_2) \cap \dots \cap \text{Axioms}(P_i)$$---
+*   **Rank and Specificity:** Drawing from [Mathematics Hub](MathematicsHub), we model the specificity ($\text{Spec}$) of a node as the cumulative set of axiomatic constraints imposed by its ancestry:
 
+$$
+\text{Spec}(N) = \text{Axioms}(P_1) \cap \text{Axioms}(P_2) \cap \dots \cap \text{Axioms}(P_i)
+$$
+
+---
 ## II. Computational Architecture: From Schema to Ontology
 
 Taxonomy is the "terminological backbone" of an [Ontology](Ontology).

@@ -50,8 +50,13 @@ The selection of$R$and$W$values allows architects to tune the system for specifi
 
 ## 4. Fault Tolerance Calculation
 
-For a cluster of size$N$using strict majority ($W = R = \lfloor N/2 \rfloor + 1$), the number of nodes that can fail ($f$) while maintaining availability is:$$f = \lfloor \frac{N-1}{2} \rfloor$$| Cluster Size ($N$) | Max Failures ($f$) | Majority Required |
-| :--- | :--- | :--- |
+For a cluster of size$N$using strict majority ($W = R = \lfloor N/2 \rfloor + 1$), the number of nodes that can fail ($f$) while maintaining availability is:
+
+$$
+f = \lfloor \frac{N-1}{2} \rfloor
+$$
+
+| Cluster Size ($N$) | Max Failures ($f$) | Majority Required || :--- | :--- | :--- |
 | 3 | 1 | 2 |
 | 5 | 2 | 3 |
 | 7 | 3 | 4 |

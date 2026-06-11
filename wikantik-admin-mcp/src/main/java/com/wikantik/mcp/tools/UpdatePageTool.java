@@ -20,6 +20,8 @@ package com.wikantik.mcp.tools;
 
 import com.wikantik.util.WikiPageNameValidator;
 
+import com.wikantik.api.content.ContentValidationException;
+import com.wikantik.api.content.ContentWarningSink;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.frontmatter.FrontmatterParseException;
 import com.wikantik.api.frontmatter.FrontmatterParser;
@@ -233,6 +235,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             final boolean hasMetadata = !mergedMetadata.isEmpty();
 
             FrontmatterWarningSink.clear();
+            ContentWarningSink.clear();
             saveHelper.saveText( pageName, normalized.body(),
                 SaveOptions.builder()
                     .author( defaultAuthor )
@@ -262,7 +265,23 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             if ( !fmWarnings.isEmpty() ) {
                 ok.put( "frontmatterWarnings", fmWarnings );
             }
+            final var mathWarnings = ContentWarningSink.drain();
+            if ( !mathWarnings.isEmpty() ) {
+                ok.put( "mathWarnings", mathWarnings );
+            }
             return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, ok );
+        } catch ( final ContentValidationException e ) {
+            // Math validator refused this write (ERROR-severity).
+            // Cite violations with excerpt+caret so the agent can locate and fix the error.
+            ContentWarningSink.clear();
+            final String rejectedPage = McpToolUtils.getString( arguments, "pageName" );
+            LOG.debug( "update_page rejected by math validation for {}: {}", rejectedPage, e.getMessage() );
+            final Map< String, Object > refused = new LinkedHashMap<>();
+            refused.put( "pageName", rejectedPage );
+            refused.put( "updated", false );
+            refused.put( "error", "math validation failed" );
+            refused.put( "violations", e.violations() );
+            return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, refused );
         } catch ( final FrontmatterValidationException e ) {
             // Same schema validator the form + REST use refused this write (ERROR-severity).
             // Cite the structured violations so the agent can self-correct and retry.

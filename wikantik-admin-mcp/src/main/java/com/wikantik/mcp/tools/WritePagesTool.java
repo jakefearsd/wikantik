@@ -21,6 +21,8 @@ package com.wikantik.mcp.tools;
 import com.wikantik.util.WikiPageNameValidator;
 
 import com.wikantik.api.core.Page;
+import com.wikantik.api.content.ContentValidationException;
+import com.wikantik.api.content.ContentWarningSink;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.FrontmatterParseException;
 import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
@@ -193,6 +195,7 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
             }
             final Map< String, Object > mergedMetadata = normalized.metadata();
             FrontmatterWarningSink.clear();
+            ContentWarningSink.clear();
             try {
                 saveHelper.saveText( pageName, normalized.body(),
                     SaveOptions.builder()
@@ -208,8 +211,20 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
                 if ( !fmWarnings.isEmpty() ) {
                     entry.put( "frontmatterWarnings", fmWarnings );
                 }
+                final var mathWarnings = ContentWarningSink.drain();
+                if ( !mathWarnings.isEmpty() ) {
+                    entry.put( "mathWarnings", mathWarnings );
+                }
                 results.add( entry );
                 createdCount++;
+            } catch ( final ContentValidationException cve ) {
+                // Math validator refused this page (ERROR-severity).
+                ContentWarningSink.clear();
+                entry.put( "created", false );
+                entry.put( "error", "math validation failed" );
+                entry.put( "violations", cve.violations() );
+                results.add( entry );
+                failedCount++;
             } catch ( final FrontmatterValidationException fve ) {
                 // Same schema validator the form + REST use refused this page (ERROR-severity).
                 FrontmatterWarningSink.clear();

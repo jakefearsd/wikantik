@@ -1,0 +1,2809 @@
+[
+  {
+    "id": "v-frac-simple",
+    "latex": "\\frac{a}{b}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-binomial",
+    "latex": "\\frac{n!}{k!(n-k)!}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-trig",
+    "latex": "\\frac{\\sin x}{\\cos x}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-complex",
+    "latex": "\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-sqrt-num",
+    "latex": "\\frac{\\sqrt{x+1}}{2}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-log",
+    "latex": "\\frac{\\ln 2}{\\lambda}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-pi",
+    "latex": "\\frac{\\pi}{4}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-greek",
+    "latex": "\\frac{\\alpha + \\beta}{\\gamma}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-partial",
+    "latex": "\\frac{\\partial f}{\\partial x}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-nabla",
+    "latex": "\\frac{\\nabla f}{|\\nabla f|}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-double-partial",
+    "latex": "\\frac{\\partial^2 f}{\\partial x^2}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-one-half",
+    "latex": "\\frac{1}{2}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-exp",
+    "latex": "\\frac{e^x - e^{-x}}{2}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-zero-num",
+    "latex": "\\frac{0}{x}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-nested-frac-2",
+    "latex": "\\frac{\\frac{a}{b}}{c}",
+    "family": "valid:nested-frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-nested-frac-3",
+    "latex": "\\frac{\\frac{1}{x}}{\\frac{1}{y}}",
+    "family": "valid:nested-frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-nested-frac-deep",
+    "latex": "\\frac{\\frac{\\frac{a}{b}}{c}}{d}",
+    "family": "valid:nested-frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-nested-frac-sum",
+    "latex": "\\frac{\\frac{a}{b} + \\frac{c}{d}}{e}",
+    "family": "valid:nested-frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-nested-frac-left",
+    "latex": "\\left(\\frac{\\frac{1}{a}}{b}\\right)",
+    "family": "valid:nested-frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sup-simple",
+    "latex": "x^{2}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sub-simple",
+    "latex": "x_{i}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sub-sup",
+    "latex": "x_{i}^{n}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sup-expr",
+    "latex": "e^{i\\pi}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sub-double-index",
+    "latex": "x_{i,j}^{n+1}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sup-frac",
+    "latex": "x^{\\frac{1}{2}}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sub-text",
+    "latex": "F_{\\text{max}}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sup-greek",
+    "latex": "\\alpha^{\\beta}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sub-integral",
+    "latex": "\\int_{0}^{1}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sup-single-digit",
+    "latex": "a^2 + b^2 = c^2",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sub-nested",
+    "latex": "a_{b_{c}}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sup-sum",
+    "latex": "\\sum_{n=1}^{\\infty}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sub-lim",
+    "latex": "\\lim_{x \\to 0}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sup-prime",
+    "latex": "f'(x) = f^{(1)}(x)",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sub-matrix-ij",
+    "latex": "A_{i,j}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sqrt-simple",
+    "latex": "\\sqrt{x}",
+    "family": "valid:sqrt",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sqrt-expr",
+    "latex": "\\sqrt{x^2 + y^2}",
+    "family": "valid:sqrt",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sqrt-frac",
+    "latex": "\\sqrt{\\frac{a}{b}}",
+    "family": "valid:sqrt",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sqrt-nth",
+    "latex": "\\sqrt[3]{x}",
+    "family": "valid:sqrt",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sqrt-nth-frac",
+    "latex": "\\sqrt[n]{\\frac{a}{b}}",
+    "family": "valid:sqrt",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sqrt-nested",
+    "latex": "\\sqrt{1 + \\sqrt{x}}",
+    "family": "valid:sqrt",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sqrt-quadratic",
+    "latex": "\\sqrt{b^2 - 4ac}",
+    "family": "valid:sqrt",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sqrt-4",
+    "latex": "\\sqrt[4]{x^3}",
+    "family": "valid:sqrt",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sqrt-sum",
+    "latex": "\\sqrt{a^2 + 2ab + b^2}",
+    "family": "valid:sqrt",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-paren",
+    "latex": "\\left( \\frac{a}{b} \\right)",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-bracket",
+    "latex": "\\left[ x + y \\right]",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-brace",
+    "latex": "\\left\\{ x \\in \\mathbb{R} \\right\\}",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-vert",
+    "latex": "\\left| x \\right|",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-norm",
+    "latex": "\\left\\| \\vec{v} \\right\\|",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-nested",
+    "latex": "\\left( \\left[ a + b \\right] \\cdot c \\right)",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-dot",
+    "latex": "\\left. \\frac{dy}{dx} \\right|_{x=0}",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-angle",
+    "latex": "\\left\\langle v, w \\right\\rangle",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-sum",
+    "latex": "\\left( \\sum_{k=1}^n a_k \\right)^2",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-matrix",
+    "latex": "\\left( \\begin{matrix} a & b \\\\ c & d \\end{matrix} \\right)",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-frac2",
+    "latex": "\\left( 1 + \\frac{1}{n} \\right)^n",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-with-arrow",
+    "latex": "\\left( x \\rightarrow y \\right)",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-arrow-deep",
+    "latex": "\\left[ \\lim_{x \\rightarrow 0} f(x) \\right]",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-arrow-cases",
+    "latex": "\\left\\{ f(x) \\Rightarrow g(x) \\right\\}",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-implies",
+    "latex": "\\left( A \\Rightarrow B \\right)",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftright-maps",
+    "latex": "\\left. f \\right|_{x=0}",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-env-matrix",
+    "latex": "\\begin{matrix} a & b \\\\ c & d \\end{matrix}",
+    "family": "valid:environments",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-env-pmatrix",
+    "latex": "\\begin{pmatrix} 1 & 0 \\\\ 0 & 1 \\end{pmatrix}",
+    "family": "valid:environments",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-env-bmatrix",
+    "latex": "\\begin{bmatrix} x \\\\ y \\\\ z \\end{bmatrix}",
+    "family": "valid:environments",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-env-vmatrix",
+    "latex": "\\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix}",
+    "family": "valid:environments",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-env-cases",
+    "latex": "\\begin{cases} x & x > 0 \\\\ 0 & x \\leq 0 \\end{cases}",
+    "family": "valid:environments",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-env-aligned",
+    "latex": "\\begin{aligned} x &= a + b \\\\ y &= c \\end{aligned}",
+    "family": "valid:environments",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-env-aligned-3",
+    "latex": "\\begin{aligned} f(x) &= x^2 \\\\ g(x) &= x^3 \\\\ h(x) &= x^4 \\end{aligned}",
+    "family": "valid:environments",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-env-pmatrix-3x3",
+    "latex": "\\begin{pmatrix} 1 & 0 & 0 \\\\ 0 & 1 & 0 \\\\ 0 & 0 & 1 \\end{pmatrix}",
+    "family": "valid:environments",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-env-cases-three",
+    "latex": "\\begin{cases} a & x > 1 \\\\ b & x = 1 \\\\ c & x < 1 \\end{cases}",
+    "family": "valid:environments",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-env-aligned-eq",
+    "latex": "\\begin{aligned} f(x) &= (x+1)^2 \\\\ &= x^2 + 2x + 1 \\end{aligned}",
+    "family": "valid:environments",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-lower",
+    "latex": "\\alpha + \\beta + \\gamma + \\delta + \\epsilon",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-upper",
+    "latex": "\\Delta x + \\Gamma y + \\Omega z",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-trig-mix",
+    "latex": "\\theta = \\pi / 4",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-lambda",
+    "latex": "\\lambda_1 + \\lambda_2 = \\tau",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-phi",
+    "latex": "\\phi(x) = \\frac{1}{\\sqrt{2\\pi}} e^{-x^2/2}",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-sigma",
+    "latex": "\\sigma^2 = \\mu^2 + 1",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-omega",
+    "latex": "\\omega = 2\\pi f",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-rho",
+    "latex": "\\rho \\cdot v = \\text{const}",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-nu",
+    "latex": "\\nu = \\frac{c}{\\lambda}",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-psi",
+    "latex": "\\psi(x, t) = A e^{i(kx - \\omega t)}",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-kappa",
+    "latex": "\\kappa = \\frac{1}{R}",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-cdot",
+    "latex": "a \\cdot b + c \\times d",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-leq-geq",
+    "latex": "a \\leq b \\geq c",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-approx",
+    "latex": "\\pi \\approx 3.14159",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-equiv",
+    "latex": "a \\equiv b \\pmod{n}",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-neq",
+    "latex": "x \\neq y",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-pm",
+    "latex": "x \\pm \\delta",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-div",
+    "latex": "a \\div b",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-sum-simple",
+    "latex": "\\sum_{k=1}^{n} k",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-prod",
+    "latex": "\\prod_{i=1}^{n} a_i",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-mp",
+    "latex": "a \\mp b",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-infty",
+    "latex": "x \\to \\infty",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-in-notin",
+    "latex": "x \\in A",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-text-label",
+    "latex": "F_{\\text{max}} = m a_{\\text{max}}",
+    "family": "valid:text",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-text-if",
+    "latex": "\\begin{cases} x & \\text{if } x > 0 \\\\ 0 & \\text{otherwise} \\end{cases}",
+    "family": "valid:text",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-text-units",
+    "latex": "v = 30 \\, \\text{m/s}",
+    "family": "valid:text",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-text-mixed",
+    "latex": "E = mc^2 \\quad \\text{(mass-energy equivalence)}",
+    "family": "valid:text",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-text-subscript",
+    "latex": "R_{\\text{ideal}} = 8.314",
+    "family": "valid:text",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-text-superscript",
+    "latex": "k_{\\text{B}} T",
+    "family": "valid:text",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-binom-nk",
+    "latex": "\\binom{n}{k}",
+    "family": "valid:binom",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-binom-expanded",
+    "latex": "\\binom{n}{k} = \\frac{n!}{k!(n-k)!}",
+    "family": "valid:binom",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-binom-sum",
+    "latex": "\\sum_{k=0}^{n} \\binom{n}{k} = 2^n",
+    "family": "valid:binom",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-binom-pascal",
+    "latex": "\\binom{n}{k} + \\binom{n}{k+1} = \\binom{n+1}{k+1}",
+    "family": "valid:binom",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sum-definite",
+    "latex": "\\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-int-definite",
+    "latex": "\\int_{0}^{\\infty} e^{-x} dx = 1",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-int-double",
+    "latex": "\\int_{0}^{1} \\int_{0}^{1} x y \\, dx \\, dy",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-int-gaussian",
+    "latex": "\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-lim-simple",
+    "latex": "\\lim_{n \\to \\infty} \\frac{1}{n} = 0",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-lim-deriv",
+    "latex": "\\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-prod-factorial",
+    "latex": "\\prod_{k=1}^{n} k = n!",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sum-geometric",
+    "latex": "\\sum_{k=0}^{\\infty} r^k = \\frac{1}{1-r}",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-int-by-parts",
+    "latex": "\\int u \\, dv = uv - \\int v \\, du",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-lim-squeeze",
+    "latex": "\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-right",
+    "latex": "x \\rightarrow y",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-left",
+    "latex": "x \\leftarrow y",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-big-right",
+    "latex": "A \\Rightarrow B",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-set-arrow",
+    "latex": "f: A \\rightarrow B",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-limit-arrow",
+    "latex": "\\lim_{x \\rightarrow 0} f(x)",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-implies",
+    "latex": "P \\Rightarrow Q \\Rightarrow R",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-to-infty",
+    "latex": "n \\rightarrow \\infty",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-multi",
+    "latex": "x \\rightarrow y \\rightarrow z",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-right-left",
+    "latex": "a \\rightarrow b \\leftarrow c",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-big-lr",
+    "latex": "A \\Rightarrow B \\Rightarrow C",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-sub-right",
+    "latex": "f_n \\rightarrow f",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-frac-right",
+    "latex": "\\frac{1}{n} \\rightarrow 0 \\text{ as } n \\rightarrow \\infty",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-limit-right",
+    "latex": "\\lim_{n \\rightarrow \\infty} a_n",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-leftright",
+    "latex": "P \\Leftrightarrow Q",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-arrow-mapsto",
+    "latex": "f: x \\mapsto x^2",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-mathbf",
+    "latex": "\\mathbf{A} \\cdot \\mathbf{x} = \\mathbf{b}",
+    "family": "valid:font",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-mathrm",
+    "latex": "\\mathrm{e}^{i\\pi} + 1 = 0",
+    "family": "valid:font",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-mathbb-R",
+    "latex": "x \\in \\mathbb{R}",
+    "family": "valid:font",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-mathbb-N",
+    "latex": "n \\in \\mathbb{N}",
+    "family": "valid:font",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-mathcal",
+    "latex": "\\mathcal{L}(f) = F",
+    "family": "valid:font",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-mathbb-Z",
+    "latex": "\\mathbb{Z} / n\\mathbb{Z}",
+    "family": "valid:font",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-mathbf-vector",
+    "latex": "\\mathbf{v} = (v_1, v_2, v_3)",
+    "family": "valid:font",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-hat",
+    "latex": "\\hat{x} + \\hat{y}",
+    "family": "valid:accents",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-vec",
+    "latex": "\\vec{F} = m \\vec{a}",
+    "family": "valid:accents",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-bar",
+    "latex": "\\bar{z} = a - bi",
+    "family": "valid:accents",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-dot-ddot",
+    "latex": "\\dot{x} + \\ddot{y}",
+    "family": "valid:accents",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-overline",
+    "latex": "\\overline{AB} + \\underline{CD}",
+    "family": "valid:accents",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-hat-H",
+    "latex": "\\hat{H} \\psi = E \\psi",
+    "family": "valid:accents",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-vec-cross",
+    "latex": "\\vec{A} \\times \\vec{B}",
+    "family": "valid:accents",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-displaystyle-sum",
+    "latex": "\\displaystyle\\sum_{k=1}^{n} k^2",
+    "family": "valid:displaystyle",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-displaystyle-frac",
+    "latex": "\\displaystyle\\frac{1}{1+x^2}",
+    "family": "valid:displaystyle",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-displaystyle-int",
+    "latex": "\\displaystyle\\int_{-\\infty}^{\\infty} e^{-t^2} dt",
+    "family": "valid:displaystyle",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-hbar-schrodinger",
+    "latex": "i\\hbar \\frac{\\partial \\psi}{\\partial t} = \\hat{H} \\psi",
+    "family": "valid:katex-extended",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-hbar-simple",
+    "latex": "\\hbar = \\frac{h}{2\\pi}",
+    "family": "valid:katex-extended",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-mapsto-simple",
+    "latex": "f: x \\mapsto x^2",
+    "family": "valid:katex-extended",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-lfloor-floor",
+    "latex": "\\left\\lfloor x \\right\\rfloor",
+    "family": "valid:katex-extended",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-lceil-ceil",
+    "latex": "\\left\\lceil x \\right\\rceil",
+    "family": "valid:katex-extended",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-dagger-adj",
+    "latex": "A^{\\dagger}",
+    "family": "valid:katex-extended",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-oplus-xor",
+    "latex": "a \\oplus b",
+    "family": "valid:katex-extended",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-forall-quant",
+    "latex": "\\forall x \\in \\mathbb{R}",
+    "family": "valid:katex-extended",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-exists-quant",
+    "latex": "\\exists x: f(x) = 0",
+    "family": "valid:katex-extended",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-subset-set",
+    "latex": "A \\subset B \\subseteq C",
+    "family": "valid:katex-extended",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-cap-cup",
+    "latex": "A \\cap B \\cup C",
+    "family": "valid:katex-extended",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-to-arrow",
+    "latex": "f: A \\to B",
+    "family": "valid:katex-extended",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-physics-stress",
+    "latex": "\\sigma = \\frac{F}{A}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-physics-energy",
+    "latex": "E = \\frac{1}{2} m v^2",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-physics-wave",
+    "latex": "\\lambda = \\frac{c}{f}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-physics-coulomb",
+    "latex": "F = k \\frac{q_1 q_2}{r^2}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-physics-newton",
+    "latex": "F = m a = m \\frac{d^2 x}{dt^2}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-taylor-series",
+    "latex": "\\sum_{n=0}^{\\infty} \\frac{f^{(n)}(a)}{n!}(x-a)^n",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-euler",
+    "latex": "e^{i\\pi} + 1 = 0",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-pythagorean",
+    "latex": "a^2 + b^2 = c^2",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-quadratic",
+    "latex": "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-motosh",
+    "latex": "\\text{T} = \\text{F}_p \\left( \\frac{\\text{P}}{2\\pi} + \\frac{\\mu_t \\cdot r_t}{\\cos \\beta} \\right)",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-bernoulli",
+    "latex": "P + \\frac{1}{2}\\rho v^2 + \\rho g h = \\text{const}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-bayes",
+    "latex": "P(A|B) = \\frac{P(B|A) P(A)}{P(B)}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-normal-pdf",
+    "latex": "f(x) = \\frac{1}{\\sigma\\sqrt{2\\pi}} e^{-\\frac{(x-\\mu)^2}{2\\sigma^2}}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-stirling",
+    "latex": "n! \\approx \\sqrt{2\\pi n} \\left(\\frac{n}{e}\\right)^n",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-cauchy-schwarz",
+    "latex": "\\left( \\sum_{k=1}^n a_k b_k \\right)^2 \\leq \\sum_{k=1}^n a_k^2 \\cdot \\sum_{k=1}^n b_k^2",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-log-rule",
+    "latex": "\\log(ab) = \\log a + \\log b",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-partial-deriv",
+    "latex": "\\frac{\\partial^2 f}{\\partial x^2} + \\frac{\\partial^2 f}{\\partial y^2} = 0",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-lagrange-eqn",
+    "latex": "\\frac{d}{dt}\\frac{\\partial L}{\\partial \\dot{q}} - \\frac{\\partial L}{\\partial q} = 0",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-fourier",
+    "latex": "\\hat{f}(\\xi) = \\int_{-\\infty}^{\\infty} f(x) e^{-2\\pi i x \\xi} dx",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-divergence",
+    "latex": "\\nabla \\cdot \\vec{F} = \\frac{\\partial F_x}{\\partial x} + \\frac{\\partial F_y}{\\partial y}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-chain-rule",
+    "latex": "\\frac{d}{dx}[f(g(x))] = f'(g(x)) \\cdot g'(x)",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-geometric-sum",
+    "latex": "S_n = \\frac{a(1-r^n)}{1-r}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-poisson",
+    "latex": "P(k) = \\frac{\\lambda^k e^{-\\lambda}}{k!}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sigmoid",
+    "latex": "\\sigma(x) = \\frac{1}{1 + e^{-x}}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-gradient-descent",
+    "latex": "\\theta_{t+1} = \\theta_t - \\alpha \\nabla L(\\theta_t)",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-cross-entropy",
+    "latex": "L = -\\sum_{i} y_i \\log \\hat{y}_i",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-rightarrow-in-sum",
+    "latex": "\\sum_{x \\rightarrow y} f(x)",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-rightarrow-subscript",
+    "latex": "T_{n \\rightarrow \\infty}",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-rightarrow-sup",
+    "latex": "f^{x \\rightarrow y}",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-rightarrow-left-pair",
+    "latex": "\\left( x \\rightarrow y \\right) + \\left( a \\rightarrow b \\right)",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-rightarrow-no-delim",
+    "latex": "x \\rightarrow y + z \\rightarrow w",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-big-rightarrow-chain",
+    "latex": "A \\Rightarrow B \\Rightarrow C \\Rightarrow D",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftarrow-right",
+    "latex": "\\left[ x \\leftarrow y \\right]",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-leftarrow-pair",
+    "latex": "a \\leftarrow b \\rightarrow c",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-sin-cos",
+    "latex": "\\frac{\\sin^2 x + \\cos^2 x}{1} = 1",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-tan",
+    "latex": "\\tan x = \\frac{\\sin x}{\\cos x}",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-frac-reciprocal",
+    "latex": "\\frac{1}{\\frac{1}{x}} = x",
+    "family": "valid:frac",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sup-chain",
+    "latex": "a^{b^{c^{d}}}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sub-deep",
+    "latex": "x_{n_{k}}",
+    "family": "valid:scripts",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-env-bmatrix-3x2",
+    "latex": "\\begin{bmatrix} 1 & 2 & 3 \\\\ 4 & 5 & 6 \\end{bmatrix}",
+    "family": "valid:environments",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-env-vmatrix-3x3",
+    "latex": "\\begin{vmatrix} a & b & c \\\\ d & e & f \\\\ g & h & i \\end{vmatrix}",
+    "family": "valid:environments",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-trig-sin",
+    "latex": "\\sin^2 x + \\cos^2 x = 1",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-trig-cos",
+    "latex": "\\cos(2x) = \\cos^2 x - \\sin^2 x",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-trig-tan",
+    "latex": "\\tan x = \\frac{\\sin x}{\\cos x}",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-trig-exp",
+    "latex": "e^{ix} = \\cos x + i \\sin x",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-trig-arcsin",
+    "latex": "\\sin(\\arcsin x) = x",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-log-chain",
+    "latex": "\\log(x \\cdot y) = \\log x + \\log y",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ln-diff",
+    "latex": "\\frac{d}{dx} \\ln x = \\frac{1}{x}",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-exp-compose",
+    "latex": "e^{x+y} = e^x \\cdot e^y",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-quad-spacing",
+    "latex": "f(x) \\quad \\text{and} \\quad g(x)",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-qquad-spacing",
+    "latex": "a = 1 \\qquad b = 2",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-lim-right",
+    "latex": "\\lim_{x \\rightarrow a} f(x) = L",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-lim-infty-right",
+    "latex": "\\lim_{n \\rightarrow \\infty} \\left(1 + \\frac{1}{n}\\right)^n = e",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-integral-parts",
+    "latex": "\\int_a^b f'(x) g(x) dx = [f(x)g(x)]_a^b - \\int_a^b f(x) g'(x) dx",
+    "family": "valid:sum-int",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sqrt-5th",
+    "latex": "\\sqrt[5]{x^4}",
+    "family": "valid:sqrt",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-sqrt-long-expr",
+    "latex": "\\sqrt{x^4 + 4x^3 + 6x^2 + 4x + 1}",
+    "family": "valid:sqrt",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-right-only-arrow",
+    "latex": "\\left| x \\right|_{x \\rightarrow 0}",
+    "family": "valid:leftright",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-rightarrow-outside-lr",
+    "latex": "\\left( a \\right) \\rightarrow \\left( b \\right)",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-category-diagram",
+    "latex": "A \\rightarrow B \\rightarrow C \\rightarrow D \\rightarrow E",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-seq-limit",
+    "latex": "a_1 \\rightarrow a_2 \\rightarrow a_3 \\rightarrow \\ldots \\rightarrow L",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-func-chain",
+    "latex": "f \\circ g: A \\rightarrow C",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-prod-right",
+    "latex": "f: A \\times B \\rightarrow C",
+    "family": "valid:arrows",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-all-lower",
+    "latex": "\\alpha \\beta \\gamma \\delta \\epsilon \\theta \\lambda \\mu \\nu \\pi",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-ops-all-relations",
+    "latex": "a \\leq b \\geq c \\neq d \\approx e \\equiv f",
+    "family": "valid:operators",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-greek-xi-zeta",
+    "latex": "\\xi = \\zeta(s)",
+    "family": "valid:greek",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-matrix-invert",
+    "latex": "(AB)^{-1} = B^{-1} A^{-1}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-trace-det",
+    "latex": "\\text{tr}(A) = \\sum_{i} a_{ii}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-rank-nullity",
+    "latex": "\\text{rank}(A) + \\text{nullity}(A) = n",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-cauchy-integral",
+    "latex": "f(a) = \\frac{1}{2\\pi i} \\oint_C \\frac{f(z)}{z-a} dz",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-residue-theorem",
+    "latex": "\\oint_C f(z) dz = 2\\pi i \\sum_k \\text{Res}(f, z_k)",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-heat-equation",
+    "latex": "\\frac{\\partial u}{\\partial t} = \\alpha \\frac{\\partial^2 u}{\\partial x^2}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-wave-equation",
+    "latex": "\\frac{\\partial^2 u}{\\partial t^2} = c^2 \\frac{\\partial^2 u}{\\partial x^2}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-maxwell-div-e",
+    "latex": "\\nabla \\cdot \\vec{E} = \\frac{\\rho}{\\epsilon_0}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-einstein-eqn",
+    "latex": "G_{\\mu\\nu} + \\Lambda g_{\\mu\\nu} = \\frac{8\\pi G}{c^4} T_{\\mu\\nu}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "v-dirichlet",
+    "latex": "\\sum_{n=1}^{\\infty} \\frac{\\mu(n)}{n^s} = \\frac{1}{\\zeta(s)}",
+    "family": "valid:mixed",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-frac-one-arg",
+    "latex": "\\frac{a}",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{a}"
+  },
+  {
+    "id": "b-frac-no-args",
+    "latex": "\\frac",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac"
+  },
+  {
+    "id": "b-frac-incomplete-close",
+    "latex": "\\frac{x}{",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{x}{"
+  },
+  {
+    "id": "b-frac-incomplete-first",
+    "latex": "x + \\frac{a",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: x + \\frac{a"
+  },
+  {
+    "id": "b-frac-missing-second-arg",
+    "latex": "\\frac{a+b}{c",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{a+b}{c"
+  },
+  {
+    "id": "b-frac-only-open",
+    "latex": "\\frac{",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{"
+  },
+  {
+    "id": "b-frac-partial-sec-arg",
+    "latex": "\\frac{a}{b + c",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{a}{b + c"
+  },
+  {
+    "id": "b-frac-empty-second",
+    "latex": "\\frac{a}{",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{a}{"
+  },
+  {
+    "id": "b-nested-frac-incomplete",
+    "latex": "\\frac{\\frac{a}{b}}{c",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: …{\\frac{a}{b}}{c"
+  },
+  {
+    "id": "b-frac-mid-expr",
+    "latex": "x = \\frac{a",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: x = \\frac{a"
+  },
+  {
+    "id": "b-empty-sup",
+    "latex": "x^",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '^' at position 2: x^̲"
+  },
+  {
+    "id": "b-empty-sub",
+    "latex": "x_",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '_' at position 2: x_̲"
+  },
+  {
+    "id": "b-empty-sup-eol",
+    "latex": "a + b^",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '^' at position 6: a + b^̲"
+  },
+  {
+    "id": "b-empty-sub-eol",
+    "latex": "a + b_",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '_' at position 6: a + b_̲"
+  },
+  {
+    "id": "b-empty-sup-brace-close",
+    "latex": "{x^}",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '^' at position 3: {x^̲}"
+  },
+  {
+    "id": "b-empty-script-seq",
+    "latex": "a^_",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '^' at position 2: a^̲_"
+  },
+  {
+    "id": "b-empty-sup-then-sub",
+    "latex": "x^_b",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '^' at position 2: x^̲_b"
+  },
+  {
+    "id": "b-empty-sub-then-sup",
+    "latex": "x_^b",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '_' at position 2: x_̲^b"
+  },
+  {
+    "id": "b-empty-sup-space",
+    "latex": "x^ ",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '^' at position 2: x^̲ "
+  },
+  {
+    "id": "b-empty-sub-space",
+    "latex": "x_ ",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '_' at position 2: x_̲ "
+  },
+  {
+    "id": "b-empty-sup-alpha",
+    "latex": "\\alpha^",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '^' at position 7: \\alpha^̲"
+  },
+  {
+    "id": "b-empty-sub-frac",
+    "latex": "\\frac{a}{b}_",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '_' at position 12: \\frac{a}{b}_̲"
+  },
+  {
+    "id": "b-double-sup",
+    "latex": "x^a^b",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double superscript at position 4: x^a^̲b"
+  },
+  {
+    "id": "b-double-sub",
+    "latex": "x_a_b",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double subscript at position 4: x_a_̲b"
+  },
+  {
+    "id": "b-double-sup-nospace",
+    "latex": "y^1^2",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double superscript at position 4: y^1^̲2"
+  },
+  {
+    "id": "b-double-sub-letters",
+    "latex": "T_a_b",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double subscript at position 4: T_a_̲b"
+  },
+  {
+    "id": "b-double-sup-expr",
+    "latex": "e^x^2",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double superscript at position 4: e^x^̲2"
+  },
+  {
+    "id": "b-double-sub-long",
+    "latex": "A_i_j_k",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double subscript at position 4: A_i_̲j_k"
+  },
+  {
+    "id": "b-double-sup-greek",
+    "latex": "\\alpha^a^b",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double superscript at position 9: \\alpha^a^̲b"
+  },
+  {
+    "id": "b-double-sub-num",
+    "latex": "x_1_2",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double subscript at position 4: x_1_̲2"
+  },
+  {
+    "id": "b-double-sup-letter",
+    "latex": "n^k^j",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double superscript at position 4: n^k^̲j"
+  },
+  {
+    "id": "b-double-sub-greek",
+    "latex": "\\mu_a_b",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double subscript at position 6: \\mu_a_̲b"
+  },
+  {
+    "id": "b-left-no-right",
+    "latex": "\\left( x + y",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '\\right', got 'EOF' at end of input: \\left( x + y"
+  },
+  {
+    "id": "b-left-bracket-no-right",
+    "latex": "\\left[ \\frac{a}{b}",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '\\right', got 'EOF' at end of input: …ft[ \\frac{a}{b}"
+  },
+  {
+    "id": "b-left-brace-no-right",
+    "latex": "\\left\\{ x \\in \\mathbb{R}",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '\\right', got 'EOF' at end of input: … \\in \\mathbb{R}"
+  },
+  {
+    "id": "b-left-vert-no-right",
+    "latex": "\\left| x",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '\\right', got 'EOF' at end of input: \\left| x"
+  },
+  {
+    "id": "b-left-extra",
+    "latex": "\\left( a \\right) \\left( b",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '\\right', got 'EOF' at end of input: …right) \\left( b"
+  },
+  {
+    "id": "b-left-nested-no-right",
+    "latex": "\\left( \\left[ x \\right]",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '\\right', got 'EOF' at end of input: …left[ x \\right]"
+  },
+  {
+    "id": "b-left-norm-no-right",
+    "latex": "\\left\\| v \\|",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '\\right', got 'EOF' at end of input: \\left\\| v \\|"
+  },
+  {
+    "id": "b-left-paren-frac",
+    "latex": "\\left( \\frac{1}{x}",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '\\right', got 'EOF' at end of input: …ft( \\frac{1}{x}"
+  },
+  {
+    "id": "b-right-no-left",
+    "latex": "x + y \\right)",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\right' at position 7: x + y \\̲r̲i̲g̲h̲t̲)"
+  },
+  {
+    "id": "b-right-bracket-no-left",
+    "latex": "\\frac{a}{b} \\right]",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\right' at position 13: \\frac{a}{b} \\̲r̲i̲g̲h̲t̲]"
+  },
+  {
+    "id": "b-right-extra",
+    "latex": "\\left( a \\right) \\right)",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\right' at position 18: …eft( a \\right) \\̲r̲i̲g̲h̲t̲)"
+  },
+  {
+    "id": "b-right-brace-no-left",
+    "latex": "x \\right\\}",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\right' at position 3: x \\̲r̲i̲g̲h̲t̲\\}"
+  },
+  {
+    "id": "b-right-vert-no-left",
+    "latex": "\\sum_k a_k \\right|",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\right' at position 12: \\sum_k a_k \\̲r̲i̲g̲h̲t̲|"
+  },
+  {
+    "id": "b-extra-open-brace",
+    "latex": "\\frac{a}{b{c}",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{a}{b{c}"
+  },
+  {
+    "id": "b-extra-close-brace",
+    "latex": "\\frac{a}{b}}",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '}' at position 12: \\frac{a}{b}}̲"
+  },
+  {
+    "id": "b-missing-close-brace",
+    "latex": "\\sqrt{x + y",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got 'EOF' at end of input: \\sqrt{x + y"
+  },
+  {
+    "id": "b-double-open-brace",
+    "latex": "{{x + y}",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got 'EOF' at end of input: {{x + y}"
+  },
+  {
+    "id": "b-unclosed-env-brace",
+    "latex": "\\begin{matrix} a & b \\end{matrix",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: …& b \\end{matrix"
+  },
+  {
+    "id": "b-extra-close-mid",
+    "latex": "a + b} + c",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '}' at position 6: a + b}̲ + c"
+  },
+  {
+    "id": "b-extra-open-mid",
+    "latex": "a + {b + c",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got 'EOF' at end of input: a + {b + c"
+  },
+  {
+    "id": "b-three-opens",
+    "latex": "{{{a + b}",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got 'EOF' at end of input: {{{a + b}"
+  },
+  {
+    "id": "b-two-close-one-open",
+    "latex": "{a}}",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '}' at position 4: {a}}̲"
+  },
+  {
+    "id": "b-sup-unclosed",
+    "latex": "x^{a + b",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got 'EOF' at end of input: x^{a + b"
+  },
+  {
+    "id": "b-sub-unclosed",
+    "latex": "x_{i+1",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got 'EOF' at end of input: x_{i+1"
+  },
+  {
+    "id": "b-frac-extra-close",
+    "latex": "\\frac{a}{}}}",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '}' at position 11: \\frac{a}{}}̲}"
+  },
+  {
+    "id": "b-begin-end-mismatch",
+    "latex": "\\begin{matrix} a \\end{pmatrix}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Mismatch: \\begin{matrix} matched by \\end{pmatrix} at position 18: …egin{matrix} a \\̲e̲n̲d̲{pmatrix}"
+  },
+  {
+    "id": "b-begin-no-end",
+    "latex": "\\begin{matrix} a & b",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected & or \\\\ or \\cr or \\end at end of input: …n{matrix} a & b"
+  },
+  {
+    "id": "b-end-no-begin",
+    "latex": "a & b \\end{matrix}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '&' at position 3: a &̲ b \\end{matrix}"
+  },
+  {
+    "id": "b-begin-end-swap",
+    "latex": "\\begin{cases} x \\end{matrix}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Mismatch: \\begin{cases} matched by \\end{matrix} at position 17: …begin{cases} x \\̲e̲n̲d̲{matrix}"
+  },
+  {
+    "id": "b-begin-nested-mismatch",
+    "latex": "\\begin{aligned} \\begin{matrix} a \\end{aligned} \\end{matrix}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Mismatch: \\begin{matrix} matched by \\end{aligned} at position 34: …egin{matrix} a \\̲e̲n̲d̲{aligned} \\end{…"
+  },
+  {
+    "id": "b-begin-double-end",
+    "latex": "\\begin{matrix} a \\end{matrix} \\end{matrix}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\end' at position 31: …a \\end{matrix} \\̲e̲n̲d̲{matrix}"
+  },
+  {
+    "id": "b-begin-typo",
+    "latex": "\\begin{matirx} a \\end{matirx}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: No such environment: matirx at position 7: \\begin{̲m̲a̲t̲i̲r̲x̲}̲ a \\end{matirx}"
+  },
+  {
+    "id": "b-begin-cases-no-end",
+    "latex": "\\begin{cases} a & b",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected & or \\\\ or \\cr or \\end at end of input: …in{cases} a & b"
+  },
+  {
+    "id": "b-begin-aligned-swap",
+    "latex": "\\begin{aligned} x &= 1 \\end{cases}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Mismatch: \\begin{aligned} matched by \\end{cases} at position 24: …ligned} x &= 1 \\̲e̲n̲d̲{cases}"
+  },
+  {
+    "id": "b-end-only-pmatrix",
+    "latex": "a \\end{pmatrix}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\end' at position 3: a \\̲e̲n̲d̲{pmatrix}"
+  },
+  {
+    "id": "b-sqrt-bad-opt-no-close",
+    "latex": "\\sqrt[3 x",
+    "family": "broken:sqrt-optional",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected ']' at end of input: \\sqrt[3 x"
+  },
+  {
+    "id": "b-sqrt-bad-opt-nospace",
+    "latex": "\\sqrt[",
+    "family": "broken:sqrt-optional",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected ']' at end of input: \\sqrt["
+  },
+  {
+    "id": "b-sqrt-bad-opt-nested",
+    "latex": "\\sqrt[n{x}",
+    "family": "broken:sqrt-optional",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected ']' at end of input: \\sqrt[n{x}"
+  },
+  {
+    "id": "b-sqrt-bad-opt-only",
+    "latex": "\\sqrt[n",
+    "family": "broken:sqrt-optional",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected ']' at end of input: \\sqrt[n"
+  },
+  {
+    "id": "b-sqrt-bad-opt-empty",
+    "latex": "\\sqrt[{x}",
+    "family": "broken:sqrt-optional",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected ']' at end of input: \\sqrt[{x}"
+  },
+  {
+    "id": "b-amp-outside-env",
+    "latex": "a & b + c",
+    "family": "broken:amp-outside",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '&' at position 3: a &̲ b + c"
+  },
+  {
+    "id": "b-amp-outside-frac",
+    "latex": "\\frac{a & b}{c}",
+    "family": "broken:amp-outside",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '&' at position 9: \\frac{a &̲ b}{c}"
+  },
+  {
+    "id": "b-amp-outside-double",
+    "latex": "x & y & z",
+    "family": "broken:amp-outside",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '&' at position 3: x &̲ y & z"
+  },
+  {
+    "id": "b-amp-outside-simple",
+    "latex": "x & y",
+    "family": "broken:amp-outside",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '&' at position 3: x &̲ y"
+  },
+  {
+    "id": "b-amp-after-eq",
+    "latex": "x = 1 & y = 2",
+    "family": "broken:amp-outside",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '&' at position 7: x = 1 &̲ y = 2"
+  },
+  {
+    "id": "b-amp-in-sqrt",
+    "latex": "\\sqrt{a & b}",
+    "family": "broken:amp-outside",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got '&' at position 9: \\sqrt{a &̲ b}"
+  },
+  {
+    "id": "b-amp-in-text",
+    "latex": "\\text{a & b}",
+    "family": "broken:amp-outside",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '&' at position 9: \\text{a &̲ b}"
+  },
+  {
+    "id": "b-unknown-frooble",
+    "latex": "\\frooble{x}",
+    "family": "broken:unknown-cmd",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Undefined control sequence: \\frooble at position 1: \\̲f̲r̲o̲o̲b̲l̲e̲{x}"
+  },
+  {
+    "id": "b-unknown-mycmd",
+    "latex": "\\mycmd{a}{b}",
+    "family": "broken:unknown-cmd",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Undefined control sequence: \\mycmd at position 1: \\̲m̲y̲c̲m̲d̲{a}{b}"
+  },
+  {
+    "id": "b-unknown-zzz",
+    "latex": "\\zzz",
+    "family": "broken:unknown-cmd",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Undefined control sequence: \\zzz at position 1: \\̲z̲z̲z̲"
+  },
+  {
+    "id": "b-unknown-vdots",
+    "latex": "\\vdots",
+    "family": "broken:unknown-cmd",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-unknown-ddots",
+    "latex": "\\ddots",
+    "family": "broken:unknown-cmd",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-unknown-textrm",
+    "latex": "\\textrm{hello}",
+    "family": "broken:unknown-cmd",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-unknown-boldsymbol",
+    "latex": "\\boldsymbol{x}",
+    "family": "broken:unknown-cmd",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-unknown-xrightarrow",
+    "latex": "A \\xrightarrow{f} B",
+    "family": "broken:unknown-cmd",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-unknown-underbrace",
+    "latex": "\\underbrace{a+b}_{\\text{sum}}",
+    "family": "broken:unknown-cmd",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-unknown-overbrace",
+    "latex": "\\overbrace{a+b}^{\\text{sum}}",
+    "family": "broken:unknown-cmd",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-trailing-backslash",
+    "latex": "a + b\\",
+    "family": "broken:trailing-bs",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected character: '\\' at position 6: a + b\\̲"
+  },
+  {
+    "id": "b-mid-backslash",
+    "latex": "\\frac{a\\}{b}",
+    "family": "broken:trailing-bs",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{a\\}{b}"
+  },
+  {
+    "id": "b-trailing-bs-space",
+    "latex": "x + y\\ ",
+    "family": "broken:trailing-bs",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-cmd-then-trailing",
+    "latex": "\\alpha + \\beta\\",
+    "family": "broken:trailing-bs",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected character: '\\' at position 15: \\alpha + \\beta\\̲"
+  },
+  {
+    "id": "b-combo-unbal-frac",
+    "latex": "\\frac{a{b}",
+    "family": "broken:combo",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{a{b}"
+  },
+  {
+    "id": "b-combo-left-unbal",
+    "latex": "\\left( \\frac{a}{b",
+    "family": "broken:combo",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: …eft( \\frac{a}{b"
+  },
+  {
+    "id": "b-combo-begin-brace",
+    "latex": "\\begin{matrix} a & b \\end{matrix",
+    "family": "broken:combo",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: …& b \\end{matrix"
+  },
+  {
+    "id": "b-combo-double-sup-frac",
+    "latex": "x^a^{\\frac{b}{c}}",
+    "family": "broken:combo",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double superscript at position 4: x^a^̲{\\frac{b}{c}}"
+  },
+  {
+    "id": "b-combo-amp-left",
+    "latex": "\\left( a & b \\right)",
+    "family": "broken:combo",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '\\right', got '&' at position 10: \\left( a &̲ b \\right)"
+  },
+  {
+    "id": "b-combo-empty-sup-frac",
+    "latex": "\\frac{a^}{b}",
+    "family": "broken:combo",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '^' at position 8: \\frac{a^̲}{b}"
+  },
+  {
+    "id": "b-combo-double-sub-left",
+    "latex": "\\left[ x_a_b \\right]",
+    "family": "broken:combo",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double subscript at position 11: \\left[ x_a_̲b \\right]"
+  },
+  {
+    "id": "b-combo-begin-mismatch-brace",
+    "latex": "\\begin{matrix} a \\end{pmatrix",
+    "family": "broken:combo",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: … a \\end{pmatrix"
+  },
+  {
+    "id": "b-sup-unclosed-deep",
+    "latex": "x^{a^{b}",
+    "family": "broken:misc",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got 'EOF' at end of input: x^{a^{b}"
+  },
+  {
+    "id": "b-left-right-mistype",
+    "latex": "\\left( \\frac{1}{2} \\right[",
+    "family": "broken:misc",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-cmd-dollar",
+    "latex": "x = \\$5",
+    "family": "broken:misc",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-begin-empty",
+    "latex": "\\begin{} a \\end{}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: No such environment:  at position 7: \\begin{̲}̲ a \\end{}"
+  },
+  {
+    "id": "b-sub-open-brace",
+    "latex": "x_{a + b",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got 'EOF' at end of input: x_{a + b"
+  },
+  {
+    "id": "b-cmd-backslash-num",
+    "latex": "\\1 + 2",
+    "family": "broken:misc",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Undefined control sequence: \\1 at position 1: \\̲1̲ + 2"
+  },
+  {
+    "id": "b-double-frac-incomplete",
+    "latex": "\\frac{\\frac{a}",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{\\frac{a}"
+  },
+  {
+    "id": "b-left-angle-no-right",
+    "latex": "\\left\\langle v",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '\\right', got 'EOF' at end of input: \\left\\langle v"
+  },
+  {
+    "id": "b-right-angle-no-left",
+    "latex": "v \\right\\rangle",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\right' at position 3: v \\̲r̲i̲g̲h̲t̲\\rangle"
+  },
+  {
+    "id": "b-frac-one-brace-only",
+    "latex": "\\frac{a}b",
+    "family": "broken:frac-arity",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-frac-space-one",
+    "latex": "\\frac {a}",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac {a}"
+  },
+  {
+    "id": "b-frac-chain-incomplete",
+    "latex": "\\frac{\\frac{a}{b}",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: …rac{\\frac{a}{b}"
+  },
+  {
+    "id": "b-frac-cmd-incomplete",
+    "latex": "\\frac{\\alpha",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{\\alpha"
+  },
+  {
+    "id": "b-empty-sup-after-frac",
+    "latex": "\\frac{a}{b}^",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '^' at position 12: \\frac{a}{b}^̲"
+  },
+  {
+    "id": "b-empty-sub-after-sqrt",
+    "latex": "\\sqrt{x}_",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '_' at position 9: \\sqrt{x}_̲"
+  },
+  {
+    "id": "b-empty-sup-cmd",
+    "latex": "\\alpha^",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '^' at position 7: \\alpha^̲"
+  },
+  {
+    "id": "b-empty-sub-cmd",
+    "latex": "\\beta_",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '_' at position 6: \\beta_̲"
+  },
+  {
+    "id": "b-double-sup-in-frac",
+    "latex": "\\frac{x^a^b}{c}",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double superscript at position 10: \\frac{x^a^̲b}{c}"
+  },
+  {
+    "id": "b-double-sub-in-sqrt",
+    "latex": "\\sqrt{x_a_b}",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double subscript at position 10: \\sqrt{x_a_̲b}"
+  },
+  {
+    "id": "b-double-sup-in-sum",
+    "latex": "\\sum_{k^a^b}",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double superscript at position 10: \\sum_{k^a^̲b}"
+  },
+  {
+    "id": "b-double-sub-in-int",
+    "latex": "\\int_{0_a_b}^{1}",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double subscript at position 10: \\int_{0_a_̲b}^{1}"
+  },
+  {
+    "id": "b-left-paren-right-brack",
+    "latex": "\\left( x \\right]",
+    "family": "broken:left-right",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-left-brack-right-paren",
+    "latex": "\\left[ x \\right)",
+    "family": "broken:left-right",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-multi-left-one-right",
+    "latex": "\\left( \\left[ x \\right]",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '\\right', got 'EOF' at end of input: …left[ x \\right]"
+  },
+  {
+    "id": "b-one-left-multi-right",
+    "latex": "\\left( x \\right) \\right)",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\right' at position 18: …eft( x \\right) \\̲r̲i̲g̲h̲t̲)"
+  },
+  {
+    "id": "b-begin-aligned-matrix",
+    "latex": "\\begin{aligned} x &= 1 \\end{matrix}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Mismatch: \\begin{aligned} matched by \\end{matrix} at position 24: …ligned} x &= 1 \\̲e̲n̲d̲{matrix}"
+  },
+  {
+    "id": "b-begin-pmatrix-cases",
+    "latex": "\\begin{pmatrix} a \\end{cases}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Mismatch: \\begin{pmatrix} matched by \\end{cases} at position 19: …gin{pmatrix} a \\̲e̲n̲d̲{cases}"
+  },
+  {
+    "id": "b-begin-unknown-env",
+    "latex": "\\begin{unknown} a \\end{unknown}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: No such environment: unknown at position 7: \\begin{̲u̲n̲k̲n̲o̲w̲n̲}̲ a \\end{unknown…"
+  },
+  {
+    "id": "b-begin-no-end-2",
+    "latex": "\\begin{aligned} x &= 1 \\\\ y &= 2",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected & or \\\\ or \\cr or \\end at end of input: … &= 1 \\\\ y &= 2"
+  },
+  {
+    "id": "b-end-before-begin",
+    "latex": "\\end{matrix} a \\begin{matrix}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\end' at position 1: \\̲e̲n̲d̲{matrix} a \\beg…"
+  },
+  {
+    "id": "b-empty-group-mid",
+    "latex": "a + {} + {b",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got 'EOF' at end of input: a + {} + {b"
+  },
+  {
+    "id": "b-nested-missing",
+    "latex": "{{a} + {b}",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got 'EOF' at end of input: {{a} + {b}"
+  },
+  {
+    "id": "b-close-then-open",
+    "latex": "a} + {b",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '}' at position 2: a}̲ + {b"
+  },
+  {
+    "id": "b-deep-unclosed",
+    "latex": "{{{{{a}}}",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got 'EOF' at end of input: {{{{{a}}}"
+  },
+  {
+    "id": "b-sup-nested-unclosed",
+    "latex": "x^{a^{b^{c}",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got 'EOF' at end of input: x^{a^{b^{c}"
+  },
+  {
+    "id": "b-amp-in-binom",
+    "latex": "\\binom{a & b}{c}",
+    "family": "broken:amp-outside",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '&' at position 10: \\binom{a &̲ b}{c}"
+  },
+  {
+    "id": "b-amp-in-cases-outside",
+    "latex": "f(x) = a & b",
+    "family": "broken:amp-outside",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '&' at position 10: f(x) = a &̲ b"
+  },
+  {
+    "id": "b-amp-standalone",
+    "latex": "&",
+    "family": "broken:amp-outside",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '&' at position 1: &̲"
+  },
+  {
+    "id": "b-unknown-abs",
+    "latex": "\\abs{x}",
+    "family": "broken:unknown-cmd",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Undefined control sequence: \\abs at position 1: \\̲a̲b̲s̲{x}"
+  },
+  {
+    "id": "b-unknown-norm",
+    "latex": "\\norm{v}",
+    "family": "broken:unknown-cmd",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Undefined control sequence: \\norm at position 1: \\̲n̲o̲r̲m̲{v}"
+  },
+  {
+    "id": "b-unknown-R",
+    "latex": "\\R",
+    "family": "broken:unknown-cmd",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-unknown-N",
+    "latex": "\\N",
+    "family": "broken:unknown-cmd",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-unknown-Z",
+    "latex": "\\Z",
+    "family": "broken:unknown-cmd",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-trailing-end",
+    "latex": "\\frac{a}{b}\\",
+    "family": "broken:trailing-bs",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected character: '\\' at position 12: \\frac{a}{b}\\̲"
+  },
+  {
+    "id": "b-trailing-after-cmd",
+    "latex": "\\alpha\\",
+    "family": "broken:trailing-bs",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected character: '\\' at position 7: \\alpha\\̲"
+  },
+  {
+    "id": "b-null-delimiter-wrong",
+    "latex": "\\right. x",
+    "family": "broken:misc",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\right' at position 1: \\̲r̲i̲g̲h̲t̲. x"
+  },
+  {
+    "id": "b-double-frac-no-second",
+    "latex": "\\frac{\\frac{a}{b}}{",
+    "family": "broken:misc",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: …c{\\frac{a}{b}}{"
+  },
+  {
+    "id": "b-sup-then-empty",
+    "latex": "f(x)^",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '^' at position 5: f(x)^̲"
+  },
+  {
+    "id": "b-sub-then-empty",
+    "latex": "g(x)_",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '_' at position 5: g(x)_̲"
+  },
+  {
+    "id": "b-frac-only-slash",
+    "latex": "\\frac{a/b}",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{a/b}"
+  },
+  {
+    "id": "b-double-sup-braced",
+    "latex": "x^{a}^{b}",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double superscript at position 6: x^{a}^̲{b}"
+  },
+  {
+    "id": "b-double-sub-braced",
+    "latex": "x_{a}_{b}",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double subscript at position 6: x_{a}_̲{b}"
+  },
+  {
+    "id": "b-left-only-2",
+    "latex": "\\left( a \\left[ b \\right]",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '\\right', got 'EOF' at end of input: …left[ b \\right]"
+  },
+  {
+    "id": "b-begin-empty-env",
+    "latex": "\\begin{pmatrix} \\end{matrix}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Mismatch: \\begin{pmatrix} matched by \\end{matrix} at position 17: …begin{pmatrix} \\̲e̲n̲d̲{matrix}"
+  },
+  {
+    "id": "b-unbal-frac-both",
+    "latex": "\\frac{{a}{b}",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{{a}{b}"
+  },
+  {
+    "id": "b-amp-in-lim",
+    "latex": "\\lim_{a & b}",
+    "family": "broken:amp-outside",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got '&' at position 9: \\lim_{a &̲ b}"
+  },
+  {
+    "id": "b-unknown-imath",
+    "latex": "\\imath + \\jmath",
+    "family": "broken:unknown-cmd",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-trailing-double",
+    "latex": "a \\\\ b\\",
+    "family": "broken:trailing-bs",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected character: '\\' at position 7: a \\\\ b\\̲"
+  },
+  {
+    "id": "b-empty-sup-in-env",
+    "latex": "\\begin{pmatrix} x^ \\end{pmatrix}",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Got function '\\end' with no arguments as superscript at position 20: …in{pmatrix} x^ \\̲e̲n̲d̲{pmatrix}"
+  },
+  {
+    "id": "b-frac-missing-both",
+    "latex": "\\frac{",
+    "family": "broken:frac-arity",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected '}' at end of input: \\frac{"
+  },
+  {
+    "id": "b-combo-empty-env",
+    "latex": "\\begin{matrix} x^ \\end{matrix}",
+    "family": "broken:combo",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Got function '\\end' with no arguments as superscript at position 19: …gin{matrix} x^ \\̲e̲n̲d̲{matrix}"
+  },
+  {
+    "id": "b-right-in-text",
+    "latex": "\\text{hello} \\right)",
+    "family": "broken:left-right",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\right' at position 14: \\text{hello} \\̲r̲i̲g̲h̲t̲)"
+  },
+  {
+    "id": "b-double-sub-in-env",
+    "latex": "\\begin{matrix} x_a_b \\end{matrix}",
+    "family": "broken:double-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Double subscript at position 19: …gin{matrix} x_a_̲b \\end{matrix}"
+  },
+  {
+    "id": "b-unbal-env-brace",
+    "latex": "\\begin{matrix} {a & b \\end{matrix}",
+    "family": "broken:unbalanced-braces",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected '}', got '&' at position 19: …gin{matrix} {a &̲ b \\end{matrix}"
+  },
+  {
+    "id": "b-sqrt-bad-mid",
+    "latex": "\\sqrt[2 + \\frac{a}{b}",
+    "family": "broken:sqrt-optional",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Unexpected end of input in a macro argument, expected ']' at end of input: …2 + \\frac{a}{b}"
+  },
+  {
+    "id": "b-amp-after-frac",
+    "latex": "\\frac{a}{b} & c",
+    "family": "broken:amp-outside",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '&' at position 13: \\frac{a}{b} &̲ c"
+  },
+  {
+    "id": "b-begin-reversed",
+    "latex": "\\end{cases} x \\begin{cases}",
+    "family": "broken:begin-end",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected 'EOF', got '\\end' at position 1: \\̲e̲n̲d̲{cases} x \\begi…"
+  },
+  {
+    "id": "b-unknown-operatorname",
+    "latex": "\\operatorname{rank}(A)",
+    "family": "broken:unknown-cmd",
+    "katexOk": true,
+    "katexError": ""
+  },
+  {
+    "id": "b-empty-sub-deep",
+    "latex": "x^{a_}",
+    "family": "broken:empty-script",
+    "katexOk": false,
+    "katexError": "KaTeX parse error: Expected group after '_' at position 5: x^{a_̲}"
+  }
+]

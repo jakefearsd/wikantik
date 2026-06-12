@@ -67,7 +67,7 @@ public class DeletePagesTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageNames", Map.of(
+        properties.put( "slugs", Map.of(
                 "type", "array",
                 "items", Map.of( "type", "string" ),
                 "description", "Names of pages to delete (without .md extension).",
@@ -116,7 +116,7 @@ public class DeletePagesTool implements McpTool {
                         "Per-page {pageName, deleted, error?, backlinks?} results let the caller " +
                         "retry only the skipped items." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties,
-                        List.of( "pageNames", "confirm" ), null, null, null ) )
+                        List.of( "slugs", "confirm" ), null, null, null ) )
                 .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, false, true, false, null, null ) )
                 .build();
@@ -125,7 +125,7 @@ public class DeletePagesTool implements McpTool {
     @Override
     @SuppressWarnings( "unchecked" )
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        final Object raw = arguments.get( "pageNames" );
+        final Object raw = McpToolUtils.pageSlugs( arguments );
         if ( !( raw instanceof List< ? > ) || ( (List< ? >) raw ).isEmpty() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "pageNames must be a non-empty array of strings" );

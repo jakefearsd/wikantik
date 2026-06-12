@@ -69,7 +69,7 @@ public class VerifyPagesTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageNames", Map.of(
+        properties.put( "slugs", Map.of(
                 "type", "array",
                 "description", "Array of page names to verify",
                 "items", Map.of( "type", "string" ),
@@ -115,7 +115,7 @@ public class VerifyPagesTool implements McpTool {
                 .description( "Verify the state of multiple wiki pages in a single call. " +
                         "Checks existence, broken links, backlinks, outbound links, and metadata completeness. " +
                         "Returns per-page details and a summary. Use after creating or updating pages to confirm integrity." )
-                .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageNames" ), null, null, null ) )
+                .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "slugs" ), null, null, null ) )
                 .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
@@ -124,7 +124,7 @@ public class VerifyPagesTool implements McpTool {
     @SuppressWarnings( "unchecked" )
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        final List< String > pageNames = ( List< String > ) arguments.get( "pageNames" );
+        final List< String > pageNames = ( List< String > ) McpToolUtils.pageSlugs( arguments );
         final List< String > checks = ( List< String > ) arguments.get( "checks" );
 
         if ( pageNames == null || pageNames.isEmpty() ) {

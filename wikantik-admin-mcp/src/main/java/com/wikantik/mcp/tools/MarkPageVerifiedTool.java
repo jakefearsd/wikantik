@@ -73,7 +73,7 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageNames", Map.of(
+        properties.put( "slugs", Map.of(
             "type", "array",
             "items", Map.of( "type", "string" ),
             "description", "Slugs of the pages to mark verified.",
@@ -128,7 +128,7 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool implements McpTool {
                 "trust signals on shipped help / CSS / menu pages." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties,
-                List.of( "pageNames" ), null, null, null ) )
+                List.of( "slugs" ), null, null, null ) )
             .outputSchema( outputSchema )
             .annotations( new McpSchema.ToolAnnotations( null, false, false, true, null, null ) )
             .build();
@@ -138,7 +138,7 @@ public class MarkPageVerifiedTool extends DefaultAuthorTool implements McpTool {
     @SuppressWarnings( "unchecked" )
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
-            final Object rawNames = arguments.get( "pageNames" );
+            final Object rawNames = McpToolUtils.pageSlugs( arguments );
             if ( !( rawNames instanceof List< ? > nameList ) || nameList.isEmpty() ) {
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "pageNames must be a non-empty array" );

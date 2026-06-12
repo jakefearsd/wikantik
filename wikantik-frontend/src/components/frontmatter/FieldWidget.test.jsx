@@ -35,4 +35,21 @@ describe('FieldWidget', () => {
     fireEvent.change(screen.getByLabelText('runbook steps'), { target: { value: 'step one\nstep two' } });
     expect(onChange).toHaveBeenCalledWith({ steps: ['step one', 'step two'] });
   });
+
+  it('wraps the control and its violations in a .fm-control element', () => {
+    const { container } = render(
+      <FieldWidget
+        spec={{ key: 'summary', label: 'Summary', widget: 'TEXT', minLen: 50, maxLen: 160 }}
+        value="too short"
+        onChange={noop}
+        violations={[{ field: 'summary', severity: 'WARNING', code: 'x', message: 'too short msg' }]}
+      />,
+    );
+    const field = container.querySelector('[data-field="summary"]');
+    const control = field.querySelector('.fm-control');
+    expect(control).toBeTruthy();
+    // both the input and the violation text live inside the wrapper, not the label column
+    expect(control.querySelector('input')).toBeTruthy();
+    expect(control.textContent).toContain('too short msg');
+  });
 });

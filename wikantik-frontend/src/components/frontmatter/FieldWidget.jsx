@@ -140,8 +140,10 @@ export default function FieldWidget({ spec, value, onChange, violations = [], on
   return (
     <div className={`fm-field fm-field-${key}${isWideField(spec) ? ' fm-field--wide' : ''}`} data-field={key}>
       <label className="fm-label">{label}</label>
-      {control}
-      <ViolationList violations={ownViolations} onApplySuggestion={onApplySuggestion} />
+      <div className="fm-control">
+        {control}
+        <ViolationList violations={ownViolations} onApplySuggestion={onApplySuggestion} />
+      </div>
     </div>
   );
 }

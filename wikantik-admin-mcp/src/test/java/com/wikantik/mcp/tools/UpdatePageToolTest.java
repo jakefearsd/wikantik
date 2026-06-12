@@ -50,7 +50,7 @@ class UpdatePageToolTest {
         final UpdatePageTool t = new UpdatePageTool(
             mock( PageSaveHelper.class ), mock( PageManager.class ), null );
         final var req = t.definition().inputSchema().required();
-        assertTrue( req.contains( "pageName" ) );
+        assertTrue( req.contains( "slug" ) );
         assertTrue( req.contains( "content" ) );
         assertTrue( req.contains( "expectedContentHash" ) );
     }
@@ -220,7 +220,7 @@ class UpdatePageToolTest {
             "content", "body",
             "expectedContentHash", "h" ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
-        assertTrue( text.contains( "pageName must not be blank" ) );
+        assertTrue( text.contains( "pageName is required" ) );
     }
 
     @Test

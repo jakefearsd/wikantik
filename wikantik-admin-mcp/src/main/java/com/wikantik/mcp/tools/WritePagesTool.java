@@ -70,10 +70,10 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
         final Map< String, Object > pageSchema = Map.of(
             "type", "object",
             "properties", Map.of(
-                "pageName", Map.of( "type", "string" ),
+                "slug", Map.of( "type", "string" ),
                 "content",  Map.of( "type", "string" ),
                 "metadata", Map.of( "type", "object" ) ),
-            "required", List.of( "pageName", "content" ) );
+            "required", List.of( "slug", "content" ) );
         final Map< String, Object > properties = new LinkedHashMap<>();
         properties.put( "pages", Map.of(
             "type", "array",
@@ -128,7 +128,8 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
         int createdCount = 0;
         int failedCount = 0;
         for ( final Map< String, Object > p : pages ) {
-            final String pageName = asString( p.get( "pageName" ) );
+            String pageName = asString( p.get( "slug" ) );
+            if ( pageName == null || pageName.isBlank() ) { pageName = asString( p.get( "pageName" ) ); }
             final String content = asString( p.get( "content" ) );
             final Map< String, Object > metadata = asMap( p.get( "metadata" ) );
 

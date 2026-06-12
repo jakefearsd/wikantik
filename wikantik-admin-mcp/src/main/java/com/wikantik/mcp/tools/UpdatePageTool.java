@@ -71,7 +71,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageName", Map.of(
+        properties.put( "slug", Map.of(
                 "type", "string",
                 "description", "Name of the existing page to update.",
                 "examples", List.of( "HybridRetrieval" )
@@ -128,7 +128,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
                 "be edited via MCP — those updates require admin UI / direct DB access." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties,
-                List.of( "pageName", "content", "expectedContentHash" ), null, null, null ) )
+                List.of( "slug", "content", "expectedContentHash" ), null, null, null ) )
             .outputSchema( outputSchema )
             .annotations( new McpSchema.ToolAnnotations( null, false, false, true, null, null ) )
             .build();
@@ -137,7 +137,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
-            final String pageName = McpToolUtils.getString( arguments, "pageName" );
+            final String pageName = McpToolUtils.pageSlug( arguments );
             final String content = McpToolUtils.getString( arguments, "content" );
             final String expectedHash = McpToolUtils.getString( arguments, "expectedContentHash" );
             try {
@@ -274,7 +274,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             // Math validator refused this write (ERROR-severity).
             // Cite violations with excerpt+caret so the agent can locate and fix the error.
             ContentWarningSink.clear();
-            final String rejectedPage = McpToolUtils.getString( arguments, "pageName" );
+            final String rejectedPage = McpToolUtils.pageSlug( arguments );
             LOG.debug( "update_page rejected by math validation for {}: {}", rejectedPage, e.getMessage() );
             final Map< String, Object > refused = new LinkedHashMap<>();
             refused.put( "pageName", rejectedPage );
@@ -286,7 +286,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             // Same schema validator the form + REST use refused this write (ERROR-severity).
             // Cite the structured violations so the agent can self-correct and retry.
             FrontmatterWarningSink.clear();
-            final String rejectedPage = McpToolUtils.getString( arguments, "pageName" );
+            final String rejectedPage = McpToolUtils.pageSlug( arguments );
             LOG.debug( "update_page rejected by frontmatter validation for {}: {}", rejectedPage, e.getMessage() );
             final Map< String, Object > refused = new LinkedHashMap<>();
             refused.put( "pageName", rejectedPage );

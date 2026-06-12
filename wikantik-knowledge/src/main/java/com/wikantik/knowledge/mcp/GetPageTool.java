@@ -95,13 +95,12 @@ public class GetPageTool implements McpTool {
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         try {
-            // D13: accept both `slug` (canonical) and `pageName` (deprecated alias).
-            final String pageName = McpToolUtils.getStringAny( arguments, "slug", "pageName" );
-            if ( arguments.containsKey( "pageName" ) && !arguments.containsKey( "slug" ) ) {
-                LOG.warn( "get_page called with deprecated argument 'pageName'; prefer 'slug'" );
-            }
+            // Canonical key is `slug`; accept common synonyms an agent may guess so a reasonable
+            // call doesn't hard-fail (the cross-surface naming-consistency ask).
+            final String pageName = McpToolUtils.getStringAny( arguments, "slug", "pageName", "name", "page" );
             if ( pageName == null || pageName.isBlank() ) {
-                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "slug must not be blank" );
+                return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
+                        "a page identifier is required (one of: slug, pageName, name)" );
             }
             final RetrievedPage page = service.getPage( pageName );
             if ( page == null ) {

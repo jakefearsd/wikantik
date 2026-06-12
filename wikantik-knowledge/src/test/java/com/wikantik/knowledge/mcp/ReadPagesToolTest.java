@@ -58,6 +58,14 @@ class ReadPagesToolTest {
     }
 
     @Test
+    void acceptsPageNamesAlias() {
+        // An agent that learned `pageNames` from the admin MCP should not hard-fail here.
+        final var result = tool.execute( Map.of( "pageNames", List.of( "Alpha" ) ) );
+        assertFalse( Boolean.TRUE.equals( result.isError() ), "the 'pageNames' alias should resolve" );
+        assertTrue( ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text().contains( "Alpha" ) );
+    }
+
+    @Test
     void rejectsOver20Slugs() {
         final List< String > tooMany = new java.util.ArrayList<>();
         for ( int i = 0; i < 21; i++ ) tooMany.add( "P" + i );

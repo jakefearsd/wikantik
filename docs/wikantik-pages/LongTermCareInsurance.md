@@ -36,11 +36,11 @@ Current US averages (2026 dollars, will vary substantially by region):
 
 | Setting | National median annual cost |
 |---------|----------------------------|
-| In-home care, 40 hours/week | $60,000–$80,000 |
-| Assisted living facility | $65,000–$85,000 |
-| Nursing home (semi-private) | $95,000–$115,000 |
-| Nursing home (private room) | $115,000–$140,000 |
-| Memory care unit | $90,000–$130,000 |
+| In-home care, 40 hours/week | \$60,000–\$80,000 |
+| Assisted living facility | \$65,000–\$85,000 |
+| Nursing home (semi-private) | \$95,000–\$115,000 |
+| Nursing home (private room) | \$115,000–\$140,000 |
+| Memory care unit | \$90,000–\$130,000 |
 
 Costs in high-cost-of-living areas (Boston, NYC, Bay Area) can be 40–60% higher.
 
@@ -51,7 +51,7 @@ The duration distribution matters more than the average. Most adults aged 65 tod
 | Coverage | Standard situation |
 |----------|-------------------|
 | **Health insurance / Medicare** | Skilled nursing for short post-hospital periods only (max 100 days, with co-pays); does not cover custodial care |
-| **Medicaid** | Covers nursing-home care, but only after you spend down assets to ~$2,000–$3,000 (varies by state); income limits apply |
+| **Medicaid** | Covers nursing-home care, but only after you spend down assets to ~\$2,000–\$3,000 (varies by state); income limits apply |
 | **Long-term care insurance** | Designed specifically for custodial care; pays daily benefit when you trigger the policy |
 | **Hybrid life-LTC policies** | Combines life insurance with LTC rider; flexible structure |
 
@@ -61,7 +61,7 @@ Medicaid is the de facto long-term care system for the US. About 60% of nursing-
 
 A traditional LTC policy:
 
-1. **Daily/monthly benefit amount** — e.g., $200/day, $6,000/month
+1. **Daily/monthly benefit amount** — e.g., \$200/day, \$6,000/month
 2. **Benefit period** — how long it pays (3, 5, or 10 years; rarely lifetime)
 3. **Elimination period** — waiting period before benefits start (typically 90 days)
 4. **Inflation rider** — usually 3% annually, sometimes optional, often essential
@@ -102,7 +102,7 @@ The market has shifted significantly toward hybrid policies. These are typically
 
 The honest case for buying LTC insurance:
 
-1. **Net worth in the $500K–$2.5M range, excluding primary residence.** Below this, Medicaid is your effective coverage; above this, you can self-fund. The middle band is where insurance can meaningfully change outcomes.
+1. **Net worth in the \$500K–\$2.5M range, excluding primary residence.** Below this, Medicaid is your effective coverage; above this, you can self-fund. The middle band is where insurance can meaningfully change outcomes.
 2. **Family history of dementia, Parkinson's, or other long-duration conditions.** The duration distribution matters more than the average.
 3. **Strong preference to leave specific assets to heirs.** If preventing Medicaid spend-down to protect inheritance is a priority.
 4. **Married couples where one spouse needs care while the other still lives at home.** "Spousal impoverishment" rules can leave the well spouse in a hard position; insurance keeps assets available.
@@ -110,8 +110,8 @@ The honest case for buying LTC insurance:
 
 ## When LTC insurance does not make sense
 
-- **Net worth below ~$500K.** Premiums consume too much of the limited resources; Medicaid is the more practical long-term plan.
-- **Net worth above ~$2.5M.** Self-funding from a portfolio is typically more efficient. Even at 2 years of $130K care = $260K, that is small relative to the portfolio.
+- **Net worth below ~\$500K.** Premiums consume too much of the limited resources; Medicaid is the more practical long-term plan.
+- **Net worth above ~\$2.5M.** Self-funding from a portfolio is typically more efficient. Even at 2 years of \$130K care = \$260K, that is small relative to the portfolio.
 - **Already past 70 with no policy.** Pricing is brutal at that age, and many applicants are denied.
 - **You expect to qualify for Medicaid anyway** because of low income and few non-housing assets.
 
@@ -123,31 +123,31 @@ For households at the upper end of "should we buy LTC insurance," a deliberate s
 2. **Invest it conservatively** — bonds plus some stocks, similar to a late-retirement bucket
 3. **Deploy it if needed** — withdrawals fund care; if not needed, it passes to heirs
 
-A 65-year-old couple with a $2M portfolio might earmark $500K for potential LTC. At 5% growth, that becomes ~$815K by age 75 and ~$1.3M by age 85 — substantial reserves for a care event.
+A 65-year-old couple with a \$2M portfolio might earmark \$500K for potential LTC. At 5% growth, that becomes ~\$815K by age 75 and ~\$1.3M by age 85 — substantial reserves for a care event.
 
 This avoids the "premium increase" risk of standalone LTC, costs less than equivalent insurance over a 20-year period, and lets surplus pass to heirs if not used. The downside: it does not produce a guaranteed payout, so the household has to be comfortable with the variability.
 
 ## Worked example: the math at three net-worth levels
 
-**Household A: $400K net worth, age 65, healthy**
-- LTC policy: $4,500/year, $200/day benefit, 5-year benefit period, 3% inflation
+**Household A: \$400K net worth, age 65, healthy**
+- LTC policy: \$4,500/year, \$200/day benefit, 5-year benefit period, 3% inflation
 - Self-funding capacity: low; serious LTC event likely depletes the portfolio
 - Best path: Medicaid planning. Consult an elder-law attorney to understand spend-down rules in your state. LTC insurance is too large a portion of the available wealth.
 
-**Household B: $1.2M net worth, age 65, healthy**
-- LTC policy: $4,500/year, $200/day benefit, 5-year benefit period, 3% inflation = ~$135K total premiums by age 95
+**Household B: \$1.2M net worth, age 65, healthy**
+- LTC policy: \$4,500/year, \$200/day benefit, 5-year benefit period, 3% inflation = ~\$135K total premiums by age 95
 - Self-funding capacity: meaningful but stretched if 5+ year care event occurs
 - Best path: hybrid life-LTC policy or modest standalone policy. Strong candidate for insurance.
 
-**Household C: $4M net worth, age 65, healthy**
-- LTC policy premium: still $4,500–$8,000/year
+**Household C: \$4M net worth, age 65, healthy**
+- LTC policy premium: still \$4,500–\$8,000/year
 - Self-funding capacity: comfortable for any realistic LTC scenario
-- Best path: self-fund. Earmark $400–$600K of the portfolio as the LTC reserve. Invest, deploy if needed, otherwise inherit.
+- Best path: self-fund. Earmark \$400–\$600K of the portfolio as the LTC reserve. Invest, deploy if needed, otherwise inherit.
 
 ## Common failure patterns
 
 - **Waiting too long to apply.** Underwriting denials become common after age 70.
-- **Buying without an inflation rider.** A $200/day benefit in 2026 is worth far less in 2046; without inflation protection, the policy may be inadequate when needed.
+- **Buying without an inflation rider.** A \$200/day benefit in 2026 is worth far less in 2046; without inflation protection, the policy may be inadequate when needed.
 - **Letting a policy lapse during retirement.** Premium increases force cancellations after years of premiums; a graceful "non-forfeiture" benefit is worth asking about during purchase.
 - **Buying for the wrong reason.** "I want to make sure my children get an inheritance" is sometimes better solved by life insurance plus a clear will than by LTC insurance.
 - **Treating LTC as the highest-priority insurance.** Disability insurance during working years has higher expected value for most households; do that first.

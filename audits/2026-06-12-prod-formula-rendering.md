@@ -9,10 +9,21 @@ pages (of 1195 total), driven by the page-render endpoint + the admin MCP write 
 |---|---|
 | Math pages scanned | 450 |
 | Pages with broken math rendering (detected) | 156 |
-| **Fixed & verified (now render clean)** | **138** |
-| Residual defects (need follow-up — see below) | 17 |
-| Fetch error during scan (recheck needed) | 2 |
+| **Fixed & verified (now render clean)** | **156 (all)** |
+| Residual defects outstanding | 0 |
 | Currency-`$` pages reviewed, render as literal `$` (acceptable) | 117 |
+
+> **Resolution (2026-06-12, same pass):** the 17 residual were all fixed. Root causes were
+> (a) literal currency/`$` parsed as math on finance pages, and (b) display `$$…$$` glued
+> mid-line to prose. Fix applied to git source + pushed via MCP:
+> 1. **Currency-safe escape** — `(?<!\$)\$(?!\$)(?=\d)` → `\$` (escapes `$`+digit, protects
+>    `$$` display delimiters and code fences). Also escaped the `($)` "in dollars" notation.
+> 2. **Isolate all display `$$…$$`** onto their own lines (`\$\$(.+?)\$\$` → blank/`$$`/content/`$$`/blank),
+>    which also restores the inverted inline-`$` parity downstream (no inline re-spacing needed).
+> All 17 re-verified: `math-display` present, no prose-in-math. **`TextFormattingRules`** (the
+> scan fetch-error) is **not a defect** — it's the formatting-docs page; its `$`/`$$` are
+> examples inside code spans, and the browser path (`/wiki/TextFormattingRules`) returns 200.
+> The API `?render=true` path 403'd via Cloudflare WAF — a separate WAF observation, not math.
 
 ## Root cause
 

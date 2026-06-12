@@ -30,19 +30,19 @@ This page is about which approaches actually pay, which do not, and the framewor
 
 ## The fundamental math
 
-A side activity that pays $20/hour and takes 10 hours a week generates $10,400/year of pre-tax income. That is real money — about $7,000 net of taxes for most workers — but it is not life-changing. To compound to FI faster, side income generally needs to either:
+A side activity that pays \$20/hour and takes 10 hours a week generates \$10,400/year of pre-tax income. That is real money — about \$7,000 net of taxes for most workers — but it is not life-changing. To compound to FI faster, side income generally needs to either:
 
 1. **Pay much higher per hour** (skilled professional rates)
 2. **Be highly leveraged** (creating something once that pays forever)
 3. **Build something with sale value** (a side business that compounds in equity)
 
-The "$50/hour after taxes for 10 hours per week" benchmark is a useful filter. Activities that beat it are worth pursuing; activities that fall well below it are usually consuming time better spent elsewhere.
+The "\$50/hour after taxes for 10 hours per week" benchmark is a useful filter. Activities that beat it are worth pursuing; activities that fall well below it are usually consuming time better spent elsewhere.
 
 ## What actually pays well
 
 ### Consulting in your professional skill
 
-The highest-paying side income for most professionals: charging your existing employer-skill at consulting rates to other clients. A software engineer earning $120K W-2 might charge $150–$250/hour as an independent consultant.
+The highest-paying side income for most professionals: charging your existing employer-skill at consulting rates to other clients. A software engineer earning \$120K W-2 might charge \$150–\$250/hour as an independent consultant.
 
 **What works**:
 - 8–15 hours per week is sustainable alongside a full-time job
@@ -57,7 +57,7 @@ The highest-paying side income for most professionals: charging your existing em
 
 ### Specialized professional services
 
-Tax preparation for self-employed clients (CPA), legal services in a specialty (attorney), specialized coaching (executives, college admissions, technical interviews). Hourly rates of $150+ are normal.
+Tax preparation for self-employed clients (CPA), legal services in a specialty (attorney), specialized coaching (executives, college admissions, technical interviews). Hourly rates of \$150+ are normal.
 
 The pattern: a credential or expertise that takes years to develop, sold to clients who value time savings and expertise more than the cost.
 
@@ -73,7 +73,7 @@ Real estate produces income but requires significant capital and is highly marke
 
 ### Content with leverage and audience
 
-Once you have an audience: courses, books, paid newsletters, sponsorships. The math can be excellent — $50K–$500K+ for top creators.
+Once you have an audience: courses, books, paid newsletters, sponsorships. The math can be excellent — \$50K–\$500K+ for top creators.
 
 The catch: building audience is itself a multi-year project with high failure rate. Most who try do not succeed; those who do typically have years of free content production before any meaningful income. The "passive income" framing is misleading; it is highly active income with eventual leverage.
 
@@ -85,7 +85,7 @@ Selling specific products through Amazon, Shopify, or specialized channels. Marg
 - Develop owned audience over time
 - Run at 25–45% gross margins, with the bulk going to ads and platform fees
 
-Drop-shipping and the "$0 to $10K/month" course content are mostly fictitious. Real eCommerce takes capital, time, and operational ability.
+Drop-shipping and the "\$0 to \$10K/month" course content are mostly fictitious. Real eCommerce takes capital, time, and operational ability.
 
 ## What does not pay well
 
@@ -102,7 +102,7 @@ Real income exists in some categories but the marketing-to-reality ratio is high
 
 ### Gig economy at the floor
 
-Driving for Uber/Lyft, food delivery, TaskRabbit. After expenses (car maintenance, fuel, depreciation), most drivers earn $10–$15/hour. Useful as flexible income for short periods; generally below the $50/hour benchmark.
+Driving for Uber/Lyft, food delivery, TaskRabbit. After expenses (car maintenance, fuel, depreciation), most drivers earn \$10–\$15/hour. Useful as flexible income for short periods; generally below the \$50/hour benchmark.
 
 ### Survey sites and microtasks
 
@@ -143,13 +143,13 @@ Side income has tax implications that catch many people:
 
 ### Self-employment tax
 
-Earnings above $400 of self-employment income are subject to self-employment tax (15.3% on the first ~$170K). This is in addition to regular income tax.
+Earnings above \$400 of self-employment income are subject to self-employment tax (15.3% on the first ~\$170K). This is in addition to regular income tax.
 
-For someone in the 22% federal bracket, $10,000 of side income produces $1,530 of self-employment tax + $2,200 of federal income tax + state tax = ~$4,000–$4,500 in total tax. The take-home is closer to 55–60% of the gross.
+For someone in the 22% federal bracket, \$10,000 of side income produces \$1,530 of self-employment tax + \$2,200 of federal income tax + state tax = ~\$4,000–\$4,500 in total tax. The take-home is closer to 55–60% of the gross.
 
 ### Quarterly estimated taxes
 
-If you expect to owe more than $1,000 in tax on side income, you must pay quarterly estimated taxes (April 15, June 15, September 15, January 15). Failure to do so produces underpayment penalties.
+If you expect to owe more than \$1,000 in tax on side income, you must pay quarterly estimated taxes (April 15, June 15, September 15, January 15). Failure to do so produces underpayment penalties.
 
 ### Self-employed retirement accounts
 
@@ -161,7 +161,7 @@ Real business expenses (home office portion if exclusive use, equipment, softwar
 
 ### LLC vs. sole proprietorship
 
-For most small side activity, sole proprietorship (just operating as yourself) is simplest. LLC adds liability protection (relevant if your side activity has any legal exposure — landlords, professional services, anything sold to consumers). S-Corp election can save self-employment tax above ~$60K of net income but adds complexity.
+For most small side activity, sole proprietorship (just operating as yourself) is simplest. LLC adds liability protection (relevant if your side activity has any legal exposure — landlords, professional services, anything sold to consumers). S-Corp election can save self-employment tax above ~\$60K of net income but adds complexity.
 
 ## When the side activity should become primary
 

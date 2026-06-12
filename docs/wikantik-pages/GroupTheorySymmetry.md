@@ -38,7 +38,13 @@ A coset is formed by "shifting" the subgroup$H$by an element$g \in G$. Cosets fo
 In quantum mechanics, group theory provides the framework for understanding conserved quantities and degenerate energy states.
 
 ### 2.1 Noether's Theorem and Hamiltonians
-A symmetry exists if a transformation operator$S$commutes with the system's Hamiltonian$H$:$$[S, H] = SH - HS = 0$$When this occurs, the physical quantity associated with$S$is conserved.
+A symmetry exists if a transformation operator$S$commutes with the system's Hamiltonian$H$:
+
+$$
+[S, H] = SH - HS = 0
+$$
+
+When this occurs, the physical quantity associated with$S$is conserved.
 
 | Symmetry Group | Physical Transformation | Conserved Quantity |
 | :--- | :--- | :--- |
@@ -77,10 +83,10 @@ $$
 |G_{rubik}| = \frac{8! \cdot 3^7 \cdot 12! \cdot 2^{10}}{2} \approx 4.33 \times 10^{19}
 $$
 
-This structure reveals why certain states are impossible. The state is bounded by parity laws:1. **Corner Permutations ($8!$):** Arrangements of the 8 corners.
-2. **Corner Orientations ($3^7$):** Total twist must sum to$0 \pmod 3$.
-3. **Edge Permutations ($12!$):** Arrangements of the 12 edges.
-4. **Edge Orientations ($2^{11}$):** Total flipped edges must be even.
+This structure reveals why certain states are impossible. The state is bounded by parity laws:1. **Corner Permutations (\$8!$):** Arrangements of the 8 corners.
+2. **Corner Orientations (\$3^7$):** Total twist must sum to\$0 \pmod 3$.
+3. **Edge Permutations (\$12!$):** Arrangements of the 12 edges.
+4. **Edge Orientations (\$2^{11}$):** Total flipped edges must be even.
 
 ### 4.2 The Parity Constraint
 The division by 2 in the formula represents the **Orbit Constraint**. You cannot swap exactly two corners without also swapping two edges. Every basic rotation is an **even permutation**, meaning the parity of corners and edges is eternally locked.

@@ -38,7 +38,7 @@ These are the irreversible decisions that get made by default if you do not make
 
 ### W-4 (federal income tax withholding)
 
-Most people overcomplicate this. The IRS calculator at irs.gov/individuals/tax-withholding-estimator gives you a number; use it. The goal is to land within ~$1,000 of zero refund/owed at year-end. A large refund is an interest-free loan to the government; a large bill is a planning failure.
+Most people overcomplicate this. The IRS calculator at irs.gov/individuals/tax-withholding-estimator gives you a number; use it. The goal is to land within ~\$1,000 of zero refund/owed at year-end. A large refund is an interest-free loan to the government; a large bill is a planning failure.
 
 ### Direct deposit setup
 
@@ -86,11 +86,11 @@ The separation matters. A savings account at the same bank as your checking is o
 
 ### Open a Roth IRA at a brokerage
 
-Vanguard, Fidelity, or Schwab. Pick one. Open the account; set up an automatic monthly contribution as soon as it is funded. Even $50/month at age 22 is meaningful. The contribution limit (2026: $7,500/year) is not the goal — the *habit* is the goal. Increase the contribution as income grows.
+Vanguard, Fidelity, or Schwab. Pick one. Open the account; set up an automatic monthly contribution as soon as it is funded. Even \$50/month at age 22 is meaningful. The contribution limit (2026: \$7,500/year) is not the goal — the *habit* is the goal. Increase the contribution as income grows.
 
 ### Set up the savings buffer goal
 
-Target $1,000 in the HYSA in the first 60 days. This is the starter emergency fund (see [EmergencyFundStrategies](EmergencyFundStrategies)). Without it, every minor surprise becomes a credit-card balance. With it, you can address surprises without backsliding.
+Target \$1,000 in the HYSA in the first 60 days. This is the starter emergency fund (see [EmergencyFundStrategies](EmergencyFundStrategies)). Without it, every minor surprise becomes a credit-card balance. With it, you can address surprises without backsliding.
 
 ## Quarter 1: the spending baseline
 
@@ -151,7 +151,7 @@ Once a year, review the entire stack. Things to check:
 
 ### Mistakes to avoid in year 1
 
-- **Waiting to start investing because "it's not enough to matter."** $200/month at 22 is more than $400/month at 32. The first decade of compounding does the most work.
+- **Waiting to start investing because "it's not enough to matter."** \$200/month at 22 is more than \$400/month at 32. The first decade of compounding does the most work.
 - **Cashing out a 401(k) when you change jobs.** Roll it to an IRA or to the new employer's plan. Cashing out triggers taxes, penalties, and lost compounding.
 - **Picking individual stocks instead of index funds.** The expected return is no higher; the variance is. See [LowCostIndexFundInvesting](LowCostIndexFundInvesting).
 - **Lifestyle inflation that absorbs every raise.** Each raise should split: some to lifestyle, some to savings. A 100/0 split (all to lifestyle) is the standard failure mode.
@@ -159,22 +159,22 @@ Once a year, review the entire stack. Things to check:
 
 ## Worked example: Priya's first year
 
-**Priya, age 23**, starts as a data analyst at $72,000. Take-home after taxes and 401(k) is $4,400/month. Her employer matches 50% on 401(k) contributions up to 6% of salary.
+**Priya, age 23**, starts as a data analyst at \$72,000. Take-home after taxes and 401(k) is \$4,400/month. Her employer matches 50% on 401(k) contributions up to 6% of salary.
 
-**Week 1**: Sets W-4 via the IRS calculator. Direct-deposit split: $3,600 checking, $400 HYSA, $400 brokerage Roth IRA. Picks the HDHP because she is healthy and the math favors it. Enables HSA. Takes the free LTD coverage; declines the optional life insurance (no dependents).
+**Week 1**: Sets W-4 via the IRS calculator. Direct-deposit split: \$3,600 checking, \$400 HYSA, \$400 brokerage Roth IRA. Picks the HDHP because she is healthy and the math favors it. Enables HSA. Takes the free LTD coverage; declines the optional life insurance (no dependents).
 
-**Month 1**: Enrolls in 401(k) at 6% to capture the full match. Picks the 2065 target-date fund. Opens HYSA at Ally; opens Roth IRA at Vanguard. Sets up automatic $400/month into the Roth IRA, allocated to VTI (total stock market). Sets up automatic $400/month into HYSA.
+**Month 1**: Enrolls in 401(k) at 6% to capture the full match. Picks the 2065 target-date fund. Opens HYSA at Ally; opens Roth IRA at Vanguard. Sets up automatic \$400/month into the Roth IRA, allocated to VTI (total stock market). Sets up automatic \$400/month into HYSA.
 
-**Quarter 1**: Tracks spending. Discovers she is spending $400/month on dining out and $200/month on subscriptions she forgot about. Cancels four subscriptions (saves $90/month). Caps dining at $250/month using a virtual envelope. Builds HYSA to $1,200 starter buffer in 8 weeks.
+**Quarter 1**: Tracks spending. Discovers she is spending \$400/month on dining out and \$200/month on subscriptions she forgot about. Cancels four subscriptions (saves \$90/month). Caps dining at \$250/month using a virtual envelope. Builds HYSA to \$1,200 starter buffer in 8 weeks.
 
 **Year 1 results**:
-- 401(k): $4,320 contributed by her, $2,160 from employer = $6,480 plus growth
-- Roth IRA: $4,800 contributed plus growth
-- HSA: $2,500 contributed (employer adds another $500)
-- HYSA: at $7,500 (about 2 months of essentials)
+- 401(k): \$4,320 contributed by her, \$2,160 from employer = \$6,480 plus growth
+- Roth IRA: \$4,800 contributed plus growth
+- HSA: \$2,500 contributed (employer adds another \$500)
+- HYSA: at \$7,500 (about 2 months of essentials)
 - Spending: under control, savings rate of ~22%
 
-Total invested: $13,780 plus market growth. At 7% real returns over 40 years, this single year of investing becomes ~$200,000 at age 63 with no further contribution. The first year compounds for the longest.
+Total invested: \$13,780 plus market growth. At 7% real returns over 40 years, this single year of investing becomes ~\$200,000 at age 63 with no further contribution. The first year compounds for the longest.
 
 ## Further Reading
 

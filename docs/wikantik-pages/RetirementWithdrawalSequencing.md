@@ -69,7 +69,7 @@ Instead of a fixed order, match your withdrawal source to your tax situation in 
 - Continue Roth conversions, but now you have less bracket space because Social Security is partially taxable
 - Model the interaction: Roth conversion income can push more of your Social Security above the taxability thresholds
 
-**Key calculation**: For every $1 of conversion income above the Social Security taxation thresholds, up to $0.85 of additional Social Security becomes taxable. The effective marginal rate on conversions is higher than the stated bracket.
+**Key calculation**: For every \$1 of conversion income above the Social Security taxation thresholds, up to \$0.85 of additional Social Security becomes taxable. The effective marginal rate on conversions is higher than the stated bracket.
 
 ### Phase 3: RMD Years (Ages 73+)
 
@@ -102,13 +102,13 @@ Each year, calculate how much income you can realize before crossing into the ne
 
 | Income Source | Amount | Running Taxable Income |
 |--------------|--------|------------------------|
-| Standard deduction | -$30,000 | -$30,000 |
-| Social Security (85% taxable) | +$25,500 | -$4,500 |
-| RMD | +$35,000 | $30,500 |
-| *Remaining 12% bracket space* | *$66,450* | *$96,950* |
-| Roth conversion to fill bracket | +$66,450 | $96,950 |
+| Standard deduction | -\$30,000 | -\$30,000 |
+| Social Security (85% taxable) | +\$25,500 | -\$4,500 |
+| RMD | +\$35,000 | \$30,500 |
+| *Remaining 12% bracket space* | *\$66,450* | *\$96,950* |
+| Roth conversion to fill bracket | +\$66,450 | \$96,950 |
 
-The couple converts $66,450 to Roth at the 12% rate ($7,974 tax). Every dollar they don't convert now will eventually come out as an RMD — likely at 22% or higher as the account grows and RMD percentages increase.
+The couple converts \$66,450 to Roth at the 12% rate (\$7,974 tax). Every dollar they don't convert now will eventually come out as an RMD — likely at 22% or higher as the account grows and RMD percentages increase.
 
 ### Capital Gains Rate Optimization
 
@@ -116,9 +116,9 @@ Long-term capital gains and qualified dividends have their own bracket structure
 
 | Taxable Income (MFJ) | LTCG/QD Rate |
 |----------------------|-------------|
-| Up to $96,700 | 0% |
-| $96,701 - $600,050 | 15% |
-| Above $600,050 | 20% |
+| Up to \$96,700 | 0% |
+| \$96,701 - \$600,050 | 15% |
+| Above \$600,050 | 20% |
 
 In years when your ordinary income is low, you can harvest capital gains from your taxable account at the **0% rate**. This is essentially free tax on investment growth — but only if your ordinary income (including Roth conversions) stays below the threshold.
 

@@ -21,6 +21,7 @@ Variable Percentage Withdrawal (VPW) is a retirement spending strategy that adap
 ## 1. The VPW Mechanism: The Math of the Table
 
 VPW uses a table of percentages based on the retiree's current age and the asset allocation of their portfolio. The withdrawal amount is calculated annually:
+
 $$
 Withdrawal = Portfolio\ Balance \times VPW\%\text{(Age, Allocation)}
 $$
@@ -34,7 +35,7 @@ $$
 | Feature | 4% Rule (Bengen) | VPW (Bogleheads) |
 | :--- | :--- | :--- |
 | **Withdrawal** |$P_0 \times 4\%$, inflation-adjusted |$P_t \times VPW\%$|
-| **Portfolio Risk** | Can hit$0$in bad markets | Never hits$0$(asymptotic) |
+| **Portfolio Risk** | Can hit\$0$in bad markets | Never hits\$0$(asymptotic) |
 | **Income Path** | Constant real income | Volatile (follows market) |
 | **Estate** | High variance in legacy | Generally lower legacy |
 
@@ -46,14 +47,14 @@ VPW is inherently SORR-resistant.
 ## 3. Sensitivity Analysis and Guardrails
 
 While VPW prevents exhaustion, it can lead to high income volatility. To mitigate this, practitioners often use **Guyton-Klinger Guardrails** or a "spending floor."
-*   **Floor/Ceiling:** Setting a minimum nominal amount (e.g.,$40k/yr) ensures basic needs are met, while a ceiling (e.g.,$100k/yr) prevents excessive spending in outliers.
+*   **Floor/Ceiling:** Setting a minimum nominal amount (e.g.,\$40k/yr) ensures basic needs are met, while a ceiling (e.g.,\$100k/yr) prevents excessive spending in outliers.
 
 ## 4. The Math of VPW Extraction (Example)
 
 Assuming a 60/40 portfolio and starting age 65:
-1.  **Year 1:** Balance$1M$, VPW% = 5.0%. Withdrawal =$50,000.
-2.  **Year 2 (Market drops 20%):** Balance $800k \times 0.95$(after withdrawal) =$760,000. New VPW% (Age 66) = 5.1%. Withdrawal =$38,760.
-3.  **Year 3 (Market rises 20%):** Balance$721k \times 1.20$=$865,440. New VPW% (Age 67) = 5.2%. Withdrawal =$45,002.
+1.  **Year 1:** Balance\$1M$, VPW% = 5.0%. Withdrawal =\$50,000.
+2.  **Year 2 (Market drops 20%):** Balance \$800k \times 0.95$(after withdrawal) =\$760,000. New VPW% (Age 66) = 5.1%. Withdrawal =\$38,760.
+3.  **Year 3 (Market rises 20%):** Balance\$721k \times 1.20$=\$865,440. New VPW% (Age 67) = 5.2%. Withdrawal =\$45,002.
 
 ## 5. Summary
 

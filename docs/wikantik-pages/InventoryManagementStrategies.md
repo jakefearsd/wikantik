@@ -35,14 +35,14 @@ $$
 $$
 
 Where:-$D$= Annual Demand (units).
--$S$= Setup or Ordering Cost per order ($).
--$H$= Holding or Carrying Cost per unit per year ($).
+-$S$= Setup or Ordering Cost per order (\$).
+-$H$= Holding or Carrying Cost per unit per year (\$).
 
 ### Concrete Example: Industrial Component Replenishment
 Consider a high-value sensor (Class A):
 - **Demand (D):** 10,000 units/year.
-- **Order Cost (S):**$50 (Admin + Shipping).
-- **Holding Cost (H):** $4/unit/year (Capital cost + insurance).
+- **Order Cost (S):**\$50 (Admin + Shipping).
+- **Holding Cost (H):** \$4/unit/year (Capital cost + insurance).
 
 **Calculation:**
 

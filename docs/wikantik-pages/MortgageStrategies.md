@@ -34,14 +34,14 @@ The most common decision and the one with the largest impact.
 
 ### The math
 
-A $400,000 loan at typical 2026 rates:
+A \$400,000 loan at typical 2026 rates:
 
 | Term | Rate | Monthly P&I | Total interest | Total paid |
 |------|------|-------------|----------------|------------|
-| 30-year | 6.5% | $2,528 | $510,000 | $910,000 |
-| 15-year | 5.75% | $3,322 | $198,000 | $598,000 |
+| 30-year | 6.5% | \$2,528 | \$510,000 | \$910,000 |
+| 15-year | 5.75% | \$3,322 | \$198,000 | \$598,000 |
 
-The 15-year saves $312,000 in total interest. It also costs $794/month more.
+The 15-year saves \$312,000 in total interest. It also costs \$794/month more.
 
 ### The case for 15-year
 
@@ -53,7 +53,7 @@ The 15-year saves $312,000 in total interest. It also costs $794/month more.
 ### The case for 30-year
 
 - Lower required payment (more flexibility)
-- The "extra" $794/month can be invested instead — historically, equity returns at 7%+ real exceed 6.5% mortgage savings on a risk-adjusted basis
+- The "extra" \$794/month can be invested instead — historically, equity returns at 7%+ real exceed 6.5% mortgage savings on a risk-adjusted basis
 - Inflation erodes the fixed payment over time
 - Greater optionality if income drops or expenses rise
 
@@ -72,14 +72,14 @@ The 20% rule of thumb is more about avoiding private mortgage insurance (PMI) th
 
 ### The math
 
-A $500,000 home with three down-payment scenarios:
+A \$500,000 home with three down-payment scenarios:
 
 | Down payment | Loan | Rate | PMI | Monthly cost |
 |--------------|------|------|-----|--------------|
-| $50,000 (10%) | $450,000 | 6.5% | $250/mo until 20% equity | $3,094 |
-| $75,000 (15%) | $425,000 | 6.5% | $180/mo | $2,866 |
-| $100,000 (20%) | $400,000 | 6.5% | $0 | $2,528 |
-| $125,000 (25%) | $375,000 | 6.4% | $0 | $2,346 |
+| \$50,000 (10%) | \$450,000 | 6.5% | \$250/mo until 20% equity | \$3,094 |
+| \$75,000 (15%) | \$425,000 | 6.5% | \$180/mo | \$2,866 |
+| \$100,000 (20%) | \$400,000 | 6.5% | \$0 | \$2,528 |
+| \$125,000 (25%) | \$375,000 | 6.4% | \$0 | \$2,346 |
 
 Each additional 5% of down payment reduces the monthly cost. PMI elimination at 20% is a notable threshold.
 
@@ -104,7 +104,7 @@ Discount points are upfront fees paid to lower the interest rate. One point typi
 
 ### The break-even calculation
 
-A $400,000 loan: paying 1 point ($4,000) to reduce the rate from 6.5% to 6.25% saves about $66/month. Break-even: $4,000 ÷ $66 = 60 months.
+A \$400,000 loan: paying 1 point (\$4,000) to reduce the rate from 6.5% to 6.25% saves about \$66/month. Break-even: \$4,000 ÷ \$66 = 60 months.
 
 If you stay in the loan more than 60 months (5 years), you win. If you refinance or sell sooner, you lose. The average mortgage in the US is paid off (sale or refi) within 7–10 years, so the calculation is genuinely close.
 
@@ -156,9 +156,9 @@ Three reasons to refinance:
 
 The old break-even rule: refinance if rates drop 1% or more. The actual rule is more nuanced: calculate total closing costs, divide by monthly savings, and compare to expected hold time.
 
-A $400,000 loan refi from 7.0% to 6.0%:
-- Monthly savings: ~$265
-- Closing costs: ~$6,000
+A \$400,000 loan refi from 7.0% to 6.0%:
+- Monthly savings: ~\$265
+- Closing costs: ~\$6,000
 - Break-even: 23 months
 
 If you will stay at least 2 more years, refi pays. If you might move or refi again sooner, the math gets close.
@@ -169,13 +169,13 @@ Replace your existing mortgage with a larger one and take the difference in cash
 
 ### The transaction cost trap
 
-Each refi costs $4,000–$8,000 in fees. People who chase every rate drop often pay more in transaction costs than they save in interest. Refinance when there is genuine, durable savings, not on small fluctuations.
+Each refi costs \$4,000–\$8,000 in fees. People who chase every rate drop often pay more in transaction costs than they save in interest. Refinance when there is genuine, durable savings, not on small fluctuations.
 
 ## Recasts
 
 A mortgage recast — sometimes called re-amortization — applies a lump-sum principal payment and recalculates the monthly payment for the remaining loan. It does not change the rate or term.
 
-Most lenders allow recasts after a $10K+ lump-sum payment, with a small fee (~$250).
+Most lenders allow recasts after a \$10K+ lump-sum payment, with a small fee (~\$250).
 
 ### When recasts make sense
 
@@ -215,7 +215,7 @@ The "extra principal in the final years" framing is psychological. The dollars s
 ## Common failure patterns
 
 - **Stretching to qualify.** Lenders will approve loans that consume 35–45% of gross income; this leaves little room for retirement saving, emergency funds, or surprises. Aim for total housing cost (PITI) under 28% of gross.
-- **Focusing on rate without considering points and fees.** A "lower" rate with $10K of points may be more expensive than a higher rate with no points if you do not stay long enough.
+- **Focusing on rate without considering points and fees.** A "lower" rate with \$10K of points may be more expensive than a higher rate with no points if you do not stay long enough.
 - **Assuming you will refinance later.** Future rate environments are unknown. Pick a loan you can live with at the original rate.
 - **Cashing out equity for non-investment purposes.** Cash-out refis to fund vacations or general spending convert unsecured-spending habits into secured debt. Bad pattern.
 - **Ignoring property taxes and insurance.** Total monthly housing cost is principal + interest + taxes + insurance + (HOA, maintenance, etc.). Calculating only P&I understates the real cost.

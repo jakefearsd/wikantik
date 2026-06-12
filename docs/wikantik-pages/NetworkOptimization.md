@@ -48,7 +48,13 @@ Dijkstra's fails on graphs with **Negative Edge Weights**. In such cases, the **
 
 ## 3. Dijkstra vs. A* Search
 
-While Dijkstra’s is exhaustive, A* (A-Star) optimizes the search using a **Heuristic ($h(n)$)**:$$f(n) = g(n) + h(n)$$Where$g(n)$is the cost from start and$h(n)$is the estimated cost to goal. If$h(n)$is admissible (never overestimates), A* is guaranteed to find the shortest path while visiting fewer nodes than Dijkstra.
+While Dijkstra’s is exhaustive, A* (A-Star) optimizes the search using a **Heuristic ($h(n)$)**:
+
+$$
+f(n) = g(n) + h(n)
+$$
+
+Where$g(n)$is the cost from start and$h(n)$is the estimated cost to goal. If$h(n)$is admissible (never overestimates), A* is guaranteed to find the shortest path while visiting fewer nodes than Dijkstra.
 
 ## 4. Summary Table: Algorithmic Comparison
 

@@ -48,7 +48,13 @@ $$
 K_{rot} = \frac{1}{2} \vec{\omega}^T \mathbf{I} \vec{\omega}
 $$
 
-### 2.2 Parallel Axis Theorem$$I = I_{cm} + Md^2$$Where$I_{cm}$is the moment of inertia about the center of mass and$d$is the distance to the parallel axis.## 3. Angular Momentum (L)
+### 2.2 Parallel Axis Theorem
+
+$$
+I = I_{cm} + Md^2
+$$
+
+Where$I_{cm}$is the moment of inertia about the center of mass and$d$is the distance to the parallel axis.## 3. Angular Momentum (L)
 
 Angular momentum is the rotational analogue of linear momentum:
 
@@ -78,9 +84,11 @@ $$
 $$
 I_1 \dot{\omega}_1 - (I_2 - I_3)\omega_2 \omega_3 = \tau_1
 $$
+
 $$
 I_2 \dot{\omega}_2 - (I_3 - I_1)\omega_3 \omega_1 = \tau_2
 $$
+
 $$
 I_3 \dot{\omega}_3 - (I_1 - I_2)\omega_1 \omega_2 = \tau_3
 $$

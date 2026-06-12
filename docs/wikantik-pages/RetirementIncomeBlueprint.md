@@ -98,7 +98,7 @@ The bucket strategy organises your portfolio by time horizon, providing psycholo
 | Total Bond Market Index (e.g., VBTLX) | 40-60% of bucket |
 | TIPS (inflation-protected) | 20-30% of bucket |
 | Short-term corporate bond fund | 10-20% of bucket |
-| I Bonds (up to $10K/year per person) | As available |
+| I Bonds (up to \$10K/year per person) | As available |
 
 ### Bucket 3: Growth (Years 8+)
 
@@ -116,25 +116,25 @@ The bucket strategy organises your portfolio by time horizon, providing psycholo
 
 | Portfolio | Bucket 1 (Cash) | Bucket 2 (Bonds) | Bucket 3 (Growth) |
 |-----------|-----------------|-------------------|---------------------|
-| $500,000 | $40,000 (8%) | $160,000 (32%) | $300,000 (60%) |
-| $1,000,000 | $60,000 (6%) | $280,000 (28%) | $660,000 (66%) |
-| $1,500,000 | $80,000 (5%) | $370,000 (25%) | $1,050,000 (70%) |
-| $2,000,000 | $100,000 (5%) | $450,000 (22%) | $1,450,000 (73%) |
+| \$500,000 | \$40,000 (8%) | \$160,000 (32%) | \$300,000 (60%) |
+| \$1,000,000 | \$60,000 (6%) | \$280,000 (28%) | \$660,000 (66%) |
+| \$1,500,000 | \$80,000 (5%) | \$370,000 (25%) | \$1,050,000 (70%) |
+| \$2,000,000 | \$100,000 (5%) | \$450,000 (22%) | \$1,450,000 (73%) |
 
 ## Comprehensive Example: David and Lisa
 
 David (65) and Lisa (63) retire with:
-- David's Traditional IRA: $800,000
-- Lisa's Traditional IRA: $400,000
-- Joint Roth IRA: $200,000
-- Joint taxable brokerage: $350,000
-- HSA: $50,000
-- David's Social Security PIA: $2,800/month
-- Lisa's Social Security PIA: $1,400/month
-- Annual spending: $72,000
+- David's Traditional IRA: \$800,000
+- Lisa's Traditional IRA: \$400,000
+- Joint Roth IRA: \$200,000
+- Joint taxable brokerage: \$350,000
+- HSA: \$50,000
+- David's Social Security PIA: \$2,800/month
+- Lisa's Social Security PIA: \$1,400/month
+- Annual spending: \$72,000
 
 **Their guardrails setup** (see [Guardrails Spending Strategy](GuardrailsSpendingStrategy) for the full framework):
-- Portfolio withdrawal need: $72,000 - Social Security = variable by phase
+- Portfolio withdrawal need: \$72,000 - Social Security = variable by phase
 - Initial portfolio withdrawal rate: 4.5% of combined portfolio
 - Upper guardrail: 5.5% (trigger 10% cut)
 - Lower guardrail: 3.5% (trigger 10% raise or ratchet)
@@ -145,27 +145,27 @@ David (65) and Lisa (63) retire with:
 
 | Income Source | Annual Amount |
 |--------------|---------------|
-| David's Social Security (claiming at 65, ~87% PIA) | $29,200 |
-| Taxable account withdrawals | $20,000 |
-| Roth conversions (Traditional to Roth) | $50,000 |
-| Roth withdrawals for remaining expenses | $22,800 |
-| **Total spending** | **$72,000** |
-| **Taxable income** | ~$79,200 (SS + conversions) |
+| David's Social Security (claiming at 65, ~87% PIA) | \$29,200 |
+| Taxable account withdrawals | \$20,000 |
+| Roth conversions (Traditional to Roth) | \$50,000 |
+| Roth withdrawals for remaining expenses | \$22,800 |
+| **Total spending** | **\$72,000** |
+| **Taxable income** | ~\$79,200 (SS + conversions) |
 | **Tax bracket** | 12% |
 
-*Converting $50K/year at 12% while taxable income is low. Lisa gets ACA coverage with ~$79K MAGI.*
+*Converting \$50K/year at 12% while taxable income is low. Lisa gets ACA coverage with ~\$79K MAGI.*
 
 **Phase 2: Ages 67-73 (Both on Social Security, Before RMDs)**
 
 | Income Source | Annual Amount |
 |--------------|---------------|
-| David's Social Security | $29,200 |
-| Lisa's Social Security (claiming at 67, 100% PIA) | $16,800 |
-| Combined Social Security | $46,000 |
-| Portfolio withdrawals (taxable account) | $10,000 |
-| Roth conversions (reduced, less bracket space) | $30,000 |
-| Roth withdrawals | $16,000 |
-| **Total spending** | **$72,000** |
+| David's Social Security | \$29,200 |
+| Lisa's Social Security (claiming at 67, 100% PIA) | \$16,800 |
+| Combined Social Security | \$46,000 |
+| Portfolio withdrawals (taxable account) | \$10,000 |
+| Roth conversions (reduced, less bracket space) | \$30,000 |
+| Roth withdrawals | \$16,000 |
+| **Total spending** | **\$72,000** |
 
 *Conversions reduced because Social Security partially fills the bracket. Still converting to reduce future RMDs.*
 
@@ -173,23 +173,23 @@ David (65) and Lisa (63) retire with:
 
 | Income Source | Annual Amount |
 |--------------|---------------|
-| Combined Social Security | $46,000 |
-| Traditional IRA RMDs | ~$30,000 (reduced by 8 years of conversions) |
+| Combined Social Security | \$46,000 |
+| Traditional IRA RMDs | ~\$30,000 (reduced by 8 years of conversions) |
 | Roth withdrawals (if needed) | As needed |
-| **Total income** | $76,000+ |
+| **Total income** | \$76,000+ |
 
-*Because they converted ~$440K to Roth over 8 years, their remaining Traditional IRA balance is ~$760K instead of ~$1.2M. RMDs are manageable in the 12% bracket instead of pushing into 22%.*
+*Because they converted ~\$440K to Roth over 8 years, their remaining Traditional IRA balance is ~\$760K instead of ~\$1.2M. RMDs are manageable in the 12% bracket instead of pushing into 22%.*
 
 ### What If Markets Crash in Year 2?
 
 Bucket 1 (cash) covers 1-2 years of portfolio withdrawals. Their [guardrails](GuardrailsSpendingStrategy) kick in:
 
-1. **Check the guardrail**: Portfolio drops from $1.75M to $1.25M. Current withdrawal rate rises to ~5.8%. Still below the 5.5% upper guardrail (because Social Security covers most expenses). No cut needed — yet.
+1. **Check the guardrail**: Portfolio drops from \$1.75M to \$1.25M. Current withdrawal rate rises to ~5.8%. Still below the 5.5% upper guardrail (because Social Security covers most expenses). No cut needed — yet.
 2. **Apply capital preservation rule**: Portfolio had a negative return, so skip the inflation adjustment on portfolio withdrawals.
-3. **Continue receiving Social Security** ($46K/year) — unaffected by markets.
+3. **Continue receiving Social Security** (\$46K/year) — unaffected by markets.
 4. **Spend from Bucket 1 cash** — no need to sell stocks.
 5. **Reduce Roth conversions** — conversions are optional; living expenses are not.
-6. If the downturn continues and the rate hits 5.5%, cut discretionary portfolio withdrawals by 10%. With SS covering $46K of their $72K spending, the cut only affects ~$2,600/year of discretionary spending.
+6. If the downturn continues and the rate hits 5.5%, cut discretionary portfolio withdrawals by 10%. With SS covering \$46K of their \$72K spending, the cut only affects ~\$2,600/year of discretionary spending.
 7. **Resume normal plan when markets stabilise**.
 
 The psychological benefit cannot be overstated. With 2 years of cash, Social Security covering 64% of expenses, and pre-committed guardrails rules telling them exactly what to do, David and Lisa can ride out any bear market without panic selling.

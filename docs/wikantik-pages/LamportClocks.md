@@ -32,7 +32,13 @@ A Lamport clock is a simple monotonically increasing counter maintained by each 
 
 ### 2.1 The Update Algorithm
 Each process$P_i$maintains a local counter$L_i$.
-1.  **Before an event** (internal, send, or receive),$P_i$increments its clock:$$L_i = L_i + 1$$2.  **When sending a message**,$P_i$includes its current$L_i$in the message payload.
+1.  **Before an event** (internal, send, or receive),$P_i$increments its clock:
+
+$$
+L_i = L_i + 1
+$$
+
+2.  **When sending a message**,$P_i$includes its current$L_i$in the message payload.
 3.  **When receiving a message** with timestamp$L_{msg}$,$P_i$updates its clock:
 
 $$
@@ -53,14 +59,26 @@ To detect concurrency (i.e., to make the clock condition a bidirectional implica
 ### 3.1 The Vector Update Algorithm
 In a system with$N$processes, each process$P_i$maintains a vector$V_i$of size$N$, where$V_i[j]$is$P_i$'s knowledge of the clock of process$P_j$.
 
-1.  **Before an internal event**,$P_i$increments its own component:$$V_i[i] = V_i[i] + 1$$2.  **When sending a message**,$P_i$includes its entire vector$V_i$in the message.
+1.  **Before an internal event**,$P_i$increments its own component:
+
+$$
+V_i[i] = V_i[i] + 1
+$$
+
+2.  **When sending a message**,$P_i$includes its entire vector$V_i$in the message.
 3.  **When receiving a message** with vector$V_{msg}$,$P_i$updates every element of its vector:
 
 $$
 V_i[j] = \max(V_i[j], V_{msg}[j]) \quad \text{for all } j
 $$
 
-And then increments its own component:$$V_i[i] = V_i[i] + 1$$### 3.2 Comparison and Concurrency DetectionFor two vector timestamps$u$and$v$:
+And then increments its own component:
+
+$$
+V_i[i] = V_i[i] + 1
+$$
+
+### 3.2 Comparison and Concurrency DetectionFor two vector timestamps$u$and$v$:
 *   **$u \le v$** if$u[i] \le v[i]$for all$i$.
 *   **$u < v$** if$u \le v$and there exists at least one$j$such that$u[j] < v[j]$.
 *   **$a \to b \iff V(a) < V(b)$**

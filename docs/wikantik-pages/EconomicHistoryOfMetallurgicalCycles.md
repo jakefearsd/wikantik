@@ -41,7 +41,7 @@ The debasement of the denarius was not linear but was driven by "Systemic Shocks
 | **Gallienus (260 AD)** | **< 2%** | **The Zero-Bound**: Silver-washed copper; hyperinflation. |
 
 ### 1.2 Mathematical Consequence
-By the reign of **Claudius II (268 AD)**, the silver content had dropped to **0.02%**. This $99.98\%$ loss of intrinsic value led to the collapse of the Roman tax-base, as citizens refused to accept "base" coin for debt payment, forcing the state into the **Edict on Maximum Prices (301 AD)**.
+By the reign of **Claudius II (268 AD)**, the silver content had dropped to **0.02%**. This \$99.98\%$ loss of intrinsic value led to the collapse of the Roman tax-base, as citizens refused to accept "base" coin for debt payment, forcing the state into the **Edict on Maximum Prices (301 AD)**.
 
 ---
 
@@ -64,8 +64,8 @@ To maintain the facade of a stable global reserve, King Charles III issued a sec
 
 In mid-2026, the numismatic market reached a "Trophy Asset" inflection point, where intrinsic metal value decoupled from historical rarity.
 
-### 3.1 The $3,800 Gold Benchmark
-With gold spot prices at **$3,800/oz** and silver at **$47/oz**, the market experienced **Premium Compression**.
+### 3.1 The \$3,800 Gold Benchmark
+With gold spot prices at **\$3,800/oz** and silver at **\$47/oz**, the market experienced **Premium Compression**.
 - **Common-Date Burn**: Generic MS-63 Morgan Dollars saw their numismatic premiums absorbed by the silver spot price.
 - **Flight to Quality**: Capital rotated aggressively into "Top Pop" (MS-67+) rarities, creating a winner-take-all auction dynamic.
 

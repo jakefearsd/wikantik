@@ -97,7 +97,7 @@ Raw net worth is useful but limited. Three comparisons add the missing context.
 
 Each year your net worth should grow by at least your annual savings (contributions to retirement and brokerage, plus debt principal paydown). If it grows less, market returns were negative or you are spending unrealized gains. If it grows more, you are getting compounding tailwind on top of contributions.
 
-A household saving $30,000/year that ends the year with $25,000 of net worth growth had a market drawdown. A household saving $30,000/year that ends with $50,000 of growth got $20,000 of unrealized investment gain. Both are normal in a given year; the multi-year average is what matters.
+A household saving \$30,000/year that ends the year with \$25,000 of net worth growth had a market drawdown. A household saving \$30,000/year that ends with \$50,000 of growth got \$20,000 of unrealized investment gain. Both are normal in a given year; the multi-year average is what matters.
 
 ### 2. Net worth vs. age and income
 
@@ -105,7 +105,7 @@ The Millionaire Next Door formula:
 
 > Expected Net Worth = (Age × Pre-tax Income) / 10
 
-A 40-year-old earning $80,000 has an "expected" net worth of $320,000 by this rule. The formula is a heuristic — it works poorly at the income extremes (very low or very high) and ignores career stage — but it provides one rough benchmark.
+A 40-year-old earning \$80,000 has an "expected" net worth of \$320,000 by this rule. The formula is a heuristic — it works poorly at the income extremes (very low or very high) and ignores career stage — but it provides one rough benchmark.
 
 A more useful framing: net worth multiples of annual spending.
 
@@ -119,7 +119,7 @@ A more useful framing: net worth multiples of annual spending.
 | 25× | Financially independent (4% rule) |
 | 25×+ | Beyond independence; choices open |
 
-For a household spending $50,000/year, the 25× target is $1,250,000.
+For a household spending \$50,000/year, the 25× target is \$1,250,000.
 
 ### 3. Year-over-year growth rate
 
@@ -131,26 +131,26 @@ Net worth is a stock measurement; it does not capture flow. Specifically:
 
 - **It does not tell you if you are saving enough.** You can have a high net worth (inherited, lucky) and a 0% savings rate. Track savings rate separately.
 - **It does not tell you about cash flow.** Two households with the same net worth can have very different month-to-month liquidity.
-- **It does not capture quality of assets.** $1M in a single private company stake is not the same as $1M in a diversified index fund.
-- **It does not adjust for taxes.** A $500,000 traditional 401(k) becomes ~$375,000 after taxes for most households. Tracking pre-tax is fine for trend purposes, but FI calculations require after-tax.
+- **It does not capture quality of assets.** \$1M in a single private company stake is not the same as \$1M in a diversified index fund.
+- **It does not adjust for taxes.** A \$500,000 traditional 401(k) becomes ~\$375,000 after taxes for most households. Tracking pre-tax is fine for trend purposes, but FI calculations require after-tax.
 
 ## Patterns to expect
 
 ### Early career: small moves dominate
 
-In your 20s, monthly net worth changes are dominated by your savings. A $1,500/month savings rate moves the needle visibly because the balance is small. Market returns barely register because the principal is small.
+In your 20s, monthly net worth changes are dominated by your savings. A \$1,500/month savings rate moves the needle visibly because the balance is small. Market returns barely register because the principal is small.
 
 This phase feels slow. It is. Compounding has not started its real work yet. This is the phase to measure savings rate, not net worth — your effort, not your luck.
 
 ### Mid-career: market noise dominates
 
-By your 30s and 40s, the portfolio is large enough that monthly market movements often exceed your monthly savings. A $300,000 portfolio with a 2% monthly market move ($6,000) dwarfs a $2,500 monthly contribution.
+By your 30s and 40s, the portfolio is large enough that monthly market movements often exceed your monthly savings. A \$300,000 portfolio with a 2% monthly market move (\$6,000) dwarfs a \$2,500 monthly contribution.
 
 This is where people get frustrated tracking monthly. The signal becomes harder to see. The fix is to track year-over-year, not month-over-month, during this phase. Or, track contributions and total separately so you can see your effort distinct from market noise.
 
 ### Late career: compounding dominates
 
-In your 50s and 60s, with a substantial portfolio, the dominant force is the portfolio's own return. A $1,500,000 portfolio at 7% returns $105,000/year — likely more than your annual savings. The math has flipped: your portfolio is now contributing more than you are.
+In your 50s and 60s, with a substantial portfolio, the dominant force is the portfolio's own return. A \$1,500,000 portfolio at 7% returns \$105,000/year — likely more than your annual savings. The math has flipped: your portfolio is now contributing more than you are.
 
 This is the moment most people realize the FI math actually works.
 
@@ -166,11 +166,11 @@ People track assets carefully and liabilities lazily. The mortgage balance from 
 
 ### Counting illiquid private assets at heroic valuations
 
-Private business equity, restricted shares, the house at the Zillow estimate. Use conservative numbers. A "$2 million net worth" that is 80% in a single private business is a $400,000 net worth with optionality.
+Private business equity, restricted shares, the house at the Zillow estimate. Use conservative numbers. A "\$2 million net worth" that is 80% in a single private business is a \$400,000 net worth with optionality.
 
 ### Anchoring on peak values
 
-After a market correction, the natural reaction is to focus on the prior peak. "I lost $40,000 this month." You did not lose anything until you sold. The right comparison is to your contribution baseline, not the peak.
+After a market correction, the natural reaction is to focus on the prior peak. "I lost \$40,000 this month." You did not lose anything until you sold. The right comparison is to your contribution baseline, not the peak.
 
 ### Conflating net worth with success
 

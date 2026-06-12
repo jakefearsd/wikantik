@@ -52,6 +52,26 @@ class SparqlQueryToolTest {
     }
 
     @Test
+    void compactFormatFlattensSelect() {
+        final var result = new SparqlQueryTool( loadedManager() ).execute( Map.of(
+                "query", "SELECT ?c WHERE { ?c a <http://www.w3.org/2002/07/owl#Class> } LIMIT 3",
+                "format", "compact" ) );
+        assertFalse( result.isError() );
+        final String json = text( result );
+        assertTrue( json.trim().startsWith( "[" ), "compact = flat array, got: " + json );
+        assertFalse( json.contains( "\"bindings\"" ), "compact omits the W3C envelope, got: " + json );
+        assertTrue( json.contains( "\"c\"" ) && json.contains( "ns/wikantik#" ),
+                "compact still carries the var key + binding value: " + json );
+    }
+
+    @Test
+    void standardFormatStaysW3CByDefault() {
+        final var result = new SparqlQueryTool( loadedManager() ).execute( Map.of(
+                "query", "SELECT ?c WHERE { ?c a <http://www.w3.org/2002/07/owl#Class> } LIMIT 3" ) );
+        assertTrue( text( result ).contains( "\"bindings\"" ), "default stays standard W3C SPARQL-JSON" );
+    }
+
+    @Test
     void askReturnsBoolean() {
         final var result = new SparqlQueryTool( loadedManager() ).execute( Map.of( "query",
                 "ASK { <https://wiki.wikantik.com/ns/wikantik#Technology> a "

@@ -20,6 +20,8 @@ package com.wikantik.knowledge.mcp;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -32,8 +34,11 @@ import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QueryParseException;
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.logging.log4j.LogManager;
@@ -64,11 +69,16 @@ public class SparqlQueryTool implements McpTool {
 
     @Override
     public McpSchema.Tool definition() {
+        final Map< String, Object > props = new LinkedHashMap<>();
+        props.put( "query", Map.of( "type", "string",
+                "description", "A read-only SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query "
+                        + "over the Wikantik ontology (wk: namespace). UPDATE is rejected." ) );
+        props.put( "format", Map.of( "type", "string",
+                "enum", List.of( "standard", "compact" ),
+                "description", "SELECT result shape: 'standard' (default) = W3C SPARQL-results-JSON; "
+                        + "'compact' = token-dense flat array [{var: value, …}]." ) );
         final McpSchema.JsonSchema input = new McpSchema.JsonSchema( "object",
-                Map.of( "query", Map.of( "type", "string",
-                        "description", "A read-only SPARQL SELECT, ASK, CONSTRUCT or DESCRIBE query "
-                                + "over the Wikantik ontology (wk: namespace). UPDATE is rejected." ) ),
-                List.of( "query" ), null, null, null );
+                props, List.of( "query" ), null, null, null );
         return McpSchema.Tool.builder()
                 .name( TOOL_NAME )
                 .description( "Runs a read-only SPARQL query over the materialized ontology (classes, "
@@ -95,9 +105,15 @@ public class SparqlQueryTool implements McpTool {
         if ( !query.hasLimit() || query.getLimit() > RESULT_CAP ) {
             query.setLimit( RESULT_CAP );
         }
+        // Optional token-dense projection for SELECT: a flat [{var:value}] array instead of the
+        // verbose W3C SPARQL-results-JSON envelope. Default ("standard") keeps the W3C format.
+        final boolean compact = "compact".equalsIgnoreCase( McpToolUtils.getString( arguments, "format" ) );
         final Model data = manager.inferenceSnapshot();
         try ( QueryExecution qe = QueryExecution.create().query( query ).model( data )
                 .timeout( TIMEOUT_MS, TimeUnit.MILLISECONDS ).build() ) {
+            if ( compact && query.isSelectType() ) {
+                return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON, compactRows( qe.execSelect() ) );
+            }
             final ByteArrayOutputStream out = new ByteArrayOutputStream();
             if ( query.isSelectType() ) {
                 ResultSetFormatter.outputAsJSON( out, qe.execSelect() );
@@ -116,5 +132,23 @@ public class SparqlQueryTool implements McpTool {
             LOG.warn( "sparql_query execution failed: {}", e.getMessage() );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, "query execution failed: " + e.getMessage() );
         }
+    }
+
+    /** Flatten a SELECT result set to {@code [{var: value, …}]} — literals as lexical form, URIs as string. */
+    private static List< Map< String, String > > compactRows( final ResultSet rs ) {
+        final List< String > vars = rs.getResultVars();
+        final List< Map< String, String > > rows = new ArrayList<>();
+        while ( rs.hasNext() ) {
+            final QuerySolution sol = rs.next();
+            final Map< String, String > row = new LinkedHashMap<>();
+            for ( final String v : vars ) {
+                final RDFNode n = sol.get( v );
+                if ( n != null ) {
+                    row.put( v, n.isLiteral() ? n.asLiteral().getLexicalForm() : n.toString() );
+                }
+            }
+            rows.add( row );
+        }
+        return rows;
     }
 }

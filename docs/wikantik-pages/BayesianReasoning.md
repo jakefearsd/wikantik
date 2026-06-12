@@ -72,7 +72,12 @@ Suppose a disease affects 1 in 1,000 people ($P(D) = 0.001$). A diagnostic test 
 $$
 P(+) = P(+ | D)P(D) + P(+ | \neg D)P(\neg D)
 $$
-$$P(+) = (0.99)(0.001) + (0.05)(0.999) = 0.00099 + 0.04995 = 0.05094$$**Bayesian Update:**
+
+$$
+P(+) = (0.99)(0.001) + (0.05)(0.999) = 0.00099 + 0.04995 = 0.05094
+$$
+
+**Bayesian Update:**
 
 $$
 P(D | +) = \frac{0.99 \times 0.001}{0.05094} \approx 0.0194

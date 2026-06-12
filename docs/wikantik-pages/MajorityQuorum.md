@@ -22,7 +22,13 @@ The **Majority Quorum** pattern is the mathematical foundation for strong consis
 
 ## 1. The Quorum Inequality
 
-A distributed system consists of $N$total nodes. To maintain strong consistency (Linearizability), the number of nodes required for a successful write ($W$) and the number of nodes polled for a read ($R$) must satisfy the following inequality:$$R + W > N$$### The Pigeonhole Principle
+A distributed system consists of $N$total nodes. To maintain strong consistency (Linearizability), the number of nodes required for a successful write ($W$) and the number of nodes polled for a read ($R$) must satisfy the following inequality:
+
+$$
+R + W > N
+$$
+
+### The Pigeonhole Principle
 The logic relies on the **Pigeonhole Principle**: if the sets of nodes used for reading and writing overlap by at least one node, that overlapping node acts as the "witness" that carries the most recent state.
 
 ## 2. Mathematical Proof

@@ -61,14 +61,14 @@ Forward AD evaluates the function and its derivative simultaneously using **Dual
 2. Compute $x^2$: $(2 + 1\epsilon)^2 = 4 + 4\epsilon + \epsilon^2 = 4 + 4\epsilon$.
 3. Compute $\sin(x)$: $\sin(2 + 1\epsilon) = \sin(2) + \cos(2)\epsilon$ (via Taylor expansion).
 4. Add results: $(4 + \sin(2)) + (4 + \cos(2)\epsilon)$.
-   - Real Part: $4 + \sin(2) \approx 4.909$ (Function Value)
-   - Dual Part: $4 + \cos(2) \approx 3.584$ (Exact Derivative)
+   - Real Part: \$4 + \sin(2) \approx 4.909$ (Function Value)
+   - Dual Part: \$4 + \cos(2) \approx 3.584$ (Exact Derivative)
 
 ### 2.2 Reverse Mode (Backpropagation)
 Reverse AD (the "Backprop" used in PyTorch/TensorFlow) is optimized for functions with many inputs and one output ($f: \mathbb{R}^n \to \mathbb{R}$). 
 *   **The Tape:** It records every operation in a "forward pass."
 *   **The Adjoint:** It traverses the graph backward, applying the Chain Rule to compute gradients with respect to all weights in a single pass.
-*   **Complexity:** The cost of computing the gradient is roughly $4\times$ the cost of the forward pass, regardless of $n$.
+*   **Complexity:** The cost of computing the gradient is roughly \$4\times$ the cost of the forward pass, regardless of $n$.
 
 ---
 
@@ -78,9 +78,13 @@ Taylor series allow us to approximate complex, non-linear functions with simpler
 
 ### 3.1 Newton's Method for Optimization
 Using a second-order Taylor expansion, we can find the minimum by setting the derivative of the approximation to zero:
-$$ \mathbf{x}_{k+1} = \mathbf{x}_k - \mathbf{H}_f^{-1} \nabla f(\mathbf{x}_k) $$
+
+$$
+\mathbf{x}_{k+1} = \mathbf{x}_k - \mathbf{H}_f^{-1} \nabla f(\mathbf{x}_k)
+$$
+
 *   **Geometric Insight:** Newton's method approximates the surface as a parabola and jumps straight to its vertex.
-*   **Practical Constraint:** Inverting a $10^9 \times 10^9$ Hessian is impossible. We use **Hessian-free** methods (like L-BFGS or Adam) that approximate $\mathbf{H}^{-1}$ using only recent gradients.
+*   **Practical Constraint:** Inverting a \$10^9 \times 10^9$ Hessian is impossible. We use **Hessian-free** methods (like L-BFGS or Adam) that approximate $\mathbf{H}^{-1}$ using only recent gradients.
 
 ---
 
@@ -105,12 +109,20 @@ Let $T(f)$ be the time to evaluate $f: \mathbb{R}^n \to \mathbb{R}^m$.
 
 ### 5.1 Computer Graphics: The Rendering Equation
 The photorealism in modern games is achieved by solving the **Rendering Equation**, an integral equation:
-$$ L_o = L_e + \int_{\Omega} f_r \cdot L_i \cdot \cos\theta \, d\omega $$
+
+$$
+L_o = L_e + \int_{\Omega} f_r \cdot L_i \cdot \cos\theta \, d\omega
+$$
+
 It calculates the total light $L_o$ leaving a point as the sum of emitted light $L_e$ and reflected light (the integral over all incoming directions).
 
 ### 5.2 Asymptotic Analysis via Limits
 Big-O notation is rigorously defined via limits. To prove $O(n \log n)$ is strictly more complex than $O(n)$, we use L'Hôpital's Rule:
-$$ \lim_{n \to \infty} \frac{n \ln n}{n} = \lim_{n \to \infty} \ln n = \infty $$
+
+$$
+\lim_{n \to \infty} \frac{n \ln n}{n} = \lim_{n \to \infty} \ln n = \infty
+$$
+
 This confirms that as $n$ grows, the ratio of work grows without bound.
 
 ---

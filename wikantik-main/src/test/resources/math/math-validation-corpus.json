@@ -73,7 +73,7 @@
   {"id": "struct-unterminated-mid-prose", "source": "First block:\n$$\nx^2\n$$\n\nSecond opener:\n$$\nmissing closer", "category": "structure", "structureExpect": "error", "katexExpect": "ok", "linterExpect": "ok", "note": "first block valid, second unterminated"},
   {"id": "struct-unterminated-five-marks", "source": "$$\na\n$$\n$$\nb\n$$\n$$\norphan", "category": "structure", "structureExpect": "error", "katexExpect": "ok", "linterExpect": "ok", "note": "five $$ delimiters — last is unterminated"},
   {"id": "struct-empty-display", "source": "a\n$$\n$$\nb", "category": "structure", "structureExpect": "ok", "katexExpect": "ok", "linterExpect": "ok", "note": "empty display block emits WARNING not ERROR; structureExpect ok"},
-  {"id": "struct-unterminated-close-only", "source": "intro\n$$\nonly closer: $$", "category": "structure", "structureExpect": "ok", "katexExpect": "ok", "linterExpect": "ok", "note": "two $$ signs — paired, close is not isolated but has no backslash command"},
+  {"id": "struct-unterminated-close-only", "source": "intro\n$$\nonly closer: $$", "category": "structure", "structureExpect": "error", "katexExpect": "ok", "linterExpect": "ok", "note": "paired $$, close glued to 'only closer:' (not isolated) — flagged regardless of backslash"},
 
   {"id": "syntax-unbalanced-braces-frac", "source": "$$\n\\frac{a}{b\n$$", "category": "syntax", "structureExpect": "ok", "katexExpect": "error", "linterExpect": "error", "note": "missing closing brace in frac — ERROR (unbalancedBraces)"},
   {"id": "syntax-unbalanced-braces-extra-close", "source": "$$\nx + y}\n$$", "category": "syntax", "structureExpect": "ok", "katexExpect": "error", "linterExpect": "error", "note": "extra closing brace — ERROR (unbalancedBraces)"},

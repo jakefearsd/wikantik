@@ -2184,13 +2184,30 @@ h3:focus-within .heading-anchor {
 .fm-summary-checking { color: var(--text-muted); }
 .fm-summary-count { background: none; border: none; padding: 0; cursor: pointer; }
 
-/* Density grid: short scalars 2-up, wide fields full row */
-.fm-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm) var(--space-md); }
-.fm-field { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
-.fm-field--wide { grid-column: 1 / -1; }
-@media (max-width: 720px) { .fm-form { grid-template-columns: 1fr; } }
+/* Density grid: short scalars 2-up with inline [label][control] rows; wide fields full row. */
+.fm-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs) var(--space-md); }
+.fm-field {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 6.5rem) 1fr;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.fm-control { min-width: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
+/* Long-content fields span the full row; their label top-aligns against the tall control. */
+.fm-field--wide { grid-column: 1 / -1; align-items: start; }
+.fm-field--wide > .fm-label { padding-top: 0.3rem; }
+/* Title always gets the full width even though it is a short TEXT control. */
+.fm-field-title { grid-column: 1 / -1; }
+/* The runbook block is a multi-field sub-editor — keep its label stacked above it. */
+.fm-field-runbook { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-xs); }
+.fm-field-runbook > .fm-label { text-align: left; }
+@media (max-width: 720px) {
+  .fm-form { grid-template-columns: 1fr; }
+  .fm-field { grid-template-columns: minmax(4.5rem, 6.5rem) 1fr; }
+}
 
-.fm-label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+.fm-label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); text-align: right; }
 .fm-input { width: 100%; }
 .fm-textarea {
   font: inherit; width: 100%; min-height: 4rem; padding: var(--space-sm);
@@ -2215,6 +2232,23 @@ h3:focus-within .heading-anchor {
 .fm-advanced { margin-top: var(--space-sm); font-size: 0.85rem; }
 .fm-advanced-list { list-style: none; margin: var(--space-xs) 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
 .fm-advanced-note { font-size: 0.75rem; color: var(--text-muted); }
+
+/* "More fields" disclosure */
+.fm-more { margin-top: var(--space-sm); }
+.fm-more-summary {
+  cursor: pointer; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); padding: var(--space-xs) 0; list-style-position: inside;
+}
+.fm-more[open] > .fm-form { margin-top: var(--space-xs); }
+
+/* Read-only derived fields, surfaced as a single muted strip at the bottom */
+.fm-meta-strip {
+  display: flex; flex-wrap: wrap; align-items: baseline; margin-top: var(--space-sm);
+  font-size: 0.72rem; color: var(--text-muted);
+}
+.fm-meta-item { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-meta-item:not(:last-child)::after { content: '·'; margin: 0 var(--space-sm); color: var(--border); }
+.fm-meta-label { font-weight: 600; color: var(--text-secondary); }
 .fm-raw-textarea { font-family: var(--font-mono); width: 100%; min-height: 12rem; padding: var(--space-sm); border: 1px solid var(--border); border-radius: 4px; background: var(--bg-elevated); color: var(--text); }
 .fm-raw-error { color: var(--danger); font-size: 0.8rem; }
 

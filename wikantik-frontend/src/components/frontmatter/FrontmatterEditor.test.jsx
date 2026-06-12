@@ -138,7 +138,28 @@ describe('FrontmatterEditor', () => {
     expect(more.querySelector('[data-field="runbook"]')).toBeTruthy();
   });
 
-  it('auto-opens "More fields" when a non-common field already has a value', () => {
+  it('shows the count of populated fields in the "More fields" summary without opening it', () => {
+    const schema = {
+      fields: [
+        { key: 'title', label: 'Title', widget: 'TEXT' },
+        { key: 'date', label: 'Date', widget: 'DATE' },
+        { key: 'audience', label: 'Audience', widget: 'ENUM', canonicalValues: ['both'], open: false },
+      ],
+    };
+    const { container } = render(
+      <FrontmatterEditor
+        schema={schema}
+        metadata={{ title: 'X', date: '2026-04-25', audience: 'both' }}
+        onChange={() => {}}
+      />,
+    );
+    const summary = container.querySelector('.fm-more-summary');
+    expect(summary.textContent).toContain('2 set');
+    // the count is only a signal — it must NOT auto-open the disclosure
+    expect(container.querySelector('details.fm-more').open).toBe(false);
+  });
+
+  it('omits the count when no "More" field has a value', () => {
     const schema = {
       fields: [
         { key: 'title', label: 'Title', widget: 'TEXT' },
@@ -146,9 +167,11 @@ describe('FrontmatterEditor', () => {
       ],
     };
     const { container } = render(
-      <FrontmatterEditor schema={schema} metadata={{ title: 'X', audience: 'both' }} onChange={() => {}} />,
+      <FrontmatterEditor schema={schema} metadata={{ title: 'X' }} onChange={() => {}} />,
     );
-    expect(container.querySelector('details.fm-more').open).toBe(true);
+    const summary = container.querySelector('.fm-more-summary');
+    expect(summary.textContent).toContain('More fields');
+    expect(summary.textContent).not.toContain('set');
   });
 
   it('shows populated read-only fields in the meta strip and hides empty ones', () => {

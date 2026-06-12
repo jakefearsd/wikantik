@@ -110,8 +110,6 @@ export default function FrontmatterEditor({
 }) {
   const [schema, setSchema] = useState(schemaProp ?? null);
   const [tab, setTab] = useState('form');
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreInit = useRef(false);
 
   useEffect(() => {
     if (schemaProp) {
@@ -146,17 +144,6 @@ export default function FrontmatterEditor({
     return { commonFields: common, moreFields: more, readonlyFields: readonly };
   }, [schema]);
 
-  // One-shot: the first time metadata is populated, open "More" if any of its fields already
-  // has a value (so editing an existing runbook/verified page never hides populated data).
-  // Strictly additive — once the user collapses it manually, re-renders never re-open it.
-  useEffect(() => {
-    if (moreInit.current) return;
-    if (metadata && Object.keys(metadata).length > 0) {
-      moreInit.current = true;
-      if (moreFields.some((f) => hasValue(metadata[f.key]))) setMoreOpen(true);
-    }
-  }, [metadata, moreFields]);
-
   if (!schema) return <div className="fm-editor-loading">Loading editor…</div>;
 
   const knownKeys = new Set((schema.fields || []).map((f) => f.key));
@@ -190,6 +177,10 @@ export default function FrontmatterEditor({
     .filter((f) => hasValue(metadata?.[f.key]))
     .map((f) => ({ key: f.key, label: f.label, value: fmtMeta(metadata[f.key]) }));
 
+  // How many "More" fields already carry a value — surfaced on the summary so populated data is
+  // signalled without forcing the disclosure open (keeps the default footprint small).
+  const moreSetCount = moreFields.filter((f) => hasValue(metadata?.[f.key])).length;
+
   return (
     <div className="fm-editor">
       <Tabs
@@ -202,12 +193,10 @@ export default function FrontmatterEditor({
             <div className="fm-form">{commonFields.map(renderField)}</div>
 
             {moreFields.length > 0 && (
-              <details
-                className="fm-more"
-                open={moreOpen}
-                onToggle={(e) => setMoreOpen(e.currentTarget.open)}
-              >
-                <summary className="fm-more-summary">More fields</summary>
+              <details className="fm-more">
+                <summary className="fm-more-summary">
+                  More fields{moreSetCount > 0 ? ` (${moreSetCount} set)` : ''}
+                </summary>
                 <div className="fm-form">{moreFields.map(renderField)}</div>
               </details>
             )}

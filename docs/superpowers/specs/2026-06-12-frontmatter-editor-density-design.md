@@ -41,7 +41,7 @@ incremental tweak.
 | Bucket | Fields | Default state |
 |---|---|---|
 | **Common** | `title, type, status, summary, tags, cluster` | always visible |
-| **More fields** (zippy) | everything not Common and not read-only: `related, date, author, audience, kg_include, verified_at, verified_by, runbook` | collapsed `<details>`; **auto-opens at load** if any of its fields already has a value |
+| **More fields** (zippy) | everything not Common and not read-only: `related, date, author, audience, kg_include, verified_at, verified_by, runbook` | collapsed `<details>`; summary shows a `(N set)` count of populated fields so nothing is silently hidden |
 | **Meta strip** | the read-only trio `canonical_id, confidence, agent_hints` | one muted line at the bottom; renders only the fields that have values; renders nothing if none do |
 | **Advanced (raw keys)** | unknown passthrough keys | existing `<details>`, unchanged |
 
@@ -88,10 +88,13 @@ canon: a1b2c3 · confidence 0.82 · hints: api, auth        ← muted meta strip
 
 ### Behavior details
 
-- **More auto-open** is one-way at load time. On the first render where `metadata` is
-  non-empty, if any More field has a value, the disclosure opens. After that the user
-  controls it — manual collapse is respected and never re-opened by re-renders. Implemented
-  with `useState(false)` + a one-shot `useRef` guard in an effect keyed on `metadata`.
+- **More fields stays collapsed by default** (uncontrolled `<details>`). Instead of
+  auto-opening, the summary shows a `(N set)` count of how many More fields already carry a
+  value — e.g. `More fields (2 set)` — so populated data is signalled without re-inflating the
+  default footprint. The count is omitted when zero. (Rationale: `date`/`related`/`author` are
+  common enough that auto-opening "when any More field has a value" fired on nearly every page
+  and defeated the size reduction — caught during live verification 2026-06-12. An earlier
+  one-shot `useRef`+`useEffect` auto-open also raced the async schema load and never fired.)
 - **Meta strip** renders `{label}: {value}` items (joined by ` · `) only for read-only
   fields whose value is non-empty. `agent_hints` (potentially long / an array) gets a
   per-item max-width + ellipsis + `title` tooltip so the strip stays one line tall.
@@ -120,8 +123,8 @@ Extend `src/components/frontmatter/FrontmatterEditor.test.jsx`:
 2. More fields (e.g. `runbook`, `date`, `verified_at`) are **not** in the accessibility tree
    until the More disclosure is expanded (closed `<details>` by default for an
    all-Common-only page).
-3. When a More field has a value at load (e.g. `verified_at` set), the More disclosure is
-   open on first render.
+3. When More fields have values, the summary shows the `(N set)` count and the disclosure
+   stays closed; the count is omitted when none are set.
 4. The meta strip shows only populated read-only fields (set `confidence`, omit
    `agent_hints` → strip shows confidence, not hints), and renders nothing when none are
    set.

@@ -20,6 +20,14 @@ class GetPageToolTest {
     }
 
     @Test
+    void schema_advertisesSlugNotPageName() {
+        final var props = new GetPageTool( mock( ContextRetrievalService.class ) )
+                .definition().inputSchema().properties();
+        assertTrue( props.containsKey( "slug" ) );
+        assertFalse( props.containsKey( "pageName" ) );
+    }
+
+    @Test
     void execute_acceptsNameAlias() {
         // An agent that guesses `name` (not slug/pageName) should resolve, not hard-fail.
         final var result = new GetPageTool( mock( ContextRetrievalService.class ) )
@@ -28,16 +36,6 @@ class GetPageToolTest {
         assertTrue( ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text().contains( "Alpha" ) );
     }
 
-    @Test
-    void definition_advertisesSlugAndPageName() {
-        // D13: tool now accepts both `slug` (canonical) and `pageName` (deprecated alias).
-        // Required-field list is empty because at least one of the two must be supplied —
-        // enforcement happens at execute() time so we can emit a friendlier error.
-        final GetPageTool t = new GetPageTool( mock( ContextRetrievalService.class ) );
-        final var schema = t.definition().inputSchema();
-        assertTrue( schema.properties().containsKey( "slug" ) );
-        assertTrue( schema.properties().containsKey( "pageName" ) );
-    }
 
     @Test
     void execute_returnsPageJson() {

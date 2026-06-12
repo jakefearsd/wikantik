@@ -58,6 +58,13 @@ class ReadPagesToolTest {
     }
 
     @Test
+    void schema_advertisesSlugsNotPageNames() {
+        final var props = tool.definition().inputSchema().properties();
+        assertTrue( props.containsKey( "slugs" ) );
+        assertFalse( props.containsKey( "pageNames" ) );
+    }
+
+    @Test
     void acceptsPageNamesAlias() {
         // An agent that learned `pageNames` from the admin MCP should not hard-fail here.
         final var result = tool.execute( Map.of( "pageNames", List.of( "Alpha" ) ) );

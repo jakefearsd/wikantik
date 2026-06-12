@@ -54,16 +54,11 @@ public class GetPageTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        // D13: canonical name is `slug`. Accept the legacy `pageName` for callers that
-        // were generated from older tool definitions.
+        // Canonical name is `slug`. Legacy/guessable names (pageName, name, page) are still
+        // accepted at execute() via McpToolUtils.pageSlug — we just don't advertise them.
         properties.put( "slug", Map.of(
             "type", "string",
             "description", "Name (slug) of the wiki page to fetch.",
-            "examples", List.of( "HybridRetrieval" )
-        ) );
-        properties.put( "pageName", Map.of(
-            "type", "string",
-            "description", "Deprecated alias for `slug`. Prefer `slug` for new code.",
             "examples", List.of( "HybridRetrieval" )
         ) );
 
@@ -97,7 +92,7 @@ public class GetPageTool implements McpTool {
         try {
             // Canonical key is `slug`; accept common synonyms an agent may guess so a reasonable
             // call doesn't hard-fail (the cross-surface naming-consistency ask).
-            final String pageName = McpToolUtils.getStringAny( arguments, "slug", "pageName", "name", "page" );
+            final String pageName = McpToolUtils.pageSlug( arguments );
             if ( pageName == null || pageName.isBlank() ) {
                 return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                         "a page identifier is required (one of: slug, pageName, name)" );

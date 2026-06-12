@@ -99,20 +99,11 @@ public class ReadPagesTool implements McpTool {
                 .build();
     }
 
-    /** First list-valued argument among {@code keys}, or null. Lets the tool accept page-id aliases. */
-    private static Object firstListArg( final Map< String, Object > args, final String... keys ) {
-        if ( args == null ) { return null; }
-        for ( final String k : keys ) {
-            if ( args.get( k ) instanceof List< ? > l ) { return l; }
-        }
-        return null;
-    }
-
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
         // Input validation. Canonical key is `slugs`; accept synonyms an agent may carry over from
         // other tools (e.g. admin MCP `pageNames`) so a reasonable call doesn't hard-fail.
-        final Object raw = firstListArg( arguments, "slugs", "pageNames", "names", "pages" );
+        final Object raw = McpToolUtils.pageSlugs( arguments );
         if ( !( raw instanceof List< ? > rawList ) || rawList.isEmpty() ) {
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON,
                     "a page-id list is required and must contain at least one entry (one of: slugs, pageNames, names)" );

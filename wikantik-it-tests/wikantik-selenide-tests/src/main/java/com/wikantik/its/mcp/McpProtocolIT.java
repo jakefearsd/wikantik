@@ -84,9 +84,11 @@ public class McpProtocolIT extends WithMcpTestSetup {
         final Map< String, List< String > > toolRequiredParams = result.tools().stream()
                 .collect( Collectors.toMap( McpSchema.Tool::name, t -> t.inputSchema().required() != null ? t.inputSchema().required() : List.of() ) );
 
-        Assertions.assertTrue( toolRequiredParams.get( "get_backlinks" ).contains( "pageName" ) );
+        // Page-identifier params converged on slug/slugs (legacy pageName kept only as an
+        // accepted alias at execute() time, no longer advertised as required).
+        Assertions.assertTrue( toolRequiredParams.get( "get_backlinks" ).contains( "slug" ) );
         Assertions.assertTrue( toolRequiredParams.get( "write_pages" ).contains( "pages" ) );
-        Assertions.assertTrue( toolRequiredParams.get( "update_page" ).contains( "pageName" ) );
+        Assertions.assertTrue( toolRequiredParams.get( "update_page" ).contains( "slug" ) );
         Assertions.assertTrue( toolRequiredParams.get( "update_page" ).contains( "content" ) );
         Assertions.assertTrue( toolRequiredParams.get( "update_page" ).contains( "expectedContentHash" ) );
     }

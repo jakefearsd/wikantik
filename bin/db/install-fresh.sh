@@ -48,7 +48,7 @@ done
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 DB_NAME="${DB_NAME:-wikantik}"
-DB_APP_USER="${DB_APP_USER:-jspwiki}"
+DB_APP_USER="${DB_APP_USER:-wikantik}"
 DB_APP_PASSWORD="${DB_APP_PASSWORD:-}"
 export PGHOST="${PGHOST:-localhost}"
 export PGPORT="${PGPORT:-5432}"

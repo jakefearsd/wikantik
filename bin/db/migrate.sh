@@ -33,7 +33,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 MIGRATIONS_DIR="${SCRIPT_DIR}/migrations"
 
 DB_NAME="${DB_NAME:-wikantik}"
-DB_APP_USER="${DB_APP_USER:-jspwiki}"
+DB_APP_USER="${DB_APP_USER:-wikantik}"
 export PGHOST="${PGHOST:-localhost}"
 export PGPORT="${PGPORT:-5432}"
 export PGUSER="${PGUSER:-migrate}"

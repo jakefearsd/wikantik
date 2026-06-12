@@ -462,11 +462,16 @@ if [[ -f "${CONTEXT_DEST}" ]]; then
     [[ -n "${_db}" ]] && WIKI_DB="${_db}"
 fi
 
-# Run database migrations (tracked in schema_migrations, idempotent)
+# Run database migrations (tracked in schema_migrations, idempotent).
+# Prefer the app role (POSTGRES_USER, sourced from .env above): it owns the
+# tables, so ALTER/owner-restricted DDL applies cleanly with no "must be owner"
+# failure-then-postgres-fallback noise. The postgres elif remains for the rare
+# migration that genuinely needs superuser (e.g. CREATE EXTENSION).
 MIGRATE_SH="${SCRIPT_DIR}/db/migrate.sh"
 echo ""
 echo "Running database migrations..."
-if DB_NAME="${WIKI_DB}" "${MIGRATE_SH}"; then
+if DB_NAME="${WIKI_DB}" PGUSER="${POSTGRES_USER}" PGPASSWORD="${POSTGRES_PASSWORD}" \
+       PGHOST="${POSTGRES_HOST:-localhost}" "${MIGRATE_SH}"; then
     print_status "Database migrations applied"
 elif DB_NAME="${WIKI_DB}" PGUSER=postgres "${MIGRATE_SH}"; then
     print_status "Database migrations applied (as postgres)"

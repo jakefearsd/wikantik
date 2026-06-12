@@ -172,6 +172,25 @@ class LatexSyntaxLinterTest {
                 "\\frac{\\frac{a}{b}}{c} must NOT fire fracArity");
     }
 
+    @Test
+    void fracArityBareTokenArgDoesNotFire() {
+        // \frac{a}b and \frac ab are valid KaTeX (bare-token args) — must NOT warn (probe FP fix)
+        assertFalse(hasCode("\\frac{a}b", "math.syntax.fracArity"),
+                "\\frac{a}b (bare second arg) must NOT fire fracArity");
+        assertFalse(hasCode("\\frac ab", "math.syntax.fracArity"),
+                "\\frac ab (two bare args) must NOT fire fracArity");
+    }
+
+    @Test
+    void widenedCommandsZetaAndArrowsPass() {
+        // Probe-surfaced unknownCommand false positives, now in the allowlist.
+        assertFalse(hasCode("\\zeta", "math.syntax.unknownCommand"), "\\zeta (Greek) must be known");
+        assertFalse(hasCode("\\xrightarrow{f}", "math.syntax.unknownCommand"), "\\xrightarrow must be known");
+        assertFalse(hasCode("a \\iff b", "math.syntax.unknownCommand"), "\\iff must be known");
+        assertFalse(hasCode("\\Big( x \\Big)", "math.syntax.unknownCommand"), "\\Big must be known");
+        assertFalse(hasCode("A \\setminus B", "math.syntax.unknownCommand"), "\\setminus must be known");
+    }
+
     // -----------------------------------------------------------------------
     // unknownCommand WARNING + allowlist
     // -----------------------------------------------------------------------

@@ -184,14 +184,14 @@ public final class LatexRules {
             // skip \frac, then optional whitespace
             int pos = fracPos + 5;
             while (pos < s.length() && s.charAt(pos) == ' ') { pos++; }
-            // attempt to consume first brace group
-            final int afterFirst = consumeBraceGroup(s, pos);
-            if (afterFirst < 0) { return true; }   // no first group
+            // attempt to consume first argument ({…} group, \command, or bare token)
+            final int afterFirst = consumeArg(s, pos);
+            if (afterFirst < 0) { return true; }   // no first argument
             int pos2 = afterFirst;
             while (pos2 < s.length() && s.charAt(pos2) == ' ') { pos2++; }
-            // attempt to consume second brace group
-            final int afterSecond = consumeBraceGroup(s, pos2);
-            if (afterSecond < 0) { return true; }  // no second group
+            // attempt to consume second argument
+            final int afterSecond = consumeArg(s, pos2);
+            if (afterSecond < 0) { return true; }  // no second argument
             i = fracPos + 5;
         }
         return false;
@@ -215,6 +215,28 @@ public final class LatexRules {
             }
         }
         return -1;  // unclosed group
+    }
+
+    /**
+     * Consumes a single LaTeX argument starting at {@code pos}: a {@code {…}} group, a control
+     * sequence ({@code \cmd}), or a single bare token (e.g. {@code b}, a digit). Returns the index
+     * after the argument, or -1 when no valid argument is present. This is why {@code \frac{a}b}
+     * (braced first arg, bare second arg — valid KaTeX) does NOT trip {@link #fracArity}.
+     */
+    static int consumeArg(final String s, final int pos) {
+        if (pos >= s.length()) { return -1; }
+        final char c = s.charAt(pos);
+        if (c == '{') { return consumeBraceGroup(s, pos); }
+        if (c == '}' || c == ' ') { return -1; }            // not a valid argument start
+        if (c == '\\') {                                     // control sequence
+            int i = pos + 1;
+            if (i < s.length() && Character.isLetter(s.charAt(i))) {
+                while (i < s.length() && Character.isLetter(s.charAt(i))) { i++; }
+                return i;
+            }
+            return Math.min(pos + 2, s.length());            // control symbol, e.g. \% \,
+        }
+        return pos + 1;                                      // single bare token
     }
 
     // -----------------------------------------------------------------------
@@ -289,7 +311,21 @@ public final class LatexRules {
             // phantom
             "phantom", "hphantom", "vphantom",
             // color
-            "color", "textcolor"
+            "color", "textcolor",
+            // probe-surfaced false positives + common omissions (keep WARNING precision high)
+            "zeta",                                              // basic Greek — was missing
+            "xrightarrow", "xleftarrow",                          // extensible arrows
+            "iff", "implies", "impliedby", "gets",
+            "setminus", "smallsetminus", "mid", "nmid", "colon",
+            "vert", "Vert", "lvert", "rvert", "lVert", "rVert",
+            "prime", "therefore", "because",
+            "le", "ge", "ne",                                     // KaTeX aliases of leq/geq/neq
+            "ncong", "nleq", "ngeq", "nsubseteq", "nsupseteq",
+            "blacksquare", "square", "Box", "triangleq",
+            "limsup", "liminf",
+            // big-delimiter sizing
+            "big", "Big", "bigg", "Bigg",
+            "bigl", "bigr", "Bigl", "Bigr", "biggl", "biggr", "Biggl", "Biggr", "middle"
     );
 
     private static final Pattern COMMAND_PATTERN = Pattern.compile("\\\\([a-zA-Z]+)");

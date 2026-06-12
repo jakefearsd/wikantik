@@ -11,6 +11,11 @@ import RunbookBlockEditor from './RunbookBlockEditor';
 import ViolationList from './ViolationList';
 import { isWideField } from './fieldLayout';
 
+// A few schema labels are too long for the dense 2-up label column. Show a shorter
+// visible label while keeping the full schema label as the control's accessible name
+// (aria-label) so screen readers and getByLabelText() are unaffected.
+const SHORT_LABELS = { kg_include: 'Include in KG' };
+
 function fmtScalar(value) {
   if (value == null) return '—';
   if (Array.isArray(value)) return value.join(', ');
@@ -139,7 +144,7 @@ export default function FieldWidget({ spec, value, onChange, violations = [], on
 
   return (
     <div className={`fm-field fm-field-${key}${isWideField(spec) ? ' fm-field--wide' : ''}`} data-field={key}>
-      <label className="fm-label">{label}</label>
+      <label className="fm-label">{SHORT_LABELS[key] || label}</label>
       <div className="fm-control">
         {control}
         <ViolationList violations={ownViolations} onApplySuggestion={onApplySuggestion} />

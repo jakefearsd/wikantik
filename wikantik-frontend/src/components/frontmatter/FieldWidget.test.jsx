@@ -36,6 +36,15 @@ describe('FieldWidget', () => {
     expect(onChange).toHaveBeenCalledWith({ steps: ['step one', 'step two'] });
   });
 
+  it('shortens the visible kg_include label but keeps the full accessible name', () => {
+    render(<FieldWidget spec={{ key: 'kg_include', label: 'Include in Knowledge Graph', widget: 'TRISTATE' }}
+      value={undefined} onChange={noop} />);
+    // dense visible label
+    expect(screen.getByText('Include in KG')).toBeInTheDocument();
+    // control's accessible name stays the full schema label (screen readers, getByLabelText)
+    expect(screen.getByLabelText('Include in Knowledge Graph')).toBeTruthy();
+  });
+
   it('wraps the control and its violations in a .fm-control element', () => {
     const { container } = render(
       <FieldWidget

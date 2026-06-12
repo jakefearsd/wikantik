@@ -7,8 +7,9 @@
 #   2. rotates catalina.out so the next run's log starts clean
 #   3. swaps the deployed WAR
 #   4. runs bin/db/migrate.sh against the database named in ROOT.xml
-#      (idempotent — only applies pending V*.sql; uses PGUSER=migrate
-#      with .pgpass-stored credentials, matching deploy-local.sh's flow)
+#      (idempotent — only applies pending V*.sql; sources .env and runs as
+#      the app role POSTGRES_USER, falling back to postgres — mirrors
+#      deploy-local.sh's flow; there is no separate `migrate` role locally)
 #   5. starts Tomcat
 #
 # Skipped (handled by deploy-local.sh): template materialisation, Tomcat
@@ -91,17 +92,35 @@ echo "WAR redeployed."
 
 # Apply pending migrations. Idempotent — no-op when there are none. We
 # discover the database name from the rendered ROOT.xml so we never drift
-# from whatever .env the operator deployed against.
+# from whatever .env the operator deployed against, and run migrate.sh as
+# the app role (POSTGRES_USER from .env, default wikantik) exactly like
+# deploy-local.sh — the local setup has no separate `migrate` role.
 MIGRATE_SH="${REPO_ROOT}/bin/db/migrate.sh"
 if [[ -f "${MIGRATE_SH}" && -f "${CONTEXT_XML}" ]]; then
+    # Source .env for DB credentials (gitignored; the same file deploy-local.sh reads).
+    ENV_FILE="${REPO_ROOT}/.env"
+    if [[ -f "${ENV_FILE}" ]]; then
+        set -a; source "${ENV_FILE}"; set +a
+    fi
+    POSTGRES_USER="${POSTGRES_USER:-wikantik}"
+    POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
+
     WIKI_DB=$(grep -oE 'jdbc:postgresql://[^/]+/[^"?]+' "${CONTEXT_XML}" \
                 | head -1 | sed 's|.*postgresql://[^/]*/||')
     WIKI_DB="${WIKI_DB:-wikantik}"
-    echo "Applying any pending migrations to ${WIKI_DB}..."
-    DB_NAME="${WIKI_DB}" PGUSER=migrate "${MIGRATE_SH}" || {
+    echo "Applying any pending migrations to ${WIKI_DB} as ${POSTGRES_USER}..."
+    # Prefer the app role (it owns the tables); fall back to the postgres
+    # superuser for the rare migration that needs it. Only a genuine failure
+    # of both aborts the redeploy.
+    if DB_NAME="${WIKI_DB}" PGUSER="${POSTGRES_USER}" PGPASSWORD="${POSTGRES_PASSWORD:-}" \
+           PGHOST="${POSTGRES_HOST}" "${MIGRATE_SH}"; then
+        :
+    elif DB_NAME="${WIKI_DB}" PGUSER=postgres "${MIGRATE_SH}"; then
+        echo "Migrations applied as postgres (app-role attempt failed)."
+    else
         echo "ERROR: migrate.sh failed — Tomcat NOT started. Investigate the migration error then re-run." >&2
         exit 1
-    }
+    fi
 fi
 
 # Startup

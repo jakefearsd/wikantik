@@ -35,6 +35,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Blocked-save errors on non-common frontmatter fields are now visible.** The
+  editor auto-expands the "More fields" disclosure when a field inside it has a
+  validation error, so a 422-blocked save always shows its reason (regression from
+  the 2.0.16 density redesign, which hid those inline errors inside the collapsed
+  section).
 - **Further corpus formula-rendering repairs** — isolated single-line `$$` display
   math across additional pages and resolved the remaining currency-`$` / glued-`$$`
   defects surfaced by the production render audit.

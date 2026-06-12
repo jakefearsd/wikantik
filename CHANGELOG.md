@@ -6,6 +6,39 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Breadcrumb is now a clickable navigation-history trail.** The reader
+  breadcrumb shows the last 3 distinct pages visited in the tab (oldest → newest);
+  prior pages link to `/wiki/{slug}` and the current page is the last entry. Backed
+  by a per-tab `usePageTrail` hook (sessionStorage — survives refresh, fresh per
+  tab, works for anonymous readers). The SEO `BreadcrumbList` JSON-LD emitted
+  server-side stays hierarchical and is intentionally unaffected.
+- **Knowledge MCP `sparql_query` gains an optional `format: "compact"`** that
+  returns token-dense flat `{var: value}` rows for `SELECT` queries.
+- **`list_tags` / `list_clusters` are paginated** (`limit` default 50, `offset`,
+  with `count` / `returned` / `hasMore` in the response).
+
+### Changed
+
+- **MCP page-identifier parameters converge on `slug` / `slugs`** across the admin
+  and knowledge tool surfaces. Legacy `pageName` / `pageNames` (and guessable
+  `name` / `page`) are still accepted as aliases via shared `pageSlug` /
+  `pageSlugs` accessors, but only `slug` / `slugs` are advertised in the schemas;
+  a convergence-guard test keeps it that way.
+- **Stricter math validation on save.** Single-line or text-glued `$$ … $$`
+  display math (which the parser mis-renders) is now a blocking **ERROR**, and
+  prose inside inline `$…$` (e.g. an unescaped currency `$`) raises an advisory
+  **WARNING**, both false-positive-guarded.
+- **`ping_search_engines` is annotated as not read-only** (`readOnlyHint=false`,
+  `openWorldHint=true`).
+
+### Fixed
+
+- **Further corpus formula-rendering repairs** — isolated single-line `$$` display
+  math across additional pages and resolved the remaining currency-`$` / glued-`$$`
+  defects surfaced by the production render audit.
+
 ## [2.0.16] - 2026-06-12
 
 ### Added

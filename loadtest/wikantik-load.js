@@ -11,7 +11,8 @@ import exec from 'k6/execution';
 
 import { readConfig, buildOptions, verifyTargets } from './lib/config.js';
 import { loadSlugs, pick } from './lib/slugs.js';
-import { viewPage, search, mcpCall, toolsCall, login, writeCycle } from './lib/endpoints.js';
+import { viewPage, search, mcpCall, toolsCall, login, writeCycle,
+  mcpAgentFlow, mcpWriteCycle, rawContent, changesFeed } from './lib/endpoints.js';
 import { parsePromText, buildVerifyReport } from './lib/metrics.js';
 
 const cfg = readConfig(__ENV);
@@ -34,23 +35,36 @@ export function setup() {
   return { baseline: res.body };
 }
 
-/** Read scenario: weighted mix over the instrumented surfaces. */
+/** Read scenario: weighted mix over the instrumented surfaces, including the
+ * real MCP retrieval tool surface (mcp_tool) and current RAG/sync read paths. */
 export function readScenario() {
   const r = Math.random();
-  if (r < 0.55) viewPage(cfg, pick(slugs));
-  else if (r < 0.80) search(cfg);
-  else if (r < 0.95) mcpCall(cfg, Math.random() < 0.5 ? '/knowledge-mcp' : '/wikantik-admin-mcp');
+  if (r < 0.40) viewPage(cfg, pick(slugs));
+  else if (r < 0.55) search(cfg);
+  else if (r < 0.80) mcpAgentFlow(cfg, exec.vu.idInTest, pick(slugs));   // real tools/call (expensive)
+  else if (r < 0.88) rawContent(cfg, pick(slugs));                       // /wiki/{slug}?format=md
+  else if (r < 0.93) changesFeed(cfg);                                   // /api/changes feed
+  else if (r < 0.97) mcpCall(cfg, Math.random() < 0.5 ? '/knowledge-mcp' : '/wikantik-admin-mcp');
   else toolsCall(cfg);
   sleep(0.5 + Math.random());
 }
 
-/** Write scenario: one logged-in VU running create/edit/delete cycles. */
+/**
+ * Write scenario: math-bearing create/edit/delete cycles that exercise
+ * MathValidationPageFilter on every save. Prefers the MCP write surface
+ * (Bearer auth — no password login, and profiles the MCP write path the way a
+ * real agent edits content); falls back to the REST login path when only admin
+ * credentials are available.
+ */
 export function writeScenario() {
-  if (!cfg.adminUser || !cfg.adminPass) {
-    throw new Error('WRITES=1 requires LOADTEST_ADMIN_USER and LOADTEST_ADMIN_PASS');
+  if (cfg.mcpKey) {
+    mcpWriteCycle(cfg, exec.vu.idInTest, exec.vu.iterationInScenario);
+  } else if (cfg.adminUser && cfg.adminPass) {
+    login(cfg);
+    writeCycle(cfg, exec.vu.idInTest, exec.vu.iterationInScenario);
+  } else {
+    throw new Error('WRITES=1 requires LOADTEST_MCP_KEY (preferred) or LOADTEST_ADMIN_USER/PASS');
   }
-  login(cfg);
-  writeCycle(cfg, exec.vu.idInTest, exec.vu.iterationInScenario);
   sleep(2);
 }
 

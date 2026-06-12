@@ -58,6 +58,21 @@ class McpToolRegistryTest {
     }
 
     @Test
+    void noToolAdvertisesLegacyPageNameParam() {
+        final List< McpTool > all = new java.util.ArrayList<>( registry.readOnlyTools() );
+        all.addAll( registry.authorConfigurableTools() );
+        final List< String > offenders = new java.util.ArrayList<>();
+        for ( final McpTool t : all ) {
+            final var props = t.definition().inputSchema().properties();
+            if ( props != null && ( props.containsKey( "pageName" ) || props.containsKey( "pageNames" ) ) ) {
+                offenders.add( t.name() );
+            }
+        }
+        assertTrue( offenders.isEmpty(),
+                "tools still advertising pageName/pageNames (use slug/slugs): " + offenders );
+    }
+
+    @Test
     void testReadOnlyToolsContainExpectedTools() {
         final Set< String > names = registry.readOnlyTools().stream()
                 .map( McpTool::name )

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.16] - 2026-06-12
+
 ### Added
 
 - **Math (LaTeX) validation on save.** A KaTeX-oracle-derived LaTeX syntax linter

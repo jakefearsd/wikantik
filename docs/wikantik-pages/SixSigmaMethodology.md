@@ -25,14 +25,23 @@ Variation is inherent in every process. The goal of Six Sigma is to reduce this 
 ### A. Sigma Levels and Statistical Grounding
 The Sigma ($\sigma$) level represents the number of standard deviations between the process mean and the nearest specification limit. A process operating at $6\sigma$ has a defect probability defined by:
 
-$$P(X > \text{Limit}) \approx 2.5 \times 10^{-7}$$
+$$
+P(X > \text{Limit}) \approx 2.5 \times 10^{-7}
+$$
 
 ### B. Capability Indices ($C_p$ and $C_{pk}$)
 
 1.  **Process Capability Index ($C_p$):** Measures the potential capability if the process mean ($\mu$) is perfectly centered.
-    $$C_p = \frac{\text{USL} - \text{LSL}}{6\sigma}$$
+
+    $$
+    C_p = \frac{\text{USL} - \text{LSL}}{6\sigma}
+    $$
+
 2.  **Process Performance Index ($C_{pk}$):** Measures actual capability by accounting for centering.
-    $$C_{pk} = \min \left( \frac{\text{USL} - \mu}{3\sigma}, \frac{\mu - \text{LSL}}{3\sigma} \right)$$
+
+    $$
+    C_{pk} = \min \left( \frac{\text{USL} - \mu}{3\sigma}, \frac{\mu - \text{LSL}}{3\sigma} \right)
+    $$
 
 A gap between $C_p$ and $C_{pk}$ indicates the process is operating off-center, requiring mean adjustment alongside variation reduction.
 

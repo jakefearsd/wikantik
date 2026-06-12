@@ -85,8 +85,13 @@ Used to model "Obligation" and "Permission" ($O \phi, P \phi$).
 
 Modal operators are duals of each other, mirroring the relationship between $\forall$ and $\exists$:
 
-$$ \Box \phi \iff \neg \Diamond \neg \phi $$
-$$ \Diamond \phi \iff \neg \Box \neg \phi $$
+$$
+\Box \phi \iff \neg \Diamond \neg \phi
+$$
+
+$$
+\Diamond \phi \iff \neg \Box \neg \phi
+$$
 
 *Intuition:* "It is necessary that it rains" is equivalent to "It is not possible that it does not rain."
 

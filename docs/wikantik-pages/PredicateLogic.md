@@ -84,8 +84,13 @@ A First-Order language consists of:
 ### 4.1 De Morgan's Laws for Quantifiers
 The spatial intuition of "all" vs. "some" is captured by the duality of negation:
 
-$$ \neg \forall x P(x) \iff \exists x \neg P(x) $$
-$$ \neg \exists x P(x) \iff \forall x \neg P(x) $$
+$$
+\neg \forall x P(x) \iff \exists x \neg P(x)
+$$
+
+$$
+\neg \exists x P(x) \iff \forall x \neg P(x)
+$$
 
 *Visual Intuition:* "Not everything is a cube" is equivalent to "There is at least one thing that is not a cube."
 

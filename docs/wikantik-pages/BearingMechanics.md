@@ -21,7 +21,10 @@ Rolling element bearings are the critical interfaces of rotary motion, convertin
 ## 1. Contact Mechanics: Beyond Hertz
 
 Hertzian theory provides the first-order approximation for contact pressure ($\sigma$). However, modern research requires analyzing the **Subsurface Stress Tensor** to identify failure initiation points.
-$$\sigma_{max} = f(F, R, E, \nu)$$
+
+$$
+\sigma_{max} = f(F, R, E, \nu)
+$$
 
 ## 2. Elastohydrodynamic Lubrication (EHL)
 

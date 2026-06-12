@@ -82,7 +82,11 @@ Let:
 - $b(t)$ be the number of tokens in the bucket at time $t$.
 
 The evolution of the token count is defined by:
-$$ b(t) = \min(B, b(t_0) + (t - t_0) \cdot r) $$
+
+$$
+b(t) = \min(B, b(t_0) + (t - t_0) \cdot r)
+$$
+
 where $t_0$ is the time of the last request.
 
 A request arriving at time $t$ with cost $c$ (typically $c=1$) is admitted if $b(t) \ge c$. If admitted, the new token count becomes $b(t) - c$.
@@ -134,7 +138,10 @@ Imagine a bucket with a hole at the bottom. Requests are "poured" into the bucke
 - $r$: Leak rate (processing rate).
 - $v(t)$: Current volume in the bucket.
 
-$$ v(t) = \max(0, v(t_0) - (t - t_0) \cdot r) $$
+$$
+v(t) = \max(0, v(t_0) - (t - t_0) \cdot r)
+$$
+
 A request is admitted if $v(t) + c \le B$.
 
 **Key Comparison:**
@@ -174,7 +181,10 @@ The Sliding Window Counter uses weighted averages of the current and previous fi
 
 **Mathematics:**
 If we are $30\%$ into the current minute window:
-$$ \text{count} = \text{current\_window\_count} + \text{previous\_window\_count} \times (1 - 0.3) $$
+
+$$
+\text{count} = \text{current\_window\_count} + \text{previous\_window\_count} \times (1 - 0.3)
+$$
 
 ---
 
@@ -321,7 +331,6 @@ For the expert researching new techniques, the frontier lies in the convergence 
 Mastering this domain requires not just knowing the algorithms, but understanding the failure modes of the underlying infrastructure—the cache consistency models, the network partitions, and the inherent biases in the data you are using to define "normal."
 
 If you treat this topic as a checklist of HTTP status codes, you will fail. Treat it as a complex, adaptive control system, and you will build something worthy of the title "expert." Now, go build something that can withstand the inevitable onslaught of the next generation of bad actors.
-
 
 ---
 

@@ -49,7 +49,11 @@ This asynchronous nature is key. It allows the system to model processes that op
 
 **Mathematical Analogy (Conceptual):**
 If we consider the state $S_t$ of an actor at time $t$, the transition to $S_{t+1}$ is a deterministic function of $S_t$ and the message $M$ received:
-$$S_{t+1} = f(S_t, M)$$
+
+$$
+S_{t+1} = f(S_t, M)
+$$
+
 The model guarantees that $f$ is only evaluated sequentially for each message $M$ in the order they are dequeued from the mailbox, thus maintaining determinism regarding state evolution, even if the *arrival* order is non-deterministic.
 
 ---

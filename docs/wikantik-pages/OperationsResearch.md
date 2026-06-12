@@ -72,8 +72,13 @@ The technical rigor of OR relies on several branches of mathematics:
 *   **Probability Theory**: Modeling uncertainty in [Stochastic Models in OR](StochasticModelsInOR).
 *   **Real Analysis**: Ensuring the existence and convergence of optimal points in continuous spaces.
 
-$$ \min z = \mathbf{c}^T \mathbf{x} $$
-$$ \text{subject to } \mathbf{Ax} \le \mathbf{b}, \mathbf{x} \ge 0 $$
+$$
+\min z = \mathbf{c}^T \mathbf{x}
+$$
+
+$$
+\text{subject to } \mathbf{Ax} \le \mathbf{b}, \mathbf{x} \ge 0
+$$
 
 ## 6. Real-World Application: Software Engineering
 In software systems, OR is critical for:

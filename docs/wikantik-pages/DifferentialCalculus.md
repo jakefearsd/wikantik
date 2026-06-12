@@ -35,7 +35,11 @@ The core of differential calculus is the derivative, defined as the instantaneou
 
 ### 1.1 The Formal Limit Definition
 The derivative $f'(x)$ of a function $f$ at point $x$ is the limit of the difference quotient:
-$$ f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h} $$
+
+$$
+f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}
+$$
+
 If this limit exists, $f$ is **differentiable** at $x$. 
 
 *   **Spatial Intuition:** The derivative is the slope of the unique tangent line that "kisses" the curve at a single point.
@@ -47,14 +51,25 @@ If this limit exists, $f$ is **differentiable** at $x$.
 
 ### 2.1 The Mean Value Theorem (MVT)
 The MVT provides the bridge between local derivatives and global behavior. If $f$ is continuous on $[a, b]$ and differentiable on $(a, b)$, then $\exists c \in (a, b)$ such that:
-$$ f'(c) = \frac{f(b) - f(a)}{b - a} $$
+
+$$
+f'(c) = \frac{f(b) - f(a)}{b - a}
+$$
+
 **Geometric Anchor:** There must be at least one point where the tangent line is parallel to the secant line connecting the interval's endpoints.
 
 ### 2.2 Taylor’s Theorem and Error Propagation
 Taylor series approximate any $n$-times differentiable function near a point $a$ with a polynomial:
-$$ f(x) = \sum_{k=0}^{n} \frac{f^{(k)}(a)}{k!} (x - a)^k + R_n(x) $$
+
+$$
+f(x) = \sum_{k=0}^{n} \frac{f^{(k)}(a)}{k!} (x - a)^k + R_n(x)
+$$
+
 The **Lagrange Remainder** $R_n(x)$ quantifies the approximation error, which is essential for [Numerical Methods](NumericalMethods):
-$$ R_n(x) = \frac{f^{(n+1)}(c)}{(n+1)!} (x - a)^{n+1} $$
+
+$$
+R_n(x) = \frac{f^{(n+1)}(c)}{(n+1)!} (x - a)^{n+1}
+$$
 
 ---
 
@@ -104,7 +119,11 @@ Convergence rates define how many iterations an algorithm needs to reach an erro
 
 ### 6.1 Robotics: Jacobian-based Inverse Kinematics
 In robotics, the Jacobian matrix relates joint velocities to the velocity of the end-effector (the "hand").
-$$ \mathbf{v}_{hand} = \mathbf{J}(\theta) \cdot \dot{\theta} $$
+
+$$
+\mathbf{v}_{hand} = \mathbf{J}(\theta) \cdot \dot{\theta}
+$$
+
 By inverting the Jacobian (or using the pseudo-inverse $\mathbf{J}^\dagger$), a controller can calculate exactly how to move each motor to reach a target coordinate in 3D space.
 
 ### 6.2 Economics: Marginal Analysis

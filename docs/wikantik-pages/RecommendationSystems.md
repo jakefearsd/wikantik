@@ -40,7 +40,11 @@ This treatise explores the mathematical foundations of **Low-Rank Matrix Complet
 The core data structure is the User-Item interaction matrix $R \in \mathbb{R}^{|U| \times |I|}$, which is inherently sparse (see [Information Theory](InformationTheory)).
 *   **Matrix Factorization (MF):** We approximate $R$ by the product of two lower-dimensional factor matrices: $R \approx P Q^T$.
 *   **The Optimization Goal:** Drawing from [Mathematics Hub](MathematicsHub) linear algebra, we seek to minimize the regularized squared error:
-    $$\min_{P, Q} \sum_{(u, i) \in \text{Observed}} (R_{u, i} - p_u \cdot q_i)^2 + \lambda_P ||P||^2 + \lambda_Q ||Q||^2$$
+
+    $$
+    \min_{P, Q} \sum_{(u, i) \in \text{Observed}} (R_{u, i} - p_u \cdot q_i)^2 + \lambda_P ||P||^2 + \lambda_Q ||Q||^2
+    $$
+
     This formulation transforms a sparse prediction task into a convex optimization problem solvable via Stochastic Gradient Descent (SGD).
 
 ---

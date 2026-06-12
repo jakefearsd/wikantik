@@ -46,7 +46,10 @@ The current state-of-the-art in information retrieval is **Hybrid Search**: comb
 **Reciprocal Rank Fusion (RRF)** is a standard way to merge the ranked lists from two disparate scoring systems without needing to normalize their raw scores.
 
 The RRF score for a document $d$ is calculated as:
-$$score(d) = \sum_{r \in R} \frac{1}{k + rank(d, r)}$$
+
+$$
+score(d) = \sum_{r \in R} \frac{1}{k + rank(d, r)}
+$$
 
 *   **$R$:** The set of rankers (e.g., `{BM25, Dense}`).
 *   **$rank(d, r)$:** The position of document $d$ in the results of ranker $r$.

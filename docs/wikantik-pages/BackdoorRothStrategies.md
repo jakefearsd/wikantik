@@ -50,7 +50,10 @@ The Pro-Rata Rule is the trap that catches unwary investors. It dictates that th
 **You cannot choose to only convert the after-tax portion.** 
 
 ### The Mathematical Formula
-$$\text{Tax-Free \%} = \frac{\text{Total After-Tax Basis}}{\text{Total Balance of ALL non-Roth IRAs}}$$
+
+$$
+\text{Tax-Free \%} = \frac{\text{Total After-Tax Basis}}{\text{Total Balance of ALL non-Roth IRAs}}
+$$
 
 *(The total balance is calculated based on the fair market value of all IRAs on **December 31st** of the conversion year).*
 

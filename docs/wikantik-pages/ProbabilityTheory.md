@@ -35,7 +35,10 @@ A function $P$ is a valid probability measure if and only if it satisfies three 
 1. **Non-negativity:** For any event $E \in \mathcal{F}$, $P(E) \ge 0$.
 2. **Unit Measure:** The probability of the entire sample space is certain: $P(\Omega) = 1$.
 3. **Countable Additivity ($\sigma$-additivity):** For any sequence of mutually exclusive (disjoint) events $E_1, E_2, E_3, \dots$:
-   $$ P\left(\bigcup_{i=1}^\infty E_i\right) = \sum_{i=1}^\infty P(E_i) $$
+
+   $$
+   P\left(\bigcup_{i=1}^\infty E_i\right) = \sum_{i=1}^\infty P(E_i)
+   $$
 
 #### 1.2.1 Immediate Corollaries
 From these axioms, we trivially derive the complement rule $P(E^c) = 1 - P(E)$, the probability of the empty set $P(\emptyset) = 0$, and the inclusion-exclusion principle $P(A \cup B) = P(A) + P(B) - P(A \cap B)$.
@@ -65,9 +68,16 @@ Let $X$ be a random variable with probability density function (PDF) $f(x)$.
 
 ### 3.2 Moment Generating Functions (MGF)
 The MGF of a random variable $X$ is defined as:
-$$ M_X(t) = \mathbb{E}[e^{tX}] $$
+
+$$
+M_X(t) = \mathbb{E}[e^{tX}]
+$$
+
 If the MGF exists, the $n$-th moment is given by the $n$-th derivative evaluated at $t=0$:
-$$ \mathbb{E}[X^n] = M_X^{(n)}(0) $$
+
+$$
+\mathbb{E}[X^n] = M_X^{(n)}(0)
+$$
 
 #### Table 1: Common Distributions and their Moments
 | Distribution | PDF / PMF | Expected Value | Variance |
@@ -80,12 +90,20 @@ $$ \mathbb{E}[X^n] = M_X^{(n)}(0) $$
 
 ### 4.1 Statistical Mechanics (Physics)
 In thermodynamics, the state of a system of particles is modeled as a probability distribution over the phase space. The **Boltzmann distribution** assigns a probability to each state $i$ based on its energy $E_i$ and the temperature $T$:
-$$ P(i) \propto e^{-E_i / (kT)} $$
+
+$$
+P(i) \propto e^{-E_i / (kT)}
+$$
+
 This is a direct application of maximizing entropy subject to an expected energy constraint.
 
 ### 4.2 Information Theory and Computer Science
 Claude Shannon's definition of entropy relies fundamentally on probability theory. The entropy $H$ of a discrete random variable quantifies the expected "surprise" or information content:
-$$ H(X) = -\sum_{x \in \mathcal{X}} P(x) \log_2 P(x) $$
+
+$$
+H(X) = -\sum_{x \in \mathcal{X}} P(x) \log_2 P(x)
+$$
+
 This forms the mathematical limit for lossless data compression algorithms used in network routing and storage.
 
 ## See Also

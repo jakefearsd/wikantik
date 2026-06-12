@@ -29,7 +29,10 @@ A **tensor** is a mathematical object that remains invariant under coordinate tr
 ## 1. The Multilinear Perspective
 
 A tensor of type $(p, q)$ is a multilinear map that takes $p$ covectors and $q$ vectors to a scalar:
-$$ T: \underbrace{V^* \times \dots \times V^*}_{p} \times \underbrace{V \times \dots \times V}_{q} \to \mathbb{R} $$
+
+$$
+T: \underbrace{V^* \times \dots \times V^*}_{p} \times \underbrace{V \times \dots \times V}_{q} \to \mathbb{R}
+$$
 
 ### 1.1 The Tensor Product ($\otimes$)
 The tensor product $V \otimes W$ linearizes bilinear interactions. In modern AI, the **Kronecker Product** (a specific form of tensor product) is used in **Higher-Order Transformers (HOT)** to decompose attention matrices, reducing complexity from $O(N^2)$ to $O(N)$ for high-dimensional multi-modal data.
@@ -50,7 +53,10 @@ As models move toward the 10-trillion parameter mark, traditional pruning is rep
 ## 3. Operations & Contractions
 
 The primary operation in both physics and AI is **Tensor Contraction**—the summation over repeated indices.
-$$ C = A \otimes B \implies C_{ik} = \sum_{j} A_{ij} B_{jk} $$
+
+$$
+C = A \otimes B \implies C_{ik} = \sum_{j} A_{ij} B_{jk}
+$$
 
 ### Superoptimization: Mirage (2026)
 Modern GPU compilers like **Mirage** treat entire neural networks as complex tensor contraction graphs ($\mu$Graphs). Mirage navigates the GPU memory hierarchy by automatically discovering optimized contraction sequences that human engineers and standard compilers (Triton) miss.

@@ -45,7 +45,11 @@ Once candidates are retrieved, more expensive algorithms are applied to the top-
 **Reciprocal Rank Fusion (RRF)** is the industry standard for hybrid retrieval. Its beauty lies in its simplicity and robustness; it doesn't care if one retriever uses scores of `[0.1, 0.9]` and another uses `[100, 1000]`.
 
 For a set of documents $D$ and a set of rankings $R$, the fused score $f(d)$ for document $d$ is:
-$$ f(d) = \sum_{r \in R} \frac{1}{k + \text{rank}(r, d)} $$
+
+$$
+f(d) = \sum_{r \in R} \frac{1}{k + \text{rank}(r, d)}
+$$
+
 *   **The Constant $k$**: (Typically 60) Smoothes the impact of high-ranking results and prevents a single top result from dominating the entire fusion.
 
 ## 3. The Lexical-Semantic Gap

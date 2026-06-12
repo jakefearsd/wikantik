@@ -28,9 +28,16 @@ The **Economic Order Quantity (EOQ)** model provides the benchmark for balancing
 
 ### 1.1 The Classical EOQ Formula
 The objective is to minimize the Total Annual Cost $TAC(Q)$:
-$$TAC(Q) = \frac{D}{Q} K + \frac{Q}{2} h$$
+
+$$
+TAC(Q) = \frac{D}{Q} K + \frac{Q}{2} h
+$$
+
 Where $D$ is annual demand, $K$ is ordering cost, and $h$ is holding cost per unit per year. The optimal order quantity $Q^*$ is:
-$$Q^* = \sqrt{\frac{2DK}{h}}$$
+
+$$
+Q^* = \sqrt{\frac{2DK}{h}}
+$$
 
 ### 1.2 Extensions: Production and Discounts
 *   **Economic Production Quantity (EPQ):** Adjusts for the rate of production $P$ during replenishment.
@@ -44,7 +51,11 @@ For single-period or seasonal goods, we use the **Newsvendor Model**, which bala
 
 ### 2.1 The Critical Ratio
 The optimal stocking level $Q^*$ is determined by the **Critical Ratio (CR)**:
-$$CR = \frac{C_u}{C_u + C_o}$$
+
+$$
+CR = \frac{C_u}{C_u + C_o}
+$$
+
 Where $C_u$ is the cost of underage (lost profit) and $C_o$ is the cost of overage (salvage loss). The goal is to find $Q^*$ such that $P(D \le Q^*) = CR$.
 
 ### 2.2 Demand Distribution
@@ -69,7 +80,11 @@ In systems with multiple tiers (e.g., Factory $\to$ DC $\to$ Retailer), we use t
 
 ### 4.2 Lead Time Variability
 The most common oversight is assuming fixed lead time. If lead time $L$ is stochastic, the total variance of demand during lead time is:
-$$\sigma_{total}^2 = \bar{L} \sigma_D^2 + \bar{D}^2 \sigma_L^2$$
+
+$$
+\sigma_{total}^2 = \bar{L} \sigma_D^2 + \bar{D}^2 \sigma_L^2
+$$
+
 Ignoring the $\sigma_L^2$ term (the variance of the lead time itself) leads to significant service level failures in real-world systems.
 
 ## Conclusion

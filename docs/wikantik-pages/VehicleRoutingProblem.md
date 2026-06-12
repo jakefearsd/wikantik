@@ -29,7 +29,10 @@ The Clarke-Wright Savings algorithm is the foundational "greedy" heuristic for C
 Initially, assume every customer $i$ and $j$ is served by a dedicated return trip from the depot (0). The distance is $2d_{0i} + 2d_{0j}$.
 If we merge $i$ and $j$ into a single route ($0 \to i \to j \to 0$), the new distance is $d_{0i} + d_{ij} + d_{j0}$.
 The **Savings ($S_{ij}$)** is:
-$$S_{ij} = d_{i0} + d_{0j} - d_{ij}$$
+
+$$
+S_{ij} = d_{i0} + d_{0j} - d_{ij}
+$$
 
 ### 1.2 Algorithm Execution
 1.  Compute the savings $S_{ij}$ for all pairs of customers.
@@ -45,7 +48,11 @@ ACO is a metaheuristic inspired by the pheromone-trailing behavior of ants. It i
 
 ### 2.1 Pheromone and Heuristic Information
 An "ant" (agent) constructs a route by moving between nodes. The probability $P_{ij}$ of moving from $i$ to $j$ is:
-$$P_{ij} = \frac{[\tau_{ij}]^\alpha \cdot [\eta_{ij}]^\beta}{\sum ([\tau_{ik}]^\alpha \cdot [\eta_{ik}]^\beta)}$$
+
+$$
+P_{ij} = \frac{[\tau_{ij}]^\alpha \cdot [\eta_{ij}]^\beta}{\sum ([\tau_{ik}]^\alpha \cdot [\eta_{ik}]^\beta)}
+$$
+
 Where:
 *   $\tau_{ij}$ = Pheromone density on edge $(i, j)$.
 *   $\eta_{ij}$ = Heuristic desirability (typically $1/d_{ij}$).

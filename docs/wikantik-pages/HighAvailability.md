@@ -28,7 +28,10 @@ cluster: distributed-systems
 
 ## 1. The Mathematics of "Nines"
 Availability ($A$) is formally defined by Mean Time Between Failures (MTBF) and Mean Time To Repair (MTTR):
-$$ A = \frac{MTBF}{MTBF + MTTR} $$
+
+$$
+A = \frac{MTBF}{MTBF + MTTR}
+$$
 
 Industry standards describe availability in "nines":
 *   **Three Nines (99.9%)**: ~8.77 hours of downtime per year. Typical for internal tools.

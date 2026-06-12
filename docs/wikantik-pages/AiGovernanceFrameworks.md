@@ -195,10 +195,16 @@ The most sophisticated technical stack is useless if the organization cannot ado
 We must abandon the binary (Allow/Deny) model. A modern governance system operates on a **Policy Lattice**, which is a multi-dimensional space of constraints.
 
 Instead of:
-$$\text{Access} = \text{True} \text{ OR } \text{False}$$
+
+$$
+\text{Access} = \text{True} \text{ OR } \text{False}
+$$
 
 We use a weighted, multi-criteria evaluation:
-$$\text{Decision} = f(\text{Policy}_1, \text{Policy}_2, \dots, \text{Policy}_n, \text{RiskScore}, \text{ConfidenceScore})$$
+
+$$
+\text{Decision} = f(\text{Policy}_1, \text{Policy}_2, \dots, \text{Policy}_n, \text{RiskScore}, \text{ConfidenceScore})
+$$
 
 The output is not just a decision, but a **Risk Score** (e.g., 0.85/1.0) and a **Mitigation Vector** (e.g., `[Masking: SSN, Redaction: Names, Review: Required]`).
 

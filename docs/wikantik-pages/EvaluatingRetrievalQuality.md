@@ -34,7 +34,11 @@ The percentage of queries for which the "ideal" document appears in the top $K$ 
 
 ### B. Mean Reciprocal Rank (MRR)
 MRR rewards the system for putting the correct answer as high as possible.
-$$ \text{MRR} = \frac{1}{|Q|} \sum_{i=1}^{|Q|} \frac{1}{\text{rank}_i} $$
+
+$$
+\text{MRR} = \frac{1}{|Q|} \sum_{i=1}^{|Q|} \frac{1}{\text{rank}_i}
+$$
+
 Where $\text{rank}_i$ is the position of the first relevant document for query $i$.
 *   **Intuition**: Getting the answer at rank 1 is twice as good as getting it at rank 2.
 

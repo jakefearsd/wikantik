@@ -59,7 +59,11 @@ For high-dimensional datasets ($>10^4$ features), the **Boruta-SHAP** hybrid is 
 1.  **Shadow Creation**: For each original feature $X_j$, create a shadow feature $S_j$ by randomly shuffling $X_j$ values.
 2.  **Training**: Train a tree-based model (XGBoost/LightGBM) on $\mathbf{X} \cup \mathbf{S}$.
 3.  **SHAP Importance**: Calculate the mean absolute SHAP value for all features:
-    $$ I(X_j) = \frac{1}{N} \sum_{i=1}^{N} |\phi_{i,j}| $$
+
+    $$
+    I(X_j) = \frac{1}{N} \sum_{i=1}^{N} |\phi_{i,j}|
+    $$
+
 4.  **Thresholding**: Find the maximum importance among all shadows: $Z_{max} = \max(I(S))$.
 5.  **Binomial Testing**: Repeat $M$ times. If $X_j$ beats $Z_{max}$ with statistical significance (Binomial Distribution $B(M, 0.5)$), confirm the feature.
 

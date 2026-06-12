@@ -33,7 +33,10 @@ An ELS is a calculated time value required for a trained operator to perform a s
 4.  **Variable Travel Time:** A distance-based calculation (Time = Distance / Velocity) that accounts for the layout-specific travel required to reach a location.
 
 **Standard Time Formula:**
-$$T_{std} = (BT \times PR) \times (1 + PFD) + T_{travel}$$
+
+$$
+T_{std} = (BT \times PR) \times (1 + PFD) + T_{travel}
+$$
 
 ## Throughput Modeling
 
@@ -46,7 +49,10 @@ Little’s Law ($L = \lambda W$) provides the fundamental relationship between i
 *   **$W$ (Wait Time):** The average time an order spends in the system.
 
 In labor management, $\lambda$ is directly tied to the sum of active ELS-rated hours:
-$$\lambda_{max} = \frac{N_{operators} \times \text{Utilization \%}}{T_{std\_per\_unit}}$$
+
+$$
+\lambda_{max} = \frac{N_{operators} \times \text{Utilization \%}}{T_{std\_per\_unit}}
+$$
 
 ### Capacity Bottleneck Analysis
 Throughput is limited by the "slowest" process in the chain. Modeling must identify the **Labor Constraint Point**:

@@ -35,7 +35,11 @@ A complex number $z = x + iy$ is a point in the 2D plane. Complex analysis treat
 
 ### 1.1 Holomorphic Functions and Cauchy-Riemann
 A function $f(z) = u(x,y) + iv(x,y)$ is **holomorphic** if it satisfies the Cauchy-Riemann equations:
-$$ \frac{\partial u}{\partial x} = \frac{\partial v}{\partial y}, \quad \frac{\partial u}{\partial y} = -\frac{\partial v}{\partial x} $$
+
+$$
+\frac{\partial u}{\partial x} = \frac{\partial v}{\partial y}, \quad \frac{\partial u}{\partial y} = -\frac{\partial v}{\partial x}
+$$
+
 **Geometric Intuition:** These equations ensure that the function acts locally as a **rotation and a scaling**. It does not "shear" space. This property is why analytic functions are **conformal** (angle-preserving).
 
 ---
@@ -44,12 +48,20 @@ $$ \frac{\partial u}{\partial x} = \frac{\partial v}{\partial y}, \quad \frac{\p
 
 ### 2.1 Cauchy’s Integral Theorem
 If $f(z)$ is analytic in a simply connected region, then the integral around any closed loop $\gamma$ is zero:
-$$ \oint_{\gamma} f(z) \, dz = 0 $$
+
+$$
+\oint_{\gamma} f(z) \, dz = 0
+$$
+
 This implies that the integral between two points is **path-independent**, a property usually reserved for conservative force fields in physics.
 
 ### 2.2 Cauchy’s Integral Formula
 The value of an analytic function inside a disk is entirely determined by its values on the boundary:
-$$ f(a) = \frac{1}{2\pi i} \oint_{\gamma} \frac{f(z)}{z-a} \, dz $$
+
+$$
+f(a) = \frac{1}{2\pi i} \oint_{\gamma} \frac{f(z)}{z-a} \, dz
+$$
+
 **Spatial Insight:** Information in the complex plane is "holographic." The boundary contains all the data needed to reconstruct the interior.
 
 ---
@@ -60,7 +72,10 @@ Where functions fail to be analytic, they have **singularities**. The most impor
 
 ### 3.1 The Residue Theorem
 The integral of a function around a closed loop is determined solely by the "residues" of its poles inside that loop:
-$$ \oint_{\gamma} f(z) \, dz = 2\pi i \sum \text{Res}(f, z_k) $$
+
+$$
+\oint_{\gamma} f(z) \, dz = 2\pi i \sum \text{Res}(f, z_k)
+$$
 
 **Worked Example: Evaluating $\int_{-\infty}^{\infty} \frac{1}{1+x^2} \, dx$**
 1. Extend to the complex plane: $f(z) = \frac{1}{1+z^2} = \frac{1}{(z+i)(z-i)}$.

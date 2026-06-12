@@ -43,12 +43,20 @@ If an event can occur in $m$ ways OR $n$ ways (and the sets of ways are disjoint
 
 ### 2.1. Permutations ($P(n,k)$): Order Matters
 The number of ways to arrange $k$ elements from a set of $n$ distinct elements:
-$$P(n, k) = \frac{n!}{(n-k)!}$$
+
+$$
+P(n, k) = \frac{n!}{(n-k)!}
+$$
+
 **Spatial Intuition:** Think of $P(n,k)$ as filling $k$ distinct slots, where each choice narrows the "volume" of available options for the next slot.
 
 ### 2.2. Combinations ($C(n,k)$ or $\binom{n}{k}$): Selection Only
 The number of ways to select $k$ elements from $n$ without regard to order:
-$$\binom{n}{k} = \frac{n!}{k!(n-k)!}$$
+
+$$
+\binom{n}{k} = \frac{n!}{k!(n-k)!}
+$$
+
 **Geometric Intuition: Grid Paths**
 $\binom{n}{k}$ is the number of ways to walk from $(0,0)$ to $(n-k, k)$ on a Manhattan-style grid using only "Right" and "Up" steps. Pascal's Triangle is essentially a map of these shortest paths across a coordinate system.
 
@@ -58,12 +66,20 @@ $\binom{n}{k}$ is the number of ways to walk from $(0,0)$ to $(n-k, k)$ on a Man
 
 ### 3.1. Stars and Bars (Multisets)
 To distribute $n$ identical items into $k$ distinct bins (allowing some to be empty), we use $k-1$ "bars" to divide the $n$ "stars."
-$$\text{Total ways} = \binom{n + k - 1}{k - 1}$$
+
+$$
+\text{Total ways} = \binom{n + k - 1}{k - 1}
+$$
+
 **Real-World Application:** This models resource allocation (e.g., distributing 10 CPU cores among 3 processes) and the Bose-Einstein statistics in physics.
 
 ### 3.2. Derangements ($!n$): The Math of Shuffling
 A derangement is a permutation where **no element remains in its original position**. 
-$$!n = n! \sum_{k=0}^{n} \frac{(-1)^k}{k!} \approx \frac{n!}{e}$$
+
+$$
+!n = n! \sum_{k=0}^{n} \frac{(-1)^k}{k!} \approx \frac{n!}{e}
+$$
+
 **The Enigma Weakness:** The Enigma machine was designed such that no letter could ever be encrypted as itself. This "guaranteed derangement" was a massive combinatorial hint that allowed Alan Turing to prune the search space of possible settings significantly.
 
 ---
@@ -71,13 +87,19 @@ $$!n = n! \sum_{k=0}^{n} \frac{(-1)^k}{k!} \approx \frac{n!}{e}$$
 ## 4. Generating Functions: Algebra as a Clothesline
 
 Generating functions transform combinatorial sequences into algebraic power series:
-$$A(x) = \sum_{n=0}^{\infty} a_n x^n$$
+
+$$
+A(x) = \sum_{n=0}^{\infty} a_n x^n
+$$
 
 ### 4.1. The "Clothesline" Intuition
 If $a_n$ is the number of ways to do something with $n$ items, the function $A(x)$ "hangs" these counts on the powers of $x$. 
 *   **Multiplication** of two generating functions $A(x) \cdot B(x)$ automatically performs a **Convolution**, summing up all ways to partition $n$ items into two groups $(k, n-k)$.
 *   **Change-Making Example:** The number of ways to make change for $n$ cents using pennies (1) and nickels (5) is the coefficient of $x^n$ in the expansion of:
-    $$\frac{1}{1-x} \cdot \frac{1}{1-x^5}$$
+
+    $$
+    \frac{1}{1-x} \cdot \frac{1}{1-x^5}
+    $$
 
 ---
 

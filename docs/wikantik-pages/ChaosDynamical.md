@@ -52,7 +52,10 @@ In 1963, Edward Lorenz discovered that a simplified model of atmospheric convect
 ## 3. Quantitative Foundation: The Logistics Map
 
 The **Logistics Map** is the simplest equation that generates chaos. Originally used to model population growth:
-$$ x_{n+1} = r x_n (1 - x_n) $$
+
+$$
+x_{n+1} = r x_n (1 - x_n)
+$$
 
 ### 3.1 The Bifurcation Diagram
 As the parameter $r$ increases, the system's behavior undergoes a "bifurcation" (splitting):

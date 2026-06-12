@@ -47,13 +47,24 @@ A **Riemannian metric** $g$ is the most fundamental tool in geometry. It is a sy
 
 ### 2.1 Quantitative Foundation: The Metric Tensor $g_{ij}$
 In a local coordinate system $\{x^1, \dots, x^n\}$, the distance between two nearby points is given by the line element:
-$$ ds^2 = \sum_{i,j} g_{ij} dx^i dx^j $$
+
+$$
+ds^2 = \sum_{i,j} g_{ij} dx^i dx^j
+$$
 
 ### 2.2 Worked Example: The Metric of a Sphere ($S^2$)
 For a sphere of radius $R$ in spherical coordinates $(\theta, \phi)$ (where $\theta$ is the colatitude and $\phi$ is the longitude), the metric is:
-$$ ds^2 = R^2 d\theta^2 + R^2 \sin^2\theta d\phi^2 $$
+
+$$
+ds^2 = R^2 d\theta^2 + R^2 \sin^2\theta d\phi^2
+$$
+
 The metric tensor matrix is:
-$$ [g_{ij}] = \begin{bmatrix} R^2 & 0 \\ 0 & R^2 \sin^2\theta \end{bmatrix} $$
+
+$$
+[g_{ij}] = \begin{bmatrix} R^2 & 0 \\ 0 & R^2 \sin^2\theta \end{bmatrix}
+$$
+
 **Intuition**: Near the equator ($\theta = \pi/2$), a small change in $\phi$ covers a large distance. Near the poles ($\theta \approx 0$), the $\sin^2\theta$ term shrinks, reflecting the fact that longitudes converge at the poles.
 
 ---

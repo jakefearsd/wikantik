@@ -36,7 +36,11 @@ The process begins by resolving query terms into a set of seed entity IDs ($Q$).
 
 ### B. Scoring Function
 The proximity score $S_{prox}$ for a candidate page is determined by the **maximum proximity** of its mentioned entities:
-$$ S_{prox}(p) = \max_{m \in \text{Mentions}(p)} \left( \frac{1}{1 + d(Q, m)} \right) $$
+
+$$
+S_{prox}(p) = \max_{m \in \text{Mentions}(p)} \left( \frac{1}{1 + d(Q, m)} \right)
+$$
+
 *   **Why Max?**: Using the maximum (rather than the mean or sum) ensures that a single high-quality match is enough to boost a page, preventing relevant content from being diluted by "noisy" co-mentions of unrelated entities.
 
 ## 2. Implementation: The GraphRerankStep
@@ -47,7 +51,11 @@ The implementation is designed for high-performance and **Graceful Degradation**
 2.  **Bulk Loading**: The `PageMentionsLoader` fetches all entity mentions for the entire candidate set (e.g., top 100 pages) in a **single SQL round-trip** using the `ANY(?)` operator.
 3.  **Base Rank Scaling**: To ensure the boost is proportional to the initial relevance, each page is assigned a base score derived from its fused rank: $B(p) = 1.0 - (\text{rank} / N)$.
 4.  **The Boost Calculation**:
-    $$ \text{FinalScore}(p) = B(p) + (\text{boost\_weight} \times S_{prox}(p)) $$
+
+    $$
+    \text{FinalScore}(p) = B(p) + (\text{boost\_weight} \times S_{prox}(p))
+    $$
+
 5.  **Stable Reordering**: The list is re-sorted by the final score. Because the sort is stable, pages with equal proximity scores retain their relative RRF ordering.
 
 ## 3. Fail-Safe Mechanics

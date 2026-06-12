@@ -25,7 +25,11 @@ A **vector** is often described as an arrow in space or a list of numbers. More 
 
 ### 1.2 Span: The Reachable Territory
 If you have a set of vectors $\{\mathbf{v}_1, \mathbf{v}_2, \dots, \mathbf{v}_n\}$, their **Span** is the collection of every point you can reach by scaling and adding them (forming a linear combination):
-$$\mathbf{b} = c_1\mathbf{v}_1 + c_2\mathbf{v}_2 + \dots + c_n\mathbf{v}_n$$
+
+$$
+\mathbf{b} = c_1\mathbf{v}_1 + c_2\mathbf{v}_2 + \dots + c_n\mathbf{v}_n
+$$
+
 *   **1D Span:** One vector covers a line.
 *   **2D Span:** Two non-parallel vectors cover a plane.
 *   **3D Span:** Three non-coplanar vectors cover all of space.
@@ -75,7 +79,11 @@ For any $m \times n$ matrix $\mathbf{A}$, there are four subspaces that reveal t
 
 ### 4.1 Eigenvalues and Eigenvectors
 Most vectors change direction when a matrix is applied. However, **Eigenvectors** ($\mathbf{v}$) are special: they only get scaled (stretched or squashed) by a factor $\lambda$ (the **Eigenvalue**).
-$$\mathbf{A}\mathbf{v} = \lambda \mathbf{v}$$
+
+$$
+\mathbf{A}\mathbf{v} = \lambda \mathbf{v}
+$$
+
 Spatially, eigenvectors represent the **natural axes** of the transformation.
 
 ### 4.2 Change of Basis and Diagonalization
@@ -95,7 +103,11 @@ For a **symmetric matrix** ($\mathbf{A} = \mathbf{A}^T$), the Spectral Theorem g
 ## V. Singular Value Decomposition (SVD)
 
 The SVD generalizes eigendecomposition to *any* matrix $\mathbf{A}$:
-$$\mathbf{A} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T$$
+
+$$
+\mathbf{A} = \mathbf{U} \mathbf{\Sigma} \mathbf{V}^T
+$$
+
 Geometrically, SVD decomposes any transformation into three steps:
 1.  **$\mathbf{V}^T$:** A rotation to align the space's "important directions" with the axes.
 2.  **$\mathbf{\Sigma}$:** A scaling (stretching/squashing) along those axes.

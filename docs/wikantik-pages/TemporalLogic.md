@@ -86,7 +86,9 @@ Temporal logic operators are precisely defined over paths ($\pi$) and states ($s
 - **Finally ($\Diamond$):** $\pi \vDash F \phi \iff \exists i \geq 0, \pi[i] \vDash \phi$
 - **Until ($U$):** $\pi \vDash \phi U \psi \iff \exists i \geq 0 (\pi[i] \vDash \psi \land \forall j < i, \pi[j] \vDash \phi)$
 
-$$ \phi U \psi \implies F \psi $$
+$$
+\phi U \psi \implies F \psi
+$$
 
 *Intuition:* If $\phi$ holds **Until** $\psi$, it implies that $\psi$ must **Eventually** happen.
 
@@ -94,8 +96,13 @@ $$ \phi U \psi \implies F \psi $$
 
 Mirroring the duality in Modal and Predicate logic, the temporal operators are connected through negation:
 
-$$ \neg G \phi \iff F \neg \phi $$
-$$ \neg F \phi \iff G \neg \phi $$
+$$
+\neg G \phi \iff F \neg \phi
+$$
+
+$$
+\neg F \phi \iff G \neg \phi
+$$
 
 "It is not always the case that the system is running" is equivalent to "Eventually, the system will not be running."
 

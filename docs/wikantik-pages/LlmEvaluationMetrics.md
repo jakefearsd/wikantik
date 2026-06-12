@@ -34,7 +34,11 @@ Standard software testing relies on deterministic assertions. LLM testing relies
 
 For engineering tasks, n-gram overlap is useless. We use **Pass@k**.
 A model generates $n$ samples for a coding problem. If $c$ samples pass the unit tests, the probability that at least one of $k$ samples passes is:
-$$ \text{Pass@k} = 1 - \frac{\binom{n-c}{k}}{\binom{n}{k}} $$
+
+$$
+\text{Pass@k} = 1 - \frac{\binom{n-c}{k}}{\binom{n}{k}}
+$$
+
 *Practitioner Note: In production, always report Pass@1. Pass@10 and Pass@100 are often used to inflate results in academic papers.*
 
 ## RAG-Specific Evaluation (RAGAS)

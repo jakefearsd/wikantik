@@ -76,7 +76,9 @@ By 2026, the migration to ARM-based compute (Graviton4) is the single largest RO
 ### 2.2 The Effective Savings Rate (ESR) Benchmark
 ROI is measured by the **ESR**—the actual discount achieved across all compute vs. the On-Demand baseline.
 
-$$ ESR = \left( 1 - \frac{\text{Total Actual Spend}}{\text{Total On-Demand Equivalent}} \right) \times 100 $$
+$$
+ESR = \left( 1 - \frac{\text{Total Actual Spend}}{\text{Total On-Demand Equivalent}} \right) \times 100
+$$
 
 - **Median Organizations**: 15% ESR (Ad-hoc Savings Plans).
 - **High-Maturity Organizations (2026)**: **40–50% ESR** (Automated Spot orchestration + 80% Reserved/Savings Plan coverage).

@@ -33,12 +33,19 @@ A discrete-time Markov chain is defined by a state space $S$ and a **Transition 
 
 ### 1.1. The Transition Matrix ($P$)
 If $P_{ij}$ is the probability of moving from state $i$ to state $j$:
-$$P_{ij} = P(X_{n+1} = j \mid X_n = i)$$
+
+$$
+P_{ij} = P(X_{n+1} = j \mid X_n = i)
+$$
+
 Every row of $P$ must sum to 1 (it is a right-stochastic matrix).
 
 ### 1.2. Multi-Step Prediction
 To find the probability distribution after $k$ steps, we take the initial distribution vector $\pi_0$ and multiply by the $k$-th power of the transition matrix:
-$$\pi_k = \pi_0 P^k$$
+
+$$
+\pi_k = \pi_0 P^k
+$$
 
 ---
 
@@ -51,13 +58,21 @@ All possible probability distributions for a system with $n$ states live on an *
 
 ### 2.2. The Fixed Point: The Steady State ($\pi$)
 The steady state (stationary distribution) is the vector $\pi$ that satisfies:
-$$\pi P = \pi$$
+
+$$
+\pi P = \pi
+$$
+
 **Linear Algebra Intuition:** $\pi$ is the **left-eigenvector** of $P$ corresponding to the eigenvalue $\lambda = 1$. 
 *   The "speed" at which the system reaches equilibrium is governed by the **spectral gap**: the difference between the largest eigenvalue ($\lambda_1 = 1$) and the second largest eigenvalue ($|\lambda_2|$). A smaller $\lambda_2$ means faster convergence (mixing).
 
 ### 2.3. Random Walks as Flow
 On an undirected graph, a random walk is a Markov chain. The steady state probability of being at a node is geometrically proportional to its **degree** (number of connections):
-$$\pi(v) = \frac{\text{deg}(v)}{2|E|}$$
+
+$$
+\pi(v) = \frac{\text{deg}(v)}{2|E|}
+$$
+
 Higher degree nodes act as "gravity wells" or "hubs" for the random walk.
 
 ---

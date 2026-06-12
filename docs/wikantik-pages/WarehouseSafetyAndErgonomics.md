@@ -26,7 +26,10 @@ Warehouse safety is a prerequisite for sustained throughput. In automated and hi
 The NIOSH Lifting Equation is used to calculate the Recommended Weight Limit (RWL) for manual lifting tasks. It identifies the "Load Constant" (LC) and applies several multipliers to account for the physical variables of the lift.
 
 ### The RWL Formula
-$$RWL = LC \times HM \times VM \times DM \times AM \times FM \times CM$$
+
+$$
+RWL = LC \times HM \times VM \times DM \times AM \times FM \times CM
+$$
 
 *   **LC (Load Constant):** 51 lbs (23 kg) — the maximum weight recommended under ideal conditions.
 *   **HM (Horizontal Multiplier):** $10/H$, where $H$ is the horizontal distance of the hands from the ankles.

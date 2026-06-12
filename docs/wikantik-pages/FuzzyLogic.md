@@ -78,13 +78,17 @@ A common misconception is that fuzzy logic is just probability. They are geometr
 - **Probability:** Represents **randomness** (likelihood of a crisp event). A 0.5 probability bottle is either 100% full or 100% empty, but you haven't looked yet.
 - **Fuzzy Logic:** Represents **ambiguity** (physical state). A 0.5 fuzzy bottle is **physically half-empty**.
 
-$$ \text{Fuzziness} \neq \text{Uncertainty} $$
+$$
+\text{Fuzziness} \neq \text{Uncertainty}
+$$
 
 ## 5. Formal Mathematical Structure
 
 Fuzzy logic is often grounded in **Lukasiewicz Logic** or other multi-valued systems. The **Valuation** $v(\phi)$ is a mapping to the real interval $[0, 1]$:
 
-$$ v(\phi \to \psi) = \min(1, 1 - v(\phi) + v(\psi)) $$
+$$
+v(\phi \to \psi) = \min(1, 1 - v(\phi) + v(\psi))
+$$
 
 This allows for a rigorous calculus of "Partial Truth" that satisfies many properties of classical logic while enabling continuous control.
 

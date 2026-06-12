@@ -24,11 +24,17 @@ Modern NLP has transitioned from sequential recurrent models (RNNs/LSTMs) to par
 ## 1. The Attention Mechanism: Scaled Dot-Product
 
 The core of the Transformer is **Self-Attention**. For an input sequence of embeddings $X$, we derive three matrices: **Query ($Q$)**, **Key ($K$)**, and **Value ($V$)** via linear projections:
-$$Q = XW_Q, \quad K = XW_K, \quad V = XW_V$$
+
+$$
+Q = XW_Q, \quad K = XW_K, \quad V = XW_V
+$$
 
 ### 1.1 The Attention Formula
 The attention weights are calculated by measuring the compatibility between queries and keys, normalized by a softmax function:
-$$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
+
+$$
+\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
+$$
 
 *   **$QK^T$:** Computes the raw similarity scores between every pair of tokens.
 *   **$\sqrt{d_k}$:** Scaling factor (where $d_k$ is the dimension of the keys). This prevents the dot products from growing too large in magnitude, which would push the softmax into regions with extremely small gradients.
@@ -49,7 +55,11 @@ Since the embeddings for tokens $1 \dots N$ do not change when token $N+1$ is ad
 
 ### 2.3 Memory Constraints
 The KV cache size grows linearly with sequence length ($L$) and batch size ($B$):
-$$\text{Memory} \approx 2 \times \text{layers} \times B \times L \times \text{heads} \times d_{head} \times \text{precision\_bytes}$$
+
+$$
+\text{Memory} \approx 2 \times \text{layers} \times B \times L \times \text{heads} \times d_{head} \times \text{precision\_bytes}
+$$
+
 For a 70B parameter model with a 4k context window, the KV cache can consume tens of gigabytes of VRAM, making **PagedAttention** (used in vLLM) necessary to manage fragmented memory.
 
 ## 3. Beyond Self-Attention: Multi-Head and GQA

@@ -26,7 +26,10 @@ This article defines the quantitative metrics used to model the speed and depth 
 ## 1. The Recovery Coefficient ($C_r$)
 
 The Recovery Coefficient is a measure of how quickly an asset returns to its pre-crisis moving average.
-$$ C_r = \frac{\Delta P_{recovery}}{\Delta T_{duration}} $$
+
+$$
+C_r = \frac{\Delta P_{recovery}}{\Delta T_{duration}}
+$$
 
 ## 2. Historical Benchmarks
 

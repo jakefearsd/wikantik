@@ -33,7 +33,11 @@ XRF allows for non-destructive elemental analysis. By measuring the secondary X-
 ## 2. Density Metrics (Archimedes' Principle)
 
 Measuring the specific gravity remains the most reliable check for core displacement.
-$$ \rho = \frac{m}{m - m_{water}} $$
+
+$$
+\rho = \frac{m}{m - m_{water}}
+$$
+
 Counterfeits using lead or tungsten cores to match weight will inevitably deviate in volume, leading to a measurable density mismatch.
 
 ## 3. Acoustic Resonance Analysis

@@ -53,7 +53,10 @@ Invariants are "markers" that stay the same when you deform a shape. If two shap
 
 ### 2.1 The Euler Characteristic ($\chi$)
 A simple number that describes a space's structure regardless of its specific geometry. For a surface made of vertices ($V$), edges ($E$), and faces ($F$):
-$$ \chi = V - E + F $$
+
+$$
+\chi = V - E + F
+$$
 
 | Space | $\chi$ | Visualization |
 | :--- | :--- | :--- |

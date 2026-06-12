@@ -23,7 +23,11 @@ The generalization error of any machine learning model can be decomposed into th
 
 ### A. The Error Decomposition
 For a true function $f(x)$ and an estimate $\hat{f}(x)$, the expected Mean Squared Error (MSE) at a point $x$ is:
-$$\mathbb{E}[(y - \hat{f}(x))^2] = \text{Bias}[\hat{f}(x)]^2 + \text{Var}[\hat{f}(x)] + \sigma^2$$
+
+$$
+\mathbb{E}[(y - \hat{f}(x))^2] = \text{Bias}[\hat{f}(x)]^2 + \text{Var}[\hat{f}(x)] + \sigma^2
+$$
+
 *   **Bias ($\mathbb{E}[\hat{f}(x)] - f(x)$):** Error from erroneous assumptions in the learning algorithm (underfitting).
 *   **Variance ($\mathbb{E}[\hat{f}(x)^2] - \mathbb{E}[\hat{f}(x)]^2$):** Error from sensitivity to small fluctuations in the training set (overfitting).
 *   **$\sigma^2$ (Irreducible Error):** The noise inherent in the data itself.
@@ -37,19 +41,39 @@ Backpropagation is the application of the **Chain Rule** to compute the gradient
 
 ### A. The Forward Pass
 For a layer $l$:
-$$z^{(l)} = W^{(l)} a^{(l-1)} + b^{(l)}$$
-$$a^{(l)} = \sigma(z^{(l)})$$
+
+$$
+z^{(l)} = W^{(l)} a^{(l-1)} + b^{(l)}
+$$
+
+$$
+a^{(l)} = \sigma(z^{(l)})
+$$
 
 ### B. The Backward Pass (The Gradient Flow)
 We define the "error" $\delta^{(l)}$ for layer $l$ as the derivative of the loss with respect to the pre-activation input $z^{(l)}$:
-$$\delta^{(l)} = \frac{\partial \mathcal{L}}{\partial z^{(l)}}$$
+
+$$
+\delta^{(l)} = \frac{\partial \mathcal{L}}{\partial z^{(l)}}
+$$
 
 1.  **Output Layer Error:**
-    $$\delta^{(L)} = \nabla_a \mathcal{L} \odot \sigma'(z^{(L)})$$
+
+    $$
+    \delta^{(L)} = \nabla_a \mathcal{L} \odot \sigma'(z^{(L)})
+    $$
+
 2.  **Hidden Layer Error (Recursive):**
-    $$\delta^{(l)} = ((W^{(l+1)})^T \delta^{(l+1)}) \odot \sigma'(z^{(l)})$$
+
+    $$
+    \delta^{(l)} = ((W^{(l+1)})^T \delta^{(l+1)}) \odot \sigma'(z^{(l)})
+    $$
+
 3.  **Weight Gradients:**
-    $$\frac{\partial \mathcal{L}}{\partial W^{(l)}} = \delta^{(l)} (a^{(l-1)})^T$$
+
+    $$
+    \frac{\partial \mathcal{L}}{\partial W^{(l)}} = \delta^{(l)} (a^{(l-1)})^T
+    $$
 
 ### C. Optimization and Vanishing Gradients
 The multiplicative nature of the chain rule in deep networks leads to the **Vanishing Gradient** problem, where $\delta^{(l)}$ approaches zero as it propagates backward. Solutions include **Residual Connections** and **Batch Normalization**, which maintain the magnitude of the gradient signal.
@@ -60,7 +84,11 @@ The transition from small models to Large Language Models (LLMs) is governed by 
 
 ### A. The Power Law Form
 Kaplan et al. (2020) observed that cross-entropy loss $L$ follows:
-$$L(N, D) \propto \left( \frac{N}{N_c} \right)^{-\alpha_N} + \left( \frac{D}{D_c} \right)^{-\alpha_D}$$
+
+$$
+L(N, D) \propto \left( \frac{N}{N_c} \right)^{-\alpha_N} + \left( \frac{D}{D_c} \right)^{-\alpha_D}
+$$
+
 This suggests that as long as you scale $N$ and $D$ in tandem, the loss continues to decrease predictably.
 
 ### B. The Chinchilla Scaling (Hoffmann et al., 2022)

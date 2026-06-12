@@ -427,3 +427,18 @@ Claude Code sessions on this project are expensive. Follow these rules to minimi
 - **Don't echo back file contents** you just read. Summarize the key finding in one sentence if needed.
 - **Don't recap completed work** unless asked. The diff speaks for itself.
 - **Keep commit messages to 1-3 lines.** The code change is the documentation.
+
+### Testing SPARQL via Knowledge MCP
+When testing the `sparql_query` or any other tool on the `/knowledge-mcp` endpoint via raw Python scripts:
+1. **Initialize properly**: You MUST send `initialize`, extract the `Mcp-Session-Id` header from the response, and then send `notifications/initialized`.
+2. **Include Session ID**: Every subsequent `tools/call` MUST include the `Mcp-Session-Id` header. Failure to do so will result in the request hitting the HTTP filter chain (like `SessionCookiePolicyFilter`) and returning a raw 400/500 Tomcat HTML/JSON stack trace, rather than hitting the MCP execution block.
+3. **Parse SSE**: Most `tools/call` responses return `text/event-stream`. You must split by `\n`, look for `data:`, and JSON-parse the payload to read `result.content[0].text`.
+4. **SPARQL Namespace**: The ontology requires the `wk:` prefix (`PREFIX wk: <https://wiki.wikantik.com/ns/wikantik#>`).
+5. **JSON bindings**: Standard `SELECT` queries will return standard `sparql-results-json` where you must parse `results.bindings`.
+
+### Formatting LaTeX Math
+When writing LaTeX formulas in Wikantik:
+- **Inline Math**: Use standard `$ ... $` syntax. It is safely parsed into `<span class="math-inline">`.
+- **Block Math**: You MUST wrap `$$ ... $$` with blank lines before and after. If you place `$$` adjacent to text without blank lines, the markdown parser will treat it as a standard paragraph. This causes two critical rendering defects:
+  1. HTML escaping breaks the operators (`=` becomes `&#61;`).
+  2. The parser's attribute extension will silently swallow bracketed letters (e.g., `\mathbb{E}` becomes `\mathbb`), destroying the formula.

@@ -43,7 +43,7 @@ public class ListTagsTool implements McpTool {
 
     @Override
     public McpSchema.Tool definition() {
-        final Map< String, Object > props = new LinkedHashMap<>();
+        final Map< String, Object > props = PaginationSchema.props();
         props.put( "min_pages", Map.of(
                 "type", "integer",
                 "description", "Only return tags used by at least this many pages (default 1).",
@@ -87,7 +87,7 @@ public class ListTagsTool implements McpTool {
                     : 1;
             final List< TagSummary > tags = service.listTags( minPages );
             return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
-                    Map.of( "tags", tags, "count", tags.size() ) );
+                    McpToolUtils.paginate( "tags", tags, arguments, 50 ) );
         } catch ( final Exception e ) {
             LOG.error( "list_tags failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );

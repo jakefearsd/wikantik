@@ -74,7 +74,7 @@ public class ListClustersTool implements McpTool {
                 .description( "List every cluster in the wiki with its hub page, article count, " +
                         "and most-recent update time. Call this first when an agent needs a map of " +
                         "topic areas before drilling into a specific cluster." )
-                .inputSchema( new McpSchema.JsonSchema( "object", Map.of(), List.of(), null, null, null ) )
+                .inputSchema( new McpSchema.JsonSchema( "object", PaginationSchema.props(), List.of(), null, null, null ) )
                 .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
@@ -85,7 +85,7 @@ public class ListClustersTool implements McpTool {
         try {
             final List< ClusterSummary > clusters = service.listClusters();
             return McpToolUtils.jsonResult( KnowledgeMcpUtils.GSON,
-                    Map.of( "clusters", clusters, "count", clusters.size() ) );
+                    McpToolUtils.paginate( "clusters", clusters, arguments, 50 ) );
         } catch ( final Exception e ) {
             LOG.error( "list_clusters failed: {}", e.getMessage(), e );
             return McpToolUtils.errorResult( KnowledgeMcpUtils.GSON, e.getMessage() );

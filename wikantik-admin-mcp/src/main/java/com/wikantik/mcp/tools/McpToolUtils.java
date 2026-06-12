@@ -209,6 +209,29 @@ public final class McpToolUtils {
     }
 
     /**
+     * Builds a paginated tool result for a list-returning tool. Reads {@code limit} (default
+     * {@code defaultLimit}, min 1) and {@code offset} (default 0, min 0) from {@code args}, slices
+     * {@code all}, and returns a map of {@code {itemsKey: page, count: <total>, returned, offset,
+     * limit, hasMore}} so an agent can page without the full (potentially huge) list being dumped.
+     */
+    public static Map< String, Object > paginate( final String itemsKey, final List< ? > all,
+            final Map< String, Object > args, final int defaultLimit ) {
+        final int total = all.size();
+        final int offset = Math.max( 0, getInt( args, "offset", 0 ) );
+        final int limit = Math.max( 1, getInt( args, "limit", defaultLimit ) );
+        final int from = Math.min( offset, total );
+        final int to = Math.min( from + limit, total );
+        final Map< String, Object > out = new LinkedHashMap<>();
+        out.put( itemsKey, all.subList( from, to ) );
+        out.put( "count", total );
+        out.put( "returned", to - from );
+        out.put( "offset", offset );
+        out.put( "limit", limit );
+        out.put( "hasMore", to < total );
+        return out;
+    }
+
+    /**
      * Returns {@code o.toString()} or {@code null}. Useful when reading MCP argument
      * values that may be either a String or another type that should be rendered
      * for an error message.

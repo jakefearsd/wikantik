@@ -59,4 +59,36 @@ class ListClustersToolTest {
         final var content = ( McpSchema.TextContent ) result.content().get( 0 );
         assertTrue( content.text().contains( "wikantik-development" ) );
     }
+
+    private ClusterSummary cluster( final int i ) {
+        return new ClusterSummary( "c" + i,
+                new PageDescriptor( "01A" + i, "Hub" + i, "Hub " + i, PageType.HUB, "c" + i,
+                        List.of(), "hub", Instant.EPOCH, Optional.empty() ),
+                1, Instant.EPOCH );
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private Map< String, Object > parse( final McpSchema.CallToolResult r ) {
+        return new com.google.gson.Gson().fromJson(
+                ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text(), Map.class );
+    }
+
+    @Test
+    void paginates_with_default_limit_and_offset() {
+        final StructuralIndexService svc = mock( StructuralIndexService.class );
+        when( svc.listClusters() ).thenReturn(
+                java.util.stream.IntStream.range( 0, 60 ).mapToObj( this::cluster ).toList() );
+
+        // Default limit caps the dump at 50, but reports the true total + hasMore.
+        final Map< String, Object > def = parse( new ListClustersTool( svc ).execute( Map.of() ) );
+        assertEquals( 60.0, def.get( "count" ) );
+        assertEquals( 50.0, def.get( "returned" ) );
+        assertEquals( Boolean.TRUE, def.get( "hasMore" ) );
+        assertEquals( 50, ( ( List< ? > ) def.get( "clusters" ) ).size() );
+
+        // offset pages to the tail.
+        final Map< String, Object > pg = parse( new ListClustersTool( svc ).execute( Map.of( "offset", 50 ) ) );
+        assertEquals( 10.0, pg.get( "returned" ) );
+        assertEquals( Boolean.FALSE, pg.get( "hasMore" ) );
+    }
 }

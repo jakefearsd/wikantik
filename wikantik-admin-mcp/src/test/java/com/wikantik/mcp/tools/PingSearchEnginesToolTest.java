@@ -59,6 +59,16 @@ class PingSearchEnginesToolTest {
     }
 
     @Test
+    void pingIsNotReadOnlyAndIsOpenWorld() {
+        final McpSchema.ToolAnnotations ann = new PingSearchEnginesTool(
+                "http://wiki.example.com", null, stubClient( 200 ) ).definition().annotations();
+        assertEquals( Boolean.FALSE, ann.readOnlyHint(),
+                "ping_search_engines makes external HTTP calls — must not be read-only" );
+        assertEquals( Boolean.TRUE, ann.openWorldHint(),
+                "ping_search_engines interacts with external systems — open-world" );
+    }
+
+    @Test
     @SuppressWarnings( "unchecked" )
     void testGooglePing_success() {
         final PingSearchEnginesTool tool = new PingSearchEnginesTool(

@@ -105,7 +105,9 @@ public class PingSearchEnginesTool implements McpTool {
                         "Use after publishing a cluster or making significant content updates." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "service" ), null, null, null ) )
                 .outputSchema( outputSchema )
-                .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
+                // readOnlyHint=false + openWorldHint=true: pings external search engines (Google/IndexNow)
+                // — an external, observable side effect, so harnesses can gate on it. Idempotent (re-ping is safe).
+                .annotations( new McpSchema.ToolAnnotations( null, false, false, true, true, null ) )
                 .build();
     }
 

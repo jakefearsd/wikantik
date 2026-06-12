@@ -51,10 +51,49 @@ class MathStructureValidatorTest {
         assertEquals(List.of(), validator.validate(body));
     }
 
+    private boolean hasWarning(final List<MathViolation> v, final String code) {
+        return v.stream().anyMatch(x -> x.severity() == Severity.WARNING && x.code().equals(code));
+    }
+
     @Test
-    void allowsCurrencyProse() {
-        final String body = "It costs $5 and $10 to ship, total $15.";
-        assertEquals(List.of(), validator.validate(body));
+    void warnsOnCurrencyProse() {
+        // Was allowsCurrencyProse: currency $ wrapping prose now WARNs (never blocks).
+        assertTrue(hasWarning(validator.validate("It costs $5 and $10 to ship, total $15."),
+                "math.inline.prose"));
+    }
+
+    @Test
+    void warnsOnCurrencyWrappingClause() {
+        assertTrue(hasWarning(validator.validate("You save $500 on every $1000 spent."),
+                "math.inline.prose"));
+        assertTrue(hasWarning(validator.validate("gold hit $3,800 per ounce and silver $48 today"),
+                "math.inline.prose"));
+    }
+
+    @Test
+    void doesNotWarnOnRealInlineMath() {
+        for (final String body : new String[]{
+                "the sum $x + y$ and product $a \\cdot b$",
+                "let $f(n)$ be the cost and $g(n)$ the heuristic",
+                "the first $3$ terms with $a_1 + b_2$",
+                "compute $max(x, y)$ then $\\frac{a}{b}$",
+                "Einstein wrote $E = mc^2$ in 1905"}) {
+            assertEquals(List.of(), validator.validate(body).stream()
+                    .filter(x -> x.code().equals("math.inline.prose")).toList(),
+                    "should not warn on: " + body);
+        }
+    }
+
+    @Test
+    void doesNotWarnOnEscapedCurrency() {
+        assertEquals(List.of(), validator.validate("costs \\$500 and \\$1000 per unit").stream()
+                .filter(x -> x.code().equals("math.inline.prose")).toList());
+    }
+
+    @Test
+    void doesNotWarnOnProseBetweenClosedPairs() {
+        assertEquals(List.of(), validator.validate("let $g(n)$ be the cost from start and $h(n)$ the rest")
+                .stream().filter(x -> x.code().equals("math.inline.prose")).toList());
     }
 
     @Test

@@ -99,10 +99,10 @@ class GetBacklinksToolTest {
         assertNotNull( def.description() );
         assertTrue( def.description().contains( "backlinks" ) );
         assertNotNull( def.inputSchema() );
-        assertTrue( def.inputSchema().required().contains( "pageName" ) );
+        assertTrue( def.inputSchema().required().contains( "slug" ) );
         // Phase 6: per-property examples present on input schema.
         final Map< String, Object > props = def.inputSchema().properties();
-        final Map< String, Object > pageNameProp = ( Map< String, Object > ) props.get( "pageName" );
+        final Map< String, Object > pageNameProp = ( Map< String, Object > ) props.get( "slug" );
         assertTrue( pageNameProp.containsKey( "examples" ),
                 "input schema property 'pageName' should advertise examples for agent first-call success" );
         assertFalse( ( ( List< ? > ) pageNameProp.get( "examples" ) ).isEmpty() );

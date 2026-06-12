@@ -60,7 +60,7 @@ public class PreviewStructuredDataTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageName", Map.of(
+        properties.put( "slug", Map.of(
                 "type", "string",
                 "description", "Page name to preview structured data for",
                 "examples", List.of( "HybridRetrieval" )
@@ -87,7 +87,7 @@ public class PreviewStructuredDataTool implements McpTool {
                         "in the HTML output: meta tags, Open Graph, JSON-LD, breadcrumbs, Atom feed " +
                         "inclusion, and Google News Sitemap eligibility. Use to verify SEO impact " +
                         "before moving on." )
-                .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
+                .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "slug" ), null, null, null ) )
                 .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
@@ -95,7 +95,7 @@ public class PreviewStructuredDataTool implements McpTool {
 
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        final String pageName = McpToolUtils.getString( arguments, "pageName" );
+        final String pageName = McpToolUtils.pageSlug( arguments );
         if ( pageName == null || pageName.isBlank() ) {
             return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
                     "Missing required parameter: pageName" );

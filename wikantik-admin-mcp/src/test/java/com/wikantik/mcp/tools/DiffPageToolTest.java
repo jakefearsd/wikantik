@@ -107,7 +107,7 @@ class DiffPageToolTest {
         assertEquals( "diff_page", def.name() );
         assertNotNull( def.annotations() );
         assertTrue( def.annotations().readOnlyHint() );
-        assertTrue( def.inputSchema().required().contains( "pageName" ) );
+        assertTrue( def.inputSchema().required().contains( "slug" ) );
         assertTrue( def.inputSchema().required().contains( "version1" ) );
         assertTrue( def.inputSchema().required().contains( "version2" ) );
     }

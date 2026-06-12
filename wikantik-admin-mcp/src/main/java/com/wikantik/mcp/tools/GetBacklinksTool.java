@@ -45,7 +45,7 @@ public class GetBacklinksTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageName", Map.of(
+        properties.put( "slug", Map.of(
                 "type", "string",
                 "description", "Name of the page to find backlinks for",
                 "examples", List.of( "HybridRetrieval" )
@@ -66,7 +66,7 @@ public class GetBacklinksTool implements McpTool {
                 .name( TOOL_NAME )
                 .description( "Find pages that link to a given page (incoming edges in the Page Graph). " +
                         "Returns {pageName, backlinks: [names]} sorted alphabetically." )
-                .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "pageName" ), null, null, null ) )
+                .inputSchema( new McpSchema.JsonSchema( "object", properties, List.of( "slug" ), null, null, null ) )
                 .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
@@ -74,7 +74,7 @@ public class GetBacklinksTool implements McpTool {
 
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        final String pageName = McpToolUtils.getString( arguments, "pageName" );
+        final String pageName = McpToolUtils.pageSlug( arguments );
 
         final Set< String > referrers = referenceManager.findReferrers( pageName );
         final List< String > backlinks = new ArrayList<>( referrers );

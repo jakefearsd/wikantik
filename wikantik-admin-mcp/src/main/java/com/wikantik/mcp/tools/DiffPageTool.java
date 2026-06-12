@@ -60,7 +60,7 @@ public class DiffPageTool implements McpTool {
     @Override
     public McpSchema.Tool definition() {
         final Map< String, Object > properties = new LinkedHashMap<>();
-        properties.put( "pageName", Map.of(
+        properties.put( "slug", Map.of(
                 "type", "string",
                 "description", "Name of the wiki page",
                 "examples", List.of( "HybridRetrieval" )
@@ -91,7 +91,7 @@ public class DiffPageTool implements McpTool {
                         "Returns {pageName, version1, version2, diff} where diff is the textual difference. " +
                         "Use get_page_history first to find available version numbers." )
                 .inputSchema( new McpSchema.JsonSchema( "object", properties,
-                        List.of( "pageName", "version1", "version2" ), null, null, null ) )
+                        List.of( "slug", "version1", "version2" ), null, null, null ) )
                 .outputSchema( outputSchema )
                 .annotations( new McpSchema.ToolAnnotations( null, true, false, true, null, null ) )
                 .build();
@@ -99,7 +99,7 @@ public class DiffPageTool implements McpTool {
 
     @Override
     public McpSchema.CallToolResult execute( final Map< String, Object > arguments ) {
-        final String pageName = McpToolUtils.getString( arguments, "pageName" );
+        final String pageName = McpToolUtils.pageSlug( arguments );
         final int version1 = McpToolUtils.getInt( arguments, "version1", 1 );
         final int version2 = McpToolUtils.getInt( arguments, "version2", 1 );
 

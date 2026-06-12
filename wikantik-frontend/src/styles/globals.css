@@ -2274,3 +2274,8 @@ h3:focus-within .heading-anchor {
 /* Shrink the embedded selects + provenance badges so each curation row is shorter. */
 .kg-panel .ui-select { padding: 0.15rem 0.4rem; font-size: 0.8rem; }
 .kg-panel-row .badge { padding: 2px 6px; font-size: 0.62rem; }
+/* The shared admin-empty-state carries 4rem (space-2xl) vertical padding meant for
+   full-page admin tables — ~128px around one line. In the KG panel that bloats the
+   sections, especially the often-empty Relations list. Compact it to an inline note. */
+.kg-panel .admin-empty-state { padding: 0.1rem 0; text-align: left; }
+.kg-panel .admin-empty-message { font-size: 0.8rem; font-style: italic; margin: 0; color: var(--text-muted); }

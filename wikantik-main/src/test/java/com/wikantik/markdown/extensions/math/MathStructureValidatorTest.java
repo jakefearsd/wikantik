@@ -70,4 +70,23 @@ class MathStructureValidatorTest {
         assertTrue(v.stream().anyMatch(x -> x.severity() == Severity.WARNING
                 && x.code().equals("math.display.empty")));
     }
+
+    @Test
+    void blocksSingleLineDisplayWithCommand() {
+        assertTrue(hasError(validator.validate("intro\n$$E = \\frac{a}{b}$$\noutro"),
+                "math.display.notIsolated"));
+    }
+
+    @Test
+    void blocksSingleLineDisplayWithoutBackslash() {
+        // The ActorModelProgramming class — no backslash, previously missed.
+        assertTrue(hasError(validator.validate("intro\n$$S_{t+1} = f(S_t, M)$$\nouttro"),
+                "math.display.notIsolated"));
+    }
+
+    @Test
+    void blocksGluedOpenIsolatedClose() {
+        assertTrue(hasError(validator.validate("text $$\n x = y \n$$\nrest"),
+                "math.display.notIsolated"));
+    }
 }

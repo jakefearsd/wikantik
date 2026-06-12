@@ -26,9 +26,8 @@ import java.util.List;
 /**
  * Detects high-confidence math <em>structure</em> problems by scanning code-masked {@code $$} pairs.
  * <ul>
- *   <li>ERROR {@code math.display.notIsolated}: a {@code $$…$$} pair whose delimiters are glued to
- *       surrounding text (not on their own line) and whose content contains a {@code \\command} —
- *       this renders as literal text (the FastenerEngineering bug).</li>
+ *   <li>ERROR {@code math.display.notIsolated}: a {@code $$…$$} pair whose delimiters are not each
+ *       alone on their own line — it renders as literal text (the FastenerEngineering / single-line bug).</li>
  *   <li>ERROR {@code math.display.unterminated}: an odd, unpaired {@code $$}.</li>
  *   <li>WARNING {@code math.display.empty}: a {@code $$…$$} pair with blank content.</li>
  * </ul>
@@ -62,9 +61,7 @@ public class MathStructureValidator {
                         MathSourceRange.from(body, open, close + 2)));
                 continue;
             }
-            final boolean openIsolated = lineIsBlankExceptDelimAt(body, open, true);
-            final boolean closeIsolated = lineIsBlankExceptDelimAt(body, close, false);
-            if ((!openIsolated || !closeIsolated) && content.contains("\\")) {
+            if (!delimiterAloneOnLine(body, open) || !delimiterAloneOnLine(body, close)) {
                 out.add(new MathViolation("math.display.notIsolated", Severity.ERROR,
                         "Display math ($$…$$) is glued to surrounding text and will render as "
                                 + "literal text. Put the $$ delimiters on their own lines.",
@@ -80,20 +77,17 @@ public class MathStructureValidator {
         return out;
     }
 
-    /** True when the {@code $$} delimiter at {@code pos} is alone on its line (ignoring whitespace). */
-    private static boolean lineIsBlankExceptDelimAt(final String body, final int pos, final boolean checkBefore) {
-        if (checkBefore) {
-            int i = pos - 1;
-            while (i >= 0 && body.charAt(i) != '\n') {
-                if (!Character.isWhitespace(body.charAt(i))) { return false; }
-                i--;
-            }
-            return true;
-        }
-        int i = pos + 2;   // char after "$$"
-        while (i < body.length() && body.charAt(i) != '\n') {
+    /**
+     * True when the {@code $$} at {@code pos} is alone on its own line — whitespace-only on BOTH
+     * sides (so the content is on a different line). A single-line {@code $$x$$} fails this because
+     * content follows the open (and precedes the close) on the same line.
+     */
+    private static boolean delimiterAloneOnLine(final String body, final int pos) {
+        for (int i = pos - 1; i >= 0 && body.charAt(i) != '\n'; i--) {
             if (!Character.isWhitespace(body.charAt(i))) { return false; }
-            i++;
+        }
+        for (int i = pos + 2; i < body.length() && body.charAt(i) != '\n'; i++) {
+            if (!Character.isWhitespace(body.charAt(i))) { return false; }
         }
         return true;
     }

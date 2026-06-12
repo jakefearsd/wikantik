@@ -1,87 +1,72 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Breadcrumbs from './Breadcrumbs';
+import { usePageTrail } from '../hooks/usePageTrail';
 
-function renderBreadcrumbs(page) {
+vi.mock('../hooks/usePageTrail', () => ({ usePageTrail: vi.fn() }));
+
+function withTrail(items) {
+  usePageTrail.mockReturnValue({ items, record: vi.fn() });
   return render(
     <MemoryRouter>
-      <Breadcrumbs page={page} />
+      <Breadcrumbs />
     </MemoryRouter>
   );
 }
 
-describe('Breadcrumbs', () => {
-  it('renders Home + cluster + page title when cluster is present', () => {
-    renderBreadcrumbs({
-      name: 'MyPage',
-      title: 'My Page Title',
-      metadata: { cluster: 'Engineering' },
-    });
-    const homeLink = screen.getByRole('link', { name: 'Home' });
-    expect(homeLink).toHaveAttribute('href', '/');
+beforeEach(() => usePageTrail.mockReset());
 
-    expect(screen.getByText('Engineering')).toBeInTheDocument();
-
-    const current = screen.getByText('My Page Title');
-    expect(current).toHaveAttribute('aria-current', 'page');
-
-    // 3 items total
-    const items = screen.getAllByRole('listitem');
-    expect(items).toHaveLength(3);
+describe('Breadcrumbs (navigation history trail)', () => {
+  it('renders nothing when the trail is empty', () => {
+    const { container } = withTrail([]);
+    expect(container.firstChild).toBeNull();
   });
 
-  it('renders Home + page title when no cluster', () => {
-    renderBreadcrumbs({
-      name: 'MyPage',
-      title: 'My Page Title',
-      metadata: {},
-    });
-    const homeLink = screen.getByRole('link', { name: 'Home' });
-    expect(homeLink).toHaveAttribute('href', '/');
-
-    const current = screen.getByText('My Page Title');
+  it('renders a single current entry (no link) when only one page is visited', () => {
+    withTrail([{ slug: 'Main', title: 'Main' }]);
+    const current = screen.getByText('Main');
     expect(current).toHaveAttribute('aria-current', 'page');
-
-    const items = screen.getAllByRole('listitem');
-    expect(items).toHaveLength(2);
+    expect(current.tagName).not.toBe('A');
+    expect(screen.queryByRole('link')).toBeNull();
   });
 
-  it('falls back to page name if title is absent', () => {
-    renderBreadcrumbs({ name: 'SomePage', metadata: {} });
+  it('renders prior pages as links and the current page as plain text', () => {
+    withTrail([
+      { slug: 'FastenerEngineering', title: 'Fastener Engineering' },
+      { slug: 'HybridRetrieval', title: 'Hybrid Retrieval' },
+      { slug: 'ThisPage', title: 'This Page' },
+    ]);
+
+    const first = screen.getByRole('link', { name: 'Fastener Engineering' });
+    expect(first).toHaveAttribute('href', '/wiki/FastenerEngineering');
+    const second = screen.getByRole('link', { name: 'Hybrid Retrieval' });
+    expect(second).toHaveAttribute('href', '/wiki/HybridRetrieval');
+
+    // The last (current) entry is not a link.
+    const current = screen.getByText('This Page');
+    expect(current).toHaveAttribute('aria-current', 'page');
+    expect(current.tagName).not.toBe('A');
+    expect(screen.getAllByRole('link')).toHaveLength(2);
+  });
+
+  it('puts a separator between entries (n-1 separators)', () => {
+    withTrail([
+      { slug: 'A', title: 'A' },
+      { slug: 'B', title: 'B' },
+      { slug: 'C', title: 'C' },
+    ]);
+    const svgs = document.querySelectorAll('.breadcrumbs-separator svg[aria-hidden="true"]');
+    expect(svgs.length).toBe(2);
+  });
+
+  it('falls back to the slug when an entry has no title', () => {
+    withTrail([{ slug: 'SomePage' }]);
     expect(screen.getByText('SomePage')).toHaveAttribute('aria-current', 'page');
   });
 
-  it('last crumb is not a link', () => {
-    renderBreadcrumbs({ name: 'MyPage', title: 'My Page', metadata: {} });
-    // The current page element should NOT be an anchor
-    const current = screen.getByText('My Page');
-    expect(current.tagName).not.toBe('A');
-  });
-
-  it('cluster crumb is not a link', () => {
-    renderBreadcrumbs({
-      name: 'MyPage',
-      title: 'My Page',
-      metadata: { cluster: 'Engineering' },
-    });
-    const cluster = screen.getByText('Engineering');
-    expect(cluster.tagName).not.toBe('A');
-  });
-
-  it('uses nav with aria-label="Breadcrumb"', () => {
-    renderBreadcrumbs({ name: 'MyPage', title: 'My Page', metadata: {} });
-    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeInTheDocument();
-  });
-
-  it('separators are aria-hidden', () => {
-    renderBreadcrumbs({
-      name: 'MyPage',
-      title: 'My Page',
-      metadata: { cluster: 'Engineering' },
-    });
-    // All SVG chevrons should be aria-hidden (Icon without title prop)
-    const svgs = document.querySelectorAll('svg[aria-hidden="true"]');
-    expect(svgs.length).toBeGreaterThan(0);
+  it('uses a nav labelled "Recent pages"', () => {
+    withTrail([{ slug: 'A', title: 'A' }]);
+    expect(screen.getByRole('navigation', { name: 'Recent pages' })).toBeInTheDocument();
   });
 });

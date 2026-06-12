@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../hooks/useAuth';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
+import { usePageTrail } from '../hooks/usePageTrail';
 import { useToast } from '../hooks/useToast';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { renderMath } from '../utils/math';
@@ -123,6 +124,7 @@ export default function PageView() {
     login: user?.authenticated ? user.loginPrincipal : null,
     enabled: !!user?.authenticated,
   });
+  const { record: recordTrail } = usePageTrail();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   // Seed initial state from the SSR data island (window.__WIKANTIK_PAGE__) when
@@ -315,6 +317,18 @@ export default function PageView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, user?.authenticated]);
 
+  // Record this page in the per-tab navigation trail (sessionStorage) the
+  // breadcrumb renders. Fires for everyone (incl. anonymous) once the loaded
+  // page matches the route, so the trail captures the real title. A layout
+  // effect (pre-paint) keeps the breadcrumb from briefly showing the previous
+  // page as "current" on the first frame after navigation.
+  useLayoutEffect(() => {
+    if (page && page.name === name && !error) {
+      recordTrail({ slug: name, title: page.title || name });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, name]);
+
   // If the current page is forbidden (403) or requires authentication (401),
   // bounce to Main. This mirrors the legacy haddock template's server-side
   // redirect behavior when a user loses view permission on the active page
@@ -419,7 +433,7 @@ export default function PageView() {
 
   return (
     <div className="page-enter" data-testid="page-view" data-page-name={name}>
-      <Breadcrumbs page={page} />
+      <Breadcrumbs />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-md)' }}>
         <PageMeta page={page} />
         <div style={{ display: 'flex', gap: 'var(--space-sm)', flexShrink: 0 }}>

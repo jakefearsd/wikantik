@@ -1,47 +1,46 @@
+import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import Icon from './ui/Icon';
+import { usePageTrail } from '../hooks/usePageTrail';
 
 /**
- * Breadcrumb trail for the page reader.
- * Trail: Home → [cluster] → current page title
+ * Navigation-history trail for the page reader. Shows up to the last 3 DISTINCT
+ * pages visited in this tab (sessionStorage-backed via usePageTrail), oldest →
+ * newest. Earlier entries are links; the current page (last entry) is plain text.
  *
- * Props:
- *   page — the page object from the API. Cluster is read from
- *          page.metadata.cluster (consistent with PageMeta.jsx).
+ * This replaced the former hierarchical (Home › cluster › page) breadcrumb.
+ * The SEO BreadcrumbList JSON-LD emitted server-side by SemanticHeadRenderer
+ * stays hierarchical and is intentionally unaffected — a per-user history trail
+ * must not appear in canonical structured data.
  */
-export default function Breadcrumbs({ page }) {
-  if (!page) return null;
+export default function Breadcrumbs() {
+  const { items } = usePageTrail();
+  if (!items || items.length === 0) return null;
 
-  const title = page.title || page.name;
-  const cluster = page.metadata?.cluster;
+  const lastIdx = items.length - 1;
 
   return (
-    <nav aria-label="Breadcrumb" className="breadcrumbs">
+    <nav aria-label="Recent pages" className="breadcrumbs">
       <ol className="breadcrumbs-list">
-        {/* Home crumb */}
-        <li className="breadcrumbs-item">
-          <Link to="/" className="breadcrumbs-link">Home</Link>
-        </li>
-
-        {/* Cluster crumb — plain label, no link */}
-        {cluster && (
-          <>
-            <li className="breadcrumbs-separator" aria-hidden="true">
-              <Icon name="chevron" size={14} />
-            </li>
-            <li className="breadcrumbs-item">
-              <span className="breadcrumbs-label">{cluster}</span>
-            </li>
-          </>
-        )}
-
-        {/* Current page crumb — not a link */}
-        <li className="breadcrumbs-separator" aria-hidden="true">
-          <Icon name="chevron" size={14} />
-        </li>
-        <li className="breadcrumbs-item">
-          <span className="breadcrumbs-current" aria-current="page">{title}</span>
-        </li>
+        {items.map((entry, i) => {
+          const label = entry.title || entry.slug;
+          return (
+            <Fragment key={entry.slug}>
+              {i > 0 && (
+                <li className="breadcrumbs-separator" aria-hidden="true">
+                  <Icon name="chevron" size={14} />
+                </li>
+              )}
+              <li className="breadcrumbs-item">
+                {i === lastIdx ? (
+                  <span className="breadcrumbs-current" aria-current="page">{label}</span>
+                ) : (
+                  <Link to={`/wiki/${entry.slug}`} className="breadcrumbs-link">{label}</Link>
+                )}
+              </li>
+            </Fragment>
+          );
+        })}
       </ol>
     </nav>
   );

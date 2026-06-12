@@ -6,6 +6,41 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Math (LaTeX) validation on save.** A KaTeX-oracle-derived LaTeX syntax linter
+  (`MathValidationPageFilter`) runs on every page save, flagging malformed or
+  un-isolated display math as blocking **errors** or advisory **warnings**. The
+  violations are surfaced inline in the editor (`MathValidationSummary`, with
+  click-to-jump), returned as structured `ContentViolation`s from the REST save
+  path (`PageResource`), and enforced on the admin MCP write tools
+  (`write_pages` / `update_page`).
+
+### Changed
+
+- **Structured frontmatter editor is far denser.** Fields are split into an
+  always-open **Common** block (title/type/status/summary/tags/cluster) and a
+  collapsible **More fields** disclosure (whose summary shows a `(N set)` count of
+  populated fields); the read-only derived fields (canonical_id/confidence/
+  agent_hints) move to a compact muted meta strip; every field is an inline
+  `[label][control]` row. The default footprint shrinks ~65% (≈700–900px → ≈475px).
+- **Page-scoped Knowledge Graph tab densified.** Tighter rows, smaller embedded
+  type-selects and provenance badges, relation rows aligned compact-left, and a
+  compact empty-state so empty Entities/Relations sections no longer reserve ~128px
+  of padding (all-empty tab ≈561px → ≈228px).
+- **Database application role defaults to `wikantik`**, and deploy-time migrations
+  run as the owning role.
+
+### Fixed
+
+- **Corpus-wide math rendering repair** — isolated inline-glued display-math
+  delimiters across 102 pages, and CRLF is normalized before math validation.
+- **`bin/redeploy.sh` migration step.** It hardcoded a nonexistent `migrate` DB
+  role with no password and never sourced `.env`, so the migration step failed and
+  aborted every local redeploy before Tomcat started. It now sources `.env` and
+  runs migrations as the app role (`POSTGRES_USER`, default `wikantik`) with a
+  `postgres` superuser fallback, mirroring `deploy-local.sh`.
+
 ## [2.0.15] - 2026-06-11
 
 ### Added

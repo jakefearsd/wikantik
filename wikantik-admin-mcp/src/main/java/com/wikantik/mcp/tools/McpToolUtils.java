@@ -190,6 +190,25 @@ public final class McpToolUtils {
         return null;
     }
 
+    /** First list-valued argument among {@code keys}, or null. */
+    public static List< ? > firstListArg( final Map< String, Object > args, final String... keys ) {
+        if ( args == null ) { return null; }
+        for ( final String k : keys ) {
+            if ( args.get( k ) instanceof List< ? > l ) { return l; }
+        }
+        return null;
+    }
+
+    /** Canonical singular page identifier: advertises {@code slug}; accepts legacy/guessable aliases. */
+    public static String pageSlug( final Map< String, Object > args ) {
+        return getStringAny( args, "slug", "pageName", "name", "page" );
+    }
+
+    /** Canonical plural page identifiers: first list-valued arg among the accepted keys, else null. */
+    public static List< ? > pageSlugs( final Map< String, Object > args ) {
+        return firstListArg( args, "slugs", "pageNames", "names", "pages" );
+    }
+
     /**
      * Extracts an integer argument, returning {@code defaultVal} if absent.
      */

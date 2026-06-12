@@ -33,6 +33,21 @@ class McpToolUtilsTest {
     private final Gson gson = new Gson();
 
     @Test
+    void pageSlug_resolvesCanonicalAndAliases() {
+        assertEquals( "X", McpToolUtils.pageSlug( java.util.Map.of( "slug", "X" ) ) );
+        assertEquals( "X", McpToolUtils.pageSlug( java.util.Map.of( "pageName", "X" ) ) );
+        assertEquals( "X", McpToolUtils.pageSlug( java.util.Map.of( "name", "X" ) ) );
+        assertNull( McpToolUtils.pageSlug( java.util.Map.of() ) );
+    }
+
+    @Test
+    void pageSlugs_resolvesCanonicalAndAliases() {
+        assertEquals( java.util.List.of( "A" ), McpToolUtils.pageSlugs( java.util.Map.of( "slugs", java.util.List.of( "A" ) ) ) );
+        assertEquals( java.util.List.of( "A" ), McpToolUtils.pageSlugs( java.util.Map.of( "pageNames", java.util.List.of( "A" ) ) ) );
+        assertNull( McpToolUtils.pageSlugs( java.util.Map.of() ) );
+    }
+
+    @Test
     void testJsonResultWrapsDataCorrectly() {
         final Map< String, String > data = Map.of( "key", "value" );
         final McpSchema.CallToolResult result = McpToolUtils.jsonResult( gson, data );

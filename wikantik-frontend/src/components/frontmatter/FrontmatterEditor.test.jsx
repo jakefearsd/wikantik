@@ -159,6 +159,48 @@ describe('FrontmatterEditor', () => {
     expect(container.querySelector('details.fm-more').open).toBe(false);
   });
 
+  it('auto-opens the "More fields" disclosure when a More field has an error violation', () => {
+    // A blocked save (422) on a non-Common field must be visible — otherwise the
+    // user sees no reason their save failed (the error renders inside the
+    // collapsed disclosure). Errors reveal the disclosure.
+    const schema = {
+      fields: [
+        { key: 'title', label: 'Title', widget: 'TEXT' },
+        { key: 'audience', label: 'Audience', widget: 'ENUM', canonicalValues: ['both'], open: false },
+      ],
+    };
+    const { container } = render(
+      <FrontmatterEditor
+        schema={schema}
+        metadata={{ title: 'X', audience: 'robots' }}
+        onChange={() => {}}
+        violations={[{ field: 'audience', severity: 'ERROR', code: 'enum', message: 'not an allowed audience' }]}
+      />,
+    );
+    const more = container.querySelector('details.fm-more');
+    expect(more.open).toBe(true);
+    expect(more.textContent).toContain('not an allowed audience');
+  });
+
+  it('does not auto-open "More fields" for a mere warning on a More field', () => {
+    // Warnings are advisory (savable) — keep the dense default; don't force-open.
+    const schema = {
+      fields: [
+        { key: 'title', label: 'Title', widget: 'TEXT' },
+        { key: 'audience', label: 'Audience', widget: 'ENUM', canonicalValues: ['both'], open: false },
+      ],
+    };
+    const { container } = render(
+      <FrontmatterEditor
+        schema={schema}
+        metadata={{ title: 'X' }}
+        onChange={() => {}}
+        violations={[{ field: 'audience', severity: 'WARNING', code: 'x', message: 'heads up' }]}
+      />,
+    );
+    expect(container.querySelector('details.fm-more').open).toBe(false);
+  });
+
   it('omits the count when no "More" field has a value', () => {
     const schema = {
       fields: [

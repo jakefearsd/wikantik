@@ -144,6 +144,27 @@ export default function FrontmatterEditor({
     return { commonFields: common, moreFields: more, readonlyFields: readonly };
   }, [schema]);
 
+  // Reveal the "More fields" disclosure when one of its fields carries an ERROR
+  // violation: a blocked save (422) on a non-Common field would otherwise be
+  // invisible — the inline error renders inside the collapsed <details>, so the
+  // user sees no reason the save failed. Warnings stay hidden to keep the default
+  // footprint small. The disclosure remains user-toggleable (onToggle below).
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreHasError = useMemo(
+    () =>
+      moreFields.some((f) =>
+        (violations || []).some(
+          (v) =>
+            (v.field === f.key || (v.field && v.field.startsWith(f.key + '.'))) &&
+            (v.severity || '').toLowerCase() === 'error',
+        ),
+      ),
+    [moreFields, violations],
+  );
+  useEffect(() => {
+    if (moreHasError) setMoreOpen(true);
+  }, [moreHasError]);
+
   if (!schema) return <div className="fm-editor-loading">Loading editor…</div>;
 
   const knownKeys = new Set((schema.fields || []).map((f) => f.key));
@@ -193,7 +214,11 @@ export default function FrontmatterEditor({
             <div className="fm-form">{commonFields.map(renderField)}</div>
 
             {moreFields.length > 0 && (
-              <details className="fm-more">
+              <details
+                className="fm-more"
+                open={moreOpen}
+                onToggle={(e) => setMoreOpen(e.currentTarget.open)}
+              >
                 <summary className="fm-more-summary">
                   More fields{moreSetCount > 0 ? ` (${moreSetCount} set)` : ''}
                 </summary>

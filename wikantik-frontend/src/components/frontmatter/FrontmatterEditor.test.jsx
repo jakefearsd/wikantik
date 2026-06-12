@@ -113,4 +113,74 @@ describe('FrontmatterEditor', () => {
     const field = screen.getByLabelText('runbook related_tools').closest('.fm-runbook-field');
     expect(field.textContent).toContain('bad tool');
   });
+
+  it('renders Common fields inline and collapses the rest into "More fields"', () => {
+    const schema = {
+      fields: [
+        { key: 'title', label: 'Title', widget: 'TEXT' },
+        { key: 'type', label: 'Type', widget: 'ENUM', canonicalValues: ['article'], open: true },
+        { key: 'audience', label: 'Audience', widget: 'ENUM', canonicalValues: ['both'], open: false },
+        { key: 'runbook', label: 'Runbook', widget: 'RUNBOOK_BLOCK' },
+      ],
+    };
+    const { container } = render(
+      <FrontmatterEditor schema={schema} metadata={{ title: 'X' }} onChange={() => {}} />,
+    );
+    // Common fields live in the first (always-open) .fm-form grid
+    const commonGrid = container.querySelector('.fm-form');
+    expect(commonGrid.querySelector('[data-field="title"]')).toBeTruthy();
+    expect(commonGrid.querySelector('[data-field="type"]')).toBeTruthy();
+    // Non-common editable fields live inside a closed "More fields" disclosure
+    const more = container.querySelector('details.fm-more');
+    expect(more).toBeTruthy();
+    expect(more.open).toBe(false);
+    expect(more.querySelector('[data-field="audience"]')).toBeTruthy();
+    expect(more.querySelector('[data-field="runbook"]')).toBeTruthy();
+  });
+
+  it('auto-opens "More fields" when a non-common field already has a value', () => {
+    const schema = {
+      fields: [
+        { key: 'title', label: 'Title', widget: 'TEXT' },
+        { key: 'audience', label: 'Audience', widget: 'ENUM', canonicalValues: ['both'], open: false },
+      ],
+    };
+    const { container } = render(
+      <FrontmatterEditor schema={schema} metadata={{ title: 'X', audience: 'both' }} onChange={() => {}} />,
+    );
+    expect(container.querySelector('details.fm-more').open).toBe(true);
+  });
+
+  it('shows populated read-only fields in the meta strip and hides empty ones', () => {
+    const schema = {
+      fields: [
+        { key: 'title', label: 'Title', widget: 'TEXT' },
+        { key: 'confidence', label: 'Confidence', widget: 'READONLY' },
+        { key: 'agent_hints', label: 'Agent hints', widget: 'READONLY' },
+      ],
+    };
+    const { container } = render(
+      <FrontmatterEditor schema={schema} metadata={{ title: 'X', confidence: 0.82 }} onChange={() => {}} />,
+    );
+    const strip = container.querySelector('.fm-meta-strip');
+    expect(strip).toBeTruthy();
+    expect(strip.textContent).toContain('Confidence');
+    expect(strip.textContent).toContain('0.82');
+    expect(strip.textContent).not.toContain('Agent hints');
+    // read-only fields must NOT also render as editable field widgets
+    expect(container.querySelector('[data-field="confidence"]')).toBeFalsy();
+  });
+
+  it('renders no meta strip when no read-only field has a value', () => {
+    const schema = {
+      fields: [
+        { key: 'title', label: 'Title', widget: 'TEXT' },
+        { key: 'confidence', label: 'Confidence', widget: 'READONLY' },
+      ],
+    };
+    const { container } = render(
+      <FrontmatterEditor schema={schema} metadata={{ title: 'X' }} onChange={() => {}} />,
+    );
+    expect(container.querySelector('.fm-meta-strip')).toBeFalsy();
+  });
 });

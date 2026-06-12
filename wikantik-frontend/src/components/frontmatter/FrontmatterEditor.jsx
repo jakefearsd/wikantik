@@ -1,8 +1,10 @@
 // FrontmatterEditor.jsx
 // The structured frontmatter surface that shares the editor pane with the (body-only) CodeMirror.
-// Renders one FieldWidget per schema FieldSpec, an Advanced area for unknown keys (preserved
-// verbatim), and a Form ⇄ Raw YAML break-glass toggle. The parsed metadata OBJECT is canonical; this
-// component never enforces — it renders the server's violations inline and lets the user always save.
+// Fields are split into an always-open "Common" block, a collapsible "More fields" disclosure for
+// the rarer/specialized fields (runbook, verification, etc.), and a muted meta strip for the
+// derived READONLY fields. An Advanced area lists unknown keys (preserved verbatim), and a
+// Form ⇄ Raw YAML break-glass toggle stays available. The parsed metadata OBJECT is canonical;
+// this component never enforces — it renders the server's violations inline and lets the user save.
 //
 // Props:
 //   metadata      the current frontmatter object (canonical)
@@ -11,12 +13,27 @@
 //   schema        optional injected schema (tests); otherwise fetched via schemaClient
 //   validateRaw   optional ({frontmatter}) => Promise<{metadata,violations}> for Raw→Form sync
 //   pageSearch    optional (query) => Promise<options> for the related-pages picker
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Tabs from '../ui/Tabs';
 import FieldWidget from './FieldWidget';
 import { getSchema } from './schemaClient';
 import { metadataToYaml } from '../../utils/frontmatterUtils';
 import { api } from '../../api/client';
+
+// Always-open "Common" block. Everything else editable falls into the "More fields" disclosure;
+// READONLY fields are surfaced (read-only) in the compact meta strip instead of the grid.
+const COMMON_KEYS = ['title', 'type', 'status', 'summary', 'tags', 'cluster'];
+
+function hasValue(v) {
+  return !(v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0));
+}
+
+function fmtMeta(v) {
+  if (v == null) return '';
+  if (Array.isArray(v)) return v.join(', ');
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
 
 function AdvancedKeyValues({ metadata, unknownKeys, onChange }) {
   if (unknownKeys.length === 0) return null;
@@ -93,6 +110,8 @@ export default function FrontmatterEditor({
 }) {
   const [schema, setSchema] = useState(schemaProp ?? null);
   const [tab, setTab] = useState('form');
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreInit = useRef(false);
 
   useEffect(() => {
     if (schemaProp) {
@@ -112,10 +131,35 @@ export default function FrontmatterEditor({
     };
   }, [schemaProp]);
 
+  // Partition the schema's fields once per schema: Common (always open), More (collapsible),
+  // and the READONLY derived fields (meta strip). Order is preserved from the schema.
+  const { commonFields, moreFields, readonlyFields } = useMemo(() => {
+    const fields = schema?.fields || [];
+    const common = [];
+    const more = [];
+    const readonly = [];
+    for (const f of fields) {
+      if (f.widget === 'READONLY') readonly.push(f);
+      else if (COMMON_KEYS.includes(f.key)) common.push(f);
+      else more.push(f);
+    }
+    return { commonFields: common, moreFields: more, readonlyFields: readonly };
+  }, [schema]);
+
+  // One-shot: the first time metadata is populated, open "More" if any of its fields already
+  // has a value (so editing an existing runbook/verified page never hides populated data).
+  // Strictly additive — once the user collapses it manually, re-renders never re-open it.
+  useEffect(() => {
+    if (moreInit.current) return;
+    if (metadata && Object.keys(metadata).length > 0) {
+      moreInit.current = true;
+      if (moreFields.some((f) => hasValue(metadata[f.key]))) setMoreOpen(true);
+    }
+  }, [metadata, moreFields]);
+
   if (!schema) return <div className="fm-editor-loading">Loading editor…</div>;
 
-  const fields = schema.fields || [];
-  const knownKeys = new Set(fields.map((f) => f.key));
+  const knownKeys = new Set((schema.fields || []).map((f) => f.key));
   const unknownKeys = Object.keys(metadata || {}).filter((k) => !knownKeys.has(k));
 
   const setField = (key, val) => {
@@ -130,6 +174,22 @@ export default function FrontmatterEditor({
   const violationsFor = (key) =>
     violations.filter((v) => v.field === key || (v.field && v.field.startsWith(key + '.')));
 
+  const renderField = (f) => (
+    <FieldWidget
+      key={f.key}
+      spec={f}
+      value={metadata?.[f.key]}
+      onChange={(v) => setField(f.key, v)}
+      violations={violationsFor(f.key)}
+      onApplySuggestion={(s) => setField(f.key, s)}
+      pageSearch={pageSearch}
+    />
+  );
+
+  const metaItems = readonlyFields
+    .filter((f) => hasValue(metadata?.[f.key]))
+    .map((f) => ({ key: f.key, label: f.label, value: fmtMeta(metadata[f.key]) }));
+
   return (
     <div className="fm-editor">
       <Tabs
@@ -138,18 +198,30 @@ export default function FrontmatterEditor({
         onChange={setTab}
       >
         {tab === 'form' ? (
-          <div className="fm-form">
-            {fields.map((f) => (
-              <FieldWidget
-                key={f.key}
-                spec={f}
-                value={metadata?.[f.key]}
-                onChange={(v) => setField(f.key, v)}
-                violations={violationsFor(f.key)}
-                onApplySuggestion={(s) => setField(f.key, s)}
-                pageSearch={pageSearch}
-              />
-            ))}
+          <div className="fm-form-wrap">
+            <div className="fm-form">{commonFields.map(renderField)}</div>
+
+            {moreFields.length > 0 && (
+              <details
+                className="fm-more"
+                open={moreOpen}
+                onToggle={(e) => setMoreOpen(e.currentTarget.open)}
+              >
+                <summary className="fm-more-summary">More fields</summary>
+                <div className="fm-form">{moreFields.map(renderField)}</div>
+              </details>
+            )}
+
+            {metaItems.length > 0 && (
+              <div className="fm-meta-strip">
+                {metaItems.map((m) => (
+                  <span key={m.key} className="fm-meta-item" title={`${m.label}: ${m.value}`}>
+                    <span className="fm-meta-label">{m.label}</span>: {m.value}
+                  </span>
+                ))}
+              </div>
+            )}
+
             <AdvancedKeyValues metadata={metadata || {}} unknownKeys={unknownKeys} onChange={onChange} />
           </div>
         ) : (

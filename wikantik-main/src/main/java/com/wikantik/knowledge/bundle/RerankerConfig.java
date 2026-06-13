@@ -27,4 +27,26 @@ public record RerankerConfig( String model, String baseUrl, long timeoutMs ) {
         if ( baseUrl == null || baseUrl.isBlank() ) baseUrl = "http://inference.jakefear.com:11434";
         if ( timeoutMs <= 0 ) timeoutMs = 30_000L;
     }
+
+    /**
+     * Reads {@code wikantik.bundle.reranker.{model,base_url,timeout_ms}} from the
+     * given properties. Missing/blank/unparseable values fall through to the
+     * compact-constructor defaults (the 4B sweet-spot model, the inference host,
+     * 30s), so a config with none of these keys still yields a usable reranker.
+     */
+    public static RerankerConfig fromProperties( final java.util.Properties props ) {
+        if ( props == null ) return new RerankerConfig( null, null, 0L );
+        final String model   = props.getProperty( PREFIX + "model" );
+        final String baseUrl = props.getProperty( PREFIX + "base_url" );
+        long timeoutMs = 0L;
+        final String raw = props.getProperty( PREFIX + "timeout_ms" );
+        if ( raw != null && !raw.isBlank() ) {
+            try {
+                timeoutMs = Long.parseLong( raw.trim() );
+            } catch ( final NumberFormatException e ) {
+                // Non-numeric timeout — keep 0L so the compact ctor applies the 30s default.
+            }
+        }
+        return new RerankerConfig( model, baseUrl, timeoutMs );
+    }
 }

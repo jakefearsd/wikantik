@@ -1816,6 +1816,16 @@ public class WikiEngine implements Engine {
         return properties;
     }
 
+    /**
+     * The persistence-subsystem's {@link com.wikantik.pagegraph.spine.PageCanonicalIdsDao},
+     * or {@code null} before the persistence subsystem is built. Exposed so post-startup
+     * wiring (e.g. {@code BundleServiceWiring}) can resolve slug → canonical_id without
+     * re-resolving the JNDI datasource.
+     */
+    public com.wikantik.pagegraph.spine.PageCanonicalIdsDao pageCanonicalIdsDao() {
+        return persistenceSubsystem != null ? persistenceSubsystem.pageCanonicalIds() : null;
+    }
+
     /** {@inheritDoc} */
     @Override
     public String getWorkDir() {
@@ -1907,7 +1917,9 @@ public class WikiEngine implements Engine {
             getManager( com.wikantik.api.kgpolicy.KgInclusionPolicy.class ),
             getManager( com.wikantik.kgpolicy.ReconciliationJobRunner.class ),
             getManager( com.wikantik.api.eval.RetrievalQualityRunner.class ),
-            base.kgCurationOps()
+            base.kgCurationOps(),
+            /* bundleAssemblyService — derived from contextRetrievalService, which is null
+               here (wired post-boot); built later at patchContextRetrievalService */ null
         );
     }
 
@@ -1966,7 +1978,11 @@ public class WikiEngine implements Engine {
             knowledgeSubsystem.kgInclusionPolicy(),
             knowledgeSubsystem.reconciliationJobRunner(),
             knowledgeSubsystem.retrievalQualityRunner(),
-            knowledgeSubsystem.kgCurationOps()
+            knowledgeSubsystem.kgCurationOps(),
+            // bundleAssemblyService — DERIVED from the now-live retrieval service. setManager
+            // ran just before this call, so BundleServiceWiring.build reads svc from the
+            // registry and assembles the RAG-as-a-Service layer. Null-safe if build fails.
+            com.wikantik.knowledge.bundle.BundleServiceWiring.build( this )
         );
         // Rebuild the full WikiSubsystems stash so servlet callers see the updated record.
         final WikiSubsystems current =

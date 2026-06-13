@@ -32,6 +32,7 @@ import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
 import com.wikantik.knowledge.FrontmatterDefaultsFilter;
+import com.wikantik.knowledge.bundle.BundleServiceWiring;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubOverviewService;
@@ -278,7 +279,10 @@ public final class KnowledgeSubsystemFactory {
             /*kgInclusionPolicy=*/           null,
             /*reconciliationJobRunner=*/     null,
             /*retrievalQualityRunner=*/      null,
-            /*kgCurationOps=*/               curation
+            /*kgCurationOps=*/               curation,
+            // Derived from contextRetrievalService (null here); built post-startup at the
+            // same seam — see BundleServiceWiring / WikiEngine.patchContextRetrievalService.
+            /*bundleAssemblyService=*/       null
         );
     }
 
@@ -374,7 +378,13 @@ public final class KnowledgeSubsystemFactory {
             //     preferRegistry reads the singleton, never re-schedules.
             preferRegistry( engine, RetrievalQualityRunner.class,           existing.retrievalQualityRunner() ),
             // 23. kgCurationOps — DERIVED; reconstructed when upstreams changed.
-            rebuildKgCurationOps( engine, existing )
+            rebuildKgCurationOps( engine, existing ),
+            // 24. bundleAssemblyService — DERIVED from contextRetrievalService. Reuse the
+            //     existing instance when present (built at the retrieval-patch seam); only
+            //     rebuild from the registry when no prior instance exists.
+            existing.bundleAssemblyService() != null
+                ? existing.bundleAssemblyService()
+                : BundleServiceWiring.build( engine )
         );
     }
 
@@ -483,7 +493,10 @@ public final class KnowledgeSubsystemFactory {
             engine.getManager( KgInclusionPolicy.class ),
             engine.getManager( ReconciliationJobRunner.class ),
             engine.getManager( RetrievalQualityRunner.class ),
-            kgCurationOps
+            kgCurationOps,
+            // bundleAssemblyService — DERIVED from the live contextRetrievalService
+            // (read above). Null until retrieval is wired; rebuilt here on the MCP bridge path.
+            BundleServiceWiring.build( engine )
         );
     }
 

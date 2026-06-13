@@ -19,6 +19,7 @@
 package com.wikantik.knowledge.subsystem;
 
 import com.wikantik.api.agent.ForAgentProjectionService;
+import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.eval.RetrievalQualityRunner;
 import com.wikantik.api.kgpolicy.KgInclusionPolicy;
 import com.wikantik.api.knowledge.ContextRetrievalService;
@@ -133,6 +134,10 @@ public final class KnowledgeSubsystem {
      *   <li>{@code retrievalQualityRunner} — null when wiring fails (e.g. no
      *       search stack available); failures are logged at WARN and the admin
      *       surface returns 503.</li>
+     *   <li>{@code bundleAssemblyService} — DERIVED from
+     *       {@code contextRetrievalService} (RAG-as-a-Service). Null until that
+     *       service is wired post-startup; built at the same seam via
+     *       {@code BundleServiceWiring.build}.</li>
      * </ul>
      */
     public record Services(
@@ -158,6 +163,7 @@ public final class KnowledgeSubsystem {
         KgInclusionPolicy kgInclusionPolicy,
         ReconciliationJobRunner reconciliationJobRunner,
         RetrievalQualityRunner retrievalQualityRunner,
-        KgCurationOps kgCurationOps
+        KgCurationOps kgCurationOps,
+        BundleAssemblyService bundleAssemblyService
     ) {}
 }

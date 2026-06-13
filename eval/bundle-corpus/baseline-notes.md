@@ -114,6 +114,9 @@ this miss set.
 > This section will be filled in by Tasks 9 & 11.
 
 - **Baseline numbers:** overall recall@5/recall@20/MRR per retriever, per-category breakdown — to be recorded here once the corpus CSV is stabilized and the gate thresholds are set.
-- **Model set:** embedding model ID + dimension, extraction model — to be frozen here.
-- **Prod dense backend:** the docker1 production backend (`lucene-hnsw` as of the last deployment note) — to be confirmed and recorded here before freezing.
+- **Model set:** embeddings `qwen3-embedding-0.6b` (1024-dim; prod uses the ini default — no env
+  override); extraction `gemma4-graph:12b` (think:false, sent per-request). Numbers TBD with the run.
+- **Prod dense backend:** `lucene-hnsw` — **confirmed 2026-06-13** from `.env.prod`
+  (`WIKANTIK_DENSE_BACKEND=lucene-hnsw`). Local-dev tomcat is `inmemory` (the ini default), which
+  explained the earlier apparent contradiction. The baseline must be measured against `lucene-hnsw`.
 - **Date frozen:** TBD.

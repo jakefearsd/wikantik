@@ -40,6 +40,7 @@ public final class LlmSectionReranker implements SectionReranker {
 
     private static final Logger LOG = LogManager.getLogger( LlmSectionReranker.class );
     private static final Gson GSON = new Gson();
+    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 
     private final RerankerConfig config;
     private final Function< String, String > responder;  // prompt -> model text
@@ -57,7 +58,8 @@ public final class LlmSectionReranker implements SectionReranker {
 
     @Override
     public List< CandidateSection > rerank( final String query, final List< CandidateSection > sections ) {
-        if ( sections == null || sections.size() <= 1 ) return sections;
+        if ( sections == null ) return List.of();
+        if ( sections.size() <= 1 ) return sections;
         try {
             final String text = responder.apply( buildPrompt( query, sections ) );
             final List< Integer > order = parseRanking( text, sections.size() );
@@ -109,7 +111,7 @@ public final class LlmSectionReranker implements SectionReranker {
             .POST( HttpRequest.BodyPublishers.ofString( GSON.toJson( body ) ) )
             .build();
         try {
-            final HttpResponse< String > res = HttpClient.newHttpClient()
+            final HttpResponse< String > res = HTTP_CLIENT
                 .send( req, HttpResponse.BodyHandlers.ofString() );
             if ( res.statusCode() / 100 != 2 ) { LOG.warn( "Rerank HTTP {}", res.statusCode() ); return ""; }
             return JsonParser.parseString( res.body() ).getAsJsonObject()

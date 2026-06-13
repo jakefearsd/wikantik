@@ -65,11 +65,10 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
             new ContextQuery( query, ContextQuery.MAX_PAGES_CAP, ContextQuery.MAX_CHUNKS_PER_PAGE_CAP, null ) );
         final List< CandidateSection > ranked = reranker.rerank( query, assembler.assemble( result ) );
 
-        final Set< String > seen = new LinkedHashSet<>();
+        final Set< SectionKey > seen = new LinkedHashSet<>();
         final List< BundleSection > out = new ArrayList<>();
         for ( final CandidateSection cs : ranked ) {
-            final String key = cs.slug() + " " + String.join( "", cs.headingPath() );
-            if ( !seen.add( key ) ) continue;          // dedup by (slug, heading-path)
+            if ( !seen.add( new SectionKey( cs.slug(), cs.headingPath() ) ) ) continue;  // dedup by (slug, heading-path)
             final String canonical = canonicalIdOf.apply( cs.slug() ).orElse( null );
             if ( canonical == null ) continue;         // can't cite an un-versioned page; skip
             final CitationHandle cite = new CitationHandle(
@@ -79,6 +78,9 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         }
         return new ContextBundle( query, out );
     }
+
+    /** Collision-proof dedup key: (slug, heading-path). List equality is value-based. */
+    private record SectionKey( String slug, List< String > headingPath ) {}
 
     static String sha256( final String text ) {
         try {

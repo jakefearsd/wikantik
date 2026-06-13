@@ -165,6 +165,10 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             if ( forAgent != null ) {
                 tools.add( new GetPageForAgentTool( forAgent ) );
             }
+            final com.wikantik.api.bundle.BundleAssemblyService bundleService = kg.bundleAssemblyService();
+            if ( bundleService != null ) {
+                tools.add( new AssembleBundleTool( bundleService ) );
+            }
             // Ontology tools (read-only): present only when the ontology runtime is wired.
             final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontoCoord =
                 PageGraphSubsystemBridge.fromLegacyEngine( engine ).ontologyRebuildCoordinator();

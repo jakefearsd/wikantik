@@ -117,6 +117,10 @@
           </ul>
           <p>This means your team's passwords are longer and more unique in practice, because they weren't forced into a corner by rules that reward gaming the system.</p>
 
+          <h2>No default credential past first login</h2>
+          <p>The most common way a self-hosted application gets compromised isn't an exotic exploit — it's a shipped default password that nobody changed. Wikantik closes that gap by construction. A fresh install seeds exactly one account, and that account is flagged so its <em>first</em> login requires choosing a new password before anything else works.</p>
+          <p>Until the password is changed, a <code>MustChangePasswordFilter</code> gates <code>/api/*</code> and <code>/admin/*</code> with <code>403 PASSWORD_CHANGE_REQUIRED</code>, exempting only the auth surface needed to fix the situation. The replacement is validated against the same NIST 800-63B rules and blocklist as any other password, so the seeded default cannot simply be re-chosen. The net effect: no Wikantik deployment runs with a known default credential past initial setup.</p>
+
           <h2>Deserialization filtering</h2>
           <p>Java deserialization vulnerabilities have enabled remote code execution in countless Java applications over the past decade — not because the applications were poorly written, but because Java's <code>ObjectInputStream</code> will inflate any class on the classpath if you ask it to, and a sufficiently clever chain of objects can trigger arbitrary code execution.</p>
           <p>Wikantik applies <code>ObjectInputFilter</code> whitelists to every <code>ObjectInputStream</code> usage. Only an explicit allowlist of classes can be deserialized. Any attempt to deserialize a class outside the allowlist is rejected before the object is constructed. This closes the gadget-chain attack surface at the JVM level, independent of what's on the classpath.</p>

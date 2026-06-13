@@ -124,6 +124,35 @@ Summation inside a list:
 ```markdown
 - The arithmetic series identity:$\sum_{i=1}^{n} i = \tfrac{n(n+1)}{2}$- The geometric series:$\sum_{i=0}^{n} r^{i} = \tfrac{1 - r^{n+1}}{1 - r}$for$r \neq 1$```
 
+## Validation on save
+
+Authoring mistakes that *parse* as valid Markdown but render as broken math are
+easy to ship unnoticed, so every page save runs a LaTeX structure check
+(`MathValidationPageFilter`, KaTeX-oracle-derived and false-positive-guarded)
+before the content is stored. Two failure modes are caught:
+
+- **Single-line or text-glued `$$ … $$` display math is a blocking ERROR.** When
+  the opening or closing `$$` is not on its own line (e.g. `Then $$E = mc^2$$ follows`),
+  the parser treats it as inline text rather than a display block: the `=` is
+  HTML-escaped to `&#61;` and the attribute extension silently swallows bracketed
+  letters (`\mathbb{E}` becomes `\mathbb`). Because the result is always wrong, the
+  save is rejected and you must isolate the delimiters on their own lines (or use a
+  ```` ```math ```` fence).
+- **Prose inside inline `$…$` is an advisory WARNING.** A common trigger is an
+  unescaped currency figure — `it cost $5 and $10` parses the span between the two
+  dollars as math. The save still succeeds, but the warning nudges you to escape
+  the dollar (`\$5`) so the text isn't typeset as an equation.
+
+Violations carry a body-relative line/column and surface everywhere a page is
+written:
+
+- **In the editor** — the `MathValidationSummary` panel lists each violation with
+  click-to-jump; an ERROR disables Save until it is fixed.
+- **Over REST** — `PUT /api/pages` returns structured `ContentViolation`s (HTTP
+  `422` when any are errors, `200` with warnings otherwise).
+- **Over the admin MCP write tools** — `write_pages` / `update_page` enforce the
+  same gate and cite the offending span in their refusal.
+
 ## Configuration
 
 Math is enabled by default. The relevant Flexmark options are set in
@@ -154,6 +183,8 @@ No wiki properties currently override these — the behaviour is fixed by code.
 - Escape a literal dollar sign with a backslash: `\$` — so `\$5` renders as
   `$5` and never triggers inline math.
 - Keep display-math delimiters on their own lines. `$$x = 1$$` on a single line
-  is treated as an inline construction and will not render as a block.
+  is treated as an inline construction and will not render as a block — and the
+  save-time validator now rejects it as an error (see
+  [Validation on save](#validation-on-save)).
 - When in doubt, use the explicit ```` ```math ```` fence: the rules are the
   clearest and it composes well with lists, quotes, and definitions.

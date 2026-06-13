@@ -132,7 +132,7 @@
           <p>These are two distinct subsystems — do not conflate them. The <a href="/platform/page-graph.html">Page Graph</a> contains edges that are real wikilinks authors wrote in page bodies. The Knowledge Graph contains nodes that are LLM-extracted entities and edges that are extracted or frontmatter-declared predicates. The Page Graph is for human navigation and authoring aids. The Knowledge Graph is for semantic retrieval and agent reasoning. See <a href="https://wiki.wikantik.com/wiki/PageGraphVsKnowledgeGraph">Page Graph vs Knowledge Graph</a> for the full explanation.</p>
 
           <h2>How agents use the Knowledge Graph</h2>
-          <p>Agents access the Knowledge Graph through the <code>/knowledge-mcp</code> server's 16 read-only tools. Retrieval queries that go through hybrid search automatically get the KG rerank. Dedicated Knowledge Graph traversal tools let agents explore entity relationships, find hub entities, and discover topically related pages through the graph rather than just through text matching.</p>
+          <p>Agents access the Knowledge Graph through the <code>/knowledge-mcp</code> server's 18 read-only tools. Retrieval queries that go through hybrid search automatically get the KG rerank. Dedicated Knowledge Graph traversal tools let agents explore entity relationships, find hub entities, and discover topically related pages through the graph rather than just through text matching.</p>
           <p>Admin agents use the <code>/wikantik-admin-mcp</code> server's Knowledge Graph curation tools to review proposals, approve or reject nodes and edges, and manage the graph's quality over time.</p>
 
           <section class="faq">

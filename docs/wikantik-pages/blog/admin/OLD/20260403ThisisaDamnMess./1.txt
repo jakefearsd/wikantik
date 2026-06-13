@@ -1,9 +1,0 @@
----
-title: "Thisisa Damn Mess."
-date: 2026-04-03
-author: "admin"
----
-
-# Thisisa Damn Mess.
-
-This is where I'll write my non-markdown content because I have

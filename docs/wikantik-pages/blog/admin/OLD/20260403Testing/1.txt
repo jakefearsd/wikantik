@@ -1,7 +1,0 @@
----
-title: "Testing"
-date: 2026-04-03
-author: "admin"
----
-
-# Testing

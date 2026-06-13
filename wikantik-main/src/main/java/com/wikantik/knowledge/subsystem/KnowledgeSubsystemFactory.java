@@ -32,7 +32,6 @@ import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import com.wikantik.knowledge.DefaultKnowledgeGraphService;
 import com.wikantik.knowledge.FrontmatterDefaultsFilter;
-import com.wikantik.knowledge.bundle.BundleServiceWiring;
 import com.wikantik.knowledge.HubDiscoveryRepository;
 import com.wikantik.knowledge.HubDiscoveryService;
 import com.wikantik.knowledge.HubOverviewService;
@@ -379,12 +378,10 @@ public final class KnowledgeSubsystemFactory {
             preferRegistry( engine, RetrievalQualityRunner.class,           existing.retrievalQualityRunner() ),
             // 23. kgCurationOps — DERIVED; reconstructed when upstreams changed.
             rebuildKgCurationOps( engine, existing ),
-            // 24. bundleAssemblyService — DERIVED from contextRetrievalService. Reuse the
-            //     existing instance when present (built at the retrieval-patch seam); only
-            //     rebuild from the registry when no prior instance exists.
-            existing.bundleAssemblyService() != null
-                ? existing.bundleAssemblyService()
-                : BundleServiceWiring.build( engine )
+            // 24. bundleAssemblyService — DERIVED from contextRetrievalService and built once
+            //     at the retrieval-patch seam (WikiEngine.patchContextRetrievalService). Reuse
+            //     the existing instance; this side-effect-free rebuild never reconstructs it.
+            existing.bundleAssemblyService()
         );
     }
 
@@ -494,9 +491,10 @@ public final class KnowledgeSubsystemFactory {
             engine.getManager( ReconciliationJobRunner.class ),
             engine.getManager( RetrievalQualityRunner.class ),
             kgCurationOps,
-            // bundleAssemblyService — DERIVED from the live contextRetrievalService
-            // (read above). Null until retrieval is wired; rebuilt here on the MCP bridge path.
-            BundleServiceWiring.build( engine )
+            // bundleAssemblyService — built at the retrieval-patch seam, not on this cold
+            // no-snapshot path (the stashed snapshot, patched with the bundle, is what
+            // production reads). Null here is correct: surfaces degrade until the patch fires.
+            null
         );
     }
 

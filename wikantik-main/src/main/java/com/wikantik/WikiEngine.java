@@ -1979,10 +1979,14 @@ public class WikiEngine implements Engine {
             knowledgeSubsystem.reconciliationJobRunner(),
             knowledgeSubsystem.retrievalQualityRunner(),
             knowledgeSubsystem.kgCurationOps(),
-            // bundleAssemblyService — DERIVED from the now-live retrieval service. setManager
-            // ran just before this call, so BundleServiceWiring.build reads svc from the
-            // registry and assembles the RAG-as-a-Service layer. Null-safe if build fails.
-            com.wikantik.knowledge.bundle.BundleServiceWiring.build( this )
+            // bundleAssemblyService — DERIVED from the now-live retrieval service (svc).
+            // Collaborators are passed from typed accessors (no getManager) so the wiring
+            // helper stays a plain assembler. Null-safe: build returns null if svc is null.
+            com.wikantik.knowledge.bundle.BundleServiceWiring.build(
+                svc,
+                pageCanonicalIdsDao(),
+                pageSubsystem != null ? pageSubsystem.pages() : null,
+                properties )
         );
         // Rebuild the full WikiSubsystems stash so servlet callers see the updated record.
         final WikiSubsystems current =

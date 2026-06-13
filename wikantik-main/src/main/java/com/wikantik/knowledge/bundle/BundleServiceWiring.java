@@ -18,7 +18,6 @@
  */
 package com.wikantik.knowledge.bundle;
 
-import com.wikantik.WikiEngine;
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.knowledge.ContextRetrievalService;
@@ -28,6 +27,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Optional;
+import java.util.Properties;
 import java.util.function.Function;
 
 /**
@@ -37,12 +37,12 @@ import java.util.function.Function;
  * <p>The bundle service is a thin assembly layer whose only post-startup
  * dependency is the {@link ContextRetrievalService} — which is wired into the
  * engine registry after boot by {@code ContextRetrievalServiceInitializer}.
- * So the bundle rides entirely on that service's lifecycle: it is (re)built
+ * So the bundle rides entirely on that service's lifecycle: it is built
  * whenever the retrieval service becomes live (see
- * {@code WikiEngine.patchContextRetrievalService} for the REST stash and
- * {@code KnowledgeSubsystemFactory.readFromManagerRegistry} for the MCP bridge).
- * When retrieval is not yet wired, {@link #build} returns {@code null} and the
- * surfaces degrade to a 503 / unavailable response.</p>
+ * {@code WikiEngine.patchContextRetrievalService}). Collaborators are passed in
+ * (not resolved via {@code getManager}) so this stays a plain assembly helper
+ * outside the service-locator allow-list. When retrieval is null, {@link #build}
+ * returns {@code null} and the surfaces degrade to a 503 / unavailable response.</p>
  */
 public final class BundleServiceWiring {
 
@@ -56,20 +56,24 @@ public final class BundleServiceWiring {
     private BundleServiceWiring() {}
 
     /**
-     * Builds a {@link DefaultBundleAssemblyService} from the engine's live
-     * managers, or {@code null} when the retrieval service is not yet wired.
-     * Never throws — a missing dependency degrades to {@code null}.
+     * Builds a {@link DefaultBundleAssemblyService} from the supplied collaborators,
+     * or {@code null} when {@code retrieval} is not yet wired. Never throws — a
+     * missing collaborator degrades the relevant lookup to empty rather than failing.
+     *
+     * @param retrieval   the live context-retrieval service (null → returns null)
+     * @param dao         slug → canonical_id source (null tolerated → empty)
+     * @param pageManager slug → page version source (null tolerated → version 0)
+     * @param props       reranker configuration source (null tolerated → defaults)
      */
-    public static BundleAssemblyService build( final WikiEngine engine ) {
-        if ( engine == null ) return null;
-        final ContextRetrievalService retrieval = engine.getManager( ContextRetrievalService.class );
+    public static BundleAssemblyService build( final ContextRetrievalService retrieval,
+                                               final PageCanonicalIdsDao dao,
+                                               final PageManager pageManager,
+                                               final Properties props ) {
         if ( retrieval == null ) {
             LOG.debug( "ContextRetrievalService not yet wired — bundle assembly service unavailable" );
             return null;
         }
-        final PageCanonicalIdsDao dao = engine.pageCanonicalIdsDao();
-        final PageManager pageManager = engine.getManager( PageManager.class );
-        final RerankerConfig cfg = RerankerConfig.fromProperties( engine.getWikiProperties() );
+        final RerankerConfig cfg = RerankerConfig.fromProperties( props );
         final SectionReranker reranker = new LlmSectionReranker( cfg );
 
         final Function< String, Optional< String > > canonicalIdOf = slug ->

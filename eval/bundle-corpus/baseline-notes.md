@@ -109,14 +109,35 @@ this miss set.
 
 ---
 
-## Frozen baseline (TBD)
+## Live baseline v1 — 2026-06-13
 
-> This section will be filled in by Tasks 9 & 11.
+Measured against the **live retrieval stack** (`/api/search` on the running deployment) over the
+54-question corpus, via `bin/eval/run-baseline.py`. Hybrid retrieval (BM25 + dense), KG rerank off
+(`graph.boost = 0`).
 
-- **Baseline numbers:** overall recall@5/recall@20/MRR per retriever, per-category breakdown — to be recorded here once the corpus CSV is stabilized and the gate thresholds are set.
-- **Model set:** embeddings `qwen3-embedding-0.6b` (1024-dim; prod uses the ini default — no env
-  override); extraction `gemma4-graph:12b` (think:false, sent per-request). Numbers TBD with the run.
-- **Prod dense backend:** `lucene-hnsw` — **confirmed 2026-06-13** from `.env.prod`
-  (`WIKANTIK_DENSE_BACKEND=lucene-hnsw`). Local-dev tomcat is `inmemory` (the ini default), which
-  explained the earlier apparent contradiction. The baseline must be measured against `lucene-hnsw`.
+| category   |  n | section recall | page recall | prec@5 |
+|------------|---:|---------------:|------------:|-------:|
+| SIMILARITY | 38 |          0.368 |       0.974 |  0.168 |
+| RELATIONAL |  9 |          0.500 |       0.944 |  0.222 |
+| BOUNDARY   |  7 |          0.571 |       1.000 |  0.200 |
+| **OVERALL**| 54 |      **0.417** |   **0.972** |  0.181 |
+
+**Headline:** page recall 0.97 (retrieval finds the right page) vs **section recall 0.42** (the
+answering *section* makes the bundle <half the time). That gap is the Phase-1+ target.
+
+- **Model set:** embeddings `qwen3-embedding-0.6b` (1024-dim); extraction `gemma4-graph:12b`
+  (think:false). KG rerank off pending the Phase-4 fair trial.
+- **Prod dense backend:** `lucene-hnsw` (confirmed from `.env.prod`). This run used the **local-dev
+  deployment** (`inmemory` backend) — parity-proven within 0.02 nDCG of `lucene-hnsw`, so the page
+  numbers are representative; re-run against `lucene-hnsw` to freeze the final figure.
+
+**Caveats (why this is "v1", not the frozen gate number):**
+- *Section* recall is a **text-containment proxy**: `/api/search` returns each page's top
+  contributing-chunk *texts* (no heading-path), and a chunk from the gold section is a substring of
+  that section's text — faithful, but it measures "did a chunk from the gold section rank into the
+  page's top contributions," which is exactly the bundle semantics.
+- `prec@5` is *page-level* and capped by single-gold questions (1 gold of 5 slots → 0.2 ceiling);
+  the real signal-to-noise precision is a *section-level* metric that lands with RAG-as-a-Service.
+- The reproducible CI gate (Task 8 real-corpus tier, Testcontainers) will re-measure via the
+  heading-path-exact `BundleEvalRunner`; expect small differences from this live proxy.
 - **Date frozen:** TBD.

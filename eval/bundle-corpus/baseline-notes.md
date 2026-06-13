@@ -261,3 +261,19 @@ the reranker; widening the shortlist barely helps (dense @12 plateaus ~0.47). **
 untested lever is a stronger first-stage embedder** (latency-free, offline re-embed), which
 raises the shortlist ceiling the reranker then orders. Phase 1: reranker (4B, +0.15@5) AND a
 stronger embedder — the embedder is likely the larger lever.
+
+## First-stage embedder 0.6B vs 4B (2026-06-13) — modest, and section-level undersells
+
+`bin/eval/spike-embedder-4b.py` (section-level, queries w/ instruction prefix):
+
+| embedder | @3 | @5 | @8 | @12 |
+|----------|----|----|----|----|
+| qwen3-emb 0.6B | 0.147 | 0.250 | 0.294 | 0.382 |
+| qwen3-emb 4B   | 0.162 | 0.250 | 0.382 | 0.500 |
+| prod max-chunk 0.6B (ref) | — | ~0.24 | — | ~0.47 |
+
+4B helps **at depth** (@12 +0.12, raising the reranker's shortlist ceiling) but is flat at @5.
+CAVEAT: section-level is a proxy and undersells — section-0.6B@12 (0.38) < production
+max-chunk-0.6B (0.47). The faithful test is **max-chunk-4B vs max-chunk-0.6B** (chunk-level 4B
+embeds, not yet run). Verdict: directionally promising as a ceiling-raiser, not certified; needs
+the chunk-level run for production certainty.

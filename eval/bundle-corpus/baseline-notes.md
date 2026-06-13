@@ -204,3 +204,20 @@ AND precision). **Latency p50 3.0s / p95 4.5s per call → an LLM reranker is un
 "don't ship this" baseline; the operator's latency instinct was correct). Resolution: a
 cross-encoder (bge-reranker-v2-m3 via TEI) should match/beat this recall at ~tens of ms.
 Next: measure cross-encoder recall + p50/p95 latency on the GPU to close the loop.
+
+## Cross-encoder reranker measurement (2026-06-13) — latency solved, quality insufficient
+
+`bin/eval/spike-tei-rerank.py` vs `bge-reranker-v2-m3` on the GPU (headings in passages):
+
+| method | @1 | @2 | @3 | @5 | latency |
+|--------|----|----|----|----|---------|
+| dense max (current) | 0.191 | 0.309 | 0.426 | 0.632 | — |
+| LLM (qwen3.5:9b)    | 0.324 | 0.515 | 0.588 | 0.691 | 3-4.5s |
+| cross-enc (bge-v2-m3)| 0.147 | 0.309 | 0.441 | 0.559 | **p50 40ms / p95 108ms** |
+
+**Latency is NOT the blocker** — fast rerankers run ~40ms (operator's latency concern resolved).
+The blocker is reranker **quality**: bge-reranker-v2-m3 only ties dense and trails the LLM ceiling
+badly on identical input. The lever is real (LLM proves it) but the cheap cross-encoder lacks the
+intent-discrimination. Open: sweep stronger fast rerankers (Qwen3-Reranker 0.6B/4B, jina-v2,
+mxbai) or a small-LLM reranker (~0.5-1s). Caveat: per-page frame (intra-document section pick)
+may disadvantage cross-encoders vs the LLM's reasoning.

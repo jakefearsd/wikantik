@@ -134,3 +134,29 @@ regardless of the recall number.
 **Deferred ceiling-raisers:** chunk-level 4B re-embed (production-faithful confirmation), and
 **fine-tuning** a small reranker/embedder on the eval-corpus golds — the real "tune it to our
 task" lever (where the gemma4-style instinct actually applies, via training not prompting).
+
+### Exploration concluded — 2026-06-13
+
+The directional sweep is **done** (data in `eval/bundle-corpus/baseline-notes.md`; tools in
+`bin/eval/spike-*.py` + `leverage-curve.py`). Final verdicts:
+
+- **First-stage: keep `qwen3-embedding-0.6b` + the query instruction prefix** (already wired in
+  `EmbeddingModel`). 4B is a *regression* at production granularity (max-chunk 0.6B 0.41@5 /
+  0.54@12 vs 4B 0.27@5 / 0.49@12 — bigger ≠ better). Cheap structural tweaks (re-aggregation,
+  heading-prepend) are **null**. True first-stage recall is **~0.41@5 / 0.54@12** (earlier
+  proxy numbers understated it by omitting the query instruction prefix).
+- **Ranking: a ~4B LLM reranker** (`gemma4:e4b`, ~1.7 s, `think:false`) is the one positive recall
+  lever — modest, best at tight bundle sizes, fine on the agent path. Cross-encoder (40 ms) lacks
+  quality; 1.5B collapses; 9B too slow with no bundle-depth gain.
+- **Shortlist: per-page** (each retrieved page contributes its top-S sections, preserving the
+  0.97 page-recall), not a flat global cut.
+- **Bigger first-stage gains require expensive structural bets** — full LLM-contextual embeddings,
+  ColBERT late-interaction, or fine-tuning on the corpus golds — **banked as deliberate,
+  harness-gated follow-ons** (de-risked: the cheap shortcuts are proven null; a better GPU is the
+  enabler for ColBERT/fine-tuning).
+
+**Phase-1 build (architecturally simple, rides the existing stack):**
+`retrieve (hybrid, 0.6B + instruction) → per-page shortlist (top-S sections/page) → one 4B
+listwise rerank → parent-section expand + dedup + version-pinned citation handles → top-N context
+bundle`, via a dedicated REST endpoint + MCP action (assemble + ground, **no synthesis**), scored
+on the bundle-quality harness.

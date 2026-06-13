@@ -181,3 +181,10 @@ The recall lever is a **reranker** (cross-encoder) to lift the gold section towa
 candidate-set ceiling ~0.87-0.90. Reranker moves from "deferred precision lever" to the lead
 Phase-1 recall lever. Parent-section/citation contract still ships (precision + grounding), but
 the number moves with reranking.
+
+## Free re-representation — does NOT move recall (2026-06-13)
+
+`bin/eval/spike-rerank.py`: re-scoring sections without a new model — max 0.632@5 (current),
+mean/top2-mean within noise, whole-section qwen3 embedding *worse* (0.603@5). No free lunch:
+the gold section ranks ~5th and better aggregation/section-embedding doesn't fix it. The recall
+lever is a **cross-encoder reranker** (or a stronger first-stage embedder) — measure next.

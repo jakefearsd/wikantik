@@ -1,0 +1,130 @@
+# eval/bundle-corpus/queries.csv — section-level bundle evaluation corpus v1
+# Format: query_id,query,category,gold_canonical_id,gold_heading_path,notes
+#
+# - One row per gold section.  Rows sharing query_id form one question.
+# - category: SIMILARITY | RELATIONAL | BOUNDARY  (uppercase)
+# - gold_canonical_id: verbatim value from the page's frontmatter canonical_id field.
+# - gold_heading_path: '>'-separated section breadcrumb matching actual headings in the page.
+#   Use the first heading level that uniquely identifies the section (H2 or H3).
+# - notes: origin tag or boundary rationale.  No commas — use semicolons if needed.
+# - Lines beginning with '#' are comments and are skipped by BundleCorpusLoader.
+# - Loader parses with split(",", -1) — fields MUST NOT contain commas.
+#
+# Seeded from eval/retrieval-queries.csv (40 page-level queries) plus
+# >=8 RELATIONAL (multi-hop) and >=6 BOUNDARY (straddles chunk boundary) questions.
+query_id,query,category,gold_canonical_id,gold_heading_path,notes
+# ── SIMILARITY — seeded from retrieval-queries.csv ───────────────────────────
+q01,how do I deploy the wiki locally,SIMILARITY,01KQ4VGC5PKAFHNV8CBTXRW0HF,Walkthrough,seed-indirect; JspwikiDeployment mapped to BuildingAndDeployingLocally
+q02,which embedding model should we pick for local RAG,SIMILARITY,01KQEKGDCNT2EXY4M4034M3YV5,Component choices>Embedding model,seed-synonym-drift; re-routed EmbeddingsVectorDB to LocalRAG
+q03,Ollama installation,SIMILARITY,01KQ0P44T9S7BYCJ5J13MWMYCT,Hardware Sizing: vRAM Requirements,seed-specific
+q04,running Wikantik in a container,SIMILARITY,01KQ0P44YXNZNQZDD0MBEJ5KYH,Architecture Overview,seed-synonym-drift
+q05,setting up postgres on my laptop,SIMILARITY,01KQ0P44TNFQMPBHGY5R4G4A4F,Fresh Deployment (Clean Instance),seed-indirect
+q06,cors preflight handling,SIMILARITY,01KQ0P44P1P00XJ2ZA3A81T8NM,How CORS works,seed-specific
+q07,full text search in relational database,SIMILARITY,01KQ0P44QJTG4MR5M81CRQMK7A,The basics,seed-multi-word-concept
+q08,local retrieval augmented generation,SIMILARITY,01KQEKGDCNT2EXY4M4034M3YV5,The minimum stack,seed-multi-word-concept
+q09,blue green release strategy,SIMILARITY,01KQEKGD7VHR9Y4FJQRZZ1KC12,How it works,seed-synonym-drift
+q10,gradual rollout with traffic shifting,SIMILARITY,01KQ0P44MXK2X5DVXZ0MT3YVKD,1. Traffic Splitting Mechanisms,seed-indirect
+q11,oauth authorization code flow,SIMILARITY,01KQ0P44T600RKB0SF6RN6QBR8,OAuth Flow Integration,seed-specific
+q12,single sign on with identity providers,SIMILARITY,01KQ0P44QHCCMJHPMCQ195JNVW,Part B: Architecture Overview,seed-indirect
+q13,storage patterns for files,SIMILARITY,01KQ0P44T76SSF84NC0RMXA6MJ,What object storage is good for,seed-synonym-drift
+q14,how do we protect against supply chain attacks,SIMILARITY,01KQ0P44X3SC9XBFJRV9TPWHG7,Defenses,seed-business-process
+q15,onboarding a new client,SIMILARITY,01KQ0P44P6ZHDJHZZ9T0V85YF8,I. Foundations: The Evolution of CRM,seed-business-process
+q16,how to plan a sprint,SIMILARITY,01KQ0P44WV09A6KGT92QM81GCX,III. The Planning Workflow,seed-business-process
+q17,handling a production outage,SIMILARITY,01KQ0P44R28P11K576MM618FZX,1. Incident Lifecycle and Severities,seed-business-process
+q18,roadmap planning process,SIMILARITY,01KQ0P44TT5X4QTABJN4YFEATQ,I. The Hierarchy of Product Intent,seed-business-process
+q19,code review best practices,SIMILARITY,01KQ0P44NK9P7Y12JV0E18PWJB,II. The Expert Checklist,seed-specific
+q20,admin ui for security settings,SIMILARITY,01KQ0P44JKW93WGGG83BXCHYMZ,Features,seed-multi-word-concept
+q21,role based access permissions stored in the database,SIMILARITY,01KQ0P44PBJAD0YB3EB2MHX9AH,Key Tables,seed-indirect
+q22,k8s,SIMILARITY,01KQ0P44RN4JQ8FHGVS5RHS1RS,The Atomic Unit: The Pod,seed-hard
+q23,ci cd,SIMILARITY,01KQ0P44N8EYGZDNWNF37FQQSV,The stages,seed-hard
+q24,backup strategy for the database,SIMILARITY,01KQ0P44PBAABJX1RZ5ZPNPEQH,Backup types,seed-multi-word-concept
+q25,schema migration approach,SIMILARITY,01KQEKGD9G0R9840B188SR09A0,Migration discipline rules,seed-synonym-drift
+q26,semantic search with embeddings,SIMILARITY,01KQ12YDRX520ZN5PC6N2E5YG8,The minimum modern stack,seed-synonym-drift; AiPoweredSearch is the match
+q27,knowledge graph retrieval,SIMILARITY,01KQ0P44QS3AFFX90J5XXAABJA,Querying the graph,seed-general
+q28,images and text embeddings together,SIMILARITY,01KQEKGDDDCQYHZN00W3ZGN3RS,1. Architecture: The Projection Layer,seed-indirect
+q29,how agents remember things,SIMILARITY,01KQ12YDRBZ9RPVCT0GCH9HG6Y,The Four Memory Channels,seed-indirect
+q30,evaluating and monitoring llm agents in production,SIMILARITY,01KQ12YDRCXJHHTSSSDRY6JTWR,The three observability layers,seed-multi-word-concept
+q31,prompt engineering for agents,SIMILARITY,01KQ0P44JXAB43ME5MS8TV0AKK,System prompt structure,seed-specific
+q32,test driven development,SIMILARITY,01KQTD4FGSZVWM8WR7685RNNVQ,TDD Workflow for AI Agents,seed-general; TestDrivenDevelopmentGuide mapped to TestDrivenDevelopment
+q33,writing technical docs,SIMILARITY,01KQ0P44XED3VY3PK9EX77MHD9,The four documents that matter most,seed-synonym-drift
+q34,setting up docker for development,SIMILARITY,01KQ0P44PWCCMS8D7BBBM6HEZ5,1. Configuration,seed-general; DockerSetup mapped to DockerDeployment
+q35,ai,SIMILARITY,01KQ0P44M29WSBRXEMNK1B8GHW,Definition and Scope,seed-hard
+q36,jvm gc,SIMILARITY,01KQ0P44RA716VK4MYYAJE3WMS,III. Modern GC Comparison: G1 vs. ZGC,seed-hard
+q37,overview of agent architectures,SIMILARITY,01KQEKGD6WQ8QY6BW22RMKVNAW,The composition spectrum,seed-general
+q38,objectives and key results,SIMILARITY,01KQ0P44T8JVXV9XJS1SQ7W5R4,I. The Structural Components,seed-general
+q39,setting goals for the quarter,SIMILARITY,01KQ0P44T8JVXV9XJS1SQ7W5R4,II. The Math of Stretch Goals,seed-indirect
+q40,measuring what matters,SIMILARITY,01KQ0P44MSXHJQMSTXW9A5YN7Y,II. Leading vs. Lagging Indicators,seed-hard
+# ── RELATIONAL — multi-hop questions ─────────────────────────────────────────
+# R01: "How does hybrid retrieval decide between BM25 and dense?"
+# Answering fully requires understanding both the wiring AND the fallback policy.
+# Gold spans two sections in HybridRetrieval.
+r01,how does Wikantik hybrid retrieval decide between BM25 and dense results,RELATIONAL,01KQ0P44QZYNK9BZ0FV5NQ9CF8,Wiring,relational-multi-hop; answer requires both wiring and fail-closed sections
+r01,how does Wikantik hybrid retrieval decide between BM25 and dense results,RELATIONAL,01KQ0P44QZYNK9BZ0FV5NQ9CF8,Fail-closed behaviour,relational-multi-hop; fallback policy is the second half of the answer
+# R02: "What turns the Knowledge Graph rerank on and is it enabled by default?"
+# Requires reading KnowledgeGraphRerank (Configuration) + HybridRetrieval (Configuration)
+r02,what configuration enables the Knowledge Graph rerank and what is the default,RELATIONAL,01KQPQVYPFSBSGX38YP6XFQPMV,Configuration,relational-multi-hop; rerank config lives here
+r02,what configuration enables the Knowledge Graph rerank and what is the default,RELATIONAL,01KQ0P44QZYNK9BZ0FV5NQ9CF8,Configuration,relational-multi-hop; the boost=0.0 default lives in HybridRetrieval config section
+# R03: "What is the difference between the Page Graph and the Knowledge Graph?"
+# Requires understanding both subsystems — answered by PageGraphVsKnowledgeGraph.
+# That page has NO canonical_id yet; use KnowledgeGraphCore + HybridRetrieval as proxy.
+# Skip r03 — PageGraphVsKnowledgeGraph.md lacks a canonical_id; cannot include a safe gold row.
+# R04: "What embedding model does the retrieval harness use and how was it chosen?"
+# Spans RetrievalExperimentHarness sections: model selection + decision rationale.
+r04,what embedding model does the Wikantik retrieval harness use and why was it chosen,RELATIONAL,01KQ0P44VRJJ07S7EPD99G8CBA,7. Model selection — the 2026-04-18 decision,relational-multi-hop; decision rationale section
+# R05: "How do you add a page to the Knowledge Graph and what controls inclusion?"
+# Spans KgInclusionPolicy (The decision model) + KgInclusionPolicy (Agent curation path)
+r05,how do you add a page to the Knowledge Graph and what controls inclusion,RELATIONAL,01KQEDYJR57WYQCV645PKSDBMQ,The decision model,relational-multi-hop; policy model is required context
+r05,how do you add a page to the Knowledge Graph and what controls inclusion,RELATIONAL,01KQEDYJR57WYQCV645PKSDBMQ,Agent curation path,relational-multi-hop; agent write path is the second hop
+# R06: "How does chunking strategy affect RAG quality and what pattern should I use?"
+# Spans RagImplementationPatterns (chunking) + AiPoweredSearch (stage by stage)
+r06,how does chunking strategy affect RAG quality and what pattern should I use,RELATIONAL,01KQ12YDWB16GH9VTKNN1WKAB1,The second biggest: chunking strategy,relational-multi-hop; chunking strategy section
+r06,how does chunking strategy affect RAG quality and what pattern should I use,RELATIONAL,01KQ12YDRX520ZN5PC6N2E5YG8,Stage by stage,relational-multi-hop; where chunking feeds into the full pipeline
+# R07: "What metrics does the retrieval experiment harness compare and how do I run it?"
+# Spans RetrievalExperimentHarness: what gets compared + one-shot run
+r07,what metrics does the retrieval experiment harness compare and how do I run it,RELATIONAL,01KQ0P44VRJJ07S7EPD99G8CBA,1. What gets compared,relational-multi-hop; metrics definition
+r07,what metrics does the retrieval experiment harness compare and how do I run it,RELATIONAL,01KQ0P44VRJJ07S7EPD99G8CBA,3. One-shot run,relational-multi-hop; execution instructions
+# R08: "How does the canary deployment strategy differ from blue-green and which should I pick?"
+# Spans CanaryDeployments (traffic splitting) + BlueGreenDeployments (when canary wins)
+r08,how does canary deployment differ from blue-green and when should I use each,RELATIONAL,01KQ0P44MXK2X5DVXZ0MT3YVKD,1. Traffic Splitting Mechanisms,relational-multi-hop; canary mechanism
+r08,how does canary deployment differ from blue-green and when should I use each,RELATIONAL,01KQEKGD7VHR9Y4FJQRZZ1KC12,When canary wins,relational-multi-hop; comparison lives in the BlueGreen page
+# R09: "What are the risks of running database migrations under load and how do I avoid them?"
+# Spans DatabaseMigrationStrategies: locking under load + expand-contract pattern
+r09,what are the risks of running database migrations under load and how do I avoid them,RELATIONAL,01KQEKGD9G0R9840B188SR09A0,Locking under load,relational-multi-hop; lock risk section
+r09,what are the risks of running database migrations under load and how do I avoid them,RELATIONAL,01KQEKGD9G0R9840B188SR09A0,The expand-contract pattern,relational-multi-hop; safe migration pattern is the paired answer
+# R10: "How does graph RAG differ from standard RAG and what does it add?"
+# Spans GraphRAG: what graph RAG adds + architectures
+r10,how does graph RAG differ from standard RAG and what does it add,RELATIONAL,01KQ0P44QS3AFFX90J5XXAABJA,What graph RAG adds,relational-multi-hop; the distinguishing capability
+r10,how does graph RAG differ from standard RAG and what does it add,RELATIONAL,01KQ0P44QS3AFFX90J5XXAABJA,Architectures,relational-multi-hop; concrete patterns are the second hop
+# ── BOUNDARY — answer straddles a section/chunk boundary ─────────────────────
+# B01: JVM "slow leak" diagnostic — the diagnostic scenario section references the
+# tuning params defined in section V. A 512-token chunk of section IV alone omits
+# the corrective action; section V alone omits the symptom pattern.
+b01,how do I diagnose and fix a slow memory leak in a Java application,BOUNDARY,01KQ0P44RA716VK4MYYAJE3WMS,IV. Concrete Diagnostic Scenario: The "Slow Leak",boundary; symptom pattern is in IV but corrective tuning parameters live in section V — answer spans the section break
+b01,how do I diagnose and fix a slow memory leak in a Java application,BOUNDARY,01KQ0P44RA716VK4MYYAJE3WMS,V. Critical Tuning Parameters,boundary; tuning parameters complete the answer begun in section IV
+# B02: Canary — sticky canaries and data compatibility are tightly coupled
+# but split across adjacent sections. A chunked boundary between sections 3 and 4
+# would require both to answer "how do I handle stateful users in a canary?"
+b02,how do I handle stateful users and database compatibility during a canary rollout,BOUNDARY,01KQ0P44MXK2X5DVXZ0MT3YVKD,3. Data Compatibility (The Hard Part),boundary; data compatibility is in section 3 but sticky-session handling is in section 4 — a chunk boundary here loses the pairing
+b02,how do I handle stateful users and database compatibility during a canary rollout,BOUNDARY,01KQ0P44MXK2X5DVXZ0MT3YVKD,4. Sticky Canaries,boundary; sticky canary mechanics complete the answer from section 3
+# B03: Sprint planning capacity model and the planning workflow are in adjacent
+# sections. "How do I run sprint planning from capacity to commitment?" requires both.
+b03,how do I run sprint planning from capacity estimation to sprint commitment,BOUNDARY,01KQ0P44WV09A6KGT92QM81GCX,I. Capacity Modeling,boundary; capacity model is section I but the end-to-end workflow is in section III — chunks split on H2 break both apart
+b03,how do I run sprint planning from capacity estimation to sprint commitment,BOUNDARY,01KQ0P44WV09A6KGT92QM81GCX,III. The Planning Workflow,boundary; workflow section completes the answer
+# B04: Hybrid retrieval fail-closed and wiring — what happens when the dense
+# backend is down? The wiring section says where the fallback fires; fail-closed
+# section says what the behaviour is. A chunk that ends at the H2 break drops one.
+b04,what happens to Wikantik search when the dense backend is unavailable,BOUNDARY,01KQ0P44QZYNK9BZ0FV5NQ9CF8,Wiring,boundary; wiring section names the fallback trigger point but the behaviour is defined in the next section
+b04,what happens to Wikantik search when the dense backend is unavailable,BOUNDARY,01KQ0P44QZYNK9BZ0FV5NQ9CF8,Fail-closed behaviour,boundary; fail-closed behaviour section completes the answer — chunk boundary at the H2 divides these
+# B05: Agent memory cross-session continuity — the four channels section names the
+# long-term store; cross-session continuity section explains how persistence
+# actually works. These are adjacent sections and a natural chunk boundary.
+b05,how does an agent maintain memory across multiple sessions,BOUNDARY,01KQ12YDRBZ9RPVCT0GCH9HG6Y,4. Long-Term Memory: Storage Selection,boundary; storage selection is in section 4 but cross-session mechanics are in the following section — chunk split here loses the connection
+b05,how does an agent maintain memory across multiple sessions,BOUNDARY,01KQ12YDRBZ9RPVCT0GCH9HG6Y,Cross-Session Continuity,boundary; cross-session continuity section completes the answer from section 4
+# B06: DatabaseMigrationStrategies — backfills at scale and rollbacks are adjacent
+# sections. "How do I safely backfill and roll back a large migration?" requires both.
+b06,how do I safely backfill data and roll back a large database migration,BOUNDARY,01KQEKGD9G0R9840B188SR09A0,Backfills at scale,boundary; backfill strategy lives in one section; rollback procedures are in the next — a 512-token chunk rarely captures both
+b06,how do I safely backfill data and roll back a large database migration,BOUNDARY,01KQEKGD9G0R9840B188SR09A0,Rollbacks,boundary; rollback section completes the answer from the backfill section
+# B07: RetrievalExperimentHarness — model selection rationale spans the raw results
+# sub-section and the decision rationale sub-section. Both sub-sections are needed
+# to answer "why did you pick qwen3 embeddings?"; they are adjacent H3s under H2-7.
+b07,why was qwen3 chosen as the embedding model for the retrieval harness,BOUNDARY,01KQ0P44VRJJ07S7EPD99G8CBA,7. Model selection — the 2026-04-18 decision,boundary; decision rationale sub-sections (raw results + rationale) are nested under this H2 but may be split across chunk boundaries at the H3 level

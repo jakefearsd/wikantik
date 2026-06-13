@@ -501,7 +501,8 @@ class PageKnowledgeResourceTest {
             null,        // kgInclusionPolicy
             null,        // reconciliationJobRunner
             null,        // retrievalQualityRunner
-            ops          // kgCurationOps
+            ops,         // kgCurationOps
+            null         // bundleAssemblyService
         );
         return new com.wikantik.WikiSubsystems( null, null, null, null, null, null, kg, null );
     }

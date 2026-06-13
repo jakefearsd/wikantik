@@ -507,6 +507,10 @@
        <servlet-class>com.wikantik.rest.PageForAgentResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>BundleResource</servlet-name>
+       <servlet-class>com.wikantik.rest.BundleResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>KnowledgeGraphResource</servlet-name>
        <servlet-class>com.wikantik.rest.KnowledgeGraphResource</servlet-class>
    </servlet>
@@ -785,6 +789,10 @@
    <servlet-mapping>
        <servlet-name>PageForAgentResource</servlet-name>
        <url-pattern>/api/pages/for-agent/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>BundleResource</servlet-name>
+       <url-pattern>/api/bundle</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>KnowledgeGraphResource</servlet-name>

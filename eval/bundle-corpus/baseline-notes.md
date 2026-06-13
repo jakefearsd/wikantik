@@ -162,3 +162,22 @@ trigger, now fired). (3) ~10% "unreachable" (heading mismatch / not chunked) is 
 Note: this exact heading-match measure (@5 0.63) is higher than the v1 text-overlap proxy
 (0.42); true section recall is ~0.6, ceiling ~0.90. The Testcontainers gate will pin the exact
 production figure.
+
+---
+
+## Phase-1 spike — parent-section bundle (2026-06-13)
+
+`bin/eval/spike-parent-section.py` simulated the proposed bundle on live data (real
+/api/search candidate pages + dense section ranking, deduped):
+
+- **Flat-global top-N sections:** recall 0.52 @ N=20 (global ranking crowds the gold section out).
+- **Per-page-allocated top-S sections:** recall 0.60 @ S=5 (≈ current).
+- Both **plateau ~0.60** at usable bundle sizes; the leverage curve's 0.87 needs ~20 chunks/page
+  (a sprawling bundle). `sec_MRR ≈ 0.20` → the gold section ranks ~5th within its page.
+
+**Conclusion (corrects the earlier "cheap parent-section win"):** assembly/dedup tightens and
+cites the bundle but does NOT move recall — section recall is capped ~0.60 by **ranking quality**.
+The recall lever is a **reranker** (cross-encoder) to lift the gold section toward rank 1-2;
+candidate-set ceiling ~0.87-0.90. Reranker moves from "deferred precision lever" to the lead
+Phase-1 recall lever. Parent-section/citation contract still ships (precision + grounding), but
+the number moves with reranking.

@@ -106,3 +106,31 @@ Wiki-side answer synthesis · parent-child / hierarchical chunking · a cross-en
 query rewriting/decomposition · multi-hop retrieval · `owl:sameAs` external reconciliation ·
 OWL-DL reasoning · extracting RAG-as-a-Service into a separate microservice. Each has a written
 trigger condition; none is rejected forever.
+
+## Phase 1 — measured plan (from the 2026-06-13 spike sweep)
+
+The diagnostic sweep (`bin/eval/spike-*.py`, `leverage-curve.py`; full data in
+`eval/bundle-corpus/baseline-notes.md`) turned Phase 1 from a guess into a measured plan.
+
+**Lever map (realistic bundle frame, section recall):**
+- *Assembly / dedup (parent-section):* moves **precision**, not recall.
+- *Free re-representation* (chunk-score aggregation, whole-section embed): no recall move.
+- *Reranking:* a **~4B LLM reranker (`gemma4:e4b`)** is the model — **+0.15 @5** (0.24→0.40),
+  ~1.7 s, fine on the agent path. Fast cross-encoder (`bge-reranker-v2-m3`, 40 ms) lacks the
+  quality; 1.5B collapses; 9B best @1–2 but 3–4.5 s with no bundle-depth gain.
+- *First-stage recall is the **binding ceiling*** — the gold section (ranked ~5th-in-page by
+  the small `qwen3-embedding-0.6b`) must reach the shortlist or no reranker can recover it.
+  **Embedder verdict (0.6B vs 4B) pending.** If 4B lifts it, that's the *latency-free* recall
+  lever and the reranker then orders against a better shortlist.
+
+**Architecture:** retrieve (hybrid; stronger embedder if 4B wins) → **per-page shortlist**
+(top-S sections per retrieved page, so rank-~5 gold sections survive a flat global cut) → one
+**4B listwise rerank** → parent-section expand + dedup + version-pinned citations → top-N bundle.
+
+**Realistic recall target:** ~0.40–0.51 @ bundle today (reranker alone); higher if the 4B
+embedder raises the first-stage ceiling. Precision + grounding come from the bundle contract
+regardless of the recall number.
+
+**Deferred ceiling-raisers:** chunk-level 4B re-embed (production-faithful confirmation), and
+**fine-tuning** a small reranker/embedder on the eval-corpus golds — the real "tune it to our
+task" lever (where the gemma4-style instinct actually applies, via training not prompting).

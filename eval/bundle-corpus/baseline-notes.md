@@ -277,3 +277,20 @@ CAVEAT: section-level is a proxy and undersells — section-0.6B@12 (0.38) < pro
 max-chunk-0.6B (0.47). The faithful test is **max-chunk-4B vs max-chunk-0.6B** (chunk-level 4B
 embeds, not yet run). Verdict: directionally promising as a ceiling-raiser, not certified; needs
 the chunk-level run for production certainty.
+
+## Faithful embedder verdict + instruction-prefix correction (2026-06-13)
+
+`bin/eval/spike-embedder-4b-chunk.py` (max-chunk, production granularity, instruction prefix):
+
+| embedder | @3 | @5 | @8 | @12 |
+|----------|----|----|----|----|
+| 0.6B (production) | 0.279 | 0.412 | 0.485 | 0.544 |
+| 4B | 0.147 | 0.265 | 0.368 | 0.485 |
+
+**0.6B beats 4B at every cutoff — do NOT switch (4B is a regression).** Section-level made 4B
+look good at depth; that was a proxy artifact. Bigger embedding model != better (matches the
+grand-finale qwen3-0.6b > bge-m3 result). **Correction:** earlier spikes (leverage-curve,
+global-rerank) embedded the query WITHOUT the instruction prefix and thus understated recall —
+with the prefix (production behavior) max-chunk-0.6B is 0.41@5 / 0.54@12, not ~0.24@5. The
+model lever is dead; structural changes (heading-prepend / contextual embeddings) are the
+remaining first-stage lever.

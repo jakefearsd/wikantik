@@ -35,9 +35,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.util.List;
-import java.util.Locale;
+import java.time.Duration;import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -112,15 +110,7 @@ public final class OllamaProposalJudge implements ProposalJudge {
     private String callOllama( final ConsolidatedProposal p, final JudgeContext c )
             throws IOException, InterruptedException {
         final String userPrompt = buildUserPrompt( p, c );
-        final Map< String, Object > body = Map.of(
-            "model", model,
-            "stream", false,
-            "format", "json",
-            "messages", List.of(
-                Map.of( "role", "system", "content", SYSTEM_PROMPT ),
-                Map.of( "role", "user",   "content", userPrompt )
-            )
-        );
+        final Map< String, Object > body = OllamaChatRequest.body( model, SYSTEM_PROMPT, userPrompt, null );
         final String url = stripTrailingSlash( baseUrl ) + "/api/chat";
         final HttpRequest req = HttpRequest.newBuilder( URI.create( url ) )
             .timeout( Duration.ofMillis( timeoutMs ) )

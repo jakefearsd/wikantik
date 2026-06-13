@@ -33,9 +33,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
+import java.time.Duration;import java.util.Map;
 
 /**
  * Per-page extractor backed by an Ollama /api/chat endpoint with
@@ -93,15 +91,9 @@ public final class OllamaPageExtractor implements PageExtractor {
     }
 
     private String callOllama(final Page page, final ExtractionContext ctx) throws IOException, InterruptedException {
-        final Map<String, Object> body = Map.of(
-            "model", model,
-            "stream", false,
-            "format", "json",
-            "messages", List.of(
-                Map.of("role", "system", "content", PageExtractionPromptBuilder.SYSTEM_PROMPT),
-                Map.of("role", "user", "content", PageExtractionPromptBuilder.buildUserPrompt(page, ctx))
-            )
-        );
+        final Map<String, Object> body = OllamaChatRequest.body(
+            model, PageExtractionPromptBuilder.SYSTEM_PROMPT,
+            PageExtractionPromptBuilder.buildUserPrompt(page, ctx), null );
         final String url = stripTrailingSlash(baseUrl) + "/api/chat";
         final HttpRequest req = HttpRequest.newBuilder(URI.create(url))
             .timeout(Duration.ofMillis(timeoutMs))

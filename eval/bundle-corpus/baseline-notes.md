@@ -141,3 +141,24 @@ answering *section* makes the bundle <half the time). That gap is the Phase-1+ t
 - The reproducible CI gate (Task 8 real-corpus tier, Testcontainers) will re-measure via the
   heading-path-exact `BundleEvalRunner`; expect small differences from this live proxy.
 - **Date frozen:** TBD.
+
+---
+
+## Leverage analysis — 2026-06-13 (how hard to move 0.42?)
+
+`bin/eval/leverage-curve.py` ranks each gold page's chunks by dense (qwen3) similarity to
+the query and reports section recall @ k chunks-per-page (exact heading-path match):
+
+| cat | @1 | @3 | @5 | @10 | @20 | @all | unreachable |
+|-----|----|----|----|-----|-----|------|-------------|
+| OVERALL | 0.19 | 0.41 | 0.63 | 0.78 | 0.87 | 0.90 | 0.10 |
+
+**Findings:** (1) chunks are ranked fine but *capped* at 5 — @5 0.63 vs @all 0.90, so depth
+alone buys +0.24. (2) **Parent-section return (small-to-big)** captures that ~0.90 ceiling at
+tight-bundle precision — the high-leverage, cheap Phase-1 lever (the deferred parent-child
+trigger, now fired). (3) ~10% "unreachable" (heading mismatch / not chunked) is the hard floor.
+(4) @1 0.19 → weak within-page ranking; a reranker is a *precision*, not recall, lever (deferred).
+
+Note: this exact heading-match measure (@5 0.63) is higher than the v1 text-overlap proxy
+(0.42); true section recall is ~0.6, ceiling ~0.90. The Testcontainers gate will pin the exact
+production figure.

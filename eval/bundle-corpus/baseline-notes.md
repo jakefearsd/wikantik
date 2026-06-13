@@ -188,3 +188,19 @@ the number moves with reranking.
 mean/top2-mean within noise, whole-section qwen3 embedding *worse* (0.603@5). No free lunch:
 the gold section ranks ~5th and better aggregation/section-embedding doesn't fix it. The recall
 lever is a **cross-encoder reranker** (or a stronger first-stage embedder) — measure next.
+
+## LLM-as-reranker ceiling probe (2026-06-13) — reranking IS the recall lever
+
+`bin/eval/spike-llm-rerank.py`: qwen3.5:9b listwise rerank of each gold page's sections
+(per-page frame) vs the dense-max baseline:
+
+| method | @1 | @2 | @3 | @5 |
+|--------|----|----|----|----|
+| dense max (current) | 0.191 | 0.309 | 0.426 | 0.632 |
+| LLM reranker        | 0.324 | 0.515 | 0.588 | 0.691 |
+
+Reranking roughly doubles recall@1-2 — the lift is at *tight* bundle sizes (so it buys recall
+AND precision). **Latency p50 3.0s / p95 4.5s per call → an LLM reranker is unshippable** (the
+"don't ship this" baseline; the operator's latency instinct was correct). Resolution: a
+cross-encoder (bge-reranker-v2-m3 via TEI) should match/beat this recall at ~tens of ms.
+Next: measure cross-encoder recall + p50/p95 latency on the GPU to close the loop.

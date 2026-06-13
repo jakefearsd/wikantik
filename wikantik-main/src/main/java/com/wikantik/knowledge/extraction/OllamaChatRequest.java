@@ -36,7 +36,7 @@ import java.util.Map;
  * cannot disable it; the client must send it on every request. {@code format:json}
  * alone is not a reliable substitute (it breaks down under heavy prompts).</p>
  */
-final class OllamaChatRequest {
+public final class OllamaChatRequest {
 
     private OllamaChatRequest() {}
 
@@ -45,7 +45,7 @@ final class OllamaChatRequest {
      * is included only when non-null, so successive chunks of one page keep the model
      * resident; pass {@code null} to omit it.
      */
-    static Map< String, Object > body( final String model,
+    public static Map< String, Object > body( final String model,
                                        final String systemPrompt,
                                        final String userPrompt,
                                        final String keepAlive ) {

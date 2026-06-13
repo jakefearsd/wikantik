@@ -65,6 +65,17 @@ class BundleMetricsCalculatorTest {
     }
 
     @Test
+    void precisionAtK_uses_min_k_bundleSize_so_a_small_all_gold_bundle_scores_one() {
+        final List<GoldSection> golds = List.of( gold( "01A", List.of( "Setup" ) ) );
+        // One gold section, k=5: denominator is min(5,1)=1, not 5 — perfect precision.
+        final List<BundleSection> tight = List.of( sec( "01A", List.of( "Setup" ), "gold" ) );
+        assertEquals( 1.0, BundleMetricsCalculator.contextPrecisionAtK( golds, tight, 5 ), 1e-9 );
+        // One non-gold section against k=5 is pure noise → 0.0.
+        final List<BundleSection> noise = List.of( sec( "01Z", List.of( "Noise" ), "x" ) );
+        assertEquals( 0.0, BundleMetricsCalculator.contextPrecisionAtK( golds, noise, 5 ), 1e-9 );
+    }
+
+    @Test
     void citationFaithfulness_passes_only_on_exact_hash_match() {
         final String body = "OntologyPageSync checks canonical_id liveness.";
         final String hash = BundleMetricsCalculator.sha256( body );

@@ -51,4 +51,11 @@ class BundleEvalRunnerTest {
         assertEquals( 0.0, report.recallByCategory().get( BundleCategory.RELATIONAL ), 1e-9 );
         assertEquals( 2, report.questionsScored() );
     }
+
+    @Test
+    void constructor_rejects_non_positive_precisionK() {
+        final BundleEvalRunner.BundleRetriever retriever = q -> List.of();
+        assertThrows( IllegalArgumentException.class,
+            () -> new BundleEvalRunner( retriever, 0 ) );
+    }
 }

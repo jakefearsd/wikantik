@@ -29,6 +29,8 @@ class BundleRecordsTest {
         final GoldSection g = new GoldSection( "01ABC", List.of( "Overview", "Setup" ) );
         assertEquals( "01ABC", g.canonicalId() );
         assertEquals( List.of( "Overview", "Setup" ), g.headingPath() );
+        // null heading-path normalises to an empty list rather than throwing
+        assertTrue( new GoldSection( "01ABC", null ).headingPath().isEmpty() );
         assertThrows( IllegalArgumentException.class,
             () -> new GoldSection( "  ", List.of() ) );
     }

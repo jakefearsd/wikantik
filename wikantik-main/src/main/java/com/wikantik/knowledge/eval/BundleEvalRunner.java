@@ -42,6 +42,9 @@ public final class BundleEvalRunner {
     private final int precisionK;
 
     public BundleEvalRunner( final BundleRetriever retriever, final int precisionK ) {
+        if ( precisionK <= 0 ) {
+            throw new IllegalArgumentException( "precisionK must be positive" );
+        }
         this.retriever = retriever;
         this.precisionK = precisionK;
     }

@@ -47,7 +47,12 @@ public final class BundleMetricsCalculator {
         return (double) covered / golds.size();
     }
 
-    /** Fraction of the top-K bundle slots that cover some gold section. */
+    /**
+     * Fraction of the sections present in the top-K of the bundle that cover a gold
+     * section — denominator is {@code min(k, bundle size)}, so a small all-gold bundle
+     * scores 1.0 (tightness) rather than {@code goldSlots/k}, which would penalise short
+     * bundles for being short instead of noisy.
+     */
     public static double contextPrecisionAtK( final List< GoldSection > golds,
                                               final List< BundleSection > bundle,
                                               final int k ) {
@@ -57,7 +62,7 @@ public final class BundleMetricsCalculator {
         for ( int i = 0; i < cap; i++ ) {
             if ( coversAnyGold( bundle.get( i ), golds ) ) goldSlots++;
         }
-        return (double) goldSlots / k;
+        return (double) goldSlots / cap;
     }
 
     /** A citation is faithful iff the pinned hash equals SHA-256 of the resolved span. */

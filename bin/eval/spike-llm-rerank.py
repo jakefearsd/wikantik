@@ -10,12 +10,12 @@ baseline (max-chunk: 0.19/0.31/0.43/0.63 @ 1/2/3/5). Also reports per-call laten
 
 Requires PG* env + the LLM on the inference host.
 """
-import csv, glob, json, os, re, struct, subprocess, time, urllib.request
+import csv, glob, json, os, re, struct, subprocess, sys, time, urllib.request
 
 PAGES="docs/wikantik-pages"; CSV_PATH="eval/bundle-corpus/queries.csv"
 MODEL_CODE="qwen3-embedding-0.6b"
 GEN_URL="http://inference.jakefear.com:11434/api/generate"
-LLM="qwen3.5:9b"; SS=[1,2,3,5]; SNIP=240; MAXSEC=15
+LLM=(sys.argv[1] if len(sys.argv)>1 else "qwen3.5:9b"); SS=[1,2,3,5]; SNIP=240; MAXSEC=15
 
 def norm(s): return re.sub(r"\s+"," ",s).strip().lower()
 
@@ -117,7 +117,7 @@ def main():
         print(f"  ...{done}/{len(corpus)} queries", flush=True)
     def avg(x): return sum(x)/len(x) if x else 0.0
     lat=sorted(_lat); p=lambda q:(lat[int(q*(len(lat)-1))] if lat else 0)
-    print("\nLLM-as-reranker (qwen3.5:9b, listwise) — gold-section recall@S, per-page frame\n")
+    print(f"\nLLM-as-reranker ({LLM}, listwise) — gold-section recall@S, per-page frame\n")
     print(f"{'method':<16}"+"".join(f"{('recall@S='+str(s)):>13}" for s in SS))
     print("-"*(16+13*len(SS)))
     print(f"{'dense max (base)':<16}"+f"{0.191:>13.3f}{0.309:>13.3f}{0.426:>13.3f}{0.632:>13.3f}")

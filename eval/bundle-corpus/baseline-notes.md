@@ -221,3 +221,22 @@ badly on identical input. The lever is real (LLM proves it) but the cheap cross-
 intent-discrimination. Open: sweep stronger fast rerankers (Qwen3-Reranker 0.6B/4B, jina-v2,
 mxbai) or a small-LLM reranker (~0.5-1s). Caveat: per-page frame (intra-document section pick)
 may disadvantage cross-encoders vs the LLM's reasoning.
+
+## Reranker frontier (2026-06-13) — the 4B sweet spot
+
+Per-page-frame gold-section recall@S, listwise rerank (dense baseline 0.19/0.31/0.43/0.63):
+
+| reranker | @1 | @2 | @3 | @5 | latency |
+|----------|----|----|----|----|---------|
+| cross-enc bge-v2-m3 | 0.147 | 0.309 | 0.441 | 0.559 | p50 40ms |
+| qwen2.5:1.5b        | 0.221 | 0.265 | 0.412 | 0.500 | p50 0.4s |
+| **gemma4:e4b (4B)** | 0.088 | 0.412 | **0.603** | **0.750** | **p50 1.0s** |
+| qwen3.5:9b          | 0.324 | 0.515 | 0.588 | 0.691 | p50 3-4.5s |
+
+**Conclusion:** the fast cross-encoder lacks quality; the 1.5B collapses; the **4B (gemma4:e4b)
+is the sweet spot** — recall@3 0.60 (+0.17), @5 0.75 (+0.12), beating the 9B at bundle depths,
+at ~1s (acceptable on the agent path). The 9B wins @1-2 (single-best precision) but is slower
+with no bundle-depth gain. Phase-1 recall lever = a ~4B LLM reranker as the bundle's ranking
+step. Operator's latency skepticism held: the trivial-latency cross-encoder doesn't work; the
+quality needs an LLM; the 4B is the usable compromise. Caveat: per-page frame — production
+reranks the global candidate set (~30-60 sections, one listwise call ~1.5-2.5s).

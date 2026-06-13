@@ -240,3 +240,24 @@ with no bundle-depth gain. Phase-1 recall lever = a ~4B LLM reranker as the bund
 step. Operator's latency skepticism held: the trivial-latency cross-encoder doesn't work; the
 quality needs an LLM; the 4B is the usable compromise. Caveat: per-page frame — production
 reranks the global candidate set (~30-60 sections, one listwise call ~1.5-2.5s).
+
+## Production-frame rerank — the binding ceiling is first-stage recall (2026-06-13)
+
+`bin/eval/spike-global-rerank.py` — rerank the real /api/search candidate set (not the gold
+page in isolation):
+
+| frame (gemma4:e4b, 1-call rerank) | @3 | @5 | @8 | @12 |
+|-----------------------------------|----|----|----|----|
+| per-page isolated (optimistic) | 0.60 | 0.75 | — | — |
+| flat-global-30 + rerank | 0.34 | 0.43 | 0.44 | 0.52 |
+| top-5/page-of-8 + rerank | 0.29 | 0.38 | 0.50 | 0.51 |
+| dense, no rerank (top-5/page) | 0.19 | 0.24 | 0.36 | 0.47 |
+
+**Conclusions:** (1) the per-page 0.75 was a frame artifact — realistic one-call bundle recall
+is ~0.40@5 / ~0.51@12. (2) Reranking gives a real but modest lift (@5 0.24→0.40) at ~1.7s,
+best at tight bundles. (3) The binding ceiling is **first-stage recall into the shortlist** —
+qwen3-0.6b ranks the gold section ~5th in its page / deeper globally, so it often never reaches
+the reranker; widening the shortlist barely helps (dense @12 plateaus ~0.47). **The bigger
+untested lever is a stronger first-stage embedder** (latency-free, offline re-embed), which
+raises the shortlist ceiling the reranker then orders. Phase 1: reranker (4B, +0.15@5) AND a
+stronger embedder — the embedder is likely the larger lever.

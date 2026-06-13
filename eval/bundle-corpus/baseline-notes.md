@@ -294,3 +294,40 @@ global-rerank) embedded the query WITHOUT the instruction prefix and thus unders
 with the prefix (production behavior) max-chunk-0.6B is 0.41@5 / 0.54@12, not ~0.24@5. The
 model lever is dead; structural changes (heading-prepend / contextual embeddings) are the
 remaining first-stage lever.
+
+## Phase-1 LIVE bundle measurement (2026-06-13) — `bin/eval/spike-bundle-live.py`
+
+Faithful end-to-end run of the shipped `DefaultBundleAssemblyService` pipeline against the
+live stack: `/api/search` (top-20 pages) → per-page section shortlist (best chunk per
+heading-path, top-5/page = `SectionAssembler`) → **listwise `gemma4:e4b` rerank** (think:false,
+JSON `{"ranking":[…]}`) → dedup by (slug, heading-path) → top-N. Gold-section recall@N, dense
+order vs reranked order on the **same candidate set** (isolates the reranker's contribution).
+
+| method | recall@5 | recall@12 |
+|--------|----------|-----------|
+| dense baseline (global max-chunk, ref) | 0.412 | 0.544 |
+| bundle dense-order (per-page shortlist) | 0.389 | 0.500 |
+| bundle reranked (gemma4:e4b) | **0.389** | **0.500** |
+
+rerank latency p50/p95 = 1.5s (n=54).
+
+**Two findings, both robust:**
+
+1. **The 4B reranker is an ordering lever, not a recall lever — at the bundle's operating point
+   it changes nothing.** rerank == dense to three decimals at both cutoffs, every category. The
+   model is *not* broken (a direct probe returns a correct ranking, e.g. `{"ranking":[2,1,3]}`
+   putting the deploy passage first). The reason is structural: `recall@N` is set-membership in
+   the top-N, and reranking *reorders* the top-N without changing *which* gold sections occupy it.
+   The reranker's value is top-of-bundle ordering/precision (what the consuming agent reads first),
+   and it never regresses (degrades safely to dense). This **confirms** the banked exploration
+   verdict: first-stage recall is the binding ceiling.
+
+2. **The per-page shortlist (`sectionsPerPage=5`) costs a little recall vs unbounded global dense**
+   (0.389 vs 0.412 @5; 0.500 vs 0.544 @12) — a gold section ranked 6th+ on its page is dropped
+   before the global top-N. The bundle's win is *structural* (dedup, version-pinned citations,
+   parent-section grouping, ordering), not raw recall. If recall is paramount, raise
+   `sectionsPerPage` or lift the per-page cap; that is the lever, not the reranker.
+
+Caveat: this spike's first stage is the production *hybrid* `/api/search` page pre-selection
+(not pure dense), re-scored with the 0.6B chunk vectors — a faithful replica of the runtime
+pipeline, not a controlled pure-dense A/B. The directional conclusions above hold regardless.

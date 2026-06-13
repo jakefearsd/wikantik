@@ -355,23 +355,6 @@ Generated from `eval/bundle-corpus/queries.csv` by `bin/eval/build-review-worksh
 
 ---
 
-## q11 — SIMILARITY
-
-**Query:** oauth authorization code flow
-
-
-**Gold 1:** `OAuthImplementation.md` → `OAuth Flow Integration`
-
-> **OAuth Flow Integration**
->
-> ```
-
-
-- [ ] verdict: ______  (OK / DROP / FIX → ____)
-
-
----
-
 ## q12 — SIMILARITY
 
 **Query:** single sign on with identity providers
@@ -504,32 +487,6 @@ Generated from `eval/bundle-corpus/queries.csv` by `bin/eval/build-review-worksh
 > 
 > Supply-chain Levels for
 > … (truncated)
-
-
-- [ ] verdict: ______  (OK / DROP / FIX → ____)
-
-
----
-
-## q15 — SIMILARITY
-
-**Query:** onboarding a new client
-
-
-**Gold 1:** `CustomerRelationshipManagement.md` → `I. Foundations: The Evolution of CRM`
-
-> **I. Foundations: The Evolution of CRM**
->
-> The definition of CRM has undergone an ontological shift. We move beyond managing interactions to managing the *definition* of the relationship itself.
-> 
-> ### 1.1 From Operational to Analytical CRM
-> *   **Operational CRM:** Focuses on automating front-office processes (Sales, Marketing, Support). It is the baseline for data collection.
-> *   **Analytical CRM:** Uses [Machine Learning](MachineLearning) to derive insights (CLV, Churn prediction) from operational data. It provides the "Why" behind the "What."
-> 
-> ### 1.2 The System of Record (SoR)
-> A mature CRM strategy mandates that the CRM is the single source of truth for customer identity. This requires rigorous [Business Process Modeling](BusinessProcessModeling) to ensure that data flows seamlessly from disparate touchpoints into the core profile.
-> 
-> ---
 
 
 - [ ] verdict: ______  (OK / DROP / FIX → ____)

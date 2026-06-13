@@ -24,11 +24,9 @@ q07,full text search in relational database,SIMILARITY,01KQ0P44QJTG4MR5M81CRQMK7
 q08,local retrieval augmented generation,SIMILARITY,01KQEKGDCNT2EXY4M4034M3YV5,The minimum stack,seed-multi-word-concept
 q09,blue green release strategy,SIMILARITY,01KQEKGD7VHR9Y4FJQRZZ1KC12,How it works,seed-synonym-drift
 q10,gradual rollout with traffic shifting,SIMILARITY,01KQ0P44MXK2X5DVXZ0MT3YVKD,1. Traffic Splitting Mechanisms,seed-indirect
-q11,oauth authorization code flow,SIMILARITY,01KQ0P44T600RKB0SF6RN6QBR8,OAuth Flow Integration,seed-specific
 q12,single sign on with identity providers,SIMILARITY,01KQ0P44QHCCMJHPMCQ195JNVW,Part B: Architecture Overview,seed-indirect
 q13,storage patterns for files,SIMILARITY,01KQ0P44T76SSF84NC0RMXA6MJ,What object storage is good for,seed-synonym-drift
 q14,how do we protect against supply chain attacks,SIMILARITY,01KQ0P44X3SC9XBFJRV9TPWHG7,Defenses,seed-business-process
-q15,onboarding a new client,SIMILARITY,01KQ0P44P6ZHDJHZZ9T0V85YF8,I. Foundations: The Evolution of CRM,seed-business-process
 q16,how to plan a sprint,SIMILARITY,01KQ0P44WV09A6KGT92QM81GCX,III. The Planning Workflow,seed-business-process
 q17,handling a production outage,SIMILARITY,01KQ0P44R28P11K576MM618FZX,1. Incident Lifecycle and Severities,seed-business-process
 q18,roadmap planning process,SIMILARITY,01KQ0P44TT5X4QTABJN4YFEATQ,I. The Hierarchy of Product Intent,seed-business-process

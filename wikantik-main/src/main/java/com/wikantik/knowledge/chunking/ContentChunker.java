@@ -65,18 +65,23 @@ public class ContentChunker {
      *       emitted first. Oversized atomic blocks (code/tables/lists within
      *       budget) pass through intact; oversized paragraphs fall back to
      *       sentence-level splitting.</li>
-     *   <li>{@code mergeForwardTokens} — minimum size at which a section's
-     *       accumulated text is eligible to emit. Below this threshold the
-     *       buffer is held and merges into the next section's content. This
-     *       is the effective "floor": raising it coalesces small sibling
-     *       sections into larger chunks without changing the max ceiling.</li>
+     *   <li>{@code mergeForwardTokens} — size below which a section's accumulated
+     *       text is held inside a flush rather than emitted immediately. Keeps a
+     *       section's own short blocks together until the section ends.</li>
+     *   <li>{@code fragmentFloorTokens} — the cross-section floor. A section whose
+     *       whole text is below this is treated as a fragment: instead of becoming
+     *       its own (tiny, noisy) chunk it merges forward into the NEXT section and
+     *       adopts that section's heading_path, so the dominant section stays
+     *       findable and we don't emit sub-floor fragments. A section at/above the
+     *       floor always stands alone under its own heading (heading fidelity).
+     *       Must be {@code <= mergeForwardTokens}.</li>
      * </ul>
      *
      * <p>Earlier releases also exposed {@code targetTokens} and {@code
      * minTokens}. Those knobs were never wired to any behaviour in this class;
      * they have been removed to stop advertising levers that do nothing.</p>
      */
-    public record Config(int maxTokens, int mergeForwardTokens) {}
+    public record Config(int maxTokens, int mergeForwardTokens, int fragmentFloorTokens) {}
 
     private final Config config;
 
@@ -107,10 +112,12 @@ public class ContentChunker {
                 // Flush any accumulated blocks under the *current* heading path
                 // before we shift into the new heading.
                 flushBlocks(pageName, chunkIndex, currentHeadingPath(headingStack), state, out);
-                // Heading fidelity: emit any held merge-forward buffer here, under its
-                // OWN heading_path, so it cannot roll across the boundary and steal the
-                // next section's heading (the live OllamaSetup/AgentMemory defect).
-                forceEmitPending(pageName, chunkIndex, state, out);
+                // Heading fidelity at the boundary: a section at/above the fragment
+                // floor is emitted here under its OWN heading_path (so it can't steal
+                // the next section's heading — the OllamaSetup/AgentMemory defect). A
+                // sub-floor fragment is left held; it merges into the next section and
+                // adopts that heading (see flushBlocks), so we never emit a tiny chunk.
+                emitSectionAtBoundary(pageName, chunkIndex, state, out);
                 adjustHeadingStack(headingStack, heading.getLevel(),
                                    extractHeadingTitle(heading));
             } else {
@@ -255,6 +262,11 @@ public class ContentChunker {
                 // Defensive copy: makes the contract local even if a future caller
                 // forgets to pass an immutable list.
                 state.pendingHeadingPath = List.copyOf(headingPath);
+            } else if (!headingPath.equals(state.pendingHeadingPath)) {
+                // A sub-floor fragment from a previous section is merging into THIS
+                // section (real sections were already emitted at the boundary). Adopt
+                // this destination heading so the dominant section stays findable.
+                state.pendingHeadingPath = List.copyOf(headingPath);
             }
             state.pending.append(blockText).append("\n\n");
         }
@@ -287,17 +299,24 @@ public class ContentChunker {
     }
 
     /**
-     * Emits the merge-forward buffer unconditionally (ignoring {@code mergeForwardTokens})
-     * under its own {@code pendingHeadingPath}. Called at every heading boundary so a short
-     * section becomes its own chunk rather than rolling its heading_path onto the next
-     * section. No-op when the buffer is empty.
+     * Called at each heading boundary. If the held buffer is at/above the fragment
+     * floor it is emitted under its own {@code pendingHeadingPath} (heading fidelity:
+     * a real section stands alone and keeps its heading). If it is below the floor it
+     * is LEFT held, so it merges into the next section and adopts that section's
+     * heading (see {@code flushBlocks}) — no sub-floor fragment chunk is emitted.
      */
-    private void forceEmitPending(String pageName, int[] idx, State state, List<Chunk> out) {
+    private void emitSectionAtBoundary(String pageName, int[] idx, State state, List<Chunk> out) {
         String text = state.pending.toString().strip();
-        if (!text.isEmpty()) {
-            List<String> hp = state.pendingHeadingPath != null ? state.pendingHeadingPath : List.of();
-            out.add(buildChunk(pageName, idx[0]++, hp, text));
+        if (text.isEmpty()) {
+            state.pending.setLength(0);
+            state.pendingHeadingPath = null;
+            return;
         }
+        if (estimateTokens(text) < config.fragmentFloorTokens()) {
+            return; // sub-floor fragment — hold for merge-forward into the next section
+        }
+        List<String> hp = state.pendingHeadingPath != null ? state.pendingHeadingPath : List.of();
+        out.add(buildChunk(pageName, idx[0]++, hp, text));
         state.pending.setLength(0);
         state.pendingHeadingPath = null;
     }

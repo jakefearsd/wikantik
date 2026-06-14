@@ -28,7 +28,11 @@ import static org.junit.jupiter.api.Assertions.*;
 class ContentChunkerTest {
 
     private final ContentChunker chunker = new ContentChunker(
-        new ContentChunker.Config(512, 8));
+        new ContentChunker.Config(512, 8, 0));   // floor 0: every section stands alone
+
+    // Production-like config (floor 24 < mergeForward 150) for the fragment-floor cases.
+    private final ContentChunker flooredChunker = new ContentChunker(
+        new ContentChunker.Config(512, 150, 24));
 
     @Test
     void emptyBodyProducesZeroChunks() {
@@ -150,11 +154,11 @@ class ContentChunkerTest {
     }
 
     @Test
-    void shortSectionDoesNotStealNextSectionsHeading() {
-        // Heading fidelity: a short section must NOT carry its heading onto the
-        // next section's content. Each chunk's heading_path must match the section
-        // its content came from — otherwise the later section is unfindable by its
-        // own heading and any citation to it is mis-anchored (the RAG bundle bug).
+    void subFloorFragmentMergesForwardAndAdoptsDestinationHeading() {
+        // A sub-floor fragment ('Tiny.') must NOT become its own tiny chunk, and must
+        // NOT steal the next section's heading. It merges into 'Real' and adopts the
+        // 'Real' heading, so the dominant section stays findable and no fragment chunk
+        // is emitted.
         String body = """
             ## Stub
 
@@ -166,23 +170,20 @@ class ContentChunkerTest {
             threshold on merge and emit a single well-formed chunk.
             """;
         ParsedPage page = new ParsedPage(java.util.Map.of(), body);
-        List<Chunk> chunks = chunker.chunk("Merge", page);
-        assertEquals(2, chunks.size(), "sections must not merge across the heading boundary");
-        assertEquals(List.of("Stub"), chunks.get(0).headingPath());
-        assertTrue(chunks.get(0).text().contains("Tiny."));
-        assertEquals(List.of("Real"), chunks.get(1).headingPath(),
-                     "the 'Real' section keeps its own heading_path");
-        assertTrue(chunks.get(1).text().contains("plenty of real content"));
-        // The 'Real' content must NOT appear under the 'Stub' heading.
-        assertFalse(chunks.get(0).text().contains("plenty of real content"),
-                    "'Real' content must not be mis-attributed to the 'Stub' heading");
+        List<Chunk> chunks = flooredChunker.chunk("Merge", page);
+        assertEquals(1, chunks.size(), "the sub-floor 'Stub' fragment merges into 'Real'");
+        assertEquals(List.of("Real"), chunks.get(0).headingPath(),
+                     "merged chunk adopts the destination ('Real') heading, not 'Stub'");
+        assertTrue(chunks.get(0).text().contains("plenty of real content"));
+        assertTrue(chunks.get(0).text().contains("Tiny."), "fragment content is absorbed, not dropped");
     }
 
     @Test
-    void firstH2AfterShortPreambleKeepsItsOwnHeading() {
-        // Regression for the live OllamaSetup defect: a short H1 preamble followed
-        // by the first H2 ('Hardware Sizing') must NOT absorb the H2 content under
-        // the bare H1 path. The H2 must be findable under its own heading_path.
+    void firstH2AfterShortPreambleIsFindableUnderItsOwnHeading() {
+        // Regression for the live OllamaSetup defect: a short H1 preamble followed by
+        // the first H2 ('Hardware Sizing') must leave the vRAM content findable under
+        // the 'Hardware Sizing' heading_path, never absorbed under the bare H1 path.
+        // (Here the sub-floor preamble merges INTO Hardware Sizing and adopts its heading.)
         String body = """
             # Deploying Ollama
 
@@ -194,13 +195,39 @@ class ContentChunkerTest {
             capacity around the largest model you intend to keep resident.
             """;
         ParsedPage page = new ParsedPage(java.util.Map.of(), body);
-        List<Chunk> chunks = chunker.chunk("OllamaSetup", page);
+        List<Chunk> chunks = flooredChunker.chunk("OllamaSetup", page);
         boolean hardwareSizingFindable = chunks.stream().anyMatch(c ->
             c.headingPath().equals(List.of("Deploying Ollama", "Hardware Sizing"))
             && c.text().contains("vRAM"));
         assertTrue(hardwareSizingFindable,
             "the vRAM content must be findable under the 'Hardware Sizing' heading_path, "
             + "not absorbed into the H1 preamble chunk");
+        // And it must NOT appear under the bare H1 path.
+        assertFalse(chunks.stream().anyMatch(c ->
+            c.headingPath().equals(List.of("Deploying Ollama")) && c.text().contains("vRAM")),
+            "vRAM content must not be mis-attributed to the bare H1 heading");
+    }
+
+    @Test
+    void realShortSectionAtOrAboveFloorStaysStandalone() {
+        // Heading fidelity for real-but-short sections: a section at/above the floor
+        // keeps its own heading_path and does not merge into a sibling.
+        String body = """
+            ## Alpha
+
+            Alpha holds a genuinely real short section whose body comfortably clears
+            the fragment floor on its own merits here.
+
+            ## Beta
+
+            Beta likewise carries its own substantive body text that clears the floor
+            and therefore stands as its own independent chunk.
+            """;
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body);
+        List<Chunk> chunks = flooredChunker.chunk("AB", page);
+        assertEquals(2, chunks.size(), "two above-floor sections must not merge");
+        assertEquals(List.of("Alpha"), chunks.get(0).headingPath());
+        assertEquals(List.of("Beta"), chunks.get(1).headingPath());
     }
 
     @Test

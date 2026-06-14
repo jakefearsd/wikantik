@@ -89,7 +89,8 @@ public final class ChunkerStatsCli {
         }
 
         final ContentChunker chunker = new ContentChunker(
-            new ContentChunker.Config( a.chunkerMaxTokens, a.chunkerMergeForwardTokens ) );
+            new ContentChunker.Config( a.chunkerMaxTokens, a.chunkerMergeForwardTokens,
+                                       a.chunkerFragmentFloorTokens ) );
         final ChunkExtractionPrefilter prefilter = new ChunkExtractionPrefilter(
             /*enabled*/ true, /*dryRun*/ false,
             /*skipPureCode*/ true, /*skipNoProperNoun*/ true,
@@ -191,6 +192,9 @@ public final class ChunkerStatsCli {
               --chunker-max-tokens <N>             chunker hard ceiling (default 512)
               --chunker-merge-forward-tokens <N>   chunker floor below which chunks merge into the next
                                                    section (default 150). Must be <= --chunker-max-tokens.
+              --chunker-fragment-floor-tokens <N>  cross-section fragment floor (default 24): a section
+                                                   below this merges forward and adopts the next heading.
+                                                   Must be <= --chunker-merge-forward-tokens.
               -h, --help                           show this message
 
             No DB access, no LLM. Reads pages from disk and re-chunks in memory.
@@ -204,6 +208,7 @@ public final class ChunkerStatsCli {
         String  pagesDir                  = "docs/wikantik-pages";
         int     chunkerMaxTokens          = 512;
         int     chunkerMergeForwardTokens = 150;
+        int     chunkerFragmentFloorTokens = 24;
         boolean showHelp                  = false;
 
         static Args parse( final String[] argv ) {
@@ -215,6 +220,7 @@ public final class ChunkerStatsCli {
                     case "--pages-dir"                    -> a.pagesDir = req( argv, ++i, k );
                     case "--chunker-max-tokens"           -> a.chunkerMaxTokens = parseInt( req( argv, ++i, k ), k );
                     case "--chunker-merge-forward-tokens" -> a.chunkerMergeForwardTokens = parseInt( req( argv, ++i, k ), k );
+                    case "--chunker-fragment-floor-tokens" -> a.chunkerFragmentFloorTokens = parseInt( req( argv, ++i, k ), k );
                     default -> throw new IllegalArgumentException( "unknown argument: " + k );
                 }
             }
@@ -228,6 +234,13 @@ public final class ChunkerStatsCli {
                     throw new IllegalArgumentException(
                         "--chunker-merge-forward-tokens must be <= --chunker-max-tokens "
                       + "(floor cannot exceed ceiling)" );
+                }
+                if( a.chunkerFragmentFloorTokens < 0 ) {
+                    throw new IllegalArgumentException( "--chunker-fragment-floor-tokens must be >= 0" );
+                }
+                if( a.chunkerFragmentFloorTokens > a.chunkerMergeForwardTokens ) {
+                    throw new IllegalArgumentException(
+                        "--chunker-fragment-floor-tokens must be <= --chunker-merge-forward-tokens" );
                 }
             }
             return a;

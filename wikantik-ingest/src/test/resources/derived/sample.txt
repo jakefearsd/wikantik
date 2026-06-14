@@ -1,0 +1,6 @@
+# Hello World
+
+hello, this is a sample plain-text fixture for TikaSourceExtractorTest.
+
+This document is used to verify that Tika can extract plain text content
+and that the resulting markdown is non-empty and contains the word "hello".

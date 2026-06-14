@@ -40,6 +40,23 @@ class CitationLinkRenderingFilterTest {
     }
 
     @Test
+    void stripsTitleSpanSoTargetContentDoesNotLeakToReaders() throws Exception {
+        final StructuralIndexService idx = mock( StructuralIndexService.class );
+        when( idx.resolveSlugFromCanonicalId( "abc123" ) ).thenReturn( Optional.of( "Deploy" ) );
+        final CitationLinkRenderingFilter f = new CitationLinkRenderingFilter( idx );
+        // Flexmark renders the link title (the verbatim cited span) into title="...".
+        final String html = "<p><a href=\"cite://abc123/Rollback%20Steps\" "
+            + "title=\"drain the queue before rollback\">claim</a></p>";
+        final String out = f.postTranslate( mock( Context.class ), html );
+        assertTrue( out.contains( "href=\"/wiki/Deploy" ) );
+        assertTrue( out.contains( "wiki-citation" ) );
+        assertFalse( out.contains( "cite://" ) );
+        // The verbatim span (target-page content) must be gone — no title attribute survives.
+        assertFalse( out.contains( "title=" ), "title span must be stripped" );
+        assertFalse( out.contains( "drain the queue before rollback" ) );
+    }
+
+    @Test
     void unknownTargetGetsMissingClassAndDoesNotThrow() throws Exception {
         final StructuralIndexService idx = mock( StructuralIndexService.class );
         when( idx.resolveSlugFromCanonicalId( "gone" ) ).thenReturn( Optional.empty() );

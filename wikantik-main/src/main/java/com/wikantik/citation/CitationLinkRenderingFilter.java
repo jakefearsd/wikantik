@@ -42,6 +42,8 @@ import java.util.regex.Pattern;
  *   <li>Builds a best-effort heading anchor from the last decoded heading segment
  *       (lowercase, spaces → {@code -}, non-alphanumerics stripped).</li>
  *   <li>Adds {@code class="wiki-citation"} to the element.</li>
+ *   <li>Drops the {@code title="…"} attribute Flexmark renders from the link title (the verbatim
+ *       cited span) — that span quotes the target page and must not leak to readers on hover.</li>
  *   <li>On unknown cid: leaves a non-navigating anchor ({@code href="#"}) with
  *       {@code class="wiki-citation wiki-citation-missing"}; never throws.</li>
  * </ul>
@@ -53,11 +55,16 @@ public final class CitationLinkRenderingFilter implements PageFilter {
     private static final Logger LOG = LogManager.getLogger( CitationLinkRenderingFilter.class );
 
     /**
-     * Matches {@code href="cite://<cid>"} or {@code href="cite://<cid>/<heading>"}.
-     * Group 1 = cid, group 2 = heading path (may be null/absent).
+     * Matches {@code href="cite://<cid>"} or {@code href="cite://<cid>/<heading>"}, plus an
+     * optional trailing {@code title="…"} attribute. Flexmark renders the markdown link title
+     * (the verbatim cited span) into {@code title="…"}; we consume it here so it is DROPPED on
+     * rewrite — that span is a quote of the <em>target</em> page's content and must not surface
+     * to readers (incl. anonymous) on hover when they may lack view permission on the target.
+     * Group 1 = cid, group 2 = heading path (may be null/absent). The title group is intentionally
+     * non-capturing and never re-emitted.
      */
     private static final Pattern CITE_HREF = Pattern.compile(
-        "href=\"cite://([^\"/]+)(?:/([^\"]*))?\"" );
+        "href=\"cite://([^\"/]+)(?:/([^\"]*))?\"(?:\\s+title=\"[^\"]*\")?" );
 
     private final StructuralIndexService structuralIndex;
 

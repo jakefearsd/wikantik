@@ -178,6 +178,11 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
                 tools.add( new GetOntologyTool( ontoMgr ) );
                 tools.add( new SparqlQueryTool( ontoMgr ) );
             }
+            final com.wikantik.citation.CitationRepository citationRepo =
+                PageGraphSubsystemBridge.fromLegacyEngine( engine ).citationRepository();
+            if ( citationRepo != null ) {
+                tools.add( new ListStaleCitationsTool( citationRepo ) );
+            }
         } catch ( final Exception e ) {
             LOG.error( "Knowledge MCP startup failed while assembling tools — transport servlet is registered " +
                     "but the server will have no tools to dispatch: {}", e.getMessage(), e );

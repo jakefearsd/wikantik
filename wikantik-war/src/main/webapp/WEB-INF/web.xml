@@ -595,6 +595,10 @@
        <servlet-class>com.wikantik.rest.AdminOntologyResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>AdminDerivedResource</servlet-name>
+       <servlet-class>com.wikantik.rest.AdminDerivedResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminDriftResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminDriftResource</servlet-class>
    </servlet>
@@ -877,6 +881,10 @@
    <servlet-mapping>
        <servlet-name>AdminOntologyResource</servlet-name>
        <url-pattern>/admin/ontology/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>AdminDerivedResource</servlet-name>
+       <url-pattern>/admin/derived/*</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminDriftResource</servlet-name>

@@ -128,6 +128,9 @@ public final class SearchWiringHelper {
         // embedding. Resolved per page from the frontmatter cache; the indexer memoises per run.
         final java.util.function.Function< String, com.wikantik.search.embedding.EmbeddingTextBuilder.PageContext >
             ctxResolver = pageName -> {
+                if ( fmCache == null ) {
+                    return com.wikantik.search.embedding.EmbeddingTextBuilder.PageContext.EMPTY;
+                }
                 final java.util.Map< String, Object > meta = fmCache.get( pageName, null );
                 final Object title   = meta.get( "title" );
                 final Object cluster = meta.get( "cluster" );

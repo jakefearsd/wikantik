@@ -1563,12 +1563,12 @@ public class WikiEngine implements Engine {
                     svcs, searchMgr, meterRegistry, pageManager, cachingManager, referenceManager, this );
 
             // Wire hybrid retrieval (SearchWiringHelper).
-            // fmCache is null here — the FrontmatterMetadataCache metric is
-            // registered at the cache's construction site (see line ~822).
-            // wireHybridRetrieval ignores a null fmCache (already guarded).
+            // Pass a FrontmatterMetadataCache so the embedding indexer can build
+            // contextual document embeddings (title|cluster|section|summary). A fresh
+            // instance over pageManager is fine — it's a bounded on-demand parse cache.
             com.wikantik.search.subsystem.SearchWiringHelper.wireHybridRetrieval(
                 props, ds, svcs.chunkProjector(), svcs.contentChunkRepository(),
-                /*fmCache*/ null,
+                new com.wikantik.search.FrontmatterMetadataCache( pageManager ),
                 rebuildService, this );
 
             // Wire the RDF ontology runtime (OntologyWiringHelper): builds the TDB2-backed

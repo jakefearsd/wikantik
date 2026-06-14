@@ -6,6 +6,45 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **RAG-as-a-Service context bundle.** `GET /api/bundle?q=…` (REST) and the
+  `assemble_bundle` tool on `/knowledge-mcp` return an assembled **context bundle** —
+  a ranked, de-duplicated, **version-pinned-cited** set of wiki sections for a query,
+  for grounding an agent. It does **not** synthesize an answer. Each section carries a
+  `CitationHandle` (canonical_id + page version + span SHA-256). Backed by the new
+  `com.wikantik.knowledge.bundle` layer.
+- **Bundle-quality evaluation harness** — a frozen, section-level gold corpus
+  (`eval/bundle-corpus/`) plus a deterministic recall / precision@K / citation-faithfulness
+  runner, wired as a pre-merge gate.
+- **Contextual document embeddings.** Each chunk is embedded with its page context
+  (`Page: {title} | Cluster: {cluster} | Section: {heading-path}` + summary, from
+  frontmatter) prepended — the largest single retrieval-recall lever (global
+  section-recall@12 ≈ 0.60 → 0.74). The query side keeps its instruction prefix.
+- **Configurable chunking knobs** — `wikantik.chunker.fragment_floor_tokens` (default 24)
+  and `wikantik.chunker.overlap_tokens` (default 40); bundle knobs
+  `wikantik.bundle.{dense.enabled, dense.top_k, sections_per_page, reranker.enabled}`.
+
+### Changed
+
+- **Bundle retrieval is global dense-chunk by default** — the top-K chunks across the
+  whole corpus, grouped to sections, instead of a page-gated shortlist. It realizes the
+  retrieval ceiling that the page pre-select was capping (realized bundle recall@12
+  0.50 → 0.71 across the release's retrieval work).
+- **Knowledge-graph extraction defaults to `gemma4-graph:12b`** with `think:false` sent
+  on every Ollama extraction/judge request (a reasoning trace breaks structured-JSON
+  extraction and is 10–20× slower).
+- **KG rerank stays off** (`graph.boost = 0.0`) pending a Phase-4 fair trial on relational
+  questions — replacing a stale `boost=0` "TEMP DIAGNOSTIC" override with an explicit state.
+
+### Fixed
+
+- **Chunker heading fidelity.** The chunker's merge-forward logic let a short preamble
+  carry the *first* section's `heading_path` onto later sections' content, so early /
+  first-`##` sections were unfindable by their own heading **and their citations were
+  mis-anchored**. Each chunk's `heading_path` now matches the section its content came
+  from. (Requires a content rebuild to take effect on existing pages.)
+
 ## [2.0.17] - 2026-06-12
 
 ### Added

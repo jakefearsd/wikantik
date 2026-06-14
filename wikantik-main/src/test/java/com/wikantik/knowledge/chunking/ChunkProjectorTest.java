@@ -55,7 +55,7 @@ class ChunkProjectorTest {
             conn.createStatement().execute( "DELETE FROM kg_content_chunks" );
         }
         repo = new ContentChunkRepository( dataSource );
-        chunker = new ContentChunker( new ContentChunker.Config( 512, 8, 0 ) );
+        chunker = new ContentChunker( new ContentChunker.Config( 512, 8, 0, 0 ) );
         projector = new ChunkProjector( chunker, repo, () -> true );
     }
 
@@ -106,7 +106,7 @@ class ChunkProjectorTest {
     @Test
     void chunkerExceptionIsCaughtAndLogged() {
         final ContentChunker throwing = new ContentChunker(
-            new ContentChunker.Config( 512, 8, 0 ) ) {
+            new ContentChunker.Config( 512, 8, 0, 0 ) ) {
             @Override
             public List< Chunk > chunk( final String pageName, final ParsedPage p ) {
                 throw new RuntimeException( "boom" );

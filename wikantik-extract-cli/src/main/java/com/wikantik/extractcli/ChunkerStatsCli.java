@@ -90,7 +90,7 @@ public final class ChunkerStatsCli {
 
         final ContentChunker chunker = new ContentChunker(
             new ContentChunker.Config( a.chunkerMaxTokens, a.chunkerMergeForwardTokens,
-                                       a.chunkerFragmentFloorTokens ) );
+                                       a.chunkerFragmentFloorTokens, a.chunkerOverlapTokens ) );
         final ChunkExtractionPrefilter prefilter = new ChunkExtractionPrefilter(
             /*enabled*/ true, /*dryRun*/ false,
             /*skipPureCode*/ true, /*skipNoProperNoun*/ true,
@@ -209,6 +209,7 @@ public final class ChunkerStatsCli {
         int     chunkerMaxTokens          = 512;
         int     chunkerMergeForwardTokens = 150;
         int     chunkerFragmentFloorTokens = 24;
+        int     chunkerOverlapTokens      = 40;
         boolean showHelp                  = false;
 
         static Args parse( final String[] argv ) {
@@ -221,6 +222,7 @@ public final class ChunkerStatsCli {
                     case "--chunker-max-tokens"           -> a.chunkerMaxTokens = parseInt( req( argv, ++i, k ), k );
                     case "--chunker-merge-forward-tokens" -> a.chunkerMergeForwardTokens = parseInt( req( argv, ++i, k ), k );
                     case "--chunker-fragment-floor-tokens" -> a.chunkerFragmentFloorTokens = parseInt( req( argv, ++i, k ), k );
+                    case "--chunker-overlap-tokens" -> a.chunkerOverlapTokens = parseInt( req( argv, ++i, k ), k );
                     default -> throw new IllegalArgumentException( "unknown argument: " + k );
                 }
             }

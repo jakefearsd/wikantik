@@ -75,13 +75,18 @@ public class ContentChunker {
      *       findable and we don't emit sub-floor fragments. A section at/above the
      *       floor always stands alone under its own heading (heading fidelity).
      *       Must be {@code <= mergeForwardTokens}.</li>
+     *   <li>{@code overlapTokens} — sliding-window overlap. After chunking, each
+     *       chunk's tail (this many tokens) is prepended to the next chunk under the
+     *       same heading_path, so a boundary-straddling fact appears whole in one
+     *       chunk. {@code 0} disables overlap (the historical behaviour).</li>
      * </ul>
      *
      * <p>Earlier releases also exposed {@code targetTokens} and {@code
      * minTokens}. Those knobs were never wired to any behaviour in this class;
      * they have been removed to stop advertising levers that do nothing.</p>
      */
-    public record Config(int maxTokens, int mergeForwardTokens, int fragmentFloorTokens) {}
+    public record Config(int maxTokens, int mergeForwardTokens, int fragmentFloorTokens,
+                         int overlapTokens) {}
 
     private final Config config;
 
@@ -137,6 +142,34 @@ public class ContentChunker {
             }
             state.pending.setLength(0);
             state.pendingHeadingPath = null;
+        }
+        return applyOverlap(out);
+    }
+
+    /**
+     * Prepends the tail of each chunk to the next chunk under the SAME heading_path, so a
+     * fact that straddles a chunk boundary appears whole in at least one chunk. Each chunk's
+     * tail is taken from the ORIGINAL (un-overlapped) text, so overlap does not compound.
+     * Off when {@code overlapTokens <= 0}. The 2026-06-14 probe showed a small @5/@20 gain.
+     */
+    private List<Chunk> applyOverlap(List<Chunk> chunks) {
+        final int overlapChars = config.overlapTokens() * 4;
+        if (overlapChars <= 0 || chunks.size() < 2) {
+            return chunks;
+        }
+        final List<Chunk> out = new ArrayList<>(chunks.size());
+        out.add(chunks.get(0));
+        for (int i = 1; i < chunks.size(); i++) {
+            final Chunk prev = chunks.get(i - 1);
+            final Chunk cur = chunks.get(i);
+            if (!prev.headingPath().equals(cur.headingPath())) {
+                out.add(cur);
+                continue;
+            }
+            final String pt = prev.text();
+            final String tail = pt.length() <= overlapChars ? pt : pt.substring(pt.length() - overlapChars);
+            out.add(buildChunk(cur.pageName(), cur.chunkIndex(), cur.headingPath(),
+                               tail + "\n\n" + cur.text()));
         }
         return out;
     }

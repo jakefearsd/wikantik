@@ -28,11 +28,11 @@ import static org.junit.jupiter.api.Assertions.*;
 class ContentChunkerTest {
 
     private final ContentChunker chunker = new ContentChunker(
-        new ContentChunker.Config(512, 8, 0));   // floor 0: every section stands alone
+        new ContentChunker.Config(512, 8, 0, 0));   // floor 0: every section stands alone
 
     // Production-like config (floor 24 < mergeForward 150) for the fragment-floor cases.
     private final ContentChunker flooredChunker = new ContentChunker(
-        new ContentChunker.Config(512, 150, 24));
+        new ContentChunker.Config(512, 150, 24, 0));
 
     @Test
     void emptyBodyProducesZeroChunks() {
@@ -309,5 +309,42 @@ class ContentChunkerTest {
         List<Chunk> again = chunker.chunk("Hash", page);
         assertEquals(chunks.get(0).contentHash(), again.get(0).contentHash());
         assertEquals(chunks.get(1).contentHash(), again.get(1).contentHash());
+    }
+
+    @Test
+    void overlapPrependsPreviousChunksTailToNextSameSectionChunk() {
+        // overlap=10 tokens (40 chars). A long single-section body splits into multiple
+        // chunks; each chunk after the first must begin with the prior chunk's 40-char tail.
+        final ContentChunker overlapping =
+            new ContentChunker(new ContentChunker.Config(40, 8, 0, 10));
+        final String body = "# H\n\n" + "Alpha sentence number here is present. ".repeat(20);
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body);
+        List<Chunk> chunks = overlapping.chunk("Ov", page);
+        assertTrue(chunks.size() >= 2, "expected the long section to split, got " + chunks.size());
+
+        // Re-chunk with overlap OFF to recover the un-overlapped first/second chunk texts.
+        final ContentChunker plain = new ContentChunker(new ContentChunker.Config(40, 8, 0, 0));
+        List<Chunk> noOv = plain.chunk("Ov", page);
+        final String expectedTail = noOv.get(0).text()
+            .substring(Math.max(0, noOv.get(0).text().length() - 40));
+        assertTrue(chunks.get(1).text().startsWith(expectedTail),
+            "second chunk must start with the first chunk's 40-char tail (overlap)");
+        // And overlap must not change the FIRST chunk.
+        assertEquals(noOv.get(0).text(), chunks.get(0).text(), "first chunk is unchanged by overlap");
+    }
+
+    @Test
+    void overlapZeroIsAnExactNoOp() {
+        final ContentChunker plain = new ContentChunker(new ContentChunker.Config(40, 8, 0, 0));
+        final String body = "# H\n\n" + "Alpha sentence number here is present. ".repeat(20);
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body);
+        // overlap=0 must produce the same chunk count + texts as before the feature existed.
+        List<Chunk> chunks = plain.chunk("Ov", page);
+        assertTrue(chunks.size() >= 2);
+        for (int i = 1; i < chunks.size(); i++) {
+            assertFalse(chunks.get(i).text().startsWith(chunks.get(i - 1).text()
+                .substring(Math.max(0, chunks.get(i - 1).text().length() - 40))),
+                "overlap=0 must not prepend any tail");
+        }
     }
 }

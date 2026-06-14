@@ -172,7 +172,8 @@ public final class KnowledgeWiringHelper {
                 new ContentChunker.Config(
                     TextUtil.getIntegerProperty( props, "wikantik.chunker.max_tokens", 512 ),
                     TextUtil.getIntegerProperty( props, "wikantik.chunker.merge_forward_tokens", 150 ),
-                    TextUtil.getIntegerProperty( props, "wikantik.chunker.fragment_floor_tokens", 24 ) ) );
+                    TextUtil.getIntegerProperty( props, "wikantik.chunker.fragment_floor_tokens", 24 ),
+                    TextUtil.getIntegerProperty( props, "wikantik.chunker.overlap_tokens", 40 ) ) );
             rebuildService = meterRegistry != null
                 ? new ContentIndexRebuildService(
                     pageManager,

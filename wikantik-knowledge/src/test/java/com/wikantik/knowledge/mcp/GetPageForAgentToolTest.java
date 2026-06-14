@@ -81,7 +81,7 @@ class GetPageForAgentToolTest {
                 null,
                 null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
-                false, List.of() );
+                false, List.of(), List.of() );
         when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of( "canonical_id", "01ABC" ) );
@@ -104,7 +104,7 @@ class GetPageForAgentToolTest {
                 null,
                 null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
-                false, List.of() );
+                false, List.of(), List.of() );
         when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
 
         final McpSchema.CallToolResult result = tool.execute( Map.of( "canonical_id", "01ABC" ) );

@@ -25,6 +25,8 @@ import com.wikantik.api.agent.HeadingOutline;
 import com.wikantik.api.agent.KeyFact;
 import com.wikantik.api.agent.McpToolHint;
 import com.wikantik.api.agent.RecentChange;
+import com.wikantik.api.citation.CitationRef;
+import com.wikantik.api.citation.CitationStatus;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.frontmatter.ParsedPage;
 import com.wikantik.api.managers.PageManager;
@@ -34,6 +36,8 @@ import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.pagegraph.Verification;
 import com.wikantik.cache.CachingManager;
+import com.wikantik.citation.CitationRepository;
+import com.wikantik.citation.CitationRow;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -42,6 +46,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Default implementation of {@link ForAgentProjectionService}. Composes the
@@ -70,6 +75,7 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
     private final ForAgentMetrics metrics;
     private final AgentHintsDeriver     hintsDeriver;
     private final HubSummarySynthesizer hubSynth;
+    private final CitationRepository    citationRepository;
 
     private final HeadingsOutlineExtractor headings  = new HeadingsOutlineExtractor();
     private final KeyFactsExtractor        keyFacts  = new KeyFactsExtractor();
@@ -82,7 +88,8 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             final CachingManager cache,
             final ForAgentMetrics metrics,
             final AgentHintsDeriver hintsDeriver,
-            final HubSummarySynthesizer hubSynth ) {
+            final HubSummarySynthesizer hubSynth,
+            final CitationRepository citationRepository ) {
         this.index = index;
         this.pageManager = pageManager;
         this.cache = cache;
@@ -90,6 +97,7 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
         this.recents = new RecentChangesAdapter( pageManager );
         this.hintsDeriver = hintsDeriver;
         this.hubSynth = hubSynth;
+        this.citationRepository = citationRepository;
     }
 
     @Override
@@ -238,6 +246,21 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
             }
         }
 
+        // Stale citations — query CitationRepository filtered to non-CURRENT rows.
+        // When the repository is null (citations disabled), produce an empty list.
+        List< CitationRef > staleCitations = List.of();
+        if ( citationRepository != null ) {
+            try {
+                staleCitations = citationRepository.findBySource( d.canonicalId() ).stream()
+                        .filter( r -> r.status() != CitationStatus.CURRENT )
+                        .map( DefaultForAgentProjectionService::toCitationRef )
+                        .collect( Collectors.toList() );
+            } catch ( final Exception e ) {
+                LOG.warn( "for-agent: stale_citations query failed for {}: {}", d.slug(), e.getMessage() );
+                missing.add( "stale_citations" );
+            }
+        }
+
         return new ForAgentProjection(
                 d.canonicalId(),
                 d.slug(),
@@ -260,7 +283,19 @@ public class DefaultForAgentProjectionService implements ForAgentProjectionServi
                 "/api/pages/" + d.slug(),
                 "/wiki/" + d.slug() + "?format=md",
                 !missing.isEmpty(),
-                missing );
+                missing,
+                staleCitations );
+    }
+
+    private static CitationRef toCitationRef( final CitationRow r ) {
+        return new CitationRef(
+                r.sourceCanonicalId(),
+                r.targetCanonicalId(),
+                r.targetHeadingPath(),
+                r.spanText(),
+                r.claimText(),
+                r.status(),
+                r.pinnedTargetVersion() );
     }
 
     private boolean isClusterHub( final PageDescriptor d ) {

@@ -29,6 +29,7 @@ import com.wikantik.api.agent.HeadingOutline;
 import com.wikantik.api.agent.KeyFact;
 import com.wikantik.api.agent.McpToolHint;
 import com.wikantik.api.agent.RecentChange;
+import com.wikantik.api.citation.CitationRef;
 import com.wikantik.api.core.Engine;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -119,7 +120,8 @@ public class PageForAgentResource extends RestServletBase {
         d.addProperty( "full_body_url",    p.fullBodyUrl() );
         d.addProperty( "raw_markdown_url", p.rawMarkdownUrl() );
         d.addProperty( "degraded",         p.degraded() );
-        d.add( "missing_fields", stringArray( p.missingFields() ) );
+        d.add( "missing_fields",   stringArray( p.missingFields() ) );
+        d.add( "stale_citations",  staleCitationsJson( p ) );
         return d;
     }
 
@@ -181,6 +183,21 @@ public class PageForAgentResource extends RestServletBase {
             hints.add( o );
         }
         return hints;
+    }
+
+    private static JsonArray staleCitationsJson( final ForAgentProjection p ) {
+        final JsonArray arr = new JsonArray();
+        for ( final CitationRef ref : p.staleCitations() ) {
+            final JsonObject o = new JsonObject();
+            o.addProperty( "targetCanonicalId",   ref.targetCanonicalId() );
+            o.addProperty( "targetHeadingPath",   ref.targetHeadingPath() );
+            if ( ref.spanText()  != null ) o.addProperty( "spanText",  ref.spanText() );
+            if ( ref.claimText() != null ) o.addProperty( "claimText", ref.claimText() );
+            o.addProperty( "status", ref.status().wire() );
+            if ( ref.pinnedTargetVersion() != null ) o.addProperty( "pinnedTargetVersion", ref.pinnedTargetVersion() );
+            arr.add( o );
+        }
+        return arr;
     }
 
     private static JsonArray stringArray( final List< String > values ) {

@@ -153,6 +153,9 @@ public final class KnowledgeWiringHelper {
         final ForAgentMetrics forAgentMetrics = ForAgentMetrics.resolveAndBind();
         final AgentHintsDeriver hintsDeriver =
             new AgentHintsDeriver( structuralIndex, pageManager, referenceManager );
+        final com.wikantik.citation.CitationRepository citationRepo =
+            com.wikantik.pagegraph.subsystem.PageGraphSubsystemBridge.fromLegacyEngine( engine )
+                .citationRepository();
         final DefaultForAgentProjectionService forAgentService =
             new DefaultForAgentProjectionService(
                 structuralIndex,
@@ -160,7 +163,8 @@ public final class KnowledgeWiringHelper {
                 cachingManager,
                 forAgentMetrics,
                 hintsDeriver,
-                new HubSummarySynthesizer() );
+                new HubSummarySynthesizer(),
+                citationRepo );
         engine.registerForAgentProjectionService( forAgentService );
         LOG.info( "ForAgentProjectionService registered" );
 

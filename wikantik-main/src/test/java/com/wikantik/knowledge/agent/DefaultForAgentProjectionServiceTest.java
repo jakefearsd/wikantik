@@ -21,6 +21,8 @@ package com.wikantik.knowledge.agent;
 import com.wikantik.api.agent.AgentHintsBlock;
 import com.wikantik.api.agent.ForAgentProjection;
 import com.wikantik.api.agent.PreferredPage;
+import com.wikantik.api.citation.CitationRef;
+import com.wikantik.api.citation.CitationStatus;
 import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pagegraph.Audience;
@@ -30,6 +32,8 @@ import com.wikantik.api.pagegraph.PageType;
 import com.wikantik.api.pagegraph.StructuralIndexService;
 import com.wikantik.api.pagegraph.Verification;
 import com.wikantik.cache.CachingManager;
+import com.wikantik.citation.CitationRepository;
+import com.wikantik.citation.CitationRow;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -55,7 +59,7 @@ class DefaultForAgentProjectionServiceTest {
         pm = mock( PageManager.class );
         cache = mock( CachingManager.class );
         when( cache.enabled( anyString() ) ).thenReturn( false );
-        svc = new DefaultForAgentProjectionService( idx, pm, cache, new ForAgentMetrics(), null, null );
+        svc = new DefaultForAgentProjectionService( idx, pm, cache, new ForAgentMetrics(), null, null, null );
     }
 
     @Test
@@ -233,7 +237,7 @@ class DefaultForAgentProjectionServiceTest {
                 null,
                 null, false,
                 "/api/pages/Slug", "/wiki/Slug?format=md",
-                false, List.of() );
+                false, List.of(), List.of() );
     }
 
     // ----------------------------------------------------------------- Task 6 tests
@@ -289,10 +293,68 @@ class DefaultForAgentProjectionServiceTest {
         assertTrue( p.degraded() );
     }
 
+    // ----------------------------------------------------------------- Task 11 tests
+
+    @Test
+    void stale_citations_filters_to_non_current_only() {
+        final PageDescriptor d = new PageDescriptor(
+                "01ABC", "HybridRetrieval", "Hybrid Retrieval", PageType.ARTICLE,
+                "wikantik-development", List.of(),
+                "summary",
+                Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty() );
+        when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
+        when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
+        when( pm.getPureText( "HybridRetrieval", -1 ) ).thenReturn( "" );
+        when( pm.getVersionHistory( "HybridRetrieval" ) ).thenReturn( List.of() );
+
+        final CitationRow staleRow = new CitationRow(
+                1L, "01ABC", "tgt1", "Deploy > Rollback Steps",
+                "Always drain the queue", "hash1", "claim text", 0, 7,
+                CitationStatus.STALE, Instant.now(), Instant.now(), Instant.now() );
+        final CitationRow currentRow = new CitationRow(
+                2L, "01ABC", "tgt2", "",
+                "some span", "hash2", "another claim", 0, 3,
+                CitationStatus.CURRENT, Instant.now(), Instant.now(), Instant.now() );
+
+        final CitationRepository citationRepo = mock( CitationRepository.class );
+        when( citationRepo.findBySource( "01ABC" ) ).thenReturn( List.of( staleRow, currentRow ) );
+
+        final DefaultForAgentProjectionService testSvc =
+                new DefaultForAgentProjectionService( idx, pm, cache, new ForAgentMetrics(), null, null, citationRepo );
+        final ForAgentProjection p = testSvc.project( "01ABC" ).orElseThrow();
+
+        assertEquals( 1, p.staleCitations().size(), "only the stale row should appear in staleCitations" );
+        final CitationRef ref = p.staleCitations().get( 0 );
+        assertEquals( "01ABC", ref.sourceCanonicalId() );
+        assertEquals( "tgt1", ref.targetCanonicalId() );
+        assertEquals( "Deploy > Rollback Steps", ref.targetHeadingPath() );
+        assertEquals( "Always drain the queue", ref.spanText() );
+        assertEquals( "claim text", ref.claimText() );
+        assertEquals( CitationStatus.STALE, ref.status() );
+        assertEquals( 7, ref.pinnedTargetVersion() );
+    }
+
+    @Test
+    void stale_citations_empty_when_citation_repo_is_null() {
+        final PageDescriptor d = new PageDescriptor(
+                "01ABC", "HybridRetrieval", "Hybrid Retrieval", PageType.ARTICLE,
+                "wikantik-development", List.of(), "summary",
+                Instant.parse( "2026-04-22T11:10:00Z" ), Optional.empty() );
+        when( idx.getByCanonicalId( "01ABC" ) ).thenReturn( Optional.of( d ) );
+        when( idx.verificationOf( "01ABC" ) ).thenReturn( Optional.empty() );
+        when( pm.getPureText( "HybridRetrieval", -1 ) ).thenReturn( "" );
+        when( pm.getVersionHistory( "HybridRetrieval" ) ).thenReturn( List.of() );
+
+        // svc has null citationRepo (constructed in setUp)
+        final ForAgentProjection p = svc.project( "01ABC" ).orElseThrow();
+        assertNotNull( p.staleCitations() );
+        assertTrue( p.staleCitations().isEmpty(), "null repo must yield empty staleCitations" );
+    }
+
     /** Helper — each new test can swap the deriver/synth without duplicating wiring. */
     private DefaultForAgentProjectionService newServiceUnderTest(
             final AgentHintsDeriver deriver,
             final HubSummarySynthesizer synth ) {
-        return new DefaultForAgentProjectionService( idx, pm, cache, new ForAgentMetrics(), deriver, synth );
+        return new DefaultForAgentProjectionService( idx, pm, cache, new ForAgentMetrics(), deriver, synth, null );
     }
 }

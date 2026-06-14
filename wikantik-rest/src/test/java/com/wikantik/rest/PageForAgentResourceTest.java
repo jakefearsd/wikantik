@@ -97,7 +97,7 @@ class PageForAgentResourceTest {
                 null,
                 null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
-                false, List.of() );
+                false, List.of(), List.of() );
         when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
 
         final HttpServletRequest req = mock( HttpServletRequest.class );
@@ -154,7 +154,7 @@ class PageForAgentResourceTest {
                 null,
                 null, false,
                 "/api/pages/HybridRetrieval", "/wiki/HybridRetrieval?format=md",
-                false, List.of() );
+                false, List.of(), List.of() );
         when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
 
         final HttpServletRequest req = mock( HttpServletRequest.class );
@@ -188,7 +188,7 @@ class PageForAgentResourceTest {
                 null,
                 null, false,
                 "/api/pages/Slug", "/wiki/Slug?format=md",
-                true, List.of( "headings_outline", "key_facts" ) );
+                true, List.of( "headings_outline", "key_facts" ), List.of() );
         when( svc.project( "01ABC" ) ).thenReturn( Optional.of( p ) );
         final HttpServletRequest req = mock( HttpServletRequest.class );
         final HttpServletResponse resp = mock( HttpServletResponse.class );

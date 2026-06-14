@@ -18,6 +18,7 @@
  */
 package com.wikantik.api.agent;
 
+import com.wikantik.api.citation.CitationRef;
 import com.wikantik.api.pagegraph.Audience;
 import com.wikantik.api.pagegraph.Confidence;
 
@@ -69,7 +70,8 @@ public record ForAgentProjection(
         String fullBodyUrl,
         String rawMarkdownUrl,
         boolean degraded,
-        List< String > missingFields
+        List< String > missingFields,
+        List< CitationRef > staleCitations
 ) {
     public ForAgentProjection {
         if ( canonicalId == null || canonicalId.isBlank() ) {
@@ -83,5 +85,6 @@ public record ForAgentProjection(
         recentChanges       = recentChanges       == null ? List.of() : List.copyOf( recentChanges );
         mcpToolHints        = mcpToolHints        == null ? List.of() : List.copyOf( mcpToolHints );
         missingFields       = missingFields       == null ? List.of() : List.copyOf( missingFields );
+        staleCitations      = staleCitations      == null ? List.of() : List.copyOf( staleCitations );
     }
 }

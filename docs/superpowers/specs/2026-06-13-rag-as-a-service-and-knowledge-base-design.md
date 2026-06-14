@@ -160,3 +160,24 @@ The directional sweep is **done** (data in `eval/bundle-corpus/baseline-notes.md
 listwise rerank → parent-section expand + dedup + version-pinned citation handles → top-N context
 bundle`, via a dedicated REST endpoint + MCP action (assemble + ground, **no synthesis**), scored
 on the bundle-quality harness.
+
+## Phase 1 — SHIPPED (2026-06-14), and what the measurements actually said
+
+The bundle shipped (`GET /api/bundle?q=`, `assemble_bundle` MCP, `com.wikantik.knowledge.bundle.*`).
+But the measure-upstream-first sweep **overturned the spike-sweep's lever ranking** — full record in
+`eval/bundle-corpus/baseline-notes.md`:
+
+- **The 4B listwise reranker is dead.** Its apparent "no lift" was input-order anchoring masking a
+  *bad* relevance judge (shuffled-input recall collapses to a third of dense). It ships **default
+  OFF** and is not in the realized pipeline. HyDE was near-null; doc2query actively hurt.
+- **The real levers were upstream, and cheap.** (1) A `ContentChunker` **heading-fidelity bug** —
+  merge-forward stole the first section's heading, so early sections were unfindable AND mis-cited;
+  fixed (+ fragment floor + overlap). (2) **Contextual document embeddings** from frontmatter
+  (`Page | Cluster | Section | Summary` prefix) — the single biggest lever, global section recall@12
+  **0.60 → 0.74**, zero LLM. (3) A **global dense-chunk** candidate source (no page pre-select) so
+  the bundle realizes the ceiling rather than the page-gated ~0.685.
+- **Realized live `/api/bundle` recall@12 0.706** (from 0.500 at the investigation's start, +41%),
+  measured end-to-end through the deployed endpoint (`bin/eval/spike-api-bundle.py`).
+
+Lesson banked: the bundle contract was the right product, but the recall came from chunking +
+embedding correctness, not from a reranking stage. Config: `wikantik.bundle.*`, `wikantik.chunker.*`.

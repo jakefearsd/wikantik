@@ -148,6 +148,32 @@ wikantik.search.hybrid.query.breaker.reset-ms = 30000
 
 The breaker trips OPEN after `trip` consecutive failures. After `reset-ms` it transitions to HALF_OPEN and lets a single probe call through; success closes the breaker, failure re-opens it.
 
+## Chunking, contextual embeddings & the context bundle
+
+A 2026-06-14 recall-lever sweep (measure-upstream-first; full record in `eval/bundle-corpus/baseline-notes.md`) moved section-level retrieval recall substantially, all with local models — no premium LLMs, no reranking, no answer synthesis.
+
+**Chunking** (`ContentChunker`). A heading-fidelity fix: a chunk's `heading_path` always matches the section its content came from. The old merge-forward logic let a short preamble carry the *first* section's heading onto later sections' content, so first-`##` sections were unfindable by their own heading and their citations were mis-anchored. Knobs:
+
+```
+wikantik.chunker.max_tokens            = 512   # hard ceiling
+wikantik.chunker.merge_forward_tokens  = 150   # hold short within-section blocks together
+wikantik.chunker.fragment_floor_tokens = 24    # sub-floor sections merge forward, adopt the destination heading
+wikantik.chunker.overlap_tokens        = 40    # prepend each chunk's tail to the next same-section chunk
+```
+
+**Contextual document embeddings.** `EmbeddingTextBuilder.forDocument` prepends each chunk's frontmatter context — `Page: {title} | Cluster: {cluster} | Section: {heading-path}` + the page summary — before embedding. The query side is unchanged (it keeps its instruction prefix). This structured context is the disambiguation that was missing from raw chunk embeddings and is the single largest lever (global section recall@12 ≈ 0.60 → 0.74). **Changing chunker knobs or the context format requires a full content rebuild** (`POST /admin/content/rebuild-indexes`) — it invalidates `content_hash` on every chunk.
+
+**Context bundle** (`/api/bundle?q=`, `assemble_bundle` MCP). Assembles retrieval into a ranked, de-duplicated, version-pinned-cited set of sections (no synthesis). Default candidate source is **global dense-chunk** retrieval — the top-K chunks across the whole corpus, grouped to sections — which beats the page-gated hybrid path because it doesn't drop sections whose page ranks outside the page pre-select:
+
+```
+wikantik.bundle.dense.enabled     = true   # false → page-gated (hybrid) candidate source
+wikantik.bundle.dense.top_k       = 300    # global chunk fan-out before grouping to sections
+wikantik.bundle.sections_per_page = 20     # per-page cap (page-gated path only)
+wikantik.bundle.reranker.enabled  = false  # the listwise LLM reranker is a poor judge — leave OFF
+```
+
+**Operational note:** with `dense.backend = inmemory`, the in-memory vector index must be reloaded (a restart) after a content rebuild before the dense-chunk bundle can hydrate; `lucene-hnsw` and `pgvector` read from the database and are not affected.
+
 ## Admin UI
 
 `/admin/content/index-status` on the Indexes tab shows:

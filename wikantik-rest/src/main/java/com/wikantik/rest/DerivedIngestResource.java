@@ -94,9 +94,20 @@ public class DerivedIngestResource extends RestServletBase {
             return;
         }
 
-        final String filename = filePart.getSubmittedFileName();
-        if ( filename == null || filename.isBlank() ) {
+        final String rawFilename = filePart.getSubmittedFileName();
+        if ( rawFilename == null || rawFilename.isBlank() ) {
             sendError( response, HttpServletResponse.SC_BAD_REQUEST, "File name is required" );
+            return;
+        }
+
+        // Security boundary: sanitize the submitted filename to a path-safe basename
+        // before it is used as the attachment name or derived_from provenance value.
+        // This prevents path-traversal attacks via crafted filenames such as
+        // "../../etc/passwd.pdf" or "..\..\\Main.pdf".
+        final String filename = sanitizeFilename( rawFilename );
+        if ( filename.isBlank() ) {
+            sendError( response, HttpServletResponse.SC_BAD_REQUEST,
+                "File name is invalid after sanitization" );
             return;
         }
 
@@ -118,13 +129,41 @@ public class DerivedIngestResource extends RestServletBase {
     /**
      * Executes the ingest and writes the JSON response.
      * Package-private so tests can call it with a mocked {@link DerivedPageIngestionService}.
+     *
+     * <p>The {@code filename} parameter is sanitized to a path-safe basename before being
+     * forwarded to the service, so callers (including tests) may pass raw submitted filenames.
      */
     void ingest( final byte[] bytes,
                  final String filename,
                  final String contentType,
                  final DerivedPageIngestionService service,
                  final HttpServletResponse response ) throws IOException {
-        ingest( bytes, filename, contentType, service, response, new IngestOptions( false, null ) );
+        ingest( bytes, sanitizeFilename( filename ), contentType, service, response,
+            new IngestOptions( false, null ) );
+    }
+
+    /**
+     * Reduces a caller-supplied filename to a path-safe basename, retaining the extension.
+     *
+     * <p>Strips any leading path components (both {@code /} and {@code \} separators),
+     * removes null bytes and ASCII control characters, and trims whitespace.
+     * The extension is preserved so Tika content-type detection continues to work.
+     * An empty result after stripping is returned as-is (callers should reject it).
+     */
+    static String sanitizeFilename( final String filename ) {
+        if ( filename == null ) {
+            return "";
+        }
+        // Extract basename: strip everything up to and including the last / or \
+        String base = filename;
+        final int lastSep = Math.max( base.lastIndexOf( '/' ), base.lastIndexOf( '\\' ) );
+        if ( lastSep >= 0 ) {
+            base = base.substring( lastSep + 1 );
+        }
+        // Remove null bytes and ASCII control characters
+        base = base.replaceAll( "[\\x00-\\x1F\\x7F]", "" );
+        // Trim and return (extension kept for Tika)
+        return base.trim();
     }
 
     private void ingest( final byte[] bytes,

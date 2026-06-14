@@ -209,6 +209,52 @@ class DerivedPageIngestionServiceTest {
         assertEquals( 1, writtenPageNames.size() );
     }
 
+    // -------------------------------------------------------------------------
+    // Security: refuse to overwrite a non-derived page (fix C)
+    // -------------------------------------------------------------------------
+
+    /**
+     * If the target page exists and is NOT derived (no derived_from key),
+     * ingest must return FAILED and must NOT call pageWriter or attachmentStore.
+     */
+    @Test
+    void existingNonDerivedPage_refusesToOverwrite() throws Exception {
+        // Simulate a human-authored page (type=article, no derived_from)
+        pageReaderResult = new HashMap<>( Map.of( "type", "article" ) );
+
+        final IngestResult result = service.ingest(
+            SOURCE, FILENAME, CONTENT_TYPE, new IngestOptions( false, "bot" ) );
+
+        assertEquals( IngestResult.Status.FAILED, result.status(),
+            "ingest must refuse to overwrite a non-derived page" );
+        assertTrue( writtenPageNames.isEmpty(),
+            "pageWriter must NOT be called when target is a non-derived page" );
+        assertTrue( storedFilenames.isEmpty(),
+            "attachmentStore must NOT be called when target is a non-derived page" );
+    }
+
+    /**
+     * If the target page exists and IS derived (has derived_from key),
+     * ingest should proceed normally and return UPDATED.
+     */
+    @Test
+    void existingDerivedPage_updatesNormally() throws Exception {
+        // Simulate a pre-existing derived page with an old sha
+        pageReaderResult = new HashMap<>( Map.of(
+            DerivedPage.DERIVED_FROM,             FILENAME,
+            DerivedPage.DERIVED_SOURCE_SHA,       "oldshavalue",
+            DerivedPage.DERIVED_EXTRACTOR,        "tika",
+            DerivedPage.DERIVED_EXTRACTOR_VERSION, 1
+        ) );
+
+        final IngestResult result = service.ingest(
+            SOURCE, FILENAME, CONTENT_TYPE, new IngestOptions( false, "bot" ) );
+
+        assertEquals( IngestResult.Status.UPDATED, result.status(),
+            "ingest must update an existing derived page" );
+        assertEquals( 1, writtenPageNames.size(), "pageWriter must be called for a derived update" );
+    }
+
     // attachmentStore exception → FAILED, logged, not rethrown.
     // The page IS written first (the parent must exist before attaching), so the
     // pageWriter will have been called even when the attachmentStore subsequently fails.

@@ -134,11 +134,20 @@ public class DerivedPageIngestionService {
         final String pageName = DerivedPage.pageNameFor( filename );
 
         try {
-            // Step 2 — dedup check
+            // Step 2 — overwrite guard + dedup check
             final Optional< Map< String, Object > > existing = pageReader.readMetadata( pageName );
             final boolean pageExists = existing.isPresent();
 
-            if ( pageExists && DerivedPage.isDerived( existing.get() ) ) {
+            if ( pageExists ) {
+                if ( !DerivedPage.isDerived( existing.get() ) ) {
+                    // Security: refuse to overwrite a human-authored page.
+                    // Ingest may only create a new page or update one it previously created.
+                    LOG.warn( "DerivedPageIngestionService: refusing to overwrite non-derived page '{}'"
+                        + " for filename='{}'", pageName, filename );
+                    return IngestResult.failed( pageName,
+                        "refusing to overwrite non-derived page '" + pageName + "'" );
+                }
+                // Existing derived page — dedup by SHA
                 final Object existingSha = existing.get().get( DerivedPage.DERIVED_SOURCE_SHA );
                 if ( sha.equals( existingSha ) && !opts.force() ) {
                     return IngestResult.unchanged( pageName );

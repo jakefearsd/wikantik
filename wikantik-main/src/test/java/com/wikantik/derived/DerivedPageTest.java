@@ -54,4 +54,53 @@ class DerivedPageTest {
         // in DefaultAttachmentManager.getAttachmentInfo().
         assertEquals( "My-doc v2", DerivedPage.pageNameFor( "my-doc v2.docx" ) );
     }
+
+    // -------------------------------------------------------------------------
+    // Security: path-traversal and overwrite-via-filename (fix A)
+    // -------------------------------------------------------------------------
+
+    /** Unix path traversal: basename must be extracted, no slash or '..' in result. */
+    @Test
+    void pageNameFor_unixPathTraversal_returnsSafeName() {
+        final String name = DerivedPage.pageNameFor( "../../../etc/passwd.pdf" );
+        assertFalse( name.contains( "/" ),  "must not contain '/': " + name );
+        assertFalse( name.contains( ".." ), "must not contain '..': " + name );
+        assertEquals( "Passwd", name );
+    }
+
+    /** Windows path traversal: backslash separator must also be stripped as a basename separator. */
+    @Test
+    void pageNameFor_windowsPathTraversal_returnsSafeName() {
+        final String name = DerivedPage.pageNameFor( "..\\..\\Main.pdf" );
+        assertFalse( name.contains( "\\" ), "must not contain '\\': " + name );
+        assertFalse( name.contains( ".." ), "must not contain '..': " + name );
+        assertEquals( "Main", name );
+    }
+
+    /** Nested path: only the final component must be used. */
+    @Test
+    void pageNameFor_nestedPath_returnsBasenameOnly() {
+        final String name = DerivedPage.pageNameFor( "a/b/c.txt" );
+        assertFalse( name.contains( "/" ),  "must not contain '/': " + name );
+        assertFalse( name.contains( ".." ), "must not contain '..': " + name );
+        assertEquals( "C", name );
+    }
+
+    /** A name that reduces to empty after sanitization must return the safe fallback. */
+    @Test
+    void pageNameFor_emptyAfterSanitization_returnsFallback() {
+        // A name consisting only of unsafe chars strips to "" → must return "Document"
+        final String name = DerivedPage.pageNameFor( "!!##$$.pdf" );
+        assertFalse( name.isBlank(), "fallback must not be blank: " + name );
+    }
+
+    /** Characters outside the safe set (letters, digits, space, hyphen, underscore) are removed. */
+    @Test
+    void pageNameFor_unsafeCharsStripped() {
+        final String name = DerivedPage.pageNameFor( "my<doc>:v1*.pdf" );
+        assertFalse( name.contains( "<" ), "must not contain '<': " + name );
+        assertFalse( name.contains( ">" ), "must not contain '>': " + name );
+        assertFalse( name.contains( ":" ), "must not contain ':': " + name );
+        assertFalse( name.contains( "*" ), "must not contain '*': " + name );
+    }
 }

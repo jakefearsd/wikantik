@@ -255,6 +255,73 @@ class DerivedIngestResourceTest {
     // doPost happy path — real multipart Part mock
     // -------------------------------------------------------------------------
 
+    // -------------------------------------------------------------------------
+    // Security: filename sanitization at the resource boundary (fix B)
+    // -------------------------------------------------------------------------
+
+    /**
+     * A path-traversal filename like "../../etc/passwd.pdf" must be stripped to
+     * its safe basename before being forwarded to the ingest service.  The mock
+     * service is configured to capture whatever filename argument it receives so
+     * we can assert the sanitized value.
+     */
+    @Test
+    void ingest_pathTraversalFilename_sanitizedToBasename() throws Exception {
+        final DerivedPageIngestionService mockService = Mockito.mock( DerivedPageIngestionService.class );
+        final byte[] bytes = "content".getBytes( StandardCharsets.UTF_8 );
+
+        // Capture the filename that reaches the service
+        final java.util.concurrent.atomic.AtomicReference< String > capturedFilename =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        Mockito.when( mockService.ingest(
+                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any() ) )
+               .thenAnswer( inv -> {
+                   capturedFilename.set( inv.getArgument( 1 ) );
+                   return IngestResult.created( "passwd" );
+               } );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        // Pass a path-traversal filename
+        servlet.ingest( bytes, "../../etc/passwd.pdf", "application/pdf", mockService, response );
+
+        final String received = capturedFilename.get();
+        assertNotNull( received, "filename must be forwarded to service" );
+        assertFalse( received.contains( "/" ),  "sanitized filename must not contain '/': " + received );
+        assertFalse( received.contains( ".." ), "sanitized filename must not contain '..': " + received );
+        assertFalse( received.contains( "\\" ), "sanitized filename must not contain '\\': " + received );
+    }
+
+    /** Windows-style path traversal must also be stripped to the safe basename. */
+    @Test
+    void ingest_windowsPathTraversalFilename_sanitizedToBasename() throws Exception {
+        final DerivedPageIngestionService mockService = Mockito.mock( DerivedPageIngestionService.class );
+        final byte[] bytes = "content".getBytes( StandardCharsets.UTF_8 );
+
+        final java.util.concurrent.atomic.AtomicReference< String > capturedFilename =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        Mockito.when( mockService.ingest(
+                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any() ) )
+               .thenAnswer( inv -> {
+                   capturedFilename.set( inv.getArgument( 1 ) );
+                   return IngestResult.created( "Main" );
+               } );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        servlet.ingest( bytes, "..\\..\\Main.pdf", "application/pdf", mockService, response );
+
+        final String received = capturedFilename.get();
+        assertNotNull( received );
+        assertFalse( received.contains( "/" ),  "must not contain '/': " + received );
+        assertFalse( received.contains( ".." ), "must not contain '..': " + received );
+        assertFalse( received.contains( "\\" ), "must not contain '\\': " + received );
+    }
+
     @Test
     void doPost_withFilePart_callsIngestAndReturnsJson() throws Exception {
         final byte[] fileBytes = "# Hello\nThis is a test document.".getBytes( StandardCharsets.UTF_8 );

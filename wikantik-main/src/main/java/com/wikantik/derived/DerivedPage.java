@@ -59,22 +59,62 @@ public final class DerivedPage {
         }
     }
 
+    /** Maximum length of the derived page name produced by {@link #pageNameFor}. */
+    private static final int MAX_PAGE_NAME_LENGTH = 200;
+
     /**
-     * Stable page name from the source filename (NOT the extracted title — see spec §A).
+     * Stable, <strong>path-safe</strong> page name derived from the source filename.
      *
-     * <p>The first character is always uppercased so the name is consistent with what
-     * {@code MarkupParser.cleanLink()} produces when the attachment manager resolves the
-     * parent-page name from a slash-separated attachment path.  Without this,
-     * {@code DefaultAttachmentManager.getAttachmentInfo("slug/slug.txt")} applies
-     * {@code cleanLink} and capitalises the first letter, then calls {@code getPage} with
-     * the capitalised name — which misses the page if it was stored in all-lowercase.
+     * <p><b>Security boundary.</b> This method is called with the raw upload filename, which
+     * may contain path-traversal sequences ({@code /}, {@code \}, {@code ..}) designed to
+     * overwrite arbitrary pages or escape the attachment storage directory. The sanitization
+     * below is the primary defence against both attack vectors:
+     * <ol>
+     *   <li><b>Basename extraction</b> — strip everything up to and including the last
+     *       {@code /} or {@code \} (both separators, not relying on {@code Paths.get}
+     *       which does not treat {@code \} as a separator on Linux).</li>
+     *   <li><b>Extension stripping</b> — remove the last {@code .} and everything after it.</li>
+     *   <li><b>Character allow-list</b> — keep only letters, digits, space, hyphen, and
+     *       underscore ({@code [^A-Za-z0-9 _-]}); everything else is removed.</li>
+     *   <li><b>Collapse whitespace</b> — any run of spaces is collapsed to a single space
+     *       and the result is trimmed.</li>
+     *   <li><b>Length cap</b> — truncated to {@value #MAX_PAGE_NAME_LENGTH} characters.</li>
+     *   <li><b>Empty fallback</b> — if the result is empty after all steps, return
+     *       {@code "Document"}.</li>
+     *   <li><b>First-char uppercase</b> — consistent with {@code MarkupParser.cleanLink()}
+     *       used by {@code DefaultAttachmentManager.getAttachmentInfo} (attach path lookup
+     *       capitalises the parent page name).</li>
+     * </ol>
      */
     public static String pageNameFor( final String filename ) {
-        final int dot = filename.lastIndexOf( '.' );
-        final String stem = ( dot > 0 ? filename.substring( 0, dot ) : filename ).trim();
-        if ( stem.isEmpty() ) {
-            return stem;
+        // Step 1: extract basename (handle both / and \)
+        String base = filename;
+        final int lastSlash = Math.max( base.lastIndexOf( '/' ), base.lastIndexOf( '\\' ) );
+        if ( lastSlash >= 0 ) {
+            base = base.substring( lastSlash + 1 );
         }
-        return Character.toUpperCase( stem.charAt( 0 ) ) + stem.substring( 1 );
+
+        // Step 2: strip extension (last dot and everything after)
+        final int dot = base.lastIndexOf( '.' );
+        final String stem = dot > 0 ? base.substring( 0, dot ) : base;
+
+        // Step 3: apply character allow-list — keep letters, digits, space, hyphen, underscore
+        final String safe = stem.replaceAll( "[^A-Za-z0-9 _-]", "" );
+
+        // Step 4: collapse whitespace, trim
+        final String collapsed = safe.replaceAll( "\\s+", " " ).trim();
+
+        // Step 5: cap length
+        final String capped = collapsed.length() > MAX_PAGE_NAME_LENGTH
+            ? collapsed.substring( 0, MAX_PAGE_NAME_LENGTH ).trim()
+            : collapsed;
+
+        // Step 6: empty fallback
+        if ( capped.isEmpty() ) {
+            return "Document";
+        }
+
+        // Step 7: uppercase first character (cleanLink stability)
+        return Character.toUpperCase( capped.charAt( 0 ) ) + capped.substring( 1 );
     }
 }

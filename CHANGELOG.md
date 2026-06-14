@@ -8,6 +8,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Derived pages — document ingestion (RAG-as-a-Service Phase 2).** PDFs, office documents
+  (docx/pptx/xlsx), and text/markdown files become first-class wiki pages: the source binary is
+  retained as an attachment, the body is **extracted via Apache Tika** (XHTML→markdown), and the
+  page carries `derived_from` provenance frontmatter — riding every existing rail (search,
+  embeddings, Knowledge Graph, ontology, chunking, the context bundle). The pure extractor lives in
+  a new **`wikantik-ingest`** module (isolates the heavy PDFBox/POI dependencies). Ingestion is
+  idempotent (filename-named page, update-in-place, source-SHA dedup); the body is **machine-owned
+  and regenerable** (ADR-0004) — human edits are at-own-risk, version history is the recovery path.
+  Surfaces: **`POST /api/ingest`** (multipart upload, `createPages`-gated), a batch
+  **`IngestDocumentsCli`** (HTTP client over `/api/ingest`), and **`/admin/derived/{reflow,status}`**
+  — reflow re-extracts from the retained source, clobbering the body while preserving
+  body-independent curation (tags, verification, KG). A frontend "ingest as derived page" action +
+  an editor "machine-owned body" banner. New code in `com.wikantik.ingest.*` (module) and
+  `com.wikantik.derived.*` (wikantik-main). Config: `wikantik.citations.enabled` unaffected; Tika 3.3.0.
+
 - **Citation edges + self-healing grounding (RAG-as-a-Service Phase 3).** Claims grounded in
   other pages are written as inline `cite://` body markup —
   `[claim](cite://<canonical_id>/<Heading Path> "verbatim span")` — and parsed at save into a

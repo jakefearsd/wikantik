@@ -94,8 +94,10 @@ public class ContentChunker {
         Parser parser = Parser.builder().build();
         Node root = parser.parse(body);
 
-        // State threaded across heading boundaries so merge-forward can preserve
-        // the first section's heading_path when a short chunk rolls into the next.
+        // Within a section, short blocks merge forward into one chunk. Across a
+        // heading boundary they MUST NOT — each chunk's heading_path has to match
+        // the section its content came from, or the later section is unfindable by
+        // its own heading and any citation to it is mis-anchored.
         Deque<String> headingStack = new ArrayDeque<>();
         State state = new State();
         int[] chunkIndex = {0};
@@ -105,6 +107,10 @@ public class ContentChunker {
                 // Flush any accumulated blocks under the *current* heading path
                 // before we shift into the new heading.
                 flushBlocks(pageName, chunkIndex, currentHeadingPath(headingStack), state, out);
+                // Heading fidelity: emit any held merge-forward buffer here, under its
+                // OWN heading_path, so it cannot roll across the boundary and steal the
+                // next section's heading (the live OllamaSetup/AgentMemory defect).
+                forceEmitPending(pageName, chunkIndex, state, out);
                 adjustHeadingStack(headingStack, heading.getLevel(),
                                    extractHeadingTitle(heading));
             } else {
@@ -180,9 +186,10 @@ public class ContentChunker {
      * {@code blocks} holds AST nodes waiting to be turned into chunks within the
      * current heading scope; {@code pending} holds already-rendered text whose
      * size was below {@code mergeForwardTokens} and is awaiting merge-forward
-     * into the next flush. {@code pendingHeadingPath} is the heading_path that
-     * was active when the merge-forward buffer first captured content; it
-     * "wins" for the merged chunk.
+     * into the next block. {@code pendingHeadingPath} is the heading_path of the
+     * section whose content is in the buffer. The buffer is force-emitted at every
+     * heading boundary, so it only ever holds content from a single section — its
+     * heading_path is always correct, never inherited from an earlier section.
      */
     @SuppressWarnings( "PMD.AvoidStringBufferField" ) // State is constructed per chunking pass and discarded; no long-lived owner.
     private static final class State {
@@ -266,14 +273,31 @@ public class ContentChunker {
             return;
         }
         if (estimateTokens(text) < config.mergeForwardTokens()) {
-            // Hold onto it — next block's content merges with it. Leave
-            // pendingHeadingPath as set so the first section's path is carried.
+            // Below threshold — hold for merge-forward with the next block IN THE SAME
+            // section. A heading boundary force-emits it first (see the main loop), so it
+            // never merges across sections.
             return;
         }
         List<String> hp = state.pendingHeadingPath != null
             ? state.pendingHeadingPath
             : fallbackHeadingPath;
         out.add(buildChunk(pageName, idx[0]++, hp, text));
+        state.pending.setLength(0);
+        state.pendingHeadingPath = null;
+    }
+
+    /**
+     * Emits the merge-forward buffer unconditionally (ignoring {@code mergeForwardTokens})
+     * under its own {@code pendingHeadingPath}. Called at every heading boundary so a short
+     * section becomes its own chunk rather than rolling its heading_path onto the next
+     * section. No-op when the buffer is empty.
+     */
+    private void forceEmitPending(String pageName, int[] idx, State state, List<Chunk> out) {
+        String text = state.pending.toString().strip();
+        if (!text.isEmpty()) {
+            List<String> hp = state.pendingHeadingPath != null ? state.pendingHeadingPath : List.of();
+            out.add(buildChunk(pageName, idx[0]++, hp, text));
+        }
         state.pending.setLength(0);
         state.pendingHeadingPath = null;
     }

@@ -150,7 +150,11 @@ class ContentChunkerTest {
     }
 
     @Test
-    void shortChunkBelowMinMergesForwardAcrossHeadingBoundary() {
+    void shortSectionDoesNotStealNextSectionsHeading() {
+        // Heading fidelity: a short section must NOT carry its heading onto the
+        // next section's content. Each chunk's heading_path must match the section
+        // its content came from — otherwise the later section is unfindable by its
+        // own heading and any citation to it is mis-anchored (the RAG bundle bug).
         String body = """
             ## Stub
 
@@ -163,11 +167,40 @@ class ContentChunkerTest {
             """;
         ParsedPage page = new ParsedPage(java.util.Map.of(), body);
         List<Chunk> chunks = chunker.chunk("Merge", page);
-        assertEquals(1, chunks.size(), "tiny first section should merge forward");
-        assertEquals(List.of("Stub"), chunks.get(0).headingPath(),
-                     "merged chunk carries first section's heading path");
+        assertEquals(2, chunks.size(), "sections must not merge across the heading boundary");
+        assertEquals(List.of("Stub"), chunks.get(0).headingPath());
         assertTrue(chunks.get(0).text().contains("Tiny."));
-        assertTrue(chunks.get(0).text().contains("plenty of real content"));
+        assertEquals(List.of("Real"), chunks.get(1).headingPath(),
+                     "the 'Real' section keeps its own heading_path");
+        assertTrue(chunks.get(1).text().contains("plenty of real content"));
+        // The 'Real' content must NOT appear under the 'Stub' heading.
+        assertFalse(chunks.get(0).text().contains("plenty of real content"),
+                    "'Real' content must not be mis-attributed to the 'Stub' heading");
+    }
+
+    @Test
+    void firstH2AfterShortPreambleKeepsItsOwnHeading() {
+        // Regression for the live OllamaSetup defect: a short H1 preamble followed
+        // by the first H2 ('Hardware Sizing') must NOT absorb the H2 content under
+        // the bare H1 path. The H2 must be findable under its own heading_path.
+        String body = """
+            # Deploying Ollama
+
+            Ollama runs models locally.
+
+            ## Hardware Sizing
+
+            A 7B model needs roughly 8GB of vRAM; quantization lowers that. Plan
+            capacity around the largest model you intend to keep resident.
+            """;
+        ParsedPage page = new ParsedPage(java.util.Map.of(), body);
+        List<Chunk> chunks = chunker.chunk("OllamaSetup", page);
+        boolean hardwareSizingFindable = chunks.stream().anyMatch(c ->
+            c.headingPath().equals(List.of("Deploying Ollama", "Hardware Sizing"))
+            && c.text().contains("vRAM"));
+        assertTrue(hardwareSizingFindable,
+            "the vRAM content must be findable under the 'Hardware Sizing' heading_path, "
+            + "not absorbed into the H1 preamble chunk");
     }
 
     @Test

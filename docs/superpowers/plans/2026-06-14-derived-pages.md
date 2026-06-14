@@ -4,9 +4,9 @@
 
 **Goal:** Ingest PDF/office/text documents as first-class "derived pages" — source retained as an attachment, body extracted via Apache Tika, regenerable by reflow — so document corpora flow into search, the Knowledge Graph, the ontology, and the RAG bundle.
 
-**Architecture:** A pure `SourceExtractor` (Tika → markdown) feeds a `DerivedPageIngestionService` that stores the source as an attachment and saves a derived page (frontmatter `derived_from` marks it; the page rides every existing rail). Two thin entry points — a REST multipart endpoint and an HTTP-client CLI — sit over that service. A `DerivedReflowService` re-extracts from the retained source, clobbering only the body. All keyed off one small `DerivedPage` contract.
+**Architecture:** A pure `SourceExtractor` (Tika → markdown) — in a **new `wikantik-ingest` module** that isolates the heavy document-parsing dependencies (PDFBox/POI) — feeds a `DerivedPageIngestionService` (wikantik-main) that stores the source as an attachment and saves a derived page (frontmatter `derived_from` marks it; the page rides every existing rail). Two thin entry points — a REST multipart endpoint and an HTTP-client CLI — sit over that service. A `DerivedReflowService` re-extracts from the retained source, clobbering only the body. All keyed off one small `DerivedPage` contract.
 
-**Tech Stack:** Java 21, Apache Tika 3.3.0 (`tika-parsers-standard-package`), flexmark-html2md-converter (XHTML→markdown), JUnit 5 + Mockito.
+**Tech Stack:** Java 21, Apache Tika 3.3.0 (`tika-parsers-standard-package`), flexmark-html2md-converter 0.64.8 (XHTML→markdown), JUnit 5 + Mockito. New module **`wikantik-ingest`** holds the pure extractor; `com.wikantik.ingest.*`.
 
 **Spec:** `docs/superpowers/specs/2026-06-14-derived-pages-design.md` · **ADR:** `docs/adr/0004-derived-page-body-is-machine-owned-regenerable.md`
 
@@ -18,28 +18,19 @@
 - Admin endpoint pattern: `AdminOntologyResource` — extends `RestServletBase`, dispatch on `extractPathParam(request)`, `sendJsonWithStatus(response, code, Map)`. `/admin/*` is behind `AdminAuthFilter` (web.xml) — `/admin/derived/*` inherits it.
 - CLI: `wikantik-extract-cli` — `main` → `Args.parse` → `run`; fat-jar via shade; `bin/<name>.sh` wrapper. (Ours is an HTTP client, not JDBC.)
 - Chunker: `ContentChunker.chunk(String pageName, ParsedPage page)` ignores `page.metadata()` today — strategy selection hooks UPSTREAM of this call.
-- Tika 3.3.0 is version-managed in the root BOM only; `wikantik-main` must ADD `tika-parsers-standard-package`. Logging is **Log4j2**. Every new `.java` file needs the Apache license header.
+- Tika 3.3.0 is version-managed in the root BOM only; the new `wikantik-ingest` module ADDs `tika-parsers-standard-package`. flexmark-html2md-converter (0.64.8) is NOT BOM-managed — declare it with `<version>${flexmark.version}</version>`. Logging is **Log4j2**. Every new `.java` file needs the Apache license header. **A new Maven module MUST declare `mockito-core` (test scope)** or surefire fails on the inherited `-javaagent` mockito path.
 
 ---
 
-### Task 1: `DerivedPage` contract + module dependencies
+### Task 1: `wikantik-ingest` module + `DerivedPage` contract
 
 **Files:**
-- Modify: `wikantik-main/pom.xml` (add Tika + flexmark-html2md deps)
+- Create: `wikantik-ingest/pom.xml` + add `<module>wikantik-ingest</module>` to the root `pom.xml` `<modules>`
+- Modify: `wikantik-main/pom.xml` (add a dependency on `wikantik-ingest`)
 - Create: `wikantik-main/src/main/java/com/wikantik/derived/DerivedPage.java`
 - Test: `wikantik-main/src/test/java/com/wikantik/derived/DerivedPageTest.java`
 
-- [ ] **Step 1: Add dependencies to `wikantik-main/pom.xml`** (versions managed by the root BOM; if flexmark-html2md-converter is not BOM-managed, pin it to the same `<flexmark.version>` the root pom uses — grep the root pom for the flexmark version property/artifacts):
-```xml
-<dependency>
-    <groupId>org.apache.tika</groupId>
-    <artifactId>tika-parsers-standard-package</artifactId>
-</dependency>
-<dependency>
-    <groupId>com.vladsch.flexmark</groupId>
-    <artifactId>flexmark-html2md-converter</artifactId>
-</dependency>
-```
+- [ ] **Step 1: Create the `wikantik-ingest` module.** New `wikantik-ingest/pom.xml` (copy the `<parent>` + groupId/version coordinates from a small sibling like `wikantik-event/pom.xml`) declaring ONLY these dependencies: `org.apache.tika:tika-parsers-standard-package` (no version — managed by the root BOM), `com.vladsch.flexmark:flexmark-html2md-converter` with `<version>${flexmark.version}</version>` (0.64.8, NOT BOM-managed), and test-scope `org.junit.jupiter:junit-jupiter` + **`org.mockito:mockito-core` (MANDATORY — a new module without it fails surefire on the inherited `-javaagent`)**. Add `<module>wikantik-ingest</module>` to the root `pom.xml` `<modules>` BEFORE `wikantik-main`. Then add to `wikantik-main/pom.xml`'s `<dependencies>`: `com.wikantik:wikantik-ingest:${project.version}`. Verify the empty module builds: `mvn -q -pl wikantik-ingest -am install -DskipTests`.
 
 - [ ] **Step 2: Write the failing test** `DerivedPageTest`:
 ```java
@@ -143,15 +134,15 @@ public final class DerivedPage {
 
 ### Task 2: `SourceExtractor` interface + value types
 
-**Files:**
-- Create: `wikantik-main/src/main/java/com/wikantik/derived/ExtractionResult.java`
-- Create: `wikantik-main/src/main/java/com/wikantik/derived/ExtractionException.java`
-- Create: `wikantik-main/src/main/java/com/wikantik/derived/SourceExtractor.java`
+**Files (all in the new `wikantik-ingest` module):**
+- Create: `wikantik-ingest/src/main/java/com/wikantik/ingest/ExtractionResult.java`
+- Create: `wikantik-ingest/src/main/java/com/wikantik/ingest/ExtractionException.java`
+- Create: `wikantik-ingest/src/main/java/com/wikantik/ingest/SourceExtractor.java`
 
 - [ ] **Step 1: Write the three types** (no test — pure declarations; verified by Task 3's test). Apache headers on each.
 ```java
 // ExtractionResult.java
-package com.wikantik.derived;
+package com.wikantik.ingest;
 import java.util.Map;
 /** Output of extracting a source document: the markdown body, an optional title, and raw metadata. */
 public record ExtractionResult( String markdownBody, String extractedTitle, Map< String, String > metadata ) {
@@ -160,7 +151,7 @@ public record ExtractionResult( String markdownBody, String extractedTitle, Map<
 ```
 ```java
 // ExtractionException.java
-package com.wikantik.derived;
+package com.wikantik.ingest;
 /** Thrown when a source document cannot be parsed/extracted. */
 public class ExtractionException extends Exception {
     public ExtractionException( final String message, final Throwable cause ) { super( message, cause ); }
@@ -169,7 +160,7 @@ public class ExtractionException extends Exception {
 ```
 ```java
 // SourceExtractor.java
-package com.wikantik.derived;
+package com.wikantik.ingest;
 import java.io.InputStream;
 /** Extracts a markdown body from a source document stream. Pure — no wiki coupling. */
 public interface SourceExtractor {
@@ -179,20 +170,20 @@ public interface SourceExtractor {
 }
 ```
 
-- [ ] **Step 2: Compile-check** (`mvn -q -pl wikantik-main -am test-compile -Dsurefire.failIfNoSpecifiedTests=false`). **Step 3: Commit** (`feat(derived): SourceExtractor interface + value types`).
+- [ ] **Step 2: Compile-check** (`mvn -q -pl wikantik-ingest -am test-compile`). **Step 3: Commit** (`feat(ingest): SourceExtractor interface + value types`).
 
 ---
 
 ### Task 3: `TikaSourceExtractor` (Tika → markdown)
 
-**Files:**
-- Create: `wikantik-main/src/main/java/com/wikantik/derived/TikaSourceExtractor.java`
-- Test: `wikantik-main/src/test/java/com/wikantik/derived/TikaSourceExtractorTest.java`
-- Fixtures: `wikantik-main/src/test/resources/derived/sample.txt`, `sample.docx`, `sample.pdf` (commit small real files; generate the docx/pdf with any tool — a one-paragraph doc with one `# Heading` is enough)
+**Files (in the `wikantik-ingest` module):**
+- Create: `wikantik-ingest/src/main/java/com/wikantik/ingest/TikaSourceExtractor.java`
+- Test: `wikantik-ingest/src/test/java/com/wikantik/ingest/TikaSourceExtractorTest.java`
+- Fixtures: `wikantik-ingest/src/test/resources/derived/sample.txt`, `sample.docx`, `sample.pdf` (commit small real files; generate the docx/pdf with any tool — a one-paragraph doc with one `# Heading` is enough)
 
 - [ ] **Step 1: Write the failing test** (`sample.txt` is deterministic; the binary fixtures assert non-empty + title/structure leniently since exact Tika output varies):
 ```java
-package com.wikantik.derived;
+package com.wikantik.ingest;
 
 import static org.junit.jupiter.api.Assertions.*;
 import java.io.InputStream;
@@ -257,7 +248,7 @@ final String title = md.get( TikaCoreProperties.TITLE );   // may be null
 return new ExtractionResult( markdown, title, /* selected md fields */ Map.of() );
 ```
 
-- [ ] **Step 4: Run the test — expect PASS.** **Step 5: Commit** (`feat(derived): Tika source extractor (XHTML→markdown)`). Stage the fixtures too.
+- [ ] **Step 4: Run the test — expect PASS** (`mvn -q -pl wikantik-ingest test -Dtest=TikaSourceExtractorTest`). **Step 5: Commit** (`feat(ingest): Tika source extractor (XHTML→markdown)`). Stage the fixtures too.
 
 ---
 
@@ -365,5 +356,5 @@ return new ExtractionResult( markdown, title, /* selected md fields */ Map.of() 
 
 - **Spec coverage:** A→Task 1; B→Tasks 2–3; C(core)→Task 4, C(REST)→Task 5, C(CLI)→Task 6; D→Task 7; E→Task 8; cross-cutting UI/edit-at-own-risk→Task 9; rails verification + harness→Task 10. The four confirmed decisions are honored: marker = `derived_from` presence (Task 1/4); idempotency = filename-named + update-in-place + sha-dedup (Task 4); manual reflow + staleness count (Task 7); structured-where-Tika-provides fidelity (Task 3). Out-of-scope items (auto-reflow, parent-child chunking, OCR, merge) are not built.
 - **Type consistency:** `DerivedPage.*` constants, `ExtractionResult`/`SourceExtractor`, `IngestOptions`/`IngestResult`, `DerivedPageIngestionService`, `DerivedReflowService` referenced consistently across tasks. Page-save via `PageSaveHelper.saveText` + `SaveOptions.metadata`; frontmatter via `FrontmatterWriter.write`.
-- **Known-gotcha guards:** Tika dep must be added to `wikantik-main` (Task 1); `-am … -Dsurefire.failIfNoSpecifiedTests=false` test invocation + the IT-reactor wrapper-exit/Reactor-Summary check (Tasks 3, 10); ArchUnit-safe subsystem accessor for the new service (Task 5); page name from filename not title for reflow stability (Task 1/4/7); Log4j2 + Apache headers + stage-by-name throughout.
+- **Known-gotcha guards:** new `wikantik-ingest` module holds the Tika/flexmark-html2md deps + MUST declare `mockito-core` test-scope; root `<modules>` + `wikantik-main`→`wikantik-ingest` dep wired in Task 1; `-am … -Dsurefire.failIfNoSpecifiedTests=false` test invocation + the IT-reactor wrapper-exit/Reactor-Summary check (Tasks 3, 10); ArchUnit-safe subsystem accessor for the new service (Task 5); page name from filename not title for reflow stability (Task 1/4/7); Log4j2 + Apache headers + stage-by-name throughout.
 - **Confirm-against-live flagged:** flexmark-html2md-converter version management (Task 1); exact `PageSaveHelper`/`SaveOptions` construction + whether to inject a `PageWriter` seam for testability (Task 4); the `ContentChunker.chunk` call site (Task 8); web.xml registration pattern (Tasks 5, 7); the editor frontmatter availability for the banner (Task 9).

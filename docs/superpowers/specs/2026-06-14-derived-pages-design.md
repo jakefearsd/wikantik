@@ -128,10 +128,14 @@ with PDFs/docs in the corpus.
 - **Edit-at-own-risk (ADR-0004):** no locking, no merge, no edit-protection. `VersioningFileProvider`
   history is the recovery path. UI affordance: the editor shows a "machine-owned body — a reflow
   overwrites hand edits; curate in frontmatter/tags/KG" banner when `derived_from` is present.
-- **Placement:** new `com.wikantik.derived.*` (wikantik-main) — `DerivedPage` constants,
-  `SourceExtractor` + `TikaSourceExtractor`, `DerivedPageIngestionService`, `DerivedReflowService`.
-  REST: `DerivedIngestResource` + `AdminDerivedResource` (wikantik-rest). CLI: `IngestDocumentsCli`
-  (wikantik-extract-cli). No new Maven module.
+- **Placement:** the **pure extraction layer lives in a new `wikantik-ingest` module** —
+  `com.wikantik.ingest.{SourceExtractor, TikaSourceExtractor, ExtractionResult, ExtractionException}`,
+  depending only on Apache Tika + flexmark-html2md (no wiki-engine coupling), so the heavy
+  third-party document-parsing dependencies (PDFBox, POI, …) sit behind a clean, independently
+  testable boundary. The wiki-coupled pieces stay in `com.wikantik.derived.*` (wikantik-main —
+  `DerivedPage` constants, `DerivedPageIngestionService`, `DerivedReflowService`), and wikantik-main
+  takes a dependency on wikantik-ingest. REST: `DerivedIngestResource` + `AdminDerivedResource`
+  (wikantik-rest). CLI: `IngestDocumentsCli` (wikantik-extract-cli).
 - **Security/ACL:** ingestion + reflow are write/admin operations — gate the REST ingest behind the
   same page-create permission the editor uses; `/admin/derived/*` behind `AdminAuthFilter`. A
   derived page is an ordinary page for view-ACL purposes (inherits the standard model).

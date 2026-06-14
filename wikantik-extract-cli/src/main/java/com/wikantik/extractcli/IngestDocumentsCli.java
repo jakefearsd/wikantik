@@ -30,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -47,7 +48,8 @@ import java.util.Set;
  * java -cp wikantik-extract-cli.jar com.wikantik.extractcli.IngestDocumentsCli \
  *      --base-url http://localhost:8080 \
  *      --dir /data/documents \
- *      --token myAdminBearerToken \
+ *      --user admin \
+ *      --password secret \
  *      --force
  * }</pre>
  *
@@ -193,7 +195,7 @@ public final class IngestDocumentsCli {
             final HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
                 .uri( URI.create( a.baseUrl + "/api/ingest" ) )
                 .header( "Content-Type", "multipart/form-data; boundary=" + boundary )
-                .header( "Authorization", "Bearer " + a.token )
+                .header( "Authorization", basicAuthHeader( a.user, a.password ) )
                 .POST( HttpRequest.BodyPublishers.ofByteArray( body ) );
 
             final HttpResponse<String> resp = http.send( reqBuilder.build(),
@@ -205,6 +207,18 @@ public final class IngestDocumentsCli {
 
             return extractStatus( resp.body() );
         };
+    }
+
+    /**
+     * Returns an {@code Authorization: Basic} header value for the given credentials.
+     * The value is {@code "Basic " + base64(user + ":" + password)}, which is what
+     * {@link com.wikantik.rest.BasicAuthFilter} expects.
+     */
+    static String basicAuthHeader( final String user, final String password ) {
+        final String raw = user + ":" + password;
+        final String encoded = Base64.getEncoder()
+            .encodeToString( raw.getBytes( StandardCharsets.UTF_8 ) );
+        return "Basic " + encoded;
     }
 
     /**
@@ -286,7 +300,8 @@ public final class IngestDocumentsCli {
             Required:
               --base-url <url>    Base URL of the running Wikantik instance (e.g. http://localhost:8080)
               --dir <path>        Directory to walk recursively for supported documents
-              --token <value>     Admin bearer token (Authorization: Bearer <token>)
+              --user <login>      Admin login name (sent as HTTP Basic auth)
+              --password <pass>   Admin password (sent as HTTP Basic auth)
 
             Optional:
               --force             Re-ingest even if the source SHA is unchanged
@@ -304,7 +319,8 @@ public final class IngestDocumentsCli {
     public static final class Args {
         public String  baseUrl  = null;
         public String  dir      = null;
-        public String  token    = null;
+        public String  user     = null;
+        public String  password = null;
         public boolean force    = false;
         public boolean showHelp = false;
 
@@ -313,11 +329,12 @@ public final class IngestDocumentsCli {
             for ( int i = 0; i < argv.length; i++ ) {
                 final String k = argv[ i ];
                 switch ( k ) {
-                    case "-h", "--help"  -> a.showHelp = true;
-                    case "--base-url"    -> a.baseUrl = req( argv, ++i, k );
-                    case "--dir"         -> a.dir     = req( argv, ++i, k );
-                    case "--token"       -> a.token   = req( argv, ++i, k );
-                    case "--force"       -> a.force   = true;
+                    case "-h", "--help"  -> a.showHelp  = true;
+                    case "--base-url"    -> a.baseUrl   = req( argv, ++i, k );
+                    case "--dir"         -> a.dir       = req( argv, ++i, k );
+                    case "--user"        -> a.user      = req( argv, ++i, k );
+                    case "--password"    -> a.password  = req( argv, ++i, k );
+                    case "--force"       -> a.force     = true;
                     default -> throw new IllegalArgumentException( "unknown argument: " + k );
                 }
             }
@@ -328,8 +345,11 @@ public final class IngestDocumentsCli {
                 if ( a.dir == null || a.dir.isBlank() ) {
                     throw new IllegalArgumentException( "--dir is required" );
                 }
-                if ( a.token == null || a.token.isBlank() ) {
-                    throw new IllegalArgumentException( "--token is required" );
+                if ( a.user == null || a.user.isBlank() ) {
+                    throw new IllegalArgumentException( "--user is required" );
+                }
+                if ( a.password == null || a.password.isBlank() ) {
+                    throw new IllegalArgumentException( "--password is required" );
                 }
             }
             return a;

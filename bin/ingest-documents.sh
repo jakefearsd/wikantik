@@ -8,16 +8,18 @@
 # Usage:
 #   bin/ingest-documents.sh --base-url http://localhost:8080 \
 #                           --dir /data/docs \
-#                           --token <admin-bearer-token>
+#                           --user admin \
+#                           --password secret
 #   bin/ingest-documents.sh --base-url http://localhost:8080 \
 #                           --dir /data/docs \
-#                           --token <token> \
+#                           --user admin \
+#                           --password secret \
 #                           --force
 #   bin/ingest-documents.sh --help
 #   bin/ingest-documents.sh --jar-help    # full Java CLI flag reference
 #
 # Auth:
-#   --token is sent as an HTTP Authorization: Bearer header.
+#   --user / --password are sent as HTTP Basic auth (Authorization: Basic <base64>).
 #   The /api/ingest endpoint requires admin or createPages permission.
 #
 # Build behaviour:

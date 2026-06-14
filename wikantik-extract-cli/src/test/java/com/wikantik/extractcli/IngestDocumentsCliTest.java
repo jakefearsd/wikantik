@@ -21,9 +21,11 @@ package com.wikantik.extractcli;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,11 +42,13 @@ class IngestDocumentsCliTest {
         final IngestDocumentsCli.Args a = IngestDocumentsCli.Args.parse( new String[]{
             "--base-url", "http://localhost:8080",
             "--dir", "/tmp/docs",
-            "--token", "secret123"
+            "--user", "admin",
+            "--password", "secret123"
         } );
         assertEquals( "http://localhost:8080", a.baseUrl );
         assertEquals( "/tmp/docs", a.dir );
-        assertEquals( "secret123", a.token );
+        assertEquals( "admin", a.user );
+        assertEquals( "secret123", a.password );
         assertFalse( a.force );
     }
 
@@ -53,7 +57,8 @@ class IngestDocumentsCliTest {
         final IngestDocumentsCli.Args a = IngestDocumentsCli.Args.parse( new String[]{
             "--base-url", "http://localhost:8080",
             "--dir", "/tmp",
-            "--token", "t",
+            "--user", "admin",
+            "--password", "pass",
             "--force"
         } );
         assertTrue( a.force );
@@ -62,25 +67,53 @@ class IngestDocumentsCliTest {
     @Test
     void rejectsUnknownFlag() {
         assertThrows( IllegalArgumentException.class, () ->
-            IngestDocumentsCli.Args.parse( new String[]{ "--base-url", "x", "--dir", "y", "--token", "z", "--unknown" } ) );
+            IngestDocumentsCli.Args.parse( new String[]{
+                "--base-url", "x", "--dir", "y",
+                "--user", "u", "--password", "p", "--unknown" } ) );
     }
 
     @Test
     void rejectsMissingBaseUrl() {
         assertThrows( IllegalArgumentException.class, () ->
-            IngestDocumentsCli.Args.parse( new String[]{ "--dir", "y", "--token", "z" } ) );
+            IngestDocumentsCli.Args.parse( new String[]{ "--dir", "y", "--user", "u", "--password", "p" } ) );
     }
 
     @Test
     void rejectsMissingDir() {
         assertThrows( IllegalArgumentException.class, () ->
-            IngestDocumentsCli.Args.parse( new String[]{ "--base-url", "http://localhost", "--token", "z" } ) );
+            IngestDocumentsCli.Args.parse( new String[]{ "--base-url", "http://localhost", "--user", "u", "--password", "p" } ) );
     }
 
     @Test
-    void rejectsMissingToken() {
+    void rejectsMissingUser() {
         assertThrows( IllegalArgumentException.class, () ->
-            IngestDocumentsCli.Args.parse( new String[]{ "--base-url", "http://localhost", "--dir", "y" } ) );
+            IngestDocumentsCli.Args.parse( new String[]{ "--base-url", "http://localhost", "--dir", "y", "--password", "p" } ) );
+    }
+
+    @Test
+    void rejectsMissingPassword() {
+        assertThrows( IllegalArgumentException.class, () ->
+            IngestDocumentsCli.Args.parse( new String[]{ "--base-url", "http://localhost", "--dir", "y", "--user", "u" } ) );
+    }
+
+    // ---- basicAuthHeader ----
+
+    @Test
+    void basicAuthHeaderProducesCorrectBase64() {
+        final String header = IngestDocumentsCli.basicAuthHeader( "admin", "secret123" );
+        final String expected = "Basic " + Base64.getEncoder()
+            .encodeToString( "admin:secret123".getBytes( StandardCharsets.UTF_8 ) );
+        assertEquals( expected, header );
+        assertTrue( header.startsWith( "Basic " ), "must start with 'Basic '" );
+    }
+
+    @Test
+    void basicAuthHeaderEncodesSpecialCharacters() {
+        final String header = IngestDocumentsCli.basicAuthHeader( "user@domain", "p@ss:w0rd!" );
+        final String decoded = new String(
+            Base64.getDecoder().decode( header.substring( "Basic ".length() ) ),
+            StandardCharsets.UTF_8 );
+        assertEquals( "user@domain:p@ss:w0rd!", decoded );
     }
 
     // ---- extension filter ----

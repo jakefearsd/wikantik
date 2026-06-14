@@ -527,6 +527,14 @@
        </multipart-config>
    </servlet>
    <servlet>
+       <servlet-name>DerivedIngestResource</servlet-name>
+       <servlet-class>com.wikantik.rest.DerivedIngestResource</servlet-class>
+       <multipart-config>
+           <max-file-size>52428800</max-file-size>
+           <max-request-size>52428800</max-request-size>
+       </multipart-config>
+   </servlet>
+   <servlet>
        <servlet-name>DiffResource</servlet-name>
        <servlet-class>com.wikantik.rest.DiffResource</servlet-class>
    </servlet>
@@ -805,6 +813,10 @@
    <servlet-mapping>
        <servlet-name>AttachmentResource</servlet-name>
        <url-pattern>/api/attachments/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>DerivedIngestResource</servlet-name>
+       <url-pattern>/api/ingest</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>DiffResource</servlet-name>

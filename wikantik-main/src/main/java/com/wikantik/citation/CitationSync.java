@@ -25,13 +25,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /** Orchestrates citation extraction, grading, and inbound re-checks across save/rename/delete + full reconcile. */
 public final class CitationSync {
 
-    private static final Logger LOG = LoggerFactory.getLogger( CitationSync.class );
+    private static final Logger LOG = LogManager.getLogger( CitationSync.class );
 
     private final CitationRepository repo;
     private final CitationMarkupParser parser;

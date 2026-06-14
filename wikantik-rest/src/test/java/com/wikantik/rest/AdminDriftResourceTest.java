@@ -21,6 +21,9 @@ package com.wikantik.rest;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.wikantik.WikiSubsystems;
+import com.wikantik.api.citation.CitationStatus;
+import com.wikantik.citation.CitationRepository;
+import com.wikantik.citation.CitationRow;
 import com.wikantik.drift.DriftCount;
 import com.wikantik.drift.DriftSnapshotRepository;
 import com.wikantik.drift.DriftSweepRecord;
@@ -37,6 +40,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -49,6 +53,7 @@ class AdminDriftResourceTest {
 
     private DriftSweepService service;
     private DriftSnapshotRepository repo;
+    private CitationRepository citationRepo;
     private AdminDriftResource servlet;
     private HttpServletRequest req;
     private HttpServletResponse resp;
@@ -59,7 +64,7 @@ class AdminDriftResourceTest {
         @Override protected WikiSubsystems getSubsystems() {
             final WikiSubsystems subs = Mockito.mock( WikiSubsystems.class );
             final PageGraphSubsystem.Services pg = new PageGraphSubsystem.Services(
-                    null, null, null, null, null, service );
+                    null, null, null, null, null, service, citationRepo, null );
             when( subs.pageGraph() ).thenReturn( pg );
             return subs;
         }
@@ -70,6 +75,7 @@ class AdminDriftResourceTest {
     void setUp() throws Exception {
         service = mock( DriftSweepService.class );
         repo = mock( DriftSnapshotRepository.class );
+        citationRepo = mock( CitationRepository.class );
         servlet = new Stub();
         req = mock( HttpServletRequest.class );
         resp = mock( HttpServletResponse.class );
@@ -232,5 +238,94 @@ class AdminDriftResourceTest {
 
         verify( resp ).setStatus( 200 );
         assertEquals( "drift sweep persistence failed", json().get( "lastError" ).getAsString() );
+    }
+
+    // -------------------------------------------------------------------------
+    // citations endpoint
+    // -------------------------------------------------------------------------
+
+    @Test
+    void citationsCountsOnlyWhenNoPageParam() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/citations" );
+        when( req.getParameter( "page" ) ).thenReturn( null );
+        when( citationRepo.countsByStatus() ).thenReturn( Map.of(
+                CitationStatus.CURRENT, 10,
+                CitationStatus.STALE, 3 ) );
+
+        servlet.doGet( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        final JsonObject out = json();
+        final JsonObject counts = out.getAsJsonObject( "counts" );
+        assertEquals( 10, counts.get( "current" ).getAsInt() );
+        assertEquals( 3, counts.get( "stale" ).getAsInt() );
+        assertEquals( 0, counts.get( "target_missing" ).getAsInt() );
+        assertEquals( 0, out.getAsJsonArray( "outbound" ).size() );
+        assertEquals( 0, out.getAsJsonArray( "inbound" ).size() );
+    }
+
+    @Test
+    void citationsWithPageReturnsOutboundAndNonCurrentInbound() throws Exception {
+        when( req.getPathInfo() ).thenReturn( "/citations" );
+        when( req.getParameter( "page" ) ).thenReturn( "my-page" );
+        when( req.getParameter( "direction" ) ).thenReturn( null );
+        when( citationRepo.countsByStatus() ).thenReturn( Map.of(
+                CitationStatus.CURRENT, 2,
+                CitationStatus.STALE, 1,
+                CitationStatus.TARGET_MISSING, 0 ) );
+
+        final CitationRow outRow = new CitationRow( 1L, "my-page", "other-page", "## Intro",
+                "see other-page", "abc123", "claim A", 0, 42, CitationStatus.CURRENT,
+                Instant.EPOCH, Instant.EPOCH, Instant.EPOCH );
+        final CitationRow inCurrent = new CitationRow( 2L, "other-page", "my-page", "## Ref",
+                "see my-page", "def456", "claim B", 0, null, CitationStatus.CURRENT,
+                Instant.EPOCH, Instant.EPOCH, Instant.EPOCH );
+        final CitationRow inStale = new CitationRow( 3L, "third-page", "my-page", "## Ref",
+                "old ref", "ghi789", "stale claim", 1, null, CitationStatus.STALE,
+                Instant.EPOCH, Instant.EPOCH, Instant.EPOCH );
+
+        when( citationRepo.findBySource( "my-page" ) ).thenReturn( List.of( outRow ) );
+        when( citationRepo.findByTarget( "my-page" ) ).thenReturn( List.of( inCurrent, inStale ) );
+
+        servlet.doGet( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        final JsonObject out = json();
+        // outbound includes all from findBySource
+        assertEquals( 1, out.getAsJsonArray( "outbound" ).size() );
+        final JsonObject outbound = out.getAsJsonArray( "outbound" ).get( 0 ).getAsJsonObject();
+        assertEquals( "my-page", outbound.get( "sourceCanonicalId" ).getAsString() );
+        assertEquals( "other-page", outbound.get( "targetCanonicalId" ).getAsString() );
+        assertEquals( "## Intro", outbound.get( "targetHeadingPath" ).getAsString() );
+        assertEquals( "current", outbound.get( "status" ).getAsString() );
+        assertEquals( 42, outbound.get( "pinnedTargetVersion" ).getAsInt() );
+        // inbound excludes CURRENT rows
+        assertEquals( 1, out.getAsJsonArray( "inbound" ).size() );
+        final JsonObject inbound = out.getAsJsonArray( "inbound" ).get( 0 ).getAsJsonObject();
+        assertEquals( "third-page", inbound.get( "sourceCanonicalId" ).getAsString() );
+        assertEquals( "stale", inbound.get( "status" ).getAsString() );
+        assertTrue( inbound.get( "pinnedTargetVersion" ).isJsonNull() );
+    }
+
+    @Test
+    void citationsWithNullRepoReturnsZeroCountsAndEmptyLists() throws Exception {
+        citationRepo = null;
+        servlet = new Stub();
+        when( req.getPathInfo() ).thenReturn( "/citations" );
+        when( req.getParameter( "page" ) ).thenReturn( "any-page" );
+        // Re-wire resp writer for new servlet instance
+        body = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( body, true ) );
+
+        servlet.doGet( req, resp );
+
+        verify( resp ).setStatus( 200 );
+        final JsonObject out = json();
+        final JsonObject counts = out.getAsJsonObject( "counts" );
+        assertEquals( 0, counts.get( "current" ).getAsInt() );
+        assertEquals( 0, counts.get( "stale" ).getAsInt() );
+        assertEquals( 0, counts.get( "target_missing" ).getAsInt() );
+        assertEquals( 0, out.getAsJsonArray( "outbound" ).size() );
+        assertEquals( 0, out.getAsJsonArray( "inbound" ).size() );
     }
 }

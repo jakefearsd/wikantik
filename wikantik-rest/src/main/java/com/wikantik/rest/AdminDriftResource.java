@@ -18,6 +18,9 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.api.citation.CitationStatus;
+import com.wikantik.citation.CitationRepository;
+import com.wikantik.citation.CitationRow;
 import com.wikantik.drift.DriftCount;
 import com.wikantik.drift.DriftSnapshotRepository;
 import com.wikantik.drift.DriftSweepRecord;
@@ -31,6 +34,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,12 +64,17 @@ public class AdminDriftResource extends RestServletBase {
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws IOException {
+        final String action = extractPathParam( request );
+        // citations has its own null-repo guard and does not require driftSweepService.
+        if ( "citations".equals( action ) ) {
+            handleCitations( request, response );
+            return;
+        }
         final DriftSweepService service = service();
         if ( service == null ) {
             sendError( response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "drift sweep service not available" );
             return;
         }
-        final String action = extractPathParam( request );
         if ( "summary".equals( action ) ) {
             handleSummary( service, response );
         } else if ( "trend".equals( action ) ) {
@@ -197,6 +206,63 @@ public class AdminDriftResource extends RestServletBase {
         out.put( "totalPages", p.totalPages() );
         out.put( "lastError", service.lastError() );
         sendJsonWithStatus( response, 200, out );
+    }
+
+    private void handleCitations( final HttpServletRequest request,
+                                   final HttpServletResponse response ) throws IOException {
+        final CitationRepository repo = getSubsystems().pageGraph().citationRepository();
+
+        // Build counts map — always include all three keys, 0 when absent.
+        final Map< String, Integer > counts = new LinkedHashMap<>();
+        counts.put( CitationStatus.CURRENT.wire(), 0 );
+        counts.put( CitationStatus.STALE.wire(), 0 );
+        counts.put( CitationStatus.TARGET_MISSING.wire(), 0 );
+
+        if ( repo == null ) {
+            LOG.warn( "citations endpoint called but CitationRepository is null (citations disabled)" );
+            final Map< String, Object > out = new LinkedHashMap<>();
+            out.put( "counts", counts );
+            out.put( "outbound", List.of() );
+            out.put( "inbound", List.of() );
+            sendJsonWithStatus( response, 200, out );
+            return;
+        }
+
+        repo.countsByStatus().forEach( ( status, count ) ->
+                counts.put( status.wire(), count ) );
+
+        final String page = request.getParameter( "page" );
+        final List< Map< String, Object > > outbound = new ArrayList<>();
+        final List< Map< String, Object > > inbound = new ArrayList<>();
+
+        if ( page != null && !page.isBlank() ) {
+            for ( final CitationRow row : repo.findBySource( page ) ) {
+                outbound.add( citationRowJson( row ) );
+            }
+            for ( final CitationRow row : repo.findByTarget( page ) ) {
+                if ( row.status() != CitationStatus.CURRENT ) {
+                    inbound.add( citationRowJson( row ) );
+                }
+            }
+        }
+
+        final Map< String, Object > out = new LinkedHashMap<>();
+        out.put( "counts", counts );
+        out.put( "outbound", outbound );
+        out.put( "inbound", inbound );
+        sendJsonWithStatus( response, 200, out );
+    }
+
+    private static Map< String, Object > citationRowJson( final CitationRow row ) {
+        final Map< String, Object > m = new LinkedHashMap<>();
+        m.put( "sourceCanonicalId", row.sourceCanonicalId() );
+        m.put( "targetCanonicalId", row.targetCanonicalId() );
+        m.put( "targetHeadingPath", row.targetHeadingPath() );
+        m.put( "spanText", row.spanText() );
+        m.put( "claimText", row.claimText() );
+        m.put( "status", row.status().wire() );
+        m.put( "pinnedTargetVersion", row.pinnedTargetVersion() );
+        return m;
     }
 
     private static String countKey( final DriftCount c ) {

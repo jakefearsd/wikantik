@@ -1826,6 +1826,21 @@ public class WikiEngine implements Engine {
         return persistenceSubsystem != null ? persistenceSubsystem.pageCanonicalIds() : null;
     }
 
+    /** Global dense-chunk candidate source for the context bundle; set at search wiring, read at
+     *  the retrieval-patch seam. Null when the dense index is unavailable (bundle then falls back
+     *  to the page-gated path). A plain field — not a manager — so it carries no snapshot machinery. */
+    private volatile com.wikantik.knowledge.bundle.SectionCandidateSource bundleSectionSource;
+
+    /** Called by {@code SearchWiringHelper} once the dense index + query embedder are built. */
+    public void setBundleSectionSource( final com.wikantik.knowledge.bundle.SectionCandidateSource source ) {
+        this.bundleSectionSource = source;
+    }
+
+    /** The dense-chunk candidate source, or {@code null} if the dense index was not wired. */
+    public com.wikantik.knowledge.bundle.SectionCandidateSource bundleSectionSource() {
+        return bundleSectionSource;
+    }
+
     /** {@inheritDoc} */
     @Override
     public String getWorkDir() {
@@ -1984,6 +1999,7 @@ public class WikiEngine implements Engine {
             // helper stays a plain assembler. Null-safe: build returns null if svc is null.
             com.wikantik.knowledge.bundle.BundleServiceWiring.build(
                 svc,
+                bundleSectionSource(),
                 pageCanonicalIdsDao(),
                 pageSubsystem != null ? pageSubsystem.pages() : null,
                 properties )

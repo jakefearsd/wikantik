@@ -66,12 +66,14 @@ public final class BundleServiceWiring {
      * or {@code null} when {@code retrieval} is not yet wired. Never throws — a
      * missing collaborator degrades the relevant lookup to empty rather than failing.
      *
-     * @param retrieval   the live context-retrieval service (null → returns null)
+     * @param retrieval   the live context-retrieval service — the build trigger (null → returns null)
+     * @param denseSource global dense-chunk candidate source (preferred when present + enabled)
      * @param dao         slug → canonical_id source (null tolerated → empty)
      * @param pageManager slug → page version source (null tolerated → version 0)
-     * @param props       reranker configuration source (null tolerated → defaults)
+     * @param props       configuration source (null tolerated → defaults)
      */
     public static BundleAssemblyService build( final ContextRetrievalService retrieval,
+                                               final SectionCandidateSource denseSource,
                                                final PageCanonicalIdsDao dao,
                                                final PageManager pageManager,
                                                final Properties props ) {
@@ -79,8 +81,15 @@ public final class BundleServiceWiring {
             LOG.debug( "ContextRetrievalService not yet wired — bundle assembly service unavailable" );
             return null;
         }
-        final SectionReranker reranker = rerankerFor( props );
+        // Prefer the global dense-chunk source (recall@12 0.735 vs page-gated 0.685); fall back
+        // to the page-gated retrieval path when dense is disabled or its index is unavailable.
+        final boolean denseEnabled = props == null || Boolean.parseBoolean(
+            props.getProperty( "wikantik.bundle.dense.enabled", "true" ) );
+        final SectionCandidateSource source = ( denseEnabled && denseSource != null )
+            ? denseSource
+            : new RetrievalSectionSource( retrieval, sectionsPerPageFrom( props ) );
 
+        final SectionReranker reranker = rerankerFor( props );
         final Function< String, Optional< String > > canonicalIdOf = slug ->
             dao == null ? Optional.empty()
                         : dao.findBySlug( slug ).map( PageCanonicalIdsDao.Row::canonicalId );
@@ -90,11 +99,11 @@ public final class BundleServiceWiring {
             return p == null ? 0 : p.getVersion();
         };
 
-        final int sectionsPerPage = sectionsPerPageFrom( props );
-        LOG.info( "Bundle assembly service wired (reranker={}, maxSections={}, sectionsPerPage={})",
-            reranker instanceof LlmSectionReranker ? "on" : "off", MAX_SECTIONS, sectionsPerPage );
+        LOG.info( "Bundle assembly service wired (source={}, reranker={}, maxSections={})",
+            source instanceof DenseChunkSectionSource ? "dense-chunk" : "page-gated",
+            reranker instanceof LlmSectionReranker ? "on" : "off", MAX_SECTIONS );
         return new DefaultBundleAssemblyService(
-            retrieval, reranker, canonicalIdOf, versionOf, MAX_SECTIONS, sectionsPerPage );
+            source, reranker, canonicalIdOf, versionOf, MAX_SECTIONS );
     }
 
     /** Per-page shortlist depth from {@code wikantik.bundle.sections_per_page}, default {@link #SECTIONS_PER_PAGE}. */

@@ -22,7 +22,6 @@ import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
-import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 
 import java.nio.charset.StandardCharsets;
@@ -38,32 +37,45 @@ import java.util.function.Function;
 /** Orchestrates retrieve → per-page shortlist → rerank → dedup → top-N → cite (ADR-0001/0003/0005). */
 public final class DefaultBundleAssemblyService implements BundleAssemblyService {
 
-    private final ContextRetrievalService retrieval;
+    private final SectionCandidateSource source;
     private final SectionReranker reranker;
-    private final SectionAssembler assembler;
     private final Function< String, Optional< String > > canonicalIdOf;  // slug -> canonical_id
     private final Function< String, Integer > versionOf;                  // slug -> page version
     private final int maxSections;
 
+    /**
+     * Page-gated constructor (retained for back-compat): wraps hybrid retrieval +
+     * per-page section shortlist in a {@link RetrievalSectionSource}.
+     */
     public DefaultBundleAssemblyService( final ContextRetrievalService retrieval,
                                          final SectionReranker reranker,
                                          final Function< String, Optional< String > > canonicalIdOf,
                                          final Function< String, Integer > versionOf,
                                          final int maxSections,
                                          final int sectionsPerPage ) {
-        this.retrieval = retrieval;
+        this( new RetrievalSectionSource( retrieval, sectionsPerPage ),
+              reranker, canonicalIdOf, versionOf, maxSections );
+    }
+
+    /**
+     * Source-based constructor — the {@link SectionCandidateSource} decides page-gated
+     * ({@link RetrievalSectionSource}) vs global dense-chunk ({@link DenseChunkSectionSource}).
+     */
+    public DefaultBundleAssemblyService( final SectionCandidateSource source,
+                                         final SectionReranker reranker,
+                                         final Function< String, Optional< String > > canonicalIdOf,
+                                         final Function< String, Integer > versionOf,
+                                         final int maxSections ) {
+        this.source = source;
         this.reranker = reranker;
         this.canonicalIdOf = canonicalIdOf;
         this.versionOf = versionOf;
         this.maxSections = maxSections;
-        this.assembler = new SectionAssembler( sectionsPerPage );
     }
 
     @Override
     public ContextBundle assemble( final String query ) {
-        final var result = retrieval.retrieve(
-            new ContextQuery( query, ContextQuery.MAX_PAGES_CAP, ContextQuery.MAX_CHUNKS_PER_PAGE_CAP, null ) );
-        final List< CandidateSection > ranked = reranker.rerank( query, assembler.assemble( result ) );
+        final List< CandidateSection > ranked = reranker.rerank( query, source.candidates( query ) );
 
         final Set< SectionKey > seen = new LinkedHashSet<>();
         final List< BundleSection > out = new ArrayList<>();

@@ -243,6 +243,15 @@ public final class SearchWiringHelper {
             new HybridSearchService( embedder, denseRetriever, fuser, hybridCfg.enabled() );
         engine.registerHybridSearchService( hybridSearch );
 
+        // Global dense-chunk candidate source for the context bundle. The 2026-06-14 measurement
+        // showed retrieving the top-K chunks directly (no page pre-select) realises the section-
+        // recall ceiling (recall@12 0.735) where the page-gated path only reaches ~0.685. Built
+        // here where the embedder + vector index are in scope; read at the retrieval-patch seam.
+        final int denseTopK = com.wikantik.util.TextUtil.getIntegerProperty(
+            props, "wikantik.bundle.dense.top_k", 300 );
+        engine.setBundleSectionSource( new com.wikantik.knowledge.bundle.DenseChunkSectionSource(
+            embedder, vectorIndex, chunkRepo, denseTopK ) );
+
         final BootstrapEmbeddingIndexer bootstrap =
             new BootstrapEmbeddingIndexer( ds, indexService, modelCode, indexReloadHook );
         engine.registerBootstrapEmbeddingIndexer( bootstrap );

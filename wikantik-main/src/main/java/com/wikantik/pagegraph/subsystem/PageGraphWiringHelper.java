@@ -32,6 +32,7 @@ import com.wikantik.pagegraph.spine.StructuralIndexMetrics;
 import com.wikantik.pagegraph.spine.StructuralSpinePageFilter;
 import com.wikantik.pagegraph.spine.TrustedAuthorsDao;
 import com.wikantik.api.managers.SystemPageRegistry;
+import com.wikantik.citation.CitationLinkRenderingFilter;
 import com.wikantik.filters.FilterManager;
 import com.wikantik.persistence.subsystem.PersistenceSubsystem;
 import com.wikantik.util.TextUtil;
@@ -147,5 +148,8 @@ public final class PageGraphWiringHelper {
         filterManager.addPageFilter(
             new com.wikantik.markdown.extensions.math.MathValidationPageFilter( props, pageManager ),
             -1007 );
+        filterManager.addPageFilter(
+            new CitationLinkRenderingFilter( structuralIndex ),
+            100 );
     }
 }

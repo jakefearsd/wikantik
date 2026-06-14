@@ -145,10 +145,7 @@ public class DerivedPageIngestionService {
                 }
             }
 
-            // Step 3 — store attachment
-            attachments.store( pageName, filename, source );
-
-            // Step 4 — extract
+            // Step 3 — extract (performed before page write and attachment; no I/O side-effects)
             final ExtractionResult er = extractor.extract(
                 new ByteArrayInputStream( source ), contentType, filename );
             if ( er.isEmpty() ) {
@@ -157,11 +154,19 @@ public class DerivedPageIngestionService {
                 return IngestResult.failed( pageName, "empty extraction" );
             }
 
-            // Step 5 — build metadata
+            // Step 4 — build metadata
             final Map< String, Object > metadata = buildMetadata( existing, filename, sha, er );
 
-            // Step 6 — write page
+            // Step 5 — write page first.
+            // The page must exist before an attachment can be stored against it (the
+            // attachment manager enforces that the parent page exists). Writing first
+            // ensures the parent is present regardless of whether it is a new page or
+            // an update, and keeps the page store consistent even if the attachment
+            // step below subsequently fails.
             pageWriter.write( pageName, er.markdownBody(), metadata, opts.author() );
+
+            // Step 6 — store attachment (parent page now exists)
+            attachments.store( pageName, filename, source );
 
             // Step 7 — return outcome
             return pageExists ? IngestResult.updated( pageName ) : IngestResult.created( pageName );

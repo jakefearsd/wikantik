@@ -153,7 +153,7 @@ class DerivedPageIngestionServiceTest {
         assertEquals( 1, writtenPageNames.size() );
     }
 
-    // (e) empty extraction → FAILED, pageWriter NOT called
+    // (e) empty extraction → FAILED, neither pageWriter NOR attachmentStore called
     @Test
     void emptyExtraction_returnsFailed() throws Exception {
         extractorResult = new ExtractionResult( "", null, Map.of() );
@@ -162,8 +162,8 @@ class DerivedPageIngestionServiceTest {
 
         assertEquals( IngestResult.Status.FAILED, result.status() );
         assertTrue( writtenPageNames.isEmpty(), "pageWriter must not be called on empty extraction" );
-        // attachment is still stored (step 3 happens before extraction)
-        assertEquals( 1, storedFilenames.size() );
+        // extraction happens before page write and attachment store — neither is called on empty extraction
+        assertTrue( storedFilenames.isEmpty(), "attachmentStore must not be called on empty extraction" );
     }
 
     // (f) existing human tags/type in metadata survive the update
@@ -209,7 +209,9 @@ class DerivedPageIngestionServiceTest {
         assertEquals( 1, writtenPageNames.size() );
     }
 
-    // attachmentStore exception → FAILED, logged, not rethrown
+    // attachmentStore exception → FAILED, logged, not rethrown.
+    // The page IS written first (the parent must exist before attaching), so the
+    // pageWriter will have been called even when the attachmentStore subsequently fails.
     @Test
     void attachmentStoreException_returnsFailed() throws Exception {
         DerivedPageIngestionService.AttachmentStore failStore =
@@ -220,6 +222,10 @@ class DerivedPageIngestionServiceTest {
         IngestResult result = svc2.ingest( SOURCE, FILENAME, CONTENT_TYPE, new IngestOptions( false, "bot" ) );
 
         assertEquals( IngestResult.Status.FAILED, result.status() );
-        assertTrue( writtenPageNames.isEmpty() );
+        // The page is written before the attachment (so the parent exists for the store).
+        // A failed attachment store leaves the page content intact — the result is FAILED
+        // so callers know the attachment (reflow source) is missing.
+        assertEquals( 1, writtenPageNames.size(),
+            "pageWriter must be called before attachmentStore (parent-first ordering)" );
     }
 }

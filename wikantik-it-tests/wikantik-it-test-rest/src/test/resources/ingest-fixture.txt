@@ -1,0 +1,6 @@
+# Ingest IT Fixture
+
+hello, this is the ingest integration test fixture document.
+
+It is used to verify that POST /api/ingest extracts plain-text content
+and stores it as a derived wiki page with derived_from provenance frontmatter.

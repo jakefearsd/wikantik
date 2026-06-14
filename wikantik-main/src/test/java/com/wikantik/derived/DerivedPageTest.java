@@ -50,6 +50,8 @@ class DerivedPageTest {
     @Test
     void pageNameSlugifiesFilename() {
         assertEquals( "Research Paper", DerivedPage.pageNameFor( "Research Paper.pdf" ) );
-        assertEquals( "my-doc v2", DerivedPage.pageNameFor( "my-doc v2.docx" ) );
+        // First character is uppercased so the name is stable under cleanLink() resolution
+        // in DefaultAttachmentManager.getAttachmentInfo().
+        assertEquals( "My-doc v2", DerivedPage.pageNameFor( "my-doc v2.docx" ) );
     }
 }

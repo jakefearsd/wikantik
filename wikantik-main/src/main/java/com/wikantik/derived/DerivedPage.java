@@ -59,9 +59,22 @@ public final class DerivedPage {
         }
     }
 
-    /** Stable page name from the source filename (NOT the extracted title — see spec §A). */
+    /**
+     * Stable page name from the source filename (NOT the extracted title — see spec §A).
+     *
+     * <p>The first character is always uppercased so the name is consistent with what
+     * {@code MarkupParser.cleanLink()} produces when the attachment manager resolves the
+     * parent-page name from a slash-separated attachment path.  Without this,
+     * {@code DefaultAttachmentManager.getAttachmentInfo("slug/slug.txt")} applies
+     * {@code cleanLink} and capitalises the first letter, then calls {@code getPage} with
+     * the capitalised name — which misses the page if it was stored in all-lowercase.
+     */
     public static String pageNameFor( final String filename ) {
         final int dot = filename.lastIndexOf( '.' );
-        return ( dot > 0 ? filename.substring( 0, dot ) : filename ).trim();
+        final String stem = ( dot > 0 ? filename.substring( 0, dot ) : filename ).trim();
+        if ( stem.isEmpty() ) {
+            return stem;
+        }
+        return Character.toUpperCase( stem.charAt( 0 ) ) + stem.substring( 1 );
     }
 }

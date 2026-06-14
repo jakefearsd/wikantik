@@ -94,6 +94,9 @@ public class ContentChunker {
         this.config = config;
     }
 
+    /** Returns the {@link Config} this chunker was constructed with. */
+    public Config config() { return config; }
+
     public List<Chunk> chunk(String pageName, ParsedPage page) {
         String body = page.body() == null ? "" : page.body().strip();
         List<Chunk> out = new ArrayList<>();

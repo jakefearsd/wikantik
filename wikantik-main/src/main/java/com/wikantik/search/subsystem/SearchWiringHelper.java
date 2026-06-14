@@ -123,8 +123,24 @@ public final class SearchWiringHelper {
                   clientOpt.get(), embedActivityLog, cfg.backend(), modelCode )
             : clientOpt.get();
 
+        // Contextual document embeddings (2026-06-14 win, section recall@12 ~0.60 → ~0.74):
+        // prepend each chunk's frontmatter context (title | cluster | section | summary) before
+        // embedding. Resolved per page from the frontmatter cache; the indexer memoises per run.
+        final java.util.function.Function< String, com.wikantik.search.embedding.EmbeddingTextBuilder.PageContext >
+            ctxResolver = pageName -> {
+                final java.util.Map< String, Object > meta = fmCache.get( pageName, null );
+                final Object title   = meta.get( "title" );
+                final Object cluster = meta.get( "cluster" );
+                final Object summary = meta.get( "summary" );
+                String t = title == null ? null : title.toString();
+                if ( t == null || t.isBlank() ) t = pageName;   // fall back to slug, like the spike
+                return new com.wikantik.search.embedding.EmbeddingTextBuilder.PageContext(
+                    t,
+                    cluster == null ? null : cluster.toString(),
+                    summary == null ? null : summary.toString() );
+            };
         final EmbeddingIndexService indexService =
-            new EmbeddingIndexService( ds, client, cfg.batchSize() );
+            new EmbeddingIndexService( ds, client, cfg.batchSize(), ctxResolver );
         engine.registerEmbeddingIndexService( indexService );
 
         // Pick the dense retrieval backend up front so DenseRetriever (constructed

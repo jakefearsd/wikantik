@@ -65,10 +65,10 @@ public class EmbeddingIndexService {
     public static final int DEFAULT_BATCH_SIZE = 32;
 
     private static final String SELECT_ALL_SQL =
-        "SELECT id, text, heading_path FROM kg_content_chunks ORDER BY page_name, chunk_index";
+        "SELECT id, text, heading_path, page_name FROM kg_content_chunks ORDER BY page_name, chunk_index";
 
     private static final String SELECT_BY_IDS_SQL =
-        "SELECT id, text, heading_path FROM kg_content_chunks WHERE id = ANY( ? ) "
+        "SELECT id, text, heading_path, page_name FROM kg_content_chunks WHERE id = ANY( ? ) "
       + "ORDER BY page_name, chunk_index";
 
     /**
@@ -108,6 +108,8 @@ public class EmbeddingIndexService {
     private final DataSource dataSource;
     private final TextEmbeddingClient client;
     private final int batchSize;
+    /** page_name → frontmatter context for contextual document embeddings; never null. */
+    private final java.util.function.Function< String, EmbeddingTextBuilder.PageContext > contextResolver;
 
     public EmbeddingIndexService( final DataSource dataSource, final TextEmbeddingClient client ) {
         this( dataSource, client, DEFAULT_BATCH_SIZE );
@@ -115,6 +117,19 @@ public class EmbeddingIndexService {
 
     public EmbeddingIndexService( final DataSource dataSource, final TextEmbeddingClient client,
                                   final int batchSize ) {
+        this( dataSource, client, batchSize, null );
+    }
+
+    /**
+     * Adds a per-page context resolver (frontmatter title/cluster/summary). The indexer
+     * prepends this structured context to each chunk's body via
+     * {@link EmbeddingTextBuilder#forDocument(EmbeddingTextBuilder.PageContext, java.util.List, String)}
+     * — the 2026-06-14 contextual-embedding win (section recall@12 ~0.60 → ~0.74). A null
+     * resolver degrades to {@link EmbeddingTextBuilder.PageContext#EMPTY} (heading-path only).
+     */
+    public EmbeddingIndexService( final DataSource dataSource, final TextEmbeddingClient client,
+                                  final int batchSize,
+                                  final java.util.function.Function< String, EmbeddingTextBuilder.PageContext > contextResolver ) {
         if ( dataSource == null ) {
             throw new IllegalArgumentException( "dataSource must not be null" );
         }
@@ -127,6 +142,8 @@ public class EmbeddingIndexService {
         this.dataSource = dataSource;
         this.client = client;
         this.batchSize = batchSize;
+        this.contextResolver = contextResolver != null
+            ? contextResolver : pageName -> EmbeddingTextBuilder.PageContext.EMPTY;
     }
 
     /** Batch size this service uses when fanning out to the embedding backend. */
@@ -173,10 +190,14 @@ public class EmbeddingIndexService {
                 try( ResultSet rs = sel.executeQuery() ) {
                     final List< UUID > batchIds = new ArrayList<>( batchSize );
                     final List< String > batchTexts = new ArrayList<>( batchSize );
+                    final java.util.Map< String, EmbeddingTextBuilder.PageContext > ctxMemo =
+                        new java.util.HashMap<>();
                     while( rs.next() ) {
                         batchIds.add( rs.getObject( 1, UUID.class ) );
+                        final EmbeddingTextBuilder.PageContext ctx =
+                            ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
                         batchTexts.add( EmbeddingTextBuilder.forDocument(
-                            readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
+                            ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
                         if ( batchIds.size() >= batchSize ) {
                             upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
                             batchIds.clear();
@@ -242,10 +263,14 @@ public class EmbeddingIndexService {
                 try( ResultSet rs = sel.executeQuery() ) {
                     final List< UUID > batchIds = new ArrayList<>( batchSize );
                     final List< String > batchTexts = new ArrayList<>( batchSize );
+                    final java.util.Map< String, EmbeddingTextBuilder.PageContext > ctxMemo =
+                        new java.util.HashMap<>();
                     while( rs.next() ) {
                         batchIds.add( rs.getObject( 1, UUID.class ) );
+                        final EmbeddingTextBuilder.PageContext ctx =
+                            ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
                         batchTexts.add( EmbeddingTextBuilder.forDocument(
-                            readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
+                            ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
                         if ( batchIds.size() >= batchSize ) {
                             upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
                             batchIds.clear();

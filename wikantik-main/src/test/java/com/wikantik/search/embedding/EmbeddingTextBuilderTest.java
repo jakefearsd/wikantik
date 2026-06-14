@@ -74,4 +74,46 @@ class EmbeddingTextBuilderTest {
         assertEquals("Top > Leaf\n\n",
             EmbeddingTextBuilder.forDocument(List.of("Top", "Leaf"), null));
     }
+
+    // ---- contextual (frontmatter) document format ----
+
+    private static final EmbeddingTextBuilder.PageContext CTX =
+        new EmbeddingTextBuilder.PageContext("Ollama Setup", "agentic-ai", "Local LLM serving guide.");
+
+    @Test
+    void contextualEmitsAllFieldsInOrder() {
+        assertEquals(
+            "Page: Ollama Setup | Cluster: agentic-ai | Section: Hardware Sizing > vRAM\n"
+          + "Summary: Local LLM serving guide.\n\nA 7B model needs 8GB.",
+            EmbeddingTextBuilder.forDocument(CTX, List.of("Hardware Sizing", "vRAM"), "A 7B model needs 8GB."));
+    }
+
+    @Test
+    void contextualOmitsBlankFields() {
+        // cluster + summary blank → only Page + Section appear, joined by " | "
+        final EmbeddingTextBuilder.PageContext partial =
+            new EmbeddingTextBuilder.PageContext("Title", null, "  ");
+        assertEquals("Page: Title | Section: Sec\n\nbody",
+            EmbeddingTextBuilder.forDocument(partial, List.of("Sec"), "body"));
+    }
+
+    @Test
+    void contextualWithNoHeadingPathDropsSection() {
+        assertEquals("Page: Title | Cluster: c\nSummary: s\n\nbody",
+            EmbeddingTextBuilder.forDocument(
+                new EmbeddingTextBuilder.PageContext("Title", "c", "s"), List.of(), "body"));
+    }
+
+    @Test
+    void contextualEmptyContextFallsBackToBody() {
+        assertEquals("body",
+            EmbeddingTextBuilder.forDocument(EmbeddingTextBuilder.PageContext.EMPTY, List.of(), "body"));
+    }
+
+    @Test
+    void contextualSummaryOnlyGoesOnItsOwnLine() {
+        assertEquals("Summary: only\n\nbody",
+            EmbeddingTextBuilder.forDocument(
+                new EmbeddingTextBuilder.PageContext(null, null, "only"), List.of(), "body"));
+    }
 }

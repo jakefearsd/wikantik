@@ -331,3 +331,38 @@ rerank latency p50/p95 = 1.5s (n=54).
 Caveat: this spike's first stage is the production *hybrid* `/api/search` page pre-selection
 (not pure dense), re-scored with the 0.6B chunk vectors — a faithful replica of the runtime
 pipeline, not a controlled pure-dense A/B. The directional conclusions above hold regardless.
+
+## Recall-lever investigation (2026-06-14) — chunker fix, contextual embeddings, dense-chunk bundle
+
+Measure-upstream-first sweep. All gains cheap/local, no premium models. Global section recall@12
+(diagnostic `bin/eval/spike-recall-ceiling.py`, sublist match) and realized bundle recall.
+
+**Chunker heading-fidelity bug (root cause).** Merge-forward stole the FIRST section's heading_path;
+first-H2/early sections were unfindable (7/68 golds had NO matching chunk despite indexed content) and
+citations mis-anchored. Force-emit the buffer at each heading boundary + a fragment floor (`fragment_floor_tokens`=24:
+sub-floor sections merge forward adopting the DESTINATION heading, killing 1-19-tok fragment noise).
+Global recall@12 0.574 → 0.603; no-match bucket 7 → 0.
+
+**Contextual document embeddings (the big lever).** `EmbeddingTextBuilder.forDocument` prepends frontmatter
+context (`Page: {title} | Cluster: {cluster} | Section: {heading}` + summary) before embedding — the
+production "raw" already had heading_path, so the win is the page-level title/cluster/summary. Query side
+unchanged (instruction prefix). **Global recall@12 0.603 → 0.735, @20 0.662 → 0.809, @5 0.471, none 0.**
+Template (no-LLM, from frontmatter) — the research predicted our structured metadata is exactly the
+disambiguation missing from raw chunks. `bin/eval/spike-contextual-embed.py`.
+
+**Dead levers (measured & rejected):** doc2query HURTS (-0.13@12, max-combine floods top with on-topic
+non-answer competitors; `spike-doc2query.py`); HyDE near-null at depth (`spike-hyde-recall.py`); the
+gemma4:e4b listwise reranker is a BAD judge (shuffled-input 0.139 vs dense 0.583 — its "no lift" was
+input-order anchoring; `spike-rerank-anchor.py`), default OFF.
+
+**Bundle realization.** Per-page cap `sections_per_page` 5 → 20 (once contextual made section scores
+discriminative the cap-of-5 was the binding constraint): realized bundle recall@12 0.602 → 0.685. Then
+the **dense-chunk source** (`DenseChunkSectionSource`): retrieve top-K chunks globally (no page pre-select),
+group to sections — the global path realises the ceiling where the page-gated hybrid drops sections on
+pages outside the top-20. Chunk size near-optimal (240 worse than 120 @12); overlap marginal/flat live.
+
+**LIVE /api/bundle end-to-end (deployed dense-chunk + contextual + overlap, `bin/eval/spike-api-bundle.py`):
+recall@5 0.456 / @12 0.706** — lands against the 0.735 ceiling; the dense-chunk path closed the
+page-pre-select gap. Realized bundle @12 trajectory: 0.500 → 0.583 → 0.602 → 0.685 → 0.706 (+41%).
+Op note: the `inmemory` dense backend needs a reload after a re-index (restart) for the bundle to hydrate;
+prod `lucene-hnsw` reads from DB and is unaffected.

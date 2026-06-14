@@ -74,6 +74,10 @@ public final class PageGraphSubsystemFactory {
             engine.getManager( com.wikantik.ontology.runtime.OntologyRebuildCoordinator.class );
         final com.wikantik.drift.DriftSweepService driftSweepService =
             engine.getManager( com.wikantik.drift.DriftSweepService.class );
+        final com.wikantik.citation.CitationRepository citationRepository =
+            engine.getManager( com.wikantik.citation.CitationRepository.class );
+        final com.wikantik.citation.CitationSync citationSync =
+            engine.getManager( com.wikantik.citation.CitationSync.class );
 
         return new PageGraphSubsystem.Services(
             structuralIndexService,
@@ -81,6 +85,8 @@ public final class PageGraphSubsystemFactory {
             referenceManager,
             contentIndexRebuildService,
             ontologyRebuildCoordinator,
-            driftSweepService );
+            driftSweepService,
+            citationRepository,
+            citationSync );
     }
 }

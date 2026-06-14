@@ -19,6 +19,8 @@
 package com.wikantik.pagegraph.subsystem;
 
 import com.wikantik.admin.ContentIndexRebuildService;
+import com.wikantik.citation.CitationRepository;
+import com.wikantik.citation.CitationSync;
 import com.wikantik.ontology.runtime.OntologyRebuildCoordinator;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.managers.ReferenceManager;
@@ -77,7 +79,8 @@ public final class PageGraphSubsystem {
      * paths). {@code referenceManager} is null until the asynchronous
      * page-scan that initialises it completes. {@code contentIndexRebuildService}
      * is null when the content-index rebuild pipeline is unavailable.
-     * {@code driftSweepService} is null when the engine boots without a
+     * {@code driftSweepService}, {@code citationRepository}, and
+     * {@code citationSync} are null when the engine boots without a
      * datasource.</p>
      */
     public record Services(
@@ -86,6 +89,8 @@ public final class PageGraphSubsystem {
         ReferenceManager             referenceManager,
         ContentIndexRebuildService   contentIndexRebuildService,
         OntologyRebuildCoordinator   ontologyRebuildCoordinator,
-        DriftSweepService            driftSweepService
+        DriftSweepService            driftSweepService,
+        CitationRepository           citationRepository,
+        CitationSync                 citationSync
     ) {}
 }

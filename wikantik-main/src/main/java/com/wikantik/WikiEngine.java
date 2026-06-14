@@ -263,6 +263,8 @@ public class WikiEngine implements Engine {
         w.put( com.wikantik.admin.ContentIndexRebuildService.class,                      ( e, m ) -> e.mgr_ContentIndexRebuildService   = (com.wikantik.admin.ContentIndexRebuildService) m );
         w.put( com.wikantik.ontology.runtime.OntologyRebuildCoordinator.class,           ( e, m ) -> e.mgr_OntologyRebuildCoordinator   = (com.wikantik.ontology.runtime.OntologyRebuildCoordinator) m );
         w.put( com.wikantik.drift.DriftSweepService.class,                               ( e, m ) -> e.mgr_DriftSweepService            = (com.wikantik.drift.DriftSweepService) m );
+        w.put( com.wikantik.citation.CitationRepository.class,                           ( e, m ) -> e.mgr_CitationRepository           = (com.wikantik.citation.CitationRepository) m );
+        w.put( com.wikantik.citation.CitationSync.class,                                 ( e, m ) -> e.mgr_CitationSync                 = (com.wikantik.citation.CitationSync) m );
         w.put( com.wikantik.pagegraph.spine.PageVerificationDao.class,                   ( e, m ) -> e.mgr_PageVerificationDao          = (com.wikantik.pagegraph.spine.PageVerificationDao) m );
         w.put( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class,                     ( e, m ) -> e.mgr_TrustedAuthorsDao            = (com.wikantik.pagegraph.spine.TrustedAuthorsDao) m );
         w.put( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class,          ( e, m ) -> e.mgr_StructuralIndexEventListener = (com.wikantik.pagegraph.spine.StructuralIndexEventListener) m );
@@ -349,6 +351,8 @@ public class WikiEngine implements Engine {
         r.put( com.wikantik.admin.ContentIndexRebuildService.class,                      e -> e.mgr_ContentIndexRebuildService );
         r.put( com.wikantik.ontology.runtime.OntologyRebuildCoordinator.class,           e -> e.mgr_OntologyRebuildCoordinator );
         r.put( com.wikantik.drift.DriftSweepService.class,                               e -> e.mgr_DriftSweepService );
+        r.put( com.wikantik.citation.CitationRepository.class,                           e -> e.mgr_CitationRepository );
+        r.put( com.wikantik.citation.CitationSync.class,                                 e -> e.mgr_CitationSync );
         r.put( com.wikantik.pagegraph.spine.PageVerificationDao.class,                   e -> e.mgr_PageVerificationDao );
         r.put( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class,                     e -> e.mgr_TrustedAuthorsDao );
         r.put( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class,          e -> e.mgr_StructuralIndexEventListener );
@@ -460,6 +464,8 @@ public class WikiEngine implements Engine {
         s.put( com.wikantik.admin.ContentIndexRebuildService.class,                      rebuildPageGraph );
         s.put( com.wikantik.ontology.runtime.OntologyRebuildCoordinator.class,           rebuildPageGraph );
         s.put( com.wikantik.drift.DriftSweepService.class,                               rebuildPageGraph );
+        s.put( com.wikantik.citation.CitationRepository.class,                           rebuildPageGraph );
+        s.put( com.wikantik.citation.CitationSync.class,                                 rebuildPageGraph );
         s.put( com.wikantik.pagegraph.spine.PageVerificationDao.class,                   e -> {} ); // no subsystem snapshot
         s.put( com.wikantik.pagegraph.spine.TrustedAuthorsDao.class,                     e -> {} ); // no subsystem snapshot
         s.put( com.wikantik.pagegraph.spine.StructuralIndexEventListener.class,          e -> {} ); // no subsystem snapshot
@@ -558,6 +564,8 @@ public class WikiEngine implements Engine {
     private com.wikantik.admin.ContentIndexRebuildService mgr_ContentIndexRebuildService;
     private com.wikantik.ontology.runtime.OntologyRebuildCoordinator mgr_OntologyRebuildCoordinator;
     private com.wikantik.drift.DriftSweepService mgr_DriftSweepService;
+    private com.wikantik.citation.CitationRepository mgr_CitationRepository;
+    private com.wikantik.citation.CitationSync mgr_CitationSync;
     private com.wikantik.pagegraph.spine.PageVerificationDao mgr_PageVerificationDao;
     private com.wikantik.pagegraph.spine.TrustedAuthorsDao mgr_TrustedAuthorsDao;
     private com.wikantik.pagegraph.spine.StructuralIndexEventListener mgr_StructuralIndexEventListener;
@@ -608,6 +616,9 @@ public class WikiEngine implements Engine {
 
     /** Entity-extraction lifecycle handle; null when the extractor is disabled. */
     private com.wikantik.knowledge.extraction.AsyncEntityExtractionListener entityExtractionListener;
+
+    /** Citation subsystem wired holder; retains a strong ref to the event listener. */
+    private com.wikantik.citation.CitationWiringHelper.Wired citationWired;
 
     // -----------------------------------------------------------------------
     // Lifecycle-handle setters — called by the subsystem wiring helpers
@@ -1580,6 +1591,14 @@ public class WikiEngine implements Engine {
             // rebuild does NOT trigger a drift sweep — the first sweep comes from the nightly
             // scheduler or the admin dashboard. Intentional: keeps first deploy fast.
             com.wikantik.drift.DriftWiringHelper.wireDrift( this, props, ds, pageManager, ontologyCoordinator );
+
+            // Wire citation subsystem (CitationWiringHelper): builds CitationRepository,
+            // CitationSync, and CitationEventListener; registers both components on the engine;
+            // wires reconcileAll() onto the ontology rebuild coordinator (if present).
+            // The Wired holder is kept as a strong reference so the event listener is
+            // not garbage-collected out of WikiEventManager's WeakHashMap.
+            this.citationWired = com.wikantik.citation.CitationWiringHelper.wireCitations(
+                this, props, ds, pageManager, filterManager, structuralIndex, ontologyCoordinator );
 
             // Wire entity extraction (KnowledgeWiringHelper).
             // KgExcludedPagesRepository is registered by wireKgPolicyAndContent above;

@@ -23,7 +23,8 @@ SEARCH="http://localhost:8080/api/search"
 M06="qwen3-embedding:0.6b"
 RERANK_MODEL=(sys.argv[1] if len(sys.argv)>1 else "gemma4:e4b")
 INSTR="Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
-NS=[5,12]; PAGES_PER_Q=20; SECTIONS_PER_PAGE=5; MAXSEC=12; SNIP=240
+NS=[5,12]; PAGES_PER_Q=int(sys.argv[2]) if len(sys.argv)>2 else 20
+SECTIONS_PER_PAGE=int(sys.argv[3]) if len(sys.argv)>3 else 5; MAXSEC=12; SNIP=240
 
 def norm(s): return re.sub(r"\s+"," ",s).strip().lower()
 def cid2slug():

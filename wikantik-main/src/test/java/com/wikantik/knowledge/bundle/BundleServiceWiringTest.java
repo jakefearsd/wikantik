@@ -57,4 +57,23 @@ class BundleServiceWiringTest {
         final List< CandidateSection > in = List.of( sec( "A" ) );
         assertEquals( in, BundleServiceWiring.rerankerFor( p ).rerank( "q", in ) );
     }
+
+    @Test
+    void sectionsPerPage_defaultsTo20WhenAbsentOrInvalid() {
+        assertEquals( 20, BundleServiceWiring.sectionsPerPageFrom( null ) );
+        assertEquals( 20, BundleServiceWiring.sectionsPerPageFrom( new Properties() ) );
+        final Properties bad = new Properties();
+        bad.setProperty( "wikantik.bundle.sections_per_page", "notanumber" );
+        assertEquals( 20, BundleServiceWiring.sectionsPerPageFrom( bad ) );
+        final Properties zero = new Properties();
+        zero.setProperty( "wikantik.bundle.sections_per_page", "0" );
+        assertEquals( 20, BundleServiceWiring.sectionsPerPageFrom( zero ), "non-positive falls back" );
+    }
+
+    @Test
+    void sectionsPerPage_readsValidOverride() {
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.bundle.sections_per_page", "8" );
+        assertEquals( 8, BundleServiceWiring.sectionsPerPageFrom( p ) );
+    }
 }

@@ -50,8 +50,14 @@ public final class BundleServiceWiring {
 
     /** Total ranked, cited sections returned in a bundle — the spike's top-N. */
     public static final int MAX_SECTIONS = 12;
-    /** Per-page section shortlist depth — the per-page shortlist the spike sweep validated. */
-    public static final int SECTIONS_PER_PAGE = 5;
+    /**
+     * Default per-page section shortlist depth. Raised from 5 to 20 on 2026-06-14:
+     * once contextual embeddings made section scores discriminative, the per-page
+     * cap of 5 became the binding constraint and was discarding measured recall
+     * (realized bundle recall@12 0.602 → 0.685 when loosened). Tunable via
+     * {@code wikantik.bundle.sections_per_page}.
+     */
+    public static final int SECTIONS_PER_PAGE = 20;
 
     private BundleServiceWiring() {}
 
@@ -84,10 +90,25 @@ public final class BundleServiceWiring {
             return p == null ? 0 : p.getVersion();
         };
 
+        final int sectionsPerPage = sectionsPerPageFrom( props );
         LOG.info( "Bundle assembly service wired (reranker={}, maxSections={}, sectionsPerPage={})",
-            reranker instanceof LlmSectionReranker ? "on" : "off", MAX_SECTIONS, SECTIONS_PER_PAGE );
+            reranker instanceof LlmSectionReranker ? "on" : "off", MAX_SECTIONS, sectionsPerPage );
         return new DefaultBundleAssemblyService(
-            retrieval, reranker, canonicalIdOf, versionOf, MAX_SECTIONS, SECTIONS_PER_PAGE );
+            retrieval, reranker, canonicalIdOf, versionOf, MAX_SECTIONS, sectionsPerPage );
+    }
+
+    /** Per-page shortlist depth from {@code wikantik.bundle.sections_per_page}, default {@link #SECTIONS_PER_PAGE}. */
+    static int sectionsPerPageFrom( final Properties props ) {
+        if ( props == null ) return SECTIONS_PER_PAGE;
+        final String raw = props.getProperty( "wikantik.bundle.sections_per_page" );
+        if ( raw == null || raw.isBlank() ) return SECTIONS_PER_PAGE;
+        try {
+            final int v = Integer.parseInt( raw.trim() );
+            return v > 0 ? v : SECTIONS_PER_PAGE;
+        } catch ( final NumberFormatException e ) {
+            LOG.warn( "Invalid wikantik.bundle.sections_per_page '{}'; using {}", raw, SECTIONS_PER_PAGE );
+            return SECTIONS_PER_PAGE;
+        }
     }
 
     /** Identity reranker: returns the (already relevance-sorted) input untouched. */

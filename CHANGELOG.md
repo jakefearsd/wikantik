@@ -6,6 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Citation edges + self-healing grounding (RAG-as-a-Service Phase 3).** Claims grounded in
+  other pages are written as inline `cite://` body markup —
+  `[claim](cite://<canonical_id>/<Heading Path> "verbatim span")` — and parsed at save into a
+  derived, re-derivable `citations` table (migration `V040`). Each citation is version-pinned
+  and span-hashed; staleness is **graded** and **span-level**: `current` → the cited span is
+  still present in the target section, `stale` → the span drifted (content changed / heading
+  moved), `target_missing` → the target page is gone (rename-safe via `canonical_id` liveness).
+  Version drift alone is ignored (churn is the steady state). A `WikiEventListener` reconciles a
+  page's outbound citations and re-grades inbound citations on every save/rename/delete, and a
+  full `reconcileAll()` rides the ontology-rebuild cadence as the completeness safety net.
+- **Bidirectional stale-citation surfaces.** `GET /admin/drift/citations` (outbound + inbound +
+  status counts), the read-only **`list_stale_citations`** tool on `/knowledge-mcp`, and a
+  `stale_citations` field on the `/api/pages/for-agent/{id}` projection — so agents and humans
+  work the same self-healing curation queue. Rendered `cite://` links resolve to the target
+  page; staleness is never shown to anonymous readers. Config: `wikantik.citations.enabled`
+  (default true; no-op without a datasource). New code in `com.wikantik.citation`.
+
 ## [2.0.18] - 2026-06-14
 
 ### Added

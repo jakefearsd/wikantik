@@ -229,6 +229,13 @@ Two distinct subsystems. Do not conflate them.
   co-mention or typed-relation predicates between them. Code:
   `com.wikantik.knowledge.*`, `wikantik-knowledge` module, `kg_*`
   tables. UI: `/admin/knowledge-graph/*`, `/knowledge-mcp` tool surface.
+- **Citation edges.** A third, derived edge type — distinct from both
+  graphs above. Source-page claims grounded in a target page's section,
+  written as inline `cite://` body markup, parsed at save into the
+  `citations` table; version-pinned + span-hashed with graded span-level
+  staleness (the RAG-as-a-Service self-healing loop). Code:
+  `com.wikantik.citation.*`. Surfaces: `/admin/drift/citations`,
+  `list_stale_citations` (knowledge-mcp), for-agent `stale_citations`.
 
 Naming convention: the bare word "graph" is a code smell. Always say
 "Page Graph", "Knowledge Graph", or `kg_*`/`pagegraph` in identifiers.
@@ -261,7 +268,7 @@ Naming convention: the bare word "graph" is a code smell. Always say
 - **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, `/wiki/{slug}?format=md|json` content filter
 - **wikantik-rest**: REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`). Includes the structured-curation surfaces: `/api/frontmatter-schema`, `/api/frontmatter/validate`, and page-scoped KG curation at `/api/page-knowledge/*` (view-gated read, edit-gated writes through `KgCurationOps`).
 - **wikantik-admin-mcp**: Admin MCP server at `/wikantik-admin-mcp` — 25 tools — adds admin-bypass mirrors of query_nodes + search_knowledge so curators see freshly-created entities, plus `list_orphaned_kg_nodes` for finding degree-0 entities at scale. Reconciled 2026-05-14. See `com.wikantik.mcp.McpServerInitializer`.
-- **wikantik-knowledge**: Knowledge MCP server at `/knowledge-mcp` — 18 read-only tools (hybrid retrieval, Knowledge Graph traversal, schema discovery, structural-spine navigation, agent-grade page projection, batched markdown reads via `read_pages`, plus **`get_ontology`** (formal T-Box) and **`sparql_query`** (read-only SPARQL over the ontology)) plus the Knowledge Graph service (pgvector-backed embeddings, co-mention graph, hub discovery) and the ontology-aware query expansion in the hybrid retriever (flag `wikantik.search.ontologyExpansion.enabled`, default off). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
+- **wikantik-knowledge**: Knowledge MCP server at `/knowledge-mcp` — 19 read-only tools (hybrid retrieval, Knowledge Graph traversal, schema discovery, structural-spine navigation, agent-grade page projection, batched markdown reads via `read_pages`, plus **`get_ontology`** (formal T-Box), **`sparql_query`** (read-only SPARQL over the ontology), and **`list_stale_citations`** (Phase 3 stale-citation curation)) plus the Knowledge Graph service (pgvector-backed embeddings, co-mention graph, hub discovery) and the ontology-aware query expansion in the hybrid retriever (flag `wikantik.search.ontologyExpansion.enabled`, default off). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 - **wikantik-tools**: OpenAPI 3.1 tool server at `/tools/*` — 2 tools (`search_wiki`, `get_page`) for OpenWebUI-compatible non-MCP clients.
 - **wikantik-scim**: SCIM 2.0 provisioning server at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD + discovery (`ServiceProviderConfig`/`Schemas`/`ResourceTypes`) for IdP-driven onboarding/offboarding. User decommission routes through the unified `UserLifecycleService`; Group membership sync routes through `GroupManager`. SCIM Groups never grant the Admin role.
 - **wikantik-extract-cli**: Standalone entity-extractor CLI (offline/batch extraction against the Knowledge Graph pipeline)
@@ -277,11 +284,11 @@ Naming convention: the bare word "graph" is a code smell. Always say
 | Endpoint | Module | Protocol | Tools | Auth |
 |----------|--------|----------|-------|------|
 | `/wikantik-admin-mcp` | wikantik-admin-mcp | MCP (Streamable HTTP) | 25 write/analytics tools (incl. KG curation + admin-bypass reads + orphan-listing) | `McpAccessFilter` (bearer token / API key) |
-| `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 18–19 read-only retrieval + Knowledge Graph + Page Graph structural-spine + agent-projection + batched-read tools (incl. `get_ontology` + `sparql_query`, plus **`assemble_bundle`** = RAG context bundle, present when retrieval is wired) | `KnowledgeMcpAccessFilter` (same scheme) |
+| `/knowledge-mcp` | wikantik-knowledge | MCP (Streamable HTTP) | 19–20 read-only retrieval + Knowledge Graph + Page Graph structural-spine + agent-projection + batched-read tools (incl. `get_ontology` + `sparql_query` + **`list_stale_citations`**, plus **`assemble_bundle`** = RAG context bundle, present when retrieval is wired) | `KnowledgeMcpAccessFilter` (same scheme) |
 | `/tools/*` | wikantik-tools | OpenAPI 3.1 | 2 tools (`search_wiki`, `get_page`) | API key |
 | `/scim/v2/*` | wikantik-scim | SCIM 2.0 | `Users` (CRUD, PATCH active, soft-delete) + `Groups` (CRUD, membership PATCH, hard delete) + discovery | `ScimAccessFilter` (bearer `wikantik.scim.token`) |
 | `/api/*` | wikantik-rest | REST/JSON | 24 Resource classes | `RestServletBase.checkPagePermission()` (ACL + policy grants) |
-| `/admin/*` | wikantik-rest | REST/JSON | 12 admin resources (incl. `/admin/kg-policy/*`, the tamper-evident `/admin/audit*` log, `/admin/ontology/*`: rebuild + status + SHACL-conformance violations, and `/admin/drift/*`: the drift burn-down dashboard) | `AdminAuthFilter` (`AllPermission`) |
+| `/admin/*` | wikantik-rest | REST/JSON | 12 admin resources (incl. `/admin/kg-policy/*`, the tamper-evident `/admin/audit*` log, `/admin/ontology/*`: rebuild + status + SHACL-conformance violations, and `/admin/drift/*`: the drift burn-down dashboard + `/admin/drift/citations` bidirectional stale-citation views) | `AdminAuthFilter` (`AllPermission`) |
 | `/wiki/{slug}?format=md\|json` | wikantik-rest | HTTP | Raw content for RAG ingestion / crawlers | Public — view ACL **enforced** (WikiPageFormatFilter gates on the caller's session; 404 hides restricted pages) |
 | `/api/changes?since=…` | wikantik-rest | REST/JSON | Incremental change feed for sync pipelines | Public |
 | `/api/bundle?q=…` | wikantik-rest | REST/JSON | RAG-as-a-Service **context bundle** — ranked, de-duplicated, version-pinned-cited sections (NO answer synthesis); dense-chunk source by default. Mirrors the `assemble_bundle` MCP tool | `RestServletBase` (view ACL via the candidate retrieval) |

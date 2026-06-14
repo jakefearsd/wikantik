@@ -172,6 +172,7 @@
     <module>wikantik-cache</module>
     <module>wikantik-cache-memcached</module>
     <module>wikantik-http</module>
+    <module>wikantik-ingest</module>
     <module>wikantik-main</module>
     <module>wikantik-admin-mcp</module>
     <module>wikantik-tools</module>

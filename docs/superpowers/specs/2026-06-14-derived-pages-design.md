@@ -95,8 +95,12 @@ Entry points (independent build units, both thin):
 - **REST/UI:** a multipart upload endpoint (a sibling to `AttachmentResource`, e.g.
   `POST /api/ingest`) that hands the part to the ingestion service and returns the derived page
   name. The SPA's attachment-upload affordance gains an "ingest as derived page" action.
-- **CLI/batch:** a new `IngestDocumentsCli` in `wikantik-extract-cli` (mirroring the existing CLIs)
-  that walks a folder, ingesting each supported document, reporting created/updated/skipped.
+- **CLI/batch:** a new `IngestDocumentsCli` in `wikantik-extract-cli` that walks a folder and POSTs
+  each supported document to the REST ingest endpoint of a **running** wiki instance, reporting
+  created/updated/skipped. It is a thin HTTP client — deliberately *not* JDBC-direct like the other
+  CLIs in that module, because a full page-save (canonical_id, filters, search/embedding indexing,
+  KG) requires the engine. This reuses the entire ingestion rail and matches the existing
+  operational pattern of pushing content to a live instance. Auth via an admin token/credentials.
 
 ## D — Reflow *(admin op; independent of C; needs A+B)*
 

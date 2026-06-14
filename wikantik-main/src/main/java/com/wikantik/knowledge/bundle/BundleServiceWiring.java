@@ -73,8 +73,7 @@ public final class BundleServiceWiring {
             LOG.debug( "ContextRetrievalService not yet wired — bundle assembly service unavailable" );
             return null;
         }
-        final RerankerConfig cfg = RerankerConfig.fromProperties( props );
-        final SectionReranker reranker = new LlmSectionReranker( cfg );
+        final SectionReranker reranker = rerankerFor( props );
 
         final Function< String, Optional< String > > canonicalIdOf = slug ->
             dao == null ? Optional.empty()
@@ -85,9 +84,24 @@ public final class BundleServiceWiring {
             return p == null ? 0 : p.getVersion();
         };
 
-        LOG.info( "Bundle assembly service wired (reranker model={}, maxSections={}, sectionsPerPage={})",
-            cfg.model(), MAX_SECTIONS, SECTIONS_PER_PAGE );
+        LOG.info( "Bundle assembly service wired (reranker={}, maxSections={}, sectionsPerPage={})",
+            reranker instanceof LlmSectionReranker ? "on" : "off", MAX_SECTIONS, SECTIONS_PER_PAGE );
         return new DefaultBundleAssemblyService(
             retrieval, reranker, canonicalIdOf, versionOf, MAX_SECTIONS, SECTIONS_PER_PAGE );
+    }
+
+    /** Identity reranker: returns the (already relevance-sorted) input untouched. */
+    private static final SectionReranker IDENTITY = ( query, sections ) -> sections;
+
+    /**
+     * Selects the section reranker from config. {@code wikantik.bundle.reranker.enabled}
+     * defaults to {@code false}: the 2026-06-13 live measurement showed the listwise LLM
+     * reranker is an ordering lever, not a recall lever (rerank == dense recall), at ~1.5s
+     * per request — so the bundle ships dense-ordered by default and opts in to reranking.
+     */
+    static SectionReranker rerankerFor( final Properties props ) {
+        final boolean enabled = props != null && Boolean.parseBoolean(
+            props.getProperty( RerankerConfig.PREFIX + "enabled", "false" ) );
+        return enabled ? new LlmSectionReranker( RerankerConfig.fromProperties( props ) ) : IDENTITY;
     }
 }

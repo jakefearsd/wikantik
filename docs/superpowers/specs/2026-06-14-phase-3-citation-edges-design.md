@@ -98,15 +98,20 @@ Heading-path no longer resolving → treat as span drift (the anchor moved) = `s
 
 ## Decision 4 — Reconciler triggers (both, mirroring existing patterns)
 
-- **Event-driven** on target-page save: when page *T* is saved, recompute status for all
-  **inbound** citations targeting *T* → immediate inbound staleness. Mirrors
-  `OntologyEventListener`'s save/rename/delete re-projection.
-- **Nightly sweep**: reconcile every citation (catch missed events, deletes) and compute the
-  burn-down snapshot. Folds into the existing `DriftSweepService` /
-  `DriftSnapshotRepository`, mirroring `OntologyRebuildScheduler`.
+- **Event-driven** via a `WikiEventListener` (the `OntologyEventListener`/`OntologyPageSync`
+  seam — chosen over a `PageFilter` because we need `PAGE_DELETED`/rename handling the filter
+  chain doesn't deliver). On **save** of page *P*: reconcile *P*'s **outbound** citations
+  (extract → upsert → grade) *and* re-grade all **inbound** citations targeting *P*. On
+  **delete**: mark inbound citations `target_missing` (after the `canonical_id`-liveness
+  rename guard). The listener re-fetches the body via `PageManager`, exactly like
+  `OntologyPageSync.onPageSaved`.
+- **Full reconcile**: a `reconcileAll()` that re-grades every citation (catches missed
+  events and deletes) runs off `OntologyRebuildCoordinator.onRebuildComplete` — the same
+  nightly cadence the drift sweep already rides (there is no separate cron).
 
-The event handler gives freshness; the sweep is the completeness safety net and the source
-of the burn-down counts.
+The event handler gives freshness; the full reconcile is the completeness safety net. The
+`/admin/drift` citations view reports **live** counts from the `citations` table (status
+breakdown + offender lists); persisted burn-down trend snapshots are a later refinement.
 
 ## Decision 5 — Surfaces (human–machine parity)
 
@@ -149,9 +154,8 @@ not a side effect.
 |---------|----------|
 | Parser, reconciler, grader, repository | `com.wikantik.citation.*` (wikantik-main) — mirrors `com.wikantik.drift.*` / `com.wikantik.pagegraph.*` |
 | Shared contracts (for-agent + MCP DTOs) | `com.wikantik.api.citation.*` (wikantik-api) |
-| Save-time extraction | `CitationExtractionPageFilter` (post-save `PageFilter`), registered alongside `StructuralSpinePageFilter` |
-| Inbound re-check on target save | citation event listener (mirrors `OntologyEventListener`) |
-| Nightly reconcile + snapshot | extend `DriftSweepService` |
+| Save/rename/delete extraction + inbound re-check | `CitationEventListener` (`WikiEventListener`) + `CitationSync`, mirroring `OntologyEventListener`/`OntologyPageSync`; registered on `PageManager` + `FilterManager` (strong-ref retained) |
+| Full reconcile cadence | `CitationSync.reconcileAll()` hooked off `OntologyRebuildCoordinator.onRebuildComplete` (same cadence as the drift sweep) |
 | Schema | `bin/db/migrations/V040__citations.sql` — idempotent, DDL-only |
 | REST surface | extend `AdminDriftResource`; add `stale_citations` to `PageForAgentResource` |
 | MCP tool | `list_stale_citations` in wikantik-knowledge (`KnowledgeMcpInitializer`) |
@@ -183,8 +187,9 @@ not a side effect.
 - `CitationStalenessGraderTest` — `current` vs `stale` (span gone from section) vs
   `target_missing` (canonical_id not live); heading-path no longer resolving = stale;
   version-drift-only = still `current`.
-- Event-listener test — saving a target flips inbound citation status.
-- Sweep test — `DriftSweepService` reconciles citations and emits snapshot counts.
+- Event-listener test — saving a target re-grades its inbound citations; deleting a target
+  (no live `canonical_id`) flips them to `target_missing`; a rename does not.
+- Reconcile test — `CitationSync.reconcileAll()` re-grades every citation.
 - REST/MCP IT — `list_stale_citations`, the `/admin/drift` citation surface, and the
   for-agent `stale_citations` field, wire-level.
 

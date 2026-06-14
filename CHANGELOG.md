@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.18] - 2026-06-14
+
 ### Added
 
 - **RAG-as-a-Service context bundle.** `GET /api/bundle?q=…` (REST) and the

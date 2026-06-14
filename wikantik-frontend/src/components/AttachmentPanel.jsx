@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { isValidAttachmentName, getExtension } from '../utils/attachmentNameValidator';
+import { api } from '../api/client';
 
 function formatSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
@@ -76,6 +77,60 @@ function AttachmentUploadForm({ onUpload }) {
           </button>
         </>
       )}
+    </div>
+  );
+}
+
+function IngestForm() {
+  const [file, setFile] = useState(null);
+  const [ingesting, setIngesting] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+  const fileRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    setFile(f);
+    setResult(null);
+    setError(null);
+  };
+
+  const handleIngest = async () => {
+    if (!file) return;
+    setIngesting(true);
+    setResult(null);
+    setError(null);
+    try {
+      const data = await api.ingestDocument(file);
+      setResult(data);
+      setFile(null);
+      if (fileRef.current) fileRef.current.value = '';
+    } catch (err) {
+      setError(err.message || 'Ingest failed');
+    } finally {
+      setIngesting(false);
+    }
+  };
+
+  return (
+    <div className="attachment-upload-form" style={{ borderTop: '1px solid var(--border)', marginTop: 'var(--space-sm)', paddingTop: 'var(--space-sm)' }}>
+      <label>Ingest as derived page</label>
+      <input type="file" ref={fileRef} onChange={handleFileChange}
+        style={{ fontFamily: 'var(--font-ui)', fontSize: '0.8rem' }} />
+      {error && <span className="attachment-validation-error">{error}</span>}
+      {result && (
+        <div style={{ fontSize: '0.8rem', marginTop: 'var(--space-xs)' }}>
+          <span style={{ marginRight: 'var(--space-xs)' }}>{result.status}</span>
+          {result.page && (
+            <a href={`/wiki/${result.page}`}>{result.page}</a>
+          )}
+        </div>
+      )}
+      <button className="btn btn-primary btn-sm" onClick={handleIngest}
+        disabled={!file || ingesting}>
+        {ingesting ? 'Ingesting…' : 'Ingest'}
+      </button>
     </div>
   );
 }
@@ -205,6 +260,7 @@ export default function AttachmentPanel({ open, onClose, pageName, attachments, 
       </div>
       <div className="attachment-panel-body">
         <AttachmentUploadForm onUpload={onUpload} />
+        <IngestForm />
         {attachments.length === 0 ? (
           <div className="attachment-empty">No attachments yet</div>
         ) : (

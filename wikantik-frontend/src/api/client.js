@@ -233,6 +233,20 @@ export const api = {
       method: 'DELETE',
     }),
 
+  ingestDocument: async (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    const resp = await fetch(`${BASE}/api/ingest`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ message: 'Ingest failed' }));
+      throw new Error(err.message || 'Ingest failed');
+    }
+    return resp.json();
+  },
+
   renameAttachment: async (page, oldName, newName) => {
     const resp = await fetch(
       `${BASE}/api/attachments/${encodeURIComponent(page)}/${encodeURIComponent(oldName)}`,

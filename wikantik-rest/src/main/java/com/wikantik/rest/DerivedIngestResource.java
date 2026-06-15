@@ -59,7 +59,6 @@ import java.util.Optional;
  * <p>Optional query parameters:
  * <ul>
  *   <li>{@code force=true} — re-ingest even if the source SHA is unchanged.</li>
- *   <li>{@code author} — wiki login name recorded as the page author.</li>
  * </ul>
  *
  * <p>Requires the {@code createPages} wiki permission. Returns 403 if denied,
@@ -115,7 +114,8 @@ public class DerivedIngestResource extends RestServletBase {
         final byte[] bytes = filePart.getInputStream().readAllBytes();
 
         final boolean force  = "true".equalsIgnoreCase( request.getParameter( "force" ) );
-        final String  author = request.getParameter( "author" );
+        final Session session = Wiki.session().find( getEngine(), request );
+        final String  author  = session.isAuthenticated() ? session.getUserPrincipal().getName() : null;
 
         final DerivedPageIngestionService service = buildService();
         ingest( bytes, filename, fileMime, service, response, new IngestOptions( force, author ) );
@@ -190,8 +190,9 @@ public class DerivedIngestResource extends RestServletBase {
     /**
      * Builds a {@link DerivedPageIngestionService} from the live wiki managers.
      * Constructed per-request; the service is stateless so this is cheap.
+     * Protected so tests can override without multipart or engine infrastructure.
      */
-    private DerivedPageIngestionService buildService() {
+    protected DerivedPageIngestionService buildService() {
         final Engine engine = getEngine();
         final AttachmentManager am = getSubsystems().page().attachments();
         final PageManager       pm = getSubsystems().page().pages();

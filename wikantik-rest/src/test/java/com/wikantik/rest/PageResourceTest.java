@@ -545,6 +545,42 @@ class PageResourceTest {
         assertEquals( "RestPutPage", obj.get( "name" ).getAsString() );
     }
 
+    /**
+     * Security: when an authenticated session is active, the body {@code author} field
+     * must be ignored in favour of the session principal.
+     *
+     * <p>Registers an admin WikiSession for the shared "mock-session" id so that the
+     * PUT request resolves as authenticated. Then sends {@code author="evil"} in the
+     * body and verifies the saved page's author is the session principal ("admin"),
+     * not the caller-supplied value.
+     */
+    @Test
+    void testPutPage_authenticatedSession_bodyAuthorIgnored() throws Exception {
+        // Register the admin session under the shared "mock-session" HTTP session id
+        // so the servlet can resolve it via Wiki.session().find(engine, request).
+        engine.adminSession();
+
+        final JsonObject body = new JsonObject();
+        body.addProperty( "content", "Spoofed author page content" );
+        body.addProperty( "author", "evil" );  // caller attempts to spoof author
+
+        final String json = doPut( "RestPutPage", body );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+
+        assertTrue( obj.get( "success" ).getAsBoolean(), "PUT should succeed: " + json );
+
+        // Verify the saved page author is the session principal, not "evil"
+        final String readJson = doGet( "RestPutPage" );
+        final JsonObject readObj = gson.fromJson( readJson, JsonObject.class );
+        assertTrue( readObj.has( "author" ), "GET response must include 'author'" );
+        final String savedAuthor = readObj.get( "author" ).getAsString();
+        // The session principal is the user's full name ("Administrator"), not the login ("admin").
+        // What matters is that the caller-supplied "evil" is NOT recorded.
+        assertNotNull( savedAuthor, "Saved author must not be null when authenticated" );
+        assertNotEquals( "evil", savedAuthor,
+                "Caller-supplied author 'evil' must NOT be recorded; got: " + savedAuthor );
+    }
+
     @Test
     void testGetPageWithPermissions() throws Exception {
         engine.saveText( "RestTestPage", "Permissions test page." );

@@ -36,6 +36,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+// Note: AdminDerivedResource.resolveAdminAuthor() is stubbed in the Stub class below
+// to return a fixed author name without requiring engine infrastructure.
+
 /**
  * Unit tests for {@link AdminDerivedResource}.
  *
@@ -49,11 +52,19 @@ class AdminDerivedResourceTest {
     private HttpServletResponse resp;
     private StringWriter        body;
 
-    /** Test servlet subclass that injects the mocked reflow service. */
+    /** Fixed author name returned by the Stub so tests don't need engine infrastructure. */
+    private static final String STUB_AUTHOR = "root";
+
+    /** Test servlet subclass that injects the mocked reflow service and a fixed admin author. */
     private final class Stub extends AdminDerivedResource {
         @Override
         protected DerivedReflowService buildReflowService() {
             return reflowService;
+        }
+
+        @Override
+        protected String resolveAdminAuthor( final jakarta.servlet.http.HttpServletRequest request ) {
+            return STUB_AUTHOR;
         }
     }
 
@@ -108,7 +119,7 @@ class AdminDerivedResourceTest {
         when( req.getPathInfo() ).thenReturn( "/reflow" );
         when( req.getParameter( "page" ) ).thenReturn( "MyReport" );
 
-        when( reflowService.reflow( eq( "MyReport" ), isNull() ) )
+        when( reflowService.reflow( eq( "MyReport" ), eq( STUB_AUTHOR ) ) )
             .thenReturn( IngestResult.updated( "MyReport" ) );
 
         servlet.doPost( req, resp );
@@ -118,7 +129,7 @@ class AdminDerivedResourceTest {
         assertEquals( "updated", json.get( "status" ).getAsString() );
         assertEquals( "MyReport", json.get( "page" ).getAsString() );
 
-        verify( reflowService, times( 1 ) ).reflow( "MyReport", null );
+        verify( reflowService, times( 1 ) ).reflow( "MyReport", STUB_AUTHOR );
         verify( reflowService, never() ).reflowAll( any() );
     }
 
@@ -132,7 +143,7 @@ class AdminDerivedResourceTest {
         when( req.getParameter( "page" ) ).thenReturn( null );
 
         final DerivedReflowService.ReflowSummary summary = new DerivedReflowService.ReflowSummary( 3, 1, 0 );
-        when( reflowService.reflowAll( isNull() ) ).thenReturn( summary );
+        when( reflowService.reflowAll( eq( STUB_AUTHOR ) ) ).thenReturn( summary );
 
         servlet.doPost( req, resp );
 
@@ -142,7 +153,7 @@ class AdminDerivedResourceTest {
         assertEquals( 1, json.get( "skipped" ).getAsInt() );
         assertEquals( 0, json.get( "failed" ).getAsInt() );
 
-        verify( reflowService, times( 1 ) ).reflowAll( null );
+        verify( reflowService, times( 1 ) ).reflowAll( STUB_AUTHOR );
         verify( reflowService, never() ).reflow( anyString(), any() );
     }
 
@@ -153,5 +164,44 @@ class AdminDerivedResourceTest {
         servlet.doPost( req, resp );
 
         verify( resp ).setStatus( HttpServletResponse.SC_NOT_FOUND );
+    }
+
+    // -----------------------------------------------------------------------
+    // Security: author is derived from the session principal, not caller input
+    // -----------------------------------------------------------------------
+
+    /**
+     * The reflow handler must attribute the reflow to the authenticated admin session
+     * principal (here "root" from the Stub), never pass null or a caller-supplied value.
+     * Verifies both the single-page and corpus-wide paths.
+     */
+    @Test
+    void reflow_authorDerivedFromSession_notNullOrCallerSupplied() throws Exception {
+        // Single-page path
+        when( req.getPathInfo() ).thenReturn( "/reflow" );
+        when( req.getParameter( "page" ) ).thenReturn( "SecurePage" );
+        when( reflowService.reflow( eq( "SecurePage" ), eq( STUB_AUTHOR ) ) )
+            .thenReturn( IngestResult.updated( "SecurePage" ) );
+
+        servlet.doPost( req, resp );
+
+        // Must be called with STUB_AUTHOR ("root"), never with null
+        verify( reflowService ).reflow( "SecurePage", STUB_AUTHOR );
+        verify( reflowService, never() ).reflow( anyString(), isNull() );
+    }
+
+    @Test
+    void reflowAll_authorDerivedFromSession_notNullOrCallerSupplied() throws Exception {
+        // Corpus-wide path
+        when( req.getPathInfo() ).thenReturn( "/reflow" );
+        when( req.getParameter( "page" ) ).thenReturn( null );
+        final DerivedReflowService.ReflowSummary summary = new DerivedReflowService.ReflowSummary( 1, 0, 0 );
+        when( reflowService.reflowAll( eq( STUB_AUTHOR ) ) ).thenReturn( summary );
+
+        servlet.doPost( req, resp );
+
+        // Must be called with STUB_AUTHOR ("root"), never with null
+        verify( reflowService ).reflowAll( STUB_AUTHOR );
+        verify( reflowService, never() ).reflowAll( isNull() );
     }
 }

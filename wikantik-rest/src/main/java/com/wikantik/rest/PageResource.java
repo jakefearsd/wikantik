@@ -348,17 +348,13 @@ public class PageResource extends RestServletBase {
         try {
             final Engine engine = getEngine();
 
-            // Resolve the author: use the explicitly-supplied value from the request body, or
-            // fall back to the authenticated session user.  PageSaveHelper creates a headless
-            // context (no HttpServletRequest), so without this the author would always resolve
-            // to WikiPrincipal.GUEST regardless of who is logged in.
-            String effectiveAuthor = author;
-            if ( effectiveAuthor == null ) {
-                final Session wikiSession = Wiki.session().find( engine, request );
-                if ( wikiSession.isAuthenticated() ) {
-                    effectiveAuthor = wikiSession.getUserPrincipal().getName();
-                }
-            }
+            // Resolve the author: when the session is authenticated, the session principal
+            // is authoritative (ignore any caller-supplied body author to prevent spoofing).
+            // Fall back to the body author only for the unauthenticated/headless case.
+            final Session wikiSession = Wiki.session().find( engine, request );
+            final String effectiveAuthor = wikiSession.isAuthenticated()
+                    ? wikiSession.getUserPrincipal().getName()
+                    : author;
             optionsBuilder.author( effectiveAuthor );
 
             final PageSaveHelper helper = new PageSaveHelper( engine, getSubsystems().page().pages() );

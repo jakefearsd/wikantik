@@ -18,6 +18,7 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.api.core.Session;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.api.managers.AttachmentManager;
 import com.wikantik.api.managers.PageManager;
@@ -102,19 +103,20 @@ public class AdminDerivedResource extends RestServletBase {
                                 final HttpServletResponse response ) throws IOException {
         final DerivedReflowService svc    = buildReflowService();
         final String               page   = request.getParameter( "page" );
+        final String               admin  = resolveAdminAuthor( request );
 
         if ( page != null && !page.isBlank() ) {
             // Single-page reflow
-            LOG.info( "AdminDerivedResource: reflow requested for page='{}'", page );
-            final IngestResult result = svc.reflow( page, null );
+            LOG.info( "AdminDerivedResource: reflow requested for page='{}' by author='{}'", page, admin );
+            final IngestResult result = svc.reflow( page, admin );
             sendJsonWithStatus( response, 200, Map.of(
                 "page",    result.pageName(),
                 "status",  result.status().name().toLowerCase(),
                 "message", result.message() != null ? result.message() : "" ) );
         } else {
             // Corpus-wide reflow
-            LOG.info( "AdminDerivedResource: corpus-wide reflow requested" );
-            final DerivedReflowService.ReflowSummary summary = svc.reflowAll( null );
+            LOG.info( "AdminDerivedResource: corpus-wide reflow requested by author='{}'", admin );
+            final DerivedReflowService.ReflowSummary summary = svc.reflowAll( admin );
             LOG.info( "AdminDerivedResource: reflowAll complete — reflowed={} skipped={} failed={}",
                 summary.reflowed(), summary.skipped(), summary.failed() );
             sendJsonWithStatus( response, 200, Map.of(
@@ -122,6 +124,18 @@ public class AdminDerivedResource extends RestServletBase {
                 "skipped",  summary.skipped(),
                 "failed",   summary.failed() ) );
         }
+    }
+
+    /**
+     * Resolves the author name from the admin session principal.
+     * This endpoint is always behind {@code AdminAuthFilter}, so the caller is an
+     * authenticated admin. Falls back to {@code "system"} if for any reason the
+     * session is not authenticated (defensive — should not occur in production).
+     * Protected so tests can override without engine infrastructure.
+     */
+    protected String resolveAdminAuthor( final HttpServletRequest request ) {
+        final Session session = Wiki.session().find( getEngine(), request );
+        return session.isAuthenticated() ? session.getUserPrincipal().getName() : "system";
     }
 
     // -------------------------------------------------------------------------

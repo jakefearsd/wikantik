@@ -45,6 +45,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -320,6 +321,68 @@ class DerivedIngestResourceTest {
         assertFalse( received.contains( "/" ),  "must not contain '/': " + received );
         assertFalse( received.contains( ".." ), "must not contain '..': " + received );
         assertFalse( received.contains( "\\" ), "must not contain '\\': " + received );
+    }
+
+    // -------------------------------------------------------------------------
+    // Security: caller-supplied ?author= is IGNORED in favour of session principal
+    // -------------------------------------------------------------------------
+
+    /**
+     * A POST carrying {@code ?author=evil} with an authenticated admin session must
+     * invoke the ingest service with the session principal's name ("admin"), not "evil".
+     *
+     * <p>Uses a Stub subclass to capture the {@link DerivedPageIngestionService} call
+     * without requiring real attachment/page-manager infrastructure.
+     */
+    @Test
+    void doPost_callerSuppliedAuthorIgnored_sessionPrincipalUsed() throws Exception {
+        // Re-register an authenticated admin WikiSession for the shared "mock-session" id.
+        engine.adminSession(); // side-effect: registers admin under "mock-session"
+
+        final AtomicReference< IngestOptions > capturedOpts = new AtomicReference<>();
+        final DerivedPageIngestionService mockService = Mockito.mock( DerivedPageIngestionService.class );
+        Mockito.when( mockService.ingest( Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any() ) )
+               .thenAnswer( inv -> {
+                   capturedOpts.set( inv.getArgument( 3 ) );
+                   return IngestResult.created( "sample" );
+               } );
+
+        // Stub subclass that substitutes the real service with the mock.
+        final DerivedIngestResource stub = new DerivedIngestResource() {
+            @Override
+            protected DerivedPageIngestionService buildService() {
+                return mockService;
+            }
+        };
+        final ServletConfig config = Mockito.mock( ServletConfig.class );
+        Mockito.doReturn( engine.getServletContext() ).when( config ).getServletContext();
+        stub.init( config );
+
+        final byte[] fileBytes = "content".getBytes( StandardCharsets.UTF_8 );
+        final Part filePart = Mockito.mock( Part.class );
+        Mockito.when( filePart.getSubmittedFileName() ).thenReturn( "sample.txt" );
+        Mockito.when( filePart.getContentType() ).thenReturn( "text/plain" );
+        Mockito.when( filePart.getInputStream() ).thenReturn( new ByteArrayInputStream( fileBytes ) );
+
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest( "/api/ingest" );
+        Mockito.doReturn( "multipart/form-data; boundary=---boundary" ).when( request ).getContentType();
+        Mockito.doReturn( filePart ).when( request ).getPart( "file" );
+        Mockito.doReturn( null ).when( request ).getParameter( "force" );
+        // Caller tries to spoof the author
+        Mockito.doReturn( "evil" ).when( request ).getParameter( "author" );
+
+        final HttpServletResponse response = HttpMockFactory.createHttpResponse();
+        final StringWriter sw = new StringWriter();
+        Mockito.doReturn( new PrintWriter( sw ) ).when( response ).getWriter();
+
+        stub.doPost( request, response );
+
+        assertNotNull( capturedOpts.get(), "IngestOptions must have been captured" );
+        // The session principal is the user's full name ("Administrator"), not the login ("admin").
+        // What matters is that the caller-supplied "evil" is NOT recorded.
+        assertNotNull( capturedOpts.get().author(), "Author must not be null when authenticated" );
+        assertNotEquals( "evil", capturedOpts.get().author(),
+                "Caller-supplied author 'evil' must not be recorded; got: " + capturedOpts.get().author() );
     }
 
     @Test

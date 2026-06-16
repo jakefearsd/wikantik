@@ -1,0 +1,135 @@
+{
+  "label": "on-0.5",
+  "base": "http://localhost:8080",
+  "slice_size": 7,
+  "recall_at_5": 0.3571,
+  "recall_at_12": 0.4286,
+  "per_query": [
+    {
+      "qid": "r01",
+      "query": "how does Wikantik hybrid retrieval decide between BM25 and dense results",
+      "golds": [
+        {
+          "cid": "01KQ0P44QZYNK9BZ0FV5NQ9CF8",
+          "hp": "Wiring",
+          "hit5": false,
+          "hit12": false
+        },
+        {
+          "cid": "01KQ0P44QZYNK9BZ0FV5NQ9CF8",
+          "hp": "Fail-closed behaviour",
+          "hit5": true,
+          "hit12": true
+        }
+      ]
+    },
+    {
+      "qid": "r02",
+      "query": "what configuration enables the Knowledge Graph rerank and what is the default",
+      "golds": [
+        {
+          "cid": "01KQPQVYPFSBSGX38YP6XFQPMV",
+          "hp": "Configuration",
+          "hit5": true,
+          "hit12": true
+        },
+        {
+          "cid": "01KQ0P44QZYNK9BZ0FV5NQ9CF8",
+          "hp": "Configuration",
+          "hit5": false,
+          "hit12": false
+        }
+      ]
+    },
+    {
+      "qid": "r05",
+      "query": "how do you add a page to the Knowledge Graph and what controls inclusion",
+      "golds": [
+        {
+          "cid": "01KQEDYJR57WYQCV645PKSDBMQ",
+          "hp": "The decision model",
+          "hit5": true,
+          "hit12": true
+        },
+        {
+          "cid": "01KQEDYJR57WYQCV645PKSDBMQ",
+          "hp": "Agent curation path",
+          "hit5": false,
+          "hit12": false
+        }
+      ]
+    },
+    {
+      "qid": "r06",
+      "query": "how does chunking strategy affect RAG quality and what pattern should I use",
+      "golds": [
+        {
+          "cid": "01KQ12YDWB16GH9VTKNN1WKAB1",
+          "hp": "The second biggest: chunking strategy",
+          "hit5": true,
+          "hit12": true
+        },
+        {
+          "cid": "01KQ12YDRX520ZN5PC6N2E5YG8",
+          "hp": "Stage by stage",
+          "hit5": false,
+          "hit12": false
+        }
+      ]
+    },
+    {
+      "qid": "r07",
+      "query": "what metrics does the retrieval experiment harness compare and how do I run it",
+      "golds": [
+        {
+          "cid": "01KQ0P44VRJJ07S7EPD99G8CBA",
+          "hp": "1. What gets compared",
+          "hit5": false,
+          "hit12": false
+        },
+        {
+          "cid": "01KQ0P44VRJJ07S7EPD99G8CBA",
+          "hp": "3. One-shot run",
+          "hit5": false,
+          "hit12": true
+        }
+      ]
+    },
+    {
+      "qid": "r08",
+      "query": "how does canary deployment differ from blue-green and when should I use each",
+      "golds": [
+        {
+          "cid": "01KQ0P44MXK2X5DVXZ0MT3YVKD",
+          "hp": "1. Traffic Splitting Mechanisms",
+          "hit5": false,
+          "hit12": false
+        },
+        {
+          "cid": "01KQEKGD7VHR9Y4FJQRZZ1KC12",
+          "hp": "When canary wins",
+          "hit5": true,
+          "hit12": true
+        }
+      ]
+    },
+    {
+      "qid": "r10",
+      "query": "how does graph RAG differ from standard RAG and what does it add",
+      "golds": [
+        {
+          "cid": "01KQ0P44QS3AFFX90J5XXAABJA",
+          "hp": "What graph RAG adds",
+          "hit5": false,
+          "hit12": false
+        },
+        {
+          "cid": "01KQ0P44QS3AFFX90J5XXAABJA",
+          "hp": "Architectures",
+          "hit5": false,
+          "hit12": false
+        }
+      ]
+    }
+  ]
+}

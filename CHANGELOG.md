@@ -40,6 +40,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   page; staleness is never shown to anonymous readers. Config: `wikantik.citations.enabled`
   (default true; no-op without a datasource). New code in `com.wikantik.citation`.
 
+### Security
+
+- **Page authorship is now derived from the authenticated session, not caller input.** `POST /api/ingest`,
+  `PUT /api/pages`, and `/admin/derived/reflow` record the author as the session principal; a caller-supplied
+  `author` (query param or request body) is ignored. Closes an authorship-spoofing / audit-forgery gap.
+- **Document-upload surface hardening (derived pages).** Upload filenames are sanitized into a safe page name
+  via the same `MarkupParser.cleanLink` the attachment store uses — preventing path traversal and arbitrary-page
+  overwrite (ingest now refuses to overwrite a non-derived page). Tika extraction is bounded by a write limit +
+  timeout so a malicious upload cannot OOM or hang the server. A failed attachment store rolls back a
+  newly-created page (no orphans). The batch CLI uses HTTP Basic auth (the only scheme `/api/*` accepts).
+
 ## [2.0.18] - 2026-06-14
 
 ### Added

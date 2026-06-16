@@ -55,6 +55,17 @@ class MarkdownLinkScannerTest {
     }
 
     @Test
+    void findLocalLinksDropsBlankWhitespaceTargets() {
+        // A malformed link like [ ]( ) — e.g. illustrative syntax inside a code span the regex still
+        // matches — must not yield a blank reference (regression: a whitespace target slipped past the
+        // empty-target guard, became a blank page ref, and threw "Illegal page name: ''" at startup).
+        assertTrue( MarkdownLinkScanner.findLocalLinks( "intro `[ ]( )` outro" )
+                .stream().noneMatch( String::isBlank ), "blank link target must be dropped" );
+        assertEquals( Set.of( "RealPage" ),
+                MarkdownLinkScanner.findLocalLinks( "[ ]( ) then [RealPage]()" ) );
+    }
+
+    @Test
     void findLocalLinksExcludesExternalAndAnchorTargets() {
         final String body = "[a](https://example.com) [b](http://x) [c](ftp://f) "
                 + "[d](mailto:x@y) [e](#section)";

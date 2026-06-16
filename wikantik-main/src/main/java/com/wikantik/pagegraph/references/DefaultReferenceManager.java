@@ -541,7 +541,7 @@ public class DefaultReferenceManager implements PageFilter, com.wikantik.api.man
         if ( related instanceof List< ? > relatedList ) {
             for ( final Object r : relatedList ) {
                 final String name = r.toString();
-                if ( !name.isEmpty() ) {
+                if ( !name.isBlank() ) {
                     links.add( name );
                 }
             }

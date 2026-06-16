@@ -63,6 +63,20 @@ class McpConfigTest {
     }
 
     @Test
+    void testNonAbsoluteInstructionsFilePathFallsBackToBundledQuietly() {
+        // A non-absolute mcp.instructions.file (e.g. a bare filename) is a misconfiguration that
+        // resolves against the JVM working dir and always fails. It must be ignored quietly (no
+        // startup ERROR — see the isAbsolute() guard) and the bundled instructions served instead.
+        final Properties props = new Properties();
+        props.setProperty( "mcp.instructions.file", "wikantik-mcp-instructions.txt" );
+
+        final McpConfig config = new McpConfig( props );
+        final String result = config.instructions();
+        assertNotNull( result );
+        assertFalse( result.isBlank(), "Should serve the bundled instructions" );
+    }
+
+    @Test
     void testCustomServerIdentity() {
         final Properties props = new Properties();
         props.setProperty( "mcp.server.name", "custom-name" );

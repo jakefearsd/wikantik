@@ -92,6 +92,10 @@ public final class MarkdownLinkScanner {
                 }
             }
         }
+        // Drop blank/whitespace-only entries — a malformed link such as [ ]( ) (e.g. illustrative
+        // syntax inside a code span the regex still matches) would otherwise yield a blank target
+        // that becomes an illegal '' page reference downstream.
+        locals.removeIf( s -> s == null || s.isBlank() );
         return locals;
     }
 

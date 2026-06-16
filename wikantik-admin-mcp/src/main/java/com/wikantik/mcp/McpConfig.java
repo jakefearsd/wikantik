@@ -125,14 +125,22 @@ public class McpConfig {
     private String loadInstructionsOnce() {
         final String overridePath = props.getProperty( "mcp.instructions.file" );
         if ( overridePath != null && !overridePath.isBlank() ) {
-            try ( final java.io.InputStream in =
-                    java.nio.file.Files.newInputStream( java.nio.file.Path.of( overridePath ) ) ) {
-                return new String( in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8 );
-            } catch ( final java.io.IOException e ) {
-                LOG.error( "mcp.instructions.file={} is configured but unreadable; "
-                        + "falling back to bundled resource: {}",
-                        overridePath, e.getMessage() );
-                // fall through to bundled resource
+            final java.nio.file.Path path = java.nio.file.Path.of( overridePath );
+            if ( !path.isAbsolute() ) {
+                // The override must be an ABSOLUTE filesystem path (see wikantik-mcp.properties).
+                // A non-absolute value resolves against the JVM working dir and always fails, so
+                // treat it as unset and quietly use the bundled resource — not a startup error.
+                LOG.debug( "mcp.instructions.file={} is not an absolute path; ignoring it and "
+                        + "serving the bundled instructions.", overridePath );
+            } else {
+                try ( final java.io.InputStream in = java.nio.file.Files.newInputStream( path ) ) {
+                    return new String( in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8 );
+                } catch ( final java.io.IOException e ) {
+                    LOG.warn( "mcp.instructions.file={} is configured but unreadable; "
+                            + "falling back to bundled resource: {}",
+                            overridePath, e.getMessage() );
+                    // fall through to bundled resource
+                }
             }
         }
         try ( final java.io.InputStream in = McpConfig.class.getResourceAsStream(

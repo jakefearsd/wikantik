@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Two benign startup ERROR logs eliminated.** (1) A malformed wikilink with a whitespace-only
+  target (e.g. illustrative `[ ]( )` syntax inside a code span, which the regex scanner still
+  matched) produced a blank page reference and logged `Illegal page name: ''` during reference-graph
+  init — `MarkdownLinkScanner.findLocalLinks` now drops blank link targets, and the `related:`
+  frontmatter scan filters whitespace-only entries. (2) A non-absolute `mcp.instructions.file` is now
+  ignored quietly (the override must be an absolute path) instead of logging an ERROR before the
+  (correct) fallback to the bundled instructions; a genuinely-unreadable absolute path now logs WARN.
+
 ## [2.0.19] - 2026-06-16
 
 ### Added

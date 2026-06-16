@@ -22,6 +22,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
+import com.wikantik.api.knowledge.PageExtractor;
 import com.wikantik.api.knowledge.ProposalJudge;
 import com.wikantik.knowledge.KgNodeRepository;
 import com.wikantik.knowledge.KgProposalRepository;
@@ -30,6 +31,7 @@ import com.wikantik.knowledge.embedding.KgNodeEmbeddingRepository;
 import com.wikantik.knowledge.embedding.KgNodeEmbeddingService;
 import com.wikantik.knowledge.extraction.BootstrapEntityExtractionIndexer;
 import com.wikantik.knowledge.extraction.ChunkEntityMentionRepository;
+import com.wikantik.knowledge.extraction.ClaudePageExtractor;
 import com.wikantik.knowledge.extraction.ClaudeProposalJudge;
 import com.wikantik.knowledge.extraction.EvidenceGroundingVerifier;
 import com.wikantik.knowledge.extraction.MentionAttributor;
@@ -142,8 +144,13 @@ public final class BootstrapExtractionCli {
         final PageExtractionResponseParser parser = new PageExtractionResponseParser(
             new EvidenceGroundingVerifier(), a.maxEntitiesPerPage, a.maxRelationsPerPage );
         final HttpClient http = HttpClient.newHttpClient();
-        final OllamaPageExtractor extractor = new OllamaPageExtractor(
-            http, a.ollamaUrl, a.ollamaModel, a.timeoutMs, parser );
+        final PageExtractor extractor;
+        try {
+            extractor = buildExtractor( a, http, parser );
+        } catch( final IllegalStateException e ) {
+            System.err.println( "error: " + e.getMessage() );
+            return 1;
+        }
 
         final KgNodeRepository kgNodes         = new KgNodeRepository( ds );
         final KgProposalRepository kgProposals = new KgProposalRepository( ds );
@@ -173,8 +180,8 @@ public final class BootstrapExtractionCli {
             indexer.setDryRun( true );
         }
 
-        LOG.info( "Extract-CLI starting: model={}, judge={}, concurrency={}, maxPages={}, dryRun={}, report={}",
-            a.ollamaModel, judge.code(), a.concurrency, a.maxPages, a.dryRun, a.report );
+        LOG.info( "Extract-CLI starting: extractor={}, judge={}, concurrency={}, maxPages={}, dryRun={}, report={}",
+            extractor.code(), judge.code(), a.concurrency, a.maxPages, a.dryRun, a.report );
 
         final boolean started = indexer.start( /*forceOverwrite*/ false, a.maxPages );
         if( !started ) {
@@ -187,6 +194,45 @@ public final class BootstrapExtractionCli {
             writeReport( a.report, indexer.status() );
         }
         return exit;
+    }
+
+    /** Cost-governed default for the Claude page extractor (ADR-0007 — never default to the priciest tier). */
+    static final String DEFAULT_CLAUDE_EXTRACTOR_MODEL = "claude-sonnet-4-6";
+
+    /**
+     * Builds the page extractor. {@code claude} is a gated, premium path: it needs
+     * {@code -Dwikantik.kg.extractor.allow_claude=true} (cost guard) and an
+     * {@code --anthropic-key-env} naming a populated env var — same shape as the
+     * Claude judge gate. Throws {@link IllegalStateException} when those preconditions
+     * are unmet so {@link #run} can print a clean error and exit non-zero.
+     */
+    private static PageExtractor buildExtractor( final Args a, final HttpClient http,
+                                                 final PageExtractionResponseParser parser ) {
+        return switch( a.extractor ) {
+            case "ollama" -> new OllamaPageExtractor( http, a.ollamaUrl, a.ollamaModel, a.timeoutMs, parser );
+            case "claude" -> {
+                if( !Boolean.parseBoolean(
+                    System.getProperty( "wikantik.kg.extractor.allow_claude", "false" ) ) ) {
+                    throw new IllegalStateException(
+                        "--extractor claude requires -Dwikantik.kg.extractor.allow_claude=true (gated cost guard)." );
+                }
+                if( a.anthropicKeyEnv == null || a.anthropicKeyEnv.isBlank() ) {
+                    throw new IllegalStateException(
+                        "--extractor claude requires --anthropic-key-env <VAR> naming the env var "
+                      + "that holds the Anthropic API key." );
+                }
+                final String key = System.getenv( a.anthropicKeyEnv );
+                if( key == null || key.isBlank() ) {
+                    throw new IllegalStateException(
+                        "environment variable '" + a.anthropicKeyEnv + "' is unset or empty." );
+                }
+                final String model = ( a.extractorModel == null || a.extractorModel.isBlank() )
+                    ? DEFAULT_CLAUDE_EXTRACTOR_MODEL : a.extractorModel;
+                yield new ClaudePageExtractor( key, model, a.timeoutMs, parser );
+            }
+            default -> throw new IllegalStateException(
+                "unknown --extractor value '" + a.extractor + "' (expected: ollama|claude)" );
+        };
     }
 
     /** Throws {@link IllegalStateException} when an opt-in judge is requested but not yet implemented. */
@@ -389,9 +435,13 @@ public final class BootstrapExtractionCli {
               --jdbc-password-env <VAR>      read password from env var (preferred)
 
             Extractor:
+              --extractor <ollama|claude>    extraction backend (default ollama)
               --ollama-url <url>             (default http://inference.jakefear.com:11434)
               --ollama-model <tag>           (default gemma4-assist:latest)
+              --extractor-model <id>         claude model id (claude only; default claude-sonnet-4-6)
               --timeout-ms <ms>              per-page extractor timeout (default 120000)
+              -Dwikantik.kg.extractor.allow_claude=true   required to actually use --extractor claude
+              --anthropic-key-env <VAR>      env var holding the Anthropic API key (claude only)
 
             Judge (opt-in proposal review; see Phase 6 of the redesign plan):
               --judge <none|ollama|claude>   (default none — accept everything verbatim)
@@ -431,6 +481,8 @@ public final class BootstrapExtractionCli {
         public String jdbcPassword         = "";
         public String ollamaUrl            = "http://inference.jakefear.com:11434";
         public String ollamaModel          = "gemma4-assist:latest";
+        public String extractor            = "ollama";   // ollama | claude
+        public String extractorModel       = null;        // claude model id (claude only); null → DEFAULT_CLAUDE_EXTRACTOR_MODEL
         public int    concurrency          = 2;
         public double confThreshold        = 0.55;
         public long   timeoutMs            = 120_000L;
@@ -466,6 +518,8 @@ public final class BootstrapExtractionCli {
                     case "--jdbc-password-env"       -> a.jdbcPassword = env( req( argv, ++i, k ) );
                     case "--ollama-url"              -> a.ollamaUrl = req( argv, ++i, k );
                     case "--ollama-model"            -> a.ollamaModel = req( argv, ++i, k );
+                    case "--extractor"               -> a.extractor = req( argv, ++i, k ).toLowerCase( Locale.ROOT );
+                    case "--extractor-model"         -> a.extractorModel = req( argv, ++i, k );
                     case "--concurrency"             -> a.concurrency = parseInt( req( argv, ++i, k ), k );
                     case "--confidence-threshold"    -> a.confThreshold = parseDouble( req( argv, ++i, k ), k );
                     case "--timeout-ms"              -> a.timeoutMs = parseLong( req( argv, ++i, k ), k );
@@ -500,6 +554,9 @@ public final class BootstrapExtractionCli {
                 }
                 if( !a.judge.equals( "none" ) && !a.judge.equals( "ollama" ) && !a.judge.equals( "claude" ) ) {
                     throw new IllegalArgumentException( "--judge must be one of: none, ollama, claude" );
+                }
+                if( !a.extractor.equals( "ollama" ) && !a.extractor.equals( "claude" ) ) {
+                    throw new IllegalArgumentException( "--extractor must be one of: ollama, claude" );
                 }
                 a.concurrency = clamp( a.concurrency, 1, CLI_CONCURRENCY_MAX );
                 // The indexer's own clamp is wider (1..CONCURRENCY_MAX=10); ours is

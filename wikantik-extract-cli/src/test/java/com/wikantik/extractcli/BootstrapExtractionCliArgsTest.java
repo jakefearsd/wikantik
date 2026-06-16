@@ -91,6 +91,27 @@ class BootstrapExtractionCliArgsTest {
     }
 
     @Test
+    void extractorDefaultsToOllama() {
+        final BootstrapExtractionCli.Args a = BootstrapExtractionCli.Args.parse( new String[]{} );
+        assertEquals( "ollama", a.extractor );
+        assertEquals( null, a.extractorModel );
+    }
+
+    @Test
+    void extractorClaudeParses() {
+        final BootstrapExtractionCli.Args a = BootstrapExtractionCli.Args.parse(
+            new String[]{ "--extractor", "Claude", "--extractor-model", "claude-opus-4-7" } );
+        assertEquals( "claude", a.extractor );      // lower-cased on parse
+        assertEquals( "claude-opus-4-7", a.extractorModel );
+    }
+
+    @Test
+    void unknownExtractorRejected() {
+        assertThrows( IllegalArgumentException.class,
+            () -> BootstrapExtractionCli.Args.parse( new String[]{ "--extractor", "openai" } ) );
+    }
+
+    @Test
     void claudeJudgeRequiresAllowFlag() {
         // Args.parse itself doesn't enforce the gate (run() does), but it accepts
         // the value verbatim — the gate fires later when run() consults the system

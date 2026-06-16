@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.19] - 2026-06-16
+
 ### Added
 
 - **Derived pages — document ingestion (RAG-as-a-Service Phase 2).** PDFs, office documents

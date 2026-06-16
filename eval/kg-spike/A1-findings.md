@@ -72,6 +72,41 @@ net-harmful on the alternate path.
 - **B — Reframed larger investment.** Build a section-level KG-rerank seam into the dense bundle +
   rich extraction; only worth it if relational retrieval becomes a named product priority.
 
+## Ceiling result (option C — Claude re-extraction, 2026-06-16)
+
+To answer "would a *good* KG help?" we re-extracted the **same 9 slice pages** with
+`claude-sonnet-4-6` (new `ClaudePageExtractor` + `--extractor claude` CLI path), replacing the
+sparse gemma4 KG. The Claude KG is materially richer: **84 mentions vs 65** (HybridRetrieval 4→31,
+CanaryDeployments 0→1, KnowledgeGraphRerank 3→14; RetrievalExperimentHarness 28→3 the lone drop),
+all **28 slice nodes embedded**. Then re-ran the page-gated sweep:
+
+| path / KG | recall@5 | recall@12 |
+|-----------|----------|-----------|
+| no rerank (baseline) | **0.3571** | **0.3571** |
+| rerank + gemma4 KG (sparse) | 0.2857 | 0.2857 |
+| rerank + **Claude KG (good)** @0.2 | 0.2857 | **0.3571** |
+| rerank + Claude KG (good) @0.5 | 0.2857 | 0.3571 |
+
+Per-gold: the good KG **recovers** r01 "Fail-closed behaviour" that the sparse KG demoted (so @12
+returns to the baseline), but at @5 it **demotes** r05 "The decision model" out of the top-5. **Net
+lift at the ceiling: zero at @12, −1 at @5.**
+
+### Verdict: the retrieval-signal hypothesis is falsified for this corpus
+
+Even a Claude-quality KG yields **no net recall gain** through the page-level graph rerank — at best
+neutral, at worst slightly negative. Combined with the structural finding (the shipped dense bundle
+has no rerank seam at all), both the *wiring* and the *ceiling* point the same way. The likely root
+cause: **relational-question section relevance is not an entity-proximity signal.** The KG knows
+*which entities are related*; it does not know *which section answers a relational question*. A
+better KG improves entity coverage, but entity coverage was never the bottleneck for these queries.
+
+This is the spec's pre-committed, fully-acceptable "no lift" outcome — reached with maximum evidence
+(a real good-KG ceiling, not an extrapolation). **Recommendation: shelve the KG-as-retrieval-signal
+track; keep the KG for its human-KB role (Track B).** A2 (cost frontier) and A3 (rollout) are moot —
+there is no lift to buy more cheaply. If relational retrieval becomes a named priority later, the
+*reframed* lever is a **section-level** KG signal in the dense bundle (new design), not the existing
+page-level boost.
+
 ## Reproducibility
 
 All artifacts in `eval/kg-spike/`: `recall-off-slice.json`, `recall-on-slice.json` (dense 0.2),

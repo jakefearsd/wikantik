@@ -34,6 +34,14 @@ import java.util.UUID;
  * adds or removes pages, so the contract with downstream consumers of
  * {@link HybridSearchService#rerankWith} is preserved.
  *
+ * <p><b>SHELVED (dormant).</b> Default {@code wikantik.search.graph.boost = 0.0}, so this
+ * step is never wired (see {@code SearchWiringHelper.wireGraphRerank}). The Phase-4 Track-A
+ * ceiling spike (2026-06-16) measured no net recall lift from KG-graph proximity even with a
+ * Claude-quality KG — relational section relevance is not an entity-proximity signal — and the
+ * shipped dense-chunk bundle bypasses this page-level path anyway. Kept as dormant scaffolding,
+ * not removed; do not re-enable without a section-level redesign. See
+ * {@code eval/kg-spike/A1-findings.md}.
+ *
  * <p>Each fused candidate gets a base score derived from its 0-based rank
  * ({@code 1.0 - rank / N}, so rank 0 → 1.0 and rank N-1 → 1/N) plus
  * {@code boost * proximity} where {@code proximity ∈ [0,1]} is returned by

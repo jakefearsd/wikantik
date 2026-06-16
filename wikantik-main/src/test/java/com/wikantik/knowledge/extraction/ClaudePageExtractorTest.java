@@ -79,6 +79,44 @@ class ClaudePageExtractorTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void leadingReasoningBlockAndTrailingProseAreStripped() throws Exception {
+        // The real failure mode: Claude emits a leading reasoning block (with its own braces)
+        // and a trailing explanation around the JSON. Anchoring on "entities" + brace-matching
+        // must isolate the real object.
+        final HttpClient client = mock(HttpClient.class);
+        final HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn(anthropicBody(
+            "Let me analyze this page {it covers Python}.\n\n```json\n"
+            + "{\"entities\":[{\"name\":\"Python\",\"type\":\"Technology\","
+            + "\"evidence_span\":\"Python is a language\",\"confidence\":0.9}],\"relations\":[]}"
+            + "\n```\nThat is the full extraction."));
+        when(client.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+        final ClaudePageExtractor extractor = newExtractor(client);
+        final Page page = new Page("PythonPage", null, "Python is a language. Used widely.", "", List.of());
+        final PageExtractionResult result = extractor.extract(page, new ExtractionContext("PythonPage", List.of(), Map.of()));
+        assertEquals(1, result.entities().size());
+        assertEquals("Python", result.entities().get(0).name());
+    }
+
+    @Test
+    void extractJsonObjectIsolatesTheEntitiesObject() {
+        // Bare object.
+        assertEquals("{\"entities\":[],\"relations\":[]}",
+            ClaudePageExtractor.extractJsonObject("{\"entities\":[],\"relations\":[]}"));
+        // Leading brace-block + trailing prose → anchored on "entities", brace-matched.
+        assertEquals("{\"entities\":[],\"relations\":[]}",
+            ClaudePageExtractor.extractJsonObject("Note {x}.\n{\"entities\":[],\"relations\":[]}\nDone."));
+        // A '}' inside a string value must not terminate the object early.
+        assertEquals("{\"entities\":[{\"name\":\"a}b\"}]}",
+            ClaudePageExtractor.extractJsonObject("{\"entities\":[{\"name\":\"a}b\"}]}"));
+        // Truncated (no balanced close) → null.
+        assertEquals(null, ClaudePageExtractor.extractJsonObject("{\"entities\":[{\"name\":\"x\""));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void httpErrorReturnsEmpty() throws Exception {
         final HttpClient client = mock(HttpClient.class);
         final HttpResponse<String> response = mock(HttpResponse.class);

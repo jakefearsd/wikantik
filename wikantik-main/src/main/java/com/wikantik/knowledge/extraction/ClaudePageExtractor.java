@@ -147,6 +147,44 @@ public final class ClaudePageExtractor implements PageExtractor {
         final JsonElement first = contentArr.getAsJsonArray().get( 0 );
         if( !first.isJsonObject() ) return null;
         final JsonElement text = first.getAsJsonObject().get( "text" );
-        return text == null || text.isJsonNull() ? null : text.getAsString();
+        return text == null || text.isJsonNull() ? null : extractJsonObject( text.getAsString() );
+    }
+
+    /**
+     * Extracts the extraction JSON object from Claude's reply. Claude (unlike Ollama's
+     * {@code format:json}) routinely wraps the object in a preamble, a leading reasoning
+     * block (which may itself contain {@code { }}), ```json fences, and/or a trailing
+     * explanation — gson's strict parser then rejects it and the result silently empties.
+     *
+     * <p>We anchor on the schema's first key ({@code "entities"}), find the {@code &#123;}
+     * that opens its enclosing object, and brace-match forward — respecting string literals
+     * and escapes — to the balanced close. That skips any leading brace-block and drops any
+     * trailing prose. Returns {@code null} (→ empty result) when no balanced object is found
+     * (e.g. a {@code max_tokens} truncation), which the fail-open convention tolerates.
+     */
+    static String extractJsonObject( final String raw ) {
+        if( raw == null ) return null;
+        int anchor = raw.indexOf( "\"entities\"" );
+        if( anchor < 0 ) anchor = raw.indexOf( '{' );   // fall back to the first object
+        if( anchor < 0 ) return null;
+        final int open = raw.lastIndexOf( '{', anchor );
+        if( open < 0 ) return null;
+        int depth = 0;
+        boolean inString = false, escaped = false;
+        for( int i = open; i < raw.length(); i++ ) {
+            final char c = raw.charAt( i );
+            if( inString ) {
+                if( escaped ) escaped = false;
+                else if( c == '\\' ) escaped = true;
+                else if( c == '"' ) inString = false;
+            } else if( c == '"' ) {
+                inString = true;
+            } else if( c == '{' ) {
+                depth++;
+            } else if( c == '}' ) {
+                if( --depth == 0 ) return raw.substring( open, i + 1 );
+            }
+        }
+        return null;   // unbalanced — truncated output
     }
 }

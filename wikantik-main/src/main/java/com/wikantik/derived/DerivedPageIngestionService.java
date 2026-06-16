@@ -67,6 +67,12 @@ public class DerivedPageIngestionService {
         void store( String pageName, String filename, byte[] bytes ) throws Exception;
     }
 
+    /** Deletes a page by name; used to roll back a newly-created page when attachment storage fails. */
+    @FunctionalInterface
+    public interface PageDeleter {
+        void delete( String pageName ) throws Exception;
+    }
+
     // -------------------------------------------------------------------------
     // Fields
     // -------------------------------------------------------------------------
@@ -75,26 +81,31 @@ public class DerivedPageIngestionService {
     private final AttachmentStore   attachments;
     private final PageReader        pageReader;
     private final PageWriter        pageWriter;
+    private final PageDeleter       pageDeleter;
 
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
 
     /**
-     * @param extractor   extracts a markdown body from the raw source bytes.
-     * @param attachments stores the raw bytes as a named attachment on the page.
-     * @param pageReader  reads current frontmatter metadata (empty = page absent).
-     * @param pageWriter  creates or overwrites the page with body + metadata.
+     * @param extractor    extracts a markdown body from the raw source bytes.
+     * @param attachments  stores the raw bytes as a named attachment on the page.
+     * @param pageReader   reads current frontmatter metadata (empty = page absent).
+     * @param pageWriter   creates or overwrites the page with body + metadata.
+     * @param pageDeleter  deletes a page by name; used to roll back a newly-created page
+     *                     if attachment storage subsequently fails.
      */
     public DerivedPageIngestionService(
             final SourceExtractor extractor,
             final AttachmentStore attachments,
             final PageReader      pageReader,
-            final PageWriter      pageWriter ) {
+            final PageWriter      pageWriter,
+            final PageDeleter     pageDeleter ) {
         this.extractor   = extractor;
         this.attachments = attachments;
         this.pageReader  = pageReader;
         this.pageWriter  = pageWriter;
+        this.pageDeleter = pageDeleter;
     }
 
     // -------------------------------------------------------------------------
@@ -174,8 +185,30 @@ public class DerivedPageIngestionService {
             // step below subsequently fails.
             pageWriter.write( pageName, er.markdownBody(), metadata, opts.author() );
 
-            // Step 6 — store attachment (parent page now exists)
-            attachments.store( pageName, filename, source );
+            // Step 6 — store attachment (parent page now exists).
+            // If storage fails on a NEW page, roll back the page write so we don't
+            // leave a page without its source attachment.  On an UPDATE we preserve
+            // the pre-existing page content.
+            try {
+                attachments.store( pageName, filename, source );
+            } catch ( final Exception attachEx ) {
+                LOG.warn( "DerivedPageIngestionService: attachment storage failed for filename='{}', page='{}': {}",
+                    filename, pageName, attachEx.getMessage(), attachEx );
+                if ( !pageExists ) {
+                    // Newly created page — roll it back so it does not exist without its source.
+                    try {
+                        pageDeleter.delete( pageName );
+                    } catch ( final Exception rollbackEx ) {
+                        LOG.warn( "DerivedPageIngestionService: rollback of page '{}' failed after attachment storage error: {}",
+                            pageName, rollbackEx.getMessage(), rollbackEx );
+                    }
+                    return IngestResult.failed( pageName,
+                        "source attachment storage failed; page rolled back" );
+                } else {
+                    return IngestResult.failed( pageName,
+                        "source attachment storage failed; page updated but source attachment missing — re-ingest to restore" );
+                }
+            }
 
             // Step 7 — return outcome
             return pageExists ? IngestResult.updated( pageName ) : IngestResult.created( pageName );

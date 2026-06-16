@@ -18,6 +18,8 @@
  */
 package com.wikantik.derived;
 
+import com.wikantik.parser.MarkupParser;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -81,9 +83,12 @@ public final class DerivedPage {
      *   <li><b>Length cap</b> — truncated to {@value #MAX_PAGE_NAME_LENGTH} characters.</li>
      *   <li><b>Empty fallback</b> — if the result is empty after all steps, return
      *       {@code "Document"}.</li>
-     *   <li><b>First-char uppercase</b> — consistent with {@code MarkupParser.cleanLink()}
-     *       used by {@code DefaultAttachmentManager.getAttachmentInfo} (attach path lookup
-     *       capitalises the parent page name).</li>
+     *   <li><b>{@link MarkupParser#cleanLink}</b> — the final name is passed through
+     *       {@code MarkupParser.cleanLink()}, which is the identical function that
+     *       {@code DefaultAttachmentManager.getAttachmentInfo} applies when resolving
+     *       the parent page from an attachment path.  This makes the produced name a
+     *       fixed point: {@code cleanLink(pageNameFor(f)) == pageNameFor(f)} for every
+     *       input {@code f}.</li>
      * </ol>
      */
     public static String pageNameFor( final String filename ) {
@@ -114,7 +119,9 @@ public final class DerivedPage {
             return "Document";
         }
 
-        // Step 7: uppercase first character (cleanLink stability)
-        return Character.toUpperCase( capped.charAt( 0 ) ) + capped.substring( 1 );
+        // Step 7: pass through MarkupParser.cleanLink so the name is identical to what
+        // DefaultAttachmentManager produces when resolving the parent page from the
+        // attachment path — guaranteed fixed point under a second cleanLink pass.
+        return MarkupParser.cleanLink( capped );
     }
 }

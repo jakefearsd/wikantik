@@ -18,6 +18,7 @@
  */
 package com.wikantik.derived;
 
+import com.wikantik.parser.MarkupParser;
 import static org.junit.jupiter.api.Assertions.*;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -102,5 +103,30 @@ class DerivedPageTest {
         assertFalse( name.contains( ">" ), "must not contain '>': " + name );
         assertFalse( name.contains( ":" ), "must not contain ':': " + name );
         assertFalse( name.contains( "*" ), "must not contain '*': " + name );
+    }
+
+    /**
+     * Fixed-point invariant: the name produced by {@code pageNameFor} must be stable under
+     * a second {@code MarkupParser.cleanLink} pass — exactly what
+     * {@code DefaultAttachmentManager.getAttachmentInfo} applies when resolving the parent
+     * page from an attachment path.
+     */
+    @Test
+    void pageNameFor_isFixedPointUnderCleanLink() {
+        final String[] inputs = {
+            "my report.pdf",
+            "FOO bar.txt",
+            "../../weird name.pdf",
+            "Research Paper.pdf",
+            "my-doc v2.docx",
+            "Simple.pdf"
+        };
+        for ( final String input : inputs ) {
+            final String produced = DerivedPage.pageNameFor( input );
+            final String reClean  = MarkupParser.cleanLink( produced );
+            assertEquals( produced, reClean,
+                "pageNameFor(\"" + input + "\") = \"" + produced + "\" is not a fixed point under cleanLink; got \""
+                + reClean + "\"" );
+        }
     }
 }

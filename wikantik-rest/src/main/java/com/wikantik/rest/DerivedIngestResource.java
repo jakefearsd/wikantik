@@ -229,11 +229,15 @@ public class DerivedIngestResource extends RestServletBase {
                 saveHelper.saveText( pageName, body, opts );
             };
 
+        final DerivedPageIngestionService.PageDeleter pageDeleter =
+            pageName -> pm.deletePage( pageName );
+
         return new DerivedPageIngestionService(
                 new TikaSourceExtractor(),
                 attachmentStore,
                 pageReader,
-                pageWriter );
+                pageWriter,
+                pageDeleter );
     }
 
     // -------------------------------------------------------------------------

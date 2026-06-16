@@ -183,11 +183,15 @@ public class AdminDerivedResource extends RestServletBase {
                 saveHelper.saveText( pageName, body, opts );
             };
 
+        final DerivedPageIngestionService.PageDeleter pageDeleter =
+            pageName -> pm.deletePage( pageName );
+
         final DerivedPageIngestionService ingestionService = new DerivedPageIngestionService(
                 new TikaSourceExtractor(),
                 attachmentStore,
                 pageReader,
-                pageWriter );
+                pageWriter,
+                pageDeleter );
 
         final DerivedReflowService.PageLister pageLister = () -> {
             try {

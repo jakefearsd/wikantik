@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -70,6 +71,13 @@ class DerivedPageIngestionServiceTest {
         public boolean supports( String contentType ) { return true; }
     };
 
+    /** Tracks page names passed to the no-op page deleter (for rollback assertions). */
+    private final List< String > deletedPageNames = new ArrayList<>();
+
+    /** No-op page deleter that records invocations for assertions. */
+    private final DerivedPageIngestionService.PageDeleter pageDeleter =
+        pageName -> deletedPageNames.add( pageName );
+
     private DerivedPageIngestionService service;
 
     @BeforeEach
@@ -78,11 +86,13 @@ class DerivedPageIngestionServiceTest {
         writtenPageNames.clear();
         writtenBodies.clear();
         writtenMetadata.clear();
+        deletedPageNames.clear();
         pageReaderResult = null;
         extractorResult = new ExtractionResult(
             "# My Report\n\nExtracted body.", "My Report Title", Map.of() );
 
-        service = new DerivedPageIngestionService( extractor, attachmentStore, pageReader, pageWriter );
+        service = new DerivedPageIngestionService(
+            extractor, attachmentStore, pageReader, pageWriter, pageDeleter );
     }
 
     // (a) attachment stored with the source bytes
@@ -255,23 +265,65 @@ class DerivedPageIngestionServiceTest {
         assertEquals( 1, writtenPageNames.size(), "pageWriter must be called for a derived update" );
     }
 
-    // attachmentStore exception → FAILED, logged, not rethrown.
-    // The page IS written first (the parent must exist before attaching), so the
-    // pageWriter will have been called even when the attachmentStore subsequently fails.
+    // -------------------------------------------------------------------------
+    // Rollback: attachment store failure on a NEW page must delete the page
+    // -------------------------------------------------------------------------
+
+    /**
+     * When attachment storage fails for a <em>new</em> page (pageReader returns empty),
+     * the service must return FAILED and invoke the pageDeleter to roll back the
+     * orphaned page write.
+     */
     @Test
-    void attachmentStoreException_returnsFailed() throws Exception {
-        DerivedPageIngestionService.AttachmentStore failStore =
+    void attachmentStoreFailure_newPage_rollsBackAndReturnsFailed() throws Exception {
+        // pageReaderResult is null → page does not exist (new ingest)
+        final DerivedPageIngestionService.AttachmentStore failStore =
             ( pn, fn, b ) -> { throw new RuntimeException( "disk full" ); };
-        DerivedPageIngestionService svc2 = new DerivedPageIngestionService(
-            extractor, failStore, pageReader, pageWriter );
+        final DerivedPageIngestionService svc = new DerivedPageIngestionService(
+            extractor, failStore, pageReader, pageWriter, pageDeleter );
 
-        IngestResult result = svc2.ingest( SOURCE, FILENAME, CONTENT_TYPE, new IngestOptions( false, "bot" ) );
+        final IngestResult result = svc.ingest( SOURCE, FILENAME, CONTENT_TYPE, new IngestOptions( false, "bot" ) );
 
-        assertEquals( IngestResult.Status.FAILED, result.status() );
-        // The page is written before the attachment (so the parent exists for the store).
-        // A failed attachment store leaves the page content intact — the result is FAILED
-        // so callers know the attachment (reflow source) is missing.
+        assertEquals( IngestResult.Status.FAILED, result.status(),
+            "must be FAILED when attachment storage throws" );
+        // pageWriter is called (parent-first ordering) before the attachment fails
         assertEquals( 1, writtenPageNames.size(),
-            "pageWriter must be called before attachmentStore (parent-first ordering)" );
+            "pageWriter must be called before the attachment step" );
+        // pageDeleter must have been invoked with the page name (rollback of new page)
+        assertEquals( 1, deletedPageNames.size(),
+            "pageDeleter must be called to roll back the newly-created page" );
+        assertEquals( "MyReport", deletedPageNames.get( 0 ),
+            "pageDeleter must be called with the derived page name" );
+    }
+
+    /**
+     * When attachment storage fails for an <em>existing</em> derived page (update path),
+     * the service must return FAILED but must NOT invoke pageDeleter — the pre-existing
+     * page must not be destroyed.
+     */
+    @Test
+    void attachmentStoreFailure_existingPage_noRollback_returnsFailed() throws Exception {
+        // Simulate an existing derived page (update path)
+        pageReaderResult = new HashMap<>( Map.of(
+            DerivedPage.DERIVED_FROM,             FILENAME,
+            DerivedPage.DERIVED_SOURCE_SHA,       "oldshavalue",
+            DerivedPage.DERIVED_EXTRACTOR,        "tika",
+            DerivedPage.DERIVED_EXTRACTOR_VERSION, 1
+        ) );
+        final DerivedPageIngestionService.AttachmentStore failStore =
+            ( pn, fn, b ) -> { throw new RuntimeException( "disk full" ); };
+        final DerivedPageIngestionService svc = new DerivedPageIngestionService(
+            extractor, failStore, pageReader, pageWriter, pageDeleter );
+
+        final IngestResult result = svc.ingest( SOURCE, FILENAME, CONTENT_TYPE, new IngestOptions( false, "bot" ) );
+
+        assertEquals( IngestResult.Status.FAILED, result.status(),
+            "must be FAILED when attachment storage throws on update" );
+        // pageWriter is called (the update is written before the attachment step)
+        assertEquals( 1, writtenPageNames.size(),
+            "pageWriter must be called on the update path" );
+        // pageDeleter must NOT be called — do not destroy the pre-existing page
+        assertTrue( deletedPageNames.isEmpty(),
+            "pageDeleter must NOT be called when rolling back would destroy a pre-existing page" );
     }
 }

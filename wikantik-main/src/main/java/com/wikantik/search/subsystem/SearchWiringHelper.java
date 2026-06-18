@@ -259,8 +259,10 @@ public final class SearchWiringHelper {
             new com.wikantik.knowledge.bundle.DenseChunkSectionSource( embedder, vectorIndex, chunkRepo, denseTopK );
         if ( bm25Enabled ) {
             try {
+                final String bm25Analyzer = props.getProperty( "wikantik.bundle.bm25.analyzer", "standard" );
                 final com.wikantik.search.hybrid.LuceneBm25ChunkIndex bm25Index =
-                    com.wikantik.search.hybrid.LuceneBm25ChunkIndex.fromDataSource( ds );
+                    com.wikantik.search.hybrid.LuceneBm25ChunkIndex.fromDataSource( ds,
+                        com.wikantik.search.hybrid.LuceneBm25ChunkIndex.analyzerFor( bm25Analyzer ) );
                 // Bundle-specific fusion (NOT the page-level fuser). The 2026-06-18 sweep
                 // (eval/bm25-chunk-spike/) found bm25=0.5/dense=1.5/rrfK=20/truncate=20 keeps the
                 // similarity recall gain (+0.026 @12) with NO boundary@5 regression — the reused

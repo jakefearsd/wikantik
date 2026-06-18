@@ -69,6 +69,28 @@ class LuceneBm25ChunkIndexTest {
     }
 
     @Test
+    void codeAnalyzerBridgesCamelCaseAndSnakeCaseWhereStandardCannot() {
+        final java.util.List< IndexedChunk > docs = java.util.List.of(
+            new IndexedChunk( C1, "ActorModelProgramming", "The ActorSystem is the core component" ),
+            new IndexedChunk( C2, "LangGraphArchitecture", "call add_conditional_edges to branch the graph" ),
+            new IndexedChunk( C3, "Unrelated", "completely different content about cooking" ) );
+
+        // StandardAnalyzer: "ActorSystem"/"add_conditional_edges" stay single tokens → spaced queries miss.
+        final LuceneBm25ChunkIndex std = new LuceneBm25ChunkIndex( docs );
+        assertTrue( std.topKChunks( "actor system", 5 ).isEmpty(), "StandardAnalyzer should not match camelCase" );
+        assertTrue( std.topKChunks( "conditional edges", 5 ).isEmpty(), "StandardAnalyzer should not match snake_case" );
+
+        // Code analyzer: splits camelCase + underscore → spaced queries match.
+        final LuceneBm25ChunkIndex code = new LuceneBm25ChunkIndex( docs, LuceneBm25ChunkIndex.analyzerFor( "code" ) );
+        final List< ScoredChunk > a = code.topKChunks( "actor system", 5 );
+        assertFalse( a.isEmpty(), "code analyzer should match camelCase ActorSystem" );
+        assertEquals( C1, a.get( 0 ).chunkId() );
+        final List< ScoredChunk > b = code.topKChunks( "conditional edges", 5 );
+        assertFalse( b.isEmpty(), "code analyzer should match snake_case add_conditional_edges" );
+        assertEquals( C2, b.get( 0 ).chunkId() );
+    }
+
+    @Test
     void blankAndNullTextChunksAreSkipped() {
         final LuceneBm25ChunkIndex idx = new LuceneBm25ChunkIndex( java.util.Arrays.asList(
             new IndexedChunk( C1, "P", "real text here" ),

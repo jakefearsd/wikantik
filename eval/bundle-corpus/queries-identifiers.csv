@@ -1,0 +1,14 @@
+query_id,query,category,gold_canonical_id,gold_heading_path,notes
+e01,which property configures the allowed CORS origins,IDENTIFIER,01KQ0P44TNFQMPBHGY5R4G4A4F,Configuration Reference > Key properties,config-key wikantik.cors.allowedorigins
+e02,what setting points to the filesystem page directory,IDENTIFIER,01KQ0P44TNFQMPBHGY5R4G4A4F,Configuration Reference > Key properties,config-key wikantik.filesystemprovider.pagedir
+e03,default knowledge graph inclusion policy property,IDENTIFIER,01KQ0P44SBG2CF3EAWZF9SYJND,Wider Wikantik properties that affect agent behaviour,config-key wikantik.kg.policy.default
+e04,how is the OAuth callback servlet implemented,IDENTIFIER,01KQ0P44QHCCMJHPMCQ195JNVW,C.2.9 OAuthCallbackServlet.java,camelCase OAuthCallbackServlet
+e05,the OAuth login module class,IDENTIFIER,01KQ0P44QHCCMJHPMCQ195JNVW,C.2.7 OAuthLoginModule.java,camelCase OAuthLoginModule
+e06,template method for the abstract wiki provider lifecycle,IDENTIFIER,01KQ0P44V9JQGB0CNVF9B3EM3N,Recommended Pattern: Template Method with Lifecycle Hooks,camelCase AbstractWikiProvider
+e07,the actor system core component in akka,IDENTIFIER,01KQEBFEF393K97NXXAY5F2BCA,The Core Components,camelCase ActorSystem
+e08,junit extension after test execution callback,IDENTIFIER,01KQ0P44RE042D7VP9DMCMGB2D,Custom extensions,camelCase AfterTestExecutionCallback
+e09,langgraph add conditional edges for the react graph,IDENTIFIER,01KQ0P44L1796D0PBJ1NEJDY22,Concrete Example: A Basic ReAct Graph,snake_case add_conditional_edges
+e10,the admin user resource in scim decommission,IDENTIFIER,01KT79SMWW6FSVEKQ89RJ4PT4N,Decommission: the unified path (priority),camelCase AdminUserResource
+e11,agent grade audit resource structural index consumer,IDENTIFIER,01KQ0P60Q4PP4BXR1WQKBPV1WS,Structural Index consumers,camelCase AgentGradeAuditResource
+e12,the aggregate table in the transactional outbox pattern,IDENTIFIER,01KQ0P44PYDRSSJFPFRAXSZ4GK,Exactly-Once Semantics,camelCase AggregateTable
+e13,n plus one problem fetch all with customer and items,IDENTIFIER,01KQ0P44REX4RD20SRJ4298ENV,Solutions,camelCase AllWithCustomerAndItems

@@ -20,6 +20,7 @@ package com.wikantik.search.hybrid;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.custom.CustomAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.Document;
@@ -83,7 +84,11 @@ public final class LuceneBm25ChunkIndex {
     private final int size;
 
     public LuceneBm25ChunkIndex( final List< IndexedChunk > chunks ) {
-        this.analyzer = new StandardAnalyzer();
+        this( chunks, new StandardAnalyzer() );
+    }
+
+    public LuceneBm25ChunkIndex( final List< IndexedChunk > chunks, final Analyzer analyzer ) {
+        this.analyzer = analyzer;
         this.directory = new ByteBuffersDirectory();
         try {
             final IndexWriterConfig cfg = new IndexWriterConfig( analyzer ).setSimilarity( new BM25Similarity() );
@@ -110,6 +115,11 @@ public final class LuceneBm25ChunkIndex {
 
     /** Loads every chunk's text from {@code kg_content_chunks} and builds the index. */
     public static LuceneBm25ChunkIndex fromDataSource( final DataSource ds ) {
+        return fromDataSource( ds, new StandardAnalyzer() );
+    }
+
+    /** As {@link #fromDataSource(DataSource)} with an explicit analyzer (e.g. the code-aware one). */
+    public static LuceneBm25ChunkIndex fromDataSource( final DataSource ds, final Analyzer analyzer ) {
         final List< IndexedChunk > chunks = new ArrayList<>();
         final String sql = "select id, page_name, text from kg_content_chunks";
         try ( Connection conn = ds.getConnection();
@@ -122,7 +132,32 @@ public final class LuceneBm25ChunkIndex {
         } catch ( final java.sql.SQLException e ) {
             throw new IllegalStateException( "Failed to load chunks for BM25 index", e );
         }
-        return new LuceneBm25ChunkIndex( chunks );
+        return new LuceneBm25ChunkIndex( chunks, analyzer );
+    }
+
+    /**
+     * Analyzer selector. {@code "code"} → a code-aware analyzer that splits camelCase and
+     * snake_case so natural-language queries ("actor system", "add conditional edges") match
+     * identifier tokens ({@code ActorSystem}, {@code add_conditional_edges}); {@code preserveOriginal}
+     * keeps the whole token too, so exact-symbol queries still match. Anything else → StandardAnalyzer.
+     */
+    public static Analyzer analyzerFor( final String name ) {
+        if ( !"code".equalsIgnoreCase( name ) ) return new StandardAnalyzer();
+        try {
+            return CustomAnalyzer.builder()
+                .withTokenizer( "whitespace" )
+                .addTokenFilter( "worddelimitergraph",
+                    "generateWordParts", "1", "generateNumberParts", "1",
+                    "splitOnCaseChange", "1", "splitOnNumerics", "1",
+                    "catenateWords", "0", "catenateNumbers", "0", "catenateAll", "0",
+                    "preserveOriginal", "1" )
+                .addTokenFilter( "lowercase" )
+                .addTokenFilter( "flattengraph" )
+                .build();
+        } catch ( final IOException e ) {
+            LOG.warn( "Failed to build code analyzer; falling back to StandardAnalyzer: {}", e.getMessage() );
+            return new StandardAnalyzer();
+        }
     }
 
     /** Top-{@code k} chunks by BM25 score, highest first. Never throws → empty on any failure. */

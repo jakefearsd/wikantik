@@ -74,9 +74,9 @@ more BM25 at the top (bm25_top=50), but that trades the @12 gain — not worth i
 **Conclusion:** the chunk-BM25 hybrid is a real, modest, *clean* recall win (now pure upside, no
 downside category). The magnitude is small because the contextual-document embeddings already capture
 most lexical signal — BM25 adds the exact-term tail (~1 gold). Tuned defaults are baked into
-`SearchWiringHelper` (`wikantik.bundle.bm25.{bm25_weight,dense_weight,rrf_k,truncate}`); the feature stays
-behind `wikantik.bundle.bm25.enabled` (default OFF) pending a ship decision. Index build cost: ~18.4k
-chunks RAM-indexed at startup (a few MB, ~1–2s).
+`SearchWiringHelper` (`wikantik.bundle.bm25.{bm25_weight,dense_weight,rrf_k,truncate}`). **Shipped
+default-ON 2026-06-19** (`wikantik.bundle.bm25.enabled=true`); degrades to dense-only if the index
+build fails. Index build cost: ~18.4k chunks RAM-indexed at startup (a few MB, ~1–2s).
 
 ## Reproducibility
 

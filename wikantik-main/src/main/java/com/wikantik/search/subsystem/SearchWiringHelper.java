@@ -249,8 +249,27 @@ public final class SearchWiringHelper {
         // here where the embedder + vector index are in scope; read at the retrieval-patch seam.
         final int denseTopK = com.wikantik.util.TextUtil.getIntegerProperty(
             props, "wikantik.bundle.dense.top_k", 300 );
-        engine.setBundleSectionSource( new com.wikantik.knowledge.bundle.DenseChunkSectionSource(
-            embedder, vectorIndex, chunkRepo, denseTopK ) );
+        // Spike (Phase-4 follow-on): chunk-level hybrid. The dense-chunk source is lexically
+        // blind; wikantik.bundle.bm25.enabled wraps it with a RAM BM25 chunk index + RRF fusion
+        // so we can measure whether lexical chunk matching lifts bundle recall. Default OFF;
+        // falls back to dense-only if the index build fails.
+        final boolean bm25Enabled = Boolean.parseBoolean(
+            props.getProperty( "wikantik.bundle.bm25.enabled", "false" ) );
+        com.wikantik.knowledge.bundle.SectionCandidateSource bundleSource =
+            new com.wikantik.knowledge.bundle.DenseChunkSectionSource( embedder, vectorIndex, chunkRepo, denseTopK );
+        if ( bm25Enabled ) {
+            try {
+                final com.wikantik.search.hybrid.LuceneBm25ChunkIndex bm25Index =
+                    com.wikantik.search.hybrid.LuceneBm25ChunkIndex.fromDataSource( ds );
+                bundleSource = new com.wikantik.knowledge.bundle.HybridChunkSectionSource(
+                    embedder, vectorIndex, bm25Index, chunkRepo, fuser, denseTopK );
+                LOG.info( "Bundle source: HYBRID chunk (dense + BM25 RRF), bm25 chunks indexed={}",
+                    bm25Index.size() );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "BM25 chunk index build failed; using dense-only bundle source: {}", e.getMessage(), e );
+            }
+        }
+        engine.setBundleSectionSource( bundleSource );
 
         final BootstrapEmbeddingIndexer bootstrap =
             new BootstrapEmbeddingIndexer( ds, indexService, modelCode, indexReloadHook );

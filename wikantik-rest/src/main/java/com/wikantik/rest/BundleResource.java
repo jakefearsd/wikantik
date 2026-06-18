@@ -59,6 +59,13 @@ public class BundleResource extends RestServletBase {
             return;
         }
 
+        // Spike sweep hook: raw dense + BM25 chunk rankings for the offline fusion/grouping sweep.
+        // Only available when the chunk-hybrid source is active (wikantik.bundle.bm25.enabled).
+        if ( "rankings".equals( req.getParameter( "debug" ) ) ) {
+            handleDebugRankings( req, resp, q );
+            return;
+        }
+
         final BundleAssemblyService svc = bundleService();
         if ( svc == null ) {
             resp.setStatus( 503 );
@@ -81,5 +88,26 @@ public class BundleResource extends RestServletBase {
         resp.setStatus( 200 );
         resp.setContentType( "application/json; charset=UTF-8" );
         resp.getWriter().write( BUNDLE_GSON.toJson( bundle ) );
+    }
+
+    /** Emits the raw dense + BM25 chunk rankings (id + score) for the offline sweep harness. */
+    private void handleDebugRankings( final HttpServletRequest req, final HttpServletResponse resp,
+                                      final String q ) throws IOException {
+        resp.setContentType( "application/json; charset=UTF-8" );
+        final com.wikantik.api.core.Engine engine = getEngine();
+        final com.wikantik.knowledge.bundle.SectionCandidateSource src =
+            ( engine instanceof com.wikantik.WikiEngine we ) ? we.bundleSectionSource() : null;
+        if ( !( src instanceof com.wikantik.knowledge.bundle.HybridChunkSectionSource hybrid ) ) {
+            resp.setStatus( 409 );
+            resp.getWriter().write( "{\"error\":\"chunk-hybrid source not active (set wikantik.bundle.bm25.enabled=true)\"}" );
+            return;
+        }
+        int k = 500;
+        try {
+            final String kp = req.getParameter( "k" );
+            if ( kp != null && !kp.isBlank() ) k = Integer.parseInt( kp.trim() );
+        } catch ( final NumberFormatException ignored ) { /* keep default */ }
+        resp.setStatus( 200 );
+        resp.getWriter().write( BUNDLE_GSON.toJson( hybrid.debugRankings( q, k ) ) );
     }
 }

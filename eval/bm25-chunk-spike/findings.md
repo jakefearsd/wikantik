@@ -47,6 +47,37 @@ exact-term/rare-token tail (mostly SIMILARITY). It is **not** a relational-retri
 - **Shelve dormant** (default-off, kept) — the lift may be too small to justify the extra startup
   cost (RAM-indexing 18.4k chunks) and a second index to keep warm.
 
+## Fusion/grouping sweep (2026-06-18) — found a strictly-better config
+
+The first run reused the **page-level** fuser (bm25=1.0, dense=1.5, rrfK=60, **truncate=20**), which
+over-weighted lexical and cost boundary@5 (0.692→0.615). An offline sweep (`bin/eval/sweep-bm25-fusion.py`)
+fetched the raw dense+BM25 chunk rankings once per query via a gated `/api/bundle?debug=rankings`
+endpoint, then swept fusion weights × rrfK × **asymmetric dense/BM25 truncation** × grouping strategy
+(first/max/sum) — 768 combos, zero restarts. Both live combos reproduced exactly offline
+(dense-only 0.706, hybrid 0.721) → harness trusted.
+
+**Key finding — `bm25_w=0.5, dense_w=1.5, rrfK=20, truncate=20`** (live-confirmed, exact match):
+
+| | overall @5/@12 | similarity | relational | boundary |
+|---|---|---|---|---|
+| dense-only | 0.456 / 0.706 | 0.395 / 0.711 | 0.412 / 0.529 | 0.692 / 0.923 |
+| **tuned hybrid** | 0.471 / 0.721 | 0.421 / 0.737 | 0.412 / 0.529 | 0.692 / 0.923 |
+
+A **strict improvement over dense-only**: similarity +0.026 at both cutoffs, overall +0.015, and
+**no category regresses** — halving the BM25 weight recovers the boundary@5 dip the reused weights caused.
+
+**What the sweep ruled out:** grouping strategy (first/max/sum) — `first` wins, aggregation does
+nothing; larger dense fan-out (dT 20 vs 300) — no @12 change; rrfK 20 vs 60 — negligible. The @12 lift
+is **capped at ~+0.015 (≈1 gold section)** regardless of tuning. @5 can reach 0.485 (+0.029) by pushing
+more BM25 at the top (bm25_top=50), but that trades the @12 gain — not worth it for a 12-section bundle.
+
+**Conclusion:** the chunk-BM25 hybrid is a real, modest, *clean* recall win (now pure upside, no
+downside category). The magnitude is small because the contextual-document embeddings already capture
+most lexical signal — BM25 adds the exact-term tail (~1 gold). Tuned defaults are baked into
+`SearchWiringHelper` (`wikantik.bundle.bm25.{bm25_weight,dense_weight,rrf_k,truncate}`); the feature stays
+behind `wikantik.bundle.bm25.enabled` (default OFF) pending a ship decision. Index build cost: ~18.4k
+chunks RAM-indexed at startup (a few MB, ~1–2s).
+
 ## Reproducibility
 
 `wikantik.bundle.bm25.enabled=true` + restart → `HybridChunkSectionSource`. Code:

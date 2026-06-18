@@ -90,6 +90,34 @@ public final class HybridChunkSectionSource implements SectionCandidateSource {
         return groupToSections( fusedIds, byId );
     }
 
+    /** One ranked chunk for the debug/sweep endpoint: id + raw ranker score. */
+    public record DebugRank( String chunkId, double score ) {}
+
+    /**
+     * Spike sweep support: return the raw dense and BM25 chunk rankings (id + score, best
+     * first) for {@code query}, each truncated to {@code k}. The offline sweep harness fuses +
+     * groups these itself, so it can explore fusion weights / rrf_k / top_k / grouping strategy
+     * without a server restart per combo. Not wired to any production surface beyond the
+     * gated {@code /api/bundle?debug=rankings} endpoint.
+     */
+    public Map< String, List< DebugRank > > debugRankings( final String query, final int k ) {
+        final int kk = k > 0 ? k : topK;
+        final Optional< float[] > qv = embedder.embed( query );
+        final List< ScoredChunk > dense = qv.isPresent() ? denseIndex.topKChunks( qv.get(), kk ) : List.of();
+        final List< ScoredChunk > bm25 = bm25Index.topKChunks( query, kk );
+        final Map< String, List< DebugRank > > out = new LinkedHashMap<>();
+        out.put( "dense", toDebugRanks( dense ) );
+        out.put( "bm25", toDebugRanks( bm25 ) );
+        return out;
+    }
+
+    private static List< DebugRank > toDebugRanks( final List< ScoredChunk > scored ) {
+        return scored.stream()
+            .sorted( Comparator.comparingDouble( ScoredChunk::score ).reversed() )
+            .map( sc -> new DebugRank( sc.chunkId().toString(), sc.score() ) )
+            .toList();
+    }
+
     /** Score chunks desc, return their ids as a rank-ordered list (best first). */
     private static List< String > rankedIds( final List< ScoredChunk > scored ) {
         return scored.stream()

@@ -261,9 +261,23 @@ public final class SearchWiringHelper {
             try {
                 final com.wikantik.search.hybrid.LuceneBm25ChunkIndex bm25Index =
                     com.wikantik.search.hybrid.LuceneBm25ChunkIndex.fromDataSource( ds );
+                // Bundle-specific fusion (NOT the page-level fuser). The 2026-06-18 sweep
+                // (eval/bm25-chunk-spike/) found bm25=0.5/dense=1.5/rrfK=20/truncate=20 keeps the
+                // similarity recall gain (+0.026 @12) with NO boundary@5 regression — the reused
+                // page-level bm25=1.0 over-weighted lexical and dropped boundary@5 0.692→0.615.
+                final com.wikantik.search.hybrid.HybridFuser bundleFuser = new com.wikantik.search.hybrid.HybridFuser(
+                    com.wikantik.util.TextUtil.getIntegerProperty( props, "wikantik.bundle.bm25.rrf_k", 20 ),
+                    doubleProp( props, "wikantik.bundle.bm25.bm25_weight", 0.5 ),
+                    doubleProp( props, "wikantik.bundle.bm25.dense_weight", 1.5 ),
+                    com.wikantik.util.TextUtil.getIntegerProperty( props, "wikantik.bundle.bm25.truncate", 20 ) );
                 bundleSource = new com.wikantik.knowledge.bundle.HybridChunkSectionSource(
-                    embedder, vectorIndex, bm25Index, chunkRepo, fuser, denseTopK );
-                LOG.info( "Bundle source: HYBRID chunk (dense + BM25 RRF), bm25 chunks indexed={}",
+                    embedder, vectorIndex, bm25Index, chunkRepo, bundleFuser, denseTopK );
+                LOG.info( "Bundle source: HYBRID chunk (dense + BM25 RRF, bm25_w={}, dense_w={}, rrfK={}, trunc={}),"
+                        + " bm25 chunks indexed={}",
+                    doubleProp( props, "wikantik.bundle.bm25.bm25_weight", 0.5 ),
+                    doubleProp( props, "wikantik.bundle.bm25.dense_weight", 1.5 ),
+                    com.wikantik.util.TextUtil.getIntegerProperty( props, "wikantik.bundle.bm25.rrf_k", 20 ),
+                    com.wikantik.util.TextUtil.getIntegerProperty( props, "wikantik.bundle.bm25.truncate", 20 ),
                     bm25Index.size() );
             } catch ( final RuntimeException e ) {
                 LOG.warn( "BM25 chunk index build failed; using dense-only bundle source: {}", e.getMessage(), e );
@@ -307,6 +321,18 @@ public final class SearchWiringHelper {
 
         LOG.info( "Hybrid retrieval wired (model={}, embed_backend={}, dense_backend={})",
             modelCode, cfg.backend(), denseBackend );
+    }
+
+    /** Parse a double property with a default; malformed values fall back (and are logged). */
+    private static double doubleProp( final java.util.Properties props, final String key, final double def ) {
+        final String raw = props == null ? null : props.getProperty( key );
+        if ( raw == null || raw.isBlank() ) return def;
+        try {
+            return Double.parseDouble( raw.trim() );
+        } catch ( final NumberFormatException e ) {
+            LOG.warn( "Invalid {} '{}'; using {}", key, raw, def );
+            return def;
+        }
     }
 
     // -----------------------------------------------------------------------

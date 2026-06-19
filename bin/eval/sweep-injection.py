@@ -65,7 +65,8 @@ def dense_rank_by_section(dense, cmap, scan_k):
     return rank
 
 def inject(base_keys, bm25code, cmap, drank, has_sym, cfg):
-    J, C, A, N, P, JB, AB, SCAN = cfg
+    J, C, A, N, P, JB, AB, SCAN, RS = cfg
+    if RS and not has_sym: return base_keys      # require_symbol: skip symbol-free queries entirely
     rankmax, alpha = (JB, AB) if has_sym else (J, A)
     code_secs = to_sections(bm25code, cmap)        # [(key, score)] best chunk per section, bm25 order
     if not code_secs: return base_keys
@@ -104,23 +105,36 @@ def main():
             secs = inject(basek, bm25code, cmap, drank, sym, cfg)
             for n in NS: ov[n].extend(recall(secs, qd["golds"], n))
         return {n: round(sum(ov[n]) / len(ov[n]), 4) for n in NS}
-    OFF = (20, 50, 0.3, 0, 3, 50, 0.1, 300)   # N=0 == inject off
+    OFF = (20, 50, 0.3, 0, 3, 50, 0.1, 300, False)   # N=0 == inject off
     base_nat, base_ide = evalu("natural", OFF), evalu("identifier", OFF)
     print(f"baseline (no inject):  natural {base_nat}  identifier {base_ide}")
     best = []
-    for J in (10, 20, 50):
-      for C in (20, 50, 100):
-        for A in (0.2, 0.3, 0.5):
-          for N in (1, 2, 3):
-            for P in (1, 3, 6):
-              cfg = (J, C, A, N, P, max(J, 50), min(A, 0.1), 300)
-              best.append((cfg, evalu("natural", cfg), evalu("identifier", cfg)))
-    ok = [b for b in best if b[1][12] >= 0.715]
-    ok.sort(key=lambda b: (-b[2][12], -b[2][5], -b[1][12]))
-    print(f"\n{len(ok)}/{len(best)} combos hold natural@12>=0.715; top 12 by identifier@12 (then @5, then nat@12):")
-    print(f"{'J':>3}{'C':>4}{'a':>5}{'N':>3}{'P':>3}  {'nat@5':>7}{'nat@12':>7}{'ide@5':>7}{'ide@12':>7}")
-    for cfg, nat, ide in ok[:12]:
-        print(f"{cfg[0]:>3}{cfg[1]:>4}{cfg[2]:>5}{cfg[3]:>3}{cfg[4]:>3}  {nat[5]:>7}{nat[12]:>7}{ide[5]:>7}{ide[12]:>7}")
+    for RS in (False, True):
+      for J in (10, 20, 50):
+        for C in (20, 50, 100):
+          for A in (0.2, 0.3, 0.5):
+            for N in (1, 2, 3):
+              for P in (1, 3, 6):
+                cfg = (J, C, A, N, P, max(J, 50), min(A, 0.1), 300, RS)
+                best.append((cfg, evalu("natural", cfg), evalu("identifier", cfg)))
+    hdr = f"{'J':>3}{'C':>4}{'a':>5}{'N':>3}{'P':>3}{'reqSym':>7}  {'nat@5':>7}{'nat@12':>7}{'ide@5':>7}{'ide@12':>7}{'sum@12':>8}"
+    def show(title, rows):
+        print(f"\n{title}")
+        print(hdr)
+        for cfg, nat, ide in rows:
+            print(f"{cfg[0]:>3}{cfg[1]:>4}{cfg[2]:>5}{cfg[3]:>3}{cfg[4]:>3}{str(cfg[8]):>7}  {nat[5]:>7}{nat[12]:>7}{ide[5]:>7}{ide[12]:>7}{nat[12]+ide[12]:>8.4f}")
+    # best by combined sum @12 (the user's "maximize combined" objective)
+    by_sum = sorted(best, key=lambda b: -(b[1][12] + b[2][12]))
+    show(f"baseline sum@12 = {base_nat[12]+base_ide[12]:.4f}; top 8 by combined (nat@12 + ide@12):", by_sum[:8])
+    # best identifier@12 ignoring the natural floor (to see the tradeoff frontier)
+    by_ide = sorted(best, key=lambda b: (-b[2][12], b[1][12] - b[2][12]))
+    show("top 8 by identifier@12 (any natural cost):", by_ide[:8])
+    # symbol-gated only: best by identifier@12 with natural preserved
+    rs = [b for b in best if b[0][8]]
+    rs.sort(key=lambda b: (-b[1][12], -b[2][12]))   # natural-first (preserve it), then identifier
+    show("reqSym=True only, top 8 by natural@12 then identifier@12:", rs[:8])
+    rs.sort(key=lambda b: (-b[2][12], -b[1][12]))
+    show("reqSym=True only, top 8 by identifier@12:", rs[:8])
 
 if __name__ == "__main__":
     main()

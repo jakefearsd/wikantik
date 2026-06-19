@@ -68,3 +68,24 @@ the natural-language corpus, the shipped dense-heavy hybrid is correct and analy
 `code` = WordDelimiterGraphFilter) + the already-configurable `wikantik.bundle.bm25.{bm25_weight,
 dense_weight,rrf_k,truncate}`. Harness: `bin/eval/measure-corpus.py <base> <corpus.csv>` (any corpus),
 identifier corpus + the `?debug=rankings` chunk-rank diagnostic.
+
+## Lexical injection — built, evaluated, SHELVED default-off (2026-06-19)
+
+Phases 0+1 of the lexical-injection design (`docs/superpowers/specs/2026-06-19-lexical-injection-code-retrieval-design.md`)
+were implemented (`LexicalInjectionSource` + `InjectionConfig` + `SymbolDetector`, behind
+`wikantik.bundle.inject.*`, default off) and evaluated. **Verdict: shelve.**
+
+- **The corrected, expanded identifier corpus (34 queries) baseline is 0.8824@12** — the base hybrid
+  already handles ~88% of identifier queries. The original 13-query spike *overstated* the problem
+  (`verify-golds.py` caught 2 of its 13 golds as unmatchable + it was a small biased sample).
+- Best plain-injection config (`J=10,C=20,N=1,P=6`): identifier 0.8824→**0.9412**@12 (+2),
+  natural 0.7206→**0.7059**@12 (−1), natural@5 preserved. Net **+0.044 combined** — but it *costs*
+  ~1 natural@12 gold because the 12-section cap means injecting one displaces the 12th.
+- **Symbol-gated injection gives ZERO gain** (0.8824 = baseline): it gates on literal symbols, but
+  literal-symbol queries are exactly the ones the base already nails; the queries that need help are
+  *concept-phrased* (no literal symbol), which symbol-gating excludes.
+
+So injection is a marginal, tradeoff-laden, corpus-dependent lever. Kept default-off, fully built +
+unit-tested + sweep-harnessed (`bin/eval/sweep-injection.py`, `measure-corpus.py`, `verify-golds.py`,
+`queries-identifiers.csv`). **Revisit only if real agent traffic shows base identifier recall well
+below 0.88** — then flip on with the plain config and re-tune against that traffic.

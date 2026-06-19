@@ -1,5 +1,13 @@
 # Lexical Injection Code/Identifier Retrieval — Implementation Plan (Phase 0 + 1)
 
+> **OUTCOME (2026-06-19): SHELVED at Task 9 — NOT shipped.** Phases 0+1 were fully built + unit-tested
+> (Tasks 1–8) and tuned (Task 9 sweep). The corrected/expanded identifier corpus showed the base hybrid
+> already handles ~88% of identifier queries; injection is a marginal, tradeoff-laden lever (+0.044
+> combined, but −1 natural@12 from the 12-section cap), and symbol-gating gives zero gain. Kept
+> **default-off** (`wikantik.bundle.inject.enabled=false`); Task 10 (ship default-on) was NOT executed.
+> Verdict + numbers: `eval/bm25-chunk-spike/analyzer-and-efsearch-findings.md`. Revisit only if real
+> traffic shows base identifier recall well below 0.88.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the context bundle serve code-symbol/config-lookup queries by injecting dense-cold, high-confidence BM25(code) sections into the shipped dense-heavy hybrid bundle — without regressing natural-language retrieval.

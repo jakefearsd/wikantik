@@ -1,127 +1,84 @@
 ---
 name: wiki-content
-description: Use when creating, publishing, updating, or maintaining wiki content via the Wikantik MCP server — covers article clusters, single articles, maintenance, and reorganization using native MCP tools
+description: Use when creating, publishing, updating, or maintaining wiki content via the Wikantik MCP server — covers single articles, clusters, retrieval/SEO-aware frontmatter, maintenance, and reorganization using the live MCP tools
 ---
 
 ## Overview
 
-Wiki content management via native MCP tools. Covers article clusters, single articles, maintenance, and reorganization. All interactions use the Wikantik MCP server tools directly — no bash scripts, curl, or JSON-RPC payloads needed.
+Wiki content management via native MCP tools, tuned for **both search retrieval and SEO**. All
+interactions route through MCP server tools directly.
 
-> **Portability (MCP-only):** every action here routes through MCP server tools — no REST/`/api/*`,
-> curl, or bash — so this skill runs identically under Claude Code and Antigravity. The live bundle
-> check is the `assemble_bundle` MCP tool, never `GET /api/bundle`. Do not add client-specific mechanisms.
+> **Portability (MCP-only):** every action here uses MCP server tools — no REST/`/api/*`, curl, or
+> bash — so this skill runs identically under Claude Code and Antigravity. The live bundle check is the
+> `assemble_bundle` MCP tool, never `GET /api/bundle`. Do not add client-specific mechanisms.
 
-## Workflows
+> **Tool surface reconciled 2026-06-20 against the live servers** (admin-mcp = 26 tools, knowledge-mcp
+> = 20 tools). The old compound tools (`publish_cluster`, `extend_cluster`, `get_cluster_map`,
+> `audit_cluster`, `update_metadata`, `patch_page`, `write_page`, `batch_*`, `query_metadata`,
+> `scan_markdown_links`) **no longer exist** — do not call them. The real tools are listed at the
+> bottom. Authoring is on the **admin-mcp** server; discovery + retrieval checks are on the
+> **knowledge-mcp** server.
 
-### Create Article Cluster
+## ⚠️ Two traps that silently corrupt pages or mislead you
 
-Three phases for new clusters:
+1. **`update_page` rebuilds the page from its `content` argument.** Its `content` must be the
+   **full raw text including the YAML frontmatter** — exactly what `read_page` returns — NOT just the
+   body. Passing a body-only `content` **wipes every frontmatter field** (title, type, cluster, tags…),
+   leaving only what you pass in `metadata`. Always: `read_page` → edit the full text → `update_page`
+   with that full text + the `expectedContentHash`. Use the optional `metadata` object only for
+   targeted field overrides *on top of* the frontmatter already in `content`.
+2. **Passing `verify_pages` `retrieval_readiness` with zero warnings does NOT mean the page is
+   retrievable.** The static lint checks frontmatter *form*; it cannot tell whether the page actually
+   surfaces for real queries. A clean lint is necessary, not sufficient — the **live `assemble_bundle`
+   check is the real gate** (see Retrieval Verification Loop).
 
-#### 1. DISCOVER — Survey existing content
-- `get_cluster_map` to see all clusters, metadata conventions, and page organization in one call
-- `search_pages` for topic keywords if checking for content overlap
-- **Output:** existing content map, metadata conventions to follow
+## Core authoring workflows
 
-#### 2. PLAN — Design the cluster
-- Define hub page + sub-articles, CamelCase page names
-- Write Markdown body for each page
-- Define tags, summary, date, author for each page
-- Assign a `cluster` identifier (kebab-case slug)
-- **Critical:** Every sub-article body must link back to the hub (e.g. in a "See Also" section)
-- **Output:** page name list, body content, metadata
+### Create a page (or a set of pages)
 
-#### 3. PUBLISH — Single call via `publish_cluster`
-```
-publish_cluster(
-  clusterName: "my-cluster",
-  hub: {name: "MyClusterHub", body: "...", metadata: {tags: [...], summary: "...", ...}},
-  articles: [{name: "Article1", body: "...", metadata: {...}}, ...],
-  author: "claude-code-researcher"
-)
-```
-
-The server automatically:
-- Sets `type` (hub/article), `cluster`, `status` (active), and `related` metadata
-- Updates the Main page with a new section listing all pages
-- Verifies the result (body links, backlinks, metadata completeness)
-
-**Output:** creation results + verification warnings. Fix any warnings, then document.
-
-#### 4. DOCUMENT — Record what was done
-- Append cluster details to `docs/research_history.md`
-- Record topic, all pages created, cross-links, lessons learned
-
-### Extend Cluster
-
-Add an article to an existing cluster — single call via `extend_cluster`:
+`write_pages` batch-creates new pages (fails any that already exist — use `update_page` for those).
+It validates frontmatter inline and returns per-page `frontmatterWarnings`.
 
 ```
-extend_cluster(
-  clusterName: "my-cluster",
-  article: {name: "NewArticle", body: "...", metadata: {tags: [...], summary: "...", ...}},
-  author: "claude-code-researcher"
-)
+write_pages(pages: [
+  { pageName: "MyArticle",
+    content: "# My Article\n\n## Section\n\nbody…",          # body only on create
+    metadata: { title: "My Article", type: "article", cluster: "my-cluster",
+                tags: ["a","b"], summary: "<50–160 char, vocabulary-rich>", date: "2026-06-20" } }
+])
 ```
+`write_pages` does NOT auto-derive `type`/`cluster`/`related` (the retired `publish_cluster` did) — set
+every field explicitly. For a cluster, create the hub (`type: hub`) and articles (`type: article`,
+same `cluster`) and write the cross-links into each body yourself (hub links to all; each article
+links back to the hub in a "See Also" section).
 
-The server automatically:
-- Discovers existing cluster members and hub
-- Creates the new article with correct metadata (type, cluster, related, status)
-- Patches the hub body to list the new article
-- Updates `related` metadata on all siblings
-- Updates the Main page
-- Verifies the result
+### Update an existing page
 
-For manual control, use the fine-grained tools: `read_page` → `write_page` → `batch_patch_pages` → `batch_update_metadata` → `patch_page` Main → `verify_pages`.
+```
+read_page(slug)                    # → { content (full raw, with frontmatter), contentHash, version }
+# edit the full raw text (frontmatter and/or body)
+update_page(slug, content=<FULL raw text incl. frontmatter>, expectedContentHash=<hash>,
+            metadata={ summary: "…" })   # metadata optional, merges onto content's frontmatter
+```
+Optimistic locking: a stale `expectedContentHash` returns `{updated:false, error:"hash mismatch"}` —
+re-`read_page` and retry. See trap #1: never pass a body-only `content`.
 
-### Single Article
+### Rename / reorganize
 
-- Use the `create-article` MCP prompt for guided creation
-- Or call `write_page` directly for simple pages
-- Always include metadata: type, tags, summary, related
+`rename_page(oldName, newName, updateLinks=true, confirm=true)` moves content and rewrites referrers.
+`mark_page_verified(slugs, verifier, confidence?)` stamps `verified_at`/`verified_by`.
+`delete_pages(slugs, confirm=true)` removes pages.
 
-### Wiki Maintenance
+### Discovery (knowledge-mcp)
 
-**Broad health check:** Use the `wiki-audit` skill for periodic or comprehensive audits — it uses compound tools (`get_cluster_map`, `audit_cluster`, `audit_cross_cluster`, `apply_audit_fixes`) that handle all checks in minimal calls.
+`list_pages` / `list_pages_by_filter` (prefix/metadata filters), `list_clusters`, `list_tags`,
+`list_metadata_values` (field names + values in use), `search_knowledge` (hybrid search),
+`read_pages` (batched reads). Use these to survey existing content and avoid duplication before authoring.
 
-**Targeted checks after edits:**
-- `verify_pages` for specific pages after publish/update
-- `get_broken_links` to find broken references
-- `get_orphaned_pages` to find disconnected content
-- `get_cluster_map` for a quick overview of cluster organization
+## Retrieval-Aware Frontmatter (read before writing summaries/headings)
 
-### Content Reorganization
-
-- `rename_page` with updateLinks=true for renames
-- `batch_patch_pages` for restructuring cross-references
-- `batch_update_metadata` for cluster reassignment
-
-### Cross-Cluster Linking
-
-When clusters have thematic overlap:
-- Add cross-cluster links in hub pages' "See Also" sections using `batch_patch_pages`
-- Add cross-cluster entries in `related` metadata using `batch_update_metadata`
-- This creates the semantic web — clusters are not silos, they are interconnected knowledge
-
-## Metadata Conventions
-
-Standard frontmatter for cluster articles:
-
-| Field     | Purpose                          | Example                        |
-|-----------|----------------------------------|--------------------------------|
-| `type`    | Page classification              | `hub` (hub pages), `article` (sub-articles) |
-| `tags`    | Topic tags (list)                | `[finance, budgeting]`         |
-| `date`    | Publication date (ISO)           | `2026-03-14`                   |
-| `related` | Linked CamelCase page names      | `[PersonalFinanceHub, Saving]` |
-| `cluster` | Cluster identifier (kebab-case)  | `retirement-planning`          |
-| `status`  | Lifecycle state                  | `draft`, `active`, `archived`  |
-| `summary` | One-line description             | `Overview of budgeting basics` |
-
-All pages in a cluster must use the same metadata schema for queryability via `query_metadata`.
-
-## Retrieval-Aware Frontmatter (read this before writing summaries/headings)
-
-Four author-controlled levers are **prepended verbatim into every chunk's embedding** before it
-enters the dense index (`EmbeddingTextBuilder.forDocument`), in this exact shape:
+Four author-controlled levers are **prepended verbatim into every chunk's embedding** before it enters
+the dense index (`EmbeddingTextBuilder.forDocument`):
 
 ​```
 Page: {title} | Cluster: {cluster} | Section: {heading > path}
@@ -131,155 +88,138 @@ Summary: {summary}
 ​```
 
 This contextual-embedding lever lifted section recall@12 from ~0.60 to ~0.74 — the single biggest
-retrieval gain in the stack, larger than any model change. So `title`, `cluster`, `summary`, and the
-body's **heading structure** are not just SEO metadata — they are the primary retrieval levers.
-Because retrieval is **dense + BM25 hybrid**, literal vocabulary in body and headings also counts.
+retrieval gain in the stack. So `title`, `cluster`, `summary`, and the body's **heading structure** are
+the primary retrieval levers, not just SEO metadata. Because retrieval is **dense + BM25 hybrid**,
+literal vocabulary in the summary and headings also counts.
+
+Because `summary` is prepended to **every** chunk on the page, enriching it is the highest-leverage,
+lowest-risk edit — it lifts the whole page. Headings only affect their own section's `Section:` prefix,
+so the gold section's heading is the lever for *within-page* (section) ranking.
+
+**Write the discriminating vocabulary.** In a crowded topic cluster (e.g. canary vs blue-green vs
+dark-launch deployment pages), a relevant page is out-competed by siblings unless its summary/title/
+headings carry the terms that distinguish *this* page and match how people phrase the query. Name the
+concrete concepts and likely query words explicitly.
 
 **The dual-purpose overlap (retrieval + SEO in one field):**
 
 | Field | Retrieval role (embedded) | SEO role | Authoring rule |
 |-------|---------------------------|----------|----------------|
-| `summary` | Page-level disambiguation on every chunk | `<meta description>` | Describe the page's value + name its key concepts/vocabulary, specifically. ~80–160 chars. Not a title restatement, not marketing fluff. |
+| `summary` | Page-level disambiguation on every chunk | `<meta description>` | Describe the value + name key concepts/likely query vocabulary, specifically. 50–160 chars. Not a title restatement, not fluff. |
 | `cluster` | Domain prefix on every chunk | JSON-LD `articleSection` | Always set; kebab-case (`hybrid-retrieval`, sub-clusters `parent/child`). |
 | `title` | Topic signal on every chunk | `<title>`, JSON-LD | Natural-language, specific — never just the slug. |
-| headings | Each chunk's `Section:` path | (page structure) | Self-contained and specific. Avoid `Overview`/`Introduction`/`Details`/`Notes`/`Summary`/`Background` — they give chunks weak section context. |
+| headings | Each chunk's `Section:` path | (page structure) | Self-contained and specific. **Avoid vague structural headings** — `Overview`, `Introduction`, `Walkthrough`, `Steps`, `The Stages`, `The Basics`, `Usage`, `Getting Started`, `How It Works`, `Details`, `Notes`, `Background`, `Summary` — they give the chunk no topical context. Put the section's actual subject (and likely query words) in the heading. |
 
 **Do NOT chase rejected levers** (measured dead ends): rerankers, bigger embedding models, HyDE,
-doc2query, KG graph rerank, lexical injection. The frontmatter levers above are the ones that move recall.
+doc2query, KG graph rerank, lexical injection. The frontmatter levers above are what move recall.
 
 ## Retrieval Verification Loop
 
-Run this when authoring a new page or updating an existing one:
+Run when authoring or updating a page. **The live check (step 2) is the real gate — step 1 alone is not.**
 
-1. **Static lint** — `verify_pages` with `checks=["retrieval_readiness"]`. Fix every entry in
-   `retrievalIssues` (advisory warnings: thin/title-restating summaries, generic or missing headings,
-   missing/non-kebab cluster, slug-echo titles). Combine with `["seo_readiness"]` in the same call to
-   catch both faces at once.
-2. **Live check** — confirm the page's answering section actually surfaces, using the `assemble_bundle`
-   MCP tool (knowledge-mcp surface). **MCP-only — never REST/`/api/bundle`.**
-   - New page (no traffic yet): write 3–5 expected queries it should answer, call `assemble_bundle` with
-     each, and confirm the page's section appears in the returned bundle. If not, strengthen the
-     summary/headings and re-index.
-   - Existing content (maintenance): use `list_retrieval_queries` (see below) to pull **real** queries,
-     then `assemble_bundle`-check the ones a given page should answer.
-3. **Maintenance sweep** — `list_retrieval_queries` with `max_avg_results` set (e.g. `1`) lists real
-   queries the corpus answers poorly. For each, identify the page that *should* answer it, call
-   `assemble_bundle` to confirm it's a real miss, then apply step 1's lint + fixes and re-verify.
+1. **Static lint** — `verify_pages(slugs, checks=["retrieval_readiness","seo_readiness"])`. Fix every
+   entry in `retrievalIssues` (thin/title-restating summaries, vague/missing headings, missing/non-kebab
+   cluster, slug-echo titles) and `seoIssues`. Cheap pre-filter; both faces in one call.
+2. **Live check** — `assemble_bundle(query="<a real question this page should answer>")` on the
+   **knowledge-mcp** server. Confirm the page's answering **section** appears in the returned `sections`
+   (each has `slug`, `canonicalId`, `headingPath`, `score`). If it's missing or low:
+   - Enrich the `summary` with the query's discriminating vocabulary (lifts the whole page), and
+   - make the answering section's **heading** carry the query's terms (lifts that section vs siblings),
+   then re-index and re-check. For a brand-new page with no traffic, invent 3–5 expected queries.
+3. **Maintenance sweep** — `list_retrieval_queries(max_avg_results=1)` (admin-mcp) lists **real**
+   queries the corpus answers poorly. For each, find the page that *should* answer it, `assemble_bundle`
+   to confirm the miss, then apply steps 1–2. (On a fresh/local instance with no traffic this returns
+   nothing — it pays off against production logs.)
 
-### SEO and Web Visibility
+> **Re-index note:** changing frontmatter re-embeds the page asynchronously. With the in-memory dense
+> backend the bundle won't reflect the change until the index reloads (a restart); `pgvector`/
+> `lucene-hnsw` backends read from the DB and update without a restart.
 
-Frontmatter fields directly drive search engine, social sharing, feed, and news outputs:
+## SEO and Web Visibility
 
-| Field     | Web Output |
-|-----------|------------|
+Frontmatter drives search-engine, social, feed, and news outputs:
+
+| Field | Web output |
+|-------|------------|
 | `summary` | `<meta description>`, OG/Twitter description, JSON-LD description, Atom `<summary>` |
-| `tags`    | `<meta keywords>`, `article:tag` per tag, JSON-LD keywords, Atom `<category>`, News Sitemap `<news:keywords>` |
-| `cluster` | JSON-LD `articleSection`, `isPartOf` (non-hub), BreadcrumbList (non-hub), Atom cluster filter |
-| `type`    | JSON-LD `@type` — hub=CollectionPage, else Article |
-| `date`    | JSON-LD `datePublished` |
-| `related` | JSON-LD `hasPart` (hub) or `relatedLink` (non-hub) |
+| `tags` | `<meta keywords>`, `article:tag`, JSON-LD keywords, Atom `<category>`, News Sitemap `<news:keywords>` |
+| `cluster` | JSON-LD `articleSection`, `isPartOf`/BreadcrumbList (non-hub) |
+| `type` | JSON-LD `@type` — hub=CollectionPage, runbook=HowTo, design=TechArticle, else Article |
+| `date` | JSON-LD `datePublished` |
+| `related` | JSON-LD `hasPart` (hub) / `relatedLink` (non-hub) |
 
-**Summary quality rules:**
-- Keep between 50-160 characters — Google truncates at ~155
-- Describe the page's value proposition, not just the topic
-- Each page needs a unique summary — no duplicates across the wiki
+- `summary`: 50–160 chars, unique per page, value-describing (and — per above — query-vocabulary-rich).
+- News Sitemap: pages modified within 2 days **that have `tags`** appear; no tags → never.
+- SEO workflow: `verify_pages(checks=["seo_readiness"])` → `preview_structured_data(slug)` to see real
+  meta/JSON-LD/feed output → fix via `update_page` → re-verify until `seoIssues` is empty. Optionally
+  `ping_search_engines` after a batch to nudge IndexNow.
 
-**News Sitemap eligibility:**
-- Pages modified within the last 2 days that have frontmatter `tags` appear in the Google News Sitemap
-- Pages without tags never appear, regardless of recency
+## Metadata conventions
 
-**SEO verification workflow:**
-1. `verify_pages` with `checks=["seo_readiness"]` — find issues
-2. `preview_structured_data` on pages with warnings — see real impact
-3. Fix with `update_metadata` / `batch_update_metadata`
-4. Re-verify until `seoIssues` is empty
+| Field | Purpose | Example |
+|-------|---------|---------|
+| `title` | Natural-language page title (embedded + `<title>`) | `Canary Deployments` |
+| `type` | `hub` \| `article` \| `runbook` \| `design` | `article` |
+| `cluster` | Cluster slug, kebab-case (sub: `parent/child`) | `devops-sre` |
+| `tags` | Topic tags (list) | `[devops, deployment, canary]` |
+| `summary` | 50–160 char, vocabulary-rich description | `Canary releases: traffic splitting, automated analysis, rollback…` |
+| `date` | Publication date (ISO) | `2026-06-20` |
+| `related` | Related CamelCase page names (list) | `[BlueGreenDeployments, FeatureFlags]` |
+| `status` | `draft` \| `active` \| `archived` | `active` |
 
-### Sub-Clusters
+## Quality standards
 
-Sub-clusters use a `/` separator in the `cluster` field:
+- Every content page: `title`, `type`, `cluster`, `tags`, `summary`. Hub/articles cross-link in body
+  **and** list each other in `related` (body links build the backlink graph; `related` enables metadata
+  queries — both needed).
+- After authoring, run `verify_pages` and iterate until `allExist=true`, `totalBrokenLinks=0`,
+  `pagesWithNoBacklinks=[]`, `metadataIssues=[]`, `retrievalIssues=[]`, `seoIssues=[]`.
+- Then run the live `assemble_bundle` check (the static lint passing is not proof of retrievability).
 
-```
-cluster: retirement-planning              # top-level cluster
-cluster: retirement-planning/eu-retirement  # sub-cluster
-```
+## Available MCP tools (live, reconciled 2026-06-20)
 
-**Rules:**
-- Sub-cluster has its own hub page (`type: hub`) linking to its articles and back to parent hub
-- Parent hub links to sub-cluster hub
-- `query_metadata` with the full `parent/sub` identifier returns only sub-cluster pages
-
-## Quality Standards
-
-- All pages must have: type, tags, summary, related
-- Hub pages link to all sub-articles in body text; sub-articles link back to hub in body text
-- `related` metadata and body links serve different purposes: `related` enables metadata queries, body links create the backlink graph. **Both are required.**
-- Every cluster page uses the same cluster identifier
-- Author set to descriptive name, not default "MCP"
-- `verify_pages` after every publish/extend — iterate until:
-  - `allExist` = true
-  - `totalBrokenLinks` = 0
-  - `pagesWithNoBacklinks` = [] (especially check the hub)
-  - `metadataIssues` = []
-
-## Available MCP Tools
-
-### Compound content tools (preferred)
-| Tool | Purpose | When to use |
-|------|---------|-------------|
-| `publish_cluster` | Create hub + articles + metadata + Main update + verify | New clusters (replaces 5+ calls) |
-| `extend_cluster` | Add article + patch hub + update metadata + Main + verify | Adding to existing clusters (replaces 7 calls) |
-
-### Fine-grained content tools (for custom operations)
-| Tool | Purpose | When to use |
-|------|---------|-------------|
-| `write_page` | Create or fully replace a page | Single pages, full rewrites |
-| `patch_page` | Surgical edits (insert, append, replace sections) | Adding links, extending content |
-| `batch_write_pages` | Create multiple pages in one call | When publish_cluster doesn't fit |
-| `batch_patch_pages` | Patch multiple pages in one call | Cross-reference updates |
-| `update_metadata` | Modify frontmatter without touching body | Single-page metadata changes |
-| `batch_update_metadata` | Modify frontmatter on multiple pages | Cross-references across cluster |
-
-### Discovery tools
+### Authoring — admin-mcp
 | Tool | Purpose |
 |------|---------|
-| `read_page` | Read page content and metadata |
-| `search_pages` | Full-text search |
-| `list_pages` | List page names with optional prefix filter |
-| `query_metadata` | Find pages by frontmatter fields |
-| `list_metadata_values` | Discover field names and values in use |
+| `write_pages` | Batch-create new pages (fails existing); inline frontmatter validation |
+| `update_page` | Edit an existing page (full-content + optimistic `expectedContentHash`; `metadata` merges) |
+| `rename_page` | Rename + optionally rewrite referrers (`confirm=true`) |
+| `mark_page_verified` | Stamp `verified_at`/`verified_by` |
+| `delete_pages` | Delete pages (`confirm=true`) |
 
-### Verification tools
+### Inspect / verify — admin-mcp
 | Tool | Purpose |
 |------|---------|
-| `verify_pages` | Compound check: existence, links, backlinks, metadata, SEO readiness, and retrieval readiness for multiple pages |
-| `preview_structured_data` | Preview meta tags, JSON-LD, feed entries, News Sitemap eligibility for a page |
-| `get_wiki_stats` | Total pages, broken links, orphans, recent changes |
-| `get_broken_links` | All broken links across the wiki |
-| `get_orphaned_pages` | Pages with no incoming links |
-| `list_retrieval_queries` | Real retrieval queries (deduped, ranked); `max_avg_results` finds under-served queries — use for maintenance sweeps grounded in real traffic |
+| `read_page` | Full raw text + `contentHash` + version (read before every `update_page`) |
+| `verify_pages` | Existence, links, backlinks, metadata, **`seo_readiness`**, **`retrieval_readiness`** |
+| `preview_structured_data` | Real meta tags / JSON-LD / feed / News-Sitemap output for a page |
+| `list_retrieval_queries` | Real query-log traffic (deduped, ranked); `max_avg_results` → under-served queries |
+| `get_backlinks` / `get_outbound_links` | Link graph for a page |
+| `get_broken_links` / `get_orphaned_pages` | Wiki-wide link/orphan issues |
+| `get_wiki_stats` / `get_page_history` / `diff_page` | Stats, history, version diff |
+| `ping_search_engines` | IndexNow nudge after a batch |
 
-### Audit tools (for broad maintenance — see wiki-audit skill)
+### Discovery + retrieval check — knowledge-mcp
 | Tool | Purpose |
 |------|---------|
-| `get_cluster_map` | Full wiki organization: clusters, hubs, pages, metadata conventions |
-| `audit_cluster` | Per-cluster structural, metadata, SEO, and staleness checks |
-| `audit_cross_cluster` | Wiki-wide orphans, cross-cluster gaps, duplicate summaries |
-| `apply_audit_fixes` | Batch-apply trivial metadata/link fixes |
+| `assemble_bundle` | **The live retrieval check** — ranked, cited sections for a query (`{query}`) |
+| `list_pages` / `list_pages_by_filter` | Enumerate pages (prefix / metadata filters) |
+| `list_clusters` / `list_tags` / `list_metadata_values` | Survey clusters, tags, field values in use |
+| `search_knowledge` | Hybrid search over the corpus |
+| `read_pages` / `get_page` / `get_page_for_agent` | Batched / projected page reads |
 
-### Link graph tools
-| Tool | Purpose |
-|------|---------|
-| `get_outbound_links` | Pages linked from a given page |
-| `get_backlinks` | Pages linking to a given page |
-| `scan_markdown_links` | Classify links as local/external/anchor |
+### KG curation — admin-mcp
+`propose_knowledge`, `curate_edges`, `curate_nodes`, `list_proposals`, `inspect_proposals`,
+`review_proposals`, `query_nodes`, `search_knowledge`, `list_orphaned_kg_nodes` (only on KG-included pages).
 
-## Quick Reference
+## Quick reference
 
-| Phase    | MCP Tools                                          | Calls |
-|----------|----------------------------------------------------|----|
-| DISCOVER | `get_cluster_map` (or `search_pages` for topic overlap) | 1 |
-| PLAN     | (design work, no MCP calls)                        | 0 |
-| PUBLISH  | `publish_cluster` (creates all pages + metadata + Main + verify) | 1 |
-| DOCUMENT | (append to research_history.md)                    | 0 |
-| EXTEND   | `extend_cluster` (creates article + patches hub + metadata + Main + verify) | 1 |
-| AUDIT    | `wiki-audit` skill: `get_cluster_map` → `audit_cluster` × N → `audit_cross_cluster` → `apply_audit_fixes` | N+3 |
+| Phase | Tools (server) |
+|-------|----------------|
+| DISCOVER | `list_pages`/`search_knowledge`/`list_clusters` (knowledge) |
+| CREATE | `write_pages` (admin) → `verify_pages` (admin) |
+| UPDATE | `read_page` → edit full text → `update_page` (admin) |
+| LINT | `verify_pages` `retrieval_readiness`+`seo_readiness` (admin) |
+| LIVE CHECK | `assemble_bundle` (knowledge) — the real gate |
+| SWEEP | `list_retrieval_queries max_avg_results=1` (admin) → `assemble_bundle` |
+| SEO | `verify_pages seo_readiness` → `preview_structured_data` → `update_page` |

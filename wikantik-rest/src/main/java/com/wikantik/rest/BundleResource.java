@@ -97,17 +97,24 @@ public class BundleResource extends RestServletBase {
         final com.wikantik.api.core.Engine engine = getEngine();
         final com.wikantik.knowledge.bundle.SectionCandidateSource src =
             ( engine instanceof com.wikantik.WikiEngine we ) ? we.bundleSectionSource() : null;
-        if ( !( src instanceof com.wikantik.knowledge.bundle.HybridChunkSectionSource hybrid ) ) {
-            resp.setStatus( 409 );
-            resp.getWriter().write( "{\"error\":\"chunk-hybrid source not active (set wikantik.bundle.bm25.enabled=true)\"}" );
-            return;
-        }
         int k = 500;
         try {
             final String kp = req.getParameter( "k" );
             if ( kp != null && !kp.isBlank() ) k = Integer.parseInt( kp.trim() );
         } catch ( final NumberFormatException ignored ) { /* keep default */ }
+        // The injector (when active) exposes dense + bm25_standard + bm25_code; the bare hybrid
+        // source exposes dense + bm25. Both have a debugRankings(query, k) returning the same shape.
+        final java.util.Map< String, java.util.List< com.wikantik.knowledge.bundle.HybridChunkSectionSource.DebugRank > > rankings;
+        if ( src instanceof com.wikantik.knowledge.bundle.LexicalInjectionSource inj ) {
+            rankings = inj.debugRankings( q, k );
+        } else if ( src instanceof com.wikantik.knowledge.bundle.HybridChunkSectionSource hybrid ) {
+            rankings = hybrid.debugRankings( q, k );
+        } else {
+            resp.setStatus( 409 );
+            resp.getWriter().write( "{\"error\":\"chunk-hybrid source not active (set wikantik.bundle.bm25.enabled=true)\"}" );
+            return;
+        }
         resp.setStatus( 200 );
-        resp.getWriter().write( BUNDLE_GSON.toJson( hybrid.debugRankings( q, k ) ) );
+        resp.getWriter().write( BUNDLE_GSON.toJson( rankings ) );
     }
 }

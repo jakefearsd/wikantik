@@ -285,6 +285,26 @@ public final class SearchWiringHelper {
                 LOG.warn( "BM25 chunk index build failed; using dense-only bundle source: {}", e.getMessage(), e );
             }
         }
+
+        // Lexical injection: wrap the (hybrid or dense) bundle source so code-symbol/config queries
+        // get dense-cold BM25(code) sections injected. Default off; builds a 2nd code-analyzer BM25
+        // index. Fail-open — any build failure leaves the base source untouched.
+        final com.wikantik.knowledge.bundle.InjectionConfig injectCfg =
+            com.wikantik.knowledge.bundle.InjectionConfig.fromProperties( props );
+        if ( injectCfg.enabled() ) {
+            try {
+                final com.wikantik.search.hybrid.LuceneBm25ChunkIndex codeIndex =
+                    com.wikantik.search.hybrid.LuceneBm25ChunkIndex.fromDataSource( ds,
+                        com.wikantik.search.hybrid.LuceneBm25ChunkIndex.analyzerFor( "code" ) );
+                bundleSource = new com.wikantik.knowledge.bundle.LexicalInjectionSource(
+                    bundleSource, embedder, vectorIndex, codeIndex, chunkRepo, injectCfg );
+                LOG.info( "Bundle lexical injection ON (code chunks indexed={}, J={}, C={}, alpha={}, N={}, P={})",
+                    codeIndex.size(), injectCfg.bm25RankMax(), injectCfg.denseColdMin(), injectCfg.scoreFrac(),
+                    injectCfg.maxInject(), injectCfg.position() );
+            } catch ( final RuntimeException e ) {
+                LOG.warn( "Lexical injection index build failed; base bundle source unchanged: {}", e.getMessage(), e );
+            }
+        }
         engine.setBundleSectionSource( bundleSource );
 
         final BootstrapEmbeddingIndexer bootstrap =

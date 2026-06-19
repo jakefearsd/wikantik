@@ -328,6 +328,9 @@ public final class PageChecks {
     private static final java.util.regex.Pattern KEBAB =
             java.util.regex.Pattern.compile( "^[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)*$" );
 
+    private static final java.util.regex.Pattern ATX_HEADING =
+            java.util.regex.Pattern.compile( "^#{1,6}\\s+(.+?)\\s*#*$" );
+
     /** Summary is prepended to every chunk embedding — flag missing, title-restatement, or thin summaries. */
     public static class SummarySpecificityCheck implements PageCheck {
         @Override
@@ -395,8 +398,7 @@ public final class PageChecks {
                 if ( inFence ) {
                     continue;
                 }
-                final java.util.regex.Matcher m =
-                        java.util.regex.Pattern.compile( "^#{1,6}\\s+(.+?)\\s*#*$" ).matcher( line );
+                final java.util.regex.Matcher m = ATX_HEADING.matcher( line );
                 if ( m.matches() ) {
                     out.add( m.group( 1 ) );
                 }

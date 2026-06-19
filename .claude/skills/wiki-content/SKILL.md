@@ -256,7 +256,7 @@ cluster: retirement-planning/eu-retirement  # sub-cluster
 | `get_wiki_stats` | Total pages, broken links, orphans, recent changes |
 | `get_broken_links` | All broken links across the wiki |
 | `get_orphaned_pages` | Pages with no incoming links |
-| `list_retrieval_queries` | Real retrieval queries (deduped, ranked); `max_avg_results` finds under-served queries | maintenance sweeps grounded in real traffic |
+| `list_retrieval_queries` | Real retrieval queries (deduped, ranked); `max_avg_results` finds under-served queries — use for maintenance sweeps grounded in real traffic |
 
 ### Audit tools (for broad maintenance — see wiki-audit skill)
 | Tool | Purpose |

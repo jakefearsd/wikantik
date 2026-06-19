@@ -278,16 +278,24 @@ list_orphaned_kg_nodes
                   for finding orphans at scale.
 
 list_retrieval_queries
-                  Read-only window into the retrieval query log. Returns
-                  recent queries issued by human users and agents across
-                  all four retrieval surfaces (knowledge-mcp, admin-mcp,
-                  /api/bundle, /tools). Parameters: since_days (lookback
-                  window, default 7), limit (max rows, default 100),
-                  surface (optional filter: knowledge_mcp | admin_mcp |
-                  bundle_api | tools_api). Each entry carries timestamp,
-                  surface, query text, result count, and latency_ms.
-                  Useful for understanding what queries agents are running
-                  and whether they are getting results.
+                  Read-only. Lists real retrieval queries from the query
+                  log (retrieval_query_log), deduped and ranked by
+                  frequency. Use max_avg_results to surface under-served
+                  queries (low/zero result counts); judge true misses by
+                  running candidates through the assemble_bundle MCP tool
+                  — this tool makes no relevance judgment itself.
+                  Parameters (all optional):
+                    since_days      look back this many days (default 30)
+                    actor           human | agent | unknown (default: all)
+                    surface         api_bundle | api_search |
+                                    mcp_assemble_bundle | tools_search_wiki
+                                    (default: all)
+                    max_avg_results only queries whose avg result count is
+                                    <= this (find under-served queries)
+                    min_occurrences minimum times seen (default 1)
+                    limit           max distinct queries to return (default 50)
+                  Output: { queries: [{query, occurrences, avgResultCount,
+                  zeroResultCount, lastSeen}], count }.
 
 == Concurrency model ==
 

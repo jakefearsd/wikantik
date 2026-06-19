@@ -342,7 +342,7 @@ public class VerifyPagesTool implements McpTool {
             return;
         }
         final PageCheckContext checkCtx = new PageCheckContext(
-                pageName, metadata, body == null ? "" : body, page, pageManager );
+                pageName, metadata, body, page, pageManager );
         final List< String > warnings = new ArrayList<>();
         for ( final PageCheck check : RETRIEVAL_CHECKS ) {
             for ( final PageCheckResult result : check.check( checkCtx ) ) {

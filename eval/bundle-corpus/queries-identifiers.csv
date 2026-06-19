@@ -5,10 +5,31 @@ e03,default knowledge graph inclusion policy property,IDENTIFIER,01KQ0P44SBG2CF3
 e04,how is the OAuth callback servlet implemented,IDENTIFIER,01KQ0P44QHCCMJHPMCQ195JNVW,C.2.9 OAuthCallbackServlet.java,camelCase OAuthCallbackServlet
 e05,the OAuth login module class,IDENTIFIER,01KQ0P44QHCCMJHPMCQ195JNVW,C.2.7 OAuthLoginModule.java,camelCase OAuthLoginModule
 e06,template method for the abstract wiki provider lifecycle,IDENTIFIER,01KQ0P44V9JQGB0CNVF9B3EM3N,Recommended Pattern: Template Method with Lifecycle Hooks,camelCase AbstractWikiProvider
-e07,the actor system core component in akka,IDENTIFIER,01KQEBFEF393K97NXXAY5F2BCA,The Core Components,camelCase ActorSystem
+e07,the actor system core component in akka,IDENTIFIER,01KQEBFEF393K97NXXAY5F2BCA,2.1 The Core Components,camelCase ActorSystem
 e08,junit extension after test execution callback,IDENTIFIER,01KQ0P44RE042D7VP9DMCMGB2D,Custom extensions,camelCase AfterTestExecutionCallback
 e09,langgraph add conditional edges for the react graph,IDENTIFIER,01KQ0P44L1796D0PBJ1NEJDY22,Concrete Example: A Basic ReAct Graph,snake_case add_conditional_edges
 e10,the admin user resource in scim decommission,IDENTIFIER,01KT79SMWW6FSVEKQ89RJ4PT4N,Decommission: the unified path (priority),camelCase AdminUserResource
 e11,agent grade audit resource structural index consumer,IDENTIFIER,01KQ0P60Q4PP4BXR1WQKBPV1WS,Structural Index consumers,camelCase AgentGradeAuditResource
-e12,the aggregate table in the transactional outbox pattern,IDENTIFIER,01KQ0P44PYDRSSJFPFRAXSZ4GK,Exactly-Once Semantics,camelCase AggregateTable
+e12,the aggregate table in the transactional outbox pattern,IDENTIFIER,01KQ0P44PYDRSSJFPFRAXSZ4GK,3.2 Exactly-Once Semantics,camelCase AggregateTable
 e13,n plus one problem fetch all with customer and items,IDENTIFIER,01KQ0P44REX4RD20SRJ4298ENV,Solutions,camelCase AllWithCustomerAndItems
+e14,ArgumentsSource for parameterized tests in junit,IDENTIFIER,01KQ0P44RE042D7VP9DMCMGB2D,Parameterized tests,literal ArgumentsSource
+e15,async logging appender for performance in java,IDENTIFIER,01KQ0P44RA8J70Y4M6CMRBMBKD,Async logging,concept AsyncAppender
+e16,AtomicReference in the command pattern text editor,IDENTIFIER,01KQ0P44NNSB64CQ00HDDTVW4K,2. Concrete Implementation: Text Editor Example,literal AtomicReference
+e17,the AnonymousLoginModule unchanged auth files,IDENTIFIER,01KQ0P44QHCCMJHPMCQ195JNVW,Unchanged Files (Traditional Auth),literal AnonymousLoginModule
+e18,OAuthConfigurationTest unit test,IDENTIFIER,01KQ0P44QHCCMJHPMCQ195JNVW,E.1.1 OAuthConfigurationTest.java,literal OAuthConfigurationTest
+e19,the ApiKeyService db-backed mcp keys,IDENTIFIER,01KQ0P44SBG2CF3EAWZF9SYJND,DB-backed keys (preferred),literal ApiKeyService
+e20,full text search gin index for articles,IDENTIFIER,01KQ0P44QJTG4MR5M81CRQMK7A,GIN index,concept articles_search_idx
+e21,the AuditReadPolicy in the audit log design,IDENTIFIER,01KT6453VWTT2K0XS4Z410G176,As-built notes (deltas from the original design),literal AuditReadPolicy
+e22,generational zgc performance in modern java,IDENTIFIER,01KQ0P44RD0W7H088EW5N6NGTP,VI. Performance: Generational ZGC,concept GenerationalZGC
+e23,least privilege administrator access in cloud iam,IDENTIFIER,01KQ0P44NGWEMX0BF3Y86T9WYR,Least privilege,concept AdministratorAccess
+e24,analyze_sentiment_trajectory intent recognition,IDENTIFIER,01KQEBHF2GKNVCWC4J3MH5D6WH,2.1.2 Intent Recognition and Discourse Analysis,snake_case analyze_sentiment_trajectory
+e25,anonymizer engine pii redaction for data privacy,IDENTIFIER,01KQ12YDRP3KF6YWDTAC4QESG8,Implementing PII Redaction,concept AnonymizerEngine
+e26,agent_execution_context machine manifests governance,IDENTIFIER,01KQEBA0FZS5MJ393EKA300SHC,A. Policy Definition: From Natural Language to Machine Manifests,snake_case agent_execution_context
+e27,application id tagging and attribution for finops,IDENTIFIER,01KQ0P44ND5KEHPR35H4581CPK,Tagging and Attribution,concept ApplicationID
+e28,the AuditSubsystem open items,IDENTIFIER,01KT6453VWTT2K0XS4Z410G176,Open items / v2,literal AuditSubsystem
+e29,relationship type conventions for curating knowledge graph edges,IDENTIFIER,01KQ0P44YXH9WR0JWF0A6EBVMV,5.3 Relationship Type Conventions,concept
+e30,the basicattachmentprovider storagedir setting,IDENTIFIER,01KQ0P44TNFQMPBHGY5R4G4A4F,4. Move into the page corpus,config-key wikantik.basicattachmentprovider.storagedir
+e31,the AuthDisabledShowsError integration test,IDENTIFIER,01KQ0P44QHCCMJHPMCQ195JNVW,E.2.1 OAuthFlowIntegrationTest.java,literal AuthDisabledShowsError
+e32,data lake architecture transition to level 4,IDENTIFIER,01KR79P6AQC7G4C6SV8WJ520AA,4. The Transition to Level 4,concept ApacheSparkFundamentals
+e33,the AnsweringRestApiQuestions agent cookbook,IDENTIFIER,01KQ44QTJGS34S8VKGDMPTK9TC,Code and tooling,literal AnsweringRestApiQuestions
+e34,clean code names that describe behavior,IDENTIFIER,01KQ0P44NAX6V7B52WT96YRM73,Names that describe behavior,concept AndStoreOrder

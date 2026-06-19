@@ -19,10 +19,21 @@
 package com.wikantik.knowledge.bundle;
 
 import com.wikantik.knowledge.bundle.LexicalInjectionSource.Candidate;
+import com.wikantik.knowledge.chunking.ContentChunkRepository;
+import com.wikantik.knowledge.chunking.ContentChunkRepository.MentionableChunk;
+import com.wikantik.search.hybrid.ChunkVectorIndex;
+import com.wikantik.search.hybrid.LuceneBm25ChunkIndex;
+import com.wikantik.search.hybrid.QueryEmbedder;
+import com.wikantik.search.hybrid.ScoredChunk;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class LexicalInjectionSourceTest {
     private static CandidateSection sec(String slug, String head, String text, double score) {
@@ -102,5 +113,47 @@ class LexicalInjectionSourceTest {
         InjectionConfig cfg = InjectionConfig.fromProperties(props(true));
         assertEquals(4, LexicalInjectionSource.merge(base, cands, 10.0, false, cfg).size());   // no boost → skip
         assertEquals(5, LexicalInjectionSource.merge(base, cands, 10.0, true, cfg).size());     // boost → inject
+    }
+
+    @Test @SuppressWarnings("unchecked")
+    void candidatesInjectsDenseColdCodeSection() {
+        final UUID goldId = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
+        final QueryEmbedder embedder = mock(QueryEmbedder.class);
+        when(embedder.embed(anyString())).thenReturn(Optional.of(new float[]{0.1f}));
+        final ChunkVectorIndex dense = mock(ChunkVectorIndex.class);   // dense returns base page only → gold cold
+        when(dense.topKChunks(any(), anyInt())).thenReturn(List.of(new ScoredChunk(UUID.randomUUID(), "P0", 0.9)));
+        final LuceneBm25ChunkIndex bm25code = mock(LuceneBm25ChunkIndex.class);  // bm25(code) ranks the gold chunk #0
+        when(bm25code.topKChunks(anyString(), anyInt())).thenReturn(List.of(new ScoredChunk(goldId, "GoldPage", 12.0)));
+        final ContentChunkRepository repo = mock(ContentChunkRepository.class);
+        when(repo.findByIds(anyList())).thenReturn(List.of(
+            new MentionableChunk(goldId, "GoldPage", 0, List.of("Gold Section"), "gold text")));
+        final SectionCandidateSource base = q -> new ArrayList<>(List.of(
+            new CandidateSection("P0", List.of("H0"), "b0", 1.0)));
+        final Properties p = new Properties();
+        p.setProperty("wikantik.bundle.inject.enabled", "true");
+        p.setProperty("wikantik.bundle.inject.position", "0");
+        final LexicalInjectionSource src = new LexicalInjectionSource(
+            base, embedder, dense, bm25code, repo, InjectionConfig.fromProperties(p));
+        final List<CandidateSection> out = src.candidates("the gold thing");
+        assertEquals("GoldPage", out.get(0).slug());     // injected at position 0
+        assertEquals("gold text", out.get(0).text());
+    }
+
+    @Test @SuppressWarnings("unchecked")
+    void candidatesFailsOpenWhenBm25Throws() {
+        final QueryEmbedder embedder = mock(QueryEmbedder.class);
+        when(embedder.embed(anyString())).thenReturn(Optional.of(new float[]{0.1f}));
+        final ChunkVectorIndex dense = mock(ChunkVectorIndex.class);
+        when(dense.topKChunks(any(), anyInt())).thenReturn(List.of());
+        final LuceneBm25ChunkIndex bm25code = mock(LuceneBm25ChunkIndex.class);
+        when(bm25code.topKChunks(anyString(), anyInt())).thenThrow(new RuntimeException("boom"));
+        final ContentChunkRepository repo = mock(ContentChunkRepository.class);
+        final List<CandidateSection> baseList = List.of(new CandidateSection("P0", List.of("H0"), "b0", 1.0));
+        final SectionCandidateSource base = q -> baseList;
+        final Properties p = new Properties();
+        p.setProperty("wikantik.bundle.inject.enabled", "true");
+        final LexicalInjectionSource src = new LexicalInjectionSource(
+            base, embedder, dense, bm25code, repo, InjectionConfig.fromProperties(p));
+        assertEquals(baseList, src.candidates("q"));   // base unchanged on failure
     }
 }

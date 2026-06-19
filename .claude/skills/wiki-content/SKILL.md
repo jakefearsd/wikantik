@@ -7,6 +7,10 @@ description: Use when creating, publishing, updating, or maintaining wiki conten
 
 Wiki content management via native MCP tools. Covers article clusters, single articles, maintenance, and reorganization. All interactions use the Wikantik MCP server tools directly — no bash scripts, curl, or JSON-RPC payloads needed.
 
+> **Portability (MCP-only):** every action here routes through MCP server tools — no REST/`/api/*`,
+> curl, or bash — so this skill runs identically under Claude Code and Antigravity. The live bundle
+> check is the `assemble_bundle` MCP tool, never `GET /api/bundle`. Do not add client-specific mechanisms.
+
 ## Workflows
 
 ### Create Article Cluster
@@ -114,6 +118,54 @@ Standard frontmatter for cluster articles:
 
 All pages in a cluster must use the same metadata schema for queryability via `query_metadata`.
 
+## Retrieval-Aware Frontmatter (read this before writing summaries/headings)
+
+Four author-controlled levers are **prepended verbatim into every chunk's embedding** before it
+enters the dense index (`EmbeddingTextBuilder.forDocument`), in this exact shape:
+
+​```
+Page: {title} | Cluster: {cluster} | Section: {heading > path}
+Summary: {summary}
+
+{chunk body}
+​```
+
+This contextual-embedding lever lifted section recall@12 from ~0.60 to ~0.74 — the single biggest
+retrieval gain in the stack, larger than any model change. So `title`, `cluster`, `summary`, and the
+body's **heading structure** are not just SEO metadata — they are the primary retrieval levers.
+Because retrieval is **dense + BM25 hybrid**, literal vocabulary in body and headings also counts.
+
+**The dual-purpose overlap (retrieval + SEO in one field):**
+
+| Field | Retrieval role (embedded) | SEO role | Authoring rule |
+|-------|---------------------------|----------|----------------|
+| `summary` | Page-level disambiguation on every chunk | `<meta description>` | Describe the page's value + name its key concepts/vocabulary, specifically. ~80–160 chars. Not a title restatement, not marketing fluff. |
+| `cluster` | Domain prefix on every chunk | JSON-LD `articleSection` | Always set; kebab-case (`hybrid-retrieval`, sub-clusters `parent/child`). |
+| `title` | Topic signal on every chunk | `<title>`, JSON-LD | Natural-language, specific — never just the slug. |
+| headings | Each chunk's `Section:` path | (page structure) | Self-contained and specific. Avoid `Overview`/`Introduction`/`Details`/`Notes`/`Summary`/`Background` — they give chunks weak section context. |
+
+**Do NOT chase rejected levers** (measured dead ends): rerankers, bigger embedding models, HyDE,
+doc2query, KG graph rerank, lexical injection. The frontmatter levers above are the ones that move recall.
+
+## Retrieval Verification Loop
+
+Run this when authoring a new page or updating an existing one:
+
+1. **Static lint** — `verify_pages` with `checks=["retrieval_readiness"]`. Fix every entry in
+   `retrievalIssues` (advisory warnings: thin/title-restating summaries, generic or missing headings,
+   missing/non-kebab cluster, slug-echo titles). Combine with `["seo_readiness"]` in the same call to
+   catch both faces at once.
+2. **Live check** — confirm the page's answering section actually surfaces, using the `assemble_bundle`
+   MCP tool (knowledge-mcp surface). **MCP-only — never REST/`/api/bundle`.**
+   - New page (no traffic yet): write 3–5 expected queries it should answer, call `assemble_bundle` with
+     each, and confirm the page's section appears in the returned bundle. If not, strengthen the
+     summary/headings and re-index.
+   - Existing content (maintenance): use `list_retrieval_queries` (see below) to pull **real** queries,
+     then `assemble_bundle`-check the ones a given page should answer.
+3. **Maintenance sweep** — `list_retrieval_queries` with `max_avg_results` set (e.g. `1`) lists real
+   queries the corpus answers poorly. For each, identify the page that *should* answer it, call
+   `assemble_bundle` to confirm it's a real miss, then apply step 1's lint + fixes and re-verify.
+
 ### SEO and Web Visibility
 
 Frontmatter fields directly drive search engine, social sharing, feed, and news outputs:
@@ -199,11 +251,12 @@ cluster: retirement-planning/eu-retirement  # sub-cluster
 ### Verification tools
 | Tool | Purpose |
 |------|---------|
-| `verify_pages` | Compound check: existence, links, backlinks, metadata, SEO readiness for multiple pages |
+| `verify_pages` | Compound check: existence, links, backlinks, metadata, SEO readiness, and retrieval readiness for multiple pages |
 | `preview_structured_data` | Preview meta tags, JSON-LD, feed entries, News Sitemap eligibility for a page |
 | `get_wiki_stats` | Total pages, broken links, orphans, recent changes |
 | `get_broken_links` | All broken links across the wiki |
 | `get_orphaned_pages` | Pages with no incoming links |
+| `list_retrieval_queries` | Real retrieval queries (deduped, ranked); `max_avg_results` finds under-served queries | maintenance sweeps grounded in real traffic |
 
 ### Audit tools (for broad maintenance — see wiki-audit skill)
 | Tool | Purpose |

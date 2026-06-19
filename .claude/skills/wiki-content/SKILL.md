@@ -19,18 +19,22 @@ interactions route through MCP server tools directly.
 > bottom. Authoring is on the **admin-mcp** server; discovery + retrieval checks are on the
 > **knowledge-mcp** server.
 
-## ⚠️ Two traps that silently corrupt pages or mislead you
+## ⚠️ The two golden rules (sandbox-verified)
 
-1. **`update_page` rebuilds the page from its `content` argument.** Its `content` must be the
-   **full raw text including the YAML frontmatter** — exactly what `read_page` returns — NOT just the
-   body. Passing a body-only `content` **wipes every frontmatter field** (title, type, cluster, tags…),
-   leaving only what you pass in `metadata`. Always: `read_page` → edit the full text → `update_page`
-   with that full text + the `expectedContentHash`. Use the optional `metadata` object only for
-   targeted field overrides *on top of* the frontmatter already in `content`.
-2. **Passing `verify_pages` `retrieval_readiness` with zero warnings does NOT mean the page is
-   retrievable.** The static lint checks frontmatter *form*; it cannot tell whether the page actually
-   surfaces for real queries. A clean lint is necessary, not sufficient — the **live `assemble_bundle`
-   check is the real gate** (see Retrieval Verification Loop).
+1. **A clean `verify_pages` `retrieval_readiness` does NOT mean the page is retrievable.** The static
+   lint checks frontmatter *form*; it cannot tell whether the page actually surfaces for real queries
+   (verified: 10 pages passed the lint with zero warnings yet still missed retrieval — out-competed by
+   sibling pages). A clean lint is necessary, not sufficient — the **live `assemble_bundle` check is
+   the real gate** (see Retrieval Verification Loop).
+2. **Every content edit can HELP *or HURT* — measure it.** A `summary` change re-embeds *every* chunk
+   on the page. A generic enrichment (appending a topic list, keyword-stuffing) adds competitive noise
+   and can drop recall corpus-wide (verified: a mechanical "Covers X, Y, Z" pass over 120 pages dropped
+   section recall ~0.74→0.68). Enrich with the query's **discriminating** vocabulary, never generic
+   lists, and confirm each change with `assemble_bundle`.
+
+`update_page` is **safe-by-default**: `metadata` merges onto the existing frontmatter (nothing is ever
+dropped) and `content` is **optional** — omit it to edit only metadata. So a one-field edit is a
+one-liner: `update_page(slug, metadata={summary:"…"}, expectedContentHash=<hash from read_page>)`.
 
 ## Core authoring workflows
 
@@ -55,13 +59,27 @@ links back to the hub in a "See Also" section).
 ### Update an existing page
 
 ```
-read_page(slug)                    # → { content (full raw, with frontmatter), contentHash, version }
-# edit the full raw text (frontmatter and/or body)
-update_page(slug, content=<FULL raw text incl. frontmatter>, expectedContentHash=<hash>,
-            metadata={ summary: "…" })   # metadata optional, merges onto content's frontmatter
+read_page(slug)                          # → { content, contentHash, version }
+# metadata-only edit (most common) — no body needed; existing frontmatter is preserved:
+update_page(slug, metadata={ summary: "…" }, expectedContentHash=<hash>)
+# body edit — pass the new body; frontmatter is preserved automatically:
+update_page(slug, content="<new body>", expectedContentHash=<hash>)
 ```
-Optimistic locking: a stale `expectedContentHash` returns `{updated:false, error:"hash mismatch"}` —
-re-`read_page` and retry. See trap #1: never pass a body-only `content`.
+`metadata` merges onto the existing frontmatter (untouched fields preserved); `content` replaces the
+body (omit to keep it). Provide content and/or metadata. Optimistic locking: a stale
+`expectedContentHash` returns `{updated:false, error:"hash mismatch", latestContent, currentHash}` —
+rebase against `latestContent` and retry (no extra `read_page` needed).
+
+### Bulk edits (a corpus-wide search/SEO pass)
+
+- **Pace your calls.** The MCP endpoint rate-limits to ~10 req/sec per client (1-sec sliding window) —
+  a tight loop fails with `429` after ~10 calls. Space calls out and back off ~1s on a `429` (the
+  window refills in ~1s).
+- **Re-indexing is async.** Each save re-chunks + re-embeds off-thread; retrieval reflects the change
+  only after the embed queue drains. Don't measure recall immediately after a big batch — and on the
+  dev `inmemory` backend a restart drops still-pending re-embeds, so let the queue drain first (prod
+  `lucene-hnsw` reads the DB).
+- Validate at the end with `assemble_bundle` on a sample (rule 2 above) — not after every edit.
 
 ### Rename / reorganize
 

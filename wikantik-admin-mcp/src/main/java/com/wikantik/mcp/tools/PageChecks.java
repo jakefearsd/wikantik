@@ -314,4 +314,134 @@ public final class PageChecks {
             return List.of();
         }
     }
+
+    // -----------------------------------------------------------------------
+    //  Retrieval Checks — the four levers prepended into chunk embeddings
+    //  (EmbeddingTextBuilder.forDocument: Page:title | Cluster:cluster |
+    //  Section:heading + Summary:summary). All advisory WARNING / category "retrieval".
+    // -----------------------------------------------------------------------
+
+    private static final java.util.Set< String > GENERIC_HEADINGS = java.util.Set.of(
+            "overview", "introduction", "intro", "details", "notes", "misc",
+            "miscellaneous", "summary", "background", "more", "other", "info" );
+
+    private static final java.util.regex.Pattern KEBAB =
+            java.util.regex.Pattern.compile( "^[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)*$" );
+
+    /** Summary is prepended to every chunk embedding — flag missing, title-restatement, or thin summaries. */
+    public static class SummarySpecificityCheck implements PageCheck {
+        @Override
+        public List< PageCheckResult > check( final PageCheckContext ctx ) {
+            final Object val = ctx.metadata().get( "summary" );
+            final String summary = val != null ? val.toString().strip() : null;
+            if ( summary == null || summary.isEmpty() ) {
+                return List.of( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
+                        "retrieval", "summary_missing_for_retrieval",
+                        "No summary — chunk embeddings lack the page-level disambiguation context that lifted section recall ~0.60→0.74" ) );
+            }
+            final Object titleVal = ctx.metadata().get( "title" );
+            final String title = titleVal != null ? titleVal.toString().strip() : ctx.pageName();
+            if ( summary.equalsIgnoreCase( title ) ) {
+                return List.of( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
+                        "retrieval", "summary_restates_title",
+                        "Summary merely restates the title — add concrete concepts/vocabulary so chunk embeddings disambiguate" ) );
+            }
+            final int words = summary.split( "\\s+" ).length;
+            if ( words < 6 ) {
+                return List.of( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
+                        "retrieval", "summary_low_specificity",
+                        "Summary is only " + words + " words — too thin to disambiguate chunks; name the page's key concepts/vocabulary" ) );
+            }
+            return List.of();
+        }
+    }
+
+    /** Body headings become each chunk's heading_path in the embedding — flag generic or absent headings. */
+    public static class HeadingQualityCheck implements PageCheck {
+        @Override
+        public List< PageCheckResult > check( final PageCheckContext ctx ) {
+            final List< String > headings = extractHeadings( ctx.body() );
+            if ( headings.isEmpty() ) {
+                return List.of( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
+                        "retrieval", "no_headings",
+                        "Page has no section headings — the whole body shares one chunk context; add descriptive H2/H3 sections" ) );
+            }
+            final List< PageCheckResult > out = new ArrayList<>();
+            final java.util.Set< String > seen = new java.util.HashSet<>();
+            for ( final String h : headings ) {
+                final String norm = h.toLowerCase( java.util.Locale.ROOT ).strip();
+                if ( GENERIC_HEADINGS.contains( norm ) && seen.add( norm ) ) {
+                    out.add( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
+                            "retrieval", "generic_heading",
+                            "Heading '" + h.strip() + "' is generic — chunks under it carry weak section context; make it topic-specific" ) );
+                }
+            }
+            return out;
+        }
+
+        /** ATX headings (#..######), skipping fenced code blocks (``` or ~~~). */
+        private static List< String > extractHeadings( final String body ) {
+            final List< String > out = new ArrayList<>();
+            if ( body == null || body.isBlank() ) {
+                return out;
+            }
+            boolean inFence = false;
+            for ( final String raw : body.split( "\n", -1 ) ) {
+                final String line = raw.strip();
+                if ( line.startsWith( "```" ) || line.startsWith( "~~~" ) ) {
+                    inFence = !inFence;
+                    continue;
+                }
+                if ( inFence ) {
+                    continue;
+                }
+                final java.util.regex.Matcher m =
+                        java.util.regex.Pattern.compile( "^#{1,6}\\s+(.+?)\\s*#*$" ).matcher( line );
+                if ( m.matches() ) {
+                    out.add( m.group( 1 ) );
+                }
+            }
+            return out;
+        }
+    }
+
+    /** Cluster is prepended to chunk embeddings (domain disambiguation) — flag missing or non-kebab. */
+    public static class ClusterPresentCheck implements PageCheck {
+        @Override
+        public List< PageCheckResult > check( final PageCheckContext ctx ) {
+            final Object val = ctx.metadata().get( "cluster" );
+            final String cluster = val != null ? val.toString().strip() : null;
+            if ( cluster == null || cluster.isEmpty() ) {
+                return List.of( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
+                        "retrieval", "cluster_missing_for_retrieval",
+                        "No cluster — chunk embeddings lack the domain prefix that disambiguates cross-topic queries" ) );
+            }
+            if ( !KEBAB.matcher( cluster ).matches() ) {
+                return List.of( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
+                        "retrieval", "cluster_not_kebab",
+                        "Cluster '" + cluster + "' is not kebab-case — use lowercase-hyphenated slugs (e.g. hybrid-retrieval)" ) );
+            }
+            return List.of();
+        }
+    }
+
+    /** Title is prepended to chunk embeddings — flag missing or a bare slug echo. */
+    public static class TitleSpecificityCheck implements PageCheck {
+        @Override
+        public List< PageCheckResult > check( final PageCheckContext ctx ) {
+            final Object val = ctx.metadata().get( "title" );
+            final String title = val != null ? val.toString().strip() : null;
+            if ( title == null || title.isEmpty() ) {
+                return List.of( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
+                        "retrieval", "title_missing",
+                        "No title — the embedding falls back to the slug; add a natural-language title" ) );
+            }
+            if ( title.equals( ctx.pageName() ) ) {
+                return List.of( new PageCheckResult( ctx.pageName(), PageCheckResult.Severity.WARNING,
+                        "retrieval", "title_equals_slug",
+                        "Title is just the page slug — a natural-language title improves both the embedding and the <title> tag" ) );
+            }
+            return List.of();
+        }
+    }
 }

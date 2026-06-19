@@ -292,6 +292,66 @@ class PageChecksTest {
         }
     }
 
+    // ========== Retrieval Checks ==========
+
+    private static PageCheckContext ctx( final String name, final Map< String, Object > meta, final String body ) {
+        return new PageCheckContext( name, meta, body == null ? "" : body, null, null );
+    }
+
+    @Test
+    void summarySpecificity_flagsMissingRestatementAndThinSummaries() {
+        var c = new PageChecks.SummarySpecificityCheck();
+        assertEquals( "summary_missing_for_retrieval",
+            c.check( ctx( "P", Map.of(), "" ) ).get( 0 ).issue() );
+        assertEquals( "summary_restates_title",
+            c.check( ctx( "P", Map.of( "title", "Hybrid Retrieval", "summary", "hybrid retrieval" ), "" ) )
+             .get( 0 ).issue() );
+        assertEquals( "summary_low_specificity",
+            c.check( ctx( "P", Map.of( "title", "T", "summary", "A short blurb here" ), "" ) )
+             .get( 0 ).issue() );
+        assertTrue( c.check( ctx( "P", Map.of( "title", "T",
+            "summary", "BM25 plus dense vector retrieval fused with reciprocal rank fusion for section recall" ) , "" ) ).isEmpty() );
+    }
+
+    @Test
+    void headingQuality_flagsGenericHeadingsAndNoHeadings() {
+        var c = new PageChecks.HeadingQualityCheck();
+        assertEquals( "no_headings",
+            c.check( ctx( "P", Map.of(), "Just a paragraph, no headings at all." ) ).get( 0 ).issue() );
+        var generic = c.check( ctx( "P", Map.of(), "## Overview\ntext\n## Tuning The Reranker\nmore" ) );
+        assertEquals( 1, generic.size() );
+        assertEquals( "generic_heading", generic.get( 0 ).issue() );
+        assertTrue( c.check( ctx( "P", Map.of(),
+            "## Tuning The Reranker\ntext\n### Cross-Encoder Latency\nmore" ) ).isEmpty() );
+    }
+
+    @Test
+    void headingQuality_ignoresHeadingsInsideCodeFences() {
+        var c = new PageChecks.HeadingQualityCheck();
+        assertTrue( c.check( ctx( "P", Map.of(),
+            "## Real Section\n```\n# Overview\n```\nbody" ) ).isEmpty() );
+    }
+
+    @Test
+    void clusterPresent_flagsMissingAndNonKebab() {
+        var c = new PageChecks.ClusterPresentCheck();
+        assertEquals( "cluster_missing_for_retrieval",
+            c.check( ctx( "P", Map.of(), "" ) ).get( 0 ).issue() );
+        assertEquals( "cluster_not_kebab",
+            c.check( ctx( "P", Map.of( "cluster", "Hybrid Retrieval" ), "" ) ).get( 0 ).issue() );
+        assertTrue( c.check( ctx( "P", Map.of( "cluster", "hybrid-retrieval/eu" ), "" ) ).isEmpty() );
+    }
+
+    @Test
+    void titleSpecificity_flagsMissingAndSlugEcho() {
+        var c = new PageChecks.TitleSpecificityCheck();
+        assertEquals( "title_missing",
+            c.check( ctx( "HybridRetrieval", Map.of(), "" ) ).get( 0 ).issue() );
+        assertEquals( "title_equals_slug",
+            c.check( ctx( "HybridRetrieval", Map.of( "title", "HybridRetrieval" ), "" ) ).get( 0 ).issue() );
+        assertTrue( c.check( ctx( "HybridRetrieval", Map.of( "title", "Hybrid Retrieval" ), "" ) ).isEmpty() );
+    }
+
     // ========== StalenessCheck ==========
 
     @Nested

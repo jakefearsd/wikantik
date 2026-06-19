@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Retrieval-aware content authoring.** `verify_pages` gains a `retrieval_readiness` check
+  (summary specificity, heading quality, cluster, title — the frontmatter levers prepended into
+  chunk embeddings) and a new `list_retrieval_queries` admin-MCP tool over the real query log
+  (V041) for finding under-served queries. The `wiki-content` skill now documents the
+  author → static-lint → live-bundle-check verification loop.
+
 ## [2.0.20] - 2026-06-19
 
 ### Added

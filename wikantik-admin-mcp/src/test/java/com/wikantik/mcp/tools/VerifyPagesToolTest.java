@@ -388,6 +388,26 @@ class VerifyPagesToolTest {
         assertFalse( seoIssues.isEmpty() );
     }
 
+    // --- Retrieval Readiness Tests ---
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void retrievalReadiness_reportsWeakFrontmatterAndHeadings() throws Exception {
+        final String raw = "---\ntitle: HybridRetrieval\ncluster: Hybrid Retrieval\nsummary: HybridRetrieval\n---\n## Overview\nbody";
+        pm.savePage( "HybridRetrieval", raw );
+
+        final var result = tool.execute( Map.of(
+                "slugs", List.of( "HybridRetrieval" ),
+                "checks", List.of( "retrieval_readiness" ) ) );
+
+        final String json = ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text();
+        assertTrue( json.contains( "retrievalIssues" ) );
+        assertTrue( json.contains( "restates the title" ),       "summary_restates_title detail expected" );
+        assertTrue( json.contains( "kebab-case" ),               "cluster_not_kebab detail expected" );
+        assertTrue( json.contains( "generic" ),                  "generic_heading detail expected" );
+        assertTrue( json.contains( "page slug" ),                "title_equals_slug detail expected" );
+    }
+
     // --- Tests for extracted check methods ---
 
     @Test

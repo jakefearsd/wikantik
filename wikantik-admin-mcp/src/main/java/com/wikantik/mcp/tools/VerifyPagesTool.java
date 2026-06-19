@@ -53,6 +53,14 @@ public class VerifyPagesTool implements McpTool {
             new PageChecks.ClusterTypeCheck()
     );
 
+    /** Composed retrieval-readiness checks — see PageChecks "Retrieval Checks". */
+    private static final List< PageCheck > RETRIEVAL_CHECKS = List.of(
+            new PageChecks.SummarySpecificityCheck(),
+            new PageChecks.HeadingQualityCheck(),
+            new PageChecks.ClusterPresentCheck(),
+            new PageChecks.TitleSpecificityCheck()
+    );
+
     @Override
     public String name() {
         return TOOL_NAME;
@@ -78,7 +86,7 @@ public class VerifyPagesTool implements McpTool {
         properties.put( "checks", Map.of(
                 "type", "array",
                 "description", "Optional subset of checks to run. Defaults to all. " +
-                        "Valid values: existence, broken_links, backlinks, outbound_links, metadata_completeness, seo_readiness",
+                        "Valid values: existence, broken_links, backlinks, outbound_links, metadata_completeness, seo_readiness, retrieval_readiness",
                 "items", Map.of( "type", "string" ),
                 "examples", List.of( List.of( "existence", "metadata_completeness", "seo_readiness" ) )
         ) );
@@ -92,7 +100,8 @@ public class VerifyPagesTool implements McpTool {
                                 "exists", true,
                                 "version", 7,
                                 "missingMetadata", List.of(),
-                                "seoWarnings", List.of()
+                                "seoWarnings", List.of(),
+                                "retrievalWarnings", List.of()
                         ),
                         Map.of(
                                 "pageName", "AgentMemory",
@@ -106,7 +115,8 @@ public class VerifyPagesTool implements McpTool {
                         "totalPages", 2,
                         "allExist", true,
                         "metadataIssues", List.of( "AgentMemory missing: tags" ),
-                        "seoIssues", List.of( "AgentMemory: no summary in frontmatter" )
+                        "seoIssues", List.of( "AgentMemory: no summary in frontmatter" ),
+                        "retrievalIssues", List.of( "AgentMemory: No summary — chunk embeddings lack ..." )
                 )
         ) ) );
 
@@ -142,6 +152,7 @@ public class VerifyPagesTool implements McpTool {
         final List< String > pagesWithNoBacklinks = new ArrayList<>();
         final List< String > metadataIssues = new ArrayList<>();
         final List< String > seoIssues = new ArrayList<>();
+        final List< String > retrievalIssues = new ArrayList<>();
         boolean allExist = true;
 
         for ( final String pageName : pageNames ) {
@@ -164,19 +175,24 @@ public class VerifyPagesTool implements McpTool {
 
             checkBacklinks( pageName, entry, activeChecks, pagesWithNoBacklinks );
 
-            // Parse frontmatter once for metadata_completeness and/or seo_readiness
+            // Parse frontmatter once for metadata_completeness, seo_readiness, and/or retrieval_readiness
             final boolean needsMetadata = activeChecks.contains( "metadata_completeness" )
-                    || activeChecks.contains( "seo_readiness" );
+                    || activeChecks.contains( "seo_readiness" )
+                    || activeChecks.contains( "retrieval_readiness" );
             Map< String, Object > metadata = Map.of();
+            String body = "";
             if ( needsMetadata ) {
                 final String rawText = pageManager.getPureText( pageName, PageProvider.LATEST_VERSION );
                 final ParsedPage parsed = FrontmatterParser.parse( rawText );
                 metadata = parsed.metadata();
+                body = parsed.body();
             }
 
             checkMetadata( pageName, metadata, entry, activeChecks, metadataIssues );
 
             checkSeoReadiness( pageName, metadata, page, entry, activeChecks, seoIssues );
+
+            checkRetrievalReadiness( pageName, metadata, body, page, entry, activeChecks, retrievalIssues );
 
             pageResults.add( entry );
         }
@@ -195,6 +211,9 @@ public class VerifyPagesTool implements McpTool {
         }
         if ( activeChecks.contains( "seo_readiness" ) ) {
             summary.put( "seoIssues", seoIssues );
+        }
+        if ( activeChecks.contains( "retrieval_readiness" ) ) {
+            summary.put( "retrievalIssues", retrievalIssues );
         }
 
         final Map< String, Object > result = new LinkedHashMap<>();
@@ -309,6 +328,30 @@ public class VerifyPagesTool implements McpTool {
 
         if ( !seoWarnings.isEmpty() ) {
             seoIssues.add( pageName + ": " + String.join( "; ", seoWarnings ) );
+        }
+    }
+
+    /**
+     * Check retrieval readiness using composed {@link PageCheck} strategies. Unlike SEO checks,
+     * these need the body (heading structure feeds each chunk's embedding), so it is passed in.
+     */
+    void checkRetrievalReadiness( final String pageName, final Map< String, Object > metadata,
+                                  final String body, final Page page, final Map< String, Object > entry,
+                                  final Set< String > activeChecks, final List< String > retrievalIssues ) {
+        if ( !activeChecks.contains( "retrieval_readiness" ) ) {
+            return;
+        }
+        final PageCheckContext checkCtx = new PageCheckContext(
+                pageName, metadata, body == null ? "" : body, page, pageManager );
+        final List< String > warnings = new ArrayList<>();
+        for ( final PageCheck check : RETRIEVAL_CHECKS ) {
+            for ( final PageCheckResult result : check.check( checkCtx ) ) {
+                warnings.add( result.detail() );
+            }
+        }
+        entry.put( "retrievalWarnings", warnings );
+        if ( !warnings.isEmpty() ) {
+            retrievalIssues.add( pageName + ": " + String.join( "; ", warnings ) );
         }
     }
 }

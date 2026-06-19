@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.20] - 2026-06-19
+
 ### Added
 
 - **Retrieval query logging.** Every retrieval query across `/api/bundle`, `/api/search`,

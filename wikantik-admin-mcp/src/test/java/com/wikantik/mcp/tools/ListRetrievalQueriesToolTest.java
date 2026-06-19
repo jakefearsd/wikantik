@@ -50,7 +50,7 @@ class ListRetrievalQueriesToolTest {
         assertEquals( ActorType.AGENT, cap.getValue().actor() );
         assertEquals( 1, cap.getValue().maxAvgResultCount() );
         assertEquals( 25, cap.getValue().limit() );
-        assertFalse( result.isError() != null && result.isError() );
+        assertFalse( result.isError() );
 
         final String json = ( ( io.modelcontextprotocol.spec.McpSchema.TextContent )
                 result.content().get( 0 ) ).text();
@@ -63,6 +63,15 @@ class ListRetrievalQueriesToolTest {
         final QueryLogReader reader = mock( QueryLogReader.class );
         final var result = new ListRetrievalQueriesTool( reader )
                 .execute( Map.of( "surface", "not_a_surface" ) );
+        assertTrue( result.isError() );
+        verifyNoInteractions( reader );
+    }
+
+    @Test
+    void rejectsUnknownActor() {
+        final QueryLogReader reader = mock( QueryLogReader.class );
+        final var result = new ListRetrievalQueriesTool( reader )
+                .execute( Map.of( "actor", "bogus_actor" ) );
         assertTrue( result.isError() );
         verifyNoInteractions( reader );
     }

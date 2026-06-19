@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.querylog;
 
+import com.wikantik.api.querylog.QueryLogReader;
 import com.wikantik.api.querylog.QueryLogService;
 
 import javax.sql.DataSource;
@@ -47,6 +48,11 @@ public final class QueryLogWiring {
         final boolean enabled = props == null
             || Boolean.parseBoolean( props.getProperty( ENABLED_KEY, "true" ) );
         return new JdbcQueryLogService( dataSource, enabled, writerExecutor() );
+    }
+
+    /** A read-only {@link QueryLogReader} over {@code dataSource} (always available — no enable flag). */
+    public static QueryLogReader buildReader( final DataSource dataSource ) {
+        return new JdbcQueryLogReader( dataSource );
     }
 
     /** One daemon writer thread + a bounded queue; discard-oldest on overflow (fail-open). */

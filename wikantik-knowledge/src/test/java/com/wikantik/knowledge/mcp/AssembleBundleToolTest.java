@@ -24,6 +24,9 @@ import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
+import com.wikantik.api.querylog.ActorType;
+import com.wikantik.api.querylog.QueryLogService;
+import com.wikantik.api.querylog.SourceSurface;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +35,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class AssembleBundleToolTest {
 
@@ -48,7 +54,28 @@ class AssembleBundleToolTest {
     @BeforeEach
     void setUp() {
         final BundleAssemblyService stub = query -> FIXED_BUNDLE;
-        tool = new AssembleBundleTool( stub );
+        tool = new AssembleBundleTool( stub, () -> null );
+    }
+
+    @Test
+    void execute_logsQuery_asAgentOnMcpSurface() {
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final AssembleBundleTool t = new AssembleBundleTool( query -> FIXED_BUNDLE, () -> qlog );
+
+        t.execute( Map.of( "query", "deploy" ) );
+
+        // MCP is agent-by-construction; result_count = bundle section count
+        verify( qlog ).log( "deploy", ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, 1 );
+    }
+
+    @Test
+    void execute_missingQuery_doesNotLog() {
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final AssembleBundleTool t = new AssembleBundleTool( query -> FIXED_BUNDLE, () -> qlog );
+
+        t.execute( Map.of() );
+
+        verifyNoInteractions( qlog );
     }
 
     @Test

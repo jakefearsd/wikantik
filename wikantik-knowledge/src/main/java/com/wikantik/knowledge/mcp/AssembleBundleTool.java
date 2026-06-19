@@ -20,6 +20,9 @@ package com.wikantik.knowledge.mcp;
 
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.ContextBundle;
+import com.wikantik.api.querylog.ActorType;
+import com.wikantik.api.querylog.QueryLogService;
+import com.wikantik.api.querylog.SourceSurface;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.McpToolUtils;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -29,6 +32,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * MCP tool — assemble a RAG-as-a-Service context bundle for a natural-language query.
@@ -41,9 +45,13 @@ public class AssembleBundleTool implements McpTool {
     public static final String TOOL_NAME = "assemble_bundle";
 
     private final BundleAssemblyService service;
+    /** Resolved at call time (not construction) so it survives the post-startup wiring order; may yield null. */
+    private final Supplier< QueryLogService > queryLog;
 
-    public AssembleBundleTool( final BundleAssemblyService service ) {
+    public AssembleBundleTool( final BundleAssemblyService service,
+                               final Supplier< QueryLogService > queryLog ) {
         this.service = service;
+        this.queryLog = queryLog;
     }
 
     @Override public String name() { return TOOL_NAME; }
@@ -74,6 +82,10 @@ public class AssembleBundleTool implements McpTool {
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, "query argument is required" );
             }
             final ContextBundle bundle = service.assemble( query );
+            final QueryLogService qlog = queryLog == null ? null : queryLog.get();
+            if ( qlog != null ) {
+                qlog.log( query, ActorType.AGENT, SourceSurface.MCP_ASSEMBLE_BUNDLE, bundle.sections().size() );
+            }
             return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, bundle );
         } catch ( final Exception e ) {
             LOG.error( "assemble_bundle failed: {}", e.getMessage(), e );

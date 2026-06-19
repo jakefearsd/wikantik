@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Retrieval query logging.** Every retrieval query across `/api/bundle`, `/api/search`,
+  `assemble_bundle` (knowledge-mcp) and `search_wiki` (`/tools`) is captured to a new
+  `retrieval_query_log` table — query text, inferred actor (`human` | `agent` | `unknown`),
+  source surface, and result count — to ground the section-recall eval corpus in real traffic.
+  Human vs agent is inferred from surface + auth (MCP/tools are agent by construction; `/api` is
+  `human` when session-authed, `agent` when `Authorization`-header'd, else `unknown`). Writes are
+  asynchronous and fail-open — a logging failure never slows or breaks retrieval — and capture
+  query text only (never results), so restricted content never enters the log. Default ON via
+  `wikantik.querylog.enabled` (migration `V041`).
+
+### Removed
+
+- **Lexical-injection retrieval stack + superseded eval spikes.** The shelved code-symbol
+  lexical-injection path (`LexicalInjectionSource`, `InjectionConfig`, `SymbolDetector`, the
+  `wikantik.bundle.inject.*` knobs) was removed after the retrieval-experiment review found the base
+  hybrid already handles ~88% of identifier queries (revive from git history if real agent traffic
+  shows code-symbol queries). Twelve measured-and-rejected one-shot eval spike scripts were also
+  deleted; their verdicts are banked in `eval/bundle-corpus/baseline-notes.md`.
+
 ### Fixed
 
 - **Two benign startup ERROR logs eliminated.** (1) A malformed wikilink with a whitespace-only

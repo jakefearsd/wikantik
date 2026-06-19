@@ -24,6 +24,10 @@ import com.wikantik.WikiEngine;
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.querylog.ActorType;
+import com.wikantik.api.querylog.QueryLogService;
+import com.wikantik.api.querylog.SourceSurface;
+import com.wikantik.api.spi.Wiki;
 import com.wikantik.knowledge.bundle.HybridChunkSectionSource;
 import com.wikantik.knowledge.bundle.SectionCandidateSource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -53,6 +57,16 @@ public class BundleResource extends RestServletBase {
     protected BundleAssemblyService bundleService() {
         final com.wikantik.WikiSubsystems subs = getSubsystems();
         return subs == null ? null : subs.knowledge().bundleAssemblyService();
+    }
+
+    /** Retrieval-query log, or {@code null} when logging is disabled/unwired. Test-overridable. */
+    protected QueryLogService queryLogService() {
+        return getEngine() instanceof WikiEngine we ? we.queryLogService() : null;
+    }
+
+    /** Infers the caller's {@link ActorType} from the request's auth. Test-overridable. */
+    protected ActorType actorType( final HttpServletRequest req ) {
+        return RetrievalActorClassifier.classify( req, Wiki.session().find( getEngine(), req ) );
     }
 
     @Override
@@ -94,6 +108,12 @@ public class BundleResource extends RestServletBase {
         resp.setStatus( 200 );
         resp.setContentType( "application/json; charset=UTF-8" );
         resp.getWriter().write( BUNDLE_GSON.toJson( bundle ) );
+
+        // Harvest the query for corpus-grounding (async + fail-open; never affects the response above).
+        final QueryLogService qlog = queryLogService();
+        if ( qlog != null ) {
+            qlog.log( q, actorType( req ), SourceSurface.API_BUNDLE, bundle.sections().size() );
+        }
     }
 
     /** Emits the raw dense + BM25 chunk rankings (id + score) for the offline sweep harness. */

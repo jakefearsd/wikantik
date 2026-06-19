@@ -465,3 +465,15 @@ CREATE TABLE IF NOT EXISTS kg_edge_audit (
 
 CREATE INDEX IF NOT EXISTS idx_kg_edge_audit_edge_created
     ON kg_edge_audit (edge_id, created DESC);
+
+-- V041: retrieval query log — real query capture for eval-corpus grounding.
+CREATE TABLE IF NOT EXISTS retrieval_query_log (
+    id             BIGSERIAL   PRIMARY KEY,
+    query_text     TEXT        NOT NULL,
+    actor_type     TEXT        NOT NULL,
+    source_surface TEXT        NOT NULL,
+    result_count   INTEGER,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_retrieval_query_log_actor_surface
+    ON retrieval_query_log (actor_type, source_surface);

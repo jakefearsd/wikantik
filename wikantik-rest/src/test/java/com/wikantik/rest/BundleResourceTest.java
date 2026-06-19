@@ -26,6 +26,9 @@ import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.core.Engine;
+import com.wikantik.api.querylog.ActorType;
+import com.wikantik.api.querylog.QueryLogService;
+import com.wikantik.api.querylog.SourceSurface;
 import com.wikantik.knowledge.bundle.HybridChunkSectionSource;
 import com.wikantik.knowledge.bundle.SectionCandidateSource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -105,6 +108,47 @@ class BundleResourceTest {
         final JsonObject citation = section.getAsJsonObject( "citation" );
         assertEquals( 7,       citation.get( "version" ).getAsInt() );
         assertEquals( "abc123", citation.get( "spanSha256" ).getAsString() );
+    }
+
+    @Test
+    void doGet_logsQuery_onSuccessfulBundle() throws Exception {
+        final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        final ContextBundle bundle = new ContextBundle( "deploy", List.of(
+                new BundleSection( "01DEP", "DeployGuide", List.of( "Setup" ), "do x", 0.9,
+                        new CitationHandle( "01DEP", 7, List.of( "Setup" ), "do x", "abc123" ) ) ) );
+        when( svc.assemble( "deploy" ) ).thenReturn( bundle );
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final BundleResource resource = new BundleResource() {
+            @Override protected BundleAssemblyService bundleService() { return svc; }
+            @Override protected QueryLogService queryLogService() { return qlog; }
+            @Override protected ActorType actorType( final HttpServletRequest r ) { return ActorType.HUMAN; }
+        };
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getParameter( "q" ) ).thenReturn( "deploy" );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( req, resp );
+
+        // the returned section count is the result_count signal; api_bundle surface; classified actor
+        verify( qlog ).log( "deploy", ActorType.HUMAN, SourceSurface.API_BUNDLE, 1 );
+    }
+
+    @Test
+    void doGet_doesNotLog_whenServiceUnavailable() throws Exception {
+        final QueryLogService qlog = mock( QueryLogService.class );
+        final BundleResource resource = new BundleResource() {
+            @Override protected BundleAssemblyService bundleService() { return null; }   // 503
+            @Override protected QueryLogService queryLogService() { return qlog; }
+        };
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getParameter( "q" ) ).thenReturn( "deploy" );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( req, resp );
+
+        verifyNoInteractions( qlog );   // no assemble happened → nothing to log
     }
 
     @Test

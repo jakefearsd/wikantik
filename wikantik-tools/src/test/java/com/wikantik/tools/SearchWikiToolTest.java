@@ -26,6 +26,9 @@ import com.wikantik.api.knowledge.RelatedPage;
 import com.wikantik.api.knowledge.RetrievalResult;
 import com.wikantik.api.knowledge.RetrievedChunk;
 import com.wikantik.api.knowledge.RetrievedPage;
+import com.wikantik.api.querylog.ActorType;
+import com.wikantik.api.querylog.QueryLogService;
+import com.wikantik.api.querylog.SourceSurface;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -67,6 +70,20 @@ class SearchWikiToolTest {
         assertEquals( "hello", result.get( "query" ) );
         assertEquals( 0, result.get( "total" ) );
         assertTrue( result.get( "error" ).toString().contains( "ContextRetrievalService not configured" ) );
+    }
+
+    @Test
+    void execute_logsQuery_asAgentOnToolsSurface() {
+        when( engine.getManager( ContextRetrievalService.class ) ).thenReturn( ctxService );
+        when( ctxService.retrieve( any( ContextQuery.class ) ) ).thenReturn(
+            new RetrievalResult( "hello", List.of(), 0 ) );
+        final QueryLogService qlog = mock( QueryLogService.class );
+        when( engine.queryLogService() ).thenReturn( qlog );
+
+        new SearchWikiTool( engine, new ToolsConfig( new Properties() ) ).execute( "hello", 10, request );
+
+        // /tools is agent-by-construction; result_count = retrieved page count (0 here = zero-result signal)
+        verify( qlog ).log( "hello", ActorType.AGENT, SourceSurface.TOOLS_SEARCH_WIKI, 0 );
     }
 
     @Test

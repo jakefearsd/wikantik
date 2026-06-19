@@ -1622,6 +1622,9 @@ public class WikiEngine implements Engine {
                 props, ds, structuralIndex, searchMgr, pageManager,
                 hybridSearch, graphRerankStep, this );
 
+            // Wire the retrieval query log (real-traffic capture for eval-corpus grounding; default on).
+            this.setQueryLogService( com.wikantik.knowledge.querylog.QueryLogWiring.build( ds, props ) );
+
             // Register save-time filters.
             filterManager.addPageFilter( svcs.chunkProjector(), -1005 );
             filterManager.addPageFilter( svcs.frontmatterDefaultsFilter(), -1004 );
@@ -1858,6 +1861,20 @@ public class WikiEngine implements Engine {
     /** The dense-chunk candidate source, or {@code null} if the dense index was not wired. */
     public com.wikantik.knowledge.bundle.SectionCandidateSource bundleSectionSource() {
         return bundleSectionSource;
+    }
+
+    /** Retrieval-query log; set at startup, read by the retrieval endpoints. Null when disabled
+     *  or not yet wired (callers no-op). A plain field — carries no snapshot machinery. */
+    private volatile com.wikantik.api.querylog.QueryLogService queryLogService;
+
+    /** Called at startup once the persistence DataSource is available. */
+    public void setQueryLogService( final com.wikantik.api.querylog.QueryLogService service ) {
+        this.queryLogService = service;
+    }
+
+    /** The retrieval-query log service, or {@code null} if logging was not wired. */
+    public com.wikantik.api.querylog.QueryLogService queryLogService() {
+        return queryLogService;
     }
 
     /** {@inheritDoc} */

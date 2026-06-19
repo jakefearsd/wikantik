@@ -167,7 +167,10 @@ public class KnowledgeMcpInitializer implements ServletContextListener {
             }
             final com.wikantik.api.bundle.BundleAssemblyService bundleService = kg.bundleAssemblyService();
             if ( bundleService != null ) {
-                tools.add( new AssembleBundleTool( bundleService ) );
+                // Resolve the query log lazily (the service is set during engine startup; resolving
+                // at call time avoids any startup-ordering coupling). Agent-by-construction surface.
+                tools.add( new AssembleBundleTool( bundleService,
+                    () -> engine instanceof com.wikantik.WikiEngine we ? we.queryLogService() : null ) );
             }
             // Ontology tools (read-only): present only when the ontology runtime is wired.
             final com.wikantik.ontology.runtime.OntologyRebuildCoordinator ontoCoord =

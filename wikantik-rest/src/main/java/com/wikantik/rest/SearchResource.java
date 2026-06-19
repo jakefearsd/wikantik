@@ -18,10 +18,15 @@
  */
 package com.wikantik.rest;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
 import com.wikantik.api.knowledge.RetrievalResult;
 import com.wikantik.api.knowledge.RetrievedPage;
+import com.wikantik.api.querylog.ActorType;
+import com.wikantik.api.querylog.QueryLogService;
+import com.wikantik.api.querylog.SourceSurface;
+import com.wikantik.api.spi.Wiki;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -57,6 +62,21 @@ public class SearchResource extends RestServletBase {
     private static final int DEFAULT_LIMIT = 20;
     private static final int MAX_LIMIT = 1_000;
 
+    /** Resolves the retrieval service from the knowledge subsystem. Test-overridable. */
+    protected ContextRetrievalService retrievalService() {
+        return getSubsystems().knowledge().contextRetrievalService();
+    }
+
+    /** Retrieval-query log, or {@code null} when logging is disabled/unwired. Test-overridable. */
+    protected QueryLogService queryLogService() {
+        return getEngine() instanceof WikiEngine we ? we.queryLogService() : null;
+    }
+
+    /** Infers the caller's {@link ActorType} from the request's auth. Test-overridable. */
+    protected ActorType actorType( final HttpServletRequest req ) {
+        return RetrievalActorClassifier.classify( req, Wiki.session().find( getEngine(), req ) );
+    }
+
     @Override
     protected void doGet( final HttpServletRequest request, final HttpServletResponse response )
             throws ServletException, IOException {
@@ -89,7 +109,7 @@ public class SearchResource extends RestServletBase {
 
         // Delegate retrieval to ContextRetrievalService. The service owns
         // BM25 → hybrid rerank → graph rerank → page shaping.
-        final ContextRetrievalService ctxService = getSubsystems().knowledge().contextRetrievalService();
+        final ContextRetrievalService ctxService = retrievalService();
         if ( ctxService == null ) {
             sendError( response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                 "ContextRetrievalService not configured" );
@@ -143,6 +163,12 @@ public class SearchResource extends RestServletBase {
         result.put( "total", resultList.size() );
 
         sendJson( response, result );
+
+        // Harvest the query for corpus-grounding (async + fail-open; never affects the response above).
+        final QueryLogService qlog = queryLogService();
+        if ( qlog != null ) {
+            qlog.log( query, actorType( request ), SourceSurface.API_SEARCH, retrieval.pages().size() );
+        }
     }
 
     /**

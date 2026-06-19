@@ -18,6 +18,7 @@
  */
 package com.wikantik.tools;
 
+import com.wikantik.WikiEngine;
 import com.wikantik.api.core.Engine;
 import com.wikantik.api.knowledge.ContextQuery;
 import com.wikantik.api.knowledge.ContextRetrievalService;
@@ -26,6 +27,9 @@ import com.wikantik.api.knowledge.RetrievalResult;
 import com.wikantik.api.knowledge.RelatedPage;
 import com.wikantik.api.knowledge.RetrievedChunk;
 import com.wikantik.api.knowledge.RetrievedPage;
+import com.wikantik.api.querylog.ActorType;
+import com.wikantik.api.querylog.QueryLogService;
+import com.wikantik.api.querylog.SourceSurface;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -140,6 +144,12 @@ class SearchWikiTool {
         out.put( "query", query );
         out.put( "results", shaped );
         out.put( "total", shaped.size() );
+
+        // Harvest the query for corpus-grounding (async + fail-open). Agent-by-construction surface.
+        final QueryLogService qlog = engine instanceof WikiEngine we ? we.queryLogService() : null;
+        if ( qlog != null ) {
+            qlog.log( query, ActorType.AGENT, SourceSurface.TOOLS_SEARCH_WIKI, retrieval.pages().size() );
+        }
         return out;
     }
 

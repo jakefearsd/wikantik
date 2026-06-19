@@ -11,66 +11,12 @@ Usage:
   python3 bin/eval/spike-kg-rerank.py <base_url> [--slice ids.txt] [--out out.json] [--label off|on]
   default base_url: http://localhost:8080 ; default slice: all RELATIONAL questions
 """
-import csv
 import json
-import re
 import sys
-import urllib.parse
-import urllib.request
+from bundle_eval_common import load_corpus_pairs, fetch_bundle, section_hit
 
 CSV_PATH = "eval/bundle-corpus/queries.csv"
 NS = [5, 12]
-
-
-def norm(s):
-    return re.sub(r"\s+", " ", s).strip().lower()
-
-
-def load_slice(csv_path, query_ids=None):
-    """Rows {qid, query, cat, golds:[(cid, heading_path_str)]}.
-
-    query_ids=None → the full RELATIONAL slice; otherwise only the named query ids.
-    """
-    want = set(query_ids) if query_ids else None
-    qs, order = {}, []
-    for raw in open(csv_path, encoding="utf-8"):
-        ln = raw.strip()
-        if not ln or ln.startswith("#") or ln.startswith("query_id,"):
-            continue
-        p = next(csv.reader([ln]))
-        if len(p) < 5:
-            continue
-        qid, query, cat, cid, hp = p[:5]
-        keep = (qid in want) if want is not None else (cat == "RELATIONAL")
-        if not keep:
-            continue
-        if qid not in qs:
-            qs[qid] = {"qid": qid, "query": query, "cat": cat, "golds": []}
-            order.append(qid)
-        qs[qid]["golds"].append((cid, hp))
-    return [qs[q] for q in order]
-
-
-def prefix(gold, sec):
-    n = len(gold)
-    return n > 0 and any(sec[i:i + n] == gold for i in range(0, len(sec) - n + 1))
-
-
-def section_hit(gold_cid, gold_hp_str, sections):
-    """sections = [(canonicalId, [normalised heading-path segments])]."""
-    gold = [norm(x) for x in gold_hp_str.split(">") if x.strip()]
-    return any(s[0] == gold_cid and prefix(gold, s[1]) for s in sections)
-
-
-def fetch_bundle(base, query):
-    url = base.rstrip("/") + "/api/bundle?" + urllib.parse.urlencode({"q": query})
-    with urllib.request.urlopen(url, timeout=60) as r:
-        d = json.load(r)
-    out = []
-    for s in d.get("sections", []):
-        out.append((s.get("canonicalId", ""),
-                    [norm(x) for x in (s.get("headingPath") or []) if x and x.strip()]))
-    return out
 
 
 def _parse_args(argv):
@@ -97,7 +43,8 @@ def main():
     if slice_file:
         query_ids = [ln.strip() for ln in open(slice_file)
                      if ln.strip() and not ln.startswith("#")]
-    corpus = load_slice(CSV_PATH, query_ids)
+    # query_ids → those query ids; otherwise the full RELATIONAL slice.
+    corpus = load_corpus_pairs(CSV_PATH, query_ids if query_ids else "RELATIONAL")
     tot = {n: [] for n in NS}
     per_query = []
     for q in corpus:

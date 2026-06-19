@@ -20,19 +20,28 @@ package com.wikantik.rest;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.BundleSection;
 import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
+import com.wikantik.api.core.Engine;
+import com.wikantik.knowledge.bundle.HybridChunkSectionSource;
+import com.wikantik.knowledge.bundle.LexicalInjectionSource;
+import com.wikantik.knowledge.bundle.SectionCandidateSource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class BundleResourceTest {
@@ -97,5 +106,132 @@ class BundleResourceTest {
         final JsonObject citation = section.getAsJsonObject( "citation" );
         assertEquals( 7,       citation.get( "version" ).getAsInt() );
         assertEquals( "abc123", citation.get( "spanSha256" ).getAsString() );
+    }
+
+    @Test
+    void assembleThrows_returns_500() throws Exception {
+        final BundleAssemblyService svc = mock( BundleAssemblyService.class );
+        when( svc.assemble( "boom" ) ).thenThrow( new RuntimeException( "kaboom" ) );
+        final BundleResource resource = new BundleResource() {
+            @Override protected BundleAssemblyService bundleService() { return svc; }
+        };
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getParameter( "q" ) ).thenReturn( "boom" );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( req, resp );
+
+        verify( resp ).setStatus( 500 );
+    }
+
+    /* ---------- debug=rankings ---------- */
+
+    private static BundleResource resourceWithEngine( final Engine engine ) {
+        return new BundleResource() {
+            @Override protected Engine getEngine() { return engine; }
+        };
+    }
+
+    private static HttpServletRequest debugReq( final String q, final String k ) {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getParameter( "q" ) ).thenReturn( q );
+        when( req.getParameter( "debug" ) ).thenReturn( "rankings" );
+        when( req.getParameter( "k" ) ).thenReturn( k );
+        return req;
+    }
+
+    @Test
+    void debugRankings_engineNotWikiEngine_returns_409() throws Exception {
+        // getEngine() not a WikiEngine → no chunk-hybrid source → 409.
+        final BundleResource resource = resourceWithEngine( null );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( debugReq( "foo", null ), resp );
+
+        verify( resp ).setStatus( 409 );
+    }
+
+    @Test
+    void debugRankings_nonHybridSource_returns_409() throws Exception {
+        final WikiEngine engine = mock( WikiEngine.class );
+        // a plain dense source (the shipped default) is neither hybrid nor injection → 409.
+        when( engine.bundleSectionSource() ).thenReturn( mock( SectionCandidateSource.class ) );
+        final BundleResource resource = resourceWithEngine( engine );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( debugReq( "foo", null ), resp );
+
+        verify( resp ).setStatus( 409 );
+    }
+
+    @Test
+    void debugRankings_hybridSource_returns_200_andForwardsCustomK() throws Exception {
+        final HybridChunkSectionSource hybrid = mock( HybridChunkSectionSource.class );
+        final Map< String, List< HybridChunkSectionSource.DebugRank > > ranks = new LinkedHashMap<>();
+        ranks.put( "dense", List.of( new HybridChunkSectionSource.DebugRank( "id1", 0.9 ) ) );
+        ranks.put( "bm25", List.of( new HybridChunkSectionSource.DebugRank( "id2", 1.0 ) ) );
+        when( hybrid.debugRankings( "foo", 10 ) ).thenReturn( ranks );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.bundleSectionSource() ).thenReturn( hybrid );
+        final BundleResource resource = resourceWithEngine( engine );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final StringWriter sw = new StringWriter();
+        when( resp.getWriter() ).thenReturn( new PrintWriter( sw ) );
+
+        resource.doGet( debugReq( "foo", "10" ), resp );
+
+        verify( resp ).setStatus( 200 );
+        verify( hybrid ).debugRankings( "foo", 10 );   // custom k parsed and forwarded
+        final JsonObject body = JsonParser.parseString( sw.toString() ).getAsJsonObject();
+        assertTrue( body.has( "dense" ) );
+        assertTrue( body.has( "bm25" ) );
+    }
+
+    @Test
+    void debugRankings_injectionSource_returns_200() throws Exception {
+        final LexicalInjectionSource inj = mock( LexicalInjectionSource.class );
+        when( inj.debugRankings( eq( "foo" ), anyInt() ) ).thenReturn(
+            Map.of( "bm25_code", List.of() ) );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.bundleSectionSource() ).thenReturn( inj );
+        final BundleResource resource = resourceWithEngine( engine );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resource.doGet( debugReq( "foo", null ), resp );
+
+        verify( resp ).setStatus( 200 );
+        verify( inj ).debugRankings( eq( "foo" ), anyInt() );
+    }
+
+    @Test
+    void debugRankings_defaultK_is500() throws Exception {
+        final HybridChunkSectionSource hybrid = mock( HybridChunkSectionSource.class );
+        when( hybrid.debugRankings( "foo", 500 ) ).thenReturn( new LinkedHashMap<>() );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.bundleSectionSource() ).thenReturn( hybrid );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resourceWithEngine( engine ).doGet( debugReq( "foo", null ), resp );
+
+        verify( hybrid ).debugRankings( "foo", 500 );   // no k param → default 500
+    }
+
+    @Test
+    void debugRankings_malformedK_keepsDefault500() throws Exception {
+        final HybridChunkSectionSource hybrid = mock( HybridChunkSectionSource.class );
+        when( hybrid.debugRankings( "foo", 500 ) ).thenReturn( new LinkedHashMap<>() );
+        final WikiEngine engine = mock( WikiEngine.class );
+        when( engine.bundleSectionSource() ).thenReturn( hybrid );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+
+        resourceWithEngine( engine ).doGet( debugReq( "foo", "abc" ), resp );
+
+        verify( hybrid ).debugRankings( "foo", 500 );   // unparseable k → default 500
     }
 }

@@ -6,10 +6,40 @@ code analyzer + lexical injection — shelved default-off; Claude page extractor
 harnesses). Each dimension was run by a subagent. This is the actionable backlog.
 
 ## Done in this pass
+
 - Removed dead 1-arg `LuceneBm25ChunkIndex.fromDataSource(DataSource)` overload (0 callers).
 - (Shelve bookkeeping for lexical injection is separate — see the plan + analyzer findings.)
 
+### Cleanup pass executed 2026-06-19 (full unit reactor + IT reactor green)
+
+- **P1 (all done)** — added `DenseChunkSectionSourceTest` (shipped default, was 0%),
+  `HybridChunkSectionSourceCandidatesTest`, `BootstrapExtractionCliGlobTest`,
+  `BootstrapExtractionCliClaudeGateTest` (the 3 gate branches via the new `resolveAnthropicKey`),
+  and `findMatchingClose` tests; extended `BundleServiceWiringTest` (`build()` branches),
+  `BundleResourceTest` (`handleDebugRankings` 409 / 200-hybrid / 200-injection / k default·custom·malformed,
+  plus `assemble()`→500), `DefaultBundleAssemblyServiceTest` (canonical-null skip + maxSections cap),
+  `InjectionConfigTest`, `LuceneBm25ChunkIndexTest`, `LexicalInjectionSourceTest` (`debugRankings`),
+  `ClaudePageExtractorTest` (`callAnthropic` edge cases), `TextUtilTest` (`getDoubleProperty`).
+- **P2 (done)** — extracted `bin/eval/bundle_eval_common.py`; migrated all 6 active harnesses
+  (`measure-corpus`, `spike-api-bundle`, `measure`/`sweep-bm25-fusion`, `sweep-injection`,
+  `verify-golds`, `spike-kg-rerank`). Verified by pure-function parity vs the originals on the real
+  corpus/map, byte-identical `verify-golds` output, and identical sweep `evaluate`/`inject` across
+  combos. The 12 superseded spike scripts were **not** deleted (owner call, provenance in baseline-notes).
+- **P3 (done, except low-payoff deferrals)** — `TextUtil.getDoubleProperty` (+`parseDoubleParameter`)
+  added; `InjectionConfig.dbl` + `SearchWiringHelper.doubleProp` collapsed into it (kept `HybridConfig`'s
+  stricter throwing form). Package-level `SectionKey` promoted (replaced the 4 local copies; also fixed a
+  latent key-collision in `LexicalInjectionSource`'s old string key).
+- **P4 (done, except low-payoff deferrals)** — `SearchWiringHelper.buildBundleSource(...)` extracted
+  **and the bm25/dense-weight double-read fixed** (knobs resolved to locals once);
+  `BootstrapExtractionCli.resolveAnthropicKey(keyEnv, gateProp, contextLabel)` extracted (collapses both
+  Claude gates); `ClaudePageExtractor.findMatchingClose(raw, open)` extracted;
+  `BundleResource.handleDebugRankings` inline FQNs replaced with imports.
+- **Deliberately deferred** (low-payoff / dormant, per this doc's own ranking): `DebugRank` promotion
+  (removes 2 FQNs but ripples cross-module + into tests), `sortedDesc` centralisation ("low payoff"),
+  and the dormant `LexicalInjectionSource.candidates()` helper extraction ("low priority — dormant").
+
 ## Do NOT touch (dormant by explicit decision, not dead)
+
 - Lexical injection: `LexicalInjectionSource`, `InjectionConfig`, `SymbolDetector`, the
   `wikantik.bundle.inject.*` knobs, the `code` branch in `LuceneBm25ChunkIndex.analyzerFor`,
   `?debug=rankings` + `debugRankings`, `bin/eval/sweep-injection.py` — default-off, kept for a
@@ -25,19 +55,19 @@ harnesses). Each dimension was run by a subagent. This is the actionable backlog
 These are shipped, default-on classes that are materially under-tested. All gaps are **pure Mockito**
 (no DB/IT needed) unless noted. Adding tests changes no production code → low risk, no IT-reactor gate.
 
-| Class | Coverage | Untested paths to add | 
-|---|---|---|
-| `DenseChunkSectionSource` (the **default** bundle source) | **0%** — no test class | `candidates()` happy path (mock embedder/index/repo → grouped+sorted sections); embed-empty → `List.of()`; index-empty → `List.of()`; dedup keeps higher-scoring chunk per `(slug,heading)`; `topK<=0` → 300. New class `DenseChunkSectionSourceTest`. |
-| `BundleResource.handleDebugRankings` | method **0%** | 409 path (non-hybrid source) — the most important; 200 via `HybridChunkSectionSource` base; 200 via `LexicalInjectionSource`; `k` default/custom/malformed; `assemble()` throws → 500. Anonymous-subclass pattern already in `BundleResourceTest`. |
-| `HybridChunkSectionSource.candidates()` / `debugRankings()` | 27% (only `groupToSections` tested) | `candidates()` with mocked deps; dense-unavailable → BM25-only; both-empty → `List.of()`; `debugRankings` keys `dense`+`bm25` capped at k; `toDebugRanks` score-desc. New `HybridChunkSectionSourceCandidatesTest`. |
-| `BundleServiceWiring.build()` | method **0%** | `build(null,...)`→null; `denseEnabled=false`/null denseSource → page-gated; dense path; `versionOf`/`canonicalIdOf` lambda branches (null dao/pageManager/page). |
-| `LexicalInjectionSource.debugRankings()` *(dormant)* | method 0% | base=Hybrid → `bm25_standard`+`bm25_code`; base≠Hybrid → only `bm25_code`. (Low priority — dormant.) |
-| `DefaultBundleAssemblyService` | 70% | `canonical==null` skip branch (2-line test); `maxSections` break (3 pages × 2 sections, cap 3). |
-| `ClaudePageExtractor.callAnthropic` | 71% | non-JSON body; root-not-object (`"[1,2,3]"`); empty `content[]` (`{"content":[]}`); first-not-object; null `text` → all → empty result. Easy Mockito. |
-| `InjectionConfig` *(dormant)* | 67% | `fromProperties(null)` all-defaults; `score_frac=notadouble` → `dbl` warn branch. |
-| `LuceneBm25ChunkIndex` | 71% | `analyzerFor("x"≠code)` → StandardAnalyzer; `topKChunks` IO-error fail-open (close dir then query). |
-| `BootstrapExtractionCli.globToRegex` | low | pure: `Foo*`→matches `FooBar`, not `Bar`; `?` and special-char escapes. |
-| `buildExtractor`/`buildJudge` (claude gates) | low | the 3 `IllegalStateException` gate branches each (needs package-private exposure or reflection). |
+| Class                                                       | Coverage                            | Untested paths to add                                                                                                                                                                                                                                  |
+| ----------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DenseChunkSectionSource` (the **default** bundle source)   | **0%** — no test class              | `candidates()` happy path (mock embedder/index/repo → grouped+sorted sections); embed-empty → `List.of()`; index-empty → `List.of()`; dedup keeps higher-scoring chunk per `(slug,heading)`; `topK<=0` → 300. New class `DenseChunkSectionSourceTest`. |
+| `BundleResource.handleDebugRankings`                        | method **0%**                       | 409 path (non-hybrid source) — the most important; 200 via `HybridChunkSectionSource` base; 200 via `LexicalInjectionSource`; `k` default/custom/malformed; `assemble()` throws → 500. Anonymous-subclass pattern already in `BundleResourceTest`.     |
+| `HybridChunkSectionSource.candidates()` / `debugRankings()` | 27% (only `groupToSections` tested) | `candidates()` with mocked deps; dense-unavailable → BM25-only; both-empty → `List.of()`; `debugRankings` keys `dense`+`bm25` capped at k; `toDebugRanks` score-desc. New `HybridChunkSectionSourceCandidatesTest`.                                    |
+| `BundleServiceWiring.build()`                               | method **0%**                       | `build(null,...)`→null; `denseEnabled=false`/null denseSource → page-gated; dense path; `versionOf`/`canonicalIdOf` lambda branches (null dao/pageManager/page).                                                                                       |
+| `LexicalInjectionSource.debugRankings()` *(dormant)*        | method 0%                           | base=Hybrid → `bm25_standard`+`bm25_code`; base≠Hybrid → only `bm25_code`. (Low priority — dormant.)                                                                                                                                                   |
+| `DefaultBundleAssemblyService`                              | 70%                                 | `canonical==null` skip branch (2-line test); `maxSections` break (3 pages × 2 sections, cap 3).                                                                                                                                                        |
+| `ClaudePageExtractor.callAnthropic`                         | 71%                                 | non-JSON body; root-not-object (`"[1,2,3]"`); empty `content[]` (`{"content":[]}`); first-not-object; null `text` → all → empty result. Easy Mockito.                                                                                                  |
+| `InjectionConfig` *(dormant)*                               | 67%                                 | `fromProperties(null)` all-defaults; `score_frac=notadouble` → `dbl` warn branch.                                                                                                                                                                      |
+| `LuceneBm25ChunkIndex`                                      | 71%                                 | `analyzerFor("x"≠code)` → StandardAnalyzer; `topKChunks` IO-error fail-open (close dir then query).                                                                                                                                                    |
+| `BootstrapExtractionCli.globToRegex`                        | low                                 | pure: `Foo*`→matches `FooBar`, not `Bar`; `?` and special-char escapes.                                                                                                                                                                                |
+| `buildExtractor`/`buildJudge` (claude gates)                | low                                 | the 3 `IllegalStateException` gate branches each (needs package-private exposure or reflection).                                                                                                                                                       |
 
 **Recommendation:** do P1 in priority order; `DenseChunkSectionSource` (shipped default at 0%) first.
 
@@ -46,6 +76,7 @@ These are shipped, default-on classes that are materially under-tested. All gaps
 Massive copy-paste across ~20 scripts: `norm()` (18×), the contiguous-sublist match `sub()/prefix()`
 (20×), `load_corpus()` (18×), `cid2slug()` (13×), `fetch_bundle()` (4×), `load_chunk_section_map()`
 (2×), RRF `fuse/rrf` (2×), `group_to_sections` (2×).
+
 - **Action:** extract `bin/eval/bundle_eval_common.py` exporting: `norm`, `load_corpus`,
   `load_corpus_pairs`, `load_chunk_section_map`, `fetch_bundle`, `sublist`, `section_hit`, `recall_at`,
   `rrf_fuse`, `group_to_sections`, `cid2slug`. Migrate the **active** harnesses first
@@ -86,6 +117,7 @@ Massive copy-paste across ~20 scripts: `norm()` (18×), the contiguous-sublist m
 - `BundleResource.handleDebugRankings`: replace inline FQNs with imports (readability).
 
 ## Sequencing note
+
 P1 (tests) and P2 (Python) are additive / zero-prod-risk — do anytime. P3/P4 touch shipped wiring code
 → batch them and gate on the full IT reactor (`mvn clean install -Pintegration-tests -fae`) before
 committing, per repo discipline.

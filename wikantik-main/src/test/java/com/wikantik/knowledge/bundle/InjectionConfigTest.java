@@ -56,4 +56,26 @@ class InjectionConfigTest {
         p.setProperty("wikantik.bundle.inject.bm25_rank_max", "notanumber");
         assertEquals(20, InjectionConfig.fromProperties(p).bm25RankMax());
     }
+
+    @Test
+    void nullPropertiesYieldsAllDefaults() {
+        final InjectionConfig c = InjectionConfig.fromProperties(null);
+        assertFalse(c.enabled());
+        assertEquals(20, c.bm25RankMax());
+        assertEquals(50, c.denseColdMin());
+        assertEquals(0.3, c.scoreFrac(), 1e-9);
+        assertEquals(3, c.maxInject());
+        assertEquals(3, c.position());
+        assertTrue(c.symbolBoost());
+        assertEquals(50, c.jBoost());
+        assertEquals(0.1, c.alphaBoost(), 1e-9);
+        assertEquals(300, c.denseScanK());
+    }
+
+    @Test
+    void malformedDoubleFallsBackToDefault() {  // exercises the dbl() warn-and-default branch
+        final Properties p = new Properties();
+        p.setProperty("wikantik.bundle.inject.score_frac", "notadouble");
+        assertEquals(0.3, InjectionConfig.fromProperties(p).scoreFrac(), 1e-9);
+    }
 }

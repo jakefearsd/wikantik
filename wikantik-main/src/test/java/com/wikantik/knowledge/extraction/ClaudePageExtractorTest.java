@@ -184,4 +184,53 @@ class ClaudePageExtractorTest {
         final ClaudePageExtractor extractor = newExtractor(mock(HttpClient.class));
         assertEquals("claude:claude-sonnet-4-6", extractor.code());
     }
+
+    /** 200 response carrying a raw {@code body} → run the extractor and return its result. */
+    @SuppressWarnings("unchecked")
+    private static PageExtractionResult extractWith200Body(final String body) throws Exception {
+        final HttpClient client = mock(HttpClient.class);
+        final HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn(body);
+        when(client.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        final ClaudePageExtractor extractor = newExtractor(client);
+        final Page page = new Page("X", null, "body", "", List.of());
+        return extractor.extract(page, new ExtractionContext("X", List.of(), Map.of()));
+    }
+
+    @Test
+    void nonJsonBodyReturnsEmpty() throws Exception {
+        assertEquals(0, extractWith200Body("<<not json>>").entities().size());
+    }
+
+    @Test
+    void rootNotObjectReturnsEmpty() throws Exception {
+        assertEquals(0, extractWith200Body("[1,2,3]").entities().size());
+    }
+
+    @Test
+    void emptyContentArrayReturnsEmpty() throws Exception {
+        assertEquals(0, extractWith200Body("{\"content\":[]}").entities().size());
+    }
+
+    @Test
+    void firstContentBlockNotObjectReturnsEmpty() throws Exception {
+        assertEquals(0, extractWith200Body("{\"content\":[\"just a string\"]}").entities().size());
+    }
+
+    @Test
+    void nullTextReturnsEmpty() throws Exception {
+        assertEquals(0, extractWith200Body("{\"content\":[{\"type\":\"text\",\"text\":null}]}").entities().size());
+    }
+
+    @Test
+    void findMatchingClose_balancesNestedObjectsAndRespectsStrings() {
+        assertEquals(1, ClaudePageExtractor.findMatchingClose("{}", 0));
+        assertEquals(7, ClaudePageExtractor.findMatchingClose("{\"a\":{}}", 0));   // nested → final '}'
+        final String inStr = "{\"k\":\"a}b\"}";                                    // '}' inside a string value
+        assertEquals(inStr.length() - 1, ClaudePageExtractor.findMatchingClose(inStr, 0));
+        final String esc = "{\"k\":\"a\\\"}b\"}";                                  // escaped quote keeps the string open
+        assertEquals(esc.length() - 1, ClaudePageExtractor.findMatchingClose(esc, 0));
+        assertEquals(-1, ClaudePageExtractor.findMatchingClose("{\"k\":1", 0));    // never closes → -1
+    }
 }

@@ -20,14 +20,21 @@ package com.wikantik.rest;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.wikantik.WikiEngine;
 import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.ContextBundle;
+import com.wikantik.api.core.Engine;
+import com.wikantik.knowledge.bundle.HybridChunkSectionSource;
+import com.wikantik.knowledge.bundle.LexicalInjectionSource;
+import com.wikantik.knowledge.bundle.SectionCandidateSource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 /**
  * {@code GET /api/bundle?q=&lt;query&gt;} — returns an assembled RAG context bundle as JSON.
@@ -94,9 +101,9 @@ public class BundleResource extends RestServletBase {
     private void handleDebugRankings( final HttpServletRequest req, final HttpServletResponse resp,
                                       final String q ) throws IOException {
         resp.setContentType( "application/json; charset=UTF-8" );
-        final com.wikantik.api.core.Engine engine = getEngine();
-        final com.wikantik.knowledge.bundle.SectionCandidateSource src =
-            ( engine instanceof com.wikantik.WikiEngine we ) ? we.bundleSectionSource() : null;
+        final Engine engine = getEngine();
+        final SectionCandidateSource src =
+            ( engine instanceof WikiEngine we ) ? we.bundleSectionSource() : null;
         int k = 500;
         try {
             final String kp = req.getParameter( "k" );
@@ -104,10 +111,10 @@ public class BundleResource extends RestServletBase {
         } catch ( final NumberFormatException ignored ) { /* keep default */ }
         // The injector (when active) exposes dense + bm25_standard + bm25_code; the bare hybrid
         // source exposes dense + bm25. Both have a debugRankings(query, k) returning the same shape.
-        final java.util.Map< String, java.util.List< com.wikantik.knowledge.bundle.HybridChunkSectionSource.DebugRank > > rankings;
-        if ( src instanceof com.wikantik.knowledge.bundle.LexicalInjectionSource inj ) {
+        final Map< String, List< HybridChunkSectionSource.DebugRank > > rankings;
+        if ( src instanceof LexicalInjectionSource inj ) {
             rankings = inj.debugRankings( q, k );
-        } else if ( src instanceof com.wikantik.knowledge.bundle.HybridChunkSectionSource hybrid ) {
+        } else if ( src instanceof HybridChunkSectionSource hybrid ) {
             rankings = hybrid.debugRankings( q, k );
         } else {
             resp.setStatus( 409 );

@@ -91,9 +91,6 @@ public final class DefaultBundleAssemblyService implements BundleAssemblyService
         return new ContextBundle( query, out );
     }
 
-    /** Collision-proof dedup key: (slug, heading-path). List equality is value-based. */
-    private record SectionKey( String slug, List< String > headingPath ) {}
-
     static String sha256( final String text ) {
         try {
             final byte[] d = MessageDigest.getInstance( "SHA-256" ).digest( text.getBytes( StandardCharsets.UTF_8 ) );

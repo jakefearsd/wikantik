@@ -98,4 +98,25 @@ class LuceneBm25ChunkIndexTest {
             new IndexedChunk( C3, "P", null ) ) );
         assertEquals( 1, idx.size() );
     }
+
+    @Test
+    void analyzerForNonCodeNameReturnsStandardAnalyzer() {
+        assertInstanceOf( org.apache.lucene.analysis.standard.StandardAnalyzer.class,
+            LuceneBm25ChunkIndex.analyzerFor( "standard" ) );
+        assertInstanceOf( org.apache.lucene.analysis.standard.StandardAnalyzer.class,
+            LuceneBm25ChunkIndex.analyzerFor( null ) );
+        assertInstanceOf( org.apache.lucene.analysis.standard.StandardAnalyzer.class,
+            LuceneBm25ChunkIndex.analyzerFor( "english" ) );
+    }
+
+    @Test
+    void topKChunksFailsOpenOnQueryError() throws Exception {
+        final LuceneBm25ChunkIndex idx = index();
+        // Force the underlying reader closed so the next search throws AlreadyClosedException;
+        // topKChunks must catch (IOException | RuntimeException) and degrade to empty, not propagate.
+        final java.lang.reflect.Field f = LuceneBm25ChunkIndex.class.getDeclaredField( "reader" );
+        f.setAccessible( true );
+        ( (org.apache.lucene.index.DirectoryReader) f.get( idx ) ).close();
+        assertTrue( idx.topKChunks( "canary traffic", 5 ).isEmpty(), "query error → fail-open empty list" );
+    }
 }

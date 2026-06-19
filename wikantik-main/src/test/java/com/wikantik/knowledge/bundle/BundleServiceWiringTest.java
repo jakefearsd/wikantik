@@ -18,14 +18,29 @@
  */
 package com.wikantik.knowledge.bundle;
 
+import com.wikantik.api.bundle.BundleAssemblyService;
+import com.wikantik.api.bundle.ContextBundle;
+import com.wikantik.api.core.Page;
+import com.wikantik.api.knowledge.ContextRetrievalService;
+import com.wikantik.api.knowledge.RetrievalResult;
+import com.wikantik.api.managers.PageManager;
+import com.wikantik.pagegraph.spine.PageCanonicalIdsDao;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class BundleServiceWiringTest {
 
@@ -75,5 +90,103 @@ class BundleServiceWiringTest {
         final Properties p = new Properties();
         p.setProperty( "wikantik.bundle.sections_per_page", "8" );
         assertEquals( 8, BundleServiceWiring.sectionsPerPageFrom( p ) );
+    }
+
+    /* ---------- build() ---------- */
+
+    private static SectionCandidateSource denseWith( final String slug ) {
+        return q -> List.of( new CandidateSection( slug, List.of( "H" ), "text", 0.9 ) );
+    }
+
+    private static PageCanonicalIdsDao.Row row( final String canonical, final String slug ) {
+        return new PageCanonicalIdsDao.Row( canonical, slug, "title", "article", "cluster", null, null );
+    }
+
+    @Test
+    void build_nullRetrieval_returnsNull() {
+        assertNull( BundleServiceWiring.build( null, denseWith( "PageX" ), null, null, new Properties() ),
+            "no retrieval service → no bundle service" );
+    }
+
+    @Test
+    void build_densePath_usesDenseSource_resolvesCanonicalAndVersion() {
+        final ContextRetrievalService retrieval = mock( ContextRetrievalService.class );  // never touched on dense path
+        final PageCanonicalIdsDao dao = mock( PageCanonicalIdsDao.class );
+        when( dao.findBySlug( "PageX" ) ).thenReturn( Optional.of( row( "01X", "PageX" ) ) );
+        final PageManager pm = mock( PageManager.class );
+        final Page page = mock( Page.class );
+        when( page.getVersion() ).thenReturn( 3 );
+        when( pm.getPage( "PageX" ) ).thenReturn( page );
+
+        final BundleAssemblyService svc =
+            BundleServiceWiring.build( retrieval, denseWith( "PageX" ), dao, pm, new Properties() );
+        final ContextBundle b = svc.assemble( "q" );
+
+        assertEquals( 1, b.sections().size() );
+        assertEquals( "01X", b.sections().get( 0 ).canonicalId() );
+        assertEquals( 3, b.sections().get( 0 ).citation().version() );
+        verifyNoInteractions( retrieval );   // dense path must not fall through to page-gated retrieval
+    }
+
+    @Test
+    void build_denseDisabled_usesPageGated_ignoresDenseSource() {
+        final ContextRetrievalService retrieval = mock( ContextRetrievalService.class );
+        when( retrieval.retrieve( any() ) ).thenReturn( new RetrievalResult( "q", List.of(), 0 ) );
+        final SectionCandidateSource dense = mock( SectionCandidateSource.class );
+        final Properties p = new Properties();
+        p.setProperty( "wikantik.bundle.dense.enabled", "false" );
+
+        final ContextBundle b = BundleServiceWiring.build( retrieval, dense, null, null, p ).assemble( "q" );
+
+        assertTrue( b.sections().isEmpty() );
+        verify( retrieval ).retrieve( any() );   // page-gated path exercised
+        verifyNoInteractions( dense );           // dense source not consulted
+    }
+
+    @Test
+    void build_nullDenseSource_usesPageGated() {
+        final ContextRetrievalService retrieval = mock( ContextRetrievalService.class );
+        when( retrieval.retrieve( any() ) ).thenReturn( new RetrievalResult( "q", List.of(), 0 ) );
+
+        final BundleAssemblyService svc = BundleServiceWiring.build( retrieval, null, null, null, new Properties() );
+
+        assertTrue( svc.assemble( "q" ).sections().isEmpty() );
+        verify( retrieval ).retrieve( any() );
+    }
+
+    @Test
+    void build_nullDao_skipsSectionLackingCanonical() {
+        final ContextRetrievalService retrieval = mock( ContextRetrievalService.class );
+        final BundleAssemblyService svc =
+            BundleServiceWiring.build( retrieval, denseWith( "PageX" ), null, null, new Properties() );
+        assertTrue( svc.assemble( "q" ).sections().isEmpty(),
+            "null dao → canonicalIdOf empty → un-citable section skipped" );
+    }
+
+    @Test
+    void build_nullPageManager_versionZero() {
+        final ContextRetrievalService retrieval = mock( ContextRetrievalService.class );
+        final PageCanonicalIdsDao dao = mock( PageCanonicalIdsDao.class );
+        when( dao.findBySlug( "PageX" ) ).thenReturn( Optional.of( row( "01X", "PageX" ) ) );
+
+        final ContextBundle b =
+            BundleServiceWiring.build( retrieval, denseWith( "PageX" ), dao, null, new Properties() ).assemble( "q" );
+
+        assertEquals( 1, b.sections().size() );
+        assertEquals( 0, b.sections().get( 0 ).citation().version(), "null pageManager → version 0" );
+    }
+
+    @Test
+    void build_pageManagerReturnsNull_versionZero() {
+        final ContextRetrievalService retrieval = mock( ContextRetrievalService.class );
+        final PageCanonicalIdsDao dao = mock( PageCanonicalIdsDao.class );
+        when( dao.findBySlug( "PageX" ) ).thenReturn( Optional.of( row( "01X", "PageX" ) ) );
+        final PageManager pm = mock( PageManager.class );
+        when( pm.getPage( "PageX" ) ).thenReturn( null );
+
+        final ContextBundle b =
+            BundleServiceWiring.build( retrieval, denseWith( "PageX" ), dao, pm, new Properties() ).assemble( "q" );
+
+        assertEquals( 0, b.sections().get( 0 ).citation().version(), "missing page → version 0" );
     }
 }

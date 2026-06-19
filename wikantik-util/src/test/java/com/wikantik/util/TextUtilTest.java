@@ -810,6 +810,24 @@ public class TextUtilTest {
         assertEquals( 99, TextUtil.getIntegerProperty( props, "missing", 99 ) );
     }
 
+    // --- getDoubleProperty tests ---
+
+    @Test
+    public void testGetDoubleProperty() {
+        Properties props = new Properties();
+        props.setProperty( "frac", "0.75" );
+        assertEquals( 0.75, TextUtil.getDoubleProperty( props, "frac", 0.0 ), 1e-9 );
+    }
+
+    @Test
+    public void testGetDoublePropertyMissingMalformedAndNullProps() {
+        Properties props = new Properties();
+        assertEquals( 1.5, TextUtil.getDoubleProperty( props, "missing", 1.5 ), 1e-9 );
+        props.setProperty( "bad", "notadouble" );
+        assertEquals( 1.5, TextUtil.getDoubleProperty( props, "bad", 1.5 ), 1e-9 );
+        assertEquals( 1.5, TextUtil.getDoubleProperty( null, "any", 1.5 ), 1e-9, "null props is tolerated" );
+    }
+
     // --- isPositive additional tests ---
 
     @Test

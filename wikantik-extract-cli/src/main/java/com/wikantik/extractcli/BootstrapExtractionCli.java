@@ -211,21 +211,8 @@ public final class BootstrapExtractionCli {
         return switch( a.extractor ) {
             case "ollama" -> new OllamaPageExtractor( http, a.ollamaUrl, a.ollamaModel, a.timeoutMs, parser );
             case "claude" -> {
-                if( !Boolean.parseBoolean(
-                    System.getProperty( "wikantik.kg.extractor.allow_claude", "false" ) ) ) {
-                    throw new IllegalStateException(
-                        "--extractor claude requires -Dwikantik.kg.extractor.allow_claude=true (gated cost guard)." );
-                }
-                if( a.anthropicKeyEnv == null || a.anthropicKeyEnv.isBlank() ) {
-                    throw new IllegalStateException(
-                        "--extractor claude requires --anthropic-key-env <VAR> naming the env var "
-                      + "that holds the Anthropic API key." );
-                }
-                final String key = System.getenv( a.anthropicKeyEnv );
-                if( key == null || key.isBlank() ) {
-                    throw new IllegalStateException(
-                        "environment variable '" + a.anthropicKeyEnv + "' is unset or empty." );
-                }
+                final String key = resolveAnthropicKey(
+                    a.anthropicKeyEnv, "wikantik.kg.extractor.allow_claude", "--extractor claude" );
                 final String model = ( a.extractorModel == null || a.extractorModel.isBlank() )
                     ? DEFAULT_CLAUDE_EXTRACTOR_MODEL : a.extractorModel;
                 yield new ClaudePageExtractor( key, model, a.timeoutMs, parser );
@@ -242,26 +229,38 @@ public final class BootstrapExtractionCli {
             case "ollama" -> new OllamaProposalJudge(
                 HttpClient.newHttpClient(), a.ollamaUrl, a.judgeModel, a.timeoutMs );
             case "claude" -> {
-                if( !Boolean.parseBoolean(
-                    System.getProperty( "wikantik.kg.judge.allow_claude", "false" ) ) ) {
-                    throw new IllegalStateException(
-                        "--judge claude requires -Dwikantik.kg.judge.allow_claude=true (gated cost guard)." );
-                }
-                if( a.anthropicKeyEnv == null || a.anthropicKeyEnv.isBlank() ) {
-                    throw new IllegalStateException(
-                        "--judge claude requires --anthropic-key-env <VAR> naming the env var "
-                      + "that holds the Anthropic API key." );
-                }
-                final String key = System.getenv( a.anthropicKeyEnv );
-                if( key == null || key.isBlank() ) {
-                    throw new IllegalStateException(
-                        "environment variable '" + a.anthropicKeyEnv + "' is unset or empty." );
-                }
+                final String key = resolveAnthropicKey(
+                    a.anthropicKeyEnv, "wikantik.kg.judge.allow_claude", "--judge claude" );
                 yield new ClaudeProposalJudge( key, a.judgeModel, a.timeoutMs );
             }
             default -> throw new IllegalStateException(
                 "unknown --judge value '" + a.judge + "' (expected: none|ollama|claude)" );
         };
+    }
+
+    /**
+     * Resolves the Anthropic API key for a gated Claude path, or throws
+     * {@link IllegalStateException} with a clean message when a precondition is unmet:
+     * the {@code gateProp} cost guard must be {@code true}, {@code keyEnv} must name an env
+     * var, and that env var must be populated. {@code contextLabel} is the CLI flag
+     * (e.g. {@code "--extractor claude"}) woven into the messages. Package-private for unit testing.
+     */
+    static String resolveAnthropicKey( final String keyEnv, final String gateProp, final String contextLabel ) {
+        if( !Boolean.parseBoolean( System.getProperty( gateProp, "false" ) ) ) {
+            throw new IllegalStateException(
+                contextLabel + " requires -D" + gateProp + "=true (gated cost guard)." );
+        }
+        if( keyEnv == null || keyEnv.isBlank() ) {
+            throw new IllegalStateException(
+                contextLabel + " requires --anthropic-key-env <VAR> naming the env var "
+              + "that holds the Anthropic API key." );
+        }
+        final String key = System.getenv( keyEnv );
+        if( key == null || key.isBlank() ) {
+            throw new IllegalStateException(
+                "environment variable '" + keyEnv + "' is unset or empty." );
+        }
+        return key;
     }
 
     private static KgNodeEmbeddingService buildEmbeddingService( final Args a,

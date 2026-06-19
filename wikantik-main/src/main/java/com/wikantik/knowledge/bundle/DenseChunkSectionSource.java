@@ -95,6 +95,4 @@ public final class DenseChunkSectionSource implements SectionCandidateSource {
         out.sort( Comparator.comparingDouble( CandidateSection::denseScore ).reversed() );
         return out;
     }
-
-    private record SectionKey( String slug, List< String > headingPath ) {}
 }

@@ -18,6 +18,7 @@
  */
 package com.wikantik.knowledge.bundle;
 
+import com.wikantik.util.TextUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import java.util.Properties;
@@ -42,12 +43,12 @@ public record InjectionConfig(
             bool(p, "wikantik.bundle.inject.enabled", false),
             intp(p, "wikantik.bundle.inject.bm25_rank_max", 20),
             intp(p, "wikantik.bundle.inject.dense_cold_min", 50),
-            dbl(p, "wikantik.bundle.inject.score_frac", 0.3),
+            TextUtil.getDoubleProperty(p, "wikantik.bundle.inject.score_frac", 0.3),
             intp(p, "wikantik.bundle.inject.max_inject", 3),
             intp(p, "wikantik.bundle.inject.position", 3),
             bool(p, "wikantik.bundle.inject.symbol_boost", true),
             intp(p, "wikantik.bundle.inject.j_boost", 50),
-            dbl(p, "wikantik.bundle.inject.alpha_boost", 0.1),
+            TextUtil.getDoubleProperty(p, "wikantik.bundle.inject.alpha_boost", 0.1),
             intp(p, "wikantik.bundle.inject.dense_scan_k", 300));
     }
 
@@ -59,12 +60,6 @@ public record InjectionConfig(
         final String v = p == null ? null : p.getProperty(k);
         if (v == null || v.isBlank()) return def;
         try { return Integer.parseInt(v.trim()); }
-        catch (final NumberFormatException e) { LOG.warn("Invalid {} '{}'; using {}", k, v, def); return def; }
-    }
-    private static double dbl(final Properties p, final String k, final double def) {
-        final String v = p == null ? null : p.getProperty(k);
-        if (v == null || v.isBlank()) return def;
-        try { return Double.parseDouble(v.trim()); }
         catch (final NumberFormatException e) { LOG.warn("Invalid {} '{}'; using {}", k, v, def); return def; }
     }
 }

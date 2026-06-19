@@ -21,6 +21,7 @@ package com.wikantik.knowledge.bundle;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.knowledge.*;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -55,6 +56,30 @@ class DefaultBundleAssemblyServiceTest {
         // dedup: no two sections share (slug, headingPath)
         assertEquals( b.sections().stream().map( s -> s.slug()+s.headingPath() ).distinct().count(),
                       b.sections().size() );
+    }
+
+    @Test
+    void skipsSectionWhenCanonicalIdMissing() {
+        // canonicalIdOf returns empty → the section is un-citable and must be dropped, not emitted.
+        final SectionCandidateSource source = q -> List.of( new CandidateSection( "PageA", List.of( "H" ), "a", 0.9 ) );
+        final ContextBundle b = new DefaultBundleAssemblyService(
+            source, ( q, s ) -> s, slug -> Optional.empty(), slug -> 1, 5 ).assemble( "q" );
+        assertTrue( b.sections().isEmpty(), "section without a canonical_id is skipped" );
+    }
+
+    @Test
+    void capsAtMaxSections() {
+        // 3 pages x 2 distinct sections = 6 citable candidates; maxSections=3 must break after the third.
+        final List< CandidateSection > six = new ArrayList<>();
+        for ( int p = 0; p < 3; p++ ) {
+            for ( int s = 0; s < 2; s++ ) {
+                six.add( new CandidateSection( "Page" + p, List.of( "H" + s ), "t" + p + s, 1.0 - 0.01 * ( p * 2 + s ) ) );
+            }
+        }
+        final SectionCandidateSource source = q -> six;
+        final ContextBundle b = new DefaultBundleAssemblyService(
+            source, ( q, s ) -> s, slug -> Optional.of( "c-" + slug ), slug -> 1, 3 ).assemble( "q" );
+        assertEquals( 3, b.sections().size(), "output capped at maxSections" );
     }
 
     private record StubRetrieval( RetrievalResult fixed ) implements ContextRetrievalService {

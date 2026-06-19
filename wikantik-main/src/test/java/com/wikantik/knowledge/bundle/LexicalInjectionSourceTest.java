@@ -22,14 +22,17 @@ import com.wikantik.knowledge.bundle.LexicalInjectionSource.Candidate;
 import com.wikantik.knowledge.chunking.ContentChunkRepository;
 import com.wikantik.knowledge.chunking.ContentChunkRepository.MentionableChunk;
 import com.wikantik.search.hybrid.ChunkVectorIndex;
+import com.wikantik.search.hybrid.HybridFuser;
 import com.wikantik.search.hybrid.LuceneBm25ChunkIndex;
 import com.wikantik.search.hybrid.QueryEmbedder;
 import com.wikantik.search.hybrid.ScoredChunk;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -137,6 +140,47 @@ class LexicalInjectionSourceTest {
         final List<CandidateSection> out = src.candidates("the gold thing");
         assertEquals("GoldPage", out.get(0).slug());     // injected at position 0
         assertEquals("gold text", out.get(0).text());
+    }
+
+    @Test @SuppressWarnings("unchecked")
+    void debugRankingsWithHybridBase_renamesBm25ToStandardAndAddsBm25Code() {
+        final UUID dId = UUID.fromString("00000000-0000-0000-0000-0000000000d1");
+        final UUID bId = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
+        final UUID cId = UUID.fromString("00000000-0000-0000-0000-0000000000c1");
+        // Real hybrid base: its debugRankings yields {dense, bm25}.
+        final QueryEmbedder hEmbed = mock(QueryEmbedder.class);
+        when(hEmbed.embed(anyString())).thenReturn(Optional.of(new float[]{0.1f}));
+        final ChunkVectorIndex hDense = mock(ChunkVectorIndex.class);
+        when(hDense.topKChunks(any(), anyInt())).thenReturn(List.of(new ScoredChunk(dId, "PD", 0.9)));
+        final LuceneBm25ChunkIndex hBm25 = mock(LuceneBm25ChunkIndex.class);
+        when(hBm25.topKChunks(anyString(), anyInt())).thenReturn(List.of(new ScoredChunk(bId, "PB", 1.0)));
+        final HybridChunkSectionSource base = new HybridChunkSectionSource(
+            hEmbed, hDense, hBm25, mock(ContentChunkRepository.class), new HybridFuser(60, 0.5, 0.5, 0), 50);
+
+        final LuceneBm25ChunkIndex codeIdx = mock(LuceneBm25ChunkIndex.class);
+        when(codeIdx.topKChunks(anyString(), anyInt())).thenReturn(List.of(new ScoredChunk(cId, "PC", 5.0)));
+        final LexicalInjectionSource inj = new LexicalInjectionSource(
+            base, mock(QueryEmbedder.class), mock(ChunkVectorIndex.class), codeIdx,
+            mock(ContentChunkRepository.class), InjectionConfig.fromProperties(props(true)));
+
+        final Map<String, List<HybridChunkSectionSource.DebugRank>> r = inj.debugRankings("q", 10);
+        assertEquals(Set.of("dense", "bm25_standard", "bm25_code"), r.keySet());
+        assertFalse(r.containsKey("bm25"));     // renamed to bm25_standard
+        assertEquals(cId.toString(), r.get("bm25_code").get(0).chunkId());
+    }
+
+    @Test @SuppressWarnings("unchecked")
+    void debugRankingsWithNonHybridBase_hasOnlyBm25Code() {
+        final UUID cId = UUID.fromString("00000000-0000-0000-0000-0000000000c2");
+        final SectionCandidateSource base = q -> List.of();   // not a HybridChunkSectionSource
+        final LuceneBm25ChunkIndex codeIdx = mock(LuceneBm25ChunkIndex.class);
+        when(codeIdx.topKChunks(anyString(), anyInt())).thenReturn(List.of(new ScoredChunk(cId, "PC", 5.0)));
+        final LexicalInjectionSource inj = new LexicalInjectionSource(
+            base, mock(QueryEmbedder.class), mock(ChunkVectorIndex.class), codeIdx,
+            mock(ContentChunkRepository.class), InjectionConfig.fromProperties(props(true)));
+
+        final Map<String, List<HybridChunkSectionSource.DebugRank>> r = inj.debugRankings("q", 10);
+        assertEquals(Set.of("bm25_code"), r.keySet());
     }
 
     @Test @SuppressWarnings("unchecked")

@@ -147,6 +147,4 @@ public final class HybridChunkSectionSource implements SectionCandidateSource {
         }
         return new ArrayList<>( best.values() );
     }
-
-    private record SectionKey( String slug, List< String > headingPath ) {}
 }

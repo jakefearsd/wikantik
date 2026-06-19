@@ -54,8 +54,7 @@ public final class LexicalInjectionSource implements SectionCandidateSource {
     /** A BM25(code) section candidate with its lexical score/rank and best dense rank. */
     public record Candidate(CandidateSection section, double bm25Score, int bm25Rank, int denseRank) {}
 
-    private record Key(String slug, List<String> headingPath) {}
-    private static Key key(final CandidateSection s) { return new Key(s.slug(), s.headingPath()); }
+    private static SectionKey keyOf(final CandidateSection s) { return new SectionKey(s.slug(), s.headingPath()); }
 
     private final SectionCandidateSource base;
     private final QueryEmbedder embedder;
@@ -86,11 +85,11 @@ public final class LexicalInjectionSource implements SectionCandidateSource {
             final Map<UUID, MentionableChunk> hydr = hydrate(bm25, denseSorted);
 
             // best (lowest) dense rank per section; sections absent from the dense scan are cold.
-            final Map<String, Integer> denseRankBySection = new HashMap<>();
+            final Map<SectionKey, Integer> denseRankBySection = new HashMap<>();
             for (int r = 0; r < denseSorted.size(); r++) {
                 final MentionableChunk c = hydr.get(denseSorted.get(r).chunkId());
                 if (c == null) continue;
-                final String key = sectionKey(c.pageName(), c.headingPath());
+                final SectionKey key = new SectionKey(c.pageName(), c.headingPath());
                 final int rr = r;
                 denseRankBySection.merge(key, rr, Math::min);
             }
@@ -98,13 +97,13 @@ public final class LexicalInjectionSource implements SectionCandidateSource {
             // BM25(code) section candidates: first (best) chunk per section, in bm25 rank order.
             final List<ScoredChunk> bm25Sorted = sortedDesc(bm25);
             final double topScore = bm25Sorted.get(0).score();
-            final Set<String> seen = new LinkedHashSet<>();
+            final Set<SectionKey> seen = new LinkedHashSet<>();
             final List<Candidate> cands = new ArrayList<>();
             for (int r = 0; r < bm25Sorted.size(); r++) {
                 final ScoredChunk sc = bm25Sorted.get(r);
                 final MentionableChunk c = hydr.get(sc.chunkId());
                 if (c == null) continue;
-                final String key = sectionKey(c.pageName(), c.headingPath());
+                final SectionKey key = new SectionKey(c.pageName(), c.headingPath());
                 if (!seen.add(key)) continue;
                 final int denseRank = denseRankBySection.getOrDefault(key, config.denseScanK());
                 cands.add(new Candidate(
@@ -133,10 +132,6 @@ public final class LexicalInjectionSource implements SectionCandidateSource {
         return out;
     }
 
-    private static String sectionKey(final String slug, final List<String> hp) {
-        return slug + " " + String.join("", hp == null ? List.of() : hp);
-    }
-
     /** Debug rankings for the offline sweep: dense + bm25_standard (from base) + bm25_code. */
     public Map<String, List<HybridChunkSectionSource.DebugRank>> debugRankings(final String query, final int k) {
         final Map<String, List<HybridChunkSectionSource.DebugRank>> out = new LinkedHashMap<>();
@@ -163,8 +158,8 @@ public final class LexicalInjectionSource implements SectionCandidateSource {
         final double alpha = symbolBoost ? cfg.alphaBoost() : cfg.scoreFrac();
         final double scoreBar = alpha * topBm25Score;
 
-        final Set<Key> baseKeys = new LinkedHashSet<>();
-        for (final CandidateSection s : base) baseKeys.add(key(s));
+        final Set<SectionKey> baseKeys = new LinkedHashSet<>();
+        for (final CandidateSection s : base) baseKeys.add(keyOf(s));
 
         final List<CandidateSection> picked = new ArrayList<>();
         for (final Candidate c : candidates) {
@@ -172,8 +167,8 @@ public final class LexicalInjectionSource implements SectionCandidateSource {
             if (c.bm25Rank() >= rankMax) continue;
             if (c.bm25Score() < scoreBar) continue;
             if (c.denseRank() <= cfg.denseColdMin()) continue;   // dense-warm → dense already has it
-            if (baseKeys.contains(key(c.section()))) continue;   // dedup
-            baseKeys.add(key(c.section()));
+            if (baseKeys.contains(keyOf(c.section()))) continue;   // dedup
+            baseKeys.add(keyOf(c.section()));
             picked.add(c.section());
         }
         if (picked.isEmpty()) return base;

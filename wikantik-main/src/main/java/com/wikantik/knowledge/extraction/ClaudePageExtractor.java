@@ -169,6 +169,17 @@ public final class ClaudePageExtractor implements PageExtractor {
         if( anchor < 0 ) return null;
         final int open = raw.lastIndexOf( '{', anchor );
         if( open < 0 ) return null;
+        final int close = findMatchingClose( raw, open );
+        return close < 0 ? null : raw.substring( open, close + 1 );   // -1 = unbalanced (truncated)
+    }
+
+    /**
+     * Brace-matches forward from {@code open} (which must index a {@code &#123;}), respecting JSON
+     * string literals and {@code \}-escapes, and returns the index of the balanced closing
+     * {@code &#125;} — or {@code -1} if the object never closes (e.g. a {@code max_tokens} truncation).
+     * A {@code &#125;} inside a string value does not terminate the object.
+     */
+    static int findMatchingClose( final String raw, final int open ) {
         int depth = 0;
         boolean inString = false, escaped = false;
         for( int i = open; i < raw.length(); i++ ) {
@@ -182,9 +193,9 @@ public final class ClaudePageExtractor implements PageExtractor {
             } else if( c == '{' ) {
                 depth++;
             } else if( c == '}' ) {
-                if( --depth == 0 ) return raw.substring( open, i + 1 );
+                if( --depth == 0 ) return i;
             }
         }
-        return null;   // unbalanced — truncated output
+        return -1;   // unbalanced — truncated output
     }
 }

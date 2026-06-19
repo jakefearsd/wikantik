@@ -29,12 +29,14 @@ def _csv():
 
 
 def test_load_slice_relational_only():
-    rows = skr.load_slice(_csv(), None)
+    # slice = the RELATIONAL category (load_corpus_pairs with a string cat filter)
+    rows = skr.load_corpus_pairs(_csv(), "RELATIONAL")
     assert {r["qid"] for r in rows} == {"r01", "r02"}, rows
 
 
 def test_load_slice_by_ids():
-    rows = skr.load_slice(_csv(), ["r02"])
+    # slice = explicit query ids (load_corpus_pairs with a collection filter)
+    rows = skr.load_corpus_pairs(_csv(), ["r02"])
     assert {r["qid"] for r in rows} == {"r02"}, rows
 
 

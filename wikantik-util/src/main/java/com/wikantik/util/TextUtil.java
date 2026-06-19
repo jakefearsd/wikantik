@@ -347,6 +347,42 @@ public final class TextUtil {
     }
 
     /**
+     *  Parses a double from a string, returning the default on null/blank/non-numeric input.
+     *  Sibling of {@link #parseIntParameter(String, int)}.
+     *
+     *  @param value    The string to parse (may be null).
+     *  @param defvalue The value to return when {@code value} is not a finite double.
+     *  @return The parsed double, or {@code defvalue}.
+     */
+    public static double parseDoubleParameter( final String value, final double defvalue ) {
+        try {
+            return Double.parseDouble( value.trim() );
+        } catch( final Exception e ) {
+            LOG.debug( "parseDoubleParameter: cannot parse '{}' — returning default {}", value, defvalue );
+        }
+        return defvalue;
+    }
+
+    /**
+     *  Gets a double property from a standard Properties list, mirroring {@link #getIntegerProperty}:
+     *  a matching Java System Property (then an env var with dots replaced by underscores) wins over
+     *  the supplied properties, and a null/blank/non-numeric value falls back to {@code defVal}.
+     *  Null-safe for {@code props}.
+     *
+     *  @param props  The property set to look through (may be null).
+     *  @param key    The key to look for.
+     *  @param defVal The value to return when the property is unset or non-numeric.
+     *  @return The property value as a double (or {@code defVal}).
+     */
+    public static double getDoubleProperty( final Properties props, final String key, final double defVal ) {
+        String val = System.getProperties().getProperty( key, System.getenv( key.replace( ".", "_" ) ) );
+        if( val == null ) {
+            val = props == null ? null : props.getProperty( key );
+        }
+        return parseDoubleParameter( val, defVal );
+    }
+
+    /**
      *  Gets a boolean property from a standard Properties list. Returns the default value, in case the key has not been set.
      *  Before inspecting the props, we first check if there is a Java System Property with the same name, if it exists
      *  we use that value, if not we check an environment variable with that (almost) same name, almost meaning we replace

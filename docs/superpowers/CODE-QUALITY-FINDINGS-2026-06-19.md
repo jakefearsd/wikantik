@@ -40,10 +40,14 @@ harnesses). Each dimension was run by a subagent. This is the actionable backlog
 
 ## Do NOT touch (dormant by explicit decision, not dead)
 
-- Lexical injection: `LexicalInjectionSource`, `InjectionConfig`, `SymbolDetector`, the
-  `wikantik.bundle.inject.*` knobs, the `code` branch in `LuceneBm25ChunkIndex.analyzerFor`,
-  `?debug=rankings` + `debugRankings`, `bin/eval/sweep-injection.py` — default-off, kept for a
-  possible revisit.
+- ~~Lexical injection~~ — **REMOVED 2026-06-19** (follow-on to this pass, per the 5-day
+  retrieval-experiment review): `LexicalInjectionSource`, `InjectionConfig`, `SymbolDetector`, the
+  `wikantik.bundle.inject.*` knobs, the injection wiring + `?debug=rankings` injection branch, and
+  `bin/eval/sweep-injection.py` were deleted (base hybrid already handles ~88% of identifier queries).
+  Revive from git history if real agent traffic shows code-symbol queries. The `code` branch in
+  `LuceneBm25ChunkIndex.analyzerFor` + the shared `?debug=rankings`/`debugRankings` were **kept**
+  (reusable by the shipped chunk-BM25 hybrid). Restart pointer:
+  `docs/superpowers/plans/2026-06-19-lexical-injection-code-retrieval.md`.
 - KG graph rerank (`com.wikantik.search.hybrid.GraphRerankStep` et al.) — shelved, boost=0 default.
 - `LlmSectionReranker`/`RerankerConfig`, `BundleHarnessAdapter` (+ its always-on `BundleHarnessGateTest`),
   `ClaudePageExtractor` + `--extractor claude` — all live behind flags/CLI, intentional.
@@ -86,9 +90,10 @@ Massive copy-paste across ~20 scripts: `norm()` (18×), the contiguous-sublist m
   in `eval/bundle-corpus/baseline-notes.md` and which have 0 importers: `spike-doc2query`,
   `spike-hyde-recall`, `spike-rerank-anchor`, `spike-embedder-4b`, `spike-embedder-4b-chunk`,
   `spike-tei-rerank`, `spike-embedder-heading`, `spike-rerank`, `spike-bundle-live`,
-  `spike-global-rerank`, `spike-llm-rerank`, `spike-parent-section`. **Caveat:** they are *cited as
-  provenance* in `baseline-notes.md` — deleting them orphans those references and removes
-  reproducibility. Decide: delete (git preserves) vs keep as provenance. **Not deleted in this pass.**
+  `spike-global-rerank`, `spike-llm-rerank`, `spike-parent-section`.
+  **DELETED 2026-06-19** (owner approved after the 5-day review). Their measured verdicts live on in
+  `baseline-notes.md` (and `eval/bm25-chunk-spike/`, `eval/kg-spike/`); the scripts themselves are
+  recoverable from git history. The synthesized ledgers, not the one-shot scripts, are the durable record.
 
 ## P3 — Java duplication (each is a small, low-risk consolidation; needs IT-reactor gate as prod code)
 

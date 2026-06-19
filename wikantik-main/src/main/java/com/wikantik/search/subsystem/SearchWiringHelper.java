@@ -243,8 +243,8 @@ public final class SearchWiringHelper {
             new HybridSearchService( embedder, denseRetriever, fuser, hybridCfg.enabled() );
         engine.registerHybridSearchService( hybridSearch );
 
-        // Global dense-chunk candidate source for the context bundle (optionally BM25-hybrid and/or
-        // lexically injected). Built here where the embedder + vector index are in scope; read at
+        // Global dense-chunk candidate source for the context bundle (optionally BM25-hybrid).
+        // Built here where the embedder + vector index are in scope; read at
         // the retrieval-patch seam. The 2026-06-14 measurement showed retrieving the top-K chunks
         // directly (no page pre-select) realises the section-recall ceiling (recall@12 0.735) where
         // the page-gated path only reaches ~0.685.
@@ -291,9 +291,8 @@ public final class SearchWiringHelper {
     /**
      * Builds the context-bundle candidate source from config + the in-scope embedder / vector index /
      * chunk repository: a global dense-chunk source by default ({@code wikantik.bundle.dense.top_k}),
-     * optionally wrapped with a BM25 chunk-hybrid layer ({@code wikantik.bundle.bm25.enabled}) and/or
-     * lexical injection ({@code wikantik.bundle.inject.enabled}). Each optional layer fails open — a
-     * build failure logs and leaves the base source untouched.
+     * optionally wrapped with a BM25 chunk-hybrid layer ({@code wikantik.bundle.bm25.enabled}). The
+     * optional layer fails open — a build failure logs and leaves the base source untouched.
      */
     private static com.wikantik.knowledge.bundle.SectionCandidateSource buildBundleSource(
             final java.util.Properties props, final QueryEmbedder embedder,
@@ -332,26 +331,6 @@ public final class SearchWiringHelper {
                     bm25Weight, denseWeight, rrfK, truncate, bm25Index.size() );
             } catch ( final RuntimeException e ) {
                 LOG.warn( "BM25 chunk index build failed; using dense-only bundle source: {}", e.getMessage(), e );
-            }
-        }
-
-        // Lexical injection: wrap the (hybrid or dense) bundle source so code-symbol/config queries
-        // get dense-cold BM25(code) sections injected. Default off; builds a 2nd code-analyzer BM25
-        // index. Fail-open — any build failure leaves the base source untouched.
-        final com.wikantik.knowledge.bundle.InjectionConfig injectCfg =
-            com.wikantik.knowledge.bundle.InjectionConfig.fromProperties( props );
-        if ( injectCfg.enabled() ) {
-            try {
-                final com.wikantik.search.hybrid.LuceneBm25ChunkIndex codeIndex =
-                    com.wikantik.search.hybrid.LuceneBm25ChunkIndex.fromDataSource( ds,
-                        com.wikantik.search.hybrid.LuceneBm25ChunkIndex.analyzerFor( "code" ) );
-                bundleSource = new com.wikantik.knowledge.bundle.LexicalInjectionSource(
-                    bundleSource, embedder, vectorIndex, codeIndex, chunkRepo, injectCfg );
-                LOG.info( "Bundle lexical injection ON (code chunks indexed={}, J={}, C={}, alpha={}, N={}, P={})",
-                    codeIndex.size(), injectCfg.bm25RankMax(), injectCfg.denseColdMin(), injectCfg.scoreFrac(),
-                    injectCfg.maxInject(), injectCfg.position() );
-            } catch ( final RuntimeException e ) {
-                LOG.warn( "Lexical injection index build failed; base bundle source unchanged: {}", e.getMessage(), e );
             }
         }
         return bundleSource;

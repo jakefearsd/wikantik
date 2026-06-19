@@ -25,7 +25,6 @@ import com.wikantik.api.bundle.BundleAssemblyService;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.core.Engine;
 import com.wikantik.knowledge.bundle.HybridChunkSectionSource;
-import com.wikantik.knowledge.bundle.LexicalInjectionSource;
 import com.wikantik.knowledge.bundle.SectionCandidateSource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -109,12 +108,9 @@ public class BundleResource extends RestServletBase {
             final String kp = req.getParameter( "k" );
             if ( kp != null && !kp.isBlank() ) k = Integer.parseInt( kp.trim() );
         } catch ( final NumberFormatException ignored ) { /* keep default */ }
-        // The injector (when active) exposes dense + bm25_standard + bm25_code; the bare hybrid
-        // source exposes dense + bm25. Both have a debugRankings(query, k) returning the same shape.
+        // The chunk-hybrid source exposes dense + bm25 rankings via debugRankings(query, k).
         final Map< String, List< HybridChunkSectionSource.DebugRank > > rankings;
-        if ( src instanceof LexicalInjectionSource inj ) {
-            rankings = inj.debugRankings( q, k );
-        } else if ( src instanceof HybridChunkSectionSource hybrid ) {
+        if ( src instanceof HybridChunkSectionSource hybrid ) {
             rankings = hybrid.debugRankings( q, k );
         } else {
             resp.setStatus( 409 );

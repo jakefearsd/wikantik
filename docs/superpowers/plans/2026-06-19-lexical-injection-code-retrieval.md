@@ -1,5 +1,13 @@
 # Lexical Injection Code/Identifier Retrieval — Implementation Plan (Phase 0 + 1)
 
+> **CODE REMOVED 2026-06-19** (5-day retrieval-experiment review). The shelved stack
+> (`LexicalInjectionSource`, `InjectionConfig`, `SymbolDetector`, the `inject.*` properties, the
+> `SearchWiringHelper` wiring, `bin/eval/sweep-injection.py`) was deleted to cut dormant surface —
+> the base hybrid already handles ~88% of identifier queries, so this never paid off. **Revive from
+> git history** (this commit's parent) only if real agent traffic shows a meaningful share of
+> code-symbol / config-lookup queries AND base identifier recall well below 0.88. This doc + the
+> findings below are retained as the restart pointer.
+
 > **OUTCOME (2026-06-19): SHELVED at Task 9 — NOT shipped.** Phases 0+1 were fully built + unit-tested
 > (Tasks 1–8) and tuned (Task 9 sweep). The corrected/expanded identifier corpus showed the base hybrid
 > already handles ~88% of identifier queries; injection is a marginal, tradeoff-laden lever (+0.044

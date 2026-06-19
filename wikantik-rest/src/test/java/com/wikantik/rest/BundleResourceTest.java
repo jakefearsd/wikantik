@@ -27,7 +27,6 @@ import com.wikantik.api.bundle.CitationHandle;
 import com.wikantik.api.bundle.ContextBundle;
 import com.wikantik.api.core.Engine;
 import com.wikantik.knowledge.bundle.HybridChunkSectionSource;
-import com.wikantik.knowledge.bundle.LexicalInjectionSource;
 import com.wikantik.knowledge.bundle.SectionCandidateSource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -188,23 +187,6 @@ class BundleResourceTest {
         final JsonObject body = JsonParser.parseString( sw.toString() ).getAsJsonObject();
         assertTrue( body.has( "dense" ) );
         assertTrue( body.has( "bm25" ) );
-    }
-
-    @Test
-    void debugRankings_injectionSource_returns_200() throws Exception {
-        final LexicalInjectionSource inj = mock( LexicalInjectionSource.class );
-        when( inj.debugRankings( eq( "foo" ), anyInt() ) ).thenReturn(
-            Map.of( "bm25_code", List.of() ) );
-        final WikiEngine engine = mock( WikiEngine.class );
-        when( engine.bundleSectionSource() ).thenReturn( inj );
-        final BundleResource resource = resourceWithEngine( engine );
-        final HttpServletResponse resp = mock( HttpServletResponse.class );
-        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
-
-        resource.doGet( debugReq( "foo", null ), resp );
-
-        verify( resp ).setStatus( 200 );
-        verify( inj ).debugRankings( eq( "foo" ), anyInt() );
     }
 
     @Test

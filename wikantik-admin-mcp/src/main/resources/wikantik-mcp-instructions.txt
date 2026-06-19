@@ -277,6 +277,18 @@ list_orphaned_kg_nodes
                   disconnected). Replaces the sample-and-walk workaround
                   for finding orphans at scale.
 
+list_retrieval_queries
+                  Read-only window into the retrieval query log. Returns
+                  recent queries issued by human users and agents across
+                  all four retrieval surfaces (knowledge-mcp, admin-mcp,
+                  /api/bundle, /tools). Parameters: since_days (lookback
+                  window, default 7), limit (max rows, default 100),
+                  surface (optional filter: knowledge_mcp | admin_mcp |
+                  bundle_api | tools_api). Each entry carries timestamp,
+                  surface, query text, result count, and latency_ms.
+                  Useful for understanding what queries agents are running
+                  and whether they are getting results.
+
 == Concurrency model ==
 
 Edits use optimistic concurrency, not explicit locks. The flow is:

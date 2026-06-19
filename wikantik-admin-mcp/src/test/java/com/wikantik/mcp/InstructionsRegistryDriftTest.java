@@ -24,6 +24,7 @@ import com.wikantik.mcp.tools.CurateNodesTool;
 import com.wikantik.mcp.tools.InspectProposalsTool;
 import com.wikantik.mcp.tools.ListOrphanedKgNodesTool;
 import com.wikantik.mcp.tools.ListProposalsTool;
+import com.wikantik.mcp.tools.ListRetrievalQueriesTool;
 import com.wikantik.mcp.tools.McpTool;
 import com.wikantik.mcp.tools.ProposeKnowledgeTool;
 import com.wikantik.mcp.tools.ReviewProposalsTool;
@@ -162,6 +163,8 @@ class InstructionsRegistryDriftTest {
         names.add( ReviewProposalsTool.TOOL_NAME );
         names.add( CurateEdgesTool.TOOL_NAME );
         names.add( CurateNodesTool.TOOL_NAME );
+        // QueryLogReader-conditional tool — datasource is not wired in TestEngine.
+        names.add( ListRetrievalQueriesTool.TOOL_NAME );
         return names;
     }
 

@@ -48,7 +48,9 @@ public class McpProtocolIT extends WithMcpTestSetup {
             // KG read tools with admin bypass — curators see excluded-page entities immediately
             "query_nodes", "search_knowledge",
             // Orphan triage — admin-bypass listing of degree-0 KG nodes
-            "list_orphaned_kg_nodes"
+            "list_orphaned_kg_nodes",
+            // Query-log read surface — retrieval query history across all four agent surfaces
+            "list_retrieval_queries"
     );
 
     @Test

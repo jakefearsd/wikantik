@@ -113,12 +113,7 @@ public final class LuceneBm25ChunkIndex {
         }
     }
 
-    /** Loads every chunk's text from {@code kg_content_chunks} and builds the index. */
-    public static LuceneBm25ChunkIndex fromDataSource( final DataSource ds ) {
-        return fromDataSource( ds, new StandardAnalyzer() );
-    }
-
-    /** As {@link #fromDataSource(DataSource)} with an explicit analyzer (e.g. the code-aware one). */
+    /** Loads every chunk's text from {@code kg_content_chunks} and builds the index with the given analyzer. */
     public static LuceneBm25ChunkIndex fromDataSource( final DataSource ds, final Analyzer analyzer ) {
         final List< IndexedChunk > chunks = new ArrayList<>();
         final String sql = "select id, page_name, text from kg_content_chunks";

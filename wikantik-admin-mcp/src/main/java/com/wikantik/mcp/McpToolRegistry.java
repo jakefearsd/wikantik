@@ -145,6 +145,11 @@ public class McpToolRegistry {
             readOnlyList.add( new ListOrphanedKgNodesTool( kgService ) );
         }
 
+        // Query-log read tool — only when the engine has a datasource-backed reader.
+        if ( engine instanceof com.wikantik.WikiEngine we && we.queryLogReader() != null ) {
+            readOnlyList.add( new ListRetrievalQueriesTool( we.queryLogReader() ) );
+        }
+
         readOnly = List.copyOf( readOnlyList );
         authorConfigurable = List.copyOf( authorConfigurableList );
     }

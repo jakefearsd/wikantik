@@ -1624,6 +1624,7 @@ public class WikiEngine implements Engine {
 
             // Wire the retrieval query log (real-traffic capture for eval-corpus grounding; default on).
             this.setQueryLogService( com.wikantik.knowledge.querylog.QueryLogWiring.build( ds, props ) );
+            this.setQueryLogReader( com.wikantik.knowledge.querylog.QueryLogWiring.buildReader( ds ) );
 
             // Register save-time filters.
             filterManager.addPageFilter( svcs.chunkProjector(), -1005 );
@@ -1875,6 +1876,18 @@ public class WikiEngine implements Engine {
     /** The retrieval-query log service, or {@code null} if logging was not wired. */
     public com.wikantik.api.querylog.QueryLogService queryLogService() {
         return queryLogService;
+    }
+
+    private volatile com.wikantik.api.querylog.QueryLogReader queryLogReader;
+
+    /** Called at startup once the persistence DataSource is available. */
+    public void setQueryLogReader( final com.wikantik.api.querylog.QueryLogReader reader ) {
+        this.queryLogReader = reader;
+    }
+
+    /** The query-log read side; {@code null} when no datasource is configured. */
+    public com.wikantik.api.querylog.QueryLogReader queryLogReader() {
+        return queryLogReader;
     }
 
     /** {@inheritDoc} */

@@ -29,6 +29,7 @@ import com.wikantik.api.pages.PageSaveHelper;
 import com.wikantik.api.pages.SaveOptions;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Map;
@@ -46,13 +47,14 @@ class UpdatePageToolTest {
     }
 
     @Test
-    void definition_requiresPageNameContentAndHash() {
+    void definition_requiresOnlySlugAndHash_contentOptional() {
         final UpdatePageTool t = new UpdatePageTool(
             mock( PageSaveHelper.class ), mock( PageManager.class ), null );
         final var req = t.definition().inputSchema().required();
         assertTrue( req.contains( "slug" ) );
-        assertTrue( req.contains( "content" ) );
         assertTrue( req.contains( "expectedContentHash" ) );
+        // content is now OPTIONAL — a metadata-only edit must not require re-sending the body.
+        assertFalse( req.contains( "content" ) );
     }
 
     @Test
@@ -130,6 +132,83 @@ class UpdatePageToolTest {
         assertTrue( text.contains( "\"updated\":true" ) );
         assertTrue( text.contains( "frontmatterWarnings" ) );
         assertTrue( text.contains( "status" ) );
+    }
+
+    @Test
+    void execute_preservesExistingFrontmatterWhenBodyOnlyContent() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 3 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        final String current = "---\ntitle: My Title\ntype: article\ncluster: my-cluster\n"
+            + "tags:\n- a\n- b\nsummary: old summary text here\n---\n# Body\n\noriginal text";
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( current );
+        final String hash = McpToolUtils.computeContentHash( current );
+
+        final ArgumentCaptor< SaveOptions > opts = ArgumentCaptor.forClass( SaveOptions.class );
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
+        tool.setDefaultAuthor( "bot" );
+        // Body-only content + a single-field metadata edit must NOT drop the other fields.
+        tool.execute( Map.of( "pageName", "P", "content", "# Body\n\nnew text",
+            "metadata", Map.of( "summary", "a brand new summary that is over fifty characters long" ),
+            "expectedContentHash", hash ) );
+
+        verify( helper ).saveText( eq( "P" ), any(), opts.capture() );
+        final Map< String, Object > saved = opts.getValue().metadata();
+        assertEquals( "My Title", saved.get( "title" ), "title preserved" );
+        assertEquals( "article", saved.get( "type" ), "type preserved" );
+        assertEquals( "my-cluster", saved.get( "cluster" ), "cluster preserved" );
+        assertEquals( List.of( "a", "b" ), saved.get( "tags" ), "tags preserved" );
+        assertEquals( "a brand new summary that is over fifty characters long",
+            saved.get( "summary" ), "summary overridden" );
+        assertTrue( opts.getValue().replaceMetadata() );
+    }
+
+    @Test
+    void execute_metadataOnlyEditKeepsBody() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 4 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        final String current = "---\ntitle: T\ncluster: c\n---\n# Heading\n\nthe original body line";
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( current );
+        final String hash = McpToolUtils.computeContentHash( current );
+
+        final ArgumentCaptor< String > body = ArgumentCaptor.forClass( String.class );
+        final ArgumentCaptor< SaveOptions > opts = ArgumentCaptor.forClass( SaveOptions.class );
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
+        tool.setDefaultAuthor( "bot" );
+        // No "content" key at all — a metadata-only edit.
+        tool.execute( Map.of( "pageName", "P",
+            "metadata", Map.of( "summary", "added summary that comfortably exceeds fifty chars here" ),
+            "expectedContentHash", hash ) );
+
+        verify( helper ).saveText( eq( "P" ), body.capture(), opts.capture() );
+        assertTrue( body.getValue().contains( "the original body line" ), "body unchanged" );
+        assertEquals( "T", opts.getValue().metadata().get( "title" ), "title preserved" );
+        assertEquals( "added summary that comfortably exceeds fifty chars here",
+            opts.getValue().metadata().get( "summary" ), "summary added" );
+    }
+
+    @Test
+    void execute_errorsWhenNeitherContentNorMetadata() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 2 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "---\ntitle: T\n---\nbody" );
+        final String hash = McpToolUtils.computeContentHash( "---\ntitle: T\n---\nbody" );
+
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pageName", "P", "expectedContentHash", hash ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "nothing to update" ) );
+        verify( helper, never() ).saveText( anyString(), any(), any( SaveOptions.class ) );
     }
 
     @Test
@@ -221,19 +300,6 @@ class UpdatePageToolTest {
             "expectedContentHash", "h" ) );
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "pageName is required" ) );
-    }
-
-    @Test
-    void execute_returnsErrorOnMissingContent() {
-        final UpdatePageTool tool = new UpdatePageTool(
-            mock( PageSaveHelper.class ), mock( PageManager.class ), null );
-        final java.util.Map< String, Object > args = new java.util.HashMap<>();
-        args.put( "pageName", "P" );
-        args.put( "expectedContentHash", "h" );
-        // content intentionally absent
-        final McpSchema.CallToolResult result = tool.execute( args );
-        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
-        assertTrue( text.contains( "content must not be null" ) );
     }
 
     @Test

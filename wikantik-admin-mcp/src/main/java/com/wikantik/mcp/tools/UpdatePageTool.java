@@ -78,15 +78,22 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
         ) );
         properties.put( "content", Map.of(
                 "type", "string",
-                "description", "New markdown body.",
-                "examples", List.of( "---\ntitle: Hybrid Retrieval\nsummary: BM25 + dense + graph-aware rerank, with fail-closed BM25 fallback.\n---\n\n# Hybrid Retrieval\n\nUpdated body..." )
+                "description", "Optional. The new markdown body (replaces the current body). "
+                        + "OMIT it to edit only metadata — the body is then left unchanged. You do "
+                        + "NOT need to include the YAML frontmatter; existing frontmatter is "
+                        + "preserved automatically. Any frontmatter block you do include here is "
+                        + "merged on top of the existing frontmatter, exactly like the metadata argument.",
+                "examples", List.of( "# Hybrid Retrieval\n\nUpdated body..." )
         ) );
         properties.put( "metadata", Map.of(
                 "type", "object",
-                "description", "Optional frontmatter metadata to merge.",
+                "description", "Optional frontmatter fields to MERGE onto the page's existing "
+                        + "frontmatter: listed fields are added or overwritten, every other existing "
+                        + "field (title, cluster, tags, …) is preserved. update_page never replaces "
+                        + "the whole frontmatter, so a one-field edit cannot drop the rest.",
                 "examples", List.of( Map.of(
-                        "tags", List.of( "retrieval", "search" ),
-                        "verified_at", "2026-04-25"
+                        "summary", "BM25 + dense + KG rerank, fail-closed BM25 fallback.",
+                        "tags", List.of( "retrieval", "search" )
                 ) )
         ) );
         properties.put( "expectedContentHash", Map.of(
@@ -119,7 +126,11 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
 
         return McpSchema.Tool.builder()
             .name( TOOL_NAME )
-            .description( "Edit an existing page with optimistic locking. Returns " +
+            .description( "Edit an existing page with optimistic locking. Frontmatter is " +
+                "MERGE-by-default: existing fields are preserved and only what you pass " +
+                "(in metadata, or a frontmatter block in content) is overwritten — a one-field " +
+                "edit can never wipe the rest. content is optional: omit it to change only " +
+                "metadata (body unchanged). Provide content and/or metadata. Returns " +
                 "{updated, newContentHash, newVersion} on success or " +
                 "{updated:false, error:'hash mismatch', currentHash, currentVersion, latestContent} " +
                 "on drift — the agent can rebase against latestContent immediately " +
@@ -128,7 +139,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
                 "be edited via MCP — those updates require admin UI / direct DB access." )
             .inputSchema( new McpSchema.JsonSchema(
                 "object", properties,
-                List.of( "slug", "content", "expectedContentHash" ), null, null, null ) )
+                List.of( "slug", "expectedContentHash" ), null, null, null ) )
             .outputSchema( outputSchema )
             .annotations( new McpSchema.ToolAnnotations( null, false, false, true, null, null ) )
             .build();
@@ -145,10 +156,6 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             } catch ( final IllegalArgumentException iae ) {
                 McpAudit.logWrite( TOOL_NAME, "rejected-invalid-name", String.valueOf( pageName ), defaultAuthor );
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON, iae.getMessage() );
-            }
-            if ( content == null ) {
-                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
-                    "content must not be null" );
             }
             if ( expectedHash == null || expectedHash.isBlank() ) {
                 return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
@@ -199,13 +206,28 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             final Map< String, Object > metadata = arguments.get( "metadata" ) instanceof Map< ?, ? >
                 ? (Map< String, Object >) arguments.get( "metadata" ) : null;
 
-            // Carry the existing canonical_id forward when the agent omits it. Without
-            // this defensive re-injection the StructuralSpinePageFilter would mint a
-            // fresh ULID (or, post-fix, fall back to a slug lookup), but in either case
-            // we'd be relying on a downstream filter to recover an identity the page
-            // already had on disk. Pin it here so update_page is identity-preserving
-            // by construction.
+            if ( content == null && metadata == null ) {
+                return McpToolUtils.errorResult( McpToolUtils.SHARED_GSON,
+                    "provide content (the new body) and/or metadata (frontmatter fields to merge) — "
+                        + "nothing to update" );
+            }
+
+            // Parse the page's CURRENT frontmatter + body once. update_page is merge-by-default:
+            // the existing frontmatter is the base, and only the fields the caller passes (in
+            // metadata, or in a frontmatter block inside content) override it. This is what makes
+            // a one-field edit incapable of wiping title/cluster/tags. The graceful parser keeps a
+            // page with already-broken frontmatter updatable.
+            final ParsedPage existingParsed = FrontmatterParser.parse(
+                currentText == null ? "" : currentText );
+
+            // Carry the existing canonical_id forward when the agent omits it, so update_page is
+            // identity-preserving by construction rather than relying on a downstream filter.
             final String existingCanonicalId = extractCanonicalId( currentText );
+
+            // content is optional: when omitted, keep the existing body unchanged and update only
+            // the frontmatter. Feed the existing body (frontmatter already stripped) to the
+            // normalizer so its body() round-trips unchanged.
+            final String contentToNormalize = content != null ? content : existingParsed.body();
 
             // Normalize agent input: parse any embedded frontmatter strictly, merge with
             // the explicit metadata arg (explicit wins), and let saveHelper re-emit YAML
@@ -213,7 +235,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             // Mechanics' get quoted correctly without the agent knowing YAML rules.
             final FrontmatterNormalizer.Normalized normalized;
             try {
-                normalized = FrontmatterNormalizer.normalize( content, metadata, existingCanonicalId );
+                normalized = FrontmatterNormalizer.normalize( contentToNormalize, metadata, existingCanonicalId );
             } catch ( final FrontmatterParseException fpe ) {
                 final Map< String, Object > parseFail = new LinkedHashMap<>();
                 parseFail.put( "pageName", pageName );
@@ -231,7 +253,11 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
                     + "from content." );
                 return McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, parseFail );
             }
-            final Map< String, Object > mergedMetadata = normalized.metadata();
+            // Merge: existing frontmatter is the base; content-frontmatter + the explicit
+            // metadata arg (both carried in normalized.metadata()) override field-by-field.
+            // Every existing field the caller did not touch is preserved.
+            final Map< String, Object > mergedMetadata = new LinkedHashMap<>( existingParsed.metadata() );
+            mergedMetadata.putAll( normalized.metadata() );
             final boolean hasMetadata = !mergedMetadata.isEmpty();
 
             FrontmatterWarningSink.clear();

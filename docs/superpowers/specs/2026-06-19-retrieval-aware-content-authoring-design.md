@@ -121,8 +121,8 @@ Module: `wikantik-admin-mcp`. A read-only MCP tool over `retrieval_query_log`.
   last `result_count`, ranked by frequency. **Low/zero-result queries are the
   under-served signal**, served straight from the column.
 - **Labor split (decided):** the *tool* returns raw/aggregated queries; the *agent*
-  runs interesting ones through `/api/bundle` and judges whether the right section
-  surfaces. The "is this a real miss" judgment stays in the skill (portable,
+  runs interesting ones through the `assemble_bundle` MCP tool and judges whether the
+  right section surfaces. The "is this a real miss" judgment stays in the skill (portable,
   flexible), not hard-coded server-side. A server-side "queries page X should
   answer" join is deferred — the log records no intended-target mapping.
 
@@ -130,34 +130,33 @@ This is server-side, so behavior is identical under Claude Code and Antigravity.
 
 ### Component 3 — Live check: skill workflow, no new server code
 
-Uses existing `/api/bundle` / `assemble_bundle`. Per page: run **author-supplied
-expected queries** (new pages, no traffic yet) or **query-log real queries**
-(existing pages), confirm the page's section lands in the bundle, iterate frontmatter
-/ headings until it does. Documented workflow, not code.
+Uses the existing `assemble_bundle` MCP tool (knowledge-mcp) — **never REST `/api/bundle`**;
+the skill is strictly MCP-only. Per page: run **author-supplied expected queries** (new pages,
+no traffic yet) or **query-log real queries** (existing pages), confirm the page's section lands
+in the bundle, iterate frontmatter / headings until it does. Documented workflow, not code.
 
 ### Component 4 — Skill rewrite (`.claude/skills/wiki-content/SKILL.md`)
 
 - New section **"Retrieval-aware frontmatter"**: the embedding mechanism, the
   rubric, the dual-purpose SEO overlap table.
 - New workflow **"Retrieval verification loop"**: `verify_pages`
-  `retrieval_readiness` (static) → `/api/bundle` spot-check with expected queries
+  `retrieval_readiness` (static) → `assemble_bundle` spot-check with expected queries
   (live) → `list_retrieval_queries` maintenance sweep (real misses).
 - Rewrite the metadata-conventions section to frame fields as **retrieval + SEO**,
   not SEO-only.
-- **Portability constraint baked in:** everything routes through MCP tools / REST
-  endpoints both Claude Code and Antigravity can call — no Claude-Code-specific
-  mechanisms in the skill prose, so the later migration to `../wiki-content/` is a
-  clean copy.
+- **Portability constraint baked in (MCP-only):** everything routes through MCP
+  server tools — **no REST/`/api/*`, curl, or bash** — both Claude Code and
+  Antigravity can call, so the later migration to `../wiki-content/` is a clean copy.
 
 ## Data flow
 
 **Authoring / update:** write content → `verify_pages` `retrieval_readiness` (static
-lint) → fix frontmatter/headings → `/api/bundle` with expected queries (live check)
+lint) → fix frontmatter/headings → `assemble_bundle` with expected queries (live check)
 → iterate until the answering section lands.
 
 **Maintenance sweep:** `list_retrieval_queries` (under-served / low-result) →
 identify the page that *should* answer → `retrieval_readiness` lint + fix → re-verify
-via `/api/bundle`.
+via `assemble_bundle`.
 
 ## Testing
 

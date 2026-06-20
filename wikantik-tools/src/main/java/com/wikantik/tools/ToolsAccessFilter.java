@@ -34,8 +34,6 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -46,12 +44,12 @@ import java.util.Optional;
  *
  * <p>A request is allowed if it satisfies EITHER condition:
  * <ul>
- *   <li>A valid Bearer token matching one of the configured API keys</li>
+ *   <li>A valid Bearer token matching a <strong>DB-minted</strong> API key (via {@link ApiKeyService})</li>
  *   <li>Source IP within one of the configured CIDR allowlist entries</li>
  * </ul>
  *
- * <p>When neither keys nor CIDRs are configured the filter fails closed with
- * HTTP 503 unless {@code tools.access.allowUnrestricted=true} is set explicitly.
+ * <p>If none of DB keys, CIDR allowlist, or {@code tools.access.allowUnrestricted=true} is configured,
+ * all traffic is <strong>rejected (fail-closed)</strong> with HTTP 503.
  * After authentication, requests are subject to rate limiting. Failed access
  * attempts and rate limit violations are logged to the {@code SecurityLog} logger.
  */
@@ -63,7 +61,6 @@ public class ToolsAccessFilter implements Filter {
     private static final String BEARER_PREFIX = "Bearer ";
     private static final int SC_TOO_MANY_REQUESTS = 429;
 
-    private final List< byte[] > apiKeyList;
     private final List< CidrEntry > cidrEntries;
     private final boolean unrestricted;
     private final boolean failClosed;
@@ -78,34 +75,25 @@ public class ToolsAccessFilter implements Filter {
 
     public ToolsAccessFilter( final ToolsConfig config, final ToolsRateLimiter rateLimiter,
                               final ApiKeyService apiKeyService ) {
-        final List< String > keys = config.accessKeys();
-        this.apiKeyList = keys.stream()
-                .map( k -> k.getBytes( StandardCharsets.UTF_8 ) )
-                .toList();
         this.cidrEntries = parseCidrs( config.allowedCidrs() );
         final boolean hasDbKeys = apiKeyService != null;
-        // Only legacy keys and CIDRs represent operator-configured gating. A DB-backed
-        // ApiKeyService being wired up means the admin *could* mint keys, but without
-        // any minted keys it is not by itself a gate; the explicit allowUnrestricted
-        // flag still controls whether the filter runs open.
-        final boolean hasLegacyAuth = !apiKeyList.isEmpty() || !cidrEntries.isEmpty();
-        this.unrestricted = !hasLegacyAuth && config.allowUnrestricted();
-        this.failClosed = !hasLegacyAuth && !hasDbKeys && !config.allowUnrestricted();
+        final boolean hasCidr = !cidrEntries.isEmpty();
+        this.unrestricted = !hasCidr && config.allowUnrestricted();
+        this.failClosed = !hasCidr && !hasDbKeys && !config.allowUnrestricted();
         this.rateLimiter = rateLimiter;
         this.apiKeyService = apiKeyService;
 
         if ( failClosed ) {
             // Justified LOG.error: operator misconfiguration must be immediately visible at startup.
-            LOG.error( "CRITICAL: Tools access filter has no API keys, no CIDR allowlist, and "
+            LOG.error( "CRITICAL: Tools access filter has no DB-minted API keys, no CIDR allowlist, and "
                     + "tools.access.allowUnrestricted is not set — all tool-server requests will be rejected "
-                    + "with 503. Configure tools.access.keys, tools.access.allowedCidrs, or explicitly "
+                    + "with 503. Mint a key at /admin/apikeys, configure tools.access.allowedCidrs, or "
                     + "set tools.access.allowUnrestricted=true to acknowledge." );
         } else if ( unrestricted ) {
             LOG.warn( "Tools access filter: unrestricted mode active (tools.access.allowUnrestricted=true). "
                     + "Every tool-server request is treated as a superuser call. Only use this in trusted environments." );
         } else {
-            LOG.info( "Tools access filter: dbKeys={}, legacyKeys={}, CIDRs={}",
-                    hasDbKeys, apiKeyList.size(), cidrEntries.size() );
+            LOG.info( "Tools access filter: dbKeys={}, CIDRs={}", hasDbKeys, cidrEntries.size() );
         }
     }
 
@@ -145,21 +133,16 @@ public class ToolsAccessFilter implements Filter {
                 wrapper.setAttribute( ApiKeyPrincipalRequest.ATTR_API_KEY_RECORD, record );
                 effectiveReq = wrapper;
                 clientId = "key:" + record.id();
+            } else if ( checkIp( httpReq ) ) {
+                clientId = "ip:" + remoteAddr;
             } else {
-                final int keyIndex = checkApiKey( httpReq );
-                if ( keyIndex >= 0 ) {
-                    clientId = "legacy:" + keyIndex;
-                } else if ( checkIp( httpReq ) ) {
-                    clientId = "ip:" + remoteAddr;
-                } else {
-                    final boolean authHeaderPresent = httpReq.getHeader( "Authorization" ) != null;
-                    SECURITY.warn( "Tools access denied: ip={}, auth={}",
-                            remoteAddr, authHeaderPresent ? "invalid-key" : "none" );
-                    httpResp.setStatus( HttpServletResponse.SC_FORBIDDEN );
-                    httpResp.setContentType( "application/json" );
-                    httpResp.getWriter().write( "{\"error\":\"Access denied\"}" );
-                    return;
-                }
+                final boolean authHeaderPresent = httpReq.getHeader( "Authorization" ) != null;
+                SECURITY.warn( "Tools access denied: ip={}, auth={}",
+                        remoteAddr, authHeaderPresent ? "invalid-key" : "none" );
+                httpResp.setStatus( HttpServletResponse.SC_FORBIDDEN );
+                httpResp.setContentType( "application/json" );
+                httpResp.getWriter().write( "{\"error\":\"Access denied\"}" );
+                return;
             }
         }
 
@@ -184,24 +167,6 @@ public class ToolsAccessFilter implements Filter {
             return Optional.empty();
         }
         return apiKeyService.verify( authHeader.substring( BEARER_PREFIX.length() ) );
-    }
-
-    private int checkApiKey( final HttpServletRequest request ) {
-        if ( apiKeyList.isEmpty() ) {
-            return -1;
-        }
-        final String authHeader = request.getHeader( "Authorization" );
-        if ( authHeader == null || !authHeader.startsWith( BEARER_PREFIX ) ) {
-            return -1;
-        }
-        final byte[] provided = authHeader.substring( BEARER_PREFIX.length() )
-                .getBytes( StandardCharsets.UTF_8 );
-        for ( int i = 0; i < apiKeyList.size(); i++ ) {
-            if ( MessageDigest.isEqual( apiKeyList.get( i ), provided ) ) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     private boolean checkIp( final HttpServletRequest request ) {

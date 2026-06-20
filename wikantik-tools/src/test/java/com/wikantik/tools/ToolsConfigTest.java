@@ -20,34 +20,11 @@ package com.wikantik.tools;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ToolsConfigTest {
-
-    @Test
-    void accessKeysMultiple() {
-        final Properties props = new Properties();
-        props.setProperty( "tools.access.keys", "key1, key2, key3" );
-        final ToolsConfig config = new ToolsConfig( props );
-        assertEquals( List.of( "key1", "key2", "key3" ), config.accessKeys() );
-    }
-
-    @Test
-    void accessKeysBlankReturnsEmpty() {
-        final Properties props = new Properties();
-        props.setProperty( "tools.access.keys", "   " );
-        final ToolsConfig config = new ToolsConfig( props );
-        assertTrue( config.accessKeys().isEmpty() );
-    }
-
-    @Test
-    void accessKeysAbsentReturnsEmpty() {
-        final ToolsConfig config = new ToolsConfig( new Properties() );
-        assertTrue( config.accessKeys().isEmpty() );
-    }
 
     @Test
     void allowedCidrsConfigured() {

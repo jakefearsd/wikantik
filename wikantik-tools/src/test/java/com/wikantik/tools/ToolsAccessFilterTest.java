@@ -46,11 +46,8 @@ class ToolsAccessFilterTest {
     @Mock HttpServletResponse response;
     @Mock FilterChain chain;
 
-    private ToolsAccessFilter createFilter( final String keys, final String cidrs ) {
+    private ToolsAccessFilter createCidrFilter( final String cidrs ) {
         final Properties props = new Properties();
-        if ( keys != null ) {
-            props.setProperty( "tools.access.keys", keys );
-        }
         if ( cidrs != null ) {
             props.setProperty( "tools.access.allowedCidrs", cidrs );
         }
@@ -58,9 +55,9 @@ class ToolsAccessFilterTest {
     }
 
     @Test
-    void correctApiKeyPasses() throws Exception {
-        final ToolsAccessFilter filter = createFilter( "secret123", null );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer secret123" );
+    void ipInCidrPasses() throws Exception {
+        final ToolsAccessFilter filter = createCidrFilter( "10.0.0.0/8" );
+        when( request.getRemoteAddr() ).thenReturn( "10.1.2.3" );
 
         filter.doFilter( request, response, chain );
 
@@ -68,9 +65,8 @@ class ToolsAccessFilterTest {
     }
 
     @Test
-    void wrongApiKeyBlocked() throws Exception {
-        final ToolsAccessFilter filter = createFilter( "secret123", null );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wrong-key" );
+    void ipOutsideCidrBlocked() throws Exception {
+        final ToolsAccessFilter filter = createCidrFilter( "10.0.0.0/8" );
         when( request.getRemoteAddr() ).thenReturn( "192.168.1.1" );
         final StringWriter body = new StringWriter();
         when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
@@ -82,18 +78,8 @@ class ToolsAccessFilterTest {
     }
 
     @Test
-    void ipInCidrPasses() throws Exception {
-        final ToolsAccessFilter filter = createFilter( null, "10.0.0.0/8" );
-        when( request.getRemoteAddr() ).thenReturn( "10.1.2.3" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain ).doFilter( request, response );
-    }
-
-    @Test
     void bothUnconfiguredFailsClosed() throws Exception {
-        final ToolsAccessFilter filter = createFilter( null, null );
+        final ToolsAccessFilter filter = createCidrFilter( null );
         when( request.getRemoteAddr() ).thenReturn( "1.2.3.4" );
         final StringWriter body = new StringWriter();
         when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
@@ -120,24 +106,14 @@ class ToolsAccessFilterTest {
     }
 
     @Test
-    void multipleKeysAllAccepted() throws Exception {
-        final ToolsAccessFilter filter = createFilter( "alpha, beta, gamma", null );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer beta" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain ).doFilter( request, response );
-    }
-
-    @Test
     void rateLimitExceededReturns429() throws Exception {
         final ToolsRateLimiter mockLimiter = mock( ToolsRateLimiter.class );
         when( mockLimiter.tryAcquire( anyString() ) ).thenReturn( false );
 
+        // Use CIDR so the filter is not fail-closed
         final Properties props = new Properties();
-        props.setProperty( "tools.access.keys", "secret123" );
+        props.setProperty( "tools.access.allowedCidrs", "10.0.0.0/8" );
         final ToolsAccessFilter filter = new ToolsAccessFilter( new ToolsConfig( props ), mockLimiter );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer secret123" );
         when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
         final StringWriter body = new StringWriter();
         when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
@@ -218,22 +194,6 @@ class ToolsAccessFilterTest {
     }
 
     @Test
-    void unknownDbKeyFallsThroughToLegacyKeyList() throws Exception {
-        final ApiKeyService svc = mock( ApiKeyService.class );
-        when( svc.verify( anyString() ) ).thenReturn( Optional.empty() );
-
-        final Properties props = new Properties();
-        props.setProperty( "tools.access.keys", "legacy-key" );
-        final ToolsAccessFilter filter = new ToolsAccessFilter(
-                new ToolsConfig( props ), new ToolsRateLimiter( 0, 0 ), svc );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer legacy-key" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain ).doFilter( request, response );
-    }
-
-    @Test
     void dbKeyServiceAloneSatisfiesFailClosedGate() throws Exception {
         final ApiKeyService svc = mock( ApiKeyService.class );
         when( svc.verify( anyString() ) ).thenReturn( Optional.empty() );
@@ -254,7 +214,7 @@ class ToolsAccessFilterTest {
     @Test
     void dbServicePresentWithAllowUnrestrictedDoesNotBlockUnauthenticatedRequests() throws Exception {
         // Regression: in an IT environment wikantik.datasource is configured
-        // (so ApiKeyService is non-null) but no legacy keys/CIDRs are set and
+        // (so ApiKeyService is non-null) but no CIDRs are set and
         // tools.access.allowUnrestricted=true is explicit. Filter must run open.
         final ApiKeyService svc = mock( ApiKeyService.class );
         final Properties props = new Properties();
@@ -272,11 +232,11 @@ class ToolsAccessFilterTest {
     @Test
     void rateLimitNotCheckedWhenAuthFails() throws Exception {
         final ToolsRateLimiter mockLimiter = mock( ToolsRateLimiter.class );
+        // Use CIDR so filter is not fail-closed; wrong IP → denied before rate limit
         final Properties props = new Properties();
-        props.setProperty( "tools.access.keys", "secret123" );
+        props.setProperty( "tools.access.allowedCidrs", "192.168.0.0/16" );
         final ToolsAccessFilter filter = new ToolsAccessFilter( new ToolsConfig( props ), mockLimiter );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wrong" );
-        when( request.getRemoteAddr() ).thenReturn( "192.168.1.1" );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
         final StringWriter body = new StringWriter();
         when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
 

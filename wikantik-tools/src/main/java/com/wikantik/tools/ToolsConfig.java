@@ -23,8 +23,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Properties;
 
 /**
@@ -62,21 +60,6 @@ public class ToolsConfig {
     /** Package-private constructor for testing with pre-built properties. */
     ToolsConfig( final Properties properties ) {
         this.props = properties;
-    }
-
-    /**
-     * Returns the list of configured API keys for tool-server access control.
-     * Reads from {@code tools.access.keys} (comma-separated).
-     */
-    public List< String > accessKeys() {
-        final String raw = props.getProperty( "tools.access.keys" );
-        if ( raw == null || raw.isBlank() ) {
-            return List.of();
-        }
-        return Arrays.stream( raw.split( "," ) )
-                .map( String::strip )
-                .filter( s -> !s.isEmpty() )
-                .toList();
     }
 
     public String allowedCidrs() {

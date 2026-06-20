@@ -23,8 +23,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Properties;
 
 /**
@@ -157,20 +155,6 @@ public class McpConfig {
         }
     }
 
-    /**
-     * Returns the list of configured API keys for MCP access control.
-     * Reads from {@code mcp.access.keys} (comma-separated).
-     */
-    public List< String > accessKeys() {
-        final String raw = props.getProperty( "mcp.access.keys" );
-        if ( raw == null || raw.isBlank() ) {
-            return List.of();
-        }
-        return Arrays.stream( raw.split( "," ) )
-                .map( String::strip )
-                .filter( s -> !s.isEmpty() )
-                .toList();
-    }
 
     public int rateLimitGlobal() {
         return intProperty( "mcp.ratelimit.global", 0 );

@@ -20,7 +20,6 @@ package com.wikantik.mcp;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -121,29 +120,6 @@ class McpConfigTest {
     }
 
     @Test
-    void testAccessKeysConfigured() {
-        final Properties props = new Properties();
-        props.setProperty( "mcp.access.keys", "my-secret-key" );
-        final McpConfig config = new McpConfig( props );
-        assertEquals( List.of( "my-secret-key" ), config.accessKeys() );
-    }
-
-    @Test
-    void testAccessKeysBlankReturnsEmpty() {
-        final Properties props = new Properties();
-        props.setProperty( "mcp.access.keys", "   " );
-        final McpConfig config = new McpConfig( props );
-        assertTrue( config.accessKeys().isEmpty() );
-    }
-
-    @Test
-    void testAccessKeysAbsentReturnsEmpty() {
-        final Properties props = new Properties();
-        final McpConfig config = new McpConfig( props );
-        assertTrue( config.accessKeys().isEmpty() );
-    }
-
-    @Test
     void testAllowedCidrsConfigured() {
         final Properties props = new Properties();
         props.setProperty( "mcp.access.allowedCidrs", "10.0.0.0/8, 192.168.1.0/24" );
@@ -164,31 +140,6 @@ class McpConfigTest {
         final Properties props = new Properties();
         final McpConfig config = new McpConfig( props );
         assertNull( config.allowedCidrs() );
-    }
-
-    // --- Multi-key tests ---
-
-    @Test
-    void testAccessKeysMultiple() {
-        final Properties props = new Properties();
-        props.setProperty( "mcp.access.keys", "key1, key2, key3" );
-        final McpConfig config = new McpConfig( props );
-        assertEquals( List.of( "key1", "key2", "key3" ), config.accessKeys() );
-    }
-
-    @Test
-    void testAccessKeysEmptyReturnsEmptyList() {
-        final Properties props = new Properties();
-        final McpConfig config = new McpConfig( props );
-        assertTrue( config.accessKeys().isEmpty() );
-    }
-
-    @Test
-    void testAccessKeysBlankReturnsEmptyList() {
-        final Properties props = new Properties();
-        props.setProperty( "mcp.access.keys", "   " );
-        final McpConfig config = new McpConfig( props );
-        assertTrue( config.accessKeys().isEmpty() );
     }
 
     /**

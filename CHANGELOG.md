@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Removed
+- **Legacy property-file API keys removed.** The `mcp.access.keys` and `tools.access.keys`
+  comma-separated property keys are gone — not deprecated. DB-minted keys (via `/admin/apikeys`)
+  are now the only Bearer-token key source. The CIDR allowlist (`*.access.allowedCidrs`) and
+  `*.access.allowUnrestricted` flags are unchanged. **Operators must have at least one DB-minted
+  key before upgrading** or the endpoint fails closed with HTTP 503.
+
 ### Added
 - **Retrieval-aware content authoring.** `verify_pages` gains a `retrieval_readiness` check
   (summary specificity, heading quality, cluster, title — the frontmatter levers prepended into

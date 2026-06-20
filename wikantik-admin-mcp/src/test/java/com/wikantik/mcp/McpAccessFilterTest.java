@@ -48,77 +48,17 @@ class McpAccessFilterTest {
     @Mock HttpServletResponse response;
     @Mock FilterChain chain;
 
-    private McpAccessFilter createFilter( final String key, final String cidrs ) {
+    private McpAccessFilter createCidrFilter( final String cidrs ) {
         final Properties props = new Properties();
-        if ( key != null ) {
-            props.setProperty( "mcp.access.keys", key );
-        }
         if ( cidrs != null ) {
             props.setProperty( "mcp.access.allowedCidrs", cidrs );
         }
         return new McpAccessFilter( new McpConfig( props ), new McpRateLimiter( 0, 0 ) );
-    }
-
-    private McpAccessFilter createFilterMultiKey( final String keys, final String cidrs ) {
-        final Properties props = new Properties();
-        if ( keys != null ) {
-            props.setProperty( "mcp.access.keys", keys );
-        }
-        if ( cidrs != null ) {
-            props.setProperty( "mcp.access.allowedCidrs", cidrs );
-        }
-        return new McpAccessFilter( new McpConfig( props ), new McpRateLimiter( 0, 0 ) );
-    }
-
-    private McpAccessFilter createFilterWithRateLimiter( final String key, final McpRateLimiter rateLimiter ) {
-        final Properties props = new Properties();
-        if ( key != null ) {
-            props.setProperty( "mcp.access.keys", key );
-        }
-        return new McpAccessFilter( new McpConfig( props ), rateLimiter );
-    }
-
-    @Test
-    void testCorrectApiKeyPasses() throws Exception {
-        final McpAccessFilter filter = createFilter( "secret123", null );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer secret123" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain ).doFilter( request, response );
-    }
-
-    @Test
-    void testWrongApiKeyBlocked() throws Exception {
-        final McpAccessFilter filter = createFilter( "secret123", null );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wrong-key" );
-        when( request.getRemoteAddr() ).thenReturn( "192.168.1.1" );
-        final StringWriter body = new StringWriter();
-        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain, never() ).doFilter( request, response );
-        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
-    }
-
-    @Test
-    void testMissingBearerPrefixBlocked() throws Exception {
-        final McpAccessFilter filter = createFilter( "secret123", null );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "secret123" );
-        when( request.getRemoteAddr() ).thenReturn( "192.168.1.1" );
-        final StringWriter body = new StringWriter();
-        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain, never() ).doFilter( request, response );
-        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
     }
 
     @Test
     void testIpInCidrPasses() throws Exception {
-        final McpAccessFilter filter = createFilter( null, "10.0.0.0/8" );
+        final McpAccessFilter filter = createCidrFilter( "10.0.0.0/8" );
         when( request.getRemoteAddr() ).thenReturn( "10.1.2.3" );
 
         filter.doFilter( request, response, chain );
@@ -128,7 +68,7 @@ class McpAccessFilterTest {
 
     @Test
     void testIpOutsideCidrBlocked() throws Exception {
-        final McpAccessFilter filter = createFilter( null, "10.0.0.0/8" );
+        final McpAccessFilter filter = createCidrFilter( "10.0.0.0/8" );
         when( request.getRemoteAddr() ).thenReturn( "192.168.1.1" );
         final StringWriter body = new StringWriter();
         when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
@@ -140,29 +80,8 @@ class McpAccessFilterTest {
     }
 
     @Test
-    void testWrongKeyButAllowedIpPasses() throws Exception {
-        final McpAccessFilter filter = createFilter( "secret123", "10.0.0.0/8" );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wrong-key" );
-        when( request.getRemoteAddr() ).thenReturn( "10.1.2.3" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain ).doFilter( request, response );
-    }
-
-    @Test
-    void testRightKeyButBlockedIpPasses() throws Exception {
-        final McpAccessFilter filter = createFilter( "secret123", "10.0.0.0/8" );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer secret123" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain ).doFilter( request, response );
-    }
-
-    @Test
     void testBothUnconfiguredFailsClosed() throws Exception {
-        final McpAccessFilter filter = createFilter( null, null );
+        final McpAccessFilter filter = createCidrFilter( null );
         when( request.getRemoteAddr() ).thenReturn( "1.2.3.4" );
         final StringWriter body = new StringWriter();
         when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
@@ -191,7 +110,7 @@ class McpAccessFilterTest {
 
     @Test
     void testIpv6CidrMatching() throws Exception {
-        final McpAccessFilter filter = createFilter( null, "::1/128" );
+        final McpAccessFilter filter = createCidrFilter( "::1/128" );
         when( request.getRemoteAddr() ).thenReturn( "::1" );
 
         filter.doFilter( request, response, chain );
@@ -201,73 +120,12 @@ class McpAccessFilterTest {
 
     @Test
     void testMalformedCidrSkippedValidStillWorks() throws Exception {
-        final McpAccessFilter filter = createFilter( null, "not-a-cidr, 10.0.0.0/8" );
+        final McpAccessFilter filter = createCidrFilter( "not-a-cidr, 10.0.0.0/8" );
         when( request.getRemoteAddr() ).thenReturn( "10.1.2.3" );
 
         filter.doFilter( request, response, chain );
 
         verify( chain ).doFilter( request, response );
-    }
-
-    @Test
-    void testDenyResponseIsJsonWithCorrectContentType() throws Exception {
-        final McpAccessFilter filter = createFilter( "secret123", null );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wrong" );
-        when( request.getRemoteAddr() ).thenReturn( "192.168.1.1" );
-        final StringWriter body = new StringWriter();
-        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
-
-        filter.doFilter( request, response, chain );
-
-        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
-        verify( response ).setContentType( "application/json" );
-        assertEquals( "{\"error\":\"Access denied\"}", body.toString() );
-    }
-
-    // --- Multi-key tests ---
-
-    @Test
-    void testMultipleKeysFirstKeyPasses() throws Exception {
-        final McpAccessFilter filter = createFilterMultiKey( "key-alpha, key-beta, key-gamma", null );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer key-alpha" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain ).doFilter( request, response );
-    }
-
-    @Test
-    void testMultipleKeysSecondKeyPasses() throws Exception {
-        final McpAccessFilter filter = createFilterMultiKey( "key-alpha, key-beta, key-gamma", null );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer key-beta" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain ).doFilter( request, response );
-    }
-
-    @Test
-    void testMultipleKeysThirdKeyPasses() throws Exception {
-        final McpAccessFilter filter = createFilterMultiKey( "key-alpha, key-beta, key-gamma", null );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer key-gamma" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain ).doFilter( request, response );
-    }
-
-    @Test
-    void testMultipleKeysWrongKeyBlocked() throws Exception {
-        final McpAccessFilter filter = createFilterMultiKey( "key-alpha, key-beta", null );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wrong-key" );
-        when( request.getRemoteAddr() ).thenReturn( "192.168.1.1" );
-        final StringWriter body = new StringWriter();
-        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain, never() ).doFilter( request, response );
-        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
     }
 
     // --- Rate limiting tests ---
@@ -277,8 +135,10 @@ class McpAccessFilterTest {
         final McpRateLimiter mockLimiter = mock( McpRateLimiter.class );
         when( mockLimiter.tryAcquire( anyString() ) ).thenReturn( false );
 
-        final McpAccessFilter filter = createFilterWithRateLimiter( "secret123", mockLimiter );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer secret123" );
+        // Use CIDR allowlist so the filter is not fail-closed
+        final Properties props = new Properties();
+        props.setProperty( "mcp.access.allowedCidrs", "10.0.0.0/8" );
+        final McpAccessFilter filter = new McpAccessFilter( new McpConfig( props ), mockLimiter );
         when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
         final StringWriter body = new StringWriter();
         when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
@@ -311,26 +171,11 @@ class McpAccessFilterTest {
     }
 
     @Test
-    void testRateLimitNotCheckedWhenAuthFails() throws Exception {
-        final McpRateLimiter mockLimiter = mock( McpRateLimiter.class );
-        final McpAccessFilter filter = createFilterWithRateLimiter( "secret123", mockLimiter );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer wrong" );
-        when( request.getRemoteAddr() ).thenReturn( "192.168.1.1" );
-        final StringWriter body = new StringWriter();
-        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
-
-        filter.doFilter( request, response, chain );
-
-        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
-        verify( mockLimiter, never() ).tryAcquire( anyString() );
-    }
-
-    @Test
     void testRateLimitCheckedInUnrestrictedMode() throws Exception {
         final McpRateLimiter mockLimiter = mock( McpRateLimiter.class );
         when( mockLimiter.tryAcquire( anyString() ) ).thenReturn( false );
 
-        // No key, no CIDR, explicit unrestricted opt-in → allowed, but rate limiter still applies
+        // No CIDR, explicit unrestricted opt-in → allowed, but rate limiter still applies
         final Properties props = new Properties();
         props.setProperty( "mcp.access.allowUnrestricted", "true" );
         final McpAccessFilter filter = new McpAccessFilter( new McpConfig( props ), mockLimiter );
@@ -414,21 +259,6 @@ class McpAccessFilterTest {
     }
 
     @Test
-    void unknownDbKeyFallsThroughToLegacyKeyList() throws Exception {
-        final ApiKeyService svc = mock( ApiKeyService.class );
-        when( svc.verify( anyString() ) ).thenReturn( Optional.empty() );
-
-        final Properties props = new Properties();
-        props.setProperty( "mcp.access.keys", "legacy-key" );
-        final McpAccessFilter filter = createFilterWithDbService( svc, props );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer legacy-key" );
-
-        filter.doFilter( request, response, chain );
-
-        verify( chain ).doFilter( request, response );
-    }
-
-    @Test
     void dbKeyServiceAloneSatisfiesFailClosedGate() throws Exception {
         final ApiKeyService svc = mock( ApiKeyService.class );
         when( svc.verify( anyString() ) ).thenReturn( Optional.empty() );
@@ -447,10 +277,10 @@ class McpAccessFilterTest {
     @Test
     void dbServicePresentWithAllowUnrestrictedDoesNotBlockUnauthenticatedRequests() throws Exception {
         // Regression: when an operator wires up a datasource (so ApiKeyService
-        // is non-null) but has not configured legacy keys or CIDRs and has
-        // explicitly set mcp.access.allowUnrestricted=true, the filter must
-        // run open. Otherwise IT environments that boot with a datasource but
-        // no minted keys fail every MCP call with 403.
+        // is non-null) but has not configured CIDRs and has explicitly set
+        // mcp.access.allowUnrestricted=true, the filter must run open. Otherwise
+        // IT environments that boot with a datasource but no minted keys fail
+        // every MCP call with 403.
         final ApiKeyService svc = mock( ApiKeyService.class );
         final Properties props = new Properties();
         props.setProperty( "mcp.access.allowUnrestricted", "true" );
@@ -463,27 +293,10 @@ class McpAccessFilterTest {
         verify( svc, never() ).verify( anyString() );
     }
 
-    @Test
-    void missingBearerHeaderIsNotVerifiedAgainstDbService() throws Exception {
-        final ApiKeyService svc = mock( ApiKeyService.class );
-        final Properties props = new Properties();
-        props.setProperty( "mcp.access.keys", "legacy-key" );
-        final McpAccessFilter filter = createFilterWithDbService( svc, props );
-        when( request.getHeader( "Authorization" ) ).thenReturn( null );
-        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
-        final StringWriter body = new StringWriter();
-        when( response.getWriter() ).thenReturn( new PrintWriter( body ) );
-
-        filter.doFilter( request, response, chain );
-
-        verify( svc, never() ).verify( anyString() );
-        verify( response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
-    }
-
     // ----- authorize() direct path (sealed Outcome) -----
 
-    // Covers McpAccessFilter.java:188-194 — DB key whose Scope does not match
-    // MCP yields Outcome.Denied(403, "Key not authorized for MCP").
+    // Covers McpAccessFilter — DB key whose Scope does not match MCP
+    // yields Outcome.Denied(403, "Key not authorized for MCP").
     @Test
     void dbKeyOutsideMcpScopeGets403() {
         final ApiKeyService svc = mock( ApiKeyService.class );
@@ -502,34 +315,11 @@ class McpAccessFilterTest {
                 "deny body should explain the scope mismatch: " + d.body() );
     }
 
-    // Covers McpAccessFilter.java:186-203 — when apiKeyService.verify returns
-    // Optional.empty(), control falls through to the legacy-key code path.
-    @Test
-    void dbKeyRejectionFallsThroughToLegacyKey() {
-        final ApiKeyService svc = mock( ApiKeyService.class );
-        when( svc.verify( "legacy-key" ) ).thenReturn( Optional.empty() );
-
-        final Properties props = new Properties();
-        props.setProperty( "mcp.access.keys", "legacy-key" );
-        final McpAccessFilter filter = createFilterWithDbService( svc, props );
-        when( request.getHeader( "Authorization" ) ).thenReturn( "Bearer legacy-key" );
-
-        final McpAccessFilter.Outcome outcome = filter.authorize( request );
-
-        assertInstanceOf( McpAccessFilter.Outcome.Allowed.class, outcome,
-                "fall-through to legacy key list must produce Allowed" );
-        final McpAccessFilter.Outcome.Allowed a = ( McpAccessFilter.Outcome.Allowed ) outcome;
-        assertTrue( a.clientId().startsWith( "legacy:" ),
-                "clientId should mark the legacy match path: " + a.clientId() );
-        // The DB service was still consulted before fall-through.
-        verify( svc ).verify( "legacy-key" );
-    }
-
-    // Covers McpAccessFilter.java:262-268 — when InetAddress.getByName throws
+    // Covers McpAccessFilter — when InetAddress.getByName throws
     // UnknownHostException, checkIp must log+deny rather than propagate.
     @Test
     void unresolvableRemoteAddrLogsAndDenies() {
-        final McpAccessFilter filter = createFilter( null, "10.0.0.0/8" );
+        final McpAccessFilter filter = createCidrFilter( "10.0.0.0/8" );
         // A string with whitespace cannot be parsed as an IP literal nor
         // resolved as a hostname → InetAddress.getByName throws.
         when( request.getRemoteAddr() ).thenReturn( "not a host" );
@@ -544,7 +334,7 @@ class McpAccessFilterTest {
     @Test
     void failClosedReturns503WithJsonBodyAndRetryAfter() throws Exception {
         final Properties p = new Properties();
-        // No keys, no CIDRs, no allowUnrestricted → fail-closed
+        // No CIDRs, no DB service, no allowUnrestricted → fail-closed
         final McpConfig config = new McpConfig( p );
         final McpRateLimiter rl = new McpRateLimiter( 0, 0 );
         final McpAccessFilter filter = new McpAccessFilter( config, rl );
@@ -567,7 +357,8 @@ class McpAccessFilterTest {
         org.junit.jupiter.api.Assertions.assertTrue(
                 text.contains( "\"error\":\"mcp_access_unconfigured\"" ), text );
         org.junit.jupiter.api.Assertions.assertTrue(
-                text.contains( "mcp.access.keys" ), "Body should name the config keys: " + text );
+                text.contains( "/admin/apikeys" ),
+                "Body should name the DB key minting path: " + text );
         org.junit.jupiter.api.Assertions.assertTrue(
                 text.contains( "mcp.access.allowUnrestricted" ), text );
     }

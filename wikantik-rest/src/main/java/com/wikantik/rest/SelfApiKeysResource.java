@@ -65,9 +65,9 @@ public class SelfApiKeysResource extends RestServletBase {
     }
 
     private ApiKeyService service() {
-        // Pass null — ApiKeyServiceHolder.get() returns the cached instance immediately
-        // when one has been installed (production start or test override). Avoids
-        // a getSubsystems() call that may fail in lightweight unit-test contexts.
+        // Pass subsystem properties so ApiKeyServiceHolder.get() can initialize the service
+        // from configuration when no test override has been installed. Returns the cached
+        // instance immediately when one is available (production start or test override).
         final com.wikantik.WikiSubsystems sub = getSubsystems();
         final java.util.Properties props = ( sub != null && sub.core() != null )
                 ? sub.core().properties().asProperties() : null;

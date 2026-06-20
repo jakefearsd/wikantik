@@ -128,6 +128,35 @@ class SelfApiKeysResourceTest {
     }
 
     @Test
+    void postRejectsAnonymousWith401() throws Exception {
+        stubLogin = null;
+        final SelfApiKeysResource servlet = newServlet();
+        final HttpServletRequest request = mock( HttpServletRequest.class );
+        when( request.getPathInfo() ).thenReturn( null );
+        final HttpServletResponse response = mockResponse( new StringWriter() );
+
+        servlet.doPost( request, response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_UNAUTHORIZED );
+        verify( mockService, never() ).generate( anyString(), any(), any(), anyString() );
+    }
+
+    @Test
+    void deleteRejectsAnonymousWith401() throws Exception {
+        stubLogin = null;
+        final SelfApiKeysResource servlet = newServlet();
+        final HttpServletRequest request = mock( HttpServletRequest.class );
+        when( request.getPathInfo() ).thenReturn( "/7" );
+        final HttpServletResponse response = mockResponse( new StringWriter() );
+
+        servlet.doDelete( request, response );
+
+        verify( response ).setStatus( HttpServletResponse.SC_UNAUTHORIZED );
+        verify( mockService, never() ).findById( anyInt() );
+        verify( mockService, never() ).revoke( anyInt(), anyString() );
+    }
+
+    @Test
     void postGeneratesKeyBoundToCallerAndReturnsTokenOnce() throws Exception {
         final ApiKeyService.Record r = rec( 7, "alice", "ci", ApiKeyService.Scope.MCP );
         when( mockService.generate( eq( "alice" ), eq( "ci" ), eq( ApiKeyService.Scope.MCP ), eq( "alice" ) ) )

@@ -169,4 +169,23 @@ class ChunkProjectorTest {
         assertEquals( 1, repo.findByPage( "CrashPage" ).size(),
             "chunks still committed despite sink failure" );
     }
+
+    @Test
+    void postChunkSinkNotCalledWhenDiffIsEmpty() {
+        // Simulates hub page being re-saved by HubSyncFilter with unchanged content:
+        // the diff is +0 ~0 -0 so the sink must NOT be invoked (no re-embedding work).
+        final String body = "Hub page content that does not change between saves. "
+            + "Needs enough prose to cross the min-tokens threshold and produce a real chunk.";
+        projector.projectPage( "HubPage", Map.of(), body );
+        assertEquals( 1, repo.findByPage( "HubPage" ).size(), "chunk persisted on first save" );
+
+        final java.util.concurrent.atomic.AtomicInteger sinkCalls =
+            new java.util.concurrent.atomic.AtomicInteger();
+        projector.setPostChunkSink( ids -> sinkCalls.incrementAndGet() );
+
+        // Second save with identical content — diff is empty, sink must not fire.
+        projector.projectPage( "HubPage", Map.of(), body );
+        assertEquals( 0, sinkCalls.get(),
+            "sink must not be called when diff is empty (content unchanged)" );
+    }
 }

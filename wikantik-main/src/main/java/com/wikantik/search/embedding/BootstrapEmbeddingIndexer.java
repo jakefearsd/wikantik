@@ -175,30 +175,21 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
     }
 
     /**
-     * Starts the background run if and only if the embeddings table currently
-     * has no rows for {@code modelCode}. Idempotent — after the first call the
-     * progress latches into a non-IDLE state and repeat calls are no-ops.
+     * Starts a background stale-embedding reconciliation run. Idempotent — after
+     * the first call the progress latches into a non-IDLE state and repeat calls
+     * are no-ops.
+     *
+     * <p>Unlike {@link #forceStart()}, this path calls
+     * {@link EmbeddingIndexService#indexStale(String)} rather than
+     * {@link EmbeddingIndexService#indexAll(String)}: it embeds only the chunks
+     * that are missing or whose embedding {@code updated} timestamp predates the
+     * chunk's {@code modified} timestamp. This heals gaps left by in-memory queue
+     * loss across restarts and by bulk-save cascades (e.g. {@code HubSyncFilter}
+     * secondary saves) without triggering a full reindex.</p>
      */
     public synchronized void startIfNeeded() {
         final Progress current = progress.get();
         if ( current.state() != State.IDLE ) {
-            return;
-        }
-        final int existing;
-        try {
-            existing = indexService.status( modelCode ).rowCount();
-        } catch( final RuntimeException e ) {
-            LOG.warn( "Bootstrap indexer: failed to read embedding status for model={}: {}",
-                modelCode, e.getMessage(), e );
-            progress.set( new Progress( State.FAILED, 0L, Instant.now(), Instant.now(),
-                "status query failed: " + e.getMessage() ) );
-            return;
-        }
-        if ( existing > 0 ) {
-            LOG.info( "Bootstrap indexer: model={} already has {} rows; skipping full reindex",
-                modelCode, existing );
-            progress.set( new Progress( State.SKIPPED_ALREADY_POPULATED, existing,
-                Instant.now(), Instant.now(), null ) );
             return;
         }
         final long chunkCount = countChunks();
@@ -208,7 +199,7 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
                 Instant.now(), Instant.now(), null ) );
             return;
         }
-        submit( chunkCount );
+        submitStale( chunkCount );
     }
 
     /**
@@ -268,10 +259,27 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
 
     // ---- internals ----
 
+    /** Enqueues a stale-reconciliation run (called by {@link #startIfNeeded()}). */
+    private void submitStale( final long chunkCount ) {
+        final Instant startedAt = Instant.now();
+        progress.set( new Progress( State.RUNNING, chunkCount, startedAt, null, null ) );
+        LOG.info( "Bootstrap indexer starting stale reconciliation: model={} chunksTotal={}",
+            modelCode, chunkCount );
+        try {
+            executor.submit( () -> runIndexStale( chunkCount, startedAt ) );
+        } catch( final RuntimeException reject ) {
+            LOG.warn( "Bootstrap indexer (stale) rejected by executor (model={}): {}",
+                modelCode, reject.getMessage() );
+            progress.set( new Progress( State.FAILED, chunkCount, startedAt, Instant.now(),
+                "executor rejected task: " + reject.getMessage() ) );
+        }
+    }
+
+    /** Enqueues a full-reindex run (called by {@link #forceStart()}). */
     private void submit( final long chunkCount ) {
         final Instant startedAt = Instant.now();
         progress.set( new Progress( State.RUNNING, chunkCount, startedAt, null, null ) );
-        LOG.info( "Bootstrap indexer starting: model={} chunksTotal={}", modelCode, chunkCount );
+        LOG.info( "Bootstrap indexer starting full reindex: model={} chunksTotal={}", modelCode, chunkCount );
         try {
             executor.submit( () -> runIndex( chunkCount, startedAt ) );
         } catch( final RuntimeException reject ) {
@@ -280,6 +288,24 @@ public final class BootstrapEmbeddingIndexer implements AutoCloseable {
                 modelCode, reject.getMessage() );
             progress.set( new Progress( State.FAILED, chunkCount, startedAt, Instant.now(),
                 "executor rejected task: " + reject.getMessage() ) );
+        }
+    }
+
+    private void runIndexStale( final long chunkCount, final Instant startedAt ) {
+        final long t0 = System.nanoTime();
+        try {
+            final int upserted = indexService.indexStale( modelCode );
+            final long elapsedMs = TimeUnit.NANOSECONDS.toMillis( System.nanoTime() - t0 );
+            LOG.info( "Bootstrap indexer stale-reconcile COMPLETED: model={} upserted={} chunksTotal={} elapsedMs={}",
+                modelCode, upserted, chunkCount, elapsedMs );
+            progress.set( new Progress( State.COMPLETED, chunkCount, startedAt, Instant.now(), null ) );
+            invokePostRun();
+        } catch( final RuntimeException e ) {
+            final long elapsedMs = TimeUnit.NANOSECONDS.toMillis( System.nanoTime() - t0 );
+            LOG.warn( "Bootstrap indexer stale-reconcile FAILED: model={} chunksTotal={} elapsedMs={}: {}",
+                modelCode, chunkCount, elapsedMs, e.getMessage(), e );
+            progress.set( new Progress( State.FAILED, chunkCount, startedAt, Instant.now(),
+                e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage() ) );
         }
     }
 

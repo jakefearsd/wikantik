@@ -372,4 +372,87 @@ class EmbeddingIndexServiceTest {
             ps.executeUpdate();
         }
     }
+
+    /**
+     * Back-dates the {@code updated} column for the given chunk's embedding so
+     * it is strictly before the chunk's {@code modified} timestamp, making it
+     * appear stale to {@link EmbeddingIndexService#indexStale(String)}.
+     */
+    private void backdateEmbeddingUpdated( final UUID chunkId, final String model )
+            throws SQLException {
+        try( final Connection c = dataSource.getConnection();
+             final PreparedStatement ps = c.prepareStatement(
+                 "UPDATE content_chunk_embeddings "
+               + "SET updated = NOW() - INTERVAL '1 hour' "
+               + "WHERE chunk_id = ? AND model_code = ?" ) ) {
+            ps.setObject( 1, chunkId );
+            ps.setString( 2, model );
+            ps.executeUpdate();
+        }
+        // Bump the chunk's modified timestamp to now so updated < modified
+        try( final Connection c = dataSource.getConnection();
+             final PreparedStatement ps = c.prepareStatement(
+                 "UPDATE kg_content_chunks SET modified = NOW() WHERE id = ?" ) ) {
+            ps.setObject( 1, chunkId );
+            ps.executeUpdate();
+        }
+    }
+
+    // ---- indexStale tests ----
+
+    @Test
+    void indexStale_embedsMissingAndOutdatedChunksOnly() throws SQLException {
+        // 3 chunks: chunk 0 = current embedding, chunk 1 = stale (backdated), chunk 2 = no embedding.
+        // Reconcile must embed exactly chunks 1 and 2; chunk 0 stays untouched.
+        final List< UUID > ids = seedChunks( 3 );
+        stubBatchEmbed( 3, false );
+
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 32 );
+        // Embed all 3 first to establish a baseline.
+        svc.indexAll( MODEL );
+        assertEquals( 3, countRows() );
+
+        final byte[] originalVec = fetchVec( ids.get( 0 ) );
+
+        // Make chunk 1 stale: its embedding.updated is before chunk.modified.
+        backdateEmbeddingUpdated( ids.get( 1 ), MODEL );
+        // Make chunk 2 missing: delete its embedding row.
+        try( final Connection c = dataSource.getConnection();
+             final PreparedStatement ps = c.prepareStatement(
+                 "DELETE FROM content_chunk_embeddings WHERE chunk_id = ? AND model_code = ?" ) ) {
+            ps.setObject( 1, ids.get( 2 ) );
+            ps.setString( 2, MODEL );
+            ps.executeUpdate();
+        }
+        assertEquals( 2, countRows(), "setup: 1 row deleted" );
+
+        // Reconcile — must embed chunk 1 (stale) and chunk 2 (missing); skip chunk 0 (current).
+        final int reconciled = svc.indexStale( MODEL );
+
+        assertEquals( 2, reconciled, "exactly 2 stale/missing chunks reconciled" );
+        assertEquals( 3, countRows(), "all 3 rows present after reconcile" );
+        // Chunk 0's vec must be unchanged (not re-embedded).
+        final byte[] afterVec = fetchVec( ids.get( 0 ) );
+        assertTrue( Arrays.equals( originalVec, afterVec ),
+            "chunk 0 vec must be unchanged (was not stale)" );
+        assertTrue( hasEmbedding( ids.get( 1 ) ), "chunk 1 re-embedded" );
+        assertTrue( hasEmbedding( ids.get( 2 ) ), "chunk 2 newly embedded" );
+    }
+
+    @Test
+    void indexStale_noopWhenNothingStale() throws SQLException {
+        // All 2 chunks have up-to-date embeddings — reconcile returns 0.
+        final List< UUID > ids = seedChunks( 2 );
+        stubBatchEmbed( 2, false );
+
+        final EmbeddingIndexService svc = new EmbeddingIndexService( dataSource, client, 32 );
+        svc.indexAll( MODEL );
+        assertEquals( 2, countRows() );
+
+        // Reconcile with nothing stale.
+        final int reconciled = svc.indexStale( MODEL );
+
+        assertEquals( 0, reconciled, "no stale rows — reconcile is a no-op" );
+        assertEquals( 2, countRows(), "row count unchanged" );
+    }
 }

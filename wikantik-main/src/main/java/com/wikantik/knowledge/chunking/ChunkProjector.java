@@ -185,7 +185,16 @@ public class ChunkProjector implements PageFilter {
             LOG.info( "Chunked '{}' into {} chunks (+{} ~{} -{})",
                 pageName, produced.size(),
                 diff.inserts().size(), diff.updates().size(), diff.deletes().size() );
-            notifyPostChunkSink( pageName );
+            // Only notify the sink when something actually changed. Hub pages that are
+            // re-saved by HubSyncFilter (bidirectional membership sync) with unchanged
+            // content produce a +0 ~0 -0 diff — skip the re-embed to avoid spurious
+            // embedding work for content that hasn't changed.
+            final boolean diffEmpty = diff.inserts().isEmpty()
+                && diff.updates().isEmpty()
+                && diff.deletes().isEmpty();
+            if ( !diffEmpty ) {
+                notifyPostChunkSink( pageName );
+            }
         } catch( final Exception e ) {
             LOG.warn( "Content chunking failed for page '{}': {}",
                 pageName, e.getMessage(), e );

@@ -72,6 +72,20 @@ public class EmbeddingIndexService {
       + "ORDER BY page_name, chunk_index";
 
     /**
+     * Stale-chunk selection: chunks with no embedding row for the given model yet,
+     * OR whose {@code content_chunk_embeddings.updated} timestamp predates the chunk's
+     * own {@code kg_content_chunks.modified} timestamp. Used by {@link #indexStale(String)}
+     * to heal gaps left by in-memory queue loss across restarts and by bulk-save cascades
+     * (e.g. {@code HubSyncFilter} secondary saves).
+     */
+    private static final String SELECT_STALE_SQL =
+        "SELECT c.id, c.text, c.heading_path, c.page_name "
+      + "FROM kg_content_chunks c "
+      + "LEFT JOIN content_chunk_embeddings e ON e.chunk_id = c.id AND e.model_code = ? "
+      + "WHERE e.chunk_id IS NULL OR e.updated < c.modified "
+      + "ORDER BY c.page_name, c.chunk_index";
+
+    /**
      * Upsert so both full rebuilds and incremental page-save calls converge.
      * Intentionally touches {@code updated} so operators can see when a row
      * was last refreshed even when dim/vec are equal across runs.
@@ -226,6 +240,61 @@ public class EmbeddingIndexService {
             throw new RuntimeException( "indexAll failed for " + modelCode, e );
         }
         LOG.info( "Embedding indexAll complete: model={} upserted={}", modelCode, upserted );
+        return upserted;
+    }
+
+    /**
+     * Startup reconciliation: embeds only the chunks that are missing or stale
+     * (embedding {@code updated} &lt; chunk {@code modified}). Called by
+     * {@link BootstrapEmbeddingIndexer#startIfNeeded()} on every restart so gaps
+     * left by in-memory queue loss or bulk-save cascades are healed without
+     * triggering a full reindex.
+     *
+     * @param modelCode the model identifier written into {@code model_code}
+     * @return number of rows successfully upserted (already-current rows skipped,
+     *         poisoned chunks excluded)
+     */
+    public int indexStale( final String modelCode ) {
+        requireModelCode( modelCode );
+        int upserted = 0;
+        try( Connection conn = dataSource.getConnection() ) {
+            conn.setAutoCommit( false );
+            try( PreparedStatement sel = conn.prepareStatement( SELECT_STALE_SQL );
+                 PreparedStatement ins = conn.prepareStatement( UPSERT_SQL ) ) {
+                sel.setString( 1, modelCode );
+                sel.setFetchSize( 500 );
+                try( ResultSet rs = sel.executeQuery() ) {
+                    final List< UUID > batchIds = new ArrayList<>( batchSize );
+                    final List< String > batchTexts = new ArrayList<>( batchSize );
+                    final java.util.Map< String, EmbeddingTextBuilder.PageContext > ctxMemo =
+                        new java.util.HashMap<>();
+                    while( rs.next() ) {
+                        batchIds.add( rs.getObject( 1, UUID.class ) );
+                        final EmbeddingTextBuilder.PageContext ctx =
+                            ctxMemo.computeIfAbsent( rs.getString( 4 ), contextResolver );
+                        batchTexts.add( EmbeddingTextBuilder.forDocument(
+                            ctx, readHeadingPath( rs, 3 ), rs.getString( 2 ) ) );
+                        if ( batchIds.size() >= batchSize ) {
+                            upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
+                            batchIds.clear();
+                            batchTexts.clear();
+                        }
+                    }
+                    if ( !batchIds.isEmpty() ) {
+                        upserted += flushBatch( ins, modelCode, batchIds, batchTexts );
+                    }
+                }
+                conn.commit();
+            } catch( final SQLException e ) {
+                conn.rollback();
+                LOG.warn( "indexStale rolled back (model={}): {}", modelCode, e.getMessage(), e );
+                throw new RuntimeException( "indexStale failed for " + modelCode, e );
+            }
+        } catch( final SQLException e ) {
+            LOG.warn( "indexStale connection failed (model={}): {}", modelCode, e.getMessage(), e );
+            throw new RuntimeException( "indexStale failed for " + modelCode, e );
+        }
+        LOG.info( "Embedding indexStale complete: model={} upserted={}", modelCode, upserted );
         return upserted;
     }
 

@@ -65,37 +65,31 @@ class BootstrapEmbeddingIndexerTest {
         return ds;
     }
 
-    private static EmbeddingIndexService.Status emptyStatus() {
-        return new EmbeddingIndexService.Status( MODEL, 0, 0, null );
-    }
-
-    private static EmbeddingIndexService.Status populatedStatus( final int rows ) {
-        return new EmbeddingIndexService.Status( MODEL, 1024, rows, null );
-    }
-
     @Test
-    void startIfNeeded_skipsWhenAlreadyPopulated() throws Exception {
+    void startIfNeeded_runsStaleReconcileEvenWhenAlreadyPopulated() throws Exception {
+        // Previously returned SKIPPED_ALREADY_POPULATED — now always reconciles stale rows.
         final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
-        when( index.status( MODEL ) ).thenReturn( populatedStatus( 42 ) );
+        when( index.indexStale( MODEL ) ).thenReturn( 0 ); // 0 stale = no-op but still runs
         final DataSource ds = stubDataSourceReturningChunkCount( 100L );
         final ExecutorService ex = Executors.newSingleThreadExecutor();
         try {
             final BootstrapEmbeddingIndexer boot =
                 new BootstrapEmbeddingIndexer( ds, index, MODEL, null, ex );
             boot.startIfNeeded();
-            assertEquals( BootstrapEmbeddingIndexer.State.SKIPPED_ALREADY_POPULATED,
-                boot.progress().state() );
-            assertEquals( 42L, boot.progress().chunksTotal() );
+            ex.shutdown();
+            assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
+            assertEquals( BootstrapEmbeddingIndexer.State.COMPLETED, boot.progress().state() );
+            assertEquals( 100L, boot.progress().chunksTotal() );
+            verify( index, times( 1 ) ).indexStale( MODEL );
             verify( index, never() ).indexAll( any() );
         } finally {
-            ex.shutdownNow();
+            if ( !ex.isTerminated() ) ex.shutdownNow();
         }
     }
 
     @Test
     void startIfNeeded_skipsWhenNoChunks() throws Exception {
         final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
-        when( index.status( MODEL ) ).thenReturn( emptyStatus() );
         final DataSource ds = stubDataSourceReturningChunkCount( 0L );
         final ExecutorService ex = Executors.newSingleThreadExecutor();
         try {
@@ -105,6 +99,7 @@ class BootstrapEmbeddingIndexerTest {
             assertEquals( BootstrapEmbeddingIndexer.State.SKIPPED_NO_CHUNKS,
                 boot.progress().state() );
             assertEquals( 0L, boot.progress().chunksTotal() );
+            verify( index, never() ).indexStale( any() );
             verify( index, never() ).indexAll( any() );
         } finally {
             ex.shutdownNow();
@@ -112,10 +107,9 @@ class BootstrapEmbeddingIndexerTest {
     }
 
     @Test
-    void startIfNeeded_runsIndexAllAndTransitionsToCompleted() throws Exception {
+    void startIfNeeded_runsIndexStaleAndTransitionsToCompleted() throws Exception {
         final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
-        when( index.status( MODEL ) ).thenReturn( emptyStatus() );
-        when( index.indexAll( MODEL ) ).thenReturn( 7 );
+        when( index.indexStale( MODEL ) ).thenReturn( 7 );
         final DataSource ds = stubDataSourceReturningChunkCount( 7L );
         final AtomicInteger cbCalls = new AtomicInteger();
         final ExecutorService ex = Executors.newSingleThreadExecutor();
@@ -131,17 +125,17 @@ class BootstrapEmbeddingIndexerTest {
             assertNotNull( boot.progress().completedAt() );
             assertNull( boot.progress().errorMessage() );
             assertEquals( 1, cbCalls.get() );
-            verify( index, times( 1 ) ).indexAll( MODEL );
+            verify( index, times( 1 ) ).indexStale( MODEL );
+            verify( index, never() ).indexAll( any() );
         } finally {
             if ( !ex.isTerminated() ) ex.shutdownNow();
         }
     }
 
     @Test
-    void startIfNeeded_indexAllFailureLandsInFailedState() throws Exception {
+    void startIfNeeded_indexStaleFailureLandsInFailedState() throws Exception {
         final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
-        when( index.status( MODEL ) ).thenReturn( emptyStatus() );
-        when( index.indexAll( MODEL ) ).thenThrow( new RuntimeException( "backend down" ) );
+        when( index.indexStale( MODEL ) ).thenThrow( new RuntimeException( "backend down" ) );
         final DataSource ds = stubDataSourceReturningChunkCount( 3L );
         final AtomicInteger cbCalls = new AtomicInteger();
         final ExecutorService ex = Executors.newSingleThreadExecutor();
@@ -163,28 +157,29 @@ class BootstrapEmbeddingIndexerTest {
     @Test
     void startIfNeeded_isIdempotentAfterFirstDispatch() throws Exception {
         final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
-        when( index.status( MODEL ) ).thenReturn( populatedStatus( 5 ) );
+        when( index.indexStale( MODEL ) ).thenReturn( 0 );
         final DataSource ds = stubDataSourceReturningChunkCount( 5L );
         final ExecutorService ex = Executors.newSingleThreadExecutor();
         try {
             final BootstrapEmbeddingIndexer boot =
                 new BootstrapEmbeddingIndexer( ds, index, MODEL, null, ex );
             boot.startIfNeeded();
+            ex.shutdown();
+            ex.awaitTermination( 5, TimeUnit.SECONDS );
+            boot.startIfNeeded(); // already COMPLETED — must be a no-op
             boot.startIfNeeded();
-            boot.startIfNeeded();
-            // status probed exactly once — second and third calls are no-ops.
-            verify( index, times( 1 ) ).status( MODEL );
+            // indexStale dispatched exactly once; second and third calls short-circuit.
+            verify( index, times( 1 ) ).indexStale( MODEL );
         } finally {
-            ex.shutdownNow();
+            if ( !ex.isTerminated() ) ex.shutdownNow();
         }
     }
 
     @Test
     void forceStart_rejectsWhenAlreadyRunning() throws Exception {
         final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
-        when( index.status( MODEL ) ).thenReturn( emptyStatus() );
-        // Block the executor so RUNNING is observable before indexAll returns.
-        when( index.indexAll( MODEL ) ).thenAnswer( inv -> {
+        // Block the executor so RUNNING is observable before indexStale returns.
+        when( index.indexStale( MODEL ) ).thenAnswer( inv -> {
             Thread.sleep( 200 );
             return 1;
         } );
@@ -204,10 +199,10 @@ class BootstrapEmbeddingIndexerTest {
     }
 
     @Test
-    void forceStart_reindexEvenWhenAlreadyPopulated() throws Exception {
+    void forceStart_reindexAfterReconcileCompleted() throws Exception {
+        // startIfNeeded reconciles stale rows; forceStart then triggers a full reindex.
         final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
-        // First call from startIfNeeded sees populated; forceStart bypasses the check.
-        when( index.status( MODEL ) ).thenReturn( populatedStatus( 10 ) );
+        when( index.indexStale( MODEL ) ).thenReturn( 0 );
         when( index.indexAll( MODEL ) ).thenReturn( 10 );
         final DataSource ds = stubDataSourceReturningChunkCount( 10L );
         final ExecutorService ex = Executors.newSingleThreadExecutor();
@@ -215,12 +210,17 @@ class BootstrapEmbeddingIndexerTest {
             final BootstrapEmbeddingIndexer boot =
                 new BootstrapEmbeddingIndexer( ds, index, MODEL, null, ex );
             boot.startIfNeeded();
-            assertEquals( BootstrapEmbeddingIndexer.State.SKIPPED_ALREADY_POPULATED,
-                boot.progress().state() );
-            boot.forceStart();
             ex.shutdown();
             assertEquals( true, ex.awaitTermination( 5, TimeUnit.SECONDS ) );
             assertEquals( BootstrapEmbeddingIndexer.State.COMPLETED, boot.progress().state() );
+            // Force a full reindex on top of the completed reconcile.
+            final ExecutorService ex2 = Executors.newSingleThreadExecutor();
+            final BootstrapEmbeddingIndexer boot2 =
+                new BootstrapEmbeddingIndexer( ds, index, MODEL, null, ex2 );
+            boot2.forceStart();
+            ex2.shutdown();
+            assertEquals( true, ex2.awaitTermination( 5, TimeUnit.SECONDS ) );
+            assertEquals( BootstrapEmbeddingIndexer.State.COMPLETED, boot2.progress().state() );
             verify( index, times( 1 ) ).indexAll( MODEL );
         } finally {
             if ( !ex.isTerminated() ) ex.shutdownNow();
@@ -234,7 +234,6 @@ class BootstrapEmbeddingIndexerTest {
         // pinned at 100% and tells the operator nothing. Forcing a delete
         // first makes the live counter accurately track 0 → N progress.
         final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
-        when( index.status( MODEL ) ).thenReturn( populatedStatus( 50 ) );
         when( index.indexAll( MODEL ) ).thenReturn( 50 );
         final DataSource ds = stubDataSourceReturningChunkCount( 50L );
         final ExecutorService ex = Executors.newSingleThreadExecutor();
@@ -254,11 +253,10 @@ class BootstrapEmbeddingIndexerTest {
     }
 
     @Test
-    void startIfNeeded_doesNotDeleteWhenTableAlreadyEmpty() throws Exception {
-        // Cold-start path: nothing to delete, deleteByModel must not be called.
+    void startIfNeeded_doesNotDeleteWhenReconciling() throws Exception {
+        // Reconcile path must never delete; deleteByModel is forceStart-only.
         final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
-        when( index.status( MODEL ) ).thenReturn( emptyStatus() );
-        when( index.indexAll( MODEL ) ).thenReturn( 5 );
+        when( index.indexStale( MODEL ) ).thenReturn( 5 );
         final DataSource ds = stubDataSourceReturningChunkCount( 5L );
         final ExecutorService ex = Executors.newSingleThreadExecutor();
         try {
@@ -314,8 +312,7 @@ class BootstrapEmbeddingIndexerTest {
     @Test
     void postRunCallbackExceptionsAreSwallowed() throws Exception {
         final EmbeddingIndexService index = mock( EmbeddingIndexService.class );
-        when( index.status( MODEL ) ).thenReturn( emptyStatus() );
-        when( index.indexAll( MODEL ) ).thenReturn( 1 );
+        when( index.indexStale( MODEL ) ).thenReturn( 1 );
         final DataSource ds = stubDataSourceReturningChunkCount( 1L );
         final ExecutorService ex = Executors.newSingleThreadExecutor();
         try {

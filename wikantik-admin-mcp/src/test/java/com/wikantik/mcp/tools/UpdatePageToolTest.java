@@ -117,9 +117,9 @@ class UpdatePageToolTest {
         when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "current body" );
         final String currentHash = McpToolUtils.computeContentHash( "current body" );
 
-        // The save filter stashes a non-blocking warning during saveText for the tool to surface.
+        // The save filter stashes a non-blocking warning, keyed by the page being saved, during saveText.
         doAnswer( inv -> {
-            FrontmatterWarningSink.put( List.of( FieldViolation.of(
+            FrontmatterWarningSink.put( "P", List.of( FieldViolation.of(
                 "status", Severity.WARNING, "status.noncanonical", "non-canonical status" ) ) );
             return null;
         } ).when( helper ).saveText( eq( "P" ), any(), any( SaveOptions.class ) );
@@ -132,6 +132,38 @@ class UpdatePageToolTest {
         assertTrue( text.contains( "\"updated\":true" ) );
         assertTrue( text.contains( "frontmatterWarnings" ) );
         assertTrue( text.contains( "status" ) );
+    }
+
+    @Test
+    void execute_doesNotSurfaceAnotherPagesFrontmatterWarnings() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 2 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "current body" );
+        final String currentHash = McpToolUtils.computeContentHash( "current body" );
+
+        // Saving page "P" triggers a NESTED save of a different page (e.g. a regenerated index),
+        // whose validation stashes a foreign over-length-summary warning. Page "P" has none of its
+        // own. The tool must drain only its own page's warnings — never the nested page's.
+        // Pre-fix (a flat per-thread sink), the foreign "188" leaked into P's response.
+        doAnswer( inv -> {
+            FrontmatterWarningSink.put( "P", List.of() );
+            FrontmatterWarningSink.put( "GeneratedIndex", List.of( FieldViolation.of(
+                "summary", Severity.WARNING, "summary.length",
+                "'summary' should be 50–160 characters (is 188)." ) ) );
+            return null;
+        } ).when( helper ).saveText( eq( "P" ), any(), any( SaveOptions.class ) );
+
+        final UpdatePageTool tool = new UpdatePageTool( helper, pm, null );
+        final McpSchema.CallToolResult result = tool.execute( Map.of(
+            "pageName", "P", "content", "new body", "expectedContentHash", currentHash ) );
+
+        final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
+        assertTrue( text.contains( "\"updated\":true" ) );
+        assertFalse( text.contains( "188" ), "must not leak a nested page's summary-length warning" );
+        assertFalse( text.contains( "frontmatterWarnings" ), "page P has no warnings of its own" );
     }
 
     @Test

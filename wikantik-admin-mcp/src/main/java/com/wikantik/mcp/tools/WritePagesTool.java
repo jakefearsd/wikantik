@@ -208,7 +208,7 @@ public class WritePagesTool extends DefaultAuthorTool implements McpTool {
                         .build() );
                 McpAudit.logWrite( TOOL_NAME, "created", pageName, defaultAuthor );
                 entry.put( "created", true );
-                final var fmWarnings = FrontmatterWarningSink.drain();
+                final var fmWarnings = FrontmatterWarningSink.drain( pageName );
                 if ( !fmWarnings.isEmpty() ) {
                     entry.put( "frontmatterWarnings", fmWarnings );
                 }

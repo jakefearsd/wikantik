@@ -377,7 +377,7 @@ public class PageResource extends RestServletBase {
             result.put( "success", true );
             result.put( "name", pageName );
             result.put( "version", Math.max( saved.getVersion(), 1 ) );
-            result.put( "warnings", FrontmatterWarningSink.drain() );
+            result.put( "warnings", FrontmatterWarningSink.drain( pageName ) );
             result.put( "mathWarnings", ContentWarningSink.drain() );
 
             sendJson( response, result );

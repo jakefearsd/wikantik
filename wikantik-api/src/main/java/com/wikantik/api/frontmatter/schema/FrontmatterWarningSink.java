@@ -18,36 +18,56 @@
  */
 package com.wikantik.api.frontmatter.schema;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Request-scoped hand-off for non-blocking {@code WARNING} violations from the save filter to the REST
- * layer. The filter runs synchronously inside {@code PageManager.saveText} on the request thread, so a
- * {@link ThreadLocal} reliably carries warnings back to the resource that initiated the save.
+ * Request-scoped hand-off for non-blocking {@code WARNING} violations from the save filter to the
+ * caller (REST resource or MCP write tool). The filter runs synchronously inside
+ * {@code PageManager.saveText} on the request thread, so a {@link ThreadLocal} carries warnings back.
  *
- * <p>Contract: {@code PageResource} {@link #clear()}s before saving and {@link #drain()}s after (drain
- * also clears), so a pooled thread never leaks warnings between requests.</p>
+ * <p><b>Keyed by page name.</b> A single {@code saveText} can trigger <em>nested</em> saves of other
+ * pages (e.g. regenerating a generated index/hub page), each running the validation filter. A flat
+ * per-thread slot let the nested save's warnings clobber the outer page's — so {@code update_page}
+ * could surface a warning ("summary is 188 chars") computed for a <em>different</em> page. Keying the
+ * stash by page name isolates each save's warnings, so the caller drains exactly its own page.</p>
+ *
+ * <p>Contract: the caller {@link #clear()}s before saving (defensive) and {@link #drain(String)}s the
+ * page it saved afterward (drain removes that page's entry). A pooled thread never leaks warnings
+ * between requests.</p>
  */
 public final class FrontmatterWarningSink {
 
-    private static final ThreadLocal< List< FieldViolation > > WARNINGS = new ThreadLocal<>();
+    private static final ThreadLocal< Map< String, List< FieldViolation > > > WARNINGS =
+            ThreadLocal.withInitial( HashMap::new );
 
     private FrontmatterWarningSink() {}
 
-    /** Stash the warnings produced while validating the current save. */
-    public static void put( final List< FieldViolation > warnings ) {
-        WARNINGS.set( warnings );
+    /**
+     * Stash the warnings produced while validating the save of {@code pageName}. A {@code null} page
+     * name (e.g. a context-less unit-test invocation) is stored under a stable empty key.
+     */
+    public static void put( final String pageName, final List< FieldViolation > warnings ) {
+        WARNINGS.get().put( key( pageName ), warnings );
     }
 
-    /** Return and clear the stashed warnings (empty list if none). */
-    public static List< FieldViolation > drain() {
-        final List< FieldViolation > w = WARNINGS.get();
-        WARNINGS.remove();
+    /** Return and remove the stashed warnings for {@code pageName} (empty list if none). */
+    public static List< FieldViolation > drain( final String pageName ) {
+        final Map< String, List< FieldViolation > > map = WARNINGS.get();
+        final List< FieldViolation > w = map.remove( key( pageName ) );
+        if ( map.isEmpty() ) {
+            WARNINGS.remove();
+        }
         return w == null ? List.of() : w;
     }
 
-    /** Clear any stale warnings before initiating a save. */
+    /** Clear all stashed warnings on this thread before initiating a save. */
     public static void clear() {
         WARNINGS.remove();
+    }
+
+    private static String key( final String pageName ) {
+        return pageName == null ? "" : pageName;
     }
 }

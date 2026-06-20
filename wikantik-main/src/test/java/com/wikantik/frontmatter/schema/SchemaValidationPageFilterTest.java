@@ -62,7 +62,7 @@ class SchemaValidationPageFilterTest {
     void nonCanonicalStatusDoesNotThrowAndStashesWarning() throws Exception {
         final String content = "---\nstatus: published\n---\n# body\n";
         assertSame( content, filter.preSave( null, content ) );
-        final List< FieldViolation > warnings = FrontmatterWarningSink.drain();
+        final List< FieldViolation > warnings = FrontmatterWarningSink.drain( null );
         assertTrue( warnings.stream().anyMatch( v -> v.field().equals( "status" ) ),
                 "non-canonical status should be stashed as a warning" );
     }
@@ -71,7 +71,7 @@ class SchemaValidationPageFilterTest {
     void cleanPagePassesThroughWithNoWarnings() throws Exception {
         final String content = "---\ntype: article\nstatus: active\n---\n# body\n";
         assertSame( content, filter.preSave( null, content ) );
-        assertTrue( FrontmatterWarningSink.drain().isEmpty() );
+        assertTrue( FrontmatterWarningSink.drain( null ).isEmpty() );
     }
 
     @Test

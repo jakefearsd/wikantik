@@ -287,7 +287,7 @@ public class UpdatePageTool extends DefaultAuthorTool implements McpTool {
             ok.put( "updated", true );
             ok.put( "newContentHash", newHash );
             ok.put( "newVersion", McpToolUtils.normalizeVersion( existing.getVersion() + 1 ) );
-            final var fmWarnings = FrontmatterWarningSink.drain();
+            final var fmWarnings = FrontmatterWarningSink.drain( pageName );
             if ( !fmWarnings.isEmpty() ) {
                 ok.put( "frontmatterWarnings", fmWarnings );
             }

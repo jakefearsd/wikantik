@@ -130,7 +130,12 @@ public class SchemaValidationPageFilter implements PageFilter {
         if ( !errors.isEmpty() ) {
             throw new FrontmatterValidationException( errors );
         }
-        FrontmatterWarningSink.put(
+        // Key the stash by the page being saved so a NESTED save (e.g. a regenerated index/hub page)
+        // running this same filter cannot clobber this page's warnings — that cross-page leak is what
+        // made update_page surface a foreign "summary is N chars" warning under concurrent/nested saves.
+        final String pageName = context != null && context.getPage() != null
+                ? context.getPage().getName() : null;
+        FrontmatterWarningSink.put( pageName,
                 all.stream().filter( v -> v.severity() == Severity.WARNING ).toList() );
         return content;
     }

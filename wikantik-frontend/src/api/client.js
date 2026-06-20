@@ -285,6 +285,17 @@ export const api = {
   resetPassword: (email) =>
     request('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ email }) }),
 
+  // Self (current user's own API keys)
+  self: {
+    listApiKeys: () => request('/api/self/apikeys'),
+    createApiKey: (data) =>
+      request('/api/self/apikeys', { method: 'POST', body: JSON.stringify(data) }),
+    rotateApiKey: (id) =>
+      request(`/api/self/apikeys/${id}/rotate`, { method: 'POST' }),
+    revokeApiKey: (id) =>
+      request(`/api/self/apikeys/${id}`, { method: 'DELETE' }),
+  },
+
   // Blog
   blog: {
     list: ({ signal } = {}) => request('/api/blog', { signal }),

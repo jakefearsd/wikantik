@@ -63,7 +63,7 @@
       { "@type": "Question", "name": "Which MCP clients work with Wikantik?",
         "acceptedAnswer": { "@type": "Answer", "text": "Any client that speaks the Model Context Protocol over Streamable HTTP will work — Claude Desktop, Claude Code, and compatible agent frameworks. For clients that use OpenAPI rather than MCP, the /tools/* endpoint exposes search_wiki and get_page as standard JSON tools." } },
       { "@type": "Question", "name": "Is the MCP server read-only?",
-        "acceptedAnswer": { "@type": "Answer", "text": "The /knowledge-mcp server is strictly read-only — 18 retrieval and navigation tools with no write surface. The /wikantik-admin-mcp server adds 25 write and analytics tools for curators who need to create, update, and audit content. You choose which server to expose to which agent." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "The /knowledge-mcp server is strictly read-only — 20 retrieval and navigation tools with no write surface. The /wikantik-admin-mcp server adds 26 write and analytics tools for curators who need to create, update, and audit content. You choose which server to expose to which agent." } },
       { "@type": "Question", "name": "How is MCP access controlled?",
         "acceptedAnswer": { "@type": "Answer", "text": "Both MCP servers sit behind access filters that require a bearer token or API key. No token, no tool calls. The same page-level ACLs that protect the web UI are enforced on retrieval results." } }
     ] }
@@ -110,10 +110,10 @@
           <h2>The two servers: read versus curate</h2>
           <p>Wikantik ships two distinct MCP servers, each with a different trust boundary:</p>
 
-          <h3>/knowledge-mcp — 18 read-only tools</h3>
-          <p>The <code>/knowledge-mcp</code> endpoint is the safe, read-only interface for retrieval agents, coding assistants, and any other tool that needs to find and cite your content. Its 18 tools cover:</p>
+          <h3>/knowledge-mcp — 20 read-only tools</h3>
+          <p>The <code>/knowledge-mcp</code> endpoint is the safe, read-only interface for retrieval agents, coding assistants, and any other tool that needs to find and cite your content. Its 20 tools cover:</p>
           <ul>
-            <li>Hybrid retrieval (BM25 + dense embeddings + knowledge-graph rerank)</li>
+            <li>Hybrid retrieval (BM25 + dense embeddings, RRF-fused, fail-closed to BM25)</li>
             <li>Knowledge Graph traversal — follow entity relationships, discover hubs</li>
             <li>Page Graph navigation — structural spine queries, cluster membership, canonical ID lookup</li>
             <li>Agent-grade page projection — token-budgeted content with derived agent hints</li>
@@ -122,8 +122,8 @@
           </ul>
           <p>Access is controlled by <code>KnowledgeMcpAccessFilter</code> — bearer token or API key required. The same page-level ACLs that protect the web UI apply here.</p>
 
-          <h3>/wikantik-admin-mcp — 25 write and analytics tools</h3>
-          <p>The <code>/wikantik-admin-mcp</code> endpoint is for curator agents and admin workflows. Its 25 tools add:</p>
+          <h3>/wikantik-admin-mcp — 26 write and analytics tools</h3>
+          <p>The <code>/wikantik-admin-mcp</code> endpoint is for curator agents and admin workflows. Its 26 tools add:</p>
           <ul>
             <li>Page creation, update, and metadata management</li>
             <li>Knowledge Graph curation (propose nodes, edges, approve or reject extractions)</li>
@@ -134,7 +134,7 @@
           <p>The same bearer-token auth scheme applies. You decide which agents get admin access.</p>
 
           <div class="callout">
-            <p>These tool counts reflect a fully-configured deployment with the Knowledge Graph enabled (as on the live Wikantik instance): <strong>18 tools</strong> on <code>/knowledge-mcp</code> and <strong>25 tools</strong> on <code>/wikantik-admin-mcp</code>; minimal installs with the Knowledge Graph disabled register fewer. The design principle is compound operations — fewer, higher-level tool calls rather than chatty per-field round trips. See the <a href="https://wiki.wikantik.com/wiki/GoodMcpDesign">Good MCP Design</a> article for the reasoning.</p>
+            <p>These tool counts reflect a fully-configured deployment with the Knowledge Graph enabled (as on the live Wikantik instance): <strong>20 tools</strong> on <code>/knowledge-mcp</code> and <strong>26 tools</strong> on <code>/wikantik-admin-mcp</code>; minimal installs with the Knowledge Graph disabled register fewer. The design principle is compound operations — fewer, higher-level tool calls rather than chatty per-field round trips. See the <a href="https://wiki.wikantik.com/wiki/GoodMcpDesign">Good MCP Design</a> article for the reasoning.</p>
           </div>
 
           <h2>How an agent uses it</h2>
@@ -153,7 +153,7 @@
             </details>
             <details>
               <summary>Is the MCP server read-only?</summary>
-              <p>The <code>/knowledge-mcp</code> server is strictly read-only — 18 retrieval and navigation tools with no write surface. The <code>/wikantik-admin-mcp</code> server adds 25 write and analytics tools for curators who need to create, update, and audit content. You choose which server to expose to which agent.</p>
+              <p>The <code>/knowledge-mcp</code> server is strictly read-only — 20 retrieval and navigation tools with no write surface. The <code>/wikantik-admin-mcp</code> server adds 26 write and analytics tools for curators who need to create, update, and audit content. You choose which server to expose to which agent.</p>
             </details>
             <details>
               <summary>How is MCP access controlled?</summary>
@@ -167,11 +167,11 @@
           <div class="related-cards">
             <a class="related-card" href="/platform/hybrid-retrieval.html">
               <strong>Hybrid retrieval</strong>
-              <span>How search actually works under the MCP tools: BM25, dense, and KG rerank.</span>
+              <span>How search actually works under the MCP tools: BM25 + dense, RRF-fused.</span>
             </a>
             <a class="related-card" href="/platform/knowledge-graph.html">
               <strong>Knowledge graph</strong>
-              <span>The entity graph that powers the KG rerank and Knowledge Graph traversal tools.</span>
+              <span>LLM-extracted entities and typed relations — traversal, hub discovery, and SPARQL.</span>
             </a>
             <a class="related-card" href="/platform/agent-grade-content.html">
               <strong>Agent-grade content</strong>

@@ -15,9 +15,13 @@
 # differs from the page's own self-description.
 
 intro: |
-  A curated collection of in-depth research articles, organized into topic clusters. Each cluster has a hub page that introduces the topic and links to detailed sub-articles. Articles are interlinked across clusters where topics overlap.
+  **Wikantik is an agent-grade knowledge base — a wiki that humans read and AI agents can natively search, retrieve, and cite.** One Markdown source of truth, two kinds of reader, the same content and permissions for both.
 
-  You can read the [site blogs here]( ../blog/) and learn about the [Wikantik Knowledge Graph Admin](WikantikKnowledgeGraphAdmin) if you want to be a power user.
+  **As a human**, browse in-depth, interlinked research articles organized into topic clusters — each cluster has a hub page that introduces the topic and links to its sub-articles. Search in plain language (hybrid keyword + semantic retrieval), and explore how ideas connect through the [page graph](PageGraphVsKnowledgeGraph) of wikilinks and the [knowledge graph](WikantikKnowledgeGraph) of entities extracted from the content.
+
+  **As an AI agent**, connect over the Model Context Protocol: the read-only `/knowledge-mcp` server retrieves and assembles ranked, **citation-bearing** context bundles and traverses the knowledge graph, while `/wikantik-admin-mcp` authors and curates pages — and the whole corpus is queryable as linked data over [SPARQL](Ontology). Agents go through the same save pipeline, permissions, and retrieval index as the human UI; see [Wikantik System Architecture](WikantikArchitecture) for how it all fits together.
+
+  New here? Start with [About](About) for the manifesto, or the [Wikantik Platform Hub](WikantikPlatformHub) for the platform deep-dives. Power users: the [Knowledge Graph Admin](WikantikKnowledgeGraphAdmin) guide. You can also read the [site blog](../blog/).
 
 footer: |
   Powered by [Wikantik](About). Articles are written as AI-assisted research — drafted with Claude, reviewed and edited by a human, and published via the [MCP API](https://modelcontextprotocol.io/). Content is organized using YAML frontmatter metadata for programmatic discovery and cross-referencing.
@@ -133,6 +137,9 @@ sections:
       - id: 01KQTCA4WNJWEPHWKVP4KYJ22Y
         title: "Wikantik Platform Hub"
         summary: "The definitive guide to the Wikantik platform: architecture, hybrid search, knowledge graph, and history."
+      - id: 01KQTCAKV3BVHYPW20PHSFGXJR
+        title: "Wikantik System Architecture"
+        summary: "A deep dive into how Wikantik is built: the module reactor, hybrid file+Postgres storage, retrieval and knowledge layers, and the agent surface — with strengths, an honest critique, and a roadmap."
       - id: 01KQ0P44YWV8Q0JMN1H2H5EGDX
         title: "Wikantik Development"
         summary: "Hub page for platform development — architecture decisions, feature implementations, and engineering history"

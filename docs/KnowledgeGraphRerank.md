@@ -1,5 +1,13 @@
 # Knowledge-Graph-Aware Search Rerank — Configuration Guide
 
+> **Status: shelved — off by default.** A 2026-06-16 ceiling experiment measured
+> no net ranking lift from the graph rerank step (relational section relevance is
+> not entity proximity). Production search runs as **BM25 + dense, fused with RRF,
+> fail-closed to BM25** — no KG rerank. The Knowledge Graph and RDF ontology
+> remain first-class for the human knowledge base, agent traversal, and SPARQL.
+> The tuning/sweep instructions below remain valid for anyone who wants to
+> experiment; the default is `boost = 0` (disabled).
+
 This guide covers the three subsystems that together let Wikantik answer search
 queries with graph-aware reranking: the save-time **entity extractor** that
 populates `chunk_entity_mentions` (Phase 2), the unified **Ollama embedding
@@ -159,7 +167,7 @@ unless otherwise noted.
 
 | Property | Default | Range | Meaning |
 |---|---|---|---|
-| `wikantik.search.graph.boost` | `0.2` | `0.0` – `∞` | Multiplier applied to per-page graph-proximity scores. `0` disables the step without touching code (the rollback lever). Values above `1.0` let the graph signal fully overpower rank 0 of the fused list — useful only on heavily-curated corpora. |
+| `wikantik.search.graph.boost` | `0` | `0.0` – `∞` | Multiplier applied to per-page graph-proximity scores. `0` disables the step without touching code (the rollback lever, and the current default — see Status note above). Values above `1.0` let the graph signal fully overpower rank 0 of the fused list — useful only on heavily-curated corpora. |
 | `wikantik.search.graph.max-hops` | `2` | `1` – `∞` | BFS search radius in KG hops. `1` matches direct neighbors only; `2` is the sweet spot (neighbor + neighbor-of-neighbor); `3+` starts overlapping most of a connected graph and waters down the signal. |
 | `wikantik.search.graph.query-entity.cache.ttl-seconds` | `300` | `1` – `∞` | Caffeine TTL for query → resolved-entity mapping. Matches the hybrid `QueryEmbedder` cache so a repeat query skips both lookups. |
 | `wikantik.search.graph.query-entity.cache.max-entries` | `1000` | `1` – `∞` | Cache size cap; bounds memory. `~50 bytes per entry` so 1k entries cost ≈ 50 KB. |
@@ -445,7 +453,7 @@ wikantik.knowledge.extractor.backend                  = ollama
 wikantik.knowledge.extractor.ollama.model             = gemma4-assist:latest
 wikantik.knowledge.extractor.ollama.base_url          = http://inference.jakefear.com:11434
 
-# 2. Graph rerank is on by default (boost = 0.2). Confirm by setting explicitly:
+# 2. Graph rerank is OFF by default (boost = 0). To experiment, set boost > 0:
 wikantik.search.graph.boost                           = 0.2
 wikantik.search.graph.max-hops                        = 2
 ```
@@ -469,7 +477,7 @@ one query-entity hop.
 
 ### 1. Confirm the rerank step is wired
 
-Startup log line (`wikantik.log`):
+Startup log line (`wikantik.log`) when boost > 0:
 
 ```
 Graph rerank wired (boost=0.2, maxHops=2, indexNodes=N)
@@ -725,8 +733,8 @@ curl -s http://localhost:8080/metrics | grep -E 'wikantik_kg_extractor|search'
 
 ### "Graph rerank disabled (wikantik.search.graph.boost=0)" on startup
 
-`boost` is set to `0` (either explicitly or via a typo that parsed to 0).
-Set it to `0.2` or run with the defaults and restart.
+`boost` is `0` — this is the default (the rerank is off by default). Set it to
+a value like `0.2` to experiment and restart.
 
 ### `indexNodes=0` on startup
 

@@ -24,10 +24,11 @@ A plain wiki stores prose. Wikantik additionally maintains a formal model of
   model is queryable over **SPARQL** and exportable as Turtle/N-Triples, so the
   wiki is consumable by any RDF tool — not just its own UI.
 - **Agent-grade retrieval.** Agents don't read a wiki the way people do. The
-  ontology powers Knowledge-Graph-aware rerank, ontology-aware query expansion,
-  structured per-page projections, and the `knowledge-mcp` tool surface — so an
-  agent can traverse typed relations and ask "what implements X" instead of
-  grepping text.
+  ontology powers ontology-aware query expansion, structured per-page projections,
+  and the `knowledge-mcp` tool surface — so an agent can traverse typed relations
+  and ask "what implements X" instead of grepping text. (The Knowledge Graph-aware
+  search rerank step is wired but off by default; see
+  [KnowledgeGraphRerank.md](KnowledgeGraphRerank.md).)
 - **Shared human + AI curation.** Humans and AI agents both create and refine
   the model through surfaces that read the **same** schema and the **same**
   validation rules. The ontology evolves under shared control rather than

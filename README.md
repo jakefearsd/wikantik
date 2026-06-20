@@ -9,7 +9,7 @@
 [![Code of Conduct](https://img.shields.io/badge/Code_of_Conduct-Contributor_Covenant_2.1-blueviolet)](CODE_OF_CONDUCT.md)
 
 > A Markdown-native knowledge base built for the agent era —
-> hybrid retrieval (BM25 + dense + KG-rerank), two MCP servers for
+> hybrid retrieval (BM25 + dense), two MCP servers for
 > AI assistants, full Tomcat 11 / PostgreSQL + pgvector backend.
 
 Licensed under the Apache License 2.0 — see [`LICENSE`](LICENSE) and
@@ -17,7 +17,7 @@ Licensed under the Apache License 2.0 — see [`LICENSE`](LICENSE) and
 
 ## What is Wikantik?
 
-Wikantik is a modular Java-based knowledge base platform built on JEE technologies. It combines a Markdown-native authoring system with a React single-page application, a REST API, two dedicated Model Context Protocol (MCP) servers for AI agent integration, an OpenAPI tool server for non-MCP clients, and built-in instrumentation (health checks, a Prometheus `/metrics` endpoint, and structured logging with request correlation). Content is organised into thematic clusters with structured frontmatter metadata, indexed by Lucene for full-text and faceted search, and ranked by a hybrid BM25 + dense-vector + Knowledge Graph retrieval pipeline.
+Wikantik is a modular Java-based knowledge base platform built on JEE technologies. It combines a Markdown-native authoring system with a React single-page application, a REST API, two dedicated Model Context Protocol (MCP) servers for AI agent integration, an OpenAPI tool server for non-MCP clients, and built-in instrumentation (health checks, a Prometheus `/metrics` endpoint, and structured logging with request correlation). Content is organised into thematic clusters with structured frontmatter metadata, indexed by Lucene for full-text and faceted search, and ranked by a hybrid BM25 + dense-vector retrieval pipeline.
 
 **Page Graph vs Knowledge Graph.** Wikantik distinguishes two graph
 subsystems: the *Page Graph* (edges are real wikilinks; reader-facing
@@ -33,10 +33,10 @@ Key capabilities:
 - **Knowledge Graph viewer** at `/knowledge-graph` — reader-facing visualisation of the LLM-extracted entity graph with tier filter, node-type colours, provenance/status badges, and a large-graph warning gate
 - **REST API** at `/api/` — full CRUD for pages, attachments, search, history, diffs, backlinks, and the Knowledge Graph snapshot, with ACL-based permission enforcement
 - **Admin MCP server** at `/wikantik-admin-mcp` — 26 tools (page writes, Page Graph link analysis, metadata queries, Knowledge Graph proposals, structural audits, verification stamping, query-log reads), 6 resources, 8 prompts, 3 completions. Bearer-token / API-key authenticated.
-- **Knowledge MCP server** at `/knowledge-mcp` — 18 read-only tools for hybrid retrieval (BM25 + dense + Knowledge Graph rerank), Knowledge Graph traversal, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`), schema discovery, the agent-grade `get_page_for_agent` projection, batched markdown reads via `read_pages`, and read-only ontology access (`get_ontology` + `sparql_query`). Same auth scheme.
+- **Knowledge MCP server** at `/knowledge-mcp` — 20 read-only tools for hybrid retrieval (BM25 + dense), Knowledge Graph traversal, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`), schema discovery, the agent-grade `get_page_for_agent` projection, batched markdown reads via `read_pages`, and read-only ontology access (`get_ontology` + `sparql_query`). Same auth scheme.
 - **OpenAPI tool server** at `/tools/*` — OpenWebUI-compatible OpenAPI 3.1 endpoint exposing `search_wiki` and `get_page` for non-MCP LLM clients
 - **Raw content and change feed** — `GET /wiki/{slug}?format=md|json` and `GET /api/changes?since=…` for search-engine crawlers and RAG ingestion pipelines (see [IndexingSupport.md](IndexingSupport.md))
-- **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60), with Knowledge Graph-aware rerank; fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
+- **Hybrid retrieval** — BM25 + dense embeddings fused via Reciprocal Rank Fusion (RRF, k=60); fails closed to BM25 when the embedding service is unavailable (see [docs/wikantik-pages/HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md))
 - **Admin panel** at `/admin/` — user management, content management (orphaned pages, broken links, version purging, chunk inspector, index status), security management (groups and policy grants), API keys, page ownership, Knowledge-Graph curation, KG inclusion policy, ontology rebuild, a metadata-drift burn-down dashboard, retrieval-quality dashboard, and a tamper-evident audit log
 - **Database-backed authorisation** — policy grants and groups stored in PostgreSQL, manageable through the admin UI, with bootstrap admin override for recovery
 - **SCIM 2.0 provisioning** at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD and discovery for IdP-driven onboarding/offboarding (see [ScimProvisioning.md](docs/ScimProvisioning.md))
@@ -68,7 +68,7 @@ Compared to common alternatives:
 | **MCP server(s) for agents** | **2 dedicated** (admin + read-only) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **OpenAPI tool surface** | ✅ (`/tools/*`) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Hybrid retrieval (BM25 + dense)** | ✅ pgvector + Ollama | ❌ | ❌ | ❌ | ❌ | ✅ (recent) | ✅ |
-| **Knowledge-Graph-aware rerank** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Queryable Knowledge Graph + RDF/SPARQL ontology** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **LLM-extracted Knowledge Graph** | ✅ (with reviewer queue) | ❌ | ❌ | ❌ | ❌ | partial | partial |
 | **Page Graph viewer** (real wikilinks) | ✅ Cytoscape, filterable | partial | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Token-budgeted "for-agent" projection** | ✅ `/api/pages/for-agent/{id}` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -77,7 +77,7 @@ Compared to common alternatives:
 | **Stack** | Java 21 / Tomcat 11 / PostgreSQL + pgvector / React | PHP / Laravel | Node.js | Node.js | PHP | JVM | proprietary |
 | **AGPL-style copyleft** | no (Apache 2.0) | no | no | **yes** | no (GPLv2) | n/a | n/a |
 
-**The differentiator** is the agent surface: Wikantik is the only project here that ships two production MCP servers (one for writes, one for read-only retrieval) plus an OpenAPI tool server for clients that can't speak MCP, with the retrieval stack designed around hybrid BM25 + dense + KG-rerank from day one.
+**The differentiator** is the agent surface: Wikantik is the only project here that ships two production MCP servers (one for writes, one for read-only retrieval) plus an OpenAPI tool server for clients that can't speak MCP, with the retrieval stack built on hybrid BM25 + dense retrieval and a queryable Knowledge Graph + RDF ontology exposed to agents from day one.
 
 Wikantik makes sense for you if:
 
@@ -109,7 +109,7 @@ flowchart LR
         Raw["/wiki/{slug}?format=md|json<br/>Raw content for crawlers"]
         Changes["/api/changes?since=…<br/>Change feed"]
         AdminMCP["/wikantik-admin-mcp<br/>26 admin/write tools"]
-        KnowMCP["/knowledge-mcp<br/>18 read-only retrieval tools"]
+        KnowMCP["/knowledge-mcp<br/>20 read-only retrieval tools"]
         Tools["/tools/*<br/>OpenAPI 3.1<br/>(search_wiki, get_page)"]
         Scim["/scim/v2/*<br/>SCIM 2.0<br/>Users + Groups"]
         Health["/api/health<br/>/metrics"]
@@ -381,13 +381,17 @@ monitoring, and the bare-metal ↔ container migration.
 | `wikantik-http` | Servlet filters — CSRF, CORS, CSP, security headers, SPA routing |
 | `wikantik-rest` | REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`) |
 | `wikantik-admin-mcp` | Admin MCP server at `/wikantik-admin-mcp` — 26 tools (writes + analytics + verification stamping + query-log reads), 6 resources, 8 prompts, 3 completions |
-| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 18 read-only retrieval / Knowledge Graph traversal / structural-spine / agent-projection / batched-read / ontology (`get_ontology` + `sparql_query`) tools; also hosts the Knowledge Graph service (pgvector embeddings, co-mention graph, hub discovery) |
+| `wikantik-knowledge` | Knowledge MCP server at `/knowledge-mcp` — 20 read-only retrieval / Knowledge Graph traversal / structural-spine / agent-projection / batched-read / ontology (`get_ontology` + `sparql_query`) tools; also hosts the Knowledge Graph service (pgvector embeddings, co-mention graph, hub discovery) |
+| `wikantik-ontology` | RDF/OWL ontology layer (Apache Jena) — the `wikantik:` T-Box + SHACL shapes, Postgres→RDF projectors, the TDB2 store, and the public SPARQL / JSON-LD / RDF-dump surface |
 | `wikantik-tools` | OpenAPI 3.1 tool server at `/tools/*` — 2 tools for OpenWebUI-compatible non-MCP clients |
 | `wikantik-scim` | SCIM 2.0 provisioning server at `/scim/v2/*` — bearer-authed `Users` + `Groups` CRUD and discovery for IdP onboarding/offboarding |
-| `wikantik-extract-cli` | Standalone entity-extractor CLI for offline batch extraction |
+| `wikantik-extract-cli` | Standalone entity-extractor CLI for offline batch extraction; also hosts the derived-page batch ingester |
+| `wikantik-ingest` | Document-extraction layer for derived pages (Apache Tika + flexmark) — isolates the heavy PDF/Office parsers from the engine |
 | `wikantik-observability` | Health checks, Prometheus metrics, request correlation |
 | `wikantik-frontend` | React SPA (Vite build) — reader, editor, admin panel, Knowledge Graph viewer, Page Graph viewer |
 | `wikantik-war` | WAR packaging and deployment config; bundles the frontend build output |
+| `wikantik-wikipages` | Default wiki pages shipped with a fresh install |
+| `wikantik-it-tests` | Integration tests (Selenide browser automation, REST, custom-provider suites; Cargo-launched Tomcat + PostgreSQL/pgvector) |
 | `wikantik-wikipages` | Default wiki pages shipped with a fresh install |
 | `wikantik-it-tests` | Integration tests (Selenide browser automation, REST API, Cargo-launched Tomcat against PostgreSQL + pgvector) |
 
@@ -523,7 +527,7 @@ Migrating from a previous Wikantik install? See
 - [MathematicalNotation.md](docs/MathematicalNotation.md) — LaTeX math rendering (`$…$`, `$$…$$`, ```` ```math ````) via Flexmark + KaTeX, plus the save-time validation that blocks un-isolated display math
 - [NewUI.md](docs/NewUI.md) — React SPA design and architecture (reader, editor, admin, Knowledge Graph viewer)
 - [DatabaseUpdates.md](docs/DatabaseUpdates.md) — Knowledge Graph schema and index layout
-- [KnowledgeGraphRerank.md](docs/KnowledgeGraphRerank.md) — Configuration, verification, and tuning guide for the entity extractor, unified embeddings, and Knowledge Graph-aware search rerank
+- [KnowledgeGraphRerank.md](docs/KnowledgeGraphRerank.md) — Configuration, verification, and tuning guide for the entity extractor, unified embeddings, and the experimental Knowledge Graph-aware search rerank (off by default — measured no net ranking lift, left dormant)
 - [RelationalUserDatabase.md](docs/RelationalUserDatabase.md) — PostgreSQL user and group database configuration
 - [Sitemap.md](docs/Sitemap.md) — Sitemap.xml and Atom feed servlets
 - [SeoAndCrawling.md](docs/SeoAndCrawling.md) — SEO and crawler configuration: robots.txt, per-page `<title>`, JSON-LD, AI-crawler policy, and prerendering for bots
@@ -576,7 +580,7 @@ Wikantik exposes two independent Model Context Protocol servers (both using the 
 
 **`/wikantik-admin-mcp`** — `wikantik-admin-mcp` module. Admin / write surface for AI-assisted wiki operations: structural-verification checks, Page Graph link and backlink analysis, history and diffs, metadata querying, recent changes, an export/import workflow for bulk editing, Knowledge Graph proposals, page writes, verification stamping, and query-log reads (`list_retrieval_queries`). Exposes **26 tools, 6 resources, 8 prompts, 3 completions**. Authoritative tool list: `wikantik-admin-mcp/src/main/java/com/wikantik/mcp/McpToolRegistry.java`. Initializer: `com.wikantik.mcp.McpServerInitializer`.
 
-**`/knowledge-mcp`** — `wikantik-knowledge` module. Read-only retrieval surface designed for coding agents consuming the wiki as a knowledge base: hybrid search (BM25 + dense + Knowledge-Graph rerank), Knowledge Graph schema discovery, node querying, traversal, similarity search, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`), the agent-grade `get_page_for_agent` projection (now also carrying derived `agent_hints` with `prefer_tools` / `prefer_pages`, plus a `summary_synthesized` flag for hub-page overlays), batched markdown reads via `read_pages` (cap 20), and read-only ontology access (`get_ontology` plus `sparql_query` over the `wikantik:` RDF model). Exposes **18 tools**. Authoritative tool list: `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/`. Initializer: `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
+**`/knowledge-mcp`** — `wikantik-knowledge` module. Read-only retrieval surface designed for coding agents consuming the wiki as a knowledge base: hybrid search (BM25 + dense), Knowledge Graph schema discovery, node querying, traversal, similarity search, structural-spine navigation (`list_clusters`, `list_tags`, `list_pages_by_filter`, `get_page_by_id`), the agent-grade `get_page_for_agent` projection (now also carrying derived `agent_hints` with `prefer_tools` / `prefer_pages`, plus a `summary_synthesized` flag for hub-page overlays), batched markdown reads via `read_pages` (cap 20), and read-only ontology access (`get_ontology` plus `sparql_query` over the `wikantik:` RDF model). Exposes **20 tools**. Authoritative tool list: `wikantik-knowledge/src/main/java/com/wikantik/knowledge/mcp/`. Initializer: `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
 
 **`/tools/*`** — `wikantik-tools` module. OpenAPI 3.1 tool server (OpenWebUI-compatible) exposing two tools (`search_wiki`, `get_page`) for LLM clients that cannot speak MCP.
 

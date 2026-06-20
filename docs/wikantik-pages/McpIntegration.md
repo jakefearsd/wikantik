@@ -36,8 +36,8 @@ Wikantik exposes three separate agent-facing surfaces. Each is a distinct servle
 
 | Path | Module | Protocol | Tools | Capabilities | Auth filter | Default scope |
 |---|---|---|---|---|---|---|
-| `/wikantik-admin-mcp` | `wikantik-admin-mcp` | MCP Streamable HTTP | 18 read + write + analytics | tools, resources, prompts, completions | `McpAccessFilter` | `mcp` (or `all`) |
-| `/knowledge-mcp` | `wikantik-knowledge` | MCP Streamable HTTP | 16 read-only retrieval + KG + spine + projection | tools | `KnowledgeMcpAccessFilter` | `mcp` (or `all`) |
+| `/wikantik-admin-mcp` | `wikantik-admin-mcp` | MCP Streamable HTTP | 26 read + write + analytics | tools, resources, prompts, completions | `McpAccessFilter` | `mcp` (or `all`) |
+| `/knowledge-mcp` | `wikantik-knowledge` | MCP Streamable HTTP | 20 read-only retrieval + KG + spine + projection | tools | `KnowledgeMcpAccessFilter` | `mcp` (or `all`) |
 | `/tools/*` | `wikantik-tools` | OpenAPI 3.1 | 2 (`search_wiki`, `get_page`) | OpenAPI document at `/tools/openapi.json` | `ToolsAccessFilter` | `tools` (or `all`) |
 
 The two MCP endpoints share the same access-filter implementation and the same `wikantik-mcp.properties`, so a legacy property-file key (or a DB-backed `mcp` key) authorises both. The OpenAPI endpoint is independent: it has its own properties file and key scope.
@@ -192,7 +192,7 @@ The same file feeds both `McpAccessFilter` (admin) and `KnowledgeMcpAccessFilter
 
 Tool names below are canonical wire identifiers (snake\_case). Every tool ships with at least one worked input/output example in its schema (Phase 6 of the agent-grade content rewrite, 2026-04-25) — agents should surface `examples` to the model when constructing the first call rather than reasoning purely from JSON Schema types.
 
-### `/wikantik-admin-mcp` (18 tools)
+### `/wikantik-admin-mcp` (26 tools)
 
 **Read-only / analytics** — no author resolution required, registered with `readOnly=true` annotation:
 
@@ -224,7 +224,7 @@ Tool names below are canonical wire identifiers (snake\_case). Every tool ships 
 
 The admin endpoint also serves resources, prompts, and completions (see *Capabilities*).
 
-### `/knowledge-mcp` (16 tools)
+### `/knowledge-mcp` (20 tools)
 
 **Knowledge-graph traversal & introspection** (registered when `KnowledgeGraphService` is configured):
 
@@ -241,7 +241,7 @@ The admin endpoint also serves resources, prompts, and completions (see *Capabil
 
 | Tool | Purpose |
 |---|---|
-| `retrieve_context` | **Primary RAG entry point.** Hybrid BM25 + dense + graph-aware rerank with fail-closed BM25 fallback. Returns chunked results with citation URLs and confidence. |
+| `retrieve_context` | **Primary RAG entry point.** Hybrid BM25 + dense (RRF-fused) with fail-closed BM25 fallback. Returns chunked results with citation URLs and confidence. (Graph-aware rerank is wired but off by default; production runs BM25+dense only.) |
 | `get_page` | Pinned fetch of a specific page once you know its name. |
 | `list_pages` | Browse-style page enumeration, optionally prefix-filtered. |
 | `list_metadata_values` | Distinct frontmatter keys + their values across the corpus — discovery before targeted filtering. |
@@ -321,7 +321,7 @@ The MCP `initialize` response carries an instructions text loaded from `wikantik
 2. **Build-time (wire):** `McpInstructionsDriftIT` (under `wikantik-it-tests/wikantik-selenide-tests`) does the same check against a deployed server: it pulls the `instructions` text from the SDK's `getServerInstructions()` and the live tool list from `tools/list`, then asserts both directions of the diff. This is the safety net for operator-supplied `mcp.instructions.file` overrides — the unit test only sees the file shipped in the WAR; the IT sees whatever the deployed server actually returns.
 3. **Runtime:** `McpServerInitializer.logToolNameDriftIfAny` re-runs the same check on every server start and warns at `WARN` level if the loaded file (bundled or override) has drifted from the registered tool set.
 
-The instructions were rewritten end-to-end on 2026-04-30 to match the current 18-tool surface (`read_page`, `write_pages`, `update_page`, `delete_pages`, `rename_page`, `mark_page_verified`, `verify_pages`, `preview_structured_data`, `ping_search_engines`, `get_backlinks`, `get_outbound_links`, `get_broken_links`, `get_orphaned_pages`, `get_wiki_stats`, `get_page_history`, `diff_page`, plus `list_proposals` / `propose_knowledge` when the knowledge service is wired). The legacy locking section (`lock_page` / `unlock_page`) is gone — concurrency is now optimistic via `expectedContentHash` on `update_page`.
+The instructions were rewritten end-to-end on 2026-04-30 to match the current 26-tool surface (`read_page`, `write_pages`, `update_page`, `delete_pages`, `rename_page`, `mark_page_verified`, `verify_pages`, `preview_structured_data`, `ping_search_engines`, `get_backlinks`, `get_outbound_links`, `get_broken_links`, `get_orphaned_pages`, `get_wiki_stats`, `get_page_history`, `diff_page`, plus `list_proposals` / `propose_knowledge` when the knowledge service is wired, plus additional analytics and curation tools added since). The legacy locking section (`lock_page` / `unlock_page`) is gone — concurrency is now optimistic via `expectedContentHash` on `update_page`.
 
 ## Page model agents need to understand
 
@@ -465,7 +465,7 @@ Drop a fragment like this into the agent's project / system prompt so it does no
 > You have access to a Wikantik MCP server. Use it like this:
 >
 > - **Read a page:** prefer `get_page_for_agent` over `read_page` / `get_page`. It returns a token-budgeted projection with summary, key facts, headings outline, typed relations, and verification state. Treat any field listed in `missing_fields` as unavailable rather than empty. Treat `confidence: stale` as untrusted information.
-> - **Search content:** prefer `retrieve_context` over `search_knowledge` for question-answering — it is the hybrid BM25 + dense + graph-aware path. Use citation URLs from the response when reporting findings.
+> - **Search content:** prefer `retrieve_context` over `search_knowledge` for question-answering — it is the hybrid BM25 + dense (RRF-fused) path. Use citation URLs from the response when reporting findings.
 > - **Browse structure:** for cluster / tag / type questions use the structural-spine tools (`list_clusters`, `list_tags`, `list_pages_by_filter`, `traverse_relations`, `get_page_by_id`). Do not full-text-search structural questions; the spine is faster and exact.
 > - **Plan multi-step work:** before doing complex authoring or maintenance, search for `type: runbook` pages on the topic (`list_pages_by_filter` with `type=runbook` or `retrieve_context` with the right query) and follow the `steps:` block.
 > - **Discover the schema:** call `discover_schema` once per session before constructing custom KG queries; call `list_metadata_values` before custom frontmatter filters.

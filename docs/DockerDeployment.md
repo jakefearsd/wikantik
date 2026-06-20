@@ -27,8 +27,8 @@ to drive them. Do not hand-write compose files.
 | `/api/` | REST API (pages, attachments, search, history, knowledge graph) |
 | `/wiki/{slug}?format=md\|json` | Raw content for crawlers and RAG ingestion |
 | `/api/changes?since=…` | Incremental change feed for sync pipelines |
-| `/wikantik-admin-mcp` | Admin MCP server (writes + analytics + verification stamping) — 25 tools |
-| `/knowledge-mcp` | Knowledge MCP server (hybrid retrieval + Knowledge Graph + structural-spine + agent-projection) — 16 tools |
+| `/wikantik-admin-mcp` | Admin MCP server (writes + analytics + verification stamping) — 26 tools |
+| `/knowledge-mcp` | Knowledge MCP server (hybrid retrieval + Knowledge Graph + structural-spine + agent-projection) — 20 tools |
 | `/tools/*` | OpenAPI 3.1 tool server (OpenWebUI-compatible) — 2 tools |
 | `/api/health` | Application health checks |
 | `/metrics` | Prometheus-compatible metrics (IP-restricted via `InternalNetworkFilter`) |

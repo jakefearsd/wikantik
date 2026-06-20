@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="google-adsense-account" content="ca-pub-5083997587716933">
-  <title>Hybrid retrieval: BM25 + dense + knowledge-graph rerank | Wikantik</title>
-  <meta name="description" content="How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion, then a knowledge-graph rerank — with a fail-closed BM25 fallback.">
+  <title>Hybrid retrieval: BM25 + dense, RRF-fused | Wikantik</title>
+  <meta name="description" content="How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion — with a fail-closed BM25 fallback and pluggable dense backend.">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://www.wikantik.com/platform/hybrid-retrieval.html">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -13,14 +13,14 @@
   <!-- Open Graph -->
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://www.wikantik.com/platform/hybrid-retrieval.html">
-  <meta property="og:title" content="Hybrid retrieval: BM25 + dense + knowledge-graph rerank | Wikantik">
-  <meta property="og:description" content="How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion, then a knowledge-graph rerank — with a fail-closed BM25 fallback.">
+  <meta property="og:title" content="Hybrid retrieval: BM25 + dense, RRF-fused | Wikantik">
+  <meta property="og:description" content="How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion — with a fail-closed BM25 fallback and pluggable dense backend.">
   <meta property="og:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Hybrid retrieval: BM25 + dense + knowledge-graph rerank | Wikantik">
-  <meta name="twitter:description" content="How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion, then a knowledge-graph rerank — with a fail-closed BM25 fallback.">
+  <meta name="twitter:title" content="Hybrid retrieval: BM25 + dense, RRF-fused | Wikantik">
+  <meta name="twitter:description" content="How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion — with a fail-closed BM25 fallback and pluggable dense backend.">
   <meta name="twitter:image" content="https://www.wikantik.com/assets/wikantik-logo-512.png">
 
   <link rel="stylesheet" href="/styles.css">
@@ -42,8 +42,8 @@
 
   <script type="application/ld+json">
   { "@context": "https://schema.org", "@type": "TechArticle",
-    "headline": "Hybrid retrieval: BM25 + dense + knowledge-graph rerank",
-    "description": "How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion, then a knowledge-graph rerank — with a fail-closed BM25 fallback.",
+    "headline": "Hybrid retrieval: BM25 + dense, RRF-fused",
+    "description": "How Wikantik search works: Lucene BM25 fused with dense embedding similarity via weighted Reciprocal Rank Fusion — with a fail-closed BM25 fallback and pluggable dense backend.",
     "datePublished": "2026-06-07", "dateModified": "2026-06-07",
     "author": { "@type": "Person", "name": "Jacob Fear" },
     "publisher": { "@id": "https://www.wikantik.com/#org" },
@@ -65,7 +65,7 @@
       { "@type": "Question", "name": "What happens if the vector store is down?",
         "acceptedAnswer": { "@type": "Answer", "text": "Wikantik hybrid retrieval is fail-closed: every failure path in the dense retrieval stack returns the unmodified BM25 result list. The circuit breaker trips OPEN after consecutive failures and automatically re-probes; during the OPEN period, search continues returning BM25 results. Search never goes dark." } },
       { "@type": "Question", "name": "Does hybrid retrieval work for agents and humans?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Yes. The same /api/search endpoint is used by the web UI, the MCP server tools, and direct API callers. Agents benefit from the same BM25 + dense + KG rerank pipeline that humans use, plus the structured JSON response format that makes results easy to process programmatically." } }
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. The same /api/search endpoint is used by the web UI, the MCP server tools, and direct API callers. Agents benefit from the same BM25 + dense RRF pipeline that humans use, plus the structured JSON response format that makes results easy to process programmatically." } }
     ] }
   </script>
 </head>
@@ -98,8 +98,8 @@
       <article class="doc">
         <header class="doc-head">
           <p class="eyebrow">Platform</p>
-          <h1>Hybrid retrieval: BM25 + dense embeddings + knowledge-graph rerank</h1>
-          <p class="doc-lede">Wikantik's search stack fuses Lucene BM25 with dense embedding cosine similarity using weighted Reciprocal Rank Fusion, then optionally reranks with a knowledge-graph proximity score — and falls back cleanly to BM25 alone if any upstream component is unavailable.</p>
+          <h1>Hybrid retrieval: BM25 + dense embeddings, RRF-fused</h1>
+          <p class="doc-lede">Wikantik's search stack fuses Lucene BM25 with dense embedding cosine similarity using weighted Reciprocal Rank Fusion — and falls back cleanly to BM25 alone if any upstream component is unavailable.</p>
         </header>
         <div class="doc-body">
 
@@ -108,7 +108,7 @@
           <p>Dense embedding search solves the vocabulary problem by mapping both queries and documents into a shared semantic vector space. But dense search on its own can be brittle: it rewards topical similarity over exact relevance, and it fails silently when the embedding backend is unavailable.</p>
           <p>Hybrid retrieval takes the best of both worlds.</p>
 
-          <h2>How it works: three stages</h2>
+          <h2>How it works: two stages (plus an optional experimental stage)</h2>
 
           <h3>Stage 1 — BM25 + dense fusion with weighted RRF</h3>
           <p>At query time, Wikantik runs two retrieval passes in parallel: a Lucene BM25 pass and a dense cosine-similarity pass against chunk embeddings. The two ranked lists are then merged using <strong>weighted Reciprocal Rank Fusion (RRF)</strong> — a rank-based combination method that is robust to score-scale differences between the two signals.</p>
@@ -120,12 +120,11 @@
           </ul>
           <p>Dense retrieval operates at the chunk level — each page is broken into overlapping passages, each embedded separately — and the <code>SUM_TOP_3</code> page aggregation strategy collapses chunk scores into a per-page score before fusion.</p>
 
-          <h3>Stage 2 — knowledge-graph rerank</h3>
-          <p>After fusion, an optional third stage reranks the fused list using the Knowledge Graph. The graph rerank resolves entities in the query against <code>kg_nodes</code>, then boosts pages whose mentioned entities are close (in Knowledge Graph hops) to those query entities. With the default <code>wikantik.search.graph.boost = 0.2</code> and <code>max-hops = 2</code>, the boost lifts mid-list pages with strong graph proximity without overriding BM25 + dense top results.</p>
-          <p>Crucially, the graph rerank only reorders — it never adds or removes candidates. If no graph signal exists for a query, the stage returns the fused list unchanged.</p>
+          <h3>Stage 2 — fail-closed BM25 fallback</h3>
+          <p>Every abnormal path in the dense retrieval stage returns the BM25 result list unchanged rather than failing. If the embedding backend times out, the circuit breaker trips OPEN and the embedder returns empty — and BM25 takes over seamlessly. This is not an afterthought; it is a design invariant enforced in <code>HybridSearchService.rerank()</code>.</p>
 
-          <h3>Fail-closed BM25 fallback</h3>
-          <p>Every abnormal path in the dense and graph stages returns the BM25 result list unchanged rather than failing. If the embedding backend times out, the circuit breaker trips OPEN and the embedder returns empty — and BM25 takes over seamlessly. This is not an afterthought; it is a design invariant enforced in <code>HybridSearchService.rerank()</code>.</p>
+          <h3>Optional stage: experimental knowledge-graph proximity rerank</h3>
+          <p>An experimental third stage can rerank the fused list using the Knowledge Graph. It resolves entities in the query against <code>kg_nodes</code>, then boosts pages whose mentioned entities are close (in Knowledge Graph hops) to those query entities. <strong>This stage is off by default</strong> (<code>wikantik.search.graph.boost = 0</code>) — empirical measurement found no net ranking lift, so production search is BM25 + dense only. The stage only reorders candidates; it never adds or removes them. If no graph signal exists for a query, it returns the fused list unchanged.</p>
 
           <div class="callout">
             <p><strong>Production note:</strong> the dense backend on docker1 (the live Wikantik deployment) is <code>lucene-hnsw</code> — an in-process Lucene HNSW approximate nearest-neighbour index held in JVM RAM. It is faster than the brute-force <code>inmemory</code> backend on large corpora and avoids the extra database load of the <code>pgvector</code> backend. Switch backends with a single property: <code>wikantik.search.dense.backend = inmemory | pgvector | lucene-hnsw</code>.</p>
@@ -148,7 +147,7 @@
             </details>
             <details>
               <summary>Does hybrid retrieval work for both agents and humans?</summary>
-              <p>Yes. The same <code>/api/search</code> endpoint is used by the web UI search box, the <code>/knowledge-mcp</code> MCP tools, and direct API callers. Agents benefit from the same BM25 + dense + KG rerank pipeline that humans get, plus the structured JSON response that makes results easy to process programmatically.</p>
+              <p>Yes. The same <code>/api/search</code> endpoint is used by the web UI search box, the <code>/knowledge-mcp</code> MCP tools, and direct API callers. Agents benefit from the same BM25 + dense RRF pipeline that humans get, plus the structured JSON response that makes results easy to process programmatically.</p>
             </details>
           </section>
         </div>
@@ -158,7 +157,7 @@
           <div class="related-cards">
             <a class="related-card" href="/platform/knowledge-graph.html">
               <strong>Knowledge graph</strong>
-              <span>The entity graph that powers the optional KG rerank stage.</span>
+              <span>LLM-extracted entities and typed relations — agent traversal, hub discovery, and SPARQL.</span>
             </a>
             <a class="related-card" href="/platform/mcp-for-ai-agents.html">
               <strong>MCP for AI agents</strong>

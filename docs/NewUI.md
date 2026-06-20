@@ -88,8 +88,8 @@ admin routes use `app-content-wide`; wiki article routes use the narrow reading
 column.
 
 The REST API lives under `/api/` and admin endpoints under `/admin/`. Two MCP
-servers — `/wikantik-admin-mcp` (25 write/analytics tools) and `/knowledge-mcp`
-(16 read-only retrieval + KG tools) — plus the OpenAPI tool server at `/tools/*`
+servers — `/wikantik-admin-mcp` (26 write/analytics tools) and `/knowledge-mcp`
+(20 read-only retrieval + KG tools) — plus the OpenAPI tool server at `/tools/*`
 are all serviced by separate backend modules and are not part of the SPA.
 
 ## Project Layout

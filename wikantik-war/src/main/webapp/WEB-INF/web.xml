@@ -635,6 +635,10 @@
        <servlet-class>com.wikantik.rest.AdminApiKeysResource</servlet-class>
    </servlet>
    <servlet>
+       <servlet-name>SelfApiKeysResource</servlet-name>
+       <servlet-class>com.wikantik.rest.SelfApiKeysResource</servlet-class>
+   </servlet>
+   <servlet>
        <servlet-name>AdminAuditResource</servlet-name>
        <servlet-class>com.wikantik.rest.AdminAuditResource</servlet-class>
    </servlet>
@@ -937,6 +941,14 @@
    <servlet-mapping>
        <servlet-name>AdminApiKeysResource</servlet-name>
        <url-pattern>/admin/apikeys</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>SelfApiKeysResource</servlet-name>
+       <url-pattern>/api/self/apikeys/*</url-pattern>
+   </servlet-mapping>
+   <servlet-mapping>
+       <servlet-name>SelfApiKeysResource</servlet-name>
+       <url-pattern>/api/self/apikeys</url-pattern>
    </servlet-mapping>
    <servlet-mapping>
        <servlet-name>AdminAuditResource</servlet-name>

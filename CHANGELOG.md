@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.21] - 2026-06-20
+
 ### Removed
 - **Legacy property-file API keys removed.** The `mcp.access.keys` and `tools.access.keys`
   comma-separated property keys are gone — not deprecated. DB-minted keys (via `/admin/apikeys`)

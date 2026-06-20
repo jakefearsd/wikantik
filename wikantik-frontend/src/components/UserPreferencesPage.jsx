@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../api/client';
 import { useNavigate } from 'react-router-dom';
+import MyApiKeys from './MyApiKeys';
 
 
 export default function UserPreferencesPage() {
@@ -327,6 +328,8 @@ export default function UserPreferencesPage() {
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </form>
+
+      <MyApiKeys />
 
       {/* ------------------------------------------------------------------ */}
       {/* Delete account — danger zone                                         */}

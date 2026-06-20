@@ -307,4 +307,28 @@ class ApiKeyServiceTest {
         // Should not throw when all keys are already revoked.
         assertDoesNotThrow( () -> service.revokeAllForPrincipal( "dan" ) );
     }
+
+    @Test
+    void listByPrincipalReturnsOnlyThatPrincipalsActiveKeysNewestFirst() {
+        final ApiKeyService.Generated bob1 = service.generate( "bob", "k1", ApiKeyService.Scope.ALL, "admin" );
+        service.generate( "bob", "k2", ApiKeyService.Scope.MCP, "admin" );
+        service.generate( "carol", "k3", ApiKeyService.Scope.ALL, "admin" );
+        service.revoke( bob1.record().id(), "admin" );            // k1 now revoked
+
+        final java.util.List< ApiKeyService.Record > bobKeys = service.listByPrincipal( "bob" );
+        assertEquals( 1, bobKeys.size(), "revoked k1 excluded, carol excluded" );
+        assertEquals( "k2", bobKeys.get( 0 ).label() );
+        assertEquals( "bob", bobKeys.get( 0 ).principalLogin() );
+        assertTrue( service.listByPrincipal( "nobody" ).isEmpty() );
+    }
+
+    @Test
+    void findByIdReturnsRecordOrEmpty() {
+        final ApiKeyService.Generated g = service.generate( "dan", "laptop", ApiKeyService.Scope.TOOLS, "admin" );
+        final Optional< ApiKeyService.Record > found = service.findById( g.record().id() );
+        assertTrue( found.isPresent() );
+        assertEquals( "dan", found.get().principalLogin() );
+        assertEquals( ApiKeyService.Scope.TOOLS, found.get().scope() );
+        assertTrue( service.findById( 999_999 ).isEmpty() );
+    }
 }

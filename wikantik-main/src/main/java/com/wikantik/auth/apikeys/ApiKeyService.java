@@ -246,6 +246,45 @@ public class ApiKeyService {
         return out;
     }
 
+    /** Lists a principal's ACTIVE keys, newest first. */
+    public List< Record > listByPrincipal( final String principalLogin ) {
+        final String sql = "SELECT id, key_hash, principal_login, label, scope,"
+                + " created_at, created_by, last_used_at, revoked_at, revoked_by"
+                + " FROM " + TABLE
+                + " WHERE principal_login = ? AND revoked_at IS NULL"
+                + " ORDER BY created_at DESC";
+        final List< Record > out = new ArrayList<>();
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setString( 1, principalLogin );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                while ( rs.next() ) {
+                    out.add( readRow( rs ) );
+                }
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "API key listByPrincipal failed for '{}': {}", principalLogin, e.getMessage() );
+        }
+        return out;
+    }
+
+    /** Looks up a key by id (active or revoked); empty if not found. */
+    public Optional< Record > findById( final int id ) {
+        final String sql = "SELECT id, key_hash, principal_login, label, scope,"
+                + " created_at, created_by, last_used_at, revoked_at, revoked_by"
+                + " FROM " + TABLE + " WHERE id = ?";
+        try ( Connection conn = dataSource.getConnection();
+              PreparedStatement ps = conn.prepareStatement( sql ) ) {
+            ps.setInt( 1, id );
+            try ( ResultSet rs = ps.executeQuery() ) {
+                return rs.next() ? Optional.of( readRow( rs ) ) : Optional.empty();
+            }
+        } catch ( final SQLException e ) {
+            LOG.warn( "API key findById failed for id={}: {}", id, e.getMessage() );
+            return Optional.empty();
+        }
+    }
+
     /**
      * Marks a key as revoked. No-op if the key is already revoked or does
      * not exist. Returns {@code true} if the call actually revoked the key.

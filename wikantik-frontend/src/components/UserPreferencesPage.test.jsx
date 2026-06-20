@@ -11,6 +11,12 @@ vi.mock('../api/client', () => ({
     updateProfile: vi.fn(),
     deleteAccount: vi.fn(),
     logout: vi.fn(),
+    self: {
+      listApiKeys: vi.fn().mockResolvedValue({ keys: [] }),
+      createApiKey: vi.fn(),
+      rotateApiKey: vi.fn(),
+      revokeApiKey: vi.fn(),
+    },
   },
 }));
 
@@ -106,5 +112,11 @@ describe('UserPreferencesPage — delete account section', () => {
     await waitFor(() =>
       expect(api.deleteAccount).toHaveBeenCalledWith('testuser'),
     );
+  });
+
+  it('renders the API Keys section', async () => {
+    renderPage();
+    expect(await screen.findByText('API Keys')).toBeInTheDocument();
+    expect(await screen.findByText('You have no active API keys.')).toBeInTheDocument();
   });
 });

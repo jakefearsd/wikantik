@@ -1,5 +1,5 @@
 ---
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 canonical_id: 01KQ0P44Q1VTXVMCXG8WXPQWRQ
 title: Economic Sanctions and Markets
 type: article

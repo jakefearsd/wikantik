@@ -3,7 +3,7 @@ date: '2026-05-10'
 summary: Index of pages on how conflicts affect financial markets — featuring the
   2026 Iran War shock, historical recovery factor analysis, and the AI supercycle's
   impact on market resilience.
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 canonical_id: 01KQ0P44NVFH6WVSSJ39P1PVPB
 type: hub
 title: Conflicts and Equity Markets Hub

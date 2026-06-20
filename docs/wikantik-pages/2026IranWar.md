@@ -31,7 +31,7 @@ summary: Overview of the February 2026 US-Israeli airstrikes on Iran, Iran's ret
 uses:
 - Bahrain
 - Qatar
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 ---
 ## Summary of Summary
 

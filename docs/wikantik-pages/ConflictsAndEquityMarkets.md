@@ -20,7 +20,7 @@ tags:
 - conflict
 - history
 type: reference
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 ---
 # International Conflicts and Global Equity Markets
 

@@ -2,7 +2,7 @@
 canonical_id: 01KQ0P44YJAK5XWRCK4S4DJ47R
 title: War Bonds and Government Debt
 type: article
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 status: active
 date: '2026-04-26'
 summary: How governments finance wars through debt — historical war bonds, modern

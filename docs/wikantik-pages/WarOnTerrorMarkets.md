@@ -3,7 +3,7 @@ canonical_id: 01KQ0P44YJKXQK2DAAH7V984ZH
 date: '2026-03-14'
 summary: The 9/11 market shock, two decades of war costs, and the transformation of
   the defence sector
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 related:
 - ConflictsAndEquityMarkets
 - GulfWarMarkets

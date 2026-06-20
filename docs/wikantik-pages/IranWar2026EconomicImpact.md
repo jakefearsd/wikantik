@@ -8,7 +8,7 @@ tags:
 - 2026-conflict
 type: article
 canonical_id: 01KR88KTB1QN8V6716V6Y8N5QT
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 related:
 - RussiaUkraineWarMarkets
 - 2026IranWar

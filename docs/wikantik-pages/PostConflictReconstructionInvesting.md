@@ -2,7 +2,7 @@
 canonical_id: 01KQ0P44TN7DVGS0BE0R68HX03
 title: Post-Conflict Reconstruction Investing
 type: article
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 status: active
 date: '2026-04-26'
 summary: How investing in post-conflict reconstruction works — the high returns and

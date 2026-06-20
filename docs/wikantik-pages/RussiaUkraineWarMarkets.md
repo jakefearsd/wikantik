@@ -19,7 +19,7 @@ related:
 - WarOnTerrorMarkets
 - ColdWarMarkets
 - ConflictMarketPatterns
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 date: '2026-03-14'
 ---
 # The Russia-Ukraine War and Equity Markets (2022–present)

@@ -17,7 +17,7 @@ const DEFAULT_INCLUDE = [
   'index-fund-investing','personal-finance',
 ];
 const DEFAULT_EXCLUDE = [
-  'engineering-leadership','linux-for-windows-users','conflicts-equity-markets',
+  'engineering-leadership','linux-for-windows-users','geopolitics-and-finance',
   'van-life','hobby-woodworking','philosophy','cooking-and-food',
   'emergency-prep','berlin-history','immigration','spousal-green-card',
   'remote-host-management','russia-ukraine-war','hobbies','american-coinage',

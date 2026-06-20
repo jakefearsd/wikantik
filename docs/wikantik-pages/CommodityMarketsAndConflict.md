@@ -1,5 +1,5 @@
 ---
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 canonical_id: 01KQ0P44NPP7S1KCWGK2RHQE00
 title: Commodity Markets and Conflict
 type: article

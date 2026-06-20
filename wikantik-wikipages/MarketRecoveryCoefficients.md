@@ -1,7 +1,7 @@
 ---
 title: Market Recovery Coefficients
 type: article
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 status: active
 date: 2026-05-15
 summary: "Quantitative analysis of market rebound dynamics following systemic shocks, defining econometric coefficients for recovery return, factor, and progress."

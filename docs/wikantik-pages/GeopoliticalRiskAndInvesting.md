@@ -2,7 +2,7 @@
 canonical_id: 01KQ0P44QNVH2212FXF5BSANYX
 title: Geopolitical Risk and Investing
 type: article
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 status: active
 date: '2026-04-26'
 summary: How geopolitical risk affects markets — the historical patterns, the categories

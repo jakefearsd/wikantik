@@ -14,7 +14,7 @@ related:
 - WorldWarTwoMarkets
 - ConflictMarketPatterns
 type: article
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 status: active
 part-of:
 - ConflictsAndEquityMarkets

@@ -2,7 +2,7 @@
 canonical_id: 01KQ0P44PGPECEPJJN3E57HDR0
 title: Defense Sector Investing
 type: article
-cluster: conflicts-equity-markets
+cluster: geopolitics-and-finance
 status: active
 date: '2026-04-26'
 summary: How defense stocks behave during and around conflict — the long-cycle nature

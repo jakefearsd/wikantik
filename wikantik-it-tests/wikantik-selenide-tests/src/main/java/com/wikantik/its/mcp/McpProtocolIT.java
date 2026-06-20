@@ -91,8 +91,11 @@ public class McpProtocolIT extends WithMcpTestSetup {
         Assertions.assertTrue( toolRequiredParams.get( "get_backlinks" ).contains( "slug" ) );
         Assertions.assertTrue( toolRequiredParams.get( "write_pages" ).contains( "pages" ) );
         Assertions.assertTrue( toolRequiredParams.get( "update_page" ).contains( "slug" ) );
-        Assertions.assertTrue( toolRequiredParams.get( "update_page" ).contains( "content" ) );
         Assertions.assertTrue( toolRequiredParams.get( "update_page" ).contains( "expectedContentHash" ) );
+        // content is OPTIONAL since the merge-safe update_page fix (metadata-only edits leave the
+        // body untouched), so it must NOT be advertised as required.
+        Assertions.assertFalse( toolRequiredParams.get( "update_page" ).contains( "content" ),
+                "update_page content is optional (frontmatter-merge fix); must not be required" );
     }
 
     @Test

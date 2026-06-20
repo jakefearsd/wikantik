@@ -329,6 +329,10 @@ class ApiKeyServiceTest {
         assertTrue( found.isPresent() );
         assertEquals( "dan", found.get().principalLogin() );
         assertEquals( ApiKeyService.Scope.TOOLS, found.get().scope() );
+        // findById must surface a key whether active OR revoked (no revoked_at filter).
+        service.revoke( g.record().id(), "admin" );
+        assertTrue( service.findById( g.record().id() ).isPresent(),
+                "a revoked key must still be findable by id" );
         assertTrue( service.findById( 999_999 ).isEmpty() );
     }
 }

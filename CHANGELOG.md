@@ -19,6 +19,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   chunk embeddings) and a new `list_retrieval_queries` admin-MCP tool over the real query log
   (V041) for finding under-served queries. The `wiki-content` skill now documents the
   author → static-lint → live-bundle-check verification loop.
+- **Self-service API keys.** Logged-in users can list, generate, rotate, and revoke their own
+  API keys from the **API Keys** section of `/preferences`, backed by a new ownership-enforced
+  `/api/self/apikeys` resource. Keys are bound to the caller's own principal (no privilege
+  escalation), secrets are shown once, and storage stays hashed-only — "recovery" is by reissue.
+- **Last-login column in admin → Users.** A new `users.last_login` column (V042) is stamped on
+  every successful authentication (form login, SSO, remember-me re-auth) and shown next to
+  *Created*; accounts that have not authenticated since the column shipped render as an em dash.
+
+### Fixed
+- **`update_page` (admin-MCP) is merge-safe.** Metadata now merges onto the page's existing
+  frontmatter instead of silently wiping it, and `content` is optional — omit it for a
+  metadata-only edit that leaves the body untouched.
+- **Embeddings self-heal on startup.** Stale or dropped chunk embeddings (from a bulk edit or a
+  crash mid-re-embed) are reconciled at boot, so retrieval converges without a manual rebuild.
 
 ## [2.0.20] - 2026-06-19
 

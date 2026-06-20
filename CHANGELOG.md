@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-06-20
+
 ### Added
 - **Corpus math-syntax fixer.** `MathSyntaxFixCli` (with `MathSyntaxFixer`) batch-repairs the page
   corpus: it escapes prose-currency `$` and reformats single-line `$$ x $$` into blank-line-isolated

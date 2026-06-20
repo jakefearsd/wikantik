@@ -201,6 +201,23 @@ public interface UserDatabase {
     void save( UserProfile profile ) throws WikiSecurityException;
 
     /**
+     * Records the timestamp of a successful authentication for the account with the given login name.
+     * This is a lightweight, targeted write — it updates only the last-login column and must not alter
+     * the profile's last-modified timestamp or any other field. If no account matches {@code loginName},
+     * implementations should treat the call as a no-op.
+     * <p>
+     * This default implementation does nothing; stores that do not track last-login activity simply
+     * leave the value unset. The JDBC-backed store overrides it.
+     *
+     * @param loginName the login name of the account that authenticated
+     * @param when the timestamp of the authentication
+     * @throws WikiSecurityException if the underlying store cannot be updated
+     */
+    default void recordLastLogin( final String loginName, final Date when ) throws WikiSecurityException {
+        // No-op by default — see JDBCUserDatabase for the persisting implementation.
+    }
+
+    /**
      * Determines whether a supplied user password is valid, given a login name and password. It is up to the implementing class to
      * determine how the comparison should be made. For example, the password might be hashed before comparing it to the value persisted
      * in the back-end data store.

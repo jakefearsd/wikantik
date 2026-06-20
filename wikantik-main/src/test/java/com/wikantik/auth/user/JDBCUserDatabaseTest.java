@@ -691,6 +691,30 @@ public class JDBCUserDatabaseTest {
     }
 
     @Test
+    public void testRecordLastLogin() throws WikiSecurityException {
+        // The seeded "user" account has a `created` but no `modified` timestamp.
+        UserProfile before = m_db.findByLoginName( "user" );
+        Assertions.assertNull( before.getLastLogin(), "fresh account should have no last-login yet" );
+        final java.util.Date modifiedBefore = before.getLastModified();
+
+        final java.util.Date when = new java.util.Date( 1_700_000_000_000L );
+        m_db.recordLastLogin( "user", when );
+
+        final UserProfile after = m_db.findByLoginName( "user" );
+        Assertions.assertNotNull( after.getLastLogin(), "last login should be persisted" );
+        Assertions.assertEquals( when.getTime(), after.getLastLogin().getTime() );
+        // The targeted update must NOT have masqueraded as a profile edit.
+        Assertions.assertEquals( modifiedBefore, after.getLastModified(), "recordLastLogin must not change `modified`" );
+    }
+
+    @Test
+    public void testRecordLastLoginForUnknownUserIsNoOp() {
+        // No matching row — the UPDATE affects zero rows and must not throw.
+        Assertions.assertDoesNotThrow(
+                () -> m_db.recordLastLogin( "no-such-user-" + System.currentTimeMillis(), new java.util.Date() ) );
+    }
+
+    @Test
     public void testGetWikiNamesWithEmptyWikiName() throws WikiSecurityException {
         // The "user" test user has no wiki name, which should be skipped
         // and a warning logged

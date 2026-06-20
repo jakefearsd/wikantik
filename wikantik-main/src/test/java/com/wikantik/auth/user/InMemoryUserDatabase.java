@@ -113,6 +113,7 @@ public class InMemoryUserDatabase extends AbstractUserDatabase {
         p.setBio( s.getBio() );
         p.setCreated( s.getCreated() );
         p.setLastModified( s.getLastModified() );
+        p.setLastLogin( s.getLastLogin() );
         p.setLockExpiry( s.getLockExpiry() );
         p.setPasswordMustChange( s.isPasswordMustChange() );
         p.getAttributes().putAll( s.getAttributes() );
@@ -122,6 +123,18 @@ public class InMemoryUserDatabase extends AbstractUserDatabase {
     @Override
     public void initialize( final Engine engine, final Properties props ) {
         seed();
+    }
+
+    /** Stamps the last-login timestamp on the canonical stored profile (mirrors the JDBC store's targeted update). */
+    @Override
+    public void recordLastLogin( final String loginName, final java.util.Date when ) {
+        if ( loginName == null || when == null ) {
+            return;
+        }
+        final UserProfile stored = byLogin.get( loginName );
+        if ( stored != null ) {
+            stored.setLastLogin( when );
+        }
     }
 
     @Override

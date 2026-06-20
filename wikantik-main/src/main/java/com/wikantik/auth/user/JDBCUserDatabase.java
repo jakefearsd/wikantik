@@ -202,6 +202,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     private static final String INSERT_PROFILE = "INSERT INTO users (uid,email,full_name,password,wiki_name,modified,login_name,attributes,bio,created,password_must_change) VALUES (?,?,?,?,?,?,?,?,?,?,?)";
     private static final String UPDATE_PROFILE = "UPDATE users SET uid=?,email=?,full_name=?,password=?,wiki_name=?,modified=?,login_name=?,attributes=?,bio=?,lock_expiry=?,password_must_change=? WHERE login_name=?";
     private static final String COUNT_LOCKED_USERS = "SELECT COUNT(*) FROM users WHERE lock_expiry IS NOT NULL AND lock_expiry > CURRENT_TIMESTAMP";
+    private static final String UPDATE_LAST_LOGIN = "UPDATE users SET last_login=? WHERE login_name=?";
     private static final String INSERT_ROLE = "INSERT INTO roles (login_name,role) VALUES (?,?)";
     private static final String FIND_ROLES = "SELECT * FROM roles WHERE login_name=?";
     private static final String DELETE_USER = "DELETE FROM users WHERE login_name=?";
@@ -559,8 +560,32 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     }
 
     /**
+     * {@inheritDoc}
+     * <p>
+     * Targeted update of the {@code last_login} column only — it deliberately leaves the
+     * {@code modified} timestamp and all other fields untouched, so stamping a login does not
+     * masquerade as a profile edit. The cached profile for this login is invalidated so the
+     * next lookup (e.g. the admin user list) reflects the fresh timestamp.
+     */
+    @Override
+    public void recordLastLogin( final String loginName, final Date when ) throws WikiSecurityException {
+        if( loginName == null || when == null ) {
+            return;
+        }
+        try( Connection conn = ds.getConnection();
+             PreparedStatement ps = conn.prepareStatement( UPDATE_LAST_LOGIN ) ) {
+            ps.setTimestamp( 1, new Timestamp( when.getTime() ) );
+            ps.setString( 2, loginName );
+            ps.executeUpdate();
+            byLoginCache.invalidate( loginName );
+        } catch( final SQLException e ) {
+            throw new WikiSecurityException( "Could not record last login for '" + loginName + "': " + e.getMessage(), e );
+        }
+    }
+
+    /**
      * Private method that returns the first {@link UserProfile} matching a
-     * named column's value. This method will also set the UID if it has not yet been set.     
+     * named column's value. This method will also set the UID if it has not yet been set.
      * @param sql the SQL statement that should be prepared; it must have one parameter
      * to set (either a String or a Long)
      * @param index the value to match
@@ -624,6 +649,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                     profile.setEmail( rs.getString( "email" ) );
                     profile.setFullname( rs.getString( "full_name" ) );
                     profile.setLastModified( rs.getTimestamp( "modified" ) );
+                    profile.setLastLogin( rs.getTimestamp( "last_login" ) );
                     final Date lockExpiryDate = rs.getDate( "lock_expiry" );
                     profile.setLockExpiry( rs.wasNull() ? null : lockExpiryDate );
                     profile.setLoginName( rs.getString( "login_name" ) );

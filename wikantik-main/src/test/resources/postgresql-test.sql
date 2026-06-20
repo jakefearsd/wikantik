@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
     wiki_name      VARCHAR(100),
     created        TIMESTAMP,
     modified       TIMESTAMP,
+    last_login     TIMESTAMP,
     lock_expiry    TIMESTAMP,
     password_must_change BOOLEAN NOT NULL DEFAULT FALSE,
     bio            VARCHAR(1000),

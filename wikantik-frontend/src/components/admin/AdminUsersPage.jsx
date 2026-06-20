@@ -17,6 +17,12 @@ const COLUMNS = [
     sortable: true,
   },
   {
+    id: 'lastLogin',
+    label: 'Last login',
+    render: (u) => <span className="admin-cell-date">{formatDateTime(u.lastLogin)}</span>,
+    sortable: true,
+  },
+  {
     id: 'locked',
     label: 'Status',
     render: (u) => (
@@ -330,6 +336,20 @@ function formatDate(dateStr) {
   if (!dateStr) return '—';
   try {
     return new Date(dateStr).toLocaleDateString();
+  } catch {
+    return dateStr;
+  }
+}
+
+// Last-login wants the time of day too (date + short time), and renders an
+// em dash when the account has never authenticated since tracking began.
+function formatDateTime(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    return new Date(dateStr).toLocaleString([], {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
   } catch {
     return dateStr;
   }

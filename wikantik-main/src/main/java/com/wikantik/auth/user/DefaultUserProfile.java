@@ -47,6 +47,7 @@ public final class DefaultUserProfile implements UserProfile {
     private boolean passwordMustChange;
     private String loginName;
     private Date modified;
+    private Date lastLogin;
     private String password;
     private String uid;
     private String wikiname;
@@ -73,6 +74,7 @@ public final class DefaultUserProfile implements UserProfile {
         c.setBio( src.getBio() );
         c.setCreated( src.getCreated() == null ? null : new java.util.Date( src.getCreated().getTime() ) );
         c.setLastModified( src.getLastModified() == null ? null : new java.util.Date( src.getLastModified().getTime() ) );
+        c.setLastLogin( src.getLastLogin() == null ? null : new java.util.Date( src.getLastLogin().getTime() ) );
         c.setLockExpiry( src.getLockExpiry() == null ? null : new java.util.Date( src.getLockExpiry().getTime() ) );
         c.setPasswordMustChange( src.isPasswordMustChange() );
         final java.util.Map< String, java.io.Serializable > attrs = src.getAttributes();
@@ -162,6 +164,18 @@ public final class DefaultUserProfile implements UserProfile {
     public Date getLastModified()
     {
         return modified;
+    }
+
+    /**
+     * Returns the last-login date.
+     *
+     * @return the last-login date, or {@code null} if never recorded
+     * @see com.wikantik.auth.user.UserProfile#getLastLogin()
+     */
+    @Override
+    public Date getLastLogin()
+    {
+        return lastLogin;
     }
 
     /**
@@ -278,6 +292,18 @@ public final class DefaultUserProfile implements UserProfile {
     public void setLastModified( final Date date )
     {
         modified = date;
+    }
+
+    /**
+     * Sets the last-login date.
+     *
+     * @param date the last-login date
+     * @see com.wikantik.auth.user.UserProfile#setLastLogin(java.util.Date)
+     */
+    @Override
+    public void setLastLogin( final Date date )
+    {
+        lastLogin = date;
     }
 
     /**

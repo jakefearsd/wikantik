@@ -25,9 +25,9 @@ vi.mock('../../api/client', () => ({
 import { api } from '../../api/client';
 
 const USERS = [
-  { loginName: 'alice', fullName: 'Alice Admin', email: 'alice@example.com', created: '2024-01-01', locked: false },
-  { loginName: 'bob', fullName: 'Bob Builder', email: 'bob@example.com', created: '2024-01-02', locked: false },
-  { loginName: 'charlie', fullName: 'Charlie Checker', email: 'charlie@example.com', created: '2024-01-03', locked: true },
+  { loginName: 'alice', fullName: 'Alice Admin', email: 'alice@example.com', created: '2024-01-01', lastLogin: '2026-06-20T09:12:00Z', locked: false },
+  { loginName: 'bob', fullName: 'Bob Builder', email: 'bob@example.com', created: '2024-01-02', lastLogin: '2026-06-18T14:40:00Z', locked: false },
+  { loginName: 'charlie', fullName: 'Charlie Checker', email: 'charlie@example.com', created: '2024-01-03', lastLogin: null, locked: true },
 ];
 
 beforeEach(() => {
@@ -90,6 +90,22 @@ describe('AdminUsersPage — rendering', () => {
     const activeBadges = screen.getAllByText('Active');
     expect(activeBadges.length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Locked')).toBeTruthy();
+  });
+
+  it('shows a Last login column, with an em dash for never-authenticated accounts', async () => {
+    render(<AdminUsersPage />);
+    await screen.findByText('alice');
+
+    expect(screen.getByText('Last login')).toBeInTheDocument();
+
+    // Every user has a full name and email, so charlie's null lastLogin is the
+    // only em dash in the table body.
+    const charlieRow = screen.getByText('charlie').closest('tr');
+    expect(within(charlieRow).getByText('—')).toBeInTheDocument();
+
+    // alice authenticated, so her row must NOT render an em dash.
+    const aliceRow = screen.getByText('alice').closest('tr');
+    expect(within(aliceRow).queryByText('—')).toBeNull();
   });
 });
 

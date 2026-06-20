@@ -73,6 +73,15 @@ public interface UserProfile extends Serializable
     Date getLastModified();
 
     /**
+     * Returns the date/time the account last successfully authenticated (form login, SSO,
+     * or a remember-me cookie re-establishing a session), or <code>null</code> if the
+     * account has not authenticated since last-login tracking began.
+     *
+     * @return the last-login date, or <code>null</code> if never recorded
+     */
+    Date getLastLogin();
+
+    /**
      * Returns the date/time of expiration of the profile's lock, if it has been
      * previously locked via {@link #setLockExpiry(Date)} and the lock is
      * still active. If the profile is unlocked, this method returns <code>null</code>.
@@ -187,6 +196,12 @@ public interface UserProfile extends Serializable
      * @param date the last-modified date
      */
     void setLastModified( Date date );
+
+    /**
+     * Sets the date/time the account last successfully authenticated.
+     * @param date the last-login date, or <code>null</code> if never recorded
+     */
+    void setLastLogin( Date date );
 
     /**
      * Locks the profile until a specified lock expiration date.

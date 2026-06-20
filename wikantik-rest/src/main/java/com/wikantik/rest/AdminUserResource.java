@@ -652,6 +652,7 @@ public class AdminUserResource extends RestServletBase {
         map.put( "wikiName", profile.getWikiName() );
         map.put( "created", formatDate( profile.getCreated() ) );
         map.put( "lastModified", formatDate( profile.getLastModified() ) );
+        map.put( "lastLogin", formatDate( profile.getLastLogin() ) );
 
         final Date lockExpiry = profile.getLockExpiry();
         final boolean locked = lockExpiry != null && lockExpiry.after( new Date() );

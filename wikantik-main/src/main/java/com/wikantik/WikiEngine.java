@@ -606,6 +606,10 @@ public class WikiEngine implements Engine {
     // WikiEventManager's WeakHashMap before we can de-register it on shutdown.
     private volatile com.wikantik.audit.AuditEventListener auditEventListener;
 
+    // Strong reference (same WeakHashMap concern as auditEventListener): stamps each
+    // account's last-login timestamp on LOGIN_AUTHENTICATED.
+    private volatile com.wikantik.auth.LastLoginEventListener lastLoginEventListener;
+
     /** Guice injector for modern dependency management. */
     private Injector injector;
 
@@ -1756,6 +1760,12 @@ public class WikiEngine implements Engine {
         if ( authzMgr != null ) authzMgr.addWikiEventListener( auditEventListener );
         final UserManager userMgr = getManager( UserManager.class );
         if ( userMgr != null ) userMgr.addWikiEventListener( auditEventListener );
+        // Last-login stamping: LOGIN_AUTHENTICATED fires from the authentication manager,
+        // so register the listener there. The user database is the write target.
+        if ( authnMgr != null && userMgr != null && userMgr.getUserDatabase() != null ) {
+            this.lastLoginEventListener = new com.wikantik.auth.LastLoginEventListener( userMgr.getUserDatabase() );
+            authnMgr.addWikiEventListener( this.lastLoginEventListener );
+        }
         final GroupManager groupMgr = getManager( GroupManager.class );
         if ( groupMgr != null ) groupMgr.addWikiEventListener( auditEventListener );
         // PageManager has no addWikiEventListener on its interface; it fires page

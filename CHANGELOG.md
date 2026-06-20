@@ -6,6 +6,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **Corpus math-syntax fixer.** `MathSyntaxFixCli` (with `MathSyntaxFixer`) batch-repairs the page
+  corpus: it escapes prose-currency `$` and reformats single-line `$$ x $$` into blank-line-isolated
+  display blocks. It mirrors `MathStructureValidator` exactly — escaping the opening `$` of a
+  prose-flagged inline pair only when it is followed by a digit, iterating to a fixpoint — so
+  number-led math (`$2^{256}$`, `$90^\circ$`) is never broken.
+
+### Changed
+- **Documentation refreshed for the current architecture.** `WikantikArchitecture` was rewritten as
+  a deep architecture reference (the module reactor, the three-graph model, the retrieval stack, the
+  knowledge + ontology layer, and the agent MCP surface, with strengths, an honest critique, and a
+  roadmap) and the front page was reframed around the human + AI-agent value proposition. The README,
+  the marketing site, and the linked docs now describe production retrieval as BM25 + dense fused
+  with RRF (fail-closed); the Knowledge-Graph-aware rerank is shelved and off by default, having
+  measured no net ranking lift. MCP tool counts were corrected throughout (knowledge-mcp 20 tools,
+  admin-mcp 26).
+
+### Fixed
+- **Frontmatter save-warnings no longer leak across pages.** `FrontmatterWarningSink` was a flat
+  per-thread slot, so a nested or concurrent save of a different page could clobber the outer page's
+  warnings (surfacing a foreign "summary is 188 chars" warning on `update_page`). The stash is now
+  keyed by page name, so `update_page`, `write_pages`, and `PageResource` each drain exactly their own.
+
 ## [2.0.21] - 2026-06-20
 
 ### Removed

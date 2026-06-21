@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+- **Vulnerable transitive dependencies pinned to patched versions.** An OSV.dev scan of the
+  resolved dependency tree flagged 8 vulnerable transitives; all are remediated compatibly via
+  `dependencyManagement` pins (no direct-dependency major upgrade required): BouncyCastle
+  1.83→1.84 (CVE-2026-5598/-0636/-5588), commons-beanutils 1.9.4→1.11.0 (CVE-2025-48734),
+  Jackson 3 core/databind/dataformat-yaml 3.0.3→3.2.0 (CVE-2026-29062 +2), libthrift
+  0.21.0→0.23.0 (CVE-2026-43869), junrar 7.5.8→7.6.0 (CVE-2026-41245), Guava 31.0.1→33.6.0-jre
+  (CVE-2023-2976, CVE-2020-8908), and okio 3.2.0→3.17.0 (CVE-2023-3635). A post-pin re-scan
+  reports zero known vulnerabilities.
+- **Frontend build toolchain upgraded** (Vite 5.4→7.3.5, Vitest 1.6→4.1.9, @vitest/coverage-v8
+  4.1.9, @vitejs/plugin-react 5.2.0), clearing 5 npm advisories (2 critical, 1 high, 2 moderate)
+  in the dev/build toolchain — none of which ships in the production bundle.
+
+### Changed
+- **Routine compatible dependency and plugin upgrades:** anthropic-java 2.42.0, Micrometer 1.17.0,
+  Tika 3.3.1, jaxen 2.0.6, Selenium 4.45.0 (test), SpotBugs 4.10.2, JaCoCo 0.8.15, and
+  maven-site-plugin 3.22.0.
+
 ## [2.1.1] - 2026-06-21
 
 ### Added

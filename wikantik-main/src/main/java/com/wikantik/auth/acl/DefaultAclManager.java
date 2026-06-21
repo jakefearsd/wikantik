@@ -20,6 +20,13 @@ package com.wikantik.auth.acl;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.vladsch.flexmark.ast.Code;
+import com.vladsch.flexmark.ast.FencedCodeBlock;
+import com.vladsch.flexmark.ast.IndentedCodeBlock;
+import com.vladsch.flexmark.parser.Parser;
+import com.vladsch.flexmark.util.ast.Document;
+import com.vladsch.flexmark.util.ast.NodeVisitor;
+import com.vladsch.flexmark.util.ast.VisitHandler;
 import com.wikantik.api.core.Acl;
 import com.wikantik.api.core.AclEntry;
 import com.wikantik.api.core.Attachment;
@@ -78,6 +85,16 @@ public class DefaultAclManager implements AclManager {
      * the ACL string from [{ to }].
      */
     public static final Pattern ACL_PATTERN = Pattern.compile( ACL_REGEX );
+
+    /**
+     * Vanilla CommonMark parser used solely to locate Markdown code spans and
+     * code blocks when scanning for ACL directives. A bare parse (no rendering,
+     * no custom extensions) is far cheaper than a full page render and is all we
+     * need to tell a real {@code [{ALLOW …}]} rule apart from one shown as an
+     * example inside backticks or a fenced block. Flexmark {@link Parser}
+     * instances are immutable and safe to reuse across threads.
+     */
+    private static final Parser CODE_REGION_PARSER = Parser.builder().build();
 
     /** {@inheritDoc} */
     @Override
@@ -168,9 +185,7 @@ public class DefaultAclManager implements AclManager {
                 return acl;
             }
 
-            final Matcher matcher = ACL_PATTERN.matcher( pageText );
-            while( matcher.find() ) {
-                final String ruleLine = matcher.group();
+            for( final String ruleLine : aclDirectives( pageText ) ) {
                 try {
                     acl = parseAcl( page, ruleLine );
                 } catch( final WikiSecurityException e ) {
@@ -182,6 +197,65 @@ public class DefaultAclManager implements AclManager {
         }
 
         return acl;
+    }
+
+    /**
+     * Returns the <em>enforceable</em> ACL directives in {@code pageText}: every
+     * {@code [{ALLOW …}]} match that is NOT inside a Markdown code span or code
+     * block. The identical syntax shown inside backticks or a fenced/indented
+     * block is documentation (e.g. a page that explains how ACLs work) and is
+     * skipped, so such a page no longer accidentally restricts itself.
+     *
+     * <p>The scanner fails closed toward enforcement: a directive in ordinary
+     * page text is always returned, so a genuine restriction is never silently
+     * dropped. Order of appearance is preserved.
+     *
+     * @param pageText the raw page source (may be {@code null})
+     * @return the matched directive strings outside code, in document order
+     */
+    static List< String > aclDirectives( final String pageText ) {
+        if( pageText == null || pageText.isEmpty() ) {
+            return List.of();
+        }
+        final List< int[] > codeRanges = codeRegions( pageText );
+        final List< String > directives = new ArrayList<>();
+        final Matcher matcher = ACL_PATTERN.matcher( pageText );
+        while( matcher.find() ) {
+            if( !isInsideCode( codeRanges, matcher.start() ) ) {
+                directives.add( matcher.group() );
+            }
+        }
+        return directives;
+    }
+
+    /**
+     * Computes the source-offset ranges {@code [start, end)} of every inline
+     * code span and code block in {@code text}, by parsing it as CommonMark and
+     * collecting {@link Code}, {@link FencedCodeBlock} and
+     * {@link IndentedCodeBlock} node spans. Unhandled node types are descended
+     * into automatically by {@link NodeVisitor}, so code nested anywhere in the
+     * document is captured.
+     */
+    private static List< int[] > codeRegions( final String text ) {
+        final List< int[] > ranges = new ArrayList<>();
+        final Document doc = CODE_REGION_PARSER.parse( text );
+        final NodeVisitor visitor = new NodeVisitor(
+            new VisitHandler<>( Code.class,              n -> ranges.add( new int[]{ n.getStartOffset(), n.getEndOffset() } ) ),
+            new VisitHandler<>( FencedCodeBlock.class,   n -> ranges.add( new int[]{ n.getStartOffset(), n.getEndOffset() } ) ),
+            new VisitHandler<>( IndentedCodeBlock.class, n -> ranges.add( new int[]{ n.getStartOffset(), n.getEndOffset() } ) )
+        );
+        visitor.visit( doc );
+        return ranges;
+    }
+
+    /** True if {@code offset} falls within any of the {@code [start, end)} code ranges. */
+    private static boolean isInsideCode( final List< int[] > ranges, final int offset ) {
+        for( final int[] range : ranges ) {
+            if( offset >= range[ 0 ] && offset < range[ 1 ] ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** {@inheritDoc} */

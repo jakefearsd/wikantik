@@ -44,6 +44,10 @@ public class DefaultAclManagerTest
     public void setUp() throws Exception {
         m_engine.saveText( "TestDefaultPage", "Foo" );
         m_engine.saveText( "TestAclPage", "Bar. [{ALLOW edit Charlie, Herman}] " );
+        // A documentation page that merely *shows* the ACL syntax inside an inline-code
+        // span — the directive must not be enforced (regression for the bug where a
+        // backtick'd example silently hid the page from anonymous users).
+        m_engine.saveText( "CodeSpanAclPage", "Docs: write `[{ALLOW view Admin}]` to restrict view." );
     }
 
     @AfterEach
@@ -51,9 +55,21 @@ public class DefaultAclManagerTest
         try {
             m_engine.getManager( PageManager.class ).deletePage( "TestDefaultPage" );
             m_engine.getManager( PageManager.class ).deletePage( "TestAclPage" );
+            m_engine.getManager( PageManager.class ).deletePage( "CodeSpanAclPage" );
         } catch ( final ProviderException ignored ) {
             // test cleanup — page may not exist
         }
+    }
+
+    @Test
+    public void testCodeSpanAclIsNotEnforced() {
+        // An ACL directive that appears only inside a Markdown inline-code span is
+        // documentation, not a real access rule — it must not restrict the page.
+        final Page page = m_engine.getManager( PageManager.class ).getPage( "CodeSpanAclPage" );
+        m_engine.getManager( AclManager.class ).getPermissions( page );
+        Assertions.assertNotNull( page.getAcl() );
+        Assertions.assertTrue( page.getAcl().isEmpty(),
+            "An ACL inside an inline-code span must not be enforced" );
     }
 
     @Test

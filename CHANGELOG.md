@@ -6,6 +6,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **First-class `all` (AllPermission) policy-grant type.** Admin → Security's "Grant AllPermission"
+  control now round-trips end-to-end: the validator accepts `permissionType: all` (it was previously
+  rejected, silently breaking the toggle). To keep the model unambiguous, AllPermission is expressed
+  **only** via the `all` type, under strict rules — it must pin `target='*'` / `actions='*'`, and it
+  cannot be granted to the built-in broad roles (`All`/`Anonymous`/`Asserted`/`Authenticated`),
+  closing a one-typo "everyone is an admin" misconfiguration.
+
+### Changed
+- **Wildcard `*` actions are rejected on scoped (`page`/`wiki`/`group`) grants.** Such a grant
+  silently resolved to AllPermission at runtime (a footgun); use the `all` type to grant AllPermission
+  instead. Existing grants keep working at runtime (back-compat preserved). Migration `V043` converges
+  the default Admin `page`/`wiki` wildcard rows onto a single canonical `all` row — conservatively, so
+  a deliberately locked-down install is never re-granted.
+
 ## [2.1.0] - 2026-06-20
 
 ### Added

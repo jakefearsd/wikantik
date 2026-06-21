@@ -165,20 +165,38 @@ public class DatabasePolicy
     /**
      * Builds a Permission object from the database row values.
      *
-     * @param permType the permission type: "page", "wiki", or "group"
+     * @param permType the permission type: "all" (AllPermission), "page", "wiki", or "group"
      * @param target   the permission target (e.g. "*", "*:&lt;groupmember&gt;")
      * @param actions  the comma-separated actions, or "*" for AllPermission
      * @return the constructed Permission, or {@code null} if the type is unrecognized
      */
     private Permission buildPermission( final String permType, final String target, final String actions )
     {
-        // Actions of "*" means AllPermission regardless of permType
-        if( "*".equals( actions ) )
+        final String type = ( permType == null ) ? "" : permType.toLowerCase( Locale.ROOT );
+
+        // "all" is the canonical AllPermission type. Write-time validation pins target='*',
+        // but we honour whatever wiki scope is stored for forward compatibility.
+        if( "all".equals( type ) )
         {
             return new AllPermission( target );
         }
 
-        return switch( permType.toLowerCase( Locale.ROOT ) )
+        // Back-compat: a wildcard action on a wildcard target is global AllPermission — this is how
+        // the legacy seeded Admin page/wiki god-mode rows resolve. A wildcard action on a SPECIFIC
+        // target is malformed (it is NOT "all actions on that target"): skip it rather than silently
+        // mis-grant a scoped AllPermission. Express AllPermission with permission type "all". [R4]
+        if( "*".equals( actions ) )
+        {
+            if( "*".equals( target ) )
+            {
+                return new AllPermission( target );
+            }
+            LOG.warn( "Ignoring wildcard-action grant with non-wildcard target '{}' (type '{}') in table '{}'; "
+                    + "use permission type 'all' for AllPermission.", target, permType, tableName );
+            return null;
+        }
+
+        return switch( type )
         {
             case "page" -> new PagePermission( qualifyTarget( target ), actions );
             case "wiki" -> new WikiPermission( target, actions );

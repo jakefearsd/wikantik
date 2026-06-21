@@ -170,6 +170,55 @@ class DatabasePolicyTest
         );
     }
 
+    // ---- 'all' permission type + wildcard-action handling (R1/R4) ----
+
+    @Test
+    void allPermissionTypeConfersAllPermission() throws Exception
+    {
+        insertGrant( "role", "SuperUser", "all", "*", "*" );
+        policy.refresh();
+        assertTrue(
+            policy.implies( new Role( "SuperUser" ), new AllPermission( "*" ) ),
+            "A grant with permission type 'all' should confer AllPermission"
+        );
+    }
+
+    @Test
+    void wildcardActionOnWildcardTargetStillConfersAllPermission() throws Exception
+    {
+        // Back-compat: the legacy seeded Admin page/wiki '*' god-mode rows must keep meaning AllPermission.
+        insertGrant( "role", "LegacyAdmin", "page", "*", "*" );
+        policy.refresh();
+        assertTrue(
+            policy.implies( new Role( "LegacyAdmin" ), new AllPermission( "*" ) ),
+            "A wildcard-action grant on a wildcard target should still confer AllPermission (back-compat)"
+        );
+    }
+
+    @Test
+    void wildcardActionOnSpecificTargetDoesNotConferAllPermission() throws Exception
+    {
+        // R4: a '*' action on a SPECIFIC target must not silently become a (scoped) AllPermission.
+        insertGrant( "role", "Scoped", "page", "SomePage", "*" );
+        policy.refresh();
+        assertFalse(
+            policy.implies( new Role( "Scoped" ), new PagePermission( "SomePage:AnyPage", "delete" ) ),
+            "A '*'-action grant on a specific target must not confer a scoped AllPermission"
+        );
+    }
+
+    private void insertGrant( final String pt, final String pn, final String permType,
+                              final String target, final String actions ) throws Exception
+    {
+        try( final Connection conn = ds.getConnection();
+             final Statement stmt = conn.createStatement() )
+        {
+            stmt.executeUpdate( String.format(
+                "INSERT INTO policy_grants (principal_type, principal_name, permission_type, target, actions) " +
+                "VALUES ('%s', '%s', '%s', '%s', '%s')", pt, pn, permType, target, actions ) );
+        }
+    }
+
     @Test
     void testAllRoleHasViewPermission()
     {

@@ -81,6 +81,9 @@ public class AdminPolicyResource extends RestServletBase {
     /** Valid permission types. */
     private static final Set< String > PERMISSION_TYPES = Set.of( "page", "wiki", "group" );
 
+    /** Built-in broad roles that must never be granted AllPermission (would make the whole population admin). */
+    private static final Set< String > BROAD_ROLES = Set.of( "All", "Anonymous", "Asserted", "Authenticated" );
+
     @Override
     protected boolean isCrossOriginAllowed() {
         return false;
@@ -457,9 +460,38 @@ public class AdminPolicyResource extends RestServletBase {
             return "Invalid principalType: " + principalType + ". Must be one of: " + PRINCIPAL_TYPES;
         }
 
+        // 'all' is the canonical AllPermission type (omnipotent). It is accepted in addition to the
+        // scoped types, but under strict restrictions.
+        if ( "all".equals( permissionType ) ) {
+            // R1: AllPermission must pin target='*' and actions='*'. A scoped target would be a
+            // silently-partial "AllPermission" (its target is the wiki scope), and a specific
+            // action is meaningless for an omnipotent grant.
+            if ( !"*".equals( target ) ) {
+                return "The 'all' permission type (AllPermission) requires target '*'.";
+            }
+            if ( !"*".equals( actions ) ) {
+                return "The 'all' permission type (AllPermission) requires actions '*'.";
+            }
+            // R3: AllPermission must never be granted to the built-in broad roles — that would make
+            // the whole population (or every anonymous visitor) an administrator.
+            if ( "role".equals( principalType )
+                    && BROAD_ROLES.stream().anyMatch( r -> r.equalsIgnoreCase( principalName ) ) ) {
+                return "AllPermission cannot be granted to the built-in role '" + principalName + "'.";
+            }
+            return null;
+        }
+
         // Validate permission type
         if ( !PERMISSION_TYPES.contains( permissionType ) ) {
-            return "Invalid permissionType: " + permissionType + ". Must be one of: " + PERMISSION_TYPES;
+            return "Invalid permissionType: " + permissionType + ". Must be one of: " + PERMISSION_TYPES + " or 'all'";
+        }
+
+        // R2: AllPermission may only be expressed with the 'all' type. A wildcard '*' action on a
+        // scoped permission silently resolves to AllPermission at runtime (a footgun), so reject it
+        // and point the caller at the explicit 'all' type.
+        if ( "*".equals( actions.trim() ) ) {
+            return "Wildcard '*' actions are not allowed on a '" + permissionType
+                    + "' permission; use the 'all' permission type to grant AllPermission.";
         }
 
         // Validate actions

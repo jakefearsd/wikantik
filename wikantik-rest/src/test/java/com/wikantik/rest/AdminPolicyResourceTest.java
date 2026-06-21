@@ -105,6 +105,69 @@ class AdminPolicyResourceTest {
         assertEquals( 400, obj.get( "status" ).getAsInt() );
     }
 
+    // ---- 'all' permission type validation (R1/R2/R3) ----
+
+    private JsonObject grantBody( final String principalType, final String principalName,
+                                  final String permissionType, final String target, final String actions ) {
+        final JsonObject b = new JsonObject();
+        b.addProperty( "principalType", principalType );
+        b.addProperty( "principalName", principalName );
+        b.addProperty( "permissionType", permissionType );
+        b.addProperty( "target", target );
+        b.addProperty( "actions", actions );
+        return b;
+    }
+
+    @Test
+    void allTypeWithWildcardTargetAndActionsPassesValidation() throws Exception {
+        // The canonical AllPermission grant must be ACCEPTED by validation (then 503s without a DataSource).
+        final String json = doPost( grantBody( "role", "Admin", "all", "*", "*" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        assertNotEquals( 400, obj.get( "status" ).getAsInt(),
+            "A canonical all/*/* grant for a non-broad role must pass validation" );
+    }
+
+    @Test
+    void allTypeWithNonWildcardTargetIsRejected() throws Exception {
+        // R1: 'all' must pin target='*'.
+        final String json = doPost( grantBody( "role", "Admin", "all", "SomePage", "*" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "target" ),
+            "R1: 'all' with a non-'*' target must be rejected citing target" );
+    }
+
+    @Test
+    void allTypeWithSpecificActionsIsRejected() throws Exception {
+        // R1: 'all' must pin actions='*'.
+        final String json = doPost( grantBody( "role", "Admin", "all", "*", "view" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "actions" ),
+            "R1: 'all' with specific actions must be rejected citing actions" );
+    }
+
+    @Test
+    void wildcardActionsOnPageTypeIsRejected() throws Exception {
+        // R2: AllPermission may only be expressed with the 'all' type; '*' actions on page/wiki/group are rejected.
+        final String json = doPost( grantBody( "role", "Editor", "page", "*", "*" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( "all" ),
+            "R2: '*' actions on a typed permission must be rejected, pointing at the 'all' type" );
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "All", "Anonymous", "Asserted", "Authenticated" } )
+    void allTypeCannotBeGrantedToBroadRoles( final String role ) throws Exception {
+        // R3: AllPermission must not be granted to the built-in broad roles.
+        final String json = doPost( grantBody( "role", role, "all", "*", "*" ) );
+        final JsonObject obj = gson.fromJson( json, JsonObject.class );
+        assertEquals( 400, obj.get( "status" ).getAsInt() );
+        assertTrue( obj.get( "message" ).getAsString().contains( role ),
+            "R3: granting AllPermission to '" + role + "' must be rejected" );
+    }
+
     @ParameterizedTest
     @ValueSource( strings = { "hackdb", "dropTable", "xss_inject", "" } )
     void testCreateGrantWithVariousInvalidActions( final String invalidAction ) throws Exception {
@@ -270,10 +333,11 @@ class AdminPolicyResourceTest {
         final String json = doPost( body );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
 
-        if ( obj.has( "error" ) ) {
-            assertNotEquals( 400, obj.get( "status" ).getAsInt(),
-                    "AllPermission action '*' should not trigger a 400 validation error" );
-        }
+        // R2: a wildcard '*' action on a scoped (page) permission is rejected — AllPermission must
+        // be expressed with the dedicated 'all' permission type.
+        assertEquals( 400, obj.get( "status" ).getAsInt(),
+                "Wildcard '*' actions on a 'page' permission must be rejected (use the 'all' type)" );
+        assertTrue( obj.get( "message" ).getAsString().contains( "all" ) );
     }
 
     @Test
@@ -607,11 +671,10 @@ class AdminPolicyResourceTest {
         final String json = doPost( body );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
 
-        if ( obj.has( "error" ) ) {
-            // Should pass validation (wildcard), fail on DB
-            assertNotEquals( 400, obj.get( "status" ).getAsInt(),
-                    "Wildcard '*' should not trigger validation error for wiki permission" );
-        }
+        // R2: wildcard '*' actions on a 'wiki' permission are rejected — use the 'all' type for AllPermission.
+        assertEquals( 400, obj.get( "status" ).getAsInt(),
+                "Wildcard '*' actions on a 'wiki' permission must be rejected (use the 'all' type)" );
+        assertTrue( obj.get( "message" ).getAsString().contains( "all" ) );
     }
 
     @Test
@@ -626,10 +689,10 @@ class AdminPolicyResourceTest {
         final String json = doPost( body );
         final JsonObject obj = gson.fromJson( json, JsonObject.class );
 
-        if ( obj.has( "error" ) ) {
-            assertNotEquals( 400, obj.get( "status" ).getAsInt(),
-                    "Wildcard '*' should not trigger validation error for group permission" );
-        }
+        // R2: wildcard '*' actions on a 'group' permission are rejected — use the 'all' type for AllPermission.
+        assertEquals( 400, obj.get( "status" ).getAsInt(),
+                "Wildcard '*' actions on a 'group' permission must be rejected (use the 'all' type)" );
+        assertTrue( obj.get( "message" ).getAsString().contains( "all" ) );
     }
 
     // ----- CORS restriction tests -----

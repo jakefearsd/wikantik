@@ -1,16 +1,16 @@
 ---
 summary: 'Wikantik''s architecture: modular Java engine, hybrid file+Postgres storage,
   BM25+dense retrieval, Knowledge Graph + RDF ontology, and the agent MCP surface.'
-cluster: wikantik-platform
 verified_by: jakefear
-verified_at: '2026-06-20T20:40:31.893363642Z'
 canonical_id: 01KQTCAKV3BVHYPW20PHSFGXJR
+verified_at: '2026-06-20T20:40:31.893363642Z'
 type: design
-title: Wikantik System Architecture
 status: active
+cluster: wikantik-platform
 hubs:
 - WikantikPlatformHub
 - WikantikDevelopment
+title: Wikantik System Architecture
 tags:
 - architecture
 - wikantik
@@ -31,13 +31,13 @@ The guiding principle, repeated throughout the design, is **human–machine pari
 
 ```
                          ┌──────────────────────────────────────────┐
-   Humans  ──browser──▶  │  React SPA (Vite/TS)  +  SSR head/meta    │
+   Humans  ──browser──▶  │  React SPA (Vite/TS)  +  SSR head/meta   │
                          └───────────────┬──────────────────────────┘
                                          │  HTTP
    Agents  ──MCP/HTTP──▶  ┌──────────────▼──────────────────────────┐
-   Crawlers ─REST/RDF──▶  │      Servlet filter pipeline             │
-                         │  CSRF · CORS · CSP · auth · SPA routing   │
-                         └──────────────┬───────────────────────────┘
+   Crawlers ─REST/RDF──▶  │      Servlet filter pipeline            │
+                          │  CSRF · CORS · CSP · auth · SPA routing │
+                          └──────────────┬──────────────────────────┘
             ┌───────────────────────────┼───────────────────────────────┐
             ▼               ▼            ▼             ▼                  ▼
       /api/* REST     /wikantik-     /knowledge-   /scim/v2/*     /sparql · /id/*
@@ -46,18 +46,18 @@ The guiding principle, repeated throughout the design, is **human–machine pari
             └───────────────────────────┬────────────┴──────────────────┘
                                          ▼
                          ┌───────────────────────────────────────────┐
-                         │            WikiEngine (orchestrator)        │
-                         │  PageManager · RenderingManager · Search   │
-                         │  FilterManager · PluginManager · Attach…   │
+                         │            WikiEngine (orchestrator)      │
+                         │  PageManager · RenderingManager · Search  │
+                         │  FilterManager · PluginManager · Attach…  │
                          └───────────────┬───────────────────────────┘
                   ┌──────────────────────┼───────────────────────────┐
                   ▼                      ▼                            ▼
         ┌──────────────────┐  ┌────────────────────┐    ┌──────────────────────┐
-        │  Page corpus      │  │   PostgreSQL        │    │  Ontology (Jena TDB2) │
-        │  Markdown + YAML  │  │  users · policy ·   │    │  RDF/OWL T-Box +      │
-        │  (file provider,  │  │  KG (kg_*) ·        │    │  projected A-Box      │
-        │   versioned)      │  │  pgvector embeds ·  │    │  (SPARQL/SHACL)       │
-        │                   │  │  citations          │    │                       │
+        │  Page corpus     │  │   PostgreSQL      │    │  Ontology (Jena TDB2) │
+        │  Markdown + YAML │  │  users · policy · │    │  RDF/OWL T-Box +      │
+        │  (file provider, │  │  KG (kg_*) ·      │    │  projected A-Box      │
+        │   versioned)     │  │  pgvector embeds ·│    │  (SPARQL/SHACL)       │
+        │                  │  │  citations        │    │                       │
         └──────────────────┘  └────────────────────┘    └──────────────────────┘
 ```
 
